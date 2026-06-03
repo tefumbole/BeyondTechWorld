@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/customSupabaseClient';
-import { sendWhatsAppMessage, formatPhoneNumber } from './wasenderapiService';
+import { sendOtp, formatPhoneNumber } from './wasenderapiService';
 
 /**
  * Fetches the phone number for a user from the profiles table
@@ -73,16 +73,13 @@ export const otpService = {
         throw new Error("Failed to store verification code.");
       }
 
-      // 4. Dispatch WhatsApp Message
-      const messageTemplate = `Your Alpha Bridge verification code is: *${otpCode}*.\n\nThis code will expire in 10 minutes.\nDo not share this code with anyone.`;
-      
-      console.log(`[OTP_SERVICE] Dispatching WhatsApp message to ${formattedPhone}`);
-      
-      const sendResult = await sendWhatsAppMessage(formattedPhone, messageTemplate);
+      console.log(`[OTP_SERVICE] Dispatching WhatsApp OTP to ${formattedPhone}`);
+
+      const sendResult = await sendOtp(formattedPhone, otpCode);
 
       if (!sendResult.success) {
         console.error('[OTP_SERVICE] Message dispatch failed:', sendResult.error);
-        throw new Error(sendResult.error || "Failed to send WhatsApp message.");
+        throw new Error(sendResult.error || 'Failed to send WhatsApp message.');
       }
 
       const maskedPhone = `${formattedPhone.substring(0, 6)}****${formattedPhone.slice(-2)}`;

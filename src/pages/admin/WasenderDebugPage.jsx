@@ -22,14 +22,17 @@ const WasenderDebugPage = () => {
   useEffect(() => {
       // Load and safely log configuration
       const key = import.meta.env.VITE_WASENDER_API_KEY;
-      const url = import.meta.env.VITE_WASENDER_API_URL;
-      const phone = import.meta.env.VITE_WASENDER_PHONE;
+      const url =
+        import.meta.env.VITE_WASENDER_BASE_URL ||
+        import.meta.env.VITE_WASENDER_API_URL ||
+        'https://wasenderapi.com/api';
+      const country = import.meta.env.VITE_DEFAULT_PHONE_COUNTRY || 'RW';
 
       setConfig({
           keyStatus: !!key,
           maskedKey: maskKey(key),
-          apiUrl: url || 'MISSING',
-          devicePhone: phone || 'MISSING'
+          apiUrl: url,
+          devicePhone: `Default country: ${country}`,
       });
   }, []);
 
