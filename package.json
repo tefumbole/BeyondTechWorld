@@ -5,10 +5,14 @@
   "private": true,
   "scripts": {
     "dev": "vite --host :: --port 3000",
+    "dev:api": "npm run dev --prefix apps/api",
     "build": "node tools/generate-llms.js || true && vite build",
     "preview": "vite preview --host :: --port 3000",
     "lint": "eslint . --quiet",
-    "lint:warn": "eslint ."
+    "lint:warn": "eslint .",
+    "db:migrate": "npm run db:migrate --prefix apps/api",
+    "db:test": "npm run db:test --prefix apps/api",
+    "api:start": "npm run start --prefix apps/api"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.4.0",

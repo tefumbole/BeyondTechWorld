@@ -26,6 +26,8 @@ import {
   BookOpen, 
   Award, 
   TrendingUp,
+  Megaphone,
+  PenLine,
   MessageSquare,
   FileText,
   ListTodo,
@@ -236,14 +238,13 @@ const AdminLayout = () => {
       label: 'Communication & Messaging',
       items: [
         {
-          label: 'Messaging Center',
-          icon: MessageSquare,
+          label: 'Announcements',
+          icon: Megaphone,
           submenu: [
-            { label: 'Compose Message', path: '/admin/messaging/compose', icon: Mail },
-            { label: 'Mail Listing', path: '/admin/messaging/listing', icon: FileText },
-            { label: 'Message Queue', path: '/admin/messaging/queue', icon: Clock },
-            { label: 'Message Templates', path: '/admin/templates', icon: FileText },
-            { label: 'Settings', path: '/admin/messaging/settings', icon: Settings }
+            { label: 'Compose', path: '/admin/announcements/compose', icon: PenLine },
+            { label: 'All Announcements', path: '/admin/announcements/list', icon: FileText },
+            { label: 'Scheduled', path: '/admin/announcements/scheduled', icon: Clock },
+            { label: 'Settings', path: '/admin/announcements/settings', icon: Settings },
           ]
         },
         {
