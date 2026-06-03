@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createLetter } from '@/services/LetterService';
+import { createLetter } from '@/services/letterService';
 import { getAllCategories } from '@/services/CommunicationCategoryService';
 import { getAllShareholders } from '@/services/shareholdersService';
 import { getAllMembers } from '@/services/membersService';
