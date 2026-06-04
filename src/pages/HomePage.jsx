@@ -4,18 +4,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import { getAllEvents } from '@/services/eventService';
-import { getSystemSettings } from '@/services/settingsService';
 import { Network, Shield, Mic, Monitor, CheckCircle2, Zap, TrendingUp, Mail, Building2, Church, Calendar, School, Heart, Home, Cable, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import BrandLogo from '@/components/BrandLogo';
 function HomePage() {
   const navigate = useNavigate();
   const [upcomingEvents, setUpcomingEvents] = useState([]);
-  const [logoUrl, setLogoUrl] = useState(null);
   useEffect(() => {
     let isMounted = true;
     const initData = async () => {
       try {
-        // Fetch events - Add defensive array check to prevent white screen crash
         const events = await getAllEvents();
         if (isMounted) {
           setUpcomingEvents(Array.isArray(events) ? events.slice(0, 3) : []);
@@ -23,16 +21,6 @@ function HomePage() {
       } catch (error) {
         console.error("HomePage: Failed to load events", error);
         if (isMounted) setUpcomingEvents([]);
-      }
-
-      // Fetch logo settings
-      try {
-        const settings = await getSystemSettings();
-        if (isMounted && settings && (settings.logo_url || settings.system_logo)) {
-          setLogoUrl(settings.logo_url || settings.system_logo);
-        }
-      } catch (e) {
-        console.warn("HomePage: Failed to load settings", e);
       }
     };
     initData();
@@ -115,8 +103,6 @@ function HomePage() {
     content: 'The CCTV system they installed has greatly improved our campus security.'
   }];
 
-  // Default fallback
-  const displayLogo = logoUrl || 'https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/a742e501955dd22251276e445b31816d.png';
   return <>
       <Helmet>
         <title>Alpha Bridge Technologies Ltd | IT Consultancy & AV Solutions in Kigali</title>
@@ -144,8 +130,11 @@ function HomePage() {
         }} transition={{
           duration: 0.8
         }} className="mb-8 flex flex-col items-center">
-             {/* Dynamic Hero Logo */}
-             {logoUrl && <img src={logoUrl} alt="Alpha Bridge" className="h-24 md:h-32 object-contain mb-6 animate-pulse" />}
+             <BrandLogo
+               alt="Alpha Bridge"
+               className="h-24 md:h-32 w-auto object-contain mb-6"
+               variant="onDark"
+             />
 
              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 drop-shadow-2xl tracking-tight">
                Your Technology Bridge to <span className="text-[#D4AF37]">Kigali</span>

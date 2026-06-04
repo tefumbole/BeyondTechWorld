@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Phone, Mail, Scan, ChevronDown, User, LogIn, LogOut, LayoutDashboard, FileText, ExternalLink } from 'lucide-react';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/context/AuthContext';
-import { getSystemSettings } from '@/services/settingsService';
 import { isCurrentUserAdmin } from '@/services/whatsappAdminService';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,30 +16,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, otpVerified, logout, profile, isProfileLoading } = useAuth();
-  
-  // Default fallback logo
-  const DEFAULT_LOGO = "https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/a742e501955dd22251276e445b31816d.png";
-
-  useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        const settings = await getSystemSettings();
-        if (settings && settings.logo_url) {
-          setLogoUrl(settings.logo_url);
-        }
-      } catch (error) {
-        console.warn("Header: Failed to fetch system logo", error);
-      }
-    };
-    
-    fetchLogo();
-  }, [location.pathname]);
 
   // Check admin status when user changes
   useEffect(() => {
@@ -104,11 +85,11 @@ function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <img
-                src={logoUrl || DEFAULT_LOGO}
+            <Link to="/" className="flex items-center space-x-2 bg-transparent">
+              <BrandLogo
                 alt="Company Logo"
-                className="h-[40px] md:h-[50px] lg:h-[60px] object-contain hover:scale-105 hover:opacity-80 transition-all duration-300"
+                className="h-[40px] md:h-[50px] lg:h-[60px] w-auto object-contain hover:scale-105 hover:opacity-90 transition-all duration-300"
+                variant="onDark"
               />
             </Link>
 

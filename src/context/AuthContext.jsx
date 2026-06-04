@@ -176,6 +176,9 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           console.warn("[AuthContext] Could not access localStorage for OTP check", err);
         }
+        if (import.meta.env.VITE_DEV_SKIP_OTP === 'true') {
+          isVerified = true;
+        }
         setOtpVerified(isVerified);
         console.log('[AuthContext] OTP verified status updated to:', isVerified);
 

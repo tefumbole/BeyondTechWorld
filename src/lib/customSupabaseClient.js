@@ -1,13 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
+import mysqlDataClient from './mysqlDataClient.js';
 
-const supabaseUrl = 'https://xnfurysmtmxkfsdjghow.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhuZnVyeXNtdG14a2ZzZGpnaG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTMyMDEsImV4cCI6MjA4NjEyOTIwMX0.VBmIxYtdIyL68g3YZ-InQtw9hztEFm11yFtC_2vVbRk';
+const useMysql = import.meta.env.VITE_DATA_BACKEND === 'mysql';
 
-const customSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+let client;
 
-export default customSupabaseClient;
+if (useMysql) {
+  client = mysqlDataClient;
+} else {
+  const supabaseUrl =
+    import.meta.env.VITE_SUPABASE_URL || 'https://xnfurysmtmxkfsdjghow.supabase.co';
+  const supabaseAnonKey =
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhuZnVyeXNtdG14a2ZzZGpnaG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTMyMDEsImV4cCI6MjA4NjEyOTIwMX0.VBmIxYtdIyL68g3YZ-InQtw9hztEFm11yFtC_2vVbRk';
 
-export { 
-    customSupabaseClient,
-    customSupabaseClient as supabase,
-};
+  client = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+export default client;
+export { client as customSupabaseClient, client as supabase };

@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "vite --host :: --port 3000",
     "dev:api": "npm run dev --prefix apps/api",
+    "dev:local": "docker compose up -d && npm run db:migrate && npm run dev:api & npm run dev",
     "build": "node tools/generate-llms.js || true && vite build",
     "preview": "vite preview --host :: --port 3000",
     "lint": "eslint . --quiet",
     "lint:warn": "eslint .",
     "db:migrate": "npm run db:migrate --prefix apps/api",
     "db:test": "npm run db:test --prefix apps/api",
+    "db:import": "npm run db:import --prefix apps/api",
+    "export:supabase": "node tools/export-supabase-data.js",
+    "migrate:hostinger": "bash tools/migrate-hostinger.sh",
     "api:start": "npm run start --prefix apps/api"
   },
   "dependencies": {

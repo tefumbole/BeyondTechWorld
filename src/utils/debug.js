@@ -24,8 +24,8 @@ export const logWarn = (context, message, data = null) => {
 export const debugEnv = () => {
   if (import.meta.env.DEV) {
     console.group('Environment Debug');
-    console.log('Supabase URL configured:', !!import.meta.env.VITE_SUPABASE_URL);
-    console.log('Supabase Key configured:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+    console.log('Data backend:', import.meta.env.VITE_DATA_BACKEND || 'supabase');
+    console.log('API URL:', import.meta.env.VITE_API_URL || '(default /api)');
     console.log('Mode:', import.meta.env.MODE);
     console.groupEnd();
   }

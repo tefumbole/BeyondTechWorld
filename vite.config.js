@@ -292,7 +292,22 @@ export default defineConfig({
 		allowedHosts: [
 			'.app-preview.com',
 			'.app-preview.io',
+			'localhost',
+			'127.0.0.1',
+			'172.20.10.2',
+			'10.211.55.2',
+			'10.37.129.2',
 		],
+		fs: {
+			allow: [path.resolve(__dirname, '.')],
+		},
+		proxy: {
+			'/api': {
+				target: 'http://127.0.0.1:3003',
+				changeOrigin: true,
+				rewrite: (p) => p.replace(/^\/api/, ''),
+			},
+		},
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json', ],

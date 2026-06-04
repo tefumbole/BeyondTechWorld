@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, Globe } from 'lucide-react';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import BrandLogo from '@/components/BrandLogo';
 import { getSystemSettings } from '@/services/settingsService';
 
 function Footer() {
@@ -40,9 +41,7 @@ function Footer() {
     { name: 'Shareholders Portal', path: '/shareholders' },
   ];
 
-  // Default logo if not set
-  const DEFAULT_LOGO = "https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/a742e501955dd22251276e445b31816d.png";
-
+  // Default logo if not set — kept for settings merge only
   return (
     <footer className="bg-[#1a1a2e] text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -50,11 +49,12 @@ function Footer() {
           {/* Company Info */}
           <div>
             <div className="mb-4">
-              <Link to="/" className="inline-block mb-2">
-                <img
-                  src={settings.logo_url || DEFAULT_LOGO}
+              <Link to="/" className="inline-block mb-2 bg-transparent">
+                <BrandLogo
                   alt="Company logo"
-                  className="h-[50px] object-contain hover:scale-105 transition-all duration-300"
+                  className="h-[50px] w-auto object-contain hover:scale-105 transition-all duration-300"
+                  variant="onDark"
+                  src={settings.logo_url || undefined}
                 />
               </Link>
               <div className="text-2xl font-bold">

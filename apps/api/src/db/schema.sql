@@ -220,9 +220,15 @@ CREATE TABLE IF NOT EXISTS announcement_templates (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS system_settings (
-  id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
-  setting_key VARCHAR(100) NOT NULL UNIQUE,
-  setting_value JSON DEFAULT NULL,
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  developed_by TEXT DEFAULT NULL,
+  copyright_text TEXT DEFAULT NULL,
+  logo_url TEXT DEFAULT NULL,
+  logo_file_path VARCHAR(255) DEFAULT NULL,
+  price_per_share DECIMAL(12,2) DEFAULT NULL,
+  total_shares_available INT DEFAULT NULL,
+  total_sold_admin_override INT DEFAULT 0,
+  currency VARCHAR(10) DEFAULT 'USD',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
