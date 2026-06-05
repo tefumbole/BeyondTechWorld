@@ -183,6 +183,28 @@ function serializeRow(row, table, user) {
   return out;
 }
 
+/** Convert ISO-8601 strings to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS). */
+function normalizeForMysql(value) {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 19).replace('T', ' ');
+    }
+  }
+  return value;
+}
+
+function serializePayloadValue(value) {
+  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+    return JSON.stringify(value);
+  }
+  return normalizeForMysql(value);
+}
+
 router.post('/query', async (req, res) => {
   try {
     const body = req.body || {};
@@ -272,11 +294,7 @@ router.post('/query', async (req, res) => {
         if (!record.id) record.id = randomUUID();
         const keys = Object.keys(record);
         const placeholders = keys.map(() => '?').join(', ');
-        const values = keys.map((k) => {
-          const v = record[k];
-          if (v !== null && typeof v === 'object') return JSON.stringify(v);
-          return v;
-        });
+        const values = keys.map((k) => serializePayloadValue(record[k]));
         await pool.query(
           `INSERT INTO \`${table}\` (${keys.map((k) => `\`${k}\``).join(', ')}) VALUES (${placeholders})`,
           values
@@ -298,11 +316,7 @@ router.post('/query', async (req, res) => {
       if (!keys.length) return res.json({ data: null, error: { message: 'Empty update' } });
 
       const setSql = keys.map((k) => `\`${k}\` = ?`).join(', ');
-      const values = keys.map((k) => {
-        const v = payload[k];
-        if (v !== null && typeof v === 'object') return JSON.stringify(v);
-        return v;
-      });
+      const values = keys.map((k) => serializePayloadValue(payload[k]));
 
       await pool.query(`UPDATE \`${table}\` SET ${setSql}${whereSql}`, [...values, ...whereParams]);
 
@@ -331,11 +345,7 @@ router.post('/query', async (req, res) => {
         const keys = Object.keys(record);
         const placeholders = keys.map(() => '?').join(', ');
         const updates = keys.filter((k) => k !== conflictCol).map((k) => `\`${k}\` = VALUES(\`${k}\`)`).join(', ');
-        const values = keys.map((k) => {
-          const v = record[k];
-          if (v !== null && typeof v === 'object') return JSON.stringify(v);
-          return v;
-        });
+        const values = keys.map((k) => serializePayloadValue(record[k]));
 
         await pool.query(
           `INSERT INTO \`${table}\` (${keys.map((k) => `\`${k}\``).join(', ')}) VALUES (${placeholders})

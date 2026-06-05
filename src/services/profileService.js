@@ -72,18 +72,32 @@ export const updateProfile = async (userId, updates) => {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .update({ 
-        ...updates, 
-        updated_at: new Date().toISOString() 
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
       .select()
       .single();
 
     if (error) throw error;
+
+    if (import.meta.env.VITE_DATA_BACKEND === 'mysql') {
+      const userUpdates = {};
+      if (updates.full_name !== undefined) userUpdates.name = updates.full_name;
+      if (updates.phone !== undefined) userUpdates.phone = updates.phone;
+      if (Object.keys(userUpdates).length) {
+        const { error: userError } = await supabase
+          .from('users')
+          .update(userUpdates)
+          .eq('id', userId);
+        if (userError) throw userError;
+      }
+    }
+
     return data;
   } catch (error) {
-    console.error("Error updating profile:", error);
+    console.error('Error updating profile:', error);
     throw error;
   }
 };

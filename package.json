@@ -14,6 +14,7 @@
     "lint:warn": "eslint .",
     "db:migrate": "npm run db:migrate --prefix apps/api",
     "db:reset-admin": "npm run db:reset-admin --prefix apps/api",
+    "db:pull-production": "bash tools/pull-production-db.sh",
     "db:test": "npm run db:test --prefix apps/api",
     "db:import": "npm run db:import --prefix apps/api",
     "export:supabase": "node tools/export-supabase-data.js",
