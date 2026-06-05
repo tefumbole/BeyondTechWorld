@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { getTasks, getTaskStats, checkAndUpdateOverdueTasks } from '@/services/taskService';
+import { processScheduledTaskNotifications } from '@/services/taskNotificationService';
 import TaskDashboardCard from '@/components/admin/TaskDashboardCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +18,15 @@ const TaskDashboardPage = () => {
 
   useEffect(() => {
     initDashboard();
+  }, []);
+
+  useEffect(() => {
+    if (import.meta.env.VITE_DATA_BACKEND !== 'mysql') return undefined;
+    processScheduledTaskNotifications().catch(() => {});
+    const interval = setInterval(() => {
+      processScheduledTaskNotifications().catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

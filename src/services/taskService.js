@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { getTemplateByType, replaceTemplateVariables } from './taskMessageTemplateService';
 import { sendTaskAssignmentNotification } from './taskNotificationService';
+import { DEFAULT_TASK_NOTIFICATION_TEMPLATE } from '@/utils/taskPersonalization';
+
+function newId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 async function hydrateTasksList(tasks) {
   if (!tasks?.length) return [];
@@ -78,74 +83,167 @@ async function fetchProfilesMap(userIds) {
   return map;
 }
 
-export const createTaskWithAssignments = async (taskData, assigneeIds) => {
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
+export const uploadTaskSourceDocument = async (file, taskId) => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `source-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `sources/${fileName}`;
 
-        // 1. Create the task
-        const { data: task, error: taskError } = await supabase
-            .from('tasks')
-            .insert([{
-                title: taskData.title,
-                description: taskData.description,
-                priority: taskData.priority,
-                category_id: taskData.category_id || null,
-                start_date: taskData.start_date || null,
-                deadline: taskData.deadline,
-                created_by: user.id,
-                status: 'Pending'
-            }])
-            .select()
-            .single();
+    const { error: uploadError } = await supabase.storage
+      .from('task-attachments')
+      .upload(filePath, file);
 
-        if (taskError) throw taskError;
+    if (uploadError) throw uploadError;
 
-        if (assigneeIds && assigneeIds.length > 0) {
-            const profileMap = await fetchProfilesMap(assigneeIds);
-            const profileRows = assigneeIds.map((id) => profileMap[id]).filter(Boolean);
+    const { data: publicUrlData } = supabase.storage
+      .from('task-attachments')
+      .getPublicUrl(filePath);
 
-            const assignments = assigneeIds.map((userId) => {
-                const profile = profileMap[userId];
-                const isAdmin = profile && ['admin', 'super_admin', 'director'].includes(profile.role);
+    const record = {
+      task_id: taskId,
+      file_name: file.name,
+      file_url: publicUrlData.publicUrl,
+      attachment_type: 'source',
+    };
 
-                return {
-                    task_id: task.id,
-                    user_id: userId,
-                    status: isAdmin ? 'Accepted' : 'Pending',
-                    progress: 0,
-                    accepted_at: isAdmin ? new Date().toISOString() : null,
-                    last_update_at: new Date().toISOString(),
-                };
-            });
+    const { data, error } = await supabase
+      .from('task_attachments')
+      .insert([record])
+      .select()
+      .single();
 
-            const { error: assignError } = await supabase
-                .from('task_assignments')
-                .insert(assignments);
-
-            if (assignError) throw assignError;
-
-            for (const profile of profileRows) {
-              if (profile.phone) {
-                await sendTaskAssignmentNotification(
-                  profile.phone,
-                  profile.full_name || profile.name || profile.email,
-                  taskData.title,
-                  taskData.deadline
-                ).catch((err) => console.error('Task notification failed', err));
-              }
-            }
-        }
-
-        return { success: true, data: task };
-    } catch (error) {
-        console.error('Error in createTaskWithAssignments:', error);
-        return { success: false, error: error.message };
-    }
+    if (error) throw error;
+    return { success: true, data, url: publicUrlData.publicUrl };
+  } catch (error) {
+    console.error('Error uploading source document:', error);
+    return { success: false, error: error.message };
+  }
 };
 
-export const createTask = async (taskData, assigneeIds) => {
-    return createTaskWithAssignments(taskData, assigneeIds);
+async function queueTaskNotifications(taskId, assignmentRows, scheduleTimes) {
+  for (const assignment of assignmentRows) {
+    for (const scheduledAt of scheduleTimes) {
+      if (!scheduledAt) continue;
+      await supabase.from('task_notification_queue').insert([{
+        id: newId(),
+        task_id: taskId,
+        assignment_id: assignment.id,
+        scheduled_at: scheduledAt,
+        status: 'pending',
+      }]);
+    }
+  }
+}
+
+async function notifyAssignees(task, assignmentRows, profileMap, options) {
+  const docLinks = (options.sourceDocuments || []).map((d) => d.url || d.file_url).filter(Boolean).join('\n');
+  const template = options.notificationTemplate || task.notification_template || DEFAULT_TASK_NOTIFICATION_TEMPLATE;
+
+  for (const assignment of assignmentRows) {
+    const profile = profileMap[assignment.user_id];
+    if (!profile?.phone) continue;
+
+    await sendTaskAssignmentNotification({
+      assigneePhone: profile.phone,
+      assigneeName: profile.full_name || profile.name || profile.email,
+      assigneeEmail: profile.email,
+      taskTitle: task.title,
+      taskDescription: task.description,
+      deadline: task.deadline,
+      priority: task.priority,
+      startDate: task.start_date,
+      inviteToken: assignment.invite_token,
+      messageTemplate: template,
+      documentLinks: docLinks,
+      assignmentId: assignment.id,
+    }).catch((err) => console.error('Task notification failed', err));
+  }
+}
+
+export const createTaskWithAssignments = async (taskData, assigneeIds, options = {}) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const scheduleTimes = (options.schedules || [])
+      .filter(Boolean)
+      .map((t) => (t.includes('T') ? t : `${t.replace(' ', 'T')}`));
+    const isScheduled = Boolean(options.scheduleLater && scheduleTimes.length);
+    const notificationTemplate = options.notificationTemplate || DEFAULT_TASK_NOTIFICATION_TEMPLATE;
+
+    const taskRecord = {
+      id: newId(),
+      title: taskData.title,
+      description: taskData.description,
+      priority: taskData.priority,
+      category_id: taskData.category_id || null,
+      start_date: taskData.start_date || null,
+      deadline: taskData.deadline,
+      created_by: user.id,
+      status: isScheduled ? 'Scheduled' : 'Pending',
+      notification_template: notificationTemplate,
+      schedules_json: scheduleTimes.length ? JSON.stringify(scheduleTimes) : null,
+      is_scheduled: isScheduled ? 1 : 0,
+    };
+
+    const { error: taskError } = await supabase.from('tasks').insert([taskRecord]);
+    if (taskError) throw taskError;
+
+    const task = taskRecord;
+    const sourceDocuments = [];
+
+    if (options.sourceFiles?.length) {
+      for (const file of options.sourceFiles) {
+        const uploaded = await uploadTaskSourceDocument(file, task.id);
+        if (uploaded.success) sourceDocuments.push(uploaded.data);
+      }
+    }
+
+    let assignmentRows = [];
+
+    if (assigneeIds?.length) {
+      const profileMap = await fetchProfilesMap(assigneeIds);
+
+      const assignments = assigneeIds.map((userId) => {
+        const profile = profileMap[userId];
+        const isAdmin = profile && ['admin', 'super_admin', 'director'].includes(profile.role);
+        return {
+          id: newId(),
+          task_id: task.id,
+          user_id: userId,
+          invite_token: newId(),
+          status: isAdmin ? 'Accepted' : 'Pending',
+          progress: 0,
+          accepted_at: isAdmin ? new Date().toISOString() : null,
+          last_update_at: new Date().toISOString(),
+        };
+      });
+
+      const { error: assignError } = await supabase.from('task_assignments').insert(assignments);
+      if (assignError) throw assignError;
+
+      assignmentRows = assignments;
+
+      if (isScheduled) {
+        await queueTaskNotifications(task.id, assignmentRows, scheduleTimes);
+      } else {
+        await notifyAssignees(task, assignmentRows, profileMap, {
+          ...options,
+          notificationTemplate,
+          sourceDocuments,
+        });
+      }
+    }
+
+    return { success: true, data: task, assignments: assignmentRows };
+  } catch (error) {
+    console.error('Error in createTaskWithAssignments:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const createTask = async (taskData, assigneeIds, options) => {
+  return createTaskWithAssignments(taskData, assigneeIds, options);
 };
 
 export const updateTask = async (taskId, taskData, assigneeIds) => {

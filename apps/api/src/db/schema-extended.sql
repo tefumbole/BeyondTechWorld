@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   status VARCHAR(50) DEFAULT 'Pending',
   created_by CHAR(36) DEFAULT NULL,
   category_id CHAR(36) DEFAULT NULL,
+  notification_template LONGTEXT DEFAULT NULL,
+  schedules_json JSON DEFAULT NULL,
+  is_scheduled TINYINT(1) DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_tasks_status (status),
@@ -26,6 +29,7 @@ CREATE TABLE IF NOT EXISTS task_assignments (
   declined_at DATETIME DEFAULT NULL,
   completed_at DATETIME DEFAULT NULL,
   last_update_at DATETIME DEFAULT NULL,
+  invite_token CHAR(36) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_task_user (task_id, user_id),
@@ -48,6 +52,7 @@ CREATE TABLE IF NOT EXISTS task_attachments (
   update_id CHAR(36) DEFAULT NULL,
   file_name VARCHAR(255) NOT NULL,
   file_url TEXT NOT NULL,
+  attachment_type VARCHAR(50) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_task_attach_task (task_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -31,6 +31,11 @@ export const SCHEMA_PATCHES = [
   'ALTER TABLE tasks ADD COLUMN category_id CHAR(36) NULL',
   'ALTER TABLE task_assignments ADD COLUMN last_update_at DATETIME NULL',
   'ALTER TABLE task_assignments ADD COLUMN declined_at DATETIME NULL',
+  'ALTER TABLE task_assignments ADD COLUMN invite_token CHAR(36) NULL',
+  'ALTER TABLE tasks ADD COLUMN notification_template LONGTEXT NULL',
+  'ALTER TABLE tasks ADD COLUMN schedules_json JSON NULL',
+  'ALTER TABLE tasks ADD COLUMN is_scheduled TINYINT(1) DEFAULT 0',
+  'ALTER TABLE task_attachments ADD COLUMN attachment_type VARCHAR(50) DEFAULT NULL',
 ];
 
 export const CREATE_STATEMENTS = [
@@ -43,9 +48,22 @@ export const CREATE_STATEMENTS = [
     role VARCHAR(50) NOT NULL DEFAULT 'user',
     otp VARCHAR(10) NOT NULL,
     expires_at DATETIME NOT NULL,
+    invite_token VARCHAR(36) DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_pending_reg_email (email),
     INDEX idx_pending_reg_phone (phone)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS task_notification_queue (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    task_id CHAR(36) NOT NULL,
+    assignment_id CHAR(36) NOT NULL,
+    scheduled_at DATETIME NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    sent_at DATETIME DEFAULT NULL,
+    last_error TEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_task_notif_sched (scheduled_at, status),
+    INDEX idx_task_notif_assignment (assignment_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 

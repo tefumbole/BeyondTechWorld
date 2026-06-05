@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Mail, Scan, ChevronDown, User, LogIn, LogOut, LayoutDashboard, FileText, ExternalLink } from 'lucide-react';
+import { Menu, X, Phone, Mail, Scan, ChevronDown, User, LogIn, LogOut, LayoutDashboard, FileText, ExternalLink, ListTodo, Inbox } from 'lucide-react';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +20,9 @@ function Header() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, otpVerified, logout, profile, isProfileLoading } = useAuth();
+  const { user, otpVerified, logout, profile, isProfileLoading, role } = useAuth();
+
+  const isStaffRole = ['staff', 'employee', 'teacher'].includes(String(role || profile?.role || '').toLowerCase());
 
   // Check admin status when user changes
   useEffect(() => {
@@ -182,6 +184,20 @@ function Header() {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    {isStaffRole && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/user/tasks" className="cursor-pointer">
+                            <ListTodo className="w-4 h-4 mr-2" /> My Tasks
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/user/tasks/pending-acceptances" className="cursor-pointer">
+                            <Inbox className="w-4 h-4 mr-2" /> Pending Acceptances
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" /> Logout
                     </DropdownMenuItem>
@@ -274,6 +290,25 @@ function Header() {
                         >
                           <LayoutDashboard className="w-5 h-5" /> Admin Dashboard
                         </Link>
+                      )}
+
+                      {isStaffRole && (
+                        <>
+                          <Link
+                            to="/user/tasks"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white"
+                          >
+                            <ListTodo className="w-5 h-5" /> My Tasks
+                          </Link>
+                          <Link
+                            to="/user/tasks/pending-acceptances"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white"
+                          >
+                            <Inbox className="w-5 h-5" /> Pending Acceptances
+                          </Link>
+                        </>
                       )}
                       
                       <Button

@@ -9,7 +9,7 @@ const router = Router();
 
 router.post('/request', async (req, res) => {
   try {
-    const { email, password, full_name, phone, role } = req.body || {};
+    const { email, password, full_name, phone, role, inviteToken } = req.body || {};
     if (!email || !password || !full_name || !phone) {
       return res.status(400).json({ success: false, error: 'Email, password, full name, and phone are required.' });
     }
@@ -20,12 +20,25 @@ router.post('/request', async (req, res) => {
     }
 
     const pool = getPool();
+    let assignedRole = role || 'user';
+
+    if (inviteToken) {
+      const [invites] = await pool.query(
+        'SELECT id FROM task_assignments WHERE invite_token = ? LIMIT 1',
+        [inviteToken]
+      );
+      if (!invites.length) {
+        return res.status(400).json({ success: false, error: 'Invalid task invite link.' });
+      }
+      assignedRole = 'staff';
+    }
+
     const [existing] = await pool.query(
       'SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR phone = ? LIMIT 1',
       [email.trim(), formattedPhone]
     );
     if (existing.length) {
-      return res.status(409).json({ success: false, error: 'An account with this email or phone already exists.' });
+      return res.status(409).json({ success: false, error: 'An account with this email or phone already exists. Please sign in instead.' });
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -39,21 +52,22 @@ router.post('/request', async (req, res) => {
     ]);
 
     await pool.query(
-      `INSERT INTO pending_registrations (id, email, password_hash, full_name, phone, role, otp, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO pending_registrations (id, email, password_hash, full_name, phone, role, otp, expires_at, invite_token)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pendingId,
         email.trim(),
         passwordHash,
         full_name.trim(),
         formattedPhone,
-        role || 'user',
+        assignedRole,
         otpCode,
         expiresAt,
+        inviteToken || null,
       ]
     );
 
-    const sendResult = await sendOtp(formattedPhone, otpCode);
+    const sendResult = await sendOtp(formattedPhone, otpCode, 'Confirm your Alpha Bridge staff account.');
     if (!sendResult.success) {
       return res.status(502).json({ success: false, error: sendResult.error || 'Failed to send WhatsApp OTP' });
     }
@@ -108,12 +122,21 @@ router.post('/verify', async (req, res) => {
       status: 'active',
     };
     await syncProfile(pool, userRow);
+
+    if (pending.invite_token) {
+      await pool.query(
+        'UPDATE task_assignments SET user_id = ? WHERE invite_token = ?',
+        [userId, pending.invite_token]
+      );
+    }
+
     await pool.query('DELETE FROM pending_registrations WHERE id = ?', [pendingId]);
 
     res.json({
       success: true,
       message: 'Account created successfully. You can now log in.',
       user: { id: userId, email: pending.email, role: pending.role },
+      inviteToken: pending.invite_token || null,
     });
   } catch (err) {
     console.error('[register/verify]', err);

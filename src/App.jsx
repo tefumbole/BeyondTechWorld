@@ -46,7 +46,8 @@ import StudentDashboard from '@/pages/StudentDashboard';
 import ShareholderDashboard from '@/pages/ShareholderDashboard';
 import ApplicantDashboard from '@/pages/ApplicantDashboard';
 import MyTasksPage from '@/pages/user/MyTasksPage'; 
-import PendingAcceptancesPage from '@/pages/user/PendingAcceptancesPage'; 
+import PendingAcceptancesPage from '@/pages/user/PendingAcceptancesPage';
+import TaskInvitePage from '@/pages/TaskInvitePage'; 
 
 // Components
 import WhatsAppModal from '@/components/WhatsAppModal';
@@ -331,6 +332,8 @@ const AppContent = () => {
         
         {/* Standalone Public Routes */}
         <Route path="/event/:eventId/menu-selection" element={<MenuSelectionPage />} />
+
+        <Route path="/task-invite/:token" element={<TaskInvitePage />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/otp-verification" element={<OTPVerificationScreen />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getUserByUsername } from '@/services/userService';
 import { otpService } from '@/services/otpService';
@@ -47,6 +47,8 @@ const LoginPage = () => {
 
   const { loginWithCredentials, user, session, role, loading: authLoading, error: authError } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectOverride = searchParams.get('redirect');
   const { toast } = useToast();
 
   // Task 1: Implement validateUserSession (wrapping validateSessionAndProfile)
@@ -62,9 +64,11 @@ const LoginPage = () => {
   };
 
   // Helper to determine destination based on role
-  const getRedirectDestination = (userRole) => {
+  const getRedirectDestination = (userRole, overridePath) => {
+    if (overridePath) return overridePath;
     const adminRoles = ['admin', 'super_admin', 'director', 'manager'];
     if (adminRoles.includes(userRole)) return '/admin/dashboard';
+    if (['staff', 'employee', 'teacher'].includes(userRole)) return '/user/tasks/pending-acceptances';
     if (userRole === 'student') return '/student/dashboard';
     if (userRole === 'shareholder') return '/shareholder/dashboard';
     if (userRole === 'applicant') return '/applicant-dashboard';
@@ -87,7 +91,7 @@ const LoginPage = () => {
         if (isValid && profile) {
            console.log(`[LoginPage] Active session confirmed. Redirecting... Profile Role: ${profile.role}`);
            
-           const destination = getRedirectDestination(profile.role);
+           const destination = getRedirectDestination(profile.role, redirectOverride);
            console.log(`[LoginPage] Redirect Decision -> Role: ${profile.role}, Destination: ${destination}, UserId: ${profile.id}, Timestamp: ${new Date().toISOString()}`);
            
            toast({
@@ -152,7 +156,7 @@ const LoginPage = () => {
         
         if (preCheck.isValid && preCheck.profile) {
            console.log("[LoginPage] Pre-validation caught an active session. Aborting new login and redirecting.");
-           const dest = getRedirectDestination(preCheck.profile.role);
+           const dest = getRedirectDestination(preCheck.profile.role, redirectOverride);
            navigate(dest, { replace: true });
            return;
         }
@@ -196,7 +200,7 @@ const LoginPage = () => {
                 description: 'Welcome back.',
                 className: 'bg-green-600 text-white',
             });
-            navigate(getRedirectDestination(userRole), { replace: true });
+            navigate(getRedirectDestination(userRole, redirectOverride), { replace: true });
             return;
         }
 
