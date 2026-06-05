@@ -940,8 +940,11 @@ function App() {
   useEffect(() => {
     const initApp = async () => {
       try {
-        // Defer queue worker — avoid Supabase calls blocking first paint
-        if (typeof autoStartWorker === 'function') {
+        // Defer queue worker — not compatible with MySQL shim (no message_queue joins)
+        if (
+          import.meta.env.VITE_DATA_BACKEND !== 'mysql' &&
+          typeof autoStartWorker === 'function'
+        ) {
           setTimeout(() => {
             try {
               autoStartWorker();

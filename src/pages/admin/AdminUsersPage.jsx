@@ -97,6 +97,7 @@ const AdminUsersPage = () => {
   const getRoleBadgeColor = (role) => {
     const r = (role || '').toLowerCase();
     switch(r) {
+      case 'super_admin': return 'bg-red-100 text-red-800 border-red-200';
       case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'director': return 'bg-red-100 text-red-800 border-red-200';
       case 'manager': return 'bg-orange-100 text-orange-800 border-orange-200';

@@ -1,6 +1,41 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { sendOtp, formatPhoneNumber } from './wasenderapiService';
 
+const useMysql = import.meta.env.VITE_DATA_BACKEND === 'mysql';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const STORAGE_KEY = 'alpha_supabase_auth';
+
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || parsed?.currentSession?.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function mysqlOtpApi(path, body = {}) {
+  const token = getAuthToken();
+  if (!token) throw new Error('Not authenticated. Please log in again.');
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.error || json.message || res.statusText || 'OTP request failed');
+  }
+  return json;
+}
+
 /**
  * Fetches the phone number for a user from the profiles table
  * @param {string} userId 
@@ -45,6 +80,23 @@ export const otpService = {
    */
   async sendOTP(userId) {
     console.log('[OTP_SERVICE] Initializing OTP generation for user:', userId);
+
+    if (useMysql) {
+      try {
+        const result = await mysqlOtpApi('/auth/otp/send');
+        if (!result.success) {
+          return { success: false, message: result.error || 'Failed to send OTP' };
+        }
+        return {
+          success: true,
+          message: result.message || 'OTP sent successfully.',
+          maskedPhone: result.maskedPhone,
+        };
+      } catch (err) {
+        console.error('[OTP_SERVICE] sendOTP (API) Error:', err);
+        return { success: false, message: err.message || 'Failed to send OTP' };
+      }
+    }
     
     try {
       if (!userId) throw new Error("User ID is missing.");
@@ -108,6 +160,24 @@ export const otpService = {
    */
   async verifyOTP(userId, otp) {
     console.log('[OTP_SERVICE] Verifying OTP code for user:', userId);
+
+    if (useMysql) {
+      try {
+        const result = await mysqlOtpApi('/auth/otp/verify', { otp });
+        if (!result.success) {
+          return { success: false, message: result.error || 'Verification failed' };
+        }
+        return {
+          success: true,
+          message: result.message || 'OTP verified.',
+          profile: result.profile || null,
+        };
+      } catch (err) {
+        console.error('[OTP_SERVICE] verifyOTP (API) Error:', err);
+        return { success: false, message: err.message || 'Verification failed' };
+      }
+    }
+
     try {
       if (!userId || !otp) {
         throw new Error("User ID and OTP are required.");

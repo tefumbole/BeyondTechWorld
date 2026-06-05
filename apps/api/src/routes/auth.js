@@ -105,26 +105,36 @@ router.post('/refresh', requireAuth, async (req, res) => {
 export async function seedAdminUser() {
   const email = process.env.SEED_ADMIN_EMAIL;
   const password = process.env.SEED_ADMIN_PASSWORD;
+  const phone = process.env.SEED_ADMIN_PHONE || null;
   if (!email || !password) return;
 
   const pool = getPool();
   const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1', [email]);
-  if (existing.length) return;
+  if (existing.length) {
+    if (phone) {
+      await pool.query('UPDATE users SET phone = ? WHERE LOWER(email) = LOWER(?)', [phone, email]);
+      await pool.query(
+        'UPDATE profiles SET phone = ? WHERE LOWER(email) = LOWER(?)',
+        [phone, email]
+      );
+    }
+    return;
+  }
 
   const id = randomUUID();
   const hash = await bcrypt.hash(password, 10);
 
   await pool.query(
-    `INSERT INTO users (id, email, password_hash, name, role, status)
-     VALUES (?, ?, ?, ?, 'admin', 'active')`,
-    [id, email, hash, 'Administrator']
+    `INSERT INTO users (id, email, password_hash, name, role, status, phone)
+     VALUES (?, ?, ?, ?, 'super_admin', 'active', ?)`,
+    [id, email, hash, 'Super Administrator', phone]
   );
 
   await pool.query(
-    `INSERT INTO profiles (id, email, full_name, role)
-     VALUES (?, ?, ?, 'admin')
-     ON DUPLICATE KEY UPDATE email = VALUES(email), role = 'admin'`,
-    [id, email, 'Administrator']
+    `INSERT INTO profiles (id, email, full_name, role, phone)
+     VALUES (?, ?, ?, 'super_admin', ?)
+     ON DUPLICATE KEY UPDATE email = VALUES(email), role = 'super_admin', phone = COALESCE(VALUES(phone), phone)`,
+    [id, email, 'Super Administrator', phone]
   );
 
   console.log('[seed] Admin user created:', email);

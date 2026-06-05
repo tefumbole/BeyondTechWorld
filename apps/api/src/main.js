@@ -12,8 +12,10 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { checkDatabaseConnection, getPool } from './db/pool.js';
 import authRoutes, { seedAdminUser } from './routes/auth.js';
+import otpRoutes from './routes/otp.js';
 import dataRoutes from './routes/data.js';
 import uploadRoutes from './routes/upload.js';
+import usersRoutes from './routes/users.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3003);
@@ -46,6 +48,8 @@ app.get('/health', async (_req, res) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/auth/otp', otpRoutes);
+app.use('/users', usersRoutes);
 app.use('/data', dataRoutes);
 app.use('/upload', uploadRoutes);
 

@@ -184,10 +184,24 @@ const LoginPage = () => {
         
         console.log(`[LoginPage] Initial Auth Success. User ID: ${authUser.id}`);
 
-        // 2. Fetch Profile Safely for Phone Validation
-        console.log("[LoginPage] Fetching user profile to verify phone number format...");
         const profileService = await import('@/services/profileService');
         const profileData = await profileService.getProfile(authUser.id);
+        const userRole = profileData?.role || authUser?.app_metadata?.role || authUser?.user_metadata?.role;
+
+        // Skip WhatsApp OTP when VITE_DEV_SKIP_OTP=true (local / initial VPS bootstrap)
+        if (import.meta.env.VITE_DEV_SKIP_OTP === 'true') {
+            console.log('[LoginPage] OTP skipped (VITE_DEV_SKIP_OTP). Redirecting by role:', userRole);
+            toast({
+                title: 'Login Successful',
+                description: 'Welcome back.',
+                className: 'bg-green-600 text-white',
+            });
+            navigate(getRedirectDestination(userRole), { replace: true });
+            return;
+        }
+
+        // 2. Fetch Profile Safely for Phone Validation
+        console.log("[LoginPage] Fetching user profile to verify phone number format...");
         
         const phoneFromProfile = profileData?.phone ?? null;
         const phoneFromAuth = authUser?.phone ?? null;
@@ -206,9 +220,9 @@ const LoginPage = () => {
         // 3. Send OTP
         const otpResult = await otpService.sendOTP(authUser.id, phoneToUse);
         
-        if (!otpResult || otpResult.error) {
-            console.error(`[LoginPage] OTP Send Failure: ${otpResult?.error || 'Unknown error'}`);
-            throw new Error(otpResult?.error || "Failed to dispatch OTP");
+        if (!otpResult?.success) {
+            console.error(`[LoginPage] OTP Send Failure: ${otpResult?.message || 'Unknown error'}`);
+            throw new Error(otpResult?.message || 'Failed to dispatch OTP');
         }
 
         console.log("[LoginPage] OTP Send Success. OTP dispatched to WhatsApp. Navigating to Verification Screen.");

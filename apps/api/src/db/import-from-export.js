@@ -7,7 +7,8 @@ import { getPool } from './pool.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const EXPORT_DIR = process.argv[2] || path.resolve(process.cwd(), '../../data/export');
+const EXPORT_DIR =
+  process.argv[2] || path.resolve(__dirname, '../../../../data/export');
 
 function inferSqlType(value) {
   if (value === null || value === undefined) return 'TEXT NULL';

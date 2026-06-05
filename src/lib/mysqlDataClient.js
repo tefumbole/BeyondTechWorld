@@ -66,7 +66,7 @@ class QueryBuilder {
 
   select(columns = '*', options = {}) {
     this.action = 'select';
-    this.columns = typeof columns === 'string' ? columns.split(',')[0].trim() : '*';
+    this.columns = typeof columns === 'string' ? columns.trim() : '*';
     if (options?.count === 'exact') this.countOpt = true;
     if (options?.head) this.headOpt = true;
     return this;
@@ -146,7 +146,11 @@ class QueryBuilder {
       onConflict: this.onConflict,
     };
 
-    return apiFetch('/data/query', { method: 'POST', body: JSON.stringify(body) });
+    const json = await apiFetch('/data/query', { method: 'POST', body: JSON.stringify(body) });
+    if (json && ('data' in json || 'error' in json)) {
+      return json;
+    }
+    return { data: null, error: { message: 'Invalid API response' } };
   }
 
   then(onFulfilled, onRejected) {

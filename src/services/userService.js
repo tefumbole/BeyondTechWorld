@@ -1,5 +1,40 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
+const useMysql = import.meta.env.VITE_DATA_BACKEND === 'mysql';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const STORAGE_KEY = 'alpha_supabase_auth';
+
+function getToken() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || parsed?.currentSession?.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function mysqlUsersApi(path, options = {}) {
+  const token = getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof json.error === 'string'
+        ? json.error
+        : json.error?.message || res.statusText || 'Request failed';
+    throw new Error(message);
+  }
+  return json;
+}
+
 /**
  * User Service
  * Handles basic user CRUD operations
@@ -11,6 +46,17 @@ import { supabase } from '@/lib/customSupabaseClient';
  */
 export async function getAllUsers() {
   console.log('[USER SERVICE] Fetching all users');
+
+  if (useMysql) {
+    try {
+      const { data } = await mysqlUsersApi('/users');
+      console.log('[USER SERVICE] Fetched', data?.length || 0, 'users');
+      return data || [];
+    } catch (error) {
+      console.error('[USER SERVICE] Error fetching users:', error);
+      throw error;
+    }
+  }
   
   try {
     const { data, error } = await supabase
@@ -149,6 +195,22 @@ export async function getAllUsersForAssignment() {
  */
 export async function createUser(userData) {
   console.log('[USER SERVICE] Creating user');
+
+  if (useMysql) {
+    try {
+      const { data, tempPassword } = await mysqlUsersApi('/users', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      if (tempPassword) {
+        console.log('[USER SERVICE] Temporary password generated for', userData.email);
+      }
+      return data;
+    } catch (error) {
+      console.error('[USER SERVICE] Error creating user:', error);
+      throw error;
+    }
+  }
   
   try {
     const { data, error } = await supabase
@@ -174,6 +236,19 @@ export async function createUser(userData) {
  */
 export async function updateUser(userId, updates) {
   console.log('[USER SERVICE] Updating user:', userId);
+
+  if (useMysql) {
+    try {
+      const { data } = await mysqlUsersApi(`/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      return data;
+    } catch (error) {
+      console.error('[USER SERVICE] Error updating user:', error);
+      throw error;
+    }
+  }
   
   try {
     const { data, error } = await supabase
@@ -198,6 +273,17 @@ export async function updateUser(userId, updates) {
  */
 export async function deleteUser(userId) {
   console.log('[USER SERVICE] Deleting user:', userId);
+
+  if (useMysql) {
+    try {
+      await mysqlUsersApi(`/users/${userId}`, { method: 'DELETE' });
+      console.log('[USER SERVICE] User deleted');
+      return;
+    } catch (error) {
+      console.error('[USER SERVICE] Error deleting user:', error);
+      throw error;
+    }
+  }
   
   try {
     const { error } = await supabase

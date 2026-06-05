@@ -16,6 +16,8 @@
     "db:import": "npm run db:import --prefix apps/api",
     "export:supabase": "node tools/export-supabase-data.js",
     "migrate:hostinger": "bash tools/migrate-hostinger.sh",
+    "vps:check": "bash tools/vps-check-ports.sh",
+    "vps:deploy": "bash tools/deploy-alphabridge-vps.sh",
     "api:start": "npm run start --prefix apps/api"
   },
   "dependencies": {

@@ -353,7 +353,11 @@ export const AuthProvider = ({ children }) => {
 
         if (error) {
           console.error('[AuthContext] Login failed at Supabase level:', error);
-          throw error;
+          const message =
+            typeof error === 'string'
+              ? error
+              : error?.message || 'Invalid email or password';
+          throw new Error(message);
         }
 
         console.log('[AuthContext] Login successful. User ID:', data.session?.user?.id);
