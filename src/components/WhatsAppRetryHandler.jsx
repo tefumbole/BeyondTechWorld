@@ -44,8 +44,8 @@ const WhatsAppRetryHandler = ({ logEntry, onRetrySuccess }) => {
       if (res.success) {
         // Update log status
         await supabase
-           .from('whatsapp_message_log')
-           .update({ 
+           .from('whatsapp_message_logs')
+           .update({
                status: 'success', 
                error_message: null, 
                retry_count: (logEntry.retry_count || 0) + 1 

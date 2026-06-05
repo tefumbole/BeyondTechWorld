@@ -55,6 +55,7 @@ class QueryBuilder {
     this.filters = [];
     this.order = [];
     this.limitVal = null;
+    this.offsetVal = null;
     this.columns = '*';
     this.countOpt = false;
     this.headOpt = false;
@@ -106,16 +107,38 @@ class QueryBuilder {
   in(col, values) { this.filters.push({ op: 'in', col, values }); return this; }
   ilike(col, val) { this.filters.push({ op: 'ilike', col, value: val }); return this; }
 
+  not(col, op, val) {
+    if (op === 'is' && val === null) {
+      this.filters.push({ op: 'not_null', col });
+    } else if (op === 'in') {
+      const values = String(val)
+        .replace(/[()"]/g, '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      this.filters.push({ op: 'not_in', col, values });
+    }
+    return this;
+  }
+
   or(expr) {
     const parts = expr.split(',').map((part) => {
-      const m = part.trim().match(/^(\w+)\.(ilike|eq)\.(.+)$/i);
+      const trimmed = part.trim();
+      const m = trimmed.match(/^(\w+)\.(ilike|eq|lte|gte|lt|gt|is)\.(.+)$/i);
       if (!m) return null;
-      const [, c, op, val] = m;
-      if (op.toLowerCase() === 'ilike') {
-        const inner = val.replace(/^%/, '').replace(/%$/, '');
+      const [, c, op, rawVal] = m;
+      const opLower = op.toLowerCase();
+      if (opLower === 'is' && rawVal === 'null') {
+        return { col: c, op: 'is', value: null };
+      }
+      if (opLower === 'ilike') {
+        const inner = rawVal.replace(/^%/, '').replace(/%$/, '');
         return { col: c, op: 'ilike', value: `%${inner}%` };
       }
-      return { col: c, op: 'eq', value: val };
+      if (['eq', 'lte', 'gte', 'lt', 'gt'].includes(opLower)) {
+        return { col: c, op: opLower, value: rawVal };
+      }
+      return null;
     }).filter(Boolean);
     this.filters.push({ op: 'or', parts });
     return this;
@@ -127,6 +150,13 @@ class QueryBuilder {
   }
 
   limit(n) { this.limitVal = n; return this; }
+
+  range(from, to) {
+    this.offsetVal = from;
+    this.limitVal = to - from + 1;
+    return this;
+  }
+
   single() { this.singleOpt = true; return this; }
   maybeSingle() { this.singleOpt = true; this.maybeSingleOpt = true; return this; }
 
@@ -137,6 +167,7 @@ class QueryBuilder {
       filters: this.filters,
       order: this.order,
       limit: this.limitVal,
+      offset: this.offsetVal,
       columns: this.columns,
       count: this.countOpt,
       head: this.headOpt,

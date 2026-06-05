@@ -1,15 +1,19 @@
 import { supabase } from '@/lib/supabaseClient';
 
+const LOG_TABLE = 'whatsapp_message_logs';
+
 /**
  * Logs a WhatsApp message attempt to the database.
  * @param {Object} logData - { recipient_phone, message_type, status, error_message, related_registration_id }
  */
 export const logWhatsAppMessage = async (logData) => {
     try {
+        const phone = logData.recipient_phone || logData.phone_number;
         const { error } = await supabase
-            .from('whatsapp_message_log')
+            .from(LOG_TABLE)
             .insert([{
-                recipient_phone: logData.recipient_phone,
+                recipient_phone: phone,
+                phone_number: phone,
                 message_type: logData.message_type,
                 status: logData.status,
                 error_message: logData.error_message || null,
@@ -17,7 +21,7 @@ export const logWhatsAppMessage = async (logData) => {
                 sent_at: new Date().toISOString(),
                 retry_count: 0
             }]);
-        
+
         if (error) {
             console.error("Failed to log WhatsApp message:", error);
         }
@@ -32,12 +36,18 @@ export const logWhatsAppMessage = async (logData) => {
 export const getWhatsAppLogs = async () => {
     try {
         const { data, error } = await supabase
-            .from('whatsapp_message_log')
+            .from(LOG_TABLE)
             .select('*')
             .order('sent_at', { ascending: false });
-        
+
         if (error) throw error;
-        return { data, error: null };
+        return {
+            data: (data || []).map((row) => ({
+                ...row,
+                recipient_phone: row.recipient_phone || row.phone_number,
+            })),
+            error: null,
+        };
     } catch (error) {
         console.error("Error fetching WhatsApp logs:", error);
         return { data: [], error };
@@ -50,7 +60,7 @@ export const getWhatsAppLogs = async () => {
 export const updateRetryCount = async (logId, count) => {
     try {
         await supabase
-            .from('whatsapp_message_log')
+            .from(LOG_TABLE)
             .update({ retry_count: count, sent_at: new Date().toISOString() })
             .eq('id', logId);
     } catch (err) {

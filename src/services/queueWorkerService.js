@@ -15,20 +15,50 @@ let globalWorkerInterval = null;
 const WORKER_INTERVAL_MS = 15000; // 15 seconds
 
 /**
+ * Loads related message + recipient rows for queue jobs (MySQL has no join selects).
+ */
+export const hydrateQueueJobs = async (jobs) => {
+  if (!jobs?.length) return [];
+
+  const messageIds = [...new Set(jobs.map((j) => j.message_id).filter(Boolean))];
+  const recipientIds = [...new Set(jobs.map((j) => j.message_recipient_id).filter(Boolean))];
+
+  const messagesById = {};
+  const recipientsById = {};
+
+  if (messageIds.length) {
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('id, subject, body, generate_pdf')
+      .in('id', messageIds);
+    (messages || []).forEach((m) => { messagesById[m.id] = m; });
+  }
+
+  if (recipientIds.length) {
+    const { data: recipients } = await supabase
+      .from('message_recipients')
+      .select('*')
+      .in('id', recipientIds);
+    (recipients || []).forEach((r) => { recipientsById[r.id] = r; });
+  }
+
+  return jobs.map((job) => ({
+    ...job,
+    messages: messagesById[job.message_id] || null,
+    message_recipients: recipientsById[job.message_recipient_id] || null,
+  }));
+};
+
+/**
  * Retrieves pending jobs that are eligible to run.
  */
 export const getPendingQueueJobs = async (limit = 10) => {
   try {
     const now = new Date().toISOString();
-    
-    // Select jobs that are pending or failed-but-retrying, where run_after is past, and not locked.
+
     const { data, error } = await supabase
       .from('message_queue')
-      .select(`
-        *,
-        messages (subject, body, generate_pdf),
-        message_recipients (*)
-      `)
+      .select('*')
       .in('status', ['pending'])
       .or(`run_after.lte.${now},run_after.is.null`)
       .is('locked_at', null)
@@ -36,7 +66,7 @@ export const getPendingQueueJobs = async (limit = 10) => {
       .limit(limit);
 
     if (error) throw error;
-    return data || [];
+    return hydrateQueueJobs(data || []);
   } catch (error) {
     console.error('Error fetching pending jobs:', error);
     return [];
@@ -49,7 +79,7 @@ export const getPendingQueueJobs = async (limit = 10) => {
 export const lockQueueJob = async (jobId) => {
   try {
     const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('message_queue')
       .update({
         locked_at: new Date().toISOString(),
@@ -57,14 +87,21 @@ export const lockQueueJob = async (jobId) => {
         status: 'processing'
       })
       .eq('id', jobId)
-      .is('locked_at', null)
-      .select()
-      .single();
+      .is('locked_at', null);
 
     if (error) throw error;
-    return data;
+
+    const { data, error: fetchError } = await supabase
+      .from('message_queue')
+      .select('*')
+      .eq('id', jobId)
+      .single();
+
+    if (fetchError || !data || data.status !== 'processing') return null;
+    const [hydrated] = await hydrateQueueJobs([data]);
+    return hydrated || null;
   } catch (error) {
-    return null; 
+    return null;
   }
 };
 

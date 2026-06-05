@@ -1,6 +1,6 @@
 /**
- * One-time export of Supabase data using the app's anon key.
- * You do NOT need Supabase dashboard access — only internet for this run.
+ * One-time export of Supabase data.
+ * Prefer SUPABASE_SERVICE_ROLE_KEY so RLS-protected tables (e.g. profiles) export fully.
  *
  * Usage: npm run export:supabase
  * Output: data/export/*.json
@@ -15,8 +15,15 @@ const OUT_DIR = path.resolve(__dirname, '../data/export');
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://xnfurysmtmxkfsdjghow.supabase.co';
 const SUPABASE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
   process.env.VITE_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhuZnVyeXNtdG14a2ZzZGpnaG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTMyMDEsImV4cCI6MjA4NjEyOTIwMX0.VBmIxYtdIyL68g3YZ-InQtw9hztEFm11yFtC_2vVbRk';
+
+/** Supabase table name -> MySQL import filename */
+const EXPORT_FILE_MAP = {
+  whatsapp_message_log: 'whatsapp_message_logs',
+};
 
 const TABLES = [
   'profiles', 'shareholders', 'members', 'students', 'courses', 'registrations',
@@ -59,7 +66,8 @@ async function exportTable(table) {
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   console.log('Exporting from Supabase to', OUT_DIR);
-  console.log('(Dashboard access not required — uses app API keys)\n');
+  console.log('Using', process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ? 'service role key' : 'anon key');
+  console.log('(Dashboard access not required — uses API keys)\n');
 
   const summary = [];
 
@@ -70,7 +78,10 @@ async function main() {
         console.log(`Skip ${table} (not found)`);
         continue;
       }
-      fs.writeFileSync(path.join(OUT_DIR, `${table}.json`), JSON.stringify(rows, null, 2));
+      fs.writeFileSync(
+        path.join(OUT_DIR, `${EXPORT_FILE_MAP[table] || table}.json`),
+        JSON.stringify(rows, null, 2)
+      );
       console.log(`Exported ${table}: ${rows.length} rows`);
       summary.push({ table, count: rows.length });
     } catch (err) {

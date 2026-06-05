@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import QueueMonitor from '@/components/admin/QueueMonitor';
 import { supabase } from '@/lib/customSupabaseClient';
+import { hydrateQueueJobs } from '@/services/queueWorkerService';
 import { format } from 'date-fns';
 import { Loader2, Mail, MessageSquare, CheckCircle, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 
@@ -20,11 +21,7 @@ const QueueListingPage = () => {
     try {
       let query = supabase
         .from('message_queue')
-        .select(`
-          id, status, channel, attempts, created_at, last_error, run_after,
-          message_recipients (recipient_name, recipient_email, recipient_phone),
-          messages (subject)
-        `)
+        .select('id, status, channel, attempts, created_at, last_error, run_after, message_id, message_recipient_id')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -34,7 +31,7 @@ const QueueListingPage = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setJobs(data || []);
+      setJobs(await hydrateQueueJobs(data || []));
     } catch (error) {
       toast({
         title: "Error fetching queue list",

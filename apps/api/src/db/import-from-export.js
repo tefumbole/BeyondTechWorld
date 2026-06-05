@@ -10,6 +10,35 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const EXPORT_DIR =
   process.argv[2] || path.resolve(__dirname, '../../../../data/export');
 
+/** Supabase export filename -> MySQL table name */
+const TABLE_NAME_MAP = {
+  whatsapp_message_log: 'whatsapp_message_logs',
+};
+
+/** Import parents before children */
+const IMPORT_PRIORITY = [
+  'profiles.json',
+  'users.json',
+  'roles.json',
+  'permissions.json',
+  'role_permissions.json',
+  'user_roles.json',
+  'tasks.json',
+  'task_categories.json',
+  'task_message_templates.json',
+  'task_assignments.json',
+  'task_updates.json',
+  'task_attachments.json',
+  'messages.json',
+  'message_templates.json',
+  'message_settings.json',
+  'message_attachments.json',
+  'message_recipients.json',
+  'message_queue.json',
+  'message_logs.json',
+  'shareholders.json',
+];
+
 function inferSqlType(value) {
   if (value === null || value === undefined) return 'TEXT NULL';
   if (typeof value === 'boolean') return 'TINYINT(1) NULL';
@@ -20,6 +49,31 @@ function inferSqlType(value) {
     if (value.length > 500) return 'LONGTEXT NULL';
   }
   return 'TEXT NULL';
+}
+
+function normalizeRow(tableName, row) {
+  const record = { ...row };
+
+  if (tableName === 'shareholders') {
+    if (!record.full_name && record.name) record.full_name = record.name;
+    if (!record.phone_number && record.phone) record.phone_number = record.phone;
+    if (!record.full_phone_number && record.phone_number) {
+      record.full_phone_number = record.phone_number;
+    }
+    if (record.email === '') record.email = null;
+  }
+
+  if (tableName === 'whatsapp_message_logs') {
+    if (!record.recipient_phone && record.phone_number) {
+      record.recipient_phone = record.phone_number;
+    }
+    if (!record.phone_number && record.recipient_phone) {
+      record.phone_number = record.recipient_phone;
+    }
+    if (!record.sent_at && record.created_at) record.sent_at = record.created_at;
+  }
+
+  return record;
 }
 
 async function ensureTable(pool, tableName, sampleRow) {
@@ -50,14 +104,17 @@ async function ensureTable(pool, tableName, sampleRow) {
 async function importTable(pool, tableName, rows) {
   if (!rows?.length) {
     console.log('Skip empty:', tableName);
-    return;
+    return { imported: 0, errors: 0, total: 0 };
   }
 
-  await ensureTable(pool, tableName, rows[0]);
+  const sample = normalizeRow(tableName, rows[0]);
+  await ensureTable(pool, tableName, sample);
 
   let imported = 0;
+  let errors = 0;
+
   for (const row of rows) {
-    const record = { ...row };
+    const record = normalizeRow(tableName, row);
     const keys = Object.keys(record);
     const placeholders = keys.map(() => '?').join(', ');
     const values = keys.map((k) => {
@@ -75,10 +132,19 @@ async function importTable(pool, tableName, rows) {
       );
       imported++;
     } catch (err) {
-      console.warn(`  Row error in ${tableName}:`, err.message);
+      errors++;
+      if (errors <= 5) {
+        console.warn(`  Row error in ${tableName}:`, err.message);
+      }
     }
   }
-  console.log(`Imported ${imported}/${rows.length} rows into ${tableName}`);
+
+  if (errors > 5) {
+    console.warn(`  ... and ${errors - 5} more errors in ${tableName}`);
+  }
+
+  console.log(`Imported ${imported}/${rows.length} rows into ${tableName}${errors ? ` (${errors} failed)` : ''}`);
+  return { imported, errors, total: rows.length };
 }
 
 async function main() {
@@ -89,24 +155,32 @@ async function main() {
   }
 
   const pool = getPool();
-  const files = fs.readdirSync(EXPORT_DIR).filter((f) => f.endsWith('.json'));
+  const files = fs.readdirSync(EXPORT_DIR).filter((f) => f.endsWith('.json') && f !== '_summary.json');
 
-  console.log(`Importing ${files.length} tables from ${EXPORT_DIR}\n`);
-
-  // profiles first, then rest
   const sorted = files.sort((a, b) => {
-    if (a === 'profiles.json') return -1;
-    if (b === 'profiles.json') return 1;
+    const ai = IMPORT_PRIORITY.indexOf(a);
+    const bi = IMPORT_PRIORITY.indexOf(b);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
     return a.localeCompare(b);
   });
 
+  console.log(`Importing ${sorted.length} tables from ${EXPORT_DIR}\n`);
+
+  const summary = [];
+
   for (const file of sorted) {
-    const tableName = file.replace('.json', '');
+    const exportName = file.replace('.json', '');
+    const tableName = TABLE_NAME_MAP[exportName] || exportName;
     const rows = JSON.parse(fs.readFileSync(path.join(EXPORT_DIR, file), 'utf8'));
-    await importTable(pool, tableName, rows);
+    const result = await importTable(pool, tableName, rows);
+    summary.push({ file, table: tableName, ...result });
   }
 
-  console.log('\nImport complete.');
+  const totalErrors = summary.reduce((n, s) => n + s.errors, 0);
+  console.log(`\nImport complete. ${totalErrors} row errors total.`);
+
   await pool.end();
 }
 

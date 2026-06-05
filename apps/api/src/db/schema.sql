@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   full_name VARCHAR(255) DEFAULT NULL,
   phone VARCHAR(50) DEFAULT NULL,
   role VARCHAR(50) DEFAULT NULL,
+  status VARCHAR(50) DEFAULT 'active',
   avatar_url TEXT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -50,17 +51,36 @@ CREATE TABLE IF NOT EXISTS otp_sessions (
 
 CREATE TABLE IF NOT EXISTS shareholders (
   id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  phone VARCHAR(50) NOT NULL,
+  full_name VARCHAR(255) DEFAULT NULL,
+  name VARCHAR(255) DEFAULT NULL,
+  email VARCHAR(255) DEFAULT NULL,
+  phone_number VARCHAR(50) DEFAULT NULL,
+  phone VARCHAR(50) DEFAULT NULL,
+  country_code VARCHAR(10) DEFAULT NULL,
+  full_phone_number VARCHAR(50) DEFAULT NULL,
+  company_name VARCHAR(255) DEFAULT NULL,
+  address TEXT DEFAULT NULL,
+  nationality VARCHAR(100) DEFAULT NULL,
   shares_assigned INT NOT NULL DEFAULT 0,
-  payment_status VARCHAR(50) NOT NULL DEFAULT 'Pay Later',
+  investment_amount DECIMAL(14,2) DEFAULT NULL,
+  signature LONGTEXT DEFAULT NULL,
+  signature_image_url TEXT DEFAULT NULL,
+  agreement_signed_at DATETIME DEFAULT NULL,
+  payment_status VARCHAR(50) NOT NULL DEFAULT 'pending',
   reference_number VARCHAR(100) DEFAULT NULL,
-  status VARCHAR(50) DEFAULT 'pending',
+  status VARCHAR(50) DEFAULT 'pending_approval',
+  is_guest TINYINT(1) DEFAULT 1,
+  user_id CHAR(36) DEFAULT NULL,
+  submitted_at DATETIME DEFAULT NULL,
+  approved_at DATETIME DEFAULT NULL,
+  approved_by CHAR(36) DEFAULT NULL,
+  rejection_reason TEXT DEFAULT NULL,
+  admin_notes TEXT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_shareholders_email (email),
-  INDEX idx_shareholders_ref (reference_number)
+  INDEX idx_shareholders_ref (reference_number),
+  INDEX idx_shareholders_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS members (
@@ -245,11 +265,17 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 CREATE TABLE IF NOT EXISTS whatsapp_message_logs (
   id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
   phone_number VARCHAR(50) DEFAULT NULL,
+  recipient_phone VARCHAR(50) DEFAULT NULL,
   message_type VARCHAR(100) DEFAULT NULL,
   message_content TEXT DEFAULT NULL,
   recipient_name VARCHAR(255) DEFAULT NULL,
   status VARCHAR(50) DEFAULT 'pending',
   error_message TEXT DEFAULT NULL,
+  related_registration_id CHAR(36) DEFAULT NULL,
+  retry_count INT DEFAULT 0,
+  sent_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_whatsapp_logs_phone (recipient_phone),
+  INDEX idx_whatsapp_logs_sent (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

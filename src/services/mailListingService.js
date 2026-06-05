@@ -4,16 +4,12 @@ export const fetchMessages = async (page = 1, pageSize = 10, filters = {}) => {
   try {
     let query = supabase
       .from('messages')
-      .select(`
-        *,
-        message_recipients(count),
-        message_attachments(count)
-      `, { count: 'exact' });
+      .select('*', { count: 'exact' });
 
     if (filters.status && filters.status !== 'All') {
       query = query.eq('status', filters.status.toLowerCase());
     }
-    
+
     if (filters.category && filters.category !== 'All') {
       query = query.eq('category', filters.category);
     }
@@ -31,13 +27,37 @@ export const fetchMessages = async (page = 1, pageSize = 10, filters = {}) => {
 
     if (error) throw error;
 
-    return { 
-      data: data.map(msg => ({
+    const messages = data || [];
+    const messageIds = messages.map((m) => m.id).filter(Boolean);
+
+    const recCountMap = {};
+    const attCountMap = {};
+
+    if (messageIds.length) {
+      const { data: recipients } = await supabase
+        .from('message_recipients')
+        .select('message_id')
+        .in('message_id', messageIds);
+      (recipients || []).forEach((r) => {
+        recCountMap[r.message_id] = (recCountMap[r.message_id] || 0) + 1;
+      });
+
+      const { data: attachments } = await supabase
+        .from('message_attachments')
+        .select('message_id')
+        .in('message_id', messageIds);
+      (attachments || []).forEach((a) => {
+        attCountMap[a.message_id] = (attCountMap[a.message_id] || 0) + 1;
+      });
+    }
+
+    return {
+      data: messages.map((msg) => ({
         ...msg,
-        recipients_count: msg.message_recipients[0]?.count || 0,
-        attachments_count: msg.message_attachments[0]?.count || 0
-      })), 
-      count 
+        recipients_count: recCountMap[msg.id] || 0,
+        attachments_count: attCountMap[msg.id] || 0,
+      })),
+      count,
     };
   } catch (error) {
     console.error('Error fetching messages:', error);
