@@ -353,7 +353,9 @@ function Header() {
           )}
         </div>
       </header>
-      <WhatsAppButton variant="floating" className="fixed bottom-6 right-6 z-50" />
+      {!location.pathname.startsWith('/shareholders') && (
+        <WhatsAppButton variant="floating" className="fixed bottom-6 right-6 z-50" />
+      )}
     </>
   );
 }
