@@ -172,9 +172,9 @@ function buildWhere(filters) {
 
 function serializeRow(row, table, user) {
   const out = {};
-  const strip = !isAdmin(user) && SENSITIVE_COLUMNS[table];
+  const stripCols = !isAdmin(user) ? SENSITIVE_COLUMNS[table] : null;
   for (const [k, v] of Object.entries(row)) {
-    if (strip?.includes(k)) continue;
+    if (stripCols?.includes(k)) continue;
     if (v instanceof Date) out[k] = v.toISOString();
     else if (Buffer.isBuffer(v)) out[k] = v.toString();
     else if (typeof v === 'object' && v !== null && !Array.isArray(v)) out[k] = v;

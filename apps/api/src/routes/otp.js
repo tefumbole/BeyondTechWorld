@@ -97,7 +97,21 @@ router.post('/verify', requireAuth, async (req, res) => {
       [session.id]
     );
 
-    const [profiles] = await pool.query('SELECT * FROM profiles WHERE id = ? LIMIT 1', [userId]);
+    let [profiles] = await pool.query('SELECT * FROM profiles WHERE id = ? LIMIT 1', [userId]);
+    if (!profiles[0]) {
+      const [users] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [userId]);
+      const u = users[0];
+      if (u) {
+        await pool.query(
+          `INSERT INTO profiles (id, email, full_name, phone, role)
+           VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE email = VALUES(email), role = VALUES(role)`,
+          [u.id, u.email, u.name, u.phone, u.role]
+        );
+        [profiles] = await pool.query('SELECT * FROM profiles WHERE id = ? LIMIT 1', [userId]);
+      }
+    }
+
     res.json({
       success: true,
       message: 'OTP verified.',
