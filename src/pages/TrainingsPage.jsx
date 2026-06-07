@@ -10,12 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { getTrainingPrograms } from '@/services/coursesService';
 import { trainingModules } from '@/utils/trainingCourseUtils';
+import { usePageT } from '@/hooks/useSiteLabel';
+import { useSiteLabel } from '@/hooks/useSiteLabel';
 
 const iconMap = {
   Brain, Cloud, Shield, Briefcase, Phone, Network, Video
 };
 
 function TrainingsPage() {
+  const tt = usePageT('training');
+  const tl = useSiteLabel();
   const [expandedModule, setExpandedModule] = useState(null);
   const [programs, setPrograms] = useState(trainingModules);
   const navigate = useNavigate();
@@ -55,13 +59,13 @@ function TrainingsPage() {
             className="text-center"
           >
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
-              Professional <span className="text-[#D4AF37]">IT Training</span>
+              {tt('hero_title_prefix', 'Professional')} <span className="text-[#D4AF37]">{tt('hero_title_highlight', 'IT Training')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-4 max-w-4xl mx-auto">
-              Master cutting-edge technologies with industry-leading programs
+              {tt('hero_subtitle', 'Master cutting-edge technologies with industry-leading programs')}
             </p>
             <p className="text-lg text-blue-200 mb-8 max-w-3xl mx-auto">
-              Hands-on training in AI, Cloud, Security, Networking, and more — designed for 2026 and beyond
+              {tt('hero_subtitle_2', 'Hands-on training in AI, Cloud, Security, Networking, and more — designed for 2026 and beyond')}
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
@@ -69,14 +73,14 @@ function TrainingsPage() {
                 className="bg-[#D4AF37] hover:bg-[#C19B2A] text-[#003D82] px-8 py-6 text-lg font-bold shadow-lg hover:scale-105 transition-transform rounded-full"
                 onClick={() => document.getElementById('programs').scrollIntoView({ behavior: 'smooth' })}
               >
-                Explore Programs
+                {tt('explore_programs', 'Explore Programs')}
               </Button>
               <Link to="/registration">
                 <Button 
                   variant="outline"
                   className="border-2 border-white text-white hover:bg-white hover:text-[#003D82] px-8 py-6 text-lg font-bold shadow-lg hover:scale-105 transition-all rounded-full"
                 >
-                  Register Now
+                  {tt('register_now', 'Register Now')}
                 </Button>
               </Link>
             </div>
@@ -90,19 +94,19 @@ function TrainingsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-4xl font-bold text-[#003D82] mb-2">{programs.length}</div>
-              <div className="text-gray-600">Training Programs</div>
+              <div className="text-gray-600">{tt('training_programs', 'Training Programs')}</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-[#003D82] mb-2">8-14</div>
-              <div className="text-gray-600">Weeks Duration</div>
+              <div className="text-gray-600">{tt('weeks_duration', 'Weeks Duration')}</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-[#003D82] mb-2">100%</div>
-              <div className="text-gray-600">Hands-on Labs</div>
+              <div className="text-gray-600">{tl('training', 'Hands-on Labs')}</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-[#003D82] mb-2">24/7</div>
-              <div className="text-gray-600">Support Access</div>
+              <div className="text-gray-600">{tl('training', 'Support Access')}</div>
             </div>
           </div>
         </div>
@@ -113,10 +117,10 @@ function TrainingsPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-[#003D82] mb-4">
-              Training Programs
+              {tt('programs_title', 'Training Programs')}
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Select a program to explore the comprehensive curriculum, tools, and career opportunities
+              {tl('training', 'Select a program to explore the comprehensive curriculum, tools, and career opportunities')}
             </p>
           </div>
 

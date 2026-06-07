@@ -23,8 +23,11 @@ import {
   FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { usePageT, useSiteLabel } from '@/hooks/useSiteLabel';
 
 const SignedAgreementsPage = () => {
+  const ts = usePageT('shareholders');
+  const tl = useSiteLabel();
   const [loading, setLoading] = useState(true);
   const [approvedShareholders, setApprovedShareholders] = useState([]);
   const [error, setError] = useState(null);
@@ -69,7 +72,7 @@ const SignedAgreementsPage = () => {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-[#003D82] mx-auto mb-4" />
-          <p className="text-gray-600">Loading approved shareholders...</p>
+          <p className="text-gray-600">{ts('loading_approved', 'Loading approved shareholders...')}</p>
         </div>
       </div>
     );
@@ -89,8 +92,8 @@ const SignedAgreementsPage = () => {
       <Card className="max-w-2xl mx-auto mt-8">
         <CardContent className="p-12 text-center">
           <FileSignature className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">No Signed Agreements</h3>
-          <p className="text-gray-600">No approved shareholders with signed agreements yet.</p>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">{ts('no_signed_agreements', 'No Signed Agreements')}</h3>
+          <p className="text-gray-600">{ts('no_approved_yet', 'No approved shareholders with signed agreements yet.')}</p>
         </CardContent>
       </Card>
     );
@@ -100,12 +103,12 @@ const SignedAgreementsPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Signed Shareholder Agreements</h1>
-          <p className="text-gray-600 mt-1">View all approved shareholders with signed agreements</p>
+          <h1 className="text-3xl font-bold text-gray-800">{ts('signed_agreements_title', 'Signed Shareholder Agreements')}</h1>
+          <p className="text-gray-600 mt-1">{ts('signed_agreements_subtitle', 'View all approved shareholders with signed agreements')}</p>
         </div>
         <Badge variant="outline" className="text-lg px-4 py-2 bg-green-50 border-green-300 text-green-800">
           <CheckCircle className="w-4 h-4 mr-2" />
-          {approvedShareholders.length} Approved
+          {approvedShareholders.length} {ts('approved_count', 'Approved')}
         </Badge>
       </div>
 
@@ -125,7 +128,7 @@ const SignedAgreementsPage = () => {
                       <CardTitle className="text-xl">{shareholder.full_name || 'N/A'}</CardTitle>
                       <Badge className="bg-green-600 text-white">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        Approved
+                        {tl('common', 'Approved')}
                       </Badge>
                     </div>
                     <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-600">
@@ -147,21 +150,21 @@ const SignedAgreementsPage = () => {
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Country Code</p>
+                      <p className="text-xs text-gray-500">{ts('country_code', 'Country Code')}</p>
                       <p className="font-medium">{formatCountryCodeDisplay(shareholder.country_code)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Address</p>
+                      <p className="text-xs text-gray-500">{tl('pages', 'Address')}</p>
                       <p className="font-medium">{shareholder.address || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Approved Date</p>
+                      <p className="text-xs text-gray-500">{ts('approved_date', 'Approved Date')}</p>
                       <p className="font-medium">
                         {shareholder.approved_at
                           ? format(new Date(shareholder.approved_at), 'MMM dd, yyyy')
@@ -172,7 +175,7 @@ const SignedAgreementsPage = () => {
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Payment Status</p>
+                      <p className="text-xs text-gray-500">{ts('payment_status', 'Payment Status')}</p>
                       <Badge
                         variant="outline"
                         className={
@@ -192,14 +195,14 @@ const SignedAgreementsPage = () => {
                   <div className="flex items-center gap-2">
                     <Hash className="w-5 h-5 text-blue-600" />
                     <div>
-                      <p className="text-xs text-gray-600">Approved Shares</p>
+                      <p className="text-xs text-gray-600">{ts('approved_shares', 'Approved Shares')}</p>
                       <p className="text-lg font-bold text-blue-800">{shareholder.shares_assigned || 0}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-purple-600" />
                     <div>
-                      <p className="text-xs text-gray-600">Price Per Share</p>
+                      <p className="text-xs text-gray-600">{ts('price_per_share', 'Price Per Share')}</p>
                       <p className="text-lg font-bold text-purple-800">
                         {formatPrice(pricePerShare)}
                       </p>
@@ -208,7 +211,7 @@ const SignedAgreementsPage = () => {
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-green-600" />
                     <div>
-                      <p className="text-xs text-gray-600">Total Investment</p>
+                      <p className="text-xs text-gray-600">{ts('total_investment', 'Total Investment')}</p>
                       <p className="text-lg font-bold text-green-800">
                         {formatPrice(shareholder.investment_amount || 0)}
                       </p>
@@ -220,7 +223,7 @@ const SignedAgreementsPage = () => {
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
                     <div className="flex items-center gap-2 mb-3">
                       <FileSignature className="w-4 h-4 text-gray-600" />
-                      <span className="font-medium text-gray-700">Digital Signature</span>
+                      <span className="font-medium text-gray-700">{ts('digital_signature', 'Digital Signature')}</span>
                     </div>
                     <div className="bg-white border border-gray-300 rounded-lg p-2 inline-block">
                       <img
@@ -238,7 +241,7 @@ const SignedAgreementsPage = () => {
                     className="w-full bg-[#003D82] hover:bg-[#002855] text-white"
                   >
                     <FileText className="w-4 h-4 mr-2" />
-                    View Agreement Document
+                    {ts('view_agreement_document', 'View Agreement Document')}
                   </Button>
                 </div>
               </CardContent>

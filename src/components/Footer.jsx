@@ -4,8 +4,12 @@ import { Phone, Mail, Globe } from 'lucide-react';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import BrandLogo from '@/components/BrandLogo';
 import { getSystemSettings } from '@/services/settingsService';
+import { useSiteLabel } from '@/hooks/useSiteLabel';
+import { usePageT } from '@/hooks/useSiteLabel';
 
 function Footer() {
+  const tl = useSiteLabel();
+  const tf = usePageT('footer');
   const currentYear = new Date().getFullYear();
   const [settings, setSettings] = useState({
       developed_by: 'Alpha Bridge Technologies Ltd',
@@ -41,12 +45,10 @@ function Footer() {
     { name: 'Shareholders Portal', path: '/shareholders' },
   ];
 
-  // Default logo if not set — kept for settings merge only
   return (
     <footer className="bg-[#1a1a2e] text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Company Info */}
           <div>
             <div className="mb-4">
               <Link to="/" className="inline-block mb-2 bg-transparent">
@@ -63,13 +65,12 @@ function Footer() {
               </div>
             </div>
             <p className="text-gray-300 text-sm mb-4">
-              Your Technology Bridge to Kigali. Professional IT, networking, security, and audio-visual solutions.
+              {tf('tagline', 'Your Technology Bridge to Kigali. Professional IT, networking, security, and audio-visual solutions.')}
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold text-[#D4AF37] mb-4">Quick Links</h3>
+            <h3 className="text-lg font-semibold text-[#D4AF37] mb-4">{tf('quick_links', 'Quick Links')}</h3>
             <nav className="flex flex-col space-y-2">
               {quickLinks.map((link) => (
                 <Link
@@ -77,19 +78,18 @@ function Footer() {
                   to={link.path}
                   className="text-gray-300 hover:text-[#D4AF37] transition-colors text-sm"
                 >
-                  {link.name}
+                  {tl('footer', link.name)}
                 </Link>
               ))}
             </nav>
           </div>
 
-          {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold text-[#D4AF37] mb-4">Contact Us</h3>
+            <h3 className="text-lg font-semibold text-[#D4AF37] mb-4">{tf('contact_us', 'Contact Us')}</h3>
             <div className="space-y-3">
               <div className="mb-4">
                  <WhatsAppButton 
-                    text="Chat now" 
+                    text={tf('chat_now', 'Chat now')} 
                     className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1EBE57]"
                  />
               </div>
@@ -120,16 +120,17 @@ function Footer() {
           </div>
         </div>
 
-        {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-gray-700 text-center">
           <p className="text-gray-400 text-sm">
-            © {currentYear} {settings.copyright_text}
+            © {currentYear} {settings.copyright_text === 'All rights reserved'
+              ? tf('all_rights_reserved', settings.copyright_text)
+              : settings.copyright_text}
           </p>
           <p className="text-gray-500 text-xs mt-2">
-             Developed by <span className="text-gray-400 font-medium">{settings.developed_by}</span>
+             {tf('developed_by', 'Developed by')} <span className="text-gray-400 font-medium">{settings.developed_by}</span>
           </p>
           <p className="text-gray-600 text-[10px] mt-1">
-             Kigali, Rwanda
+             {tf('location', 'Kigali, Rwanda')}
           </p>
         </div>
       </div>

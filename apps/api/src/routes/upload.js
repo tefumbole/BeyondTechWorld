@@ -55,6 +55,13 @@ router.get('/:bucket/:filename', (req, res) => {
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Not found' });
   }
+  const ext = path.extname(safe).toLowerCase();
+  if (ext === '.pdf') res.type('application/pdf');
+  else if (ext === '.png') res.type('image/png');
+  else if (ext === '.jpg' || ext === '.jpeg') res.type('image/jpeg');
+  res.setHeader('Content-Disposition', `inline; filename="${safe}"`);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
   res.sendFile(filePath);
 });
 

@@ -13,8 +13,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useSiteLabel } from '@/hooks/useSiteLabel';
 
 function Header() {
+  const tl = useSiteLabel();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
@@ -97,39 +100,39 @@ function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
-              <NavLink to="/">Home</NavLink>
-              <NavLink to="/trainings">Training</NavLink>
-              <NavLink to="/events">Events</NavLink>
+              <NavLink to="/">{tl('menu', 'Home')}</NavLink>
+              <NavLink to="/trainings">{tl('menu', 'Training')}</NavLink>
+              <NavLink to="/events">{tl('menu', 'Events')}</NavLink>
 
-              <NavLink to="/register-now">Register Now</NavLink>
-              <NavLink to="/apply-now" isSpecial={true}>Apply Now</NavLink>
+              <NavLink to="/register-now">{tl('menu', 'Register Now')}</NavLink>
+              <NavLink to="/apply-now" isSpecial={true}>{tl('menu', 'Apply Now')}</NavLink>
 
-              <NavLink to="/about">About Us</NavLink>
-              <NavLink to="/shareholders">Shareholders</NavLink>
-              <NavLink to="/contact">Contact Us</NavLink>
+              <NavLink to="/about">{tl('menu', 'About Us')}</NavLink>
+              <NavLink to="/shareholders">{tl('menu', 'Shareholders')}</NavLink>
+              <NavLink to="/contact">{tl('menu', 'Contact Us')}</NavLink>
 
-              {/* Letters External Link */}
               <a
                 href="https://abt.beyondcompanyltd.com/login"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 text-sm xl:text-base font-medium group"
-                title="Letters Portal"
+                title={tl('menu', 'Letters Portal')}
               >
                 <FileText className="w-4 h-4" />
-                <span>Letters</span>
+                <span>{tl('menu', 'Letters')}</span>
                 <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" />
               </a>
 
-              {/* QR Scanner */}
               <Link 
                 to="/qr-scanner" 
                 className={`text-white hover:text-[#D4AF37] transition-colors flex items-center gap-1 text-sm border border-white/20 px-2 py-1 rounded-md hover:border-[#D4AF37] ${isActive('/qr-scanner') ? 'border-[#D4AF37] text-[#D4AF37]' : ''}`}
-                title="QR Code Scanner"
+                title={tl('menu', 'QR Code Scanner')}
               >
                 <Scan className="w-4 h-4" />
-                <span className="hidden xl:inline">Scan QR</span>
+                <span className="hidden xl:inline">{tl('menu', 'Scan QR')}</span>
               </Link>
+
+              <LanguageSwitcher variant="header" />
             </nav>
 
             {/* Desktop Contact Links & Login */}
@@ -163,10 +166,10 @@ function Header() {
                       </Avatar>
                       <div className="flex flex-col items-start text-xs hidden xl:flex">
                         <span className="font-bold max-w-[100px] truncate">
-                          {isProfileLoading ? 'Loading...' : (profile?.full_name || user.email?.split('@')[0])}
+                          {isProfileLoading ? tl('menu', 'Loading...') : (profile?.full_name || user.email?.split('@')[0])}
                         </span>
                         <span className="text-[#D4AF37] uppercase text-[10px] tracking-wider">
-                          {checkingAdmin ? 'Checking...' : (isAdmin ? 'Administrator' : 'User')}
+                          {checkingAdmin ? tl('menu', 'Checking...') : (isAdmin ? tl('menu', 'Administrator') : tl('menu', 'User'))}
                         </span>
                       </div>
                       <ChevronDown className="w-4 h-4 opacity-50" />
@@ -174,12 +177,12 @@ function Header() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-white">
                     <div className="px-2 py-1.5 text-sm font-semibold border-b mb-1 text-gray-700 bg-gray-50/50">
-                      My Account
+                      {tl('menu', 'My Account')}
                     </div>
                     {isAdmin && (
                       <DropdownMenuItem asChild>
                         <Link to="/admin/dashboard" className="cursor-pointer">
-                          <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Dashboard
+                          <LayoutDashboard className="w-4 h-4 mr-2" /> {tl('menu', 'Admin Dashboard')}
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -187,18 +190,18 @@ function Header() {
                       <>
                         <DropdownMenuItem asChild>
                           <Link to="/user/tasks" className="cursor-pointer">
-                            <ListTodo className="w-4 h-4 mr-2" /> My Tasks
+                            <ListTodo className="w-4 h-4 mr-2" /> {tl('menu', 'My Tasks')}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/user/tasks/pending-acceptances" className="cursor-pointer">
-                            <Inbox className="w-4 h-4 mr-2" /> Pending Acceptances
+                            <Inbox className="w-4 h-4 mr-2" /> {tl('menu', 'Pending Acceptances')}
                           </Link>
                         </DropdownMenuItem>
                       </>
                     )}
                     <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
-                      <LogOut className="w-4 h-4 mr-2" /> Logout
+                      <LogOut className="w-4 h-4 mr-2" /> {tl('menu', 'Logout')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -207,7 +210,7 @@ function Header() {
                   <Button 
                     className="bg-[#002855] border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#003D82] font-medium transition-all"
                   >
-                    <LogIn className="w-4 h-4 mr-2" /> Login
+                    <LogIn className="w-4 h-4 mr-2" /> {tl('menu', 'Login')}
                   </Button>
                 </Link>
               )}
@@ -230,19 +233,22 @@ function Header() {
           {mobileMenuOpen && (
             <div className="lg:hidden pb-4 animate-slide-in-from-top bg-[#003D82] absolute left-0 right-0 top-20 px-4 shadow-xl border-t border-gray-800 z-50 overflow-y-auto max-h-[calc(100vh-5rem)]">
               <nav className="flex flex-col space-y-4 pt-4 pb-10">
-                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">Home</Link>
-                <Link to="/trainings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">Training</Link>
-                <Link to="/events" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">Events</Link>
+                <div className="flex justify-end pb-2 border-b border-gray-700">
+                  <LanguageSwitcher variant="header" />
+                </div>
+                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Home')}</Link>
+                <Link to="/trainings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Training')}</Link>
+                <Link to="/events" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Events')}</Link>
                 
-                <Link to="/register-now" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium border-t border-gray-700 pt-2">Register Now</Link>
+                <Link to="/register-now" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium border-t border-gray-700 pt-2">{tl('menu', 'Register Now')}</Link>
                 
                 <Link to="/apply-now" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] font-bold text-lg flex items-center gap-2 bg-white/10 p-2 rounded-md">
-                  Apply Now
+                  {tl('menu', 'Apply Now')}
                 </Link>
 
-                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">About Us</Link>
-                <Link to="/shareholders" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] hover:text-white text-lg font-medium">Shareholders</Link>
-                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">Contact Us</Link>
+                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'About Us')}</Link>
+                <Link to="/shareholders" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] hover:text-white text-lg font-medium">{tl('menu', 'Shareholders')}</Link>
+                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Contact Us')}</Link>
 
                 <a
                   href="https://abt.beyondcompanyltd.com/login"
@@ -251,7 +257,7 @@ function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 text-lg font-medium text-white hover:text-[#D4AF37]"
                 >
-                  <FileText className="w-5 h-5" /> Letters <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
+                  <FileText className="w-5 h-5" /> {tl('menu', 'Letters')} <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
                 </a>
 
                 <Link 
@@ -259,7 +265,7 @@ function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 text-lg font-medium text-white hover:text-[#D4AF37] pt-2 border-t border-gray-700"
                 >
-                  <Scan className="w-5 h-5" /> Scan QR Code
+                  <Scan className="w-5 h-5" /> {tl('menu', 'Scan QR Code')}
                 </Link>
 
                 <div className="pt-4 border-t border-gray-700 space-y-3">
@@ -275,7 +281,7 @@ function Header() {
                         <div>
                           <p className="text-white font-bold">{profile?.full_name || user.email?.split('@')[0]}</p>
                           <p className="text-[#D4AF37] text-xs uppercase">
-                            {checkingAdmin ? 'Checking...' : (isAdmin ? 'Administrator' : 'User')}
+                            {checkingAdmin ? tl('menu', 'Checking...') : (isAdmin ? tl('menu', 'Administrator') : tl('menu', 'User'))}
                           </p>
                         </div>
                       </div>
@@ -286,7 +292,7 @@ function Header() {
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center justify-center gap-2 w-full py-2 rounded bg-[#D4AF37] text-[#003D82] font-bold"
                         >
-                          <LayoutDashboard className="w-5 h-5" /> Admin Dashboard
+                          <LayoutDashboard className="w-5 h-5" /> {tl('menu', 'Admin Dashboard')}
                         </Link>
                       )}
 
@@ -297,14 +303,14 @@ function Header() {
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white"
                           >
-                            <ListTodo className="w-5 h-5" /> My Tasks
+                            <ListTodo className="w-5 h-5" /> {tl('menu', 'My Tasks')}
                           </Link>
                           <Link
                             to="/user/tasks/pending-acceptances"
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white"
                           >
-                            <Inbox className="w-5 h-5" /> Pending Acceptances
+                            <Inbox className="w-5 h-5" /> {tl('menu', 'Pending Acceptances')}
                           </Link>
                         </>
                       )}
@@ -314,7 +320,7 @@ function Header() {
                         variant="outline"
                         className="w-full text-white border-white/20 hover:bg-white/10"
                       >
-                        <LogOut className="w-4 h-4 mr-2" /> Logout
+                        <LogOut className="w-4 h-4 mr-2" /> {tl('menu', 'Logout')}
                       </Button>
                     </>
                   ) : (
@@ -323,7 +329,7 @@ function Header() {
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center justify-center gap-2 w-full py-2 rounded border border-[#D4AF37] text-[#D4AF37] font-medium"
                     >
-                      <LogIn className="w-5 h-5" /> Portal Login
+                      <LogIn className="w-5 h-5" /> {tl('menu', 'Portal Login')}
                     </Link>
                   )}
                 </div>
@@ -343,7 +349,7 @@ function Header() {
                     className="flex items-center space-x-2 text-white hover:text-[#D4AF37] transition-colors mt-2"
                   >
                     <Mail className="w-5 h-5" />
-                    <span>Webmail Login</span>
+                    <span>{tl('menu', 'Webmail Login')}</span>
                   </a>
                 </div>
               </nav>

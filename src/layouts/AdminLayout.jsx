@@ -50,11 +50,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useSiteLabel } from '@/hooks/useSiteLabel';
 
 const AdminLayout = () => {
   const { logout, user, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const tl = useSiteLabel();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
@@ -298,7 +301,7 @@ const AdminLayout = () => {
           )}>
             <div className="flex items-center gap-3">
               <item.icon className="w-5 h-5 text-[#D4AF37]" />
-              <span>{item.label}</span>
+              <span>{tl('menu', item.label)}</span>
             </div>
             <ChevronDown className={cn("w-4 h-4 transition-transform", isOpen && "transform rotate-180")} />
           </CollapsibleTrigger>
@@ -316,7 +319,7 @@ const AdminLayout = () => {
                 )}
               >
                 {sub.icon && <sub.icon className="w-3 h-3" />}
-                {sub.label}
+                {tl('menu', sub.label)}
               </Link>
             ))}
           </CollapsibleContent>
@@ -336,7 +339,7 @@ const AdminLayout = () => {
         )}
       >
         <item.icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", location.pathname === item.path ? "text-[#003D82]" : "text-[#D4AF37]")} />
-        <span className="relative z-10">{item.label}</span>
+        <span className="relative z-10">{tl('menu', item.label)}</span>
       </Link>
     );
   };
@@ -365,7 +368,7 @@ const AdminLayout = () => {
             'flex items-center justify-between w-full px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-white hover:bg-white/5',
             groupActive && 'text-[#D4AF37]'
           )}>
-            <span>{group.label}</span>
+            <span>{tl('menu', group.label)}</span>
             <ChevronDown className={cn('w-4 h-4 transition-transform', isGroupOpen && 'rotate-180')} />
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-1 mt-1">
@@ -377,7 +380,7 @@ const AdminLayout = () => {
 
     return (
       <div>
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">{group.label}</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-4">{tl('menu', group.label)}</h3>
         <div className="space-y-1">
           {visibleItems.map((item, i) => <MenuItem key={i} item={item} />)}
         </div>
@@ -390,6 +393,7 @@ const AdminLayout = () => {
       <div className="md:hidden bg-[#003D82] text-white p-4 flex justify-between items-center z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-2">
           <span className="font-bold text-lg text-[#D4AF37]">Alpha Admin</span>
+          <LanguageSwitcher variant="admin" className="ml-auto md:hidden" />
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2">
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -421,7 +425,7 @@ const AdminLayout = () => {
                 {profile?.full_name || user?.email || 'Administrator'}
               </p>
               <div className="text-[10px] px-1.5 py-0.5 rounded mt-1 inline-block bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                {checkingAdmin ? 'Checking...' : (isAdmin ? 'Administrator' : 'User')}
+                {checkingAdmin ? tl('menu', 'Checking...') : (isAdmin ? tl('menu', 'Administrator') : tl('menu', 'User'))}
               </div>
             </div>
           </div>
@@ -432,7 +436,7 @@ const AdminLayout = () => {
             className="w-full justify-start text-red-300 hover:text-white hover:bg-red-600/80 transition-colors"
           >
             <LogOut className="w-5 h-5 mr-2" />
-            Sign Out
+            {tl('menu', 'Sign Out')}
           </Button>
         </div>
       </aside>
@@ -445,6 +449,9 @@ const AdminLayout = () => {
       )}
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto bg-gray-50 h-[calc(100vh-64px)] md:h-screen">
+        <div className="hidden md:flex justify-end mb-4">
+          <LanguageSwitcher variant="admin" />
+        </div>
         <div className="max-w-7xl mx-auto pb-10 print:p-0 print:m-0 print:max-w-none print:w-full print:bg-white">
           <Outlet />
         </div>

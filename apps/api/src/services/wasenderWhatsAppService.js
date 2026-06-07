@@ -3,6 +3,13 @@
  * Keeps API key off the browser.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadRoot = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'));
+
 function getApiKey() {
   return process.env.WASENDER_API_KEY || '';
 }
@@ -181,6 +188,82 @@ export async function uploadBufferToWasender(buffer, mimeType = 'application/pdf
   };
 }
 
+function getAppPublicBase() {
+  return String(process.env.APP_URL || '').replace(/\/$/, '');
+}
+
+/** Fallback when Wasender /upload fails — store on VPS and use public APP_URL (Manukeza pattern). */
+export function saveBufferToPublicUpload(buffer, fileName = 'document.pdf', mimeType = 'application/pdf') {
+  const base = getAppPublicBase();
+  if (!base) {
+    return { success: false, public_url: null, error: 'APP_URL is not set in apps/api/.env' };
+  }
+
+  try {
+    const bucket = 'whatsapp-documents';
+    const dir = path.join(uploadRoot, bucket);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const safeName = `${Date.now()}-${String(fileName || 'document.pdf').replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const filePath = path.join(dir, safeName);
+    fs.writeFileSync(filePath, buffer);
+
+    const publicUrl = `${base}/api/upload/${bucket}/${encodeURIComponent(safeName)}`;
+    console.log('[WASENDER] Public upload fallback:', publicUrl, `(${mimeType}, ${buffer.length} bytes)`);
+    return { success: true, public_url: publicUrl, error: null, local_path: filePath };
+  } catch (err) {
+    console.error('[WASENDER] Public upload fallback failed:', err);
+    return { success: false, public_url: null, error: err.message || 'Failed to save document' };
+  }
+}
+
+async function verifyPublicDocumentUrl(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    if (response.ok) return true;
+    const getResponse = await fetch(url, { method: 'GET', redirect: 'follow' });
+    return getResponse.ok;
+  } catch (err) {
+    console.warn('[WASENDER] Public document URL not reachable:', url, err.message);
+    return false;
+  }
+}
+
+async function resolveDocumentPublicUrl(buffer, fileName, mimeType) {
+  const wasenderUpload = await uploadBufferToWasender(buffer, mimeType);
+  if (wasenderUpload.success && wasenderUpload.public_url) {
+    const reachable = await verifyPublicDocumentUrl(wasenderUpload.public_url);
+    if (reachable) {
+      return { ...wasenderUpload, source: 'wasender' };
+    }
+    console.warn('[WASENDER] Wasender public URL not reachable, using APP_URL fallback');
+  } else {
+    console.warn('[WASENDER] Wasender upload failed, using APP_URL fallback:', wasenderUpload.error);
+  }
+
+  const localUpload = saveBufferToPublicUpload(buffer, fileName, mimeType);
+  if (localUpload.success && localUpload.public_url) {
+    const reachable = await verifyPublicDocumentUrl(localUpload.public_url);
+    if (reachable) {
+      return { ...localUpload, source: 'app_url' };
+    }
+    const base = getAppPublicBase();
+    return {
+      success: false,
+      public_url: null,
+      error: base
+        ? `Document saved but not publicly reachable at ${localUpload.public_url}. Check nginx /api/ proxy and APP_URL (${base}).`
+        : 'APP_URL is not set in apps/api/.env — required for WhatsApp PDF delivery on production.',
+    };
+  }
+
+  return {
+    success: false,
+    public_url: null,
+    error: localUpload.error || wasenderUpload.error || 'Failed to upload document',
+  };
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -207,12 +290,22 @@ export async function sendTextThenDocumentBuffer(
 
   await sleep(3000);
 
-  const upload = await uploadBufferToWasender(buffer, mimeType);
+  const upload = await resolveDocumentPublicUrl(buffer, fileName, mimeType);
   if (!upload.success || !upload.public_url) {
-    return buildResult(false, to, null, upload.error || 'Failed to upload document to WhatsApp');
+    return buildResult(false, to, null, upload.error || 'Failed to upload document for WhatsApp');
   }
 
-  return sendDocumentMessage(to, upload.public_url, null, fileName);
+  const docResult = await sendDocumentMessage(to, upload.public_url, null, fileName);
+  if (!docResult.success) {
+    return buildResult(
+      false,
+      to,
+      docResult.data,
+      docResult.error || 'Intro message sent, but PDF attachment failed to deliver'
+    );
+  }
+
+  return docResult;
 }
 
 export async function sendDocumentMessage(toPhone, documentUrl, text = null, fileName = null) {

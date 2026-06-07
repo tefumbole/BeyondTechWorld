@@ -6,9 +6,13 @@ import {
   downloadPDF,
   sendAgreementViaWhatsApp,
 } from '@/services/agreementService';
+import { usePageT } from '@/hooks/useSiteLabel';
+import { useSiteLabel } from '@/hooks/useSiteLabel';
 import './AgreementViewModal.css';
 
 const AgreementViewModal = ({ shareholder, onClose }) => {
+  const ta = usePageT('agreement');
+  const tl = useSiteLabel();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -42,10 +46,10 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
 
       generateAndSaveAgreementPDF(shareholder.id, 'agreement-document', shareholder.full_name).catch(() => {});
 
-      setSuccess('PDF downloaded to your device.');
+      setSuccess(ta('download_success', 'PDF downloaded to your device.'));
     } catch (err) {
       console.error('AgreementViewModal: Download error:', err);
-      setError(err.message || 'Failed to generate PDF');
+      setError(err.message || ta('download_error', 'Failed to generate PDF'));
     } finally {
       setLoading(false);
     }
@@ -56,10 +60,10 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
       setError(null);
       setSuccess(null);
       const element = document.getElementById('agreement-document');
-      if (!element) throw new Error('Agreement document not found');
+      if (!element) throw new Error(ta('document_not_found', 'Agreement document not found'));
 
       const printWindow = window.open('', '_blank');
-      if (!printWindow) throw new Error('Pop-up blocked. Allow pop-ups to print.');
+      if (!printWindow) throw new Error(ta('popup_blocked', 'Pop-up blocked. Allow pop-ups to print.'));
 
       printWindow.document.write(`
         <html><head><title>Agreement-${shareholder.full_name || 'Shareholder'}</title></head>
@@ -69,7 +73,7 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
       printWindow.focus();
       printWindow.print();
     } catch (err) {
-      setError(err.message || 'Failed to print agreement');
+      setError(err.message || ta('print_error', 'Failed to print agreement'));
     }
   };
 
@@ -94,15 +98,15 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
       );
 
       if (!whatsappResult.success) {
-        throw new Error(whatsappResult.error || 'Failed to send WhatsApp message');
+        throw new Error(whatsappResult.error || ta('send_error', 'Failed to send agreement via WhatsApp'));
       }
 
       generateAndSaveAgreementPDF(shareholder.id, 'agreement-document', shareholder.full_name).catch(() => {});
 
-      setSuccess('Agreement sent to investor via WhatsApp.');
+      setSuccess(ta('send_success', 'Agreement text and PDF sent to investor via WhatsApp.'));
     } catch (err) {
       console.error('AgreementViewModal: WhatsApp send error:', err);
-      setError(err.message || 'Failed to send agreement via WhatsApp');
+      setError(err.message || ta('send_error', 'Failed to send agreement via WhatsApp'));
     } finally {
       setLoading(false);
     }
@@ -112,7 +116,7 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
     <div className="agreement-modal-overlay" onClick={onClose}>
       <div className="agreement-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="agreement-modal-header">
-          <h2>Shareholder Agreement - {shareholder.full_name}</h2>
+          <h2>{ta('modal_title', 'Shareholder Agreement')} - {shareholder.full_name}</h2>
           <button onClick={onClose} className="btn-close" disabled={loading}>×</button>
         </div>
 
@@ -124,15 +128,15 @@ const AgreementViewModal = ({ shareholder, onClose }) => {
 
         <div className="agreement-modal-footer">
           <button onClick={handleDownloadPDF} className="btn btn-primary" disabled={loading}>
-            {loading ? '⏳ Processing...' : '📥 Download PDF'}
+            {loading ? `⏳ ${tl('common', 'Processing...')}` : `📥 ${ta('download_pdf', 'Download PDF')}`}
           </button>
           <button onClick={handlePrint} className="btn btn-secondary" disabled={loading}>
-            🖨️ Print
+            🖨️ {ta('print', 'Print')}
           </button>
           <button onClick={handleSendViaWhatsApp} className="btn btn-success" disabled={loading}>
-            {loading ? '⏳ Sending...' : '💬 Send to Investor'}
+            {loading ? `⏳ ${tl('common', 'Sending...')}` : `💬 ${ta('send_investor', 'Send to Investor')}`}
           </button>
-          <button onClick={onClose} className="btn btn-outline" disabled={loading}>Close</button>
+          <button onClick={onClose} className="btn btn-outline" disabled={loading}>{tl('common', 'Close')}</button>
         </div>
       </div>
     </div>
