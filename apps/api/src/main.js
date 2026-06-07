@@ -41,7 +41,7 @@ app.get('/health', async (_req, res) => {
     res.json({
       ok: true,
       service: 'alphabridge-api',
-      version: 'ABT_ERP_V.1.1.1',
+      version: APP_VERSION,
       database: process.env.DB_NAME,
       backend: 'mysql',
       wasender: Boolean(process.env.WASENDER_API_KEY && !String(process.env.WASENDER_API_KEY).startsWith('your_')),

@@ -225,10 +225,10 @@ const auth = {
     return { data: { user: data.session.user }, error: null };
   },
 
-  async signInWithPassword({ email, password }) {
+  async signInWithPassword({ email, password, identifier }) {
     const result = await apiFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, identifier: identifier || email, password }),
     });
 
     if (result.error || !result.session) {

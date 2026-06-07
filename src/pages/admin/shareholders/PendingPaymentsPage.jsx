@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatPrice } from '@/services/sharePriceService';
 import { getPendingPaymentShareholders, updateShareholderPaymentStatus } from '@/services/shareholderService';
+import { sendPaymentConfirmationViaWhatsApp } from '@/services/agreementService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +42,27 @@ const PendingPaymentsPage = () => {
     try {
       const result = await updateShareholderPaymentStatus(shareholder.id, 'paid');
       if (!result.success) throw new Error(result.error?.message || result.error || 'Update failed');
-      toast({ title: 'Payment marked as paid', description: `${shareholder.full_name} updated.` });
+
+      try {
+        await sendPaymentConfirmationViaWhatsApp(
+          shareholder.full_phone_number || shareholder.phone_number,
+          shareholder.full_name,
+          {
+            sharesCount: shareholder.shares_assigned,
+            totalInvestment: shareholder.investment_amount,
+          }
+        );
+      } catch (whatsappErr) {
+        console.warn('[PENDING PAYMENTS] WhatsApp notification failed:', whatsappErr);
+        toast({
+          title: 'Payment marked as paid',
+          description: `${shareholder.full_name} updated, but WhatsApp notification failed.`,
+        });
+        loadData();
+        return;
+      }
+
+      toast({ title: 'Payment marked as paid', description: `${shareholder.full_name} updated and notified via WhatsApp.` });
       loadData();
     } catch (err) {
       toast({ title: 'Update failed', description: err.message, variant: 'destructive' });

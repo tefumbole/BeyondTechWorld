@@ -8,7 +8,13 @@ import {
 } from '@/utils/pdfLetterhead';
 import './AgreementDocument.css';
 
-const AgreementDocument = ({ shareholder, brandingSettings: brandingProp, showVerificationCodes = true, isSignedView = false }) => {
+const AgreementDocument = ({
+  shareholder,
+  brandingSettings: brandingProp,
+  showVerificationCodes = true,
+  isSignedView = false,
+  elementId = 'agreement-document',
+}) => {
   const [branding, setBranding] = useState(brandingProp || null);
   const [qrCodeUrl, setQrCodeUrl] = useState(null);
   const [barcodeUrl, setBarcodeUrl] = useState(null);
@@ -66,7 +72,7 @@ const AgreementDocument = ({ shareholder, brandingSettings: brandingProp, showVe
   const signatureSrc = shareholder.signature || shareholder.signature_image_url;
 
   return (
-    <div className="agreement-document pdf-letterhead-document" id="agreement-document">
+    <div className="agreement-document pdf-letterhead-document" id={elementId}>
       <div className="pdf-watermark" aria-hidden="true">
         <img src={b.logo_url} alt="" crossOrigin="anonymous" />
       </div>

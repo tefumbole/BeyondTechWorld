@@ -58,6 +58,9 @@ export const SCHEMA_PATCHES = [
   'ALTER TABLE courses ADD COLUMN icon VARCHAR(50) DEFAULT NULL',
   'ALTER TABLE courses ADD COLUMN color VARCHAR(20) DEFAULT NULL',
   'ALTER TABLE system_settings ADD COLUMN license_agreement_json JSON DEFAULT NULL',
+  'ALTER TABLE users ADD COLUMN username VARCHAR(100) NULL',
+  'ALTER TABLE profiles ADD COLUMN username VARCHAR(100) NULL',
+  'ALTER TABLE otp_sessions ADD COLUMN purpose VARCHAR(50) DEFAULT \'login\'',
 ];
 
 export const CREATE_STATEMENTS = [

@@ -163,6 +163,91 @@ export const generateAndSaveAgreementPDF = async (shareholderId, elementId, shar
   }
 };
 
+export const sendPendingAgreementViaWhatsApp = async (
+  shareholderPhone,
+  shareholderName,
+  pdfBlob,
+  fileName,
+  details
+) => {
+  try {
+    if (!shareholderPhone || !shareholderName || !pdfBlob) {
+      throw new Error('Phone number, name, and PDF are required');
+    }
+
+    const formattedPhone = formatPhoneNumber(shareholderPhone);
+    if (!formattedPhone) {
+      throw new Error(`Invalid phone number: ${shareholderPhone}`);
+    }
+
+    const { sharesCount, totalInvestment, referenceNumber } = details || {};
+    const message = `Dear ${shareholderName},
+
+Thank you for submitting your shareholder agreement with Alpha Bridge Technologies.
+
+Your signed agreement copy is attached in the next message.
+
+Reference Number: ${referenceNumber || 'N/A'}
+Shares Requested: ${sharesCount || 0}
+Total Investment: ${formatPrice(totalInvestment || 0)}
+Status: Pending Approval
+
+We will review your request and contact you shortly.
+
+Alpha Bridge Technologies
+The Technological Bridge to Kigali`;
+
+    const result = await sendDocumentBuffer(
+      formattedPhone,
+      message,
+      pdfBlob,
+      fileName || 'Shareholder-Agreement-Pending.pdf'
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send WhatsApp message');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[AGREEMENT] Error sending pending agreement:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const sendPaymentConfirmationViaWhatsApp = async (shareholderPhone, shareholderName, details) => {
+  try {
+    const formattedPhone = formatPhoneNumber(shareholderPhone);
+    if (!formattedPhone) {
+      throw new Error(`Invalid phone number: ${shareholderPhone}`);
+    }
+
+    const { sharesCount, totalInvestment } = details || {};
+    const message = `Dear ${shareholderName},
+
+Your payment for your Alpha Bridge Technologies share investment has been confirmed.
+
+Payment Status: Paid
+Shares: ${sharesCount || 0}
+Total Investment: ${formatPrice(totalInvestment || 0)}
+
+Thank you for your investment. Welcome to Alpha Bridge Technologies!
+
+Alpha Bridge Technologies
+The Technological Bridge to Kigali`;
+
+    const { sendWhatsAppMessage } = await import('@/services/wasenderapiService');
+    const result = await sendWhatsAppMessage(formattedPhone, message);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send WhatsApp message');
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[AGREEMENT] Error sending payment confirmation:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const sendAgreementViaWhatsApp = async (
   shareholderPhone,
   shareholderName,
@@ -239,6 +324,8 @@ export default {
   savePDFToShareholder,
   generateAgreementPDFBlob,
   generateAndSaveAgreementPDF,
+  sendPendingAgreementViaWhatsApp,
+  sendPaymentConfirmationViaWhatsApp,
   sendAgreementViaWhatsApp,
   getShareholderAgreement,
 };

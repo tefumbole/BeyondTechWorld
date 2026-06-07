@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { getUserByUsername } from '@/services/userService';
 import { otpService } from '@/services/otpService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -163,22 +162,10 @@ const LoginPage = () => {
         }
 
         console.log("[LoginPage] Proceeding with fresh authentication flow...");
-        let finalEmail = identifier;
 
-        // Resolve username to email if it doesn't look like an email
-        if (!identifier.includes('@')) {
-            const userRes = await getUserByUsername(identifier);
-            if (userRes.success && userRes.data && userRes.data.email) {
-                finalEmail = userRes.data.email;
-                console.log("[LoginPage] Resolved username to email:", finalEmail);
-            } else {
-                throw new Error('Username not found. Please check your credentials or use your email.');
-            }
-        }
-
-        // 1. Authenticate with Supabase
-        console.log("[LoginPage] Authenticating with Supabase...");
-        const result = await loginWithCredentials(finalEmail, password);
+        // 1. Authenticate with email or username
+        console.log("[LoginPage] Authenticating...");
+        const result = await loginWithCredentials(identifier.trim(), password);
         
         if (!result.success) {
             throw new Error(result.error || 'Login failed');

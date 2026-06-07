@@ -41,7 +41,7 @@ export function labelKey(text) {
 }
 
 /** Namespaces searched when translating UI labels (slugified English keys). */
-const SEARCH_NAMESPACES = ['menu', 'footer', 'common', 'pages', 'home', 'shareholders', 'agreement', 'training', 'login'];
+const SEARCH_NAMESPACES = ['menu', 'footer', 'common', 'pages', 'home', 'shareholders', 'shareholders_form', 'agreement', 'training', 'login'];
 
 export function translateLabel(t, namespace, text) {
   if (!text) return '';

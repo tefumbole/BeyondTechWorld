@@ -9,7 +9,9 @@ import { Loader2, User, Mail, Phone, Hash, Building2, MapPin, CheckCircle2, Aler
 import { calculateTotalInvestment, formatPrice, getSystemSettings } from '@/services/sharePriceService';
 import { getCountryCodeOptions, combinePhoneNumber, validatePhoneNumber } from '@/services/countryCodeService';
 import { saveShareholderRegistration, getAvailableSharesForSubscription } from '@/services/shareholderService';
-import { sendWhatsAppMessage } from '@/services/wasenderapiService';
+import { generateAgreementPDFBlob, sendPendingAgreementViaWhatsApp } from '@/services/agreementService';
+import AgreementDocument from '@/components/admin/AgreementDocument';
+import { usePageT } from '@/hooks/useSiteLabel';
 import SignaturePadModal from '@/components/SignaturePadModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -44,8 +46,10 @@ By signing below, the Shareholder acknowledges having read, understood, and agre
 
 const ShareholdersRegistrationForm = () => {
   const { toast } = useToast();
+  const tForm = usePageT('shareholders_form');
 
   const [loading, setLoading] = useState(false);
+  const [pdfShareholder, setPdfShareholder] = useState(null);
   const [priceLoading, setPriceLoading] = useState(true);
   const [sharePrice, setSharePrice] = useState(1000);
   const [currency, setCurrency] = useState('USD');
@@ -116,6 +120,49 @@ const ShareholdersRegistrationForm = () => {
       updateTotal();
     }
   }, [formData.shares_count, sharePrice]);
+
+  useEffect(() => {
+    if (!pdfShareholder) return undefined;
+
+    let cancelled = false;
+    const sendSignedCopy = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      if (cancelled) return;
+
+      try {
+        const { pdfBlob, filename } = await generateAgreementPDFBlob(
+          pdfShareholder.id,
+          'shareholder-pending-agreement',
+          pdfShareholder.full_name
+        );
+
+        const result = await sendPendingAgreementViaWhatsApp(
+          pdfShareholder.full_phone_number,
+          pdfShareholder.full_name,
+          pdfBlob,
+          filename,
+          {
+            sharesCount: pdfShareholder.shares_assigned,
+            totalInvestment: pdfShareholder.investment_amount,
+            referenceNumber: pdfShareholder.reference_number,
+          }
+        );
+
+        if (result.success) {
+          console.log('[FORM] Signed agreement PDF sent via WhatsApp');
+        } else {
+          console.warn('[FORM] WhatsApp PDF send failed:', result.error);
+        }
+      } catch (err) {
+        console.error('[FORM] WhatsApp PDF error (non-blocking):', err);
+      } finally {
+        if (!cancelled) setPdfShareholder(null);
+      }
+    };
+
+    sendSignedCopy();
+    return () => { cancelled = true; };
+  }, [pdfShareholder]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -252,38 +299,6 @@ const ShareholdersRegistrationForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const sendWhatsAppConfirmation = async (shareholderData, referenceNumber) => {
-    console.log('[FORM] Sending WhatsApp confirmation');
-    
-    try {
-      const message = `Dear ${shareholderData.full_name},
-
-Your shareholder agreement for ${shareholderData.shares_count} share${shareholderData.shares_count !== 1 ? 's' : ''} totaling ${formatPrice(shareholderData.total_investment, currency)} has been successfully submitted and is awaiting approval.
-
-Reference Number: ${referenceNumber}
-Status: Pending Approval
-
-Thank you for investing in Alpha Bridge Technologies. We will review your request and contact you shortly.
-
-Alpha Bridge Technologies
-The Technological Bridge to Kigali`;
-
-      const whatsappResult = await sendWhatsAppMessage(
-        shareholderData.full_phone_number,
-        message
-      );
-
-      if (whatsappResult.success) {
-        console.log('[FORM] WhatsApp confirmation sent successfully');
-      } else {
-        console.warn('[FORM] WhatsApp confirmation failed:', whatsappResult.error);
-        // Don't fail the whole submission if WhatsApp fails
-      }
-    } catch (err) {
-      console.error('[FORM] WhatsApp error (non-blocking):', err);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('[FORM] === FORM SUBMISSION START ===');
@@ -353,14 +368,27 @@ The Technological Bridge to Kigali`;
       const referenceNumber = result.data?.reference_number || 'N/A';
       setSuccessReferenceNumber(referenceNumber);
 
-      // Send WhatsApp confirmation (non-blocking)
-      await sendWhatsAppConfirmation(submissionData, referenceNumber);
+      setPdfShareholder({
+        id: result.data?.id,
+        reference_number: referenceNumber,
+        full_name: submissionData.full_name,
+        email: submissionData.email,
+        full_phone_number: submissionData.full_phone_number,
+        address: submissionData.address,
+        company_name: submissionData.company_name,
+        nationality: submissionData.nationality,
+        shares_assigned: submissionData.shares_count,
+        investment_amount: submissionData.total_investment,
+        signature: submissionData.signature,
+        status: 'pending',
+        submitted_at: new Date().toISOString(),
+      });
 
       // Show success
       setShowSuccess(true);
       toast({
-        title: "Booking Submitted Successfully",
-        description: `Your reference number is ${referenceNumber}. We will review your request and contact you via WhatsApp.`,
+        title: tForm('success_title', 'Booking Submitted Successfully'),
+        description: tForm('success_toast', `Your reference number is ${referenceNumber}. We will review your request and contact you via WhatsApp.`).replace('{reference}', referenceNumber),
         className: "bg-green-600 text-white"
       });
 
@@ -409,7 +437,7 @@ The Technological Bridge to Kigali`;
         <CardContent className="p-8 flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="w-12 h-12 animate-spin text-[#003D82] mx-auto mb-4" />
-            <p className="text-gray-600">Loading share information...</p>
+            <p className="text-gray-600">{tForm('loading_shares', 'Loading share information...')}</p>
           </div>
         </CardContent>
       </Card>
@@ -422,16 +450,16 @@ The Technological Bridge to Kigali`;
         <CardContent className="p-8 flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">Booking Submitted Successfully!</h3>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">{tForm('success_heading', 'Booking Submitted Successfully!')}</h3>
             <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4 inline-block">
-              <p className="text-sm text-gray-600 mb-1">Your Reference Number:</p>
+              <p className="text-sm text-gray-600 mb-1">{tForm('reference_label', 'Your Reference Number:')}</p>
               <p className="text-2xl font-bold text-blue-600">{successReferenceNumber}</p>
             </div>
             <p className="text-gray-600 max-w-md mx-auto mb-4">
-              Your share booking request has been submitted for approval. We will review your request and notify you via WhatsApp.
+              {tForm('success_message', 'Your share booking request has been submitted for approval. We will review your request and notify you via WhatsApp.')}
             </p>
             <p className="text-sm text-gray-500">
-              No payment is required at this stage.
+              {tForm('no_payment_note', 'No payment is required at this stage.')}
             </p>
           </div>
         </CardContent>
@@ -443,9 +471,9 @@ The Technological Bridge to Kigali`;
     <>
       <Card className="border-none shadow-2xl">
         <CardHeader className="bg-gradient-to-r from-[#003D82] to-[#002855] text-white">
-          <CardTitle className="text-2xl">Become a Shareholder</CardTitle>
+          <CardTitle className="text-2xl">{tForm('form_title', 'Become a Shareholder')}</CardTitle>
           <CardDescription className="text-blue-100">
-            Book your shares in Alpha Bridge Technologies (No login required)
+            {tForm('form_subtitle', 'Book your shares in Alpha Bridge Technologies (No login required)')}
           </CardDescription>
         </CardHeader>
 
@@ -460,7 +488,8 @@ The Technological Bridge to Kigali`;
           <Alert className="mb-6 bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-900">
-              <span className="font-semibold">Share Booking Only:</span> This is a share booking request. No payment is required at this stage. After your request is approved, we will contact you with payment details.
+              <span className="font-semibold">{tForm('booking_only_label', 'Share Booking Only:')}</span>{' '}
+              {tForm('booking_only_text', 'This is a share booking request. No payment is required at this stage. After your request is approved, we will contact you with payment details.')}
             </AlertDescription>
           </Alert>
 
@@ -468,10 +497,10 @@ The Technological Bridge to Kigali`;
             
             {/* Personal Information */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">Personal Information</h3>
+              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">{tForm('personal_info', 'Personal Information')}</h3>
               
               <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name <span className="text-red-500">*</span></Label>
+                <Label htmlFor="full_name">{tForm('full_name', 'Full Name')} <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
@@ -490,7 +519,7 @@ The Technological Bridge to Kigali`;
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
+                <Label htmlFor="email">{tForm('email', 'Email Address')} <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
@@ -511,7 +540,7 @@ The Technological Bridge to Kigali`;
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="country_code">Country Code <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="country_code">{tForm('country_code', 'Country Code')} <span className="text-red-500">*</span></Label>
                   <Select value={formData.country_code} onValueChange={handleCountryCodeChange}>
                     <SelectTrigger className={`bg-white ${fieldErrors.country_code ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Select country code" />
@@ -530,7 +559,7 @@ The Technological Bridge to Kigali`;
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone_number">Phone Number <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="phone_number">{tForm('phone_number', 'Phone Number')} <span className="text-red-500">*</span></Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input 
@@ -544,7 +573,7 @@ The Technological Bridge to Kigali`;
                       required
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Enter phone number without country code</p>
+                  <p className="text-xs text-gray-500">{tForm('phone_hint', 'Enter phone number without country code')}</p>
                   {fieldErrors.phone_number && (
                     <p className="text-red-600 text-sm mt-1">{fieldErrors.phone_number}</p>
                   )}
@@ -553,7 +582,7 @@ The Technological Bridge to Kigali`;
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="company_name">Company Name (Optional)</Label>
+                  <Label htmlFor="company_name">{tForm('company_name', 'Company Name (Optional)')}</Label>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input 
@@ -568,7 +597,7 @@ The Technological Bridge to Kigali`;
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nationality">Nationality (Optional)</Label>
+                  <Label htmlFor="nationality">{tForm('nationality', 'Nationality (Optional)')}</Label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input 
@@ -584,7 +613,7 @@ The Technological Bridge to Kigali`;
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
+                <Label htmlFor="address">{tForm('address', 'Address')} <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
@@ -605,21 +634,21 @@ The Technological Bridge to Kigali`;
 
             {/* Investment Details */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">Investment Details</h3>
+              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">{tForm('investment_details', 'Investment Details')}</h3>
               
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Current Share Price:</span>
+                  <span className="text-sm text-gray-600">{tForm('current_share_price', 'Current Share Price:')}</span>
                   <span className="text-xl font-bold text-[#003D82]">{formatPrice(sharePrice, currency)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Available Shares:</span>
+                  <span className="text-sm text-gray-600">{tForm('available_shares', 'Available Shares:')}</span>
                   <span className="text-lg font-semibold text-green-600">{availableShares.toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="shares_count">Number of Shares <span className="text-red-500">*</span></Label>
+                <Label htmlFor="shares_count">{tForm('shares_count', 'Number of Shares')} <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input 
@@ -643,7 +672,7 @@ The Technological Bridge to Kigali`;
 
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Total Investment:</span>
+                  <span className="text-sm font-medium text-gray-700">{tForm('total_investment', 'Total Investment:')}</span>
                   <span className="text-2xl font-bold text-green-700">
                     {formatPrice(formData.total_investment, currency)}
                   </span>
@@ -656,13 +685,13 @@ The Technological Bridge to Kigali`;
 
             {/* Digital Signature Section */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">Digital Signature</h3>
+              <h3 className="font-semibold text-lg text-gray-800 border-b pb-2">{tForm('digital_signature', 'Digital Signature')}</h3>
               
               {formData.signature ? (
                 <div className="border-2 border-green-300 rounded-lg p-4 bg-green-50">
                   <div className="flex items-center gap-3 mb-3">
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <span className="font-medium text-green-800">Signature Captured</span>
+                    <span className="font-medium text-green-800">{tForm('signature_captured', 'Signature Captured')}</span>
                   </div>
                   <div className="bg-white border border-gray-300 rounded-lg p-2 inline-block">
                     <img 
@@ -678,17 +707,17 @@ The Technological Bridge to Kigali`;
                     className="mt-3"
                   >
                     <FileSignature className="w-4 h-4 mr-2" />
-                    Re-sign
+                    {tForm('resign', 'Re-sign')}
                   </Button>
                 </div>
               ) : (
                 <div className="border-2 border-yellow-300 rounded-lg p-4 bg-yellow-50">
                   <div className="flex items-center gap-3 mb-3">
                     <AlertCircle className="w-5 h-5 text-yellow-600" />
-                    <span className="font-medium text-yellow-800">Signature Required</span>
+                    <span className="font-medium text-yellow-800">{tForm('signature_required', 'Signature Required')}</span>
                   </div>
                   <p className="text-sm text-gray-700 mb-3">
-                    A digital signature is required to complete your share booking request.
+                    {tForm('signature_required_text', 'A digital signature is required to complete your share booking request.')}
                   </p>
                   <Button
                     type="button"
@@ -700,7 +729,7 @@ The Technological Bridge to Kigali`;
                     className="border-yellow-600 text-yellow-700 hover:bg-yellow-100"
                   >
                     <FileSignature className="w-4 h-4 mr-2" />
-                    Add Signature
+                    {tForm('add_signature', 'Add Signature')}
                   </Button>
                   {fieldErrors.signature && (
                     <p className="text-red-600 text-sm mt-2">{fieldErrors.signature}</p>
@@ -721,7 +750,7 @@ The Technological Bridge to Kigali`;
                   onChange={handleChange}
                 />
                 <label htmlFor="terms_accepted" className="text-sm text-gray-700 cursor-pointer flex-1">
-                  I have read and agree to the{' '}
+                  {tForm('terms_prefix', 'I have read and agree to the')}{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -730,9 +759,9 @@ The Technological Bridge to Kigali`;
                     }}
                     className="text-[#003D82] underline font-medium hover:text-[#002855]"
                   >
-                    Shareholder Agreement
+                    {tForm('shareholder_agreement', 'Shareholder Agreement')}
                   </button>
-                  {' '}and confirm that all information provided is accurate.
+                  {' '}{tForm('terms_suffix', 'and confirm that all information provided is accurate.')}
                 </label>
               </div>
               {fieldErrors.terms_accepted && (
@@ -749,18 +778,18 @@ The Technological Bridge to Kigali`;
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Submitting for Approval...
+                  {tForm('submitting', 'Submitting for Approval...')}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-5 h-5 mr-2" />
-                  Submit for Approval
+                  {tForm('submit_button', 'Submit for Approval')}
                 </>
               )}
             </Button>
 
             <p className="text-xs text-center text-gray-500 mt-4">
-              Your booking request will be reviewed by our team. You will be contacted with payment details once approved.
+              {tForm('footer_note', 'Your booking request will be reviewed by our team. You will be contacted with payment details once approved.')}
             </p>
 
           </form>
@@ -783,15 +812,15 @@ The Technological Bridge to Kigali`;
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <FileText className="w-6 h-6 text-[#003D82]" />
-              Shareholder Agreement
+              {tForm('shareholder_agreement', 'Shareholder Agreement')}
             </DialogTitle>
             <DialogDescription className="text-gray-600">
-              Please read the agreement carefully before accepting
+              {tForm('agreement_modal_hint', 'Please read the agreement carefully before accepting')}
             </DialogDescription>
           </DialogHeader>
           <div className="prose prose-sm max-w-none">
             <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
-              {SHAREHOLDER_AGREEMENT_TEXT}
+              {tForm('agreement_text', SHAREHOLDER_AGREEMENT_TEXT)}
             </pre>
           </div>
           <div className="flex justify-end gap-3 mt-4">
@@ -799,11 +828,24 @@ The Technological Bridge to Kigali`;
               variant="outline"
               onClick={() => setIsAgreementModalOpen(false)}
             >
-              Close
+              {tForm('close', 'Close')}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {pdfShareholder && (
+        <div
+          style={{ position: 'fixed', left: '-10000px', top: 0, width: '210mm', pointerEvents: 'none' }}
+          aria-hidden="true"
+        >
+          <AgreementDocument
+            shareholder={pdfShareholder}
+            isSignedView
+            elementId="shareholder-pending-agreement"
+          />
+        </div>
+      )}
     </>
   );
 };

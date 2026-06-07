@@ -129,6 +129,17 @@ export async function getUserByEmail(email) {
  */
 export async function getUserByUsername(username) {
   console.log('[USER SERVICE] Fetching user by username:', username);
+
+  if (useMysql) {
+    try {
+      const { data } = await mysqlUsersApi(`/users/lookup?identifier=${encodeURIComponent(username)}`);
+      if (!data) throw new Error(`User not found: ${username}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[USER SERVICE] Error fetching user by username:', error);
+      throw error;
+    }
+  }
   
   try {
     // Search by email first (exact match)

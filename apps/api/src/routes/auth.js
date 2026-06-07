@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'node:crypto';
 import { getPool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sendOtp, formatPhoneNumber } from '../services/wasenderWhatsAppService.js';
 
 const router = Router();
 const JWT_EXPIRY = '7d';
@@ -31,19 +32,51 @@ function buildSession(user, profile) {
   };
 }
 
+async function findUserByLoginIdentifier(pool, identifier) {
+  const id = String(identifier || '').trim();
+  if (!id) return null;
+
+  const [byEmail] = await pool.query(
+    `SELECT * FROM users
+     WHERE status = 'active'
+       AND (LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?))
+     LIMIT 1`,
+    [id, id]
+  );
+  return byEmail[0] || null;
+}
+
+async function findUserByPhone(pool, phone) {
+  const formatted = formatPhoneNumber(phone);
+  if (!formatted) return null;
+
+  const digits = formatted.replace(/\D/g, '');
+  const [rows] = await pool.query(
+    `SELECT u.* FROM users u
+     LEFT JOIN profiles p ON p.id = u.id
+     WHERE u.status = 'active'
+       AND (
+         REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(u.phone, ''), '+', ''), ' ', ''), '-', ''), '(', '') = ?
+         OR REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(p.phone, ''), '+', ''), ' ', ''), '-', ''), '(', '') = ?
+         OR u.phone = ?
+         OR p.phone = ?
+       )
+     LIMIT 1`,
+    [digits, digits, formatted, formatted]
+  );
+  return rows[0] || null;
+}
+
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+    const { email, identifier, password } = req.body || {};
+    const loginId = (identifier || email || '').trim();
+    if (!loginId || !password) {
+      return res.status(400).json({ error: 'Email/username and password required' });
     }
 
     const pool = getPool();
-    const [users] = await pool.query(
-      'SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND status = ? LIMIT 1',
-      [email.trim(), 'active']
-    );
-    const user = users[0];
+    const user = await findUserByLoginIdentifier(pool, loginId);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid login credentials' });
@@ -62,6 +95,96 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('[auth/login]', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/password-reset/request', async (req, res) => {
+  try {
+    const { phone } = req.body || {};
+    const formatted = formatPhoneNumber(phone);
+    if (!formatted) {
+      return res.status(400).json({ success: false, error: 'Enter a valid phone number linked to your account.' });
+    }
+
+    const pool = getPool();
+    const user = await findUserByPhone(pool, formatted);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'No account found with this phone number.',
+      });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query(
+      `INSERT INTO otp_sessions (id, phone, otp, expires_at, attempts, resend_count, purpose)
+       VALUES (?, ?, ?, ?, 0, 0, 'password_reset')`,
+      [randomUUID(), formatted, otpCode, expiresAt]
+    );
+
+    const sendResult = await sendOtp(formatted, otpCode, 'Password reset for Alpha Bridge');
+    if (!sendResult.success) {
+      return res.status(502).json({
+        success: false,
+        error: sendResult.error || 'Failed to send WhatsApp OTP',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your WhatsApp.',
+      maskedPhone: `${formatted.substring(0, 6)}****${formatted.slice(-2)}`,
+    });
+  } catch (err) {
+    console.error('[auth/password-reset/request]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/password-reset/confirm', async (req, res) => {
+  try {
+    const { phone, otp, newPassword } = req.body || {};
+    const formatted = formatPhoneNumber(phone);
+    const cleanOtp = String(otp || '').replace(/\D/g, '');
+
+    if (!formatted || cleanOtp.length !== 6) {
+      return res.status(400).json({ success: false, error: 'Valid phone and 6-digit OTP required' });
+    }
+    if (!newPassword || String(newPassword).length < 8) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
+    }
+
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT * FROM otp_sessions
+       WHERE phone = ? AND purpose = 'password_reset' AND verified_at IS NULL AND expires_at >= NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [formatted]
+    );
+    const session = rows[0];
+
+    if (!session || session.otp !== cleanOtp) {
+      if (session) {
+        await pool.query('UPDATE otp_sessions SET attempts = attempts + 1 WHERE id = ?', [session.id]);
+      }
+      return res.status(400).json({ success: false, error: 'Invalid or expired verification code.' });
+    }
+
+    const user = await findUserByPhone(pool, formatted);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Account not found for this phone number.' });
+    }
+
+    const hash = await bcrypt.hash(String(newPassword), 10);
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, user.id]);
+    await pool.query('UPDATE otp_sessions SET verified_at = NOW() WHERE id = ?', [session.id]);
+
+    res.json({ success: true, message: 'Password updated. You can now sign in.' });
+  } catch (err) {
+    console.error('[auth/password-reset/confirm]', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

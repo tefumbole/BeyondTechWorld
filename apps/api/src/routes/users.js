@@ -29,6 +29,7 @@ function serializeUser(row) {
   return {
     id: row.id,
     email: row.email,
+    username: row.username || null,
     full_name: row.full_name || row.name,
     name: row.full_name || row.name,
     phone: row.phone,
@@ -37,6 +38,13 @@ function serializeUser(row) {
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
+}
+
+function normalizeUsername(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '');
 }
 
 function generateTempPassword() {
@@ -50,14 +58,15 @@ function generateTempPassword() {
 
 async function syncProfile(pool, userRow) {
   await pool.query(
-    `INSERT INTO profiles (id, email, full_name, phone, role, status)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO profiles (id, email, full_name, phone, role, status, username)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        email = VALUES(email),
        full_name = VALUES(full_name),
        phone = VALUES(phone),
        role = VALUES(role),
-       status = VALUES(status)`,
+       status = VALUES(status),
+       username = VALUES(username)`,
     [
       userRow.id,
       userRow.email,
@@ -65,6 +74,7 @@ async function syncProfile(pool, userRow) {
       userRow.phone || null,
       userRow.role,
       userRow.status || 'active',
+      userRow.username || null,
     ]
   );
 }
@@ -77,7 +87,7 @@ router.get('/', async (req, res) => {
     const forAssignment = req.query.for === 'assignment';
     const roleFilter = req.query.role;
 
-    let sql = `SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.created_at, u.updated_at
+    let sql = `SELECT u.id, u.email, u.username, u.name, u.phone, u.role, u.status, u.created_at, u.updated_at
                FROM users u
                WHERE u.status = 'active'`;
     const params = [];
@@ -102,9 +112,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { email, full_name, phone, role, password } = req.body || {};
+    const { email, username, full_name, phone, role, password } = req.body || {};
     if (!email || !full_name) {
       return res.status(400).json({ data: null, error: { message: 'Email and full name required' } });
+    }
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({ data: null, error: { message: 'Password must be at least 8 characters' } });
     }
 
     const pool = getPool();
@@ -116,20 +129,34 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ data: null, error: { message: 'User with this email already exists' } });
     }
 
+    const normalizedUsername = username ? normalizeUsername(username) : null;
+    if (normalizedUsername) {
+      if (normalizedUsername.length < 3) {
+        return res.status(400).json({ data: null, error: { message: 'Username must be at least 3 characters' } });
+      }
+      const [dupUser] = await pool.query(
+        'SELECT id FROM users WHERE LOWER(username) = LOWER(?) LIMIT 1',
+        [normalizedUsername]
+      );
+      if (dupUser.length) {
+        return res.status(409).json({ data: null, error: { message: 'Username is already taken' } });
+      }
+    }
+
     const id = randomUUID();
-    const plainPassword = password || generateTempPassword();
-    const hash = await bcrypt.hash(plainPassword, 10);
+    const hash = await bcrypt.hash(String(password), 10);
     const userRole = role || 'user';
 
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, name, role, status, phone)
-       VALUES (?, ?, ?, ?, ?, 'active', ?)`,
-      [id, email.trim(), hash, full_name, userRole, phone || null]
+      `INSERT INTO users (id, email, username, password_hash, name, role, status, phone)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
+      [id, email.trim(), normalizedUsername, hash, full_name, userRole, phone || null]
     );
 
     const userRow = {
       id,
       email: email.trim(),
+      username: normalizedUsername,
       full_name,
       name: full_name,
       phone: phone || null,
@@ -147,7 +174,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       data: serializeUser(userRow),
-      tempPassword: password ? undefined : plainPassword,
       error: null,
     });
   } catch (err) {
@@ -159,7 +185,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, phone, role, password, status } = req.body || {};
+    const { full_name, phone, role, password, status, username } = req.body || {};
     const pool = getPool();
 
     const userUpdates = [];
@@ -180,9 +206,29 @@ router.patch('/:id', async (req, res) => {
       userUpdates.push('status = ?');
       userParams.push(status);
     }
+    if (username !== undefined) {
+      const normalizedUsername = username ? normalizeUsername(username) : null;
+      if (normalizedUsername && normalizedUsername.length < 3) {
+        return res.status(400).json({ data: null, error: { message: 'Username must be at least 3 characters' } });
+      }
+      if (normalizedUsername) {
+        const [dupUser] = await pool.query(
+          'SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ? LIMIT 1',
+          [normalizedUsername, id]
+        );
+        if (dupUser.length) {
+          return res.status(409).json({ data: null, error: { message: 'Username is already taken' } });
+        }
+      }
+      userUpdates.push('username = ?');
+      userParams.push(normalizedUsername);
+    }
     if (password) {
+      if (String(password).length < 8) {
+        return res.status(400).json({ data: null, error: { message: 'Password must be at least 8 characters' } });
+      }
       userUpdates.push('password_hash = ?');
-      userParams.push(await bcrypt.hash(password, 10));
+      userParams.push(await bcrypt.hash(String(password), 10));
     }
     if (userUpdates.length) {
       await pool.query(
