@@ -133,15 +133,25 @@ export const deleteRole = async (roleId) => {
 export const getRolePermissions = async (roleName) => {
   try {
     const name = typeof roleName === 'object' ? roleName.name : roleName;
+    if (!name) return { success: true, data: [] };
+
     const { data, error } = await supabase
       .from('role_permissions')
       .select('permission')
       .eq('role', name);
+
     if (error) throw error;
-    return { success: true, data: (data || []).map((row) => row.permission) };
+
+    const rows = Array.isArray(data) ? data : [];
+    const permissions = rows
+      .map((row) => (typeof row === 'string' ? row : row?.permission))
+      .filter(Boolean);
+
+    return { success: true, data: permissions };
   } catch (error) {
     console.error('[roleService] getRolePermissions:', error);
-    return { success: false, data: [], error: error.message };
+    const message = typeof error === 'string' ? error : error?.message || 'Failed to load permissions';
+    return { success: false, data: [], error: message };
   }
 };
 

@@ -11,8 +11,8 @@ import {
   addPermissionToRole,
   removePermissionFromRole
 } from '@/services/roleService';
-import { getPermissionsByCategory, getAllPermissionIds } from '@/config/permissionCatalog';
-import { useToast } from '@/hooks/use-toast';
+import { getPermissionsByCategory, getAllPermissionIds, roleNameToSlug } from '@/config/permissionCatalog';
+import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const PERMISSIONS_BY_CATEGORY = getPermissionsByCategory();
+
+function isImmutableRole(roleName) {
+  return roleNameToSlug(roleName) === 'super_admin';
+}
 
 const CreateRoleModal = ({ onSuccess }) => {
   const [open, setOpen] = useState(false);
@@ -234,92 +238,137 @@ const PermissionsEditor = ({ role, onUpdate }) => {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const { toast } = useToast();
+  const roleLocked = isImmutableRole(role?.name);
 
   useEffect(() => {
-    if (role?.name) {
-      fetchPermissions();
+    if (!role?.name) {
+      setPermissions([]);
+      return;
     }
-  }, [role?.name]);
 
-  const fetchPermissions = async () => {
-    setLoading(true);
-    try {
-      const result = await getRolePermissions(role.name);
-      if (result.success) {
-        setPermissions(result.data || []);
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      setFetchError(null);
+      try {
+        const result = await getRolePermissions(role.name);
+        if (cancelled) return;
+
+        if (result.success) {
+          setPermissions(result.data || []);
+        } else {
+          setPermissions([]);
+          setFetchError(result.error || 'Failed to load permissions');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPermissions([]);
+          setFetchError(error.message || 'Failed to load permissions');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching permissions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleTogglePermission = async (permissionId, isChecked) => {
+    load();
+    return () => { cancelled = true; };
+  }, [role?.id, role?.name]);
+
+  const handleTogglePermission = async (permissionId, shouldEnable) => {
+    if (roleLocked) return;
+
     setUpdating(true);
+    const previous = permissions;
+    setPermissions((current) => {
+      if (shouldEnable) {
+        return current.includes(permissionId) ? current : [...current, permissionId];
+      }
+      return current.filter((id) => id !== permissionId);
+    });
+
     try {
-      let result;
-      if (isChecked) {
-        result = await addPermissionToRole(role.name, permissionId);
-      } else {
-        result = await removePermissionFromRole(role.name, permissionId);
+      const result = shouldEnable
+        ? await addPermissionToRole(role.name, permissionId)
+        : await removePermissionFromRole(role.name, permissionId);
+
+      if (!result.success) {
+        setPermissions(previous);
+        toast({ title: 'Error', description: result.error || 'Failed to update permission', variant: 'destructive' });
+        return;
       }
 
-      if (result.success) {
-        await fetchPermissions();
-        toast({ title: 'Success', description: 'Permission updated' });
-        if (onUpdate) onUpdate();
-      } else {
-        toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      }
+      toast({ title: 'Success', description: 'Permission updated' });
+      if (onUpdate) onUpdate();
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update permission', variant: 'destructive' });
+      setPermissions(previous);
+      toast({ title: 'Error', description: error.message || 'Failed to update permission', variant: 'destructive' });
     } finally {
       setUpdating(false);
     }
   };
 
   const handleToggleCategory = async (categoryPermIds, checked) => {
-    if (role.name === 'Super Admin') return;
+    if (roleLocked) return;
+
     setUpdating(true);
+    const previous = permissions;
+    setPermissions((current) => {
+      const next = new Set(current);
+      for (const permId of categoryPermIds) {
+        if (checked) next.add(permId);
+        else next.delete(permId);
+      }
+      return [...next];
+    });
+
     try {
       for (const permId of categoryPermIds) {
-        const isChecked = permissions.includes(permId);
+        const isChecked = previous.includes(permId);
         if (checked && !isChecked) {
-          await addPermissionToRole(role.name, permId);
+          const result = await addPermissionToRole(role.name, permId);
+          if (!result.success) throw new Error(result.error || 'Failed to add permission');
         } else if (!checked && isChecked) {
-          await removePermissionFromRole(role.name, permId);
+          const result = await removePermissionFromRole(role.name, permId);
+          if (!result.success) throw new Error(result.error || 'Failed to remove permission');
         }
       }
-      await fetchPermissions();
       toast({ title: 'Success', description: checked ? 'Category permissions enabled' : 'Category permissions cleared' });
       if (onUpdate) onUpdate();
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update category permissions', variant: 'destructive' });
+      setPermissions(previous);
+      toast({ title: 'Error', description: error.message || 'Failed to update category permissions', variant: 'destructive' });
     } finally {
       setUpdating(false);
     }
   };
 
   const handleToggleAll = async (checked) => {
-    if (role.name === 'Super Admin') return;
+    if (roleLocked) return;
+
     const allIds = getAllPermissionIds();
     setUpdating(true);
+    const previous = permissions;
+    setPermissions(checked ? [...allIds] : []);
+
     try {
       for (const permId of allIds) {
-        const isChecked = permissions.includes(permId);
+        const isChecked = previous.includes(permId);
         if (checked && !isChecked) {
-          await addPermissionToRole(role.name, permId);
+          const result = await addPermissionToRole(role.name, permId);
+          if (!result.success) throw new Error(result.error || 'Failed to add permission');
         } else if (!checked && isChecked) {
-          await removePermissionFromRole(role.name, permId);
+          const result = await removePermissionFromRole(role.name, permId);
+          if (!result.success) throw new Error(result.error || 'Failed to remove permission');
         }
       }
-      await fetchPermissions();
       toast({ title: 'Success', description: checked ? 'All permissions enabled' : 'All permissions cleared' });
       if (onUpdate) onUpdate();
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update permissions', variant: 'destructive' });
+      setPermissions(previous);
+      toast({ title: 'Error', description: error.message || 'Failed to update permissions', variant: 'destructive' });
     } finally {
       setUpdating(false);
     }
@@ -339,12 +388,20 @@ const PermissionsEditor = ({ role, onUpdate }) => {
 
   return (
     <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-      {role.name !== 'Super Admin' && (
+      {fetchError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">{fetchError}</p>
+      )}
+      {roleLocked && (
+        <p className="text-sm text-gray-600 bg-gray-100 border rounded-md p-3">
+          Super Admin always has full access. Permissions for this role cannot be edited.
+        </p>
+      )}
+      {!roleLocked && (
         <div className="flex items-center gap-3 p-3 border rounded-lg bg-blue-50 border-blue-200">
           <Checkbox
             id={`perm-all-${role.id}`}
             checked={allChecked}
-            onCheckedChange={(checked) => handleToggleAll(Boolean(checked))}
+            onCheckedChange={(checked) => handleToggleAll(checked === true)}
             disabled={updating}
           />
           <Label htmlFor={`perm-all-${role.id}`} className="cursor-pointer font-semibold text-[#003D82]">
@@ -364,8 +421,8 @@ const PermissionsEditor = ({ role, onUpdate }) => {
             <Checkbox
               id={`perm-cat-${role.id}-${category}`}
               checked={categoryAllChecked}
-              onCheckedChange={(checked) => handleToggleCategory(categoryPermIds, Boolean(checked))}
-              disabled={updating || role.name === 'Super Admin'}
+              onCheckedChange={(checked) => handleToggleCategory(categoryPermIds, checked === true)}
+              disabled={updating || roleLocked}
             />
             <Label
               htmlFor={`perm-cat-${role.id}-${category}`}
@@ -386,8 +443,8 @@ const PermissionsEditor = ({ role, onUpdate }) => {
                   <Checkbox
                     id={`perm-${role.id}-${perm.id}`}
                     checked={isChecked}
-                    onCheckedChange={(checked) => handleTogglePermission(perm.id, checked)}
-                    disabled={updating || role.name === 'Super Admin'}
+                    onCheckedChange={(checked) => handleTogglePermission(perm.id, checked === true)}
+                    disabled={updating || roleLocked}
                     className="mt-0.5"
                   />
                   <Label

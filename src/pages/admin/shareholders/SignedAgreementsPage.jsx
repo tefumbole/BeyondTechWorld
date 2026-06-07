@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatPrice } from '@/services/sharePriceService';
 import { formatCountryCodeDisplay } from '@/services/countryCodeService';
-import { getApprovedShareholders } from '@/services/shareholderService';
+import { getSignedShareholderAgreements } from '@/services/shareholderService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +34,13 @@ const SignedAgreementsPage = () => {
   const [selectedShareholder, setSelectedShareholder] = useState(null);
 
   const fetchApprovedShareholders = async () => {
-    console.log('[SIGNED] Fetching approved shareholders');
+    console.log('[SIGNED] Fetching signed shareholder agreements');
     setLoading(true);
     setError(null);
 
     try {
-      const data = await getApprovedShareholders();
-      console.log('[SIGNED] Fetched', data.length, 'approved shareholders');
+      const data = await getSignedShareholderAgreements();
+      console.log('[SIGNED] Fetched', data.length, 'signed agreements');
       setApprovedShareholders(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('[SIGNED] Error fetching approved shareholders:', err);
@@ -108,7 +108,7 @@ const SignedAgreementsPage = () => {
         </div>
         <Badge variant="outline" className="text-lg px-4 py-2 bg-green-50 border-green-300 text-green-800">
           <CheckCircle className="w-4 h-4 mr-2" />
-          {approvedShareholders.length} {ts('approved_count', 'Approved')}
+          {approvedShareholders.length} {ts('signed_count', 'Signed')}
         </Badge>
       </div>
 
@@ -119,17 +119,23 @@ const SignedAgreementsPage = () => {
             : 0;
 
           return (
-            <Card key={shareholder.id} className="border-2 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-green-50">
+            <Card key={shareholder.id} className={`border-2 shadow-lg hover:shadow-xl transition-shadow ${shareholder.status === 'approved' ? 'border-green-200' : 'border-amber-200'}`}>
+              <CardHeader className={shareholder.status === 'approved' ? 'bg-green-50' : 'bg-amber-50'}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <User className="w-5 h-5 text-green-600" />
                       <CardTitle className="text-xl">{shareholder.full_name || 'N/A'}</CardTitle>
-                      <Badge className="bg-green-600 text-white">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {tl('common', 'Approved')}
-                      </Badge>
+                      {shareholder.status === 'approved' ? (
+                        <Badge className="bg-green-600 text-white">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {tl('common', 'Approved')}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-500 text-white">
+                          {ts('pending_approval', 'Pending Approval')}
+                        </Badge>
+                      )}
                     </div>
                     <div className="grid md:grid-cols-2 gap-2 text-sm text-gray-600">
                       <div className="flex items-center gap-2">

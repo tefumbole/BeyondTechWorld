@@ -42,8 +42,14 @@ async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const json = await res.json().catch(() => ({}));
 
-  if (!res.ok && !json.error) {
-    return { data: null, error: { message: json.error || res.statusText } };
+  if (!res.ok) {
+    const message =
+      (typeof json.error === 'string' && json.error)
+      || json.error?.message
+      || json.message
+      || res.statusText
+      || 'Request failed';
+    return { data: json.data ?? null, error: { message } };
   }
   return json;
 }

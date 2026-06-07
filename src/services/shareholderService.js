@@ -111,6 +111,39 @@ export const getApprovedShareholders = async () => {
 };
 
 /**
+ * Shareholders with a captured signature (approved or awaiting approval).
+ */
+export const getSignedShareholderAgreements = async () => {
+  console.log('[SERVICE] getSignedShareholderAgreements called');
+
+  try {
+    const { data, error } = await supabase
+      .from('shareholders')
+      .select('*')
+      .is('deleted_at', null)
+      .in('status', ['approved', 'pending_approval'])
+      .order('approved_at', { ascending: false })
+      .order('submitted_at', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[SERVICE] getSignedShareholderAgreements error:', error);
+      throw error;
+    }
+
+    const signed = (Array.isArray(data) ? data : []).filter(
+      (row) => row?.signature || row?.signature_image_url || row?.agreement_signed_at
+    );
+
+    console.log('[SERVICE] Fetched', signed.length, 'signed shareholder agreements');
+    return signed;
+  } catch (error) {
+    console.error('[SERVICE] getSignedShareholderAgreements catch error:', error);
+    return [];
+  }
+};
+
+/**
  * Fetches only pending approval shareholders
  * @returns {Promise<Array>} Array of pending shareholders
  */
@@ -592,6 +625,7 @@ export const updateShareholderPaymentStatus = async (id, paymentStatus) => {
 export default {
   getAllShareholders,
   getApprovedShareholders,
+  getSignedShareholderAgreements,
   getPendingShareholders,
   getPendingPaymentShareholders,
   updateShareholderPaymentStatus,
