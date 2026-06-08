@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { getPool } from '../db/pool.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
-import { sendTextMessage, formatPhoneNumber } from '../services/wasenderWhatsAppService.js';
+import { sendTextMessage, sendDocumentMessage, formatPhoneNumber } from '../services/wasenderWhatsAppService.js';
 
 const router = Router();
 
@@ -14,13 +14,12 @@ You have been assigned a task: *{subject}*
 
 {description}
 
+Priority: *{priority}*
 Start date: {start_date}
 Deadline: {deadline}
 
 Open the link below to sign in and accept your task:
-{login_link}
-
-{document_links}`;
+{login_link}`;
 
 function personalize(template, vars) {
   let result = template || '';
@@ -230,14 +229,31 @@ router.post('/notify-assignment', requireAuth, requireAdmin, async (req, res) =>
       description: descriptionText,
       task_message: descriptionText,
       deadline: row.deadline ? new Date(row.deadline).toLocaleDateString() : '',
-      priority: row.priority || '',
+      priority: row.priority || 'Medium',
       start_date: row.start_date ? new Date(row.start_date).toLocaleDateString() : '',
       login_link: loginLink,
       document_links: docLinks,
     });
 
-    const result = await sendTextMessage(phone, text);
-    res.json({ success: result.success, error: result.error || null });
+    const [docs] = await pool.query(
+      `SELECT file_name, file_url FROM task_attachments WHERE task_id = ? AND attachment_type = 'source'`,
+      [row.task_id]
+    );
+
+    const textResult = await sendTextMessage(phone, text);
+    if (!textResult.success) {
+      return res.json({ success: false, error: textResult.error || 'Failed to send message' });
+    }
+
+    for (const doc of docs || []) {
+      if (!doc.file_url) continue;
+      const docResult = await sendDocumentMessage(phone, doc.file_url, null, doc.file_name || 'task-document.pdf');
+      if (!docResult.success) {
+        return res.json({ success: false, error: docResult.error || 'Message sent but PDF delivery failed' });
+      }
+    }
+
+    res.json({ success: true, error: null });
   } catch (err) {
     console.error('[tasks/notify-assignment]', err);
     res.status(500).json({ success: false, error: err.message });

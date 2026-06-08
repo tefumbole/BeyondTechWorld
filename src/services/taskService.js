@@ -135,13 +135,20 @@ async function queueTaskNotifications(taskId, assignmentRows, scheduleTimes) {
   }
 }
 
+const WHATSAPP_SEND_INTERVAL_MS = 6000;
+
 async function notifyAssignees(task, assignmentRows, profileMap, options) {
   const docLinks = (options.sourceDocuments || []).map((d) => d.url || d.file_url).filter(Boolean).join('\n');
   const template = options.notificationTemplate || task.notification_template || DEFAULT_TASK_NOTIFICATION_TEMPLATE;
 
-  for (const assignment of assignmentRows) {
+  for (let i = 0; i < assignmentRows.length; i += 1) {
+    const assignment = assignmentRows[i];
     const profile = profileMap[assignment.user_id];
     if (!profile?.phone) continue;
+
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, WHATSAPP_SEND_INTERVAL_MS));
+    }
 
     await sendTaskAssignmentNotification({
       assigneePhone: profile.phone,
@@ -246,10 +253,19 @@ export const createBatchTasksWithAssignments = async (tasksList, assigneeIds, sh
   const created = [];
   const errors = [];
 
-  for (const taskData of tasksList) {
-    const res = await createTaskWithAssignments(taskData, assigneeIds, sharedOptions);
+  for (let i = 0; i < tasksList.length; i += 1) {
+    const taskEntry = tasksList[i];
+    const { sourceFiles, ...taskData } = taskEntry;
+    const res = await createTaskWithAssignments(taskData, assigneeIds, {
+      ...sharedOptions,
+      sourceFiles: sourceFiles || [],
+    });
     if (res.success) created.push(res.data);
     else errors.push(res.error || 'Unknown error');
+
+    if (i < tasksList.length - 1 && !sharedOptions.scheduleLater) {
+      await new Promise((resolve) => setTimeout(resolve, WHATSAPP_SEND_INTERVAL_MS));
+    }
   }
 
   if (!created.length) {

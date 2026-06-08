@@ -39,10 +39,9 @@ You have been assigned a task: *{subject}*
 
 {description}
 
+Priority: *{priority}*
 Start date: {start_date}
 Deadline: {deadline}
 
 Open the link below to sign in and accept your task:
-{login_link}
-
-{document_links}`;
+{login_link}`;
