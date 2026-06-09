@@ -33,15 +33,21 @@ export function personalizeTaskContent(template, variables = {}) {
   return result;
 }
 
-export const DEFAULT_TASK_NOTIFICATION_TEMPLATE = `Dear {name},
+export const DEFAULT_TASK_NOTIFICATION_TEMPLATE = `📋 *NEW TASK ASSIGNMENT*
+━━━━━━━━━━━━━━━
 
-You have been assigned a task: *{subject}*
+Hello *{name}*,
+
+You have been assigned a new task:
+
+▪️ *Task:* {subject}
+▪️ *Priority:* {priority}
+▪️ *Start:* {start_date}{start_time}
+▪️ *Deadline:* {deadline}{deadline_time}
 
 {description}
 
-Priority: *{priority}*
-Start date: {start_date}{start_time}
-Deadline: {deadline}{deadline_time}
+👉 Sign in to accept your task:
+{login_link}
 
-Open the link below to sign in and accept your task:
-{login_link}`;
+_Alpha Bridge Technologies Ltd_`;

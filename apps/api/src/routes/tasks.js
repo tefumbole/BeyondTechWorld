@@ -8,18 +8,27 @@ const router = Router();
 
 const APP_BASE = process.env.APP_BASE_URL || 'https://alpha-bridge.net';
 
-const DEFAULT_TEMPLATE = `Dear {name},
+const BRAND_FOOTER = '_Alpha Bridge Technologies Ltd_';
+const DIVIDER = '━━━━━━━━━━━━━━━';
 
-You have been assigned a task: *{subject}*
+const DEFAULT_TEMPLATE = `📋 *NEW TASK ASSIGNMENT*
+${DIVIDER}
+
+Hello *{name}*,
+
+You have been assigned a new task:
+
+▪️ *Task:* {subject}
+▪️ *Priority:* {priority}
+▪️ *Start:* {start_date}{start_time}
+▪️ *Deadline:* {deadline}{deadline_time}
 
 {description}
 
-Priority: *{priority}*
-Start date: {start_date}{start_time}
-Deadline: {deadline}{deadline_time}
+👉 Sign in to accept your task:
+{login_link}
 
-Open the link below to sign in and accept your task:
-{login_link}`;
+${BRAND_FOOTER}`;
 
 function personalize(template, vars) {
   let result = template || '';
@@ -386,12 +395,12 @@ router.post('/notify-accepted', requireAuth, requireTaskManager, async (req, res
     const results = { admin: null, assignee: null };
 
     if (adminPhone) {
-      const adminText = `Task Update 📊\n\n${assigneeName} has *accepted* the task:\n*${taskTitle}*`;
+      const adminText = `📊 *TASK ACCEPTED*\n${DIVIDER}\n\n*${assigneeName}* has accepted the task:\n\n▪️ *Task:* ${taskTitle}\n\n${BRAND_FOOTER}`;
       results.admin = await sendTextMessage(adminPhone, adminText);
     }
 
     if (assigneePhone) {
-      const assigneeText = `Task Accepted ✅\n\nHello ${assigneeName},\n\nYou accepted: *${taskTitle}*\n\nYour task realization is currently at *0%*.\n\nUpdate your progress here:\n${loginLink}`;
+      const assigneeText = `✅ *TASK ACCEPTED*\n${DIVIDER}\n\nHello *${assigneeName}*,\n\nYou have accepted the task:\n\n▪️ *Task:* ${taskTitle}\n▪️ *Realization:* 0%\n\n👉 Update your progress here:\n${loginLink}\n\n${BRAND_FOOTER}`;
       results.assignee = await sendTextMessage(assigneePhone, assigneeText);
     }
 
@@ -425,7 +434,7 @@ router.post('/notify-completed', requireAuth, requireTaskManager, async (req, re
     }
 
     const assigneeName = row.assignee_name || row.assignee_email || 'Assignee';
-    const text = `Task Completed ✅\n\n${assigneeName} has completed their assignment for:\n*${row.title}*\n\nReview it on your task dashboard:\n${APP_BASE}/admin/tasks/dashboard`;
+    const text = `✅ *TASK COMPLETED*\n${DIVIDER}\n\n*${assigneeName}* has completed their assignment:\n\n▪️ *Task:* ${row.title}\n\n👉 Review it on your dashboard:\n${APP_BASE}/admin/tasks/dashboard\n\n${BRAND_FOOTER}`;
     const result = await sendTextMessage(adminPhone, text);
     res.json({ success: result.success, error: result.error || null });
   } catch (err) {
@@ -456,9 +465,9 @@ router.post('/notify-review', requireAuth, requireAdmin, async (req, res) => {
     const reviewer = adminName || row.creator_name || 'Admin';
     const progressVal = progress ?? row.progress ?? 0;
     const statusLabel = progressVal >= 100 ? 'Completed' : 'Needs revision';
-    const commentBlock = comment?.trim() ? `\n\nComment from ${reviewer}:\n${comment.trim()}` : '';
+    const commentBlock = comment?.trim() ? `\n▪️ *Comment:* ${comment.trim()}` : '';
 
-    const text = `Task Review 📝\n\nHello ${assigneeName},\n\nYour task *${row.title}* has been reviewed by ${reviewer}.\n\nStatus: ${statusLabel}\nRealization: *${progressVal}%*${commentBlock}\n\nPlease address the feedback:\n${APP_BASE}/my-tasks`;
+    const text = `📝 *TASK REVIEW*\n${DIVIDER}\n\nHello *${assigneeName}*,\n\nYour task has been reviewed by *${reviewer}*:\n\n▪️ *Task:* ${row.title}\n▪️ *Status:* ${statusLabel}\n▪️ *Realization:* ${progressVal}%${commentBlock}\n\n👉 Please address the feedback:\n${APP_BASE}/my-tasks\n\n${BRAND_FOOTER}`;
 
     const result = await sendTextMessage(phone, text);
     res.json({ success: result.success, error: result.error || null });

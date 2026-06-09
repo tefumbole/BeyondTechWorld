@@ -12,12 +12,27 @@ import { Link } from 'react-router-dom';
 import EditTaskModal from '@/components/admin/EditTaskModal';
 import { getPriorityColor, getStatusColor } from '@/components/admin/TaskDashboardCard';
 
+const TASK_TABS = [
+  { id: 'uncompleted', label: 'Uncompleted Tasks' },
+  { id: 'completed', label: 'Completed Tasks' },
+  { id: 'overdue', label: 'Overdue' },
+];
+
+const tabForTask = (task) => {
+  const status = String(task.status || '').toLowerCase();
+  if (status === 'completed') return 'completed';
+  if (status === 'overdue') return 'overdue';
+  return 'uncompleted';
+};
+
 const AdminTaskListPage = () => {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: 'All', priority: 'All', category: 'All' });
-  
+  const [activeTab, setActiveTab] = useState('uncompleted');
+  const [remindingId, setRemindingId] = useState(null);
+
   const [editTask, setEditTask] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
@@ -58,12 +73,14 @@ const AdminTaskListPage = () => {
     }
   };
 
-  const handleResendNotification = async (taskId, assigneeId) => {
+  const handleResendNotification = async (taskId, assigneeId, assigneeName) => {
+    setRemindingId(`${taskId}:${assigneeId}`);
     const res = await resendTaskNotification(taskId, assigneeId);
+    setRemindingId(null);
     if (res.success) {
-      toast({ title: "Notification sent successfully" });
+      toast({ title: 'Reminder sent', description: `${assigneeName || 'Assignee'} has been reminded of this task and its deadline.` });
     } else {
-      toast({ title: "Failed to send notification", description: res.error, variant: "destructive" });
+      toast({ title: "Failed to send reminder", description: res.error, variant: "destructive" });
     }
   };
 
@@ -71,6 +88,8 @@ const AdminTaskListPage = () => {
     setEditTask(task);
     setIsEditModalOpen(true);
   };
+
+  const visibleTasks = tasks.filter(task => tabForTask(task) === activeTab);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -86,17 +105,6 @@ const AdminTaskListPage = () => {
 
       <div className="bg-white p-4 rounded-lg shadow-sm border flex flex-wrap items-center gap-4">
         <span className="text-sm font-medium text-gray-700">Filters:</span>
-        <Select value={filters.status} onValueChange={v => setFilters({...filters, status: v})}>
-          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Statuses</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="In Progress">In Progress</SelectItem>
-            <SelectItem value="Completed">Completed</SelectItem>
-            <SelectItem value="Overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
-
         <Select value={filters.priority} onValueChange={v => setFilters({...filters, priority: v})}>
           <SelectTrigger className="w-[140px]"><SelectValue placeholder="Priority" /></SelectTrigger>
           <SelectContent>
@@ -104,7 +112,7 @@ const AdminTaskListPage = () => {
             <SelectItem value="Low">Low</SelectItem>
             <SelectItem value="Medium">Medium</SelectItem>
             <SelectItem value="High">High</SelectItem>
-            <SelectItem value="Critical">Critical</SelectItem>
+            <SelectItem value="Emergency">Emergency</SelectItem>
           </SelectContent>
         </Select>
 
@@ -121,11 +129,37 @@ const AdminTaskListPage = () => {
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-2 border-b">
+        {TASK_TABS.map(tab => {
+          const count = tasks.filter(t => tabForTask(t) === tab.id).length;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
+                active
+                  ? 'border-[#003D82] text-[#003D82]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${active ? 'bg-[#003D82] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="bg-white rounded-lg shadow border overflow-hidden">
         {loading ? (
           <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
-        ) : tasks.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">No tasks found matching your criteria.</div>
+        ) : visibleTasks.length === 0 ? (
+          <div className="p-10 text-center text-gray-500">
+            No {TASK_TABS.find(t => t.id === activeTab)?.label.toLowerCase()} found.
+          </div>
         ) : (
           <Table>
             <TableHeader className="bg-gray-50">
@@ -140,7 +174,7 @@ const AdminTaskListPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map(task => (
+              {visibleTasks.map(task => (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>
@@ -154,15 +188,26 @@ const AdminTaskListPage = () => {
                   <TableCell><Badge className={getStatusColor(task.status)}>{task.status}</Badge></TableCell>
                   <TableCell>{task.deadline ? format(new Date(task.deadline), 'MMM dd, yyyy') : '-'}</TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {task.task_assignments?.map(a => (
-                         <div key={a.id} className="text-xs flex items-center justify-between gap-2 bg-gray-50 p-1 rounded">
-                           <span className="truncate max-w-[100px]" title={a.profiles?.full_name}>{a.profiles?.full_name?.split(' ')[0]}</span>
-                           <Button variant="ghost" size="icon" className="h-5 w-5" title="Remind" onClick={() => handleResendNotification(task.id, a.user_id)}>
-                             <Send className="h-3 w-3 text-blue-500" />
+                    <div className="flex flex-col gap-1 min-w-[200px]">
+                      {task.task_assignments?.map(a => {
+                        const fullName = a.profiles?.full_name || 'Unassigned';
+                        const busy = remindingId === `${task.id}:${a.user_id}`;
+                        return (
+                         <div key={a.id} className="text-xs flex items-center justify-between gap-2 bg-gray-50 px-2 py-1 rounded">
+                           <span className="font-medium text-gray-700" title={fullName}>{fullName}</span>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                             title="Send a WhatsApp reminder about this task and its deadline"
+                             disabled={busy}
+                             onClick={() => handleResendNotification(task.id, a.user_id, fullName)}
+                           >
+                             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Send className="h-3 w-3 mr-1" /> Remind</>}
                            </Button>
                          </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

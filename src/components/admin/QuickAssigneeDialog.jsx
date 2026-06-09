@@ -122,15 +122,9 @@ const QuickAssigneeDialog = ({ open, onOpenChange, onCreated }) => {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="+237..."
             />
-          </div>
-          <div>
-            <Label>Temporary Password</Label>
-            <Input
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              minLength={8}
-            />
-            <p className="text-xs text-gray-500 mt-1">They can reset this after signing up via the task link.</p>
+            <p className="text-xs text-gray-500 mt-1">
+              No username or password needed. They will confirm via a WhatsApp OTP when they open the task link.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
