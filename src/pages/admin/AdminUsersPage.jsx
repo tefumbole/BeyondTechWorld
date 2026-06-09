@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/userService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Search, Trash2, Edit, Loader2, User, Mail, Phone, Shield, Calendar, RefreshCcw } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, Loader2, User, Mail, Phone, Shield, Calendar, RefreshCcw, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import UserManagementForm from '@/components/admin/UserManagementForm';
 import { format } from 'date-fns';
@@ -13,10 +14,13 @@ const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const customerFilter = searchParams.get('filter') === 'customer';
+
   // Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formMode, setFormMode] = useState('create'); // 'create' | 'edit'
+  const [formAudience, setFormAudience] = useState('user'); // 'user' | 'customer'
   const [selectedUser, setSelectedUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,20 +45,45 @@ const AdminUsersPage = () => {
 
   useEffect(() => { loadData(); }, []);
 
-  const filteredUsers = users.filter(u => 
+  useEffect(() => {
+    if (searchParams.get('action') === 'customer') {
+      setFormMode('create');
+      setFormAudience('customer');
+      setSelectedUser(null);
+      setIsFormOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const matchesSearch = (u) =>
     (u.full_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
     (u.email?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.role?.toLowerCase() || '').includes(search.toLowerCase())
-  );
+    (u.role?.toLowerCase() || '').includes(search.toLowerCase());
+
+  const filteredUsers = users.filter(u => {
+    if (customerFilter && (u.role?.toLowerCase() || '') !== 'customer') return false;
+    return matchesSearch(u);
+  });
 
   const handleCreateOpen = () => {
     setFormMode('create');
+    setFormAudience('user');
+    setSelectedUser(null);
+    setIsFormOpen(true);
+  };
+
+  const handleCreateCustomerOpen = () => {
+    setFormMode('create');
+    setFormAudience('customer');
     setSelectedUser(null);
     setIsFormOpen(true);
   };
 
   const handleEditOpen = (user) => {
     setFormMode('edit');
+    setFormAudience('user');
     setSelectedUser(user);
     setIsFormOpen(true);
   };
@@ -103,6 +132,7 @@ const AdminUsersPage = () => {
       case 'manager': return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'student': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'shareholder': return 'bg-green-100 text-green-800 border-green-200';
+      case 'customer': return 'bg-teal-100 text-teal-800 border-teal-200';
       case 'applicant': return 'bg-gray-100 text-gray-800 border-gray-200';
       default: return 'bg-gray-50 text-gray-600 border-gray-200';
     }
@@ -112,13 +142,16 @@ const AdminUsersPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-[#003D82]">User Management</h1>
-            <p className="text-gray-500">Manage all system users, roles, and access.</p>
+            <h1 className="text-3xl font-bold text-[#003D82]">{customerFilter ? 'Customer List' : 'User Management'}</h1>
+            <p className="text-gray-500">{customerFilter ? 'Manage customer contacts.' : 'Manage all system users, roles, and access.'}</p>
         </div>
         <div className="flex gap-2">
             <Button variant="outline" onClick={loadData} disabled={loading}>
                 <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
+            </Button>
+            <Button variant="outline" onClick={handleCreateCustomerOpen}>
+              <UserPlus className="mr-2 h-4 w-4" /> Add Customer
             </Button>
             <Button className="bg-[#003D82] hover:bg-[#002e63] shadow-sm" onClick={handleCreateOpen}>
               <Plus className="mr-2 h-4 w-4" /> Create User
@@ -238,6 +271,7 @@ const AdminUsersPage = () => {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         mode={formMode}
+        audience={formAudience}
         initialData={selectedUser}
         onSubmit={handleFormSubmit}
         isSubmitting={isSubmitting}

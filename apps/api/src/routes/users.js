@@ -126,7 +126,12 @@ router.post('/', async (req, res) => {
     if (!email || !full_name) {
       return res.status(400).json({ data: null, error: { message: 'Email and full name required' } });
     }
-    if (!password || String(password).length < 8) {
+    // Customers and other OTP-only contacts are created without a password.
+    // When no password is supplied, generate a temporary one (they sign in via WhatsApp OTP / reset).
+    const effectivePassword = password && String(password).length
+      ? String(password)
+      : generateTempPassword();
+    if (password && String(password).length < 8) {
       return res.status(400).json({ data: null, error: { message: 'Password must be at least 8 characters' } });
     }
 
@@ -154,7 +159,7 @@ router.post('/', async (req, res) => {
     }
 
     const id = randomUUID();
-    const hash = await bcrypt.hash(String(password), 10);
+    const hash = await bcrypt.hash(effectivePassword, 10);
     const userRole = role || 'user';
 
     await pool.query(

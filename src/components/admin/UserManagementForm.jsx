@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 
-const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSubmitting }) => {
+const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSubmitting, audience = 'user' }) => {
+  const isCustomer = audience === 'customer';
   const [formData, setFormData] = React.useState({
     email: '',
     username: '',
@@ -38,14 +39,14 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
         username: '',
         full_name: '',
         phone: '',
-        role: 'guest',
+        role: isCustomer ? 'customer' : 'guest',
         password: '',
         confirmPassword: '',
         changePassword: false,
       });
     }
     setFormError('');
-  }, [mode, initialData, isOpen]);
+  }, [mode, initialData, isOpen, isCustomer]);
 
   const roles = [
     { value: 'super_admin', label: 'Super Admin' },
@@ -62,7 +63,7 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
     e.preventDefault();
     setFormError('');
 
-    if (mode === 'create') {
+    if (mode === 'create' && !isCustomer) {
       if (!formData.password || formData.password.length < 8) {
         setFormError('Password must be at least 8 characters.');
         return;
@@ -90,15 +91,15 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
 
     const payload = {
       email: formData.email.trim(),
-      username: formData.username.trim() || null,
+      username: isCustomer ? null : (formData.username.trim() || null),
       full_name: formData.full_name.trim(),
       phone: formData.phone.trim() || null,
-      role: formData.role,
+      role: isCustomer ? 'customer' : formData.role,
     };
 
-    if (mode === 'create') {
+    if (mode === 'create' && !isCustomer) {
       payload.password = formData.password;
-    } else if (formData.changePassword && formData.password) {
+    } else if (mode === 'edit' && formData.changePassword && formData.password) {
       payload.password = formData.password;
     }
 
@@ -109,11 +110,15 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'Create New User' : 'Edit User'}</DialogTitle>
+          <DialogTitle>
+            {mode === 'edit' ? 'Edit User' : (isCustomer ? 'Add Customer' : 'Create New User')}
+          </DialogTitle>
           <DialogDescription>
-            {mode === 'create'
-              ? 'Set email, username, password, and role. Users can sign in with email or username.'
-              : 'Update user information, role, or password.'}
+            {mode === 'edit'
+              ? 'Update user information, role, or password.'
+              : isCustomer
+                ? 'Add a customer contact. They confirm via WhatsApp OTP — no username or password needed.'
+                : 'Set email, username, password, and role. Users can sign in with email or username.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,16 +141,18 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              placeholder="j.doe"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            />
-            <p className="text-xs text-gray-500">Optional. Used for login instead of email.</p>
-          </div>
+          {!isCustomer && (
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                placeholder="j.doe"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              />
+              <p className="text-xs text-gray-500">Optional. Used for login instead of email.</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="full_name">Full Name *</Label>
@@ -170,7 +177,7 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
             <p className="text-xs text-gray-500">Required for WhatsApp OTP login and password reset.</p>
           </div>
 
-          {mode === 'create' ? (
+          {isCustomer ? null : mode === 'create' ? (
             <>
               <div className="space-y-2">
                 <Label htmlFor="password">Password *</Label>
@@ -232,21 +239,23 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
-            <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.value} value={role.value}>
-                    {role.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isCustomer && (
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
@@ -259,7 +268,7 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
                   {mode === 'create' ? 'Creating...' : 'Saving...'}
                 </>
               ) : (
-                mode === 'create' ? 'Create User' : 'Save Changes'
+                mode === 'edit' ? 'Save Changes' : (isCustomer ? 'Add Customer' : 'Create User')
               )}
             </Button>
           </div>
