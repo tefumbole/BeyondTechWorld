@@ -140,6 +140,7 @@ import WorkingWeekPage from '@/pages/timesheet/WorkingWeekPage';
 // Task Management Admin Pages
 import TaskDashboardPage from '@/pages/admin/TaskDashboardPage';
 import AdminTaskListPage from '@/pages/admin/AdminTaskListPage';
+import ScheduledTasksPage from '@/pages/admin/ScheduledTasksPage';
 import CreateTaskPage from '@/pages/admin/CreateTaskPage';
 import TaskSettingsPage from '@/pages/admin/TaskSettingsPage';
 
@@ -521,6 +522,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute requireAdmin={true}>
                 <AdminTaskListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="tasks/scheduled"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <ScheduledTasksPage />
               </ProtectedRoute>
             }
           />

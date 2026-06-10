@@ -58,7 +58,7 @@ const emptyTaskRow = (index = 0) => ({
   color: TASK_COLORS[index % TASK_COLORS.length].hex,
   pdfFile: null,
   sendMode: 'now',
-  scheduleAt: '',
+  scheduleTimes: [''],
   assignees: [],
   assigneeTab: 'all',
   searchQuery: '',
@@ -210,9 +210,11 @@ const CreateTaskPage = () => {
       return;
     }
 
-    const missingSchedule = validTasks.find((row) => row.sendMode === 'schedule' && !row.scheduleAt.trim());
+    const missingSchedule = validTasks.find(
+      (row) => row.sendMode === 'schedule' && !(row.scheduleTimes || []).some((t) => String(t).trim())
+    );
     if (missingSchedule) {
-      toast({ title: 'Required', description: 'Scheduled tasks need a send date and time.', variant: 'destructive' });
+      toast({ title: 'Required', description: 'Scheduled tasks need at least one send date and time.', variant: 'destructive' });
       return;
     }
 
@@ -221,8 +223,10 @@ const CreateTaskPage = () => {
 
     const tasksPayload = validTasks.map((row) => {
       const scheduleLater = row.sendMode === 'schedule';
-      const schedules = scheduleLater && row.scheduleAt
-        ? [normalizeScheduleTime(row.scheduleAt, tzOffset)]
+      const schedules = scheduleLater
+        ? (row.scheduleTimes || [])
+            .filter((t) => String(t).trim())
+            .map((t) => normalizeScheduleTime(t, tzOffset))
         : [];
 
       return {
@@ -249,7 +253,7 @@ const CreateTaskPage = () => {
         description: `${res.count} task(s) created. WhatsApp messages are queued 6 seconds apart (${tzSettings.timezone}).`,
       });
       localStorage.removeItem(DRAFT_KEY);
-      navigate('/admin/tasks/dashboard');
+      navigate('/admin/tasks/pending-acceptances');
     } else {
       toast({ title: 'Failed', description: res.error, variant: 'destructive' });
     }
@@ -447,12 +451,43 @@ const CreateTaskPage = () => {
                         </label>
                       </RadioGroup>
                       {row.sendMode === 'schedule' && (
-                        <Input
-                          type="datetime-local"
-                          value={row.scheduleAt}
-                          onChange={(e) => updateTaskRow(index, 'scheduleAt', e.target.value)}
-                          className="max-w-xs"
-                        />
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500">Multi Schedule — add one or more reminder send times ({tzSettings.timezone})</p>
+                          {(row.scheduleTimes || ['']).map((timeVal, si) => (
+                            <div key={si} className="flex gap-2 items-center">
+                              <Input
+                                type="datetime-local"
+                                value={timeVal}
+                                onChange={(e) => {
+                                  const next = [...(row.scheduleTimes || [''])];
+                                  next[si] = e.target.value;
+                                  updateTaskRow(index, 'scheduleTimes', next);
+                                }}
+                                className="max-w-xs"
+                              />
+                              {(row.scheduleTimes || []).length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 text-red-500"
+                                  onClick={() => updateTaskRow(index, 'scheduleTimes', (row.scheduleTimes || []).filter((_, i) => i !== si))}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => updateTaskRow(index, 'scheduleTimes', [...(row.scheduleTimes || ['']), ''])}
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Add schedule time
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>

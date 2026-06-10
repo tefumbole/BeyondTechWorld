@@ -91,7 +91,7 @@ const ProtectedRoute = ({
 
   if (!needsRoleCheck) {
     if (
-      userRole === 'task_assignee'
+      ['task_assignee', 'customer'].includes(userRole)
       && !location.pathname.startsWith('/user/tasks')
       && !location.pathname.startsWith('/task-invite')
       && location.pathname !== '/login'

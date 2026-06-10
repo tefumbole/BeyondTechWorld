@@ -97,6 +97,7 @@ const AdminLayout = () => {
           submenu: [
             { label: 'Task Dashboard', path: '/admin/tasks/dashboard', icon: LayoutDashboard },
             { label: 'All Tasks', path: '/admin/tasks', icon: ListTodo },
+            { label: 'Scheduled', path: '/admin/tasks/scheduled', icon: CalendarClock },
             { label: 'Create Task', path: '/admin/tasks/create', icon: PlusCircle },
             { label: 'Task Settings', path: '/admin/tasks/settings', icon: Settings },
             { label: 'My Tasks', path: '/admin/tasks/my-tasks', icon: CheckCircle },
@@ -248,49 +249,53 @@ const AdminLayout = () => {
     }));
   };
 
+  const pathMatches = (path) => {
+    const base = path.split('?')[0];
+    return location.pathname === base
+      || location.pathname.startsWith(`${base}/`)
+      || location.pathname + location.search === path;
+  };
+
+  const findActiveSection = () => {
+    for (const group of menuGroups) {
+      for (const item of group.items || []) {
+        if (item.submenu?.some((sub) => pathMatches(sub.path))) {
+          return item;
+        }
+      }
+    }
+    return null;
+  };
+
+  const activeSection = findActiveSection();
+
   const MenuItem = ({ item }) => {
     if (item.permission && !itemVisible(hasPermission, item.permission)) return null;
 
     const pathMatch = item.path?.split('?')[0];
     const activePaths = item.activePaths || (pathMatch ? [pathMatch] : []);
-    const isActive = item.submenu 
-      ? item.submenu.some(sub => location.pathname.startsWith(sub.path.split('?')[0]))
+    const isActive = item.submenu
+      ? item.submenu.some((sub) => pathMatches(sub.path))
       : (item.path ? activePaths.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`) || location.pathname + location.search === item.path) : false);
 
     const isOpen = Boolean(openMenus[item.label]);
 
     if (item.submenu) {
+      const firstSub = item.submenu[0];
       return (
-        <Collapsible open={isOpen} onOpenChange={() => toggleMenu(item.label)} className="w-full">
-          <CollapsibleTrigger className={cn(
-            "flex items-center justify-between w-full px-4 py-3 rounded-lg transition-all duration-200 text-gray-100 hover:bg-white/10 hover:text-white",
-            isActive && "bg-[#003066]"
-          )}>
-            <div className="flex items-center gap-3">
-              <item.icon className="w-5 h-5 text-[#D4AF37]" />
-              <span>{tl('menu', item.label)}</span>
-            </div>
-            <ChevronDown className={cn("w-4 h-4 transition-transform", isOpen && "transform rotate-180")} />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pl-12 space-y-1 pt-1">
-            {item.submenu.map(sub => (
-              <Link 
-                key={sub.path} 
-                to={sub.path}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center gap-2 py-2 px-3 rounded text-sm transition-colors",
-                  (location.pathname === sub.path.split('?')[0] || location.pathname + location.search === sub.path)
-                    ? "text-[#D4AF37] font-medium bg-white/5"
-                    : "text-gray-400 hover:text-white"
-                )}
-              >
-                {sub.icon && <sub.icon className="w-3 h-3" />}
-                {tl('menu', sub.label)}
-              </Link>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
+        <Link
+          to={firstSub.path}
+          onClick={() => setSidebarOpen(false)}
+          className={cn(
+            'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative overflow-hidden',
+            isActive
+              ? 'bg-[#D4AF37] text-[#003D82] font-bold shadow-md'
+              : 'text-gray-100 hover:bg-white/10 hover:text-white'
+          )}
+        >
+          <item.icon className={cn('w-5 h-5 transition-transform group-hover:scale-110', isActive ? 'text-[#003D82]' : 'text-[#D4AF37]')} />
+          <span className="relative z-10">{tl('menu', item.label)}</span>
+        </Link>
       );
     }
 
@@ -419,6 +424,30 @@ const AdminLayout = () => {
         <div className="hidden md:flex justify-end mb-4">
           <LanguageSwitcher variant="admin" />
         </div>
+        {activeSection && (
+          <div className="mb-6 -mx-1 overflow-x-auto scrollbar-thin">
+            <nav className="flex gap-1 border-b border-gray-200 min-w-max pb-px">
+              {activeSection.submenu.map((sub) => {
+                const active = pathMatches(sub.path);
+                return (
+                  <Link
+                    key={sub.path}
+                    to={sub.path}
+                    className={cn(
+                      'inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
+                      active
+                        ? 'border-[#003D82] text-[#003D82] bg-white rounded-t-md'
+                        : 'border-transparent text-gray-500 hover:text-[#003D82] hover:border-gray-300'
+                    )}
+                  >
+                    {sub.icon && <sub.icon className="w-4 h-4 shrink-0" />}
+                    {tl('menu', sub.label)}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
         <div className="max-w-7xl mx-auto pb-10 print:p-0 print:m-0 print:max-w-none print:w-full print:bg-white">
           <Outlet />
         </div>

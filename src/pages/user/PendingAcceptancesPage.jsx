@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import {
   getMyTasks,
+  getAllPendingAcceptances,
   acceptTaskAssignment,
   declineTaskAssignment,
   bulkDeclineTaskAssignments,
@@ -26,6 +28,8 @@ export const getPriorityColor = (priority) => {
 };
 
 const PendingAcceptancesPage = () => {
+  const location = useLocation();
+  const isAdminView = location.pathname.startsWith('/admin/tasks/pending');
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -36,7 +40,9 @@ const PendingAcceptancesPage = () => {
 
   const loadTasks = async () => {
     setLoading(true);
-    const res = await getMyTasks('Pending', 'All');
+    const res = isAdminView
+      ? await getAllPendingAcceptances()
+      : await getMyTasks('Pending', 'All');
     if (res.success) {
       setTasks(res.data);
     } else {
@@ -108,10 +114,14 @@ const PendingAcceptancesPage = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-[#003D82]">Pending Acceptances</h1>
-        <p className="text-gray-500">Review tasks assigned to you. Accept to start working or decline if unavailable.</p>
+        <p className="text-gray-500">
+          {isAdminView
+            ? 'Assignments waiting for assignees to accept. New tasks appear here as soon as they are created.'
+            : 'Review tasks assigned to you. Accept to start working or decline if unavailable.'}
+        </p>
       </div>
 
-      {!loading && tasks.length > 0 && (
+      {!loading && tasks.length > 0 && !isAdminView && (
         <TaskBulkActionsBar
           totalCount={tasks.length}
           selectedIds={selectedIds}
@@ -166,33 +176,44 @@ const PendingAcceptancesPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-[#003D82]"
-                        onClick={() => openTask(task)}
-                        title="View and edit task"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-700"
-                        onClick={() => handleBulkDelete([task.assignment_id])}
-                        title="Decline task"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {!isAdminView && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#003D82]"
+                            onClick={() => openTask(task)}
+                            title="View and edit task"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-700"
+                            onClick={() => handleBulkDelete([task.assignment_id])}
+                            title="Decline task"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                       <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 flex items-center">
                         <Clock className="w-3 h-3 mr-1" /> Pending
                       </Badge>
                     </div>
                   </div>
                   <h3 className="font-bold text-lg text-gray-900">{task.title}</h3>
-                  {task.created_by_profile && (
+                  {isAdminView && task.assignee_name && (
+                    <div className="flex items-center text-xs text-[#003D82] font-medium mt-1">
+                      <User className="w-3 h-3 mr-1" />
+                      Assignee: {task.assignee_name}
+                      {task.assignee_phone && <> · {task.assignee_phone}</>}
+                    </div>
+                  )}
+                  {!isAdminView && task.created_by_profile && (
                     <div className="flex items-center text-xs text-gray-500 mt-1">
                       <User className="w-3 h-3 mr-1" />
                       Assigned by {task.created_by_profile.full_name}
@@ -214,19 +235,26 @@ const PendingAcceptancesPage = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="bg-gray-50/50 border-t p-3 flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    onClick={() => handleDecline(task.assignment_id)}
-                  >
-                    <X className="w-4 h-4 mr-2" /> Decline
-                  </Button>
-                  <Button
-                    className="flex-1 bg-[#003D82] hover:bg-[#002a5a] text-white"
-                    onClick={() => handleAccept(task.assignment_id)}
-                  >
-                    <Check className="w-4 h-4 mr-2" /> Accept
-                  </Button>
+                  {!isAdminView && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => handleDecline(task.assignment_id)}
+                      >
+                        <X className="w-4 h-4 mr-2" /> Decline
+                      </Button>
+                      <Button
+                        className="flex-1 bg-[#003D82] hover:bg-[#002a5a] text-white"
+                        onClick={() => handleAccept(task.assignment_id)}
+                      >
+                        <Check className="w-4 h-4 mr-2" /> Accept
+                      </Button>
+                    </>
+                  )}
+                  {isAdminView && (
+                    <p className="text-xs text-gray-500 w-full text-center py-1">Waiting for assignee to accept via WhatsApp link</p>
+                  )}
                 </CardFooter>
               </Card>
             );

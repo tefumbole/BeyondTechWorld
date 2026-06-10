@@ -531,6 +531,102 @@ export const getMyTasks = async (statusFilter = 'All', categoryFilter = 'All') =
   }
 };
 
+export const getAllPendingAcceptances = async () => {
+  try {
+    const { data: assignments, error } = await supabase
+      .from('task_assignments')
+      .select('id, task_id, user_id, status, progress, created_at, invite_token')
+      .eq('status', 'Pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    if (!assignments?.length) return { success: true, data: [] };
+
+    const taskIds = [...new Set(assignments.map((a) => a.task_id))];
+    const userIds = [...new Set(assignments.map((a) => a.user_id).filter(Boolean))];
+
+    const { data: tasks } = await supabase.from('tasks').select('*').in('id', taskIds);
+    const tasksById = {};
+    (tasks || []).forEach((t) => { tasksById[t.id] = t; });
+
+    const profileMap = await fetchProfilesMap(userIds);
+
+    const formatted = assignments
+      .map((a) => {
+        const task = tasksById[a.task_id];
+        if (!task) return null;
+        const assignee = profileMap[a.user_id];
+        return {
+          assignment_id: a.id,
+          task_id: task.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          deadline: task.deadline,
+          deadline_time: task.deadline_time,
+          color: task.color,
+          status: a.status,
+          progress: a.progress,
+          created_at: a.created_at,
+          assignee_name: assignee?.full_name || assignee?.name || assignee?.email || 'Unknown',
+          assignee_email: assignee?.email,
+          assignee_phone: assignee?.phone,
+        };
+      })
+      .filter(Boolean);
+
+    return { success: true, data: formatted };
+  } catch (error) {
+    console.error('Error loading pending acceptances:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+export const getScheduledTasks = async () => {
+  try {
+    const { data: allTasks, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if (error) throw error;
+
+    const tasks = (allTasks || []).filter(
+      (t) => String(t.status || '').toLowerCase() === 'scheduled' || Number(t.is_scheduled) === 1
+    );
+
+    let queueRows = [];
+    try {
+      const { data: queue } = await supabase
+        .from('task_notification_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .order('scheduled_at', { ascending: true });
+      queueRows = queue || [];
+    } catch {
+      queueRows = [];
+    }
+
+    const hydrated = await hydrateTasksList(tasks || []);
+    const queueByTask = {};
+    queueRows.forEach((q) => {
+      if (!queueByTask[q.task_id]) queueByTask[q.task_id] = [];
+      queueByTask[q.task_id].push(q);
+    });
+
+    const data = hydrated.map((task) => ({
+      ...task,
+      pending_notifications: queueByTask[task.id] || [],
+    }));
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error loading scheduled tasks:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
 export const acceptTaskAssignment = async (assignmentId) => {
   try {
     const now = new Date().toISOString();

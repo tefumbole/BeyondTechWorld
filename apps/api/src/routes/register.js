@@ -33,12 +33,26 @@ router.post('/request', async (req, res) => {
       assignedRole = 'task_assignee';
     }
 
-    const [existing] = await pool.query(
-      'SELECT id FROM users WHERE LOWER(email) = LOWER(?) OR phone = ? LIMIT 1',
-      [email.trim(), formattedPhone]
+    const [existingByPhone] = await pool.query(
+      'SELECT id, email, role FROM users WHERE phone = ? LIMIT 1',
+      [formattedPhone]
     );
-    if (existing.length) {
-      return res.status(409).json({ success: false, error: 'An account with this email or phone already exists. Please sign in instead.' });
+    const [existingByEmail] = await pool.query(
+      'SELECT id, email, role, phone FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1',
+      [email.trim()]
+    );
+
+    const existingPhone = existingByPhone[0] || null;
+    const existingEmail = existingByEmail[0] || null;
+
+    // Task-invite signup: allow customers (or same phone) to complete signup and replace their record.
+    const allowReplace = Boolean(inviteToken && existingPhone);
+
+    if (existingEmail && existingEmail.phone !== formattedPhone && !allowReplace) {
+      return res.status(409).json({ success: false, error: 'An account with this email already exists. Please sign in instead.' });
+    }
+    if (existingPhone && !allowReplace) {
+      return res.status(409).json({ success: false, error: 'An account with this phone already exists. Please sign in instead.' });
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -105,12 +119,37 @@ router.post('/verify', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Incorrect verification code.' });
     }
 
-    const userId = randomUUID();
-    await pool.query(
-      `INSERT INTO users (id, email, password_hash, name, role, status, phone)
-       VALUES (?, ?, ?, ?, ?, 'active', ?)`,
-      [userId, pending.email, pending.password_hash, pending.full_name, pending.role, pending.phone]
+    const PRESERVE_ROLES = ['super_admin', 'admin', 'director', 'manager', 'staff', 'employee', 'teacher'];
+    const [existingRows] = await pool.query(
+      'SELECT id, email, role FROM users WHERE phone = ? LIMIT 1',
+      [pending.phone]
     );
+    const existing = existingRows[0] || null;
+
+    let userId;
+    let finalRole = pending.role;
+
+    if (existing) {
+      userId = existing.id;
+      if (PRESERVE_ROLES.includes(String(existing.role || '').toLowerCase())) {
+        finalRole = existing.role;
+      } else if (String(existing.role || '').toLowerCase() === 'customer') {
+        finalRole = 'customer';
+      }
+
+      await pool.query(
+        `UPDATE users SET email = ?, password_hash = ?, name = ?, role = ?, status = 'active', phone = ? WHERE id = ?`,
+        [pending.email, pending.password_hash, pending.full_name, finalRole, pending.phone, userId]
+      );
+    } else {
+      userId = randomUUID();
+      await pool.query(
+        `INSERT INTO users (id, email, password_hash, name, role, status, phone)
+         VALUES (?, ?, ?, ?, ?, 'active', ?)`,
+        [userId, pending.email, pending.password_hash, pending.full_name, pending.role, pending.phone]
+      );
+      finalRole = pending.role;
+    }
 
     const userRow = {
       id: userId,
@@ -118,7 +157,7 @@ router.post('/verify', async (req, res) => {
       full_name: pending.full_name,
       name: pending.full_name,
       phone: pending.phone,
-      role: pending.role,
+      role: finalRole,
       status: 'active',
     };
     await syncProfile(pool, userRow);
@@ -135,7 +174,7 @@ router.post('/verify', async (req, res) => {
     res.json({
       success: true,
       message: 'Account created successfully. You can now log in.',
-      user: { id: userId, email: pending.email, role: pending.role },
+      user: { id: userId, email: pending.email, role: finalRole },
       inviteToken: pending.invite_token || null,
     });
   } catch (err) {

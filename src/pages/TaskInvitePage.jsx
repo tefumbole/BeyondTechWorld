@@ -138,7 +138,7 @@ const TaskInvitePage = () => {
           ) : step === 'form' ? (
             <form onSubmit={handleRegister} className="space-y-4">
               <p className="text-sm text-gray-600">
-                Create your account. We will send a WhatsApp OTP to confirm your number.
+                Set your password to access the task portal. If you were added as a customer already, use the same phone number — your account will be updated, not blocked.
               </p>
               <div>
                 <Label>Full Name</Label>
