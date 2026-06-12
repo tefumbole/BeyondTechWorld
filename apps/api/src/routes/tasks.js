@@ -25,7 +25,7 @@ You have been assigned a new task:
 
 {description}
 
-👉 Sign in to accept your task:
+👉 Open this link to *Accept* or *Reject* your task:
 {login_link}
 
 ${BRAND_FOOTER}`;
@@ -289,11 +289,6 @@ async function notifyAssignmentById(pool, assignmentId, messageTemplate, documen
   if (!textResult.success) {
     return { success: false, error: textResult.error || 'Failed to send message' };
   }
-
-  const acceptLink = `${APP_BASE}/task-invite/${row.invite_token}?action=accept`;
-  const rejectLink = `${APP_BASE}/task-invite/${row.invite_token}?action=decline`;
-  const actionText = `\n\n✅ *Accept:* ${acceptLink}\n❌ *Reject:* ${rejectLink}`;
-  await sendTextMessage(phone, actionText);
 
   for (const doc of docs || []) {
     if (!doc.file_url) continue;

@@ -47,7 +47,7 @@ You have been assigned a new task:
 
 {description}
 
-👉 Sign in to accept your task:
+👉 Open this link to *Accept* or *Reject* your task:
 {login_link}
 
 _Alpha Bridge Technologies Ltd_`;
