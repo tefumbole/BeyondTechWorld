@@ -270,17 +270,6 @@ export const createTaskWithAssignments = async (taskData, assigneeIds, options =
         }));
         const { error: ccError } = await supabase.from('task_cc').insert(ccRows);
         if (ccError) throw ccError;
-
-        if (useMysql) {
-          try {
-            await mysqlTaskApi('/tasks/notify-cc', {
-              method: 'POST',
-              body: JSON.stringify({ taskId: task.id, ccUserIds: options.ccUserIds, assigneeIds }),
-            });
-          } catch (ccNotifyErr) {
-            console.error('CC notification failed', ccNotifyErr);
-          }
-        }
       }
 
       if (options.reminderTimes?.length) {
@@ -304,6 +293,16 @@ export const createTaskWithAssignments = async (taskData, assigneeIds, options =
           notificationTemplate,
           sourceDocuments,
         });
+        if (options.ccUserIds?.length && useMysql) {
+          try {
+            await mysqlTaskApi('/tasks/notify-cc', {
+              method: 'POST',
+              body: JSON.stringify({ taskId: task.id }),
+            });
+          } catch (ccNotifyErr) {
+            console.error('CC notification failed', ccNotifyErr);
+          }
+        }
       }
     }
 

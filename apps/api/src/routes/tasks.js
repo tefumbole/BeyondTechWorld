@@ -428,6 +428,10 @@ router.post('/send-now', requireAuth, requireAdmin, async (req, res) => {
       [taskId]
     );
 
+    if (sent > 0) {
+      await notifyCcRecipientsForTask(pool, taskId);
+    }
+
     res.json({
       success: sent > 0,
       sent,
@@ -457,6 +461,7 @@ router.post('/process-scheduled', requireAuth, requireAdmin, async (_req, res) =
 
     let sent = 0;
     let failed = 0;
+    const ccNotifiedTasks = new Set();
 
     for (const row of due) {
       const phone = formatPhoneNumber(row.phone);
@@ -515,6 +520,10 @@ router.post('/process-scheduled', requireAuth, requireAdmin, async (_req, res) =
           [row.id]
         );
         sent++;
+        if (!ccNotifiedTasks.has(row.task_id)) {
+          ccNotifiedTasks.add(row.task_id);
+          await notifyCcRecipientsForTask(pool, row.task_id);
+        }
       } else {
         await pool.query(
           `UPDATE task_notification_queue SET status = 'failed', last_error = ? WHERE id = ?`,
@@ -668,7 +677,8 @@ function formatTimeRemaining(deadline, deadlineTime) {
 
 async function loadCcRecipients(pool, taskId) {
   const [rows] = await pool.query(
-    `SELECT COALESCE(u.phone, p.phone) AS phone,
+    `SELECT tc.user_id,
+            COALESCE(u.phone, p.phone) AS phone,
             COALESCE(u.name, p.full_name) AS name
      FROM task_cc tc
      LEFT JOIN users u ON u.id = tc.user_id
@@ -677,6 +687,78 @@ async function loadCcRecipients(pool, taskId) {
     [taskId]
   );
   return (rows || []).filter((r) => r.phone);
+}
+
+/** Send full task details to all CC recipients on a task. */
+async function notifyCcRecipientsForTask(pool, taskId) {
+  const [tasks] = await pool.query(
+    `SELECT title, description, deadline, deadline_time, priority, start_date, start_time
+     FROM tasks WHERE id = ? LIMIT 1`,
+    [taskId]
+  );
+  if (!tasks.length) return { sent: 0 };
+  const task = tasks[0];
+
+  const [assigneeRows] = await pool.query(
+    `SELECT COALESCE(u.name, p.full_name) AS name
+     FROM task_assignments ta
+     LEFT JOIN users u ON u.id = ta.user_id
+     LEFT JOIN profiles p ON p.id = ta.user_id
+     WHERE ta.task_id = ?`,
+    [taskId]
+  );
+  const assigneeNames = (assigneeRows || []).map((r) => r.name).filter(Boolean).join(', ') || 'the assignee(s)';
+
+  const ccList = await loadCcRecipients(pool, taskId);
+  if (!ccList.length) return { sent: 0 };
+
+  const scheduleVars = formatScheduleVars(task);
+  const descriptionText = (task.description || '').trim();
+
+  const [docs] = await pool.query(
+    `SELECT file_name, file_url FROM task_attachments WHERE task_id = ? AND attachment_type = 'source'`,
+    [taskId]
+  );
+
+  let sent = 0;
+  for (let i = 0; i < ccList.length; i += 1) {
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+    }
+    const cc = ccList[i];
+    const phone = formatPhoneNumber(cc.phone);
+    if (!phone) continue;
+
+    const text = `📋 *TASK CC NOTIFICATION*
+${DIVIDER}
+
+Hello *${cc.name || 'Team Member'}*,
+
+You have been CC'd on a task assigned to *${assigneeNames}*:
+
+▪️ *Task:* ${task.title}
+▪️ *Priority:* ${task.priority || 'Medium'}
+▪️ *Start:* ${scheduleVars.start_date}${scheduleVars.start_time}
+▪️ *Deadline:* ${scheduleVars.deadline}${scheduleVars.deadline_time}
+${descriptionText ? `\n${descriptionText}\n` : ''}
+You will receive progress updates on this task.
+
+👉 View tasks:
+${APP_BASE}/my-tasks
+
+${BRAND_FOOTER}`;
+
+    const result = await sendTextMessage(phone, text);
+    if (!result.success) continue;
+    sent += 1;
+
+    for (const doc of docs || []) {
+      if (!doc.file_url) continue;
+      await sendDocumentMessage(phone, doc.file_url, null, doc.file_name || 'task-document.pdf');
+    }
+  }
+
+  return { sent };
 }
 
 router.post('/remove-my-assignments', requireAuth, async (req, res) => {
@@ -970,45 +1052,14 @@ router.post('/admin-update', requireAuth, requireAdmin, async (req, res) => {
 
 router.post('/notify-cc', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { taskId, ccUserIds = [], assigneeIds = [] } = req.body || {};
-    if (!taskId || !ccUserIds.length) {
-      return res.json({ success: true, sent: 0 });
+    const { taskId } = req.body || {};
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'taskId required' });
     }
 
     const pool = getPool();
-    const [tasks] = await pool.query('SELECT title, deadline, deadline_time FROM tasks WHERE id = ?', [taskId]);
-    if (!tasks.length) {
-      return res.status(404).json({ success: false, error: 'Task not found' });
-    }
-    const task = tasks[0];
-
-    const [assigneeRows] = assigneeIds.length
-      ? await pool.query(
-          `SELECT COALESCE(u.name, p.full_name) AS name FROM users u
-           LEFT JOIN profiles p ON p.id = u.id WHERE u.id IN (${assigneeIds.map(() => '?').join(',')})`,
-          assigneeIds
-        )
-      : [[]];
-    const assigneeNames = (assigneeRows || []).map((r) => r.name).filter(Boolean).join(', ') || 'assignee(s)';
-
-    let sent = 0;
-    for (const ccId of ccUserIds) {
-      const [users] = await pool.query(
-        `SELECT COALESCE(u.name, p.full_name) AS name, COALESCE(u.phone, p.phone) AS phone
-         FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ? LIMIT 1`,
-        [ccId]
-      );
-      const cc = users[0];
-      const phone = formatPhoneNumber(cc?.phone);
-      if (!phone) continue;
-      const deadlineStr = task.deadline ? new Date(task.deadline).toLocaleDateString() : '';
-      const deadlineTime = task.deadline_time ? ` at ${String(task.deadline_time).slice(0, 5)}` : '';
-      const text = `📋 *TASK CC NOTIFICATION*\n${DIVIDER}\n\nHello *${cc.name || 'CC'}*,\n\nYou are CC on a task assigned to *${assigneeNames}*:\n\n▪️ *Task:* ${task.title}\n▪️ *Deadline:* ${deadlineStr}${deadlineTime}\n\nYou will receive progress updates on this task.\n\n${BRAND_FOOTER}`;
-      const result = await sendTextMessage(phone, text);
-      if (result.success) sent += 1;
-    }
-
-    res.json({ success: true, sent });
+    const result = await notifyCcRecipientsForTask(pool, taskId);
+    res.json({ success: true, sent: result.sent || 0 });
   } catch (err) {
     console.error('[tasks/notify-cc]', err);
     res.status(500).json({ success: false, error: err.message });
