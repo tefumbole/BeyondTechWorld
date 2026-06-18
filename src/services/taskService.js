@@ -456,6 +456,55 @@ export const adminDeleteAssignments = async (assignmentIds = []) => {
     }
 };
 
+/**
+ * List all task reminders, joined with their task title/deadline (client-side join).
+ */
+export const getTaskReminders = async () => {
+  try {
+    const { data: reminders, error } = await supabase
+      .from('task_reminders')
+      .select('*')
+      .order('reminder_time', { ascending: true });
+    if (error) throw error;
+
+    const list = reminders || [];
+    const taskIds = [...new Set(list.map((r) => r.task_id).filter(Boolean))];
+    let tasksById = {};
+    if (taskIds.length) {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('id, title, deadline, deadline_time, priority')
+        .in('id', taskIds);
+      tasksById = (tasks || []).reduce((acc, t) => { acc[t.id] = t; return acc; }, {});
+    }
+
+    const hydrated = list.map((r) => ({
+      ...r,
+      task: tasksById[r.task_id] || null,
+    }));
+    return { success: true, data: hydrated };
+  } catch (error) {
+    console.error('Error fetching task reminders:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+/**
+ * Delete one or more task reminders by id.
+ */
+export const deleteTaskReminders = async (ids = []) => {
+  try {
+    const list = (ids || []).filter(Boolean);
+    if (!list.length) return { success: false, error: 'No reminders selected' };
+    const { error } = await supabase.from('task_reminders').delete().in('id', list);
+    if (error) throw error;
+    return { success: true, count: list.length };
+  } catch (error) {
+    console.error('Error deleting reminders:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const getTasks = async (filters = {}) => {
   try {
     let query = supabase

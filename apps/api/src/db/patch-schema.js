@@ -81,6 +81,22 @@ export const SCHEMA_PATCHES = [
 ];
 
 export const CREATE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS activity_logs (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    user_id CHAR(36) DEFAULT NULL,
+    user_name VARCHAR(255) DEFAULT NULL,
+    user_role VARCHAR(80) DEFAULT NULL,
+    action VARCHAR(80) NOT NULL,
+    entity VARCHAR(120) DEFAULT NULL,
+    entity_id VARCHAR(120) DEFAULT NULL,
+    summary VARCHAR(500) DEFAULT NULL,
+    metadata JSON DEFAULT NULL,
+    ip_address VARCHAR(60) DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_activity_logs_created (created_at),
+    INDEX idx_activity_logs_user (user_id),
+    INDEX idx_activity_logs_entity (entity)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS pending_registrations (
     id CHAR(36) NOT NULL PRIMARY KEY,
     email VARCHAR(255) NOT NULL,

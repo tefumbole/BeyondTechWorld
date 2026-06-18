@@ -45,6 +45,8 @@ import ApplicationConfirmationPage from '@/pages/ApplicationConfirmationPage';
 // Authentication & Portals
 import LoginPage from '@/pages/LoginPage';
 import CompleteProfilePage from '@/pages/CompleteProfilePage';
+import MyProfilePage from '@/pages/MyProfilePage';
+import AdminActivityLogsPage from '@/pages/admin/AdminActivityLogsPage';
 import CustomerSignupPage from '@/pages/CustomerSignupPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import OTPVerificationScreen from '@/pages/OTPVerificationScreen';
@@ -143,6 +145,7 @@ import WorkingWeekPage from '@/pages/timesheet/WorkingWeekPage';
 // Task Management Admin Pages
 import TaskDashboardPage from '@/pages/admin/TaskDashboardPage';
 import AdminTaskListPage from '@/pages/admin/AdminTaskListPage';
+import TaskRemindersPage from '@/pages/admin/TaskRemindersPage';
 import ScheduledTasksPage from '@/pages/admin/ScheduledTasksPage';
 import CreateTaskPage from '@/pages/admin/CreateTaskPage';
 import TaskSettingsPage from '@/pages/admin/TaskSettingsPage';
@@ -436,6 +439,17 @@ const AppContent = () => {
           }
         />
 
+        <Route
+          path="/user/profile"
+          element={
+            <ProtectedRoute>
+              <TaskAssigneeLayout>
+                <MyProfilePage />
+              </TaskAssigneeLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/access-denied" element={<AccessDeniedPage />} />
 
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
@@ -456,6 +470,9 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+
+          <Route path="profile" element={<MyProfilePage />} />
+          <Route path="logs" element={<ProtectedRoute requireAdmin={true}><AdminActivityLogsPage /></ProtectedRoute>} />
 
           {/* --- AUDIO ADMIN ROUTES --- */}
           <Route path="audio/dashboard" element={<ProtectedRoute requireAdmin={true}><AudioAdminDashboard /></ProtectedRoute>} />
@@ -558,6 +575,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute requireAdmin={true}>
                 <ScheduledTasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="tasks/reminders"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <TaskRemindersPage />
               </ProtectedRoute>
             }
           />

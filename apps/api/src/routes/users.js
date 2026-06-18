@@ -282,11 +282,26 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, phone, role, password, status, username } = req.body || {};
+    const { full_name, phone, role, password, status, username, email } = req.body || {};
     const pool = getPool();
 
     const userUpdates = [];
     const userParams = [];
+    if (email !== undefined) {
+      const trimmedEmail = email ? String(email).trim().toLowerCase() : null;
+      if (!trimmedEmail) {
+        return res.status(400).json({ data: null, error: { message: 'Email is required' } });
+      }
+      const [dupEmail] = await pool.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ? LIMIT 1',
+        [trimmedEmail, id]
+      );
+      if (dupEmail.length) {
+        return res.status(409).json({ data: null, error: { message: 'Email is already in use' } });
+      }
+      userUpdates.push('email = ?');
+      userParams.push(trimmedEmail);
+    }
     if (full_name !== undefined) {
       userUpdates.push('name = ?');
       userParams.push(full_name);

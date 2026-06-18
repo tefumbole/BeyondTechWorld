@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { createFullBackup, restoreDatabaseBackup, getBackupHistory, deleteBackup } from '@/services/backupService';
+import { createFullBackup, restoreDatabaseBackup, getBackupHistory, deleteBackup, createFullDbBackup, restoreFullDbBackup } from '@/services/backupService';
 import { useToast } from '@/components/ui/use-toast';
 import { DownloadCloud, UploadCloud, History, Trash2, AlertTriangle, Loader2, FileJson, Save } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -72,12 +72,12 @@ const DatabaseBackupContent = () => {
     const handleCreateBackup = async () => {
         setLoading(true);
         try {
-            const blob = await createFullBackup();
+            const { blob, tableCount, recordCount } = await createFullDbBackup();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            a.download = `backup_${timestamp}.json`;
+            a.download = `alphabridge_full_backup_${timestamp}.json`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -85,12 +85,26 @@ const DatabaseBackupContent = () => {
 
             toast({
                 title: "Backup Successful",
-                description: "Database export complete and downloaded.",
+                description: `Full database export complete — ${tableCount} tables, ${recordCount} records downloaded.`,
                 className: "bg-green-50 border-green-200 text-green-900"
             });
             loadHistory();
         } catch (error) {
-            toast({ title: "Backup Failed", description: error.message, variant: "destructive" });
+            // Fall back to legacy partial export if the full endpoint is unavailable.
+            try {
+                const blob = await createFullBackup();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast({ title: "Backup Successful", description: "Database export downloaded.", className: "bg-green-50 border-green-200 text-green-900" });
+            } catch (fallbackError) {
+                toast({ title: "Backup Failed", description: error.message || fallbackError.message, variant: "destructive" });
+            }
         } finally {
             setLoading(false);
         }
@@ -100,15 +114,28 @@ const DatabaseBackupContent = () => {
         if (!restoreFile) return;
         setLoading(true);
         try {
-            const result = await restoreDatabaseBackup(restoreFile);
-            if (result.errors.length > 0) {
-                toast({ title: "Restore Completed with Errors", description: `Success: ${result.success.length}. Errors: ${result.errors.length}.`, variant: "destructive" });
+            const result = await restoreFullDbBackup(restoreFile);
+            const errors = result?.results?.errors || [];
+            const restored = result?.results?.restored || [];
+            if (errors.length > 0) {
+                toast({ title: "Restore Completed with Errors", description: `Restored: ${restored.length} table(s). Errors: ${errors.length}.`, variant: "destructive" });
             } else {
-                toast({ title: "Restore Successful", description: "All tables restored successfully.", className: "bg-green-50 border-green-200 text-green-900" });
+                toast({ title: "Restore Successful", description: `${restored.length} table(s) restored from backup.`, className: "bg-green-50 border-green-200 text-green-900" });
             }
             setRestoreFile(null);
         } catch (error) {
-            toast({ title: "Restore Failed", description: error.message, variant: "destructive" });
+            // Fall back to legacy per-table upsert restore.
+            try {
+                const result = await restoreDatabaseBackup(restoreFile);
+                if (result.errors.length > 0) {
+                    toast({ title: "Restore Completed with Errors", description: `Success: ${result.success.length}. Errors: ${result.errors.length}.`, variant: "destructive" });
+                } else {
+                    toast({ title: "Restore Successful", description: "All tables restored successfully.", className: "bg-green-50 border-green-200 text-green-900" });
+                }
+                setRestoreFile(null);
+            } catch (fallbackError) {
+                toast({ title: "Restore Failed", description: error.message || fallbackError.message, variant: "destructive" });
+            }
         } finally {
             setLoading(false);
         }
@@ -133,7 +160,7 @@ const DatabaseBackupContent = () => {
                         <CardTitle className="flex items-center gap-2 text-[#003D82]">
                             <DownloadCloud className="w-6 h-6" /> Create Database Backup
                         </CardTitle>
-                        <CardDescription>Export all database tables (JSON format).</CardDescription>
+                        <CardDescription>Export every database table to a single JSON file.</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="flex flex-col items-center justify-center space-y-4 py-8">
@@ -162,8 +189,8 @@ const DatabaseBackupContent = () => {
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
                                     <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                                     <div className="text-sm text-yellow-800">
-                                        <p className="font-bold">Warning: Overwrite Risk</p>
-                                        <p>Restoring will overwrite existing records.</p>
+                                        <p className="font-bold">Warning: Full Overwrite</p>
+                                        <p>Restoring replaces all data in every table contained in this file.</p>
                                     </div>
                                 </div>
                             )}

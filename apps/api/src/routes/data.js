@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { getPool } from '../db/pool.js';
 import { optionalAuth } from '../middleware/auth.js';
+import { logActivity } from '../services/activityLog.js';
 
 const router = Router();
 router.use(optionalAuth);
@@ -302,6 +303,14 @@ router.post('/query', async (req, res) => {
         inserted.push(record);
       }
 
+      logActivity({
+        req,
+        action: 'create',
+        entity: table,
+        entityId: inserted.length === 1 ? inserted[0].id : null,
+        summary: `Created ${inserted.length} record(s) in ${table}`,
+      });
+
       if (body.single) {
         const [one] = await pool.query(`SELECT * FROM \`${table}\` WHERE id = ? LIMIT 1`, [inserted[0].id]);
         return res.json({ data: serializeRow(one[0] || inserted[0], table, req.user), error: null });
@@ -321,6 +330,14 @@ router.post('/query', async (req, res) => {
       await pool.query(`UPDATE \`${table}\` SET ${setSql}${whereSql}`, [...values, ...whereParams]);
 
       const idFilter = filters.find((f) => f.col === 'id' && f.op === 'eq');
+      logActivity({
+        req,
+        action: 'update',
+        entity: table,
+        entityId: idFilter ? idFilter.value : null,
+        summary: `Updated ${table}${idFilter ? ` (${idFilter.value})` : ''}`,
+        metadata: { fields: keys },
+      });
       if (idFilter) {
         const [rows] = await pool.query(`SELECT * FROM \`${table}\` WHERE id = ? LIMIT 1`, [idFilter.value]);
         const row = rows[0] ? serializeRow(rows[0], table, req.user) : null;
@@ -335,6 +352,14 @@ router.post('/query', async (req, res) => {
     if (body.action === 'delete') {
       const { sql: whereSql, params } = buildWhere(filters);
       await pool.query(`DELETE FROM \`${table}\`${whereSql}`, params);
+      const delIdFilter = filters.find((f) => f.col === 'id' && f.op === 'eq');
+      logActivity({
+        req,
+        action: 'delete',
+        entity: table,
+        entityId: delIdFilter ? delIdFilter.value : null,
+        summary: `Deleted from ${table}${delIdFilter ? ` (${delIdFilter.value})` : ''}`,
+      });
       return res.json({ data: null, error: null });
     }
 
@@ -358,6 +383,13 @@ router.post('/query', async (req, res) => {
         );
         results.push(record);
       }
+      logActivity({
+        req,
+        action: 'upsert',
+        entity: table,
+        entityId: results.length === 1 ? results[0][conflictCol] : null,
+        summary: `Saved ${results.length} record(s) in ${table}`,
+      });
       return res.json({ data: results, error: null });
     }
 

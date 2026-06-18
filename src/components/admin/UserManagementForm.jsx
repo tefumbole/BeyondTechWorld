@@ -135,9 +135,7 @@ const UserManagementForm = ({ isOpen, onClose, mode, initialData, onSubmit, isSu
               placeholder="user@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={mode === 'edit'}
               required
-              className={mode === 'edit' ? 'bg-gray-100' : ''}
             />
           </div>
 

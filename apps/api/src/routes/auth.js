@@ -6,6 +6,7 @@ import { getPool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendOtp, formatPhoneNumber } from '../services/wasenderWhatsAppService.js';
 import { syncProfile } from './users.js';
+import { logActivity } from '../services/activityLog.js';
 
 const router = Router();
 const JWT_EXPIRY = '7d';
@@ -99,6 +100,17 @@ router.post('/login', async (req, res) => {
     const [profiles] = await pool.query('SELECT * FROM profiles WHERE id = ? LIMIT 1', [user.id]);
     const profile = profiles[0] || null;
     const session = buildSession(user, profile);
+
+    logActivity({
+      req,
+      userId: user.id,
+      userName: user.name || user.email || user.username,
+      userRole: user.role,
+      action: 'login',
+      entity: 'auth',
+      entityId: user.id,
+      summary: `${user.name || user.email || 'User'} signed in`,
+    });
 
     res.json({ session, user: session.user });
   } catch (err) {

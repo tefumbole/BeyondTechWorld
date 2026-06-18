@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Inbox, ListTodo, LogOut } from 'lucide-react';
+import { Inbox, ListTodo, LogOut, UserCog } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 const navItems = [
   { label: 'Pending Tasks', path: '/user/tasks/pending-acceptances', icon: Inbox },
   { label: 'My Tasks', path: '/user/tasks', icon: ListTodo },
+  { label: 'Profile', path: '/user/profile', icon: UserCog },
 ];
 
 function TaskAssigneeLayout({ children }) {

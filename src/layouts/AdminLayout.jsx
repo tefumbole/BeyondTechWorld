@@ -48,7 +48,9 @@ import {
   ClipboardCheck,
   Trash2,
   UserPlus,
-  Wallet
+  Wallet,
+  UserCog,
+  ScrollText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -77,17 +79,9 @@ const AdminLayout = () => {
 
   const menuGroups = [
     {
-      label: 'Overview',
+      label: 'Dashboard',
       items: [
         { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, permission: MENU_PERMISSIONS.dashboard },
-      ]
-    },
-    {
-      label: 'Digital Events',
-      items: [
-        { label: 'Event Management', path: '/admin/events', icon: CalendarDays, permission: MENU_PERMISSIONS.events },
-        { label: 'Digital Invitations', path: '/admin/invitations', icon: Ticket, permission: MENU_PERMISSIONS.invitations, activePaths: ['/admin/invitations', '/admin/check-in'] },
-        { label: 'Templates & Config', path: '/admin/events/templates', icon: Settings, permission: MENU_PERMISSIONS.eventTemplates, activePaths: ['/admin/events/templates', '/admin/events/wa-templates', '/admin/events/webhooks'] },
       ]
     },
     {
@@ -102,6 +96,7 @@ const AdminLayout = () => {
             { label: 'Create Task', path: '/admin/tasks/create', icon: PlusCircle },
             { label: 'All Tasks', path: '/admin/tasks', icon: ListTodo },
             { label: 'Scheduled', path: '/admin/tasks/scheduled', icon: CalendarClock },
+            { label: 'Reminders', path: '/admin/tasks/reminders', icon: Clock },
             { label: 'My Tasks', path: '/admin/tasks/my-tasks', icon: CheckCircle },
             { label: 'Pending Acceptances', path: '/admin/tasks/pending-acceptances', icon: Inbox },
             { label: 'Task Settings', path: '/admin/tasks/settings', icon: Settings },
@@ -119,66 +114,9 @@ const AdminLayout = () => {
             { label: 'Rejected', path: '/admin/applications/rejected' },
           ]
         },
-      ]
-    },
-    {
-      label: 'People & Access',
-      items: [
-        { 
-          label: 'Users', 
-          icon: Users,
-          permission: MENU_PERMISSIONS.users,
-          submenu: [
-            { label: 'All Users', path: '/admin/users' },
-            { label: 'Add Customer', path: '/admin/users?action=customer', icon: UserPlus },
-            { label: 'Customer List', path: '/admin/users?filter=customer' },
-            { label: 'Add Student', path: '/admin/students?action=new', icon: UserPlus },
-            { label: 'Student List', path: '/admin/students' },
-            { label: 'ShareHolder', path: '/admin/shareholders/list', icon: PieChart },
-          ]
-        },
-        { 
-          label: 'Members (Team)', 
-          icon: Users,
-          permission: MENU_PERMISSIONS.members,
-          submenu: [
-            { label: 'Member List', path: '/admin/members' },
-            { label: 'Add Member', path: '/admin/members?action=new' }, 
-          ]
-        },
-        { 
-          label: 'ShareHolders', 
-          icon: PieChart,
-          permission: MENU_PERMISSIONS.shareholders,
-          submenu: [
-            { label: 'Dashboard', path: '/admin/shareholders/dashboard' },
-            { label: 'List View', path: '/admin/shareholders/list' },
-            { label: 'Trash', path: '/admin/shareholders/trash', icon: Trash2 },
-            { label: 'Pending Approvals', path: '/admin/shareholders/pending-approvals', icon: ClipboardCheck },
-            { label: 'Pending Payment', path: '/admin/shareholders/pending-payments', icon: CreditCard },
-            { label: 'Signed Agreements', path: '/admin/shareholders/signed-agreements', icon: FileCheck },
-            { label: 'Settings', path: '/admin/shareholders/settings' }
-          ]
-        },
-      ]
-    },
-    {
-      label: 'Learning & Content',
-      items: [
-        {
-          label: 'Courses',
-          icon: BookOpen,
-          permission: MENU_PERMISSIONS.courses,
-          submenu: [
-            { label: 'Course List', path: '/admin/courses' },
-            { label: 'Add Course', path: '/admin/courses/add' },
-            { label: 'Registrations', path: '/admin/registrations' },
-            { label: 'Invoices', path: '/admin/invoices', icon: FileText },
-            { label: 'Certificates', path: '/admin/certificates', icon: Award },
-            { label: 'Student Progress', path: '/admin/progress', icon: TrendingUp },
-            { label: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
-          ]
-        }
+        { label: 'Event Management', path: '/admin/events', icon: CalendarDays, permission: MENU_PERMISSIONS.events },
+        { label: 'Digital Invitations', path: '/admin/invitations', icon: Ticket, permission: MENU_PERMISSIONS.invitations, activePaths: ['/admin/invitations', '/admin/check-in'] },
+        { label: 'Event Templates & Config', path: '/admin/events/templates', icon: Settings, permission: MENU_PERMISSIONS.eventTemplates, activePaths: ['/admin/events/templates', '/admin/events/wa-templates', '/admin/events/webhooks'] },
       ]
     },
     {
@@ -232,6 +170,25 @@ const AdminLayout = () => {
       ]
     },
     {
+      label: 'Courses',
+      items: [
+        {
+          label: 'Courses',
+          icon: BookOpen,
+          permission: MENU_PERMISSIONS.courses,
+          submenu: [
+            { label: 'Course List', path: '/admin/courses' },
+            { label: 'Add Course', path: '/admin/courses/add' },
+            { label: 'Registrations', path: '/admin/registrations' },
+            { label: 'Invoices', path: '/admin/invoices', icon: FileText },
+            { label: 'Certificates', path: '/admin/certificates', icon: Award },
+            { label: 'Student Progress', path: '/admin/progress', icon: TrendingUp },
+            { label: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
+          ]
+        }
+      ]
+    },
+    {
       label: 'HR & Payroll',
       items: [
         {
@@ -267,11 +224,53 @@ const AdminLayout = () => {
       ],
     },
     {
+      label: 'People & Access',
+      items: [
+        { 
+          label: 'Users', 
+          icon: Users,
+          permission: MENU_PERMISSIONS.users,
+          submenu: [
+            { label: 'All Users', path: '/admin/users' },
+            { label: 'Add Customer', path: '/admin/users?action=customer', icon: UserPlus },
+            { label: 'Customer List', path: '/admin/users?filter=customer' },
+            { label: 'Add Student', path: '/admin/students?action=new', icon: UserPlus },
+            { label: 'Student List', path: '/admin/students' },
+            { label: 'ShareHolder', path: '/admin/shareholders/list', icon: PieChart },
+          ]
+        },
+        { 
+          label: 'Members (Team)', 
+          icon: Users,
+          permission: MENU_PERMISSIONS.members,
+          submenu: [
+            { label: 'Member List', path: '/admin/members' },
+            { label: 'Add Member', path: '/admin/members?action=new' }, 
+          ]
+        },
+        { 
+          label: 'ShareHolders', 
+          icon: PieChart,
+          permission: MENU_PERMISSIONS.shareholders,
+          submenu: [
+            { label: 'Dashboard', path: '/admin/shareholders/dashboard' },
+            { label: 'List View', path: '/admin/shareholders/list' },
+            { label: 'Trash', path: '/admin/shareholders/trash', icon: Trash2 },
+            { label: 'Pending Approvals', path: '/admin/shareholders/pending-approvals', icon: ClipboardCheck },
+            { label: 'Pending Payment', path: '/admin/shareholders/pending-payments', icon: CreditCard },
+            { label: 'Signed Agreements', path: '/admin/shareholders/signed-agreements', icon: FileCheck },
+            { label: 'Settings', path: '/admin/shareholders/settings' }
+          ]
+        },
+      ]
+    },
+    {
       label: 'System',
       collapsible: true,
       permission: MENU_PERMISSIONS.system,
       items: [
         { label: 'Reports Hub', path: '/admin/reports', icon: FileBarChart },
+        { label: 'Activity Logs', path: '/admin/logs', icon: ScrollText },
         { label: 'Backup & Restore', path: '/admin/backup-restore', icon: Database },
         { label: 'General Settings', path: '/admin/general-settings', icon: Settings },
         { label: 'Roles & Permissions', path: '/admin/roles-permissions', icon: Key, permission: MENU_PERMISSIONS.roles },
@@ -440,6 +439,15 @@ const AdminLayout = () => {
             </div>
           </div>
           
+          <Link
+            to="/admin/profile"
+            onClick={() => setSidebarOpen(false)}
+            className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg text-gray-200 hover:text-white hover:bg-white/10 transition-colors text-sm"
+          >
+            <UserCog className="w-5 h-5 text-[#D4AF37]" />
+            {tl('menu', 'My Profile')}
+          </Link>
+
           <Button 
             onClick={handleLogout} 
             variant="ghost" 

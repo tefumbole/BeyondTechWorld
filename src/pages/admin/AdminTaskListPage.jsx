@@ -6,6 +6,7 @@ import { getTaskCategories } from '@/services/taskCategoryService';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus, Edit, Trash2, Send, FilterX } from 'lucide-react';
 import { format } from 'date-fns';
@@ -38,6 +39,8 @@ const AdminTaskListPage = () => {
 
   const [editTask, setEditTask] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   
   const { toast } = useToast();
 
@@ -55,6 +58,10 @@ const AdminTaskListPage = () => {
   useEffect(() => {
     loadTasks();
   }, [filters]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [activeTab]);
 
   const loadCategories = async () => {
     const res = await getTaskCategories();
@@ -100,7 +107,35 @@ const AdminTaskListPage = () => {
     setIsEditModalOpen(true);
   };
 
+  const toggleSelection = (id) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected task(s)? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    let ok = 0;
+    for (const id of selectedIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await deleteTask(id);
+      if (res.success) ok += 1;
+    }
+    setBulkDeleting(false);
+    toast({ title: 'Tasks deleted', description: `${ok} task(s) removed.` });
+    setSelectedIds([]);
+    loadTasks();
+  };
+
   const visibleTasks = tasks.filter(task => tabForTask(task) === activeTab);
+  const allVisibleSelected = visibleTasks.length > 0 && visibleTasks.every((t) => selectedIds.includes(t.id));
+  const toggleSelectAllVisible = (checked) => {
+    const visibleIds = visibleTasks.map((t) => t.id);
+    setSelectedIds((prev) =>
+      checked
+        ? [...new Set([...prev, ...visibleIds])]
+        : prev.filter((id) => !visibleIds.includes(id))
+    );
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -164,6 +199,23 @@ const AdminTaskListPage = () => {
         })}
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-sm border">
+          <span className="text-sm text-gray-600">{selectedIds.length} selected</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            disabled={bulkDeleting}
+            onClick={handleBulkDelete}
+          >
+            {bulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            Delete Selected
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>Clear</Button>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow border overflow-hidden">
         {loading ? (
           <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
@@ -175,6 +227,9 @@ const AdminTaskListPage = () => {
           <Table>
             <TableHeader className="bg-gray-50">
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox checked={allVisibleSelected} onCheckedChange={(c) => toggleSelectAllVisible(Boolean(c))} aria-label="Select all" />
+                </TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Priority</TableHead>
@@ -188,7 +243,10 @@ const AdminTaskListPage = () => {
               {visibleTasks.map(task => {
                 const displayStatus = getEffectiveTaskStatus(task);
                 return (
-                <TableRow key={task.id}>
+                <TableRow key={task.id} className={selectedIds.includes(task.id) ? 'bg-blue-50/40' : ''}>
+                  <TableCell>
+                    <Checkbox checked={selectedIds.includes(task.id)} onCheckedChange={() => toggleSelection(task.id)} aria-label="Select task" />
+                  </TableCell>
                   <TableCell className="font-medium">{task.title}</TableCell>
                   <TableCell>
                     {task.task_categories ? (

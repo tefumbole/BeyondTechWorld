@@ -64,6 +64,24 @@ const DEFAULT_ROLES = [
       'DASHBOARD_VIEW',
       'FILL_TIMESHEET_CREATE', 'FILL_TIMESHEET_EDIT'
     ]
+  },
+  {
+    id: 'role-customer',
+    name: 'Customer',
+    description: 'Customer contact — confirms via WhatsApp OTP, no admin access',
+    is_default: true,
+    permissions: [
+      'DASHBOARD_VIEW'
+    ]
+  },
+  {
+    id: 'role-task-assignee',
+    name: 'Task Assignee',
+    description: 'Guest assignee — can only view and accept assigned tasks',
+    is_default: true,
+    permissions: [
+      'DASHBOARD_VIEW'
+    ]
   }
 ];
 
@@ -75,7 +93,21 @@ const initRoles = () => {
 
 const getRoles = () => {
   initRoles();
-  return JSON.parse(localStorage.getItem(ROLES_KEY) || '[]');
+  const stored = JSON.parse(localStorage.getItem(ROLES_KEY) || '[]');
+
+  // Ensure newly-added system default roles (e.g. Customer, Task Assignee)
+  // always appear even if the user already had a roles list saved.
+  const existingNames = new Set(stored.map((r) => String(r.name).toLowerCase()));
+  let changed = false;
+  for (const def of DEFAULT_ROLES) {
+    if (!existingNames.has(def.name.toLowerCase())) {
+      stored.push({ ...def });
+      changed = true;
+    }
+  }
+  if (changed) saveRoles(stored);
+
+  return stored;
 };
 
 const saveRoles = (roles) => {

@@ -1,6 +1,71 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { formatBytes } from '@/utils/imageCompression';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const AUTH_STORAGE_KEY = 'alpha_supabase_auth';
+
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.access_token || parsed?.currentSession?.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Full database backup: dumps EVERY table via the backend and returns a Blob.
+ */
+export const createFullDbBackup = async () => {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/system/backup`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Backup failed (${res.status})`);
+  }
+  const json = await res.json();
+  const tableCount = Object.keys(json.tables || {}).length;
+  const recordCount = Object.values(json.tables || {}).reduce((sum, rows) => sum + (rows?.length || 0), 0);
+  const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+  return { blob, tableCount, recordCount };
+};
+
+/**
+ * Full database restore from a JSON dump file. Destructive: replaces data
+ * for every table contained in the file.
+ */
+export const restoreFullDbBackup = async (file) => {
+  const text = await file.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Selected file is not valid JSON.');
+  }
+  if (!parsed.tables || typeof parsed.tables !== 'object') {
+    throw new Error('Invalid backup file: missing "tables".');
+  }
+
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE}/system/restore`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ tables: parsed.tables }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json.error || `Restore failed (${res.status})`);
+  }
+  return json;
+};
+
 /**
  * Tables to export in dependency order (Independent -> Dependent)
  */
