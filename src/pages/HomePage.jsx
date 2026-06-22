@@ -161,7 +161,7 @@ function HomePage() {
              >
                <BrandLogo
                  alt={COMPANY_NAME}
-                 className="h-28 md:h-36 w-auto object-contain mb-6 drop-shadow-2xl"
+                 className="h-24 md:h-32 w-auto object-contain mb-6 drop-shadow-2xl"
                  variant="onDark"
                  preferSystemLogo={false}
                />
@@ -173,7 +173,14 @@ function HomePage() {
                transition={{ duration: 0.7, delay: 0.35 }}
                className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 drop-shadow-2xl tracking-tight"
              >
-               {th('hero_title_line1', COMPANY_NAME)}
+               {th('hero_title_line1', 'Your Technology Bridge to')}{' '}
+               <motion.span
+                 className="text-[#D4AF37] inline-block"
+                 animate={{ scale: [1, 1.03, 1] }}
+                 transition={{ duration: 2.5, repeat: Infinity }}
+               >
+                 {th('hero_title_highlight', 'Kigali')}
+               </motion.span>
              </motion.h1>
              <motion.p
                initial={{ opacity: 0 }}
