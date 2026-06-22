@@ -46,7 +46,8 @@ npm run build
 echo "==> 6. Start API on port 3003 (PM2)"
 npm install -g pm2 2>/dev/null || true
 pm2 delete beyondtechworld-api 2>/dev/null || true
-pm2 start ecosystem.beyondtechworld.cjs
+pm2 delete ecosystem.beyondtechworld 2>/dev/null || true
+pm2 start src/main.js --name beyondtechworld-api --cwd "$ROOT/apps/api"
 pm2 save
 
 sleep 2
@@ -55,6 +56,10 @@ echo "    API OK"
 
 echo "==> 7. SSL certificate (if missing)"
 if [[ ! -f /etc/letsencrypt/live/beyondtechworld.com/fullchain.pem ]]; then
+  echo "    Installing temporary HTTP-only nginx config for certbot..."
+  install -m 644 "$ROOT/tools/nginx/beyondtechworld-http.conf" /etc/nginx/sites-available/beyondtechworld
+  ln -sf /etc/nginx/sites-available/beyondtechworld /etc/nginx/sites-enabled/beyondtechworld
+  nginx -t && systemctl reload nginx
   certbot certonly --webroot -w /var/www/letsencrypt \
     -d beyondtechworld.com -d www.beyondtechworld.com \
     --non-interactive --agree-tos -m admin@beyondtechworld.com || {
