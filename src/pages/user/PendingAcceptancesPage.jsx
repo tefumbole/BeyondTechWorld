@@ -20,6 +20,7 @@ import { isTaskOverdue } from '@/utils/taskDeadline';
 import TaskDetailsModal from '@/components/user/TaskDetailsModal';
 import TaskBulkActionsBar from '@/components/user/TaskBulkActionsBar';
 import EditTaskModal from '@/components/admin/EditTaskModal';
+import SignaturePadModal from '@/components/SignaturePadModal';
 
 export const getPriorityColor = (priority) => {
   switch (priority) {
@@ -42,6 +43,8 @@ const PendingAcceptancesPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [acceptingId, setAcceptingId] = useState(null);
   const { toast } = useToast();
 
   const loadTasks = async () => {
@@ -111,10 +114,17 @@ const PendingAcceptancesPage = () => {
     setBulkDeleting(false);
   };
 
-  const handleAccept = async (assignmentId) => {
-    const res = await acceptTaskAssignment(assignmentId);
+  const handleAccept = (assignmentId) => {
+    setAcceptingId(assignmentId);
+    setSignatureOpen(true);
+  };
+
+  const handleSignatureCapture = async (signatureDataUrl) => {
+    if (!acceptingId) return;
+    const res = await acceptTaskAssignment(acceptingId, signatureDataUrl);
+    setAcceptingId(null);
     if (res.success) {
-      toast({ title: 'Task accepted!', description: 'You can now update its progress in My Tasks.' });
+      toast({ title: 'Task accepted!', description: 'Your signature was recorded. You can update progress in My Tasks.' });
       loadTasks();
     } else {
       toast({ title: 'Error accepting task', description: res.error, variant: 'destructive' });
@@ -295,6 +305,17 @@ const PendingAcceptancesPage = () => {
         onClose={() => setIsEditOpen(false)}
         task={editTask}
         onSave={loadTasks}
+      />
+
+      <SignaturePadModal
+        isOpen={signatureOpen}
+        onClose={() => {
+          setSignatureOpen(false);
+          setAcceptingId(null);
+        }}
+        onSignatureCapture={handleSignatureCapture}
+        title="Sign to Accept Task"
+        description="Draw your signature to confirm you accept this task assignment."
       />
     </div>
   );

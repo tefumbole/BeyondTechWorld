@@ -481,112 +481,8 @@ router.post('/send-now', requireAuth, requireAdmin, async (req, res) => {
 
 router.post('/process-scheduled', requireAuth, requireAdmin, async (_req, res) => {
   try {
-    const pool = getPool();
-    const [due] = await pool.query(
-      `SELECT q.*, t.title, t.description, t.deadline, t.priority, t.start_date, t.notification_template,
-              u.name, u.email, u.phone, u.address, u.username AS assignee_username,
-              COALESCE(u.must_change_credentials, 0) AS assignee_must_change, ta.invite_token
-       FROM task_notification_queue q
-       JOIN tasks t ON t.id = q.task_id
-       JOIN task_assignments ta ON ta.id = q.assignment_id
-       JOIN users u ON u.id = ta.user_id
-       WHERE q.status = 'pending' AND q.scheduled_at <= NOW()
-       ORDER BY q.scheduled_at ASC
-       LIMIT 50`
-    );
-
-    let sent = 0;
-    let failed = 0;
-    const ccNotifiedTasks = new Set();
-
-    for (const row of due) {
-      const phone = formatPhoneNumber(row.phone);
-      if (!phone) {
-        await pool.query(
-          `UPDATE task_notification_queue SET status = 'failed', last_error = ? WHERE id = ?`,
-          ['No valid phone', row.id]
-        );
-        failed++;
-        continue;
-      }
-
-      const [docs] = await pool.query(
-        `SELECT file_name, file_url FROM task_attachments WHERE task_id = ? AND attachment_type = 'source'`,
-        [row.task_id]
-      );
-      const loginLink = `${APP_BASE}/task-invite/${row.invite_token}`;
-      const template = row.notification_template || DEFAULT_TEMPLATE;
-      const descriptionText = personalize(row.description || '', {
-        name: row.name,
-        email: row.email,
-        phone: row.phone,
-        address: row.address,
-      });
-
-      const scheduleVars = formatScheduleVars(row);
-      const text = personalize(template, {
-        name: row.name || row.email,
-        email: row.email || '',
-        phone: row.phone || '',
-        address: row.address || '',
-        subject: row.title,
-        task_title: row.title,
-        description: descriptionText,
-        task_message: descriptionText,
-        deadline: scheduleVars.deadline,
-        deadline_time: scheduleVars.deadline_time,
-        priority: row.priority || 'Medium',
-        start_date: scheduleVars.start_date,
-        start_time: scheduleVars.start_time,
-        login_link: loginLink,
-        login_credentials: buildCredentialsBlock({
-          assignee_must_change: row.assignee_must_change,
-          assignee_username: row.assignee_username,
-          assignee_phone: row.phone,
-        }),
-        document_links: '',
-      });
-
-      const textResult = await sendTextMessage(phone, text);
-      let result = textResult;
-      if (textResult.success) {
-        for (const doc of docs || []) {
-          if (!doc.file_url) continue;
-          result = await sendDocumentMessage(phone, doc.file_url, null, doc.file_name || 'task-document.pdf');
-          if (!result.success) break;
-        }
-      }
-
-      if (result.success) {
-        await pool.query(
-          `UPDATE task_notification_queue SET status = 'sent', sent_at = NOW() WHERE id = ?`,
-          [row.id]
-        );
-        sent++;
-        if (!ccNotifiedTasks.has(row.task_id)) {
-          ccNotifiedTasks.add(row.task_id);
-          await notifyCcRecipientsForTask(pool, row.task_id);
-        }
-      } else {
-        await pool.query(
-          `UPDATE task_notification_queue SET status = 'failed', last_error = ? WHERE id = ?`,
-          [result.error || 'Send failed', row.id]
-        );
-        failed++;
-      }
-    }
-
-    await pool.query(
-      `UPDATE tasks t
-       SET t.is_scheduled = 0, t.status = 'Pending'
-       WHERE t.is_scheduled = 1
-         AND NOT EXISTS (
-           SELECT 1 FROM task_notification_queue q
-           WHERE q.task_id = t.id AND q.status = 'pending'
-         )`
-    );
-
-    res.json({ success: true, processed: due.length, sent, failed });
+    const result = await runProcessScheduled();
+    res.json({ success: true, ...result });
   } catch (err) {
     console.error('[tasks/process-scheduled]', err);
     res.status(500).json({ success: false, error: err.message });
@@ -857,9 +753,12 @@ router.post('/remove-my-assignments', requireAuth, async (req, res) => {
 
 router.post('/respond-invite', requireAuth, async (req, res) => {
   try {
-    const { token, action } = req.body || {};
+    const { token, action, signature } = req.body || {};
     if (!token || !['accept', 'decline'].includes(action)) {
       return res.status(400).json({ success: false, error: 'token and action (accept|decline) required' });
+    }
+    if (action === 'accept' && !signature) {
+      return res.status(400).json({ success: false, error: 'Signature required to accept this task' });
     }
 
     const pool = getPool();
@@ -886,8 +785,8 @@ router.post('/respond-invite', requireAuth, async (req, res) => {
         return res.json({ success: true, action, taskTitle: assignment.title, alreadyAccepted: true });
       }
       await pool.query(
-        `UPDATE task_assignments SET status = 'Accepted', accepted_at = ?, last_update_at = ? WHERE id = ?`,
-        [now, now, assignment.id]
+        `UPDATE task_assignments SET status = 'Accepted', accepted_at = ?, last_update_at = ?, acceptance_signature = ? WHERE id = ?`,
+        [now, now, signature, assignment.id]
       );
       await notifyAssignmentAccepted(pool, assignment.id);
     } else {
@@ -969,41 +868,8 @@ router.post('/notify-progress', requireAuth, async (req, res) => {
 
 router.post('/process-reminders', requireAuth, requireAdmin, async (_req, res) => {
   try {
-    const pool = getPool();
-    const [due] = await pool.query(
-      `SELECT tr.id, tr.task_id, tr.reminder_time, t.title, t.deadline, t.deadline_time, t.description, t.priority
-       FROM task_reminders tr
-       JOIN tasks t ON t.id = tr.task_id
-       WHERE tr.is_sent = 0 AND tr.reminder_time <= NOW()
-       ORDER BY tr.reminder_time ASC
-       LIMIT 50`
-    );
-
-    let sent = 0;
-    for (const reminder of due || []) {
-      const [assignments] = await pool.query(
-        `SELECT ta.id FROM task_assignments ta WHERE ta.task_id = ? AND ta.status NOT IN ('Declined', 'Completed')`,
-        [reminder.task_id]
-      );
-
-      const remaining = formatTimeRemaining(reminder.deadline, reminder.deadline_time);
-      const deadlineStr = reminder.deadline ? new Date(reminder.deadline).toLocaleDateString() : '';
-      const deadlineTime = reminder.deadline_time ? ` at ${String(reminder.deadline_time).slice(0, 5)}` : '';
-
-      for (const assignment of assignments) {
-        const ctx = await loadAssignmentContext(pool, assignment.id);
-        if (!ctx) continue;
-        const phone = formatPhoneNumber(ctx.assignee_phone);
-        if (!phone) continue;
-        const text = `⏰ *REMINDER*\n${DIVIDER}\n\nHello *${ctx.assignee_name || 'Team Member'}*,\n\nReminder for your assigned task:\n\n▪️ *Task:* ${reminder.title}\n▪️ *Deadline:* ${deadlineStr}${deadlineTime}\n▪️ *Time remaining:* ${remaining}\n\n👉 Open task:\n${APP_BASE}/my-tasks\n\n${BRAND_FOOTER}`;
-        const result = await sendTextMessage(phone, text);
-        if (result.success) sent += 1;
-      }
-
-      await pool.query(`UPDATE task_reminders SET is_sent = 1 WHERE id = ?`, [reminder.id]);
-    }
-
-    res.json({ success: true, processed: due?.length || 0, sent });
+    const result = await runProcessReminders();
+    res.json({ success: true, ...result });
   } catch (err) {
     console.error('[tasks/process-reminders]', err);
     res.status(500).json({ success: false, error: err.message });
@@ -1098,6 +964,52 @@ router.post('/admin-update', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/accept-assignment', requireAuth, async (req, res) => {
+  try {
+    const { assignmentId, signature } = req.body || {};
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, error: 'assignmentId required' });
+    }
+    if (!signature) {
+      return res.status(400).json({ success: false, error: 'Signature required to accept this task' });
+    }
+
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT ta.id, ta.user_id, ta.status, ta.task_id FROM task_assignments ta WHERE ta.id = ? LIMIT 1`,
+      [assignmentId]
+    );
+    if (!rows.length) {
+      return res.status(404).json({ success: false, error: 'Assignment not found' });
+    }
+    const assignment = rows[0];
+    if (assignment.user_id !== req.user.sub) {
+      return res.status(403).json({ success: false, error: 'This task is not assigned to you' });
+    }
+
+    const alreadyAccepted = String(assignment.status || '').toLowerCase() === 'accepted';
+    if (alreadyAccepted) {
+      return res.json({ success: true, alreadyAccepted: true });
+    }
+
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    await pool.query(
+      `UPDATE task_assignments SET status = 'Accepted', accepted_at = ?, last_update_at = ?, acceptance_signature = ? WHERE id = ?`,
+      [now, now, signature, assignment.id]
+    );
+    await pool.query(
+      `UPDATE tasks SET status = 'In Progress' WHERE id = ? AND status = 'Pending'`,
+      [assignment.task_id]
+    );
+    await notifyAssignmentAccepted(pool, assignment.id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[tasks/accept-assignment]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/notify-cc', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { taskId } = req.body || {};
@@ -1113,5 +1025,152 @@ router.post('/notify-cc', requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+export async function runProcessScheduled() {
+  const pool = getPool();
+  const [due] = await pool.query(
+    `SELECT q.*, t.title, t.description, t.deadline, t.priority, t.start_date, t.notification_template,
+            u.name, u.email, u.phone, u.address, u.username AS assignee_username,
+            COALESCE(u.must_change_credentials, 0) AS assignee_must_change, ta.invite_token
+     FROM task_notification_queue q
+     JOIN tasks t ON t.id = q.task_id
+     JOIN task_assignments ta ON ta.id = q.assignment_id
+     JOIN users u ON u.id = ta.user_id
+     WHERE q.status = 'pending' AND q.scheduled_at <= UTC_TIMESTAMP()
+     ORDER BY q.scheduled_at ASC
+     LIMIT 50`
+  );
+
+  let sent = 0;
+  let failed = 0;
+  const ccNotifiedTasks = new Set();
+
+  for (const row of due) {
+    const phone = formatPhoneNumber(row.phone);
+    if (!phone) {
+      await pool.query(
+        `UPDATE task_notification_queue SET status = 'failed', last_error = ? WHERE id = ?`,
+        ['No valid phone', row.id]
+      );
+      failed++;
+      continue;
+    }
+
+    const [docs] = await pool.query(
+      `SELECT file_name, file_url FROM task_attachments WHERE task_id = ? AND attachment_type = 'source'`,
+      [row.task_id]
+    );
+    const loginLink = `${APP_BASE}/task-invite/${row.invite_token}`;
+    const template = row.notification_template || DEFAULT_TEMPLATE;
+    const descriptionText = personalize(row.description || '', {
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      address: row.address,
+    });
+
+    const scheduleVars = formatScheduleVars(row);
+    const text = personalize(template, {
+      name: row.name || row.email,
+      email: row.email || '',
+      phone: row.phone || '',
+      address: row.address || '',
+      subject: row.title,
+      task_title: row.title,
+      description: descriptionText,
+      task_message: descriptionText,
+      deadline: scheduleVars.deadline,
+      deadline_time: scheduleVars.deadline_time,
+      priority: row.priority || 'Medium',
+      start_date: scheduleVars.start_date,
+      start_time: scheduleVars.start_time,
+      login_link: loginLink,
+      login_credentials: buildCredentialsBlock({
+        assignee_must_change: row.assignee_must_change,
+        assignee_username: row.assignee_username,
+        assignee_phone: row.phone,
+      }),
+      document_links: '',
+    });
+
+    const textResult = await sendTextMessage(phone, text);
+    let result = textResult;
+    if (textResult.success) {
+      for (const doc of docs || []) {
+        if (!doc.file_url) continue;
+        result = await sendDocumentMessage(phone, doc.file_url, null, doc.file_name || 'task-document.pdf');
+        if (!result.success) break;
+      }
+    }
+
+    if (result.success) {
+      await pool.query(
+        `UPDATE task_notification_queue SET status = 'sent', sent_at = UTC_TIMESTAMP() WHERE id = ?`,
+        [row.id]
+      );
+      sent++;
+      if (!ccNotifiedTasks.has(row.task_id)) {
+        ccNotifiedTasks.add(row.task_id);
+        await notifyCcRecipientsForTask(pool, row.task_id);
+      }
+    } else {
+      await pool.query(
+        `UPDATE task_notification_queue SET status = 'failed', last_error = ? WHERE id = ?`,
+        [result.error || 'Send failed', row.id]
+      );
+      failed++;
+    }
+  }
+
+  await pool.query(
+    `UPDATE tasks t
+     SET t.is_scheduled = 0, t.status = 'Pending'
+     WHERE t.is_scheduled = 1
+       AND NOT EXISTS (
+         SELECT 1 FROM task_notification_queue q
+         WHERE q.task_id = t.id AND q.status = 'pending'
+       )`
+  );
+
+  return { processed: due.length, sent, failed };
+}
+
+export async function runProcessReminders() {
+  const pool = getPool();
+  const [due] = await pool.query(
+    `SELECT tr.id, tr.task_id, tr.reminder_time, t.title, t.deadline, t.deadline_time, t.description, t.priority
+     FROM task_reminders tr
+     JOIN tasks t ON t.id = tr.task_id
+     WHERE tr.is_sent = 0 AND tr.reminder_time <= UTC_TIMESTAMP()
+     ORDER BY tr.reminder_time ASC
+     LIMIT 50`
+  );
+
+  let sent = 0;
+  for (const reminder of due || []) {
+    const [assignments] = await pool.query(
+      `SELECT ta.id FROM task_assignments ta WHERE ta.task_id = ? AND ta.status NOT IN ('Declined', 'Completed')`,
+      [reminder.task_id]
+    );
+
+    const remaining = formatTimeRemaining(reminder.deadline, reminder.deadline_time);
+    const deadlineStr = reminder.deadline ? new Date(reminder.deadline).toLocaleDateString() : '';
+    const deadlineTime = reminder.deadline_time ? ` at ${String(reminder.deadline_time).slice(0, 5)}` : '';
+
+    for (const assignment of assignments) {
+      const ctx = await loadAssignmentContext(pool, assignment.id);
+      if (!ctx) continue;
+      const phone = formatPhoneNumber(ctx.assignee_phone);
+      if (!phone) continue;
+      const text = `⏰ *REMINDER*\n${DIVIDER}\n\nHello *${ctx.assignee_name || 'Team Member'}*,\n\nReminder for your assigned task:\n\n▪️ *Task:* ${reminder.title}\n▪️ *Deadline:* ${deadlineStr}${deadlineTime}\n▪️ *Time remaining:* ${remaining}\n\n👉 Open task:\n${APP_BASE}/my-tasks\n\n${BRAND_FOOTER}`;
+      const result = await sendTextMessage(phone, text);
+      if (result.success) sent += 1;
+    }
+
+    await pool.query(`UPDATE task_reminders SET is_sent = 1 WHERE id = ?`, [reminder.id]);
+  }
+
+  return { processed: due?.length || 0, sent };
+}
 
 export default router;

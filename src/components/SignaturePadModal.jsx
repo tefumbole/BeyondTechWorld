@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Eraser, Check, X } from 'lucide-react';
 
-const SignaturePadModal = ({ isOpen, onClose, onSignatureCapture }) => {
+const SignaturePadModal = ({ isOpen, onClose, onSignatureCapture, title = 'Sign Your Agreement', description = 'Draw your signature above using your mouse, trackpad, or touchscreen' }) => {
   const sigPadRef = useRef(null);
   const [isEmpty, setIsEmpty] = useState(true);
 
@@ -46,9 +46,9 @@ const SignaturePadModal = ({ isOpen, onClose, onSignatureCapture }) => {
     <Dialog open={isOpen} onOpenChange={handleCancel}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-800">Sign Your Agreement</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-gray-800">{title}</DialogTitle>
           <DialogDescription className="text-gray-600">
-            Draw your signature above using your mouse, trackpad, or touchscreen
+            {description}
           </DialogDescription>
         </DialogHeader>
 

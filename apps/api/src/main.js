@@ -13,7 +13,7 @@ import dataRoutes from './routes/data.js';
 import uploadRoutes from './routes/upload.js';
 import usersRoutes from './routes/users.js';
 import registerRoutes from './routes/register.js';
-import tasksRoutes from './routes/tasks.js';
+import tasksRoutes, { runProcessScheduled, runProcessReminders } from './routes/tasks.js';
 import whatsappRoutes from './routes/whatsapp.js';
 import systemRoutes from './routes/system.js';
 import hrRoutes from './routes/hr.js';
@@ -84,4 +84,16 @@ app.listen(PORT, () => {
   console.log(`Beyond Enterprise API listening on port ${PORT}`);
   console.log(`Uploads: ${uploadDir}`);
   console.log(`Wasender: ${process.env.WASENDER_API_KEY ? 'configured' : 'NOT configured'}`);
+
+  const TASK_CRON_MS = 60_000;
+  const runTaskCron = async () => {
+    try {
+      await runProcessScheduled();
+      await runProcessReminders();
+    } catch (err) {
+      console.error('[task-cron]', err.message);
+    }
+  };
+  runTaskCron();
+  setInterval(runTaskCron, TASK_CRON_MS);
 });

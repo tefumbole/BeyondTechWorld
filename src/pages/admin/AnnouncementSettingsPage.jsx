@@ -17,8 +17,8 @@ const AnnouncementSettingsPage = () => {
     serialPrefix: 'ABT/ANN',
     nextSerial: 1,
     serialPadding: 6,
-    timezone: 'Africa/Kigali',
-    timezoneOffset: '+02:00',
+    timezone: 'Africa/Douala',
+    timezoneOffset: '+01:00',
   });
 
   useEffect(() => {
@@ -103,7 +103,7 @@ const AnnouncementSettingsPage = () => {
                 </div>
                 <div>
                   <Label>Timezone Offset</Label>
-                  <Input value={form.timezoneOffset} onChange={(e) => setForm({ ...form, timezoneOffset: e.target.value })} placeholder="+02:00" />
+                  <Input value={form.timezoneOffset} onChange={(e) => setForm({ ...form, timezoneOffset: e.target.value })} placeholder="+01:00" />
                 </div>
               </div>
               <Button type="submit" disabled={saving}>

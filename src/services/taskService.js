@@ -766,8 +766,24 @@ export const getScheduledTasks = async () => {
   }
 };
 
-export const acceptTaskAssignment = async (assignmentId) => {
+export const acceptTaskAssignment = async (assignmentId, signatureDataUrl) => {
   try {
+    if (!signatureDataUrl) {
+      return { success: false, error: 'Signature is required to accept this task' };
+    }
+
+    if (useMysql) {
+      const json = await mysqlTaskApi('/tasks/accept-assignment', {
+        method: 'POST',
+        body: JSON.stringify({ assignmentId, signature: signatureDataUrl }),
+      });
+      return {
+        success: Boolean(json.success),
+        error: json.error || null,
+        alreadyAccepted: json.alreadyAccepted,
+      };
+    }
+
     const now = new Date().toISOString();
 
     // Idempotent: if this assignment is already accepted, do not update again or
@@ -787,6 +803,7 @@ export const acceptTaskAssignment = async (assignmentId) => {
         status: 'Accepted',
         accepted_at: now,
         last_update_at: now,
+        acceptance_signature: signatureDataUrl,
       })
       .eq('id', assignmentId);
 
@@ -1279,13 +1296,13 @@ export const adminUpdateTask = async (taskId, payload) => {
   }
 };
 
-export const respondToTaskInvite = async (token, action) => {
+export const respondToTaskInvite = async (token, action, signatureDataUrl) => {
   try {
     const json = await mysqlTaskApi('/tasks/respond-invite', {
       method: 'POST',
-      body: JSON.stringify({ token, action }),
+      body: JSON.stringify({ token, action, signature: signatureDataUrl || null }),
     });
-    return { success: Boolean(json.success), error: json.error || null, taskTitle: json.taskTitle };
+    return { success: Boolean(json.success), error: json.error || null, taskTitle: json.taskTitle, alreadyAccepted: json.alreadyAccepted };
   } catch (error) {
     return { success: false, error: error.message };
   }

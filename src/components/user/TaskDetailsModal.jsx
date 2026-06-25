@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { Loader2, Calendar, AlertCircle, CheckCircle, Clock, Paperclip, X, Play } from 'lucide-react';
 import { updateTaskProgress, completeTaskAssignment, uploadTaskAttachment, acceptTaskAssignment } from '@/services/taskService';
 import { useToast } from '@/components/ui/use-toast';
+import SignaturePadModal from '@/components/SignaturePadModal';
 import { getStatusColor, getPriorityColor, getStatusIcon } from '@/components/admin/TaskDashboardCard';
 
 const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
@@ -22,6 +23,7 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
   const { toast } = useToast();
 
   // Reset state when task changes
@@ -83,16 +85,20 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
     setSaving(false);
   };
 
-  const handleAccept = async () => {
+  const handleAccept = () => {
+    setSignatureOpen(true);
+  };
+
+  const handleSignatureCapture = async (signatureDataUrl) => {
     setSaving(true);
-    const res = await acceptTaskAssignment(task.assignment_id);
+    const res = await acceptTaskAssignment(task.assignment_id, signatureDataUrl);
+    setSaving(false);
     if (res.success) {
-      toast({ title: "Task Accepted!" });
+      toast({ title: 'Task Accepted!', description: 'Your signature was recorded.' });
       onTaskUpdated();
     } else {
-      toast({ title: "Failed to accept task", description: res.error, variant: "destructive" });
+      toast({ title: 'Failed to accept task', description: res.error, variant: 'destructive' });
     }
-    setSaving(false);
   };
 
   const isCompleted = task.assignment_status === 'Completed';
@@ -224,6 +230,14 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
           )}
         </div>
       </DialogContent>
+
+      <SignaturePadModal
+        isOpen={signatureOpen}
+        onClose={() => setSignatureOpen(false)}
+        onSignatureCapture={handleSignatureCapture}
+        title="Sign to Accept Task"
+        description="Draw your signature to confirm you accept this task assignment."
+      />
     </Dialog>
   );
 };

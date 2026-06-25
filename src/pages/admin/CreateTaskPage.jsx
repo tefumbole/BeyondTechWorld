@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { createBatchTasksWithAssignments } from '@/services/taskService';
 import { searchUsersForTaskAssignment, getAllAssigneesForTask } from '@/services/userService';
 import { getAnnouncementSettings } from '@/services/announcementSettingsService';
-import { normalizeScheduleTime } from '@/services/announcementService';
+import { normalizeScheduleTimeForDb } from '@/services/announcementService';
 import QuickAssigneeDialog from '@/components/admin/QuickAssigneeDialog';
 import {
   Loader2,
@@ -82,11 +82,11 @@ const CreateTaskPage = () => {
   const [newUserTaskIndex, setNewUserTaskIndex] = useState(0);
   const [notificationTemplate] = useState(DEFAULT_TASK_NOTIFICATION_TEMPLATE);
   const [taskRows, setTaskRows] = useState([emptyTaskRow(0)]);
-  const [tzSettings, setTzSettings] = useState({ timezone: 'Africa/Kigali', timezoneOffset: '+02:00' });
+  const [tzSettings, setTzSettings] = useState({ timezone: 'Africa/Douala', timezoneOffset: '+01:00' });
 
   useEffect(() => {
     getAnnouncementSettings()
-      .then((s) => setTzSettings({ timezone: s.timezone || 'Africa/Kigali', timezoneOffset: s.timezoneOffset || '+02:00' }))
+      .then((s) => setTzSettings({ timezone: s.timezone || 'Africa/Douala', timezoneOffset: s.timezoneOffset || '+01:00' }))
       .catch(() => {});
 
     const draft = localStorage.getItem(DRAFT_KEY);
@@ -325,14 +325,14 @@ const CreateTaskPage = () => {
     }
 
     setLoading(true);
-    const tzOffset = tzSettings.timezoneOffset || '+02:00';
+    const tzOffset = tzSettings.timezoneOffset || '+01:00';
 
     const tasksPayload = validTasks.map((row) => {
       const scheduleLater = row.sendMode === 'schedule';
       const schedules = scheduleLater
         ? (row.scheduleTimes || [])
             .filter((t) => String(t).trim())
-            .map((t) => normalizeScheduleTime(t, tzOffset))
+            .map((t) => normalizeScheduleTimeForDb(t, tzOffset))
         : [];
 
       return {
@@ -346,7 +346,7 @@ const CreateTaskPage = () => {
         deadline_time: row.deadline_time || null,
         assigneeIds: row.assignees.map((u) => u.id),
         ccUserIds: (row.ccUsers || []).map((u) => u.id),
-        reminderTimes: (row.reminderTimes || []).filter((t) => String(t).trim()).map((t) => normalizeScheduleTime(t, tzOffset)),
+        reminderTimes: (row.reminderTimes || []).filter((t) => String(t).trim()).map((t) => normalizeScheduleTimeForDb(t, tzOffset)),
         sourceFiles: row.pdfFile ? [row.pdfFile] : [],
         scheduleLater,
         schedules,

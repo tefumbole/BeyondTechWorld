@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Phone, Mail, Scan, ChevronDown, User, LogIn, LogOut, LayoutDashboard, FileText, ExternalLink, ListTodo, Inbox } from 'lucide-react';
+import { Menu, X, Phone, Mail, Scan, ChevronDown, User, LogIn, LogOut, LayoutDashboard, ListTodo, Inbox } from 'lucide-react';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/context/AuthContext';
@@ -110,18 +110,6 @@ function Header() {
               <NavLink to="/about">{tl('menu', 'About Us')}</NavLink>
               <NavLink to="/shareholders">{tl('menu', 'Shareholders')}</NavLink>
               <NavLink to="/contact">{tl('menu', 'Contact Us')}</NavLink>
-
-              <a
-                href="https://abt.beyondcompanyltd.com/login"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 text-sm xl:text-base font-medium group"
-                title={tl('menu', 'Letters Portal')}
-              >
-                <FileText className="w-4 h-4" />
-                <span>{tl('menu', 'Letters')}</span>
-                <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" />
-              </a>
 
               <Link 
                 to="/qr-scanner" 
@@ -249,16 +237,6 @@ function Header() {
                 <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'About Us')}</Link>
                 <Link to="/shareholders" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] hover:text-white text-lg font-medium">{tl('menu', 'Shareholders')}</Link>
                 <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Contact Us')}</Link>
-
-                <a
-                  href="https://abt.beyondcompanyltd.com/login"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-lg font-medium text-white hover:text-[#D4AF37]"
-                >
-                  <FileText className="w-5 h-5" /> {tl('menu', 'Letters')} <ExternalLink className="w-4 h-4 ml-1 opacity-50" />
-                </a>
 
                 <Link 
                   to="/qr-scanner" 

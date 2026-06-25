@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { fetchTaskInvite } from '@/services/registerService';
 import { respondToTaskInvite } from '@/services/taskService';
+import SignaturePadModal from '@/components/SignaturePadModal';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const TaskInvitePage = () => {
@@ -18,26 +19,26 @@ const TaskInvitePage = () => {
   const [loading, setLoading] = useState(true);
   const [invite, setInvite] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
 
   useEffect(() => {
     fetchTaskInvite(token)
       .then(async (data) => {
         setInvite(data.invite);
         if (data.loggedIn) {
-          if (action === 'accept' || action === 'decline') {
-            const res = await respondToTaskInvite(token, action);
+          if (action === 'decline') {
+            const res = await respondToTaskInvite(token, 'decline');
             if (res.success) {
-              toast({
-                title: action === 'accept' ? 'Task accepted' : 'Task declined',
-                description: res.alreadyAccepted
-                  ? 'You had already accepted this task.'
-                  : res.taskTitle || 'Your response was recorded.',
-              });
+              toast({ title: 'Task declined', description: res.taskTitle || 'Your response was recorded.' });
               navigate('/user/tasks/my-tasks', { replace: true });
               return;
             }
           }
-          navigate(`/user/tasks/pending-acceptances?invite=${token}`, { replace: true });
+          if (action === 'accept') {
+            setSignatureOpen(true);
+          } else {
+            navigate(`/user/tasks/pending-acceptances?invite=${token}`, { replace: true });
+          }
         }
       })
       .catch((err) => {
@@ -46,7 +47,6 @@ const TaskInvitePage = () => {
       .finally(() => setLoading(false));
   }, [token, toast, navigate, action]);
 
-  // Build a login URL that pre-fills the temporary credentials and returns here to accept.
   const buildLoginUrl = (respondAction) => {
     const username = (invite?.assignee_phone || '').replace(/\D/g, '');
     const redirect = `/task-invite/${token}?action=${respondAction}`;
@@ -63,14 +63,35 @@ const TaskInvitePage = () => {
       navigate(buildLoginUrl(respondAction));
       return;
     }
+    if (respondAction === 'accept') {
+      setSignatureOpen(true);
+      return;
+    }
     setBusy(true);
     const res = await respondToTaskInvite(token, respondAction);
     setBusy(false);
     if (res.success) {
-      toast({ title: respondAction === 'accept' ? 'Task accepted' : 'Task declined' });
+      toast({ title: 'Task declined' });
       navigate('/user/tasks/my-tasks');
     } else {
       toast({ title: 'Failed', description: res.error, variant: 'destructive' });
+    }
+  };
+
+  const handleSignatureCapture = async (signatureDataUrl) => {
+    setBusy(true);
+    const res = await respondToTaskInvite(token, 'accept', signatureDataUrl);
+    setBusy(false);
+    if (res.success) {
+      toast({
+        title: 'Task accepted',
+        description: res.alreadyAccepted
+          ? 'You had already accepted this task.'
+          : 'Your signature was recorded.',
+      });
+      navigate('/user/tasks/my-tasks', { replace: true });
+    } else {
+      toast({ title: 'Failed to accept', description: res.error, variant: 'destructive' });
     }
   };
 
@@ -106,8 +127,8 @@ const TaskInvitePage = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-900">
-            Tap <strong>Accept Task</strong> below. We’ll take you to a quick sign-in (your username and temporary
-            password are filled in for you), then your task is confirmed.
+            Tap <strong>Accept Task</strong> to sign and confirm. We’ll take you to a quick sign-in first if needed
+            (your username and temporary password are filled in for you).
           </div>
 
           <div className="flex gap-2">
@@ -136,6 +157,14 @@ const TaskInvitePage = () => {
           </div>
         </CardContent>
       </Card>
+
+      <SignaturePadModal
+        isOpen={signatureOpen}
+        onClose={() => setSignatureOpen(false)}
+        onSignatureCapture={handleSignatureCapture}
+        title="Sign to Accept Task"
+        description="Draw your signature to confirm you accept this task assignment."
+      />
     </div>
   );
 };

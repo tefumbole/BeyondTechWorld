@@ -32,6 +32,7 @@ export const SCHEMA_PATCHES = [
   'ALTER TABLE task_assignments ADD COLUMN last_update_at DATETIME NULL',
   'ALTER TABLE task_assignments ADD COLUMN declined_at DATETIME NULL',
   'ALTER TABLE task_assignments ADD COLUMN invite_token CHAR(36) NULL',
+  'ALTER TABLE task_assignments ADD COLUMN acceptance_signature LONGTEXT NULL',
   'ALTER TABLE tasks ADD COLUMN notification_template LONGTEXT NULL',
   'ALTER TABLE tasks ADD COLUMN schedules_json JSON NULL',
   'ALTER TABLE tasks ADD COLUMN is_scheduled TINYINT(1) DEFAULT 0',

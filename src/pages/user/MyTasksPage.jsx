@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { isTaskOverdue } from '@/utils/taskDeadline';
 import TaskDetailsModal from '@/components/user/TaskDetailsModal';
 import TaskBulkActionsBar from '@/components/user/TaskBulkActionsBar';
+import SignaturePadModal from '@/components/SignaturePadModal';
 import { Slider } from '@/components/ui/slider';
 
 export const getPriorityColor = (priority) => {
@@ -60,6 +61,8 @@ const MyTasksPage = () => {
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [acceptingId, setAcceptingId] = useState(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -86,14 +89,21 @@ const MyTasksPage = () => {
     setSelectedIds([]);
   }, [statusFilter, categoryFilter]);
 
-  const handleAccept = async (e, assignmentId) => {
+  const handleAccept = (e, assignmentId) => {
     e.stopPropagation();
-    const res = await acceptTaskAssignment(assignmentId);
+    setAcceptingId(assignmentId);
+    setSignatureOpen(true);
+  };
+
+  const handleSignatureCapture = async (signatureDataUrl) => {
+    if (!acceptingId) return;
+    const res = await acceptTaskAssignment(acceptingId, signatureDataUrl);
+    setAcceptingId(null);
     if (res.success) {
-      toast({ title: "Task accepted!" });
+      toast({ title: 'Task accepted!', description: 'Your signature was recorded.' });
       loadTasks();
     } else {
-      toast({ title: "Error accepting task", description: res.error, variant: "destructive" });
+      toast({ title: 'Error accepting task', description: res.error, variant: 'destructive' });
     }
   };
 
@@ -364,6 +374,17 @@ const MyTasksPage = () => {
         onClose={() => setIsModalOpen(false)} 
         task={selectedTask}
         onTaskUpdated={loadTasks}
+      />
+
+      <SignaturePadModal
+        isOpen={signatureOpen}
+        onClose={() => {
+          setSignatureOpen(false);
+          setAcceptingId(null);
+        }}
+        onSignatureCapture={handleSignatureCapture}
+        title="Sign to Accept Task"
+        description="Draw your signature to confirm you accept this task assignment."
       />
     </div>
   );

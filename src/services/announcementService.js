@@ -57,7 +57,7 @@ export function parseScheduleTimestamp(value, offsetOverride = null) {
 
   const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
   const withSeconds = normalized.length === 16 ? `${normalized}:00` : normalized;
-  const offset = offsetOverride || '+02:00';
+  const offset = offsetOverride || '+01:00';
   const t = new Date(`${withSeconds}${offset}`).getTime();
   return Number.isNaN(t) ? NaN : t;
 }
@@ -66,6 +66,13 @@ export function normalizeScheduleTime(value, offsetOverride = null) {
   const ts = parseScheduleTimestamp(value, offsetOverride);
   if (Number.isNaN(ts)) return String(value || '').trim();
   return new Date(ts).toISOString();
+}
+
+/** MySQL DATETIME in UTC — use for task reminders and scheduled sends */
+export function normalizeScheduleTimeForDb(value, offsetOverride = null) {
+  const ts = parseScheduleTimestamp(value, offsetOverride);
+  if (Number.isNaN(ts)) return String(value || '').trim().replace('T', ' ').slice(0, 19);
+  return new Date(ts).toISOString().slice(0, 19).replace('T', ' ');
 }
 
 function stripHtml(text) {
@@ -401,7 +408,7 @@ export async function createAnnouncementFromRequest(body, files = [], userId = n
 
   const reference = await allocateSerialReference();
   const defaultHeader = settings.defaultHeader || settings.companyName || COMPANY_NAME;
-  const tzOffset = settings.timezoneOffset || '+02:00';
+  const tzOffset = settings.timezoneOffset || '+01:00';
 
   const record = {
     name: body.title || body.name || 'WhatsApp Announcement',
@@ -492,7 +499,7 @@ export async function processScheduledAnnouncements() {
   if (error) throw error;
 
   const settings = await getAnnouncementSettings();
-  const tzOffset = settings.timezoneOffset || '+02:00';
+  const tzOffset = settings.timezoneOffset || '+01:00';
   const now = Date.now();
   let processed = 0;
 

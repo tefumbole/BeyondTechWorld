@@ -6,8 +6,8 @@ const DEFAULTS = {
   serial_prefix: 'ABT/ANN',
   next_serial: 1,
   serial_padding: 6,
-  timezone: 'Africa/Kigali',
-  timezone_offset: '+02:00',
+  timezone: 'Africa/Douala',
+  timezone_offset: '+01:00',
 };
 
 function mapSettings(row) {
