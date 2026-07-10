@@ -1,8 +1,8 @@
 module.exports = {
   apps: [
     {
-      name: 'alphabridge-api',
-      cwd: '/var/www/alphabridge/apps/api',
+      name: 'beyondtechworld-api',
+      cwd: '/var/www/beyondtechworld/apps/api',
       script: 'src/main.js',
       instances: 1,
       autorestart: true,

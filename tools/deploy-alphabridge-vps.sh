@@ -3,7 +3,7 @@
 # Usage: bash tools/deploy-alphabridge-vps.sh
 set -euo pipefail
 
-ROOT="${1:-/var/www/alphabridge}"
+ROOT="${1:-/var/www/beyondtechworld}"
 cd "$ROOT"
 
 echo "==> 1. Ensure nginx owns port 80"
