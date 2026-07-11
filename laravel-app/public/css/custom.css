@@ -1,0 +1,13 @@
+
+.badge-count {
+    height: max-content;
+    font-size: 11px;
+    line-height: 1;
+    padding: 6px;
+    border-radius: 10px;
+}
+#letter li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}

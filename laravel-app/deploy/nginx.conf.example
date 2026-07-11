@@ -1,0 +1,78 @@
+# ---------------------------------------------------------------------------
+# Beyond Enterprise — nginx server block (example)
+#
+# IMPORTANT: This app uses a Hostinger "single-folder" layout. The front
+# controller is the PROJECT-ROOT index.php (NOT public/index.php), and static
+# assets live both at the root and under /public. The docroot is therefore the
+# project root, and this config denies direct access to sensitive files/dirs.
+#
+# Target runtime: PHP 7.4 (ea-php74) + php-fpm, MySQL 5.7/8.0.
+#
+# Usage (do this on the server yourself — not run automatically):
+#   1. Copy to /etc/nginx/sites-available/beyondtechworld.conf
+#   2. Edit server_name, root, and the fastcgi_pass socket to match your box.
+#   3. ln -s /etc/nginx/sites-available/beyondtechworld.conf /etc/nginx/sites-enabled/
+#   4. sudo nginx -t && sudo systemctl reload nginx
+# ---------------------------------------------------------------------------
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name beyondtechworld.com www.beyondtechworld.com;
+
+    # Project ROOT is the docroot (single-folder layout, root index.php).
+    root /var/www/beyondtechworld;
+    index index.php;
+
+    charset utf-8;
+    client_max_body_size 25M;          # allow CV / signature / document uploads
+
+    # ----- Front controller -------------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # ----- PHP via php-fpm --------------------------------------------------
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        # Adjust to your php-fpm socket or 127.0.0.1:9000
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param HTTPS $https if_not_empty;
+    }
+
+    # ----- Security: block sensitive files/dirs (docroot = project root) ----
+    location ~ /\.(?!well-known).* { deny all; }        # dotfiles incl. .env, .git
+    location ~* /(?:\.env|\.env\..*|composer\.(json|lock)|package\.json|artisan|server\.php|phpunit\.xml)$ {
+        deny all;
+    }
+    location ~* ^/(app|bootstrap|config|database|deploy|resources|routes|storage|tests|vendor)/ {
+        deny all;
+    }
+    # storage/framework compiled views etc. must never be web-served
+    location ~* ^/storage/(?!app/public/) { deny all; }
+
+    # ----- Static asset caching + gzip (mirrors .htaccess) ------------------
+    location ~* \.(?:css|js|jpg|jpeg|png|webp|gif|svg|ico|woff|woff2|ttf)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
+        try_files $uri /index.php?$query_string;
+        access_log off;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # ----- Logs -------------------------------------------------------------
+    access_log /var/log/nginx/beyondtechworld.access.log;
+    error_log  /var/log/nginx/beyondtechworld.error.log;
+}
+
+# ---------------------------------------------------------------------------
+# HTTPS: after obtaining a certificate (e.g. certbot --nginx), certbot will
+# add a `listen 443 ssl;` server block automatically and redirect port 80.
+# ---------------------------------------------------------------------------

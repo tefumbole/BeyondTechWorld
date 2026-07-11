@@ -1,0 +1,728 @@
+[
+  {
+    "id": 1,
+    "title": "Artificial Intelligence",
+    "category": "AI",
+    "icon": "Brain",
+    "color": "#8B5CF6",
+    "duration": "12 weeks",
+    "deliveryMode": "Hybrid (Online + In-Person Labs)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "What is Artificial Intelligence?",
+          "History and Evolution of AI",
+          "AI vs Machine Learning vs Deep Learning",
+          "Current AI Landscape and Trends",
+          "Ethical Considerations in AI"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "Python Programming Fundamentals",
+          "Data Structures and Algorithms",
+          "Introduction to NumPy and Pandas",
+          "Data Visualization with Matplotlib",
+          "Basic Statistics for AI"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "Supervised Learning Algorithms",
+          "Unsupervised Learning Techniques",
+          "Neural Networks Basics",
+          "Natural Language Processing (NLP)",
+          "Computer Vision Fundamentals"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Deep Learning Architectures (CNNs, RNNs, Transformers)",
+          "Generative AI and Large Language Models",
+          "Reinforcement Learning",
+          "AI Model Deployment and MLOps",
+          "Edge AI and Model Optimization"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Building a Chatbot with NLP",
+          "Image Classification System",
+          "Sentiment Analysis Application",
+          "Recommendation Engine Development",
+          "AI-Powered Predictive Analytics"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Customer Service Automation Bot",
+          "Fraud Detection System",
+          "Medical Diagnosis Assistant",
+          "Smart Agriculture Monitoring",
+          "Business Intelligence Dashboard with AI Insights"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "TensorFlow & Keras",
+          "PyTorch",
+          "OpenAI API & GPT Models",
+          "Hugging Face Transformers",
+          "Google Cloud AI / AWS SageMaker",
+          "Docker for AI Deployment"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "Google Cloud Professional ML Engineer",
+          "AWS Certified Machine Learning Specialty",
+          "Microsoft Azure AI Engineer Associate",
+          "TensorFlow Developer Certificate"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "AI/ML Engineer",
+          "Data Scientist",
+          "NLP Specialist",
+          "Computer Vision Engineer",
+          "AI Research Scientist",
+          "MLOps Engineer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Cloud Computing",
+    "category": "Cloud",
+    "icon": "Cloud",
+    "color": "#3B82F6",
+    "duration": "10 weeks",
+    "deliveryMode": "Hybrid (Online + Hands-on Labs)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "Cloud Computing Fundamentals",
+          "IaaS, PaaS, SaaS Explained",
+          "Public vs Private vs Hybrid Cloud",
+          "Cloud Service Providers Overview",
+          "Cloud Economics and Pricing Models"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "AWS/Azure/GCP Account Setup",
+          "Virtual Machines and Compute Services",
+          "Cloud Storage Solutions",
+          "Basic Networking in the Cloud",
+          "Identity and Access Management (IAM)"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "Load Balancing and Auto Scaling",
+          "Database Services (RDS, DynamoDB, Cosmos DB)",
+          "Serverless Computing (Lambda, Functions)",
+          "Container Services (ECS, AKS, GKE)",
+          "Cloud Monitoring and Logging"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Kubernetes Orchestration",
+          "Cloud Security Best Practices",
+          "Multi-Cloud Architecture Design",
+          "DevOps and CI/CD Pipelines",
+          "Cost Optimization Strategies",
+          "Disaster Recovery and High Availability"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Deploying a 3-Tier Web Application",
+          "Building Serverless APIs",
+          "Container Deployment with Docker",
+          "Setting up Kubernetes Clusters",
+          "Implementing Cloud Backup Solutions"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "E-commerce Platform Migration to Cloud",
+          "Scalable Microservices Architecture",
+          "Cloud-Based Data Pipeline",
+          "Multi-Region Application Deployment",
+          "Cloud Cost Management Dashboard"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "AWS (EC2, S3, Lambda, RDS)",
+          "Microsoft Azure",
+          "Google Cloud Platform",
+          "Terraform for Infrastructure as Code",
+          "Docker & Kubernetes",
+          "Jenkins/GitLab CI/CD"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "AWS Solutions Architect Associate",
+          "Microsoft Azure Administrator",
+          "Google Cloud Associate Cloud Engineer",
+          "Kubernetes CKA/CKAD"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "Cloud Solutions Architect",
+          "Cloud DevOps Engineer",
+          "Cloud Security Specialist",
+          "Site Reliability Engineer (SRE)",
+          "Cloud Consultant",
+          "Platform Engineer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Cyber Security",
+    "category": "Security",
+    "icon": "Shield",
+    "color": "#EF4444",
+    "duration": "14 weeks",
+    "deliveryMode": "Hybrid (Online Theory + In-Person Labs)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "Fundamentals of Cybersecurity",
+          "Threat Landscape and Attack Vectors",
+          "CIA Triad (Confidentiality, Integrity, Availability)",
+          "Cybersecurity Frameworks (NIST, ISO 27001)",
+          "Legal and Ethical Considerations"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "Network Security Basics",
+          "Operating System Hardening (Windows, Linux)",
+          "Firewalls and VPNs",
+          "Password Management and Authentication",
+          "Security Awareness and Social Engineering"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "Intrusion Detection and Prevention Systems (IDS/IPS)",
+          "Vulnerability Assessment and Scanning",
+          "Web Application Security (OWASP Top 10)",
+          "Cryptography and Encryption",
+          "Wireless Security (WPA3, Enterprise Wi-Fi)"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Penetration Testing Methodologies",
+          "Advanced Threat Hunting",
+          "Malware Analysis and Reverse Engineering",
+          "Cloud Security Architecture",
+          "Security Operations Center (SOC) Operations",
+          "Incident Response and Forensics"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Setting up a Security Lab Environment",
+          "Performing Vulnerability Scans with Nessus",
+          "Ethical Hacking with Kali Linux",
+          "Analyzing Network Traffic with Wireshark",
+          "Simulated Incident Response Exercises"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Enterprise Network Security Assessment",
+          "Web Application Penetration Test",
+          "Security Incident Response Plan",
+          "Security Awareness Training Program",
+          "Compliance Audit (GDPR, HIPAA, PCI-DSS)"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "Kali Linux & Parrot OS",
+          "Metasploit Framework",
+          "Burp Suite & OWASP ZAP",
+          "Nmap, Wireshark, Nessus",
+          "Splunk & ELK Stack",
+          "CrowdStrike, SentinelOne"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "CompTIA Security+",
+          "Certified Ethical Hacker (CEH)",
+          "CISSP (Certified Information Systems Security Professional)",
+          "Offensive Security Certified Professional (OSCP)",
+          "GIAC Security Essentials (GSEC)"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "Security Analyst",
+          "Penetration Tester",
+          "Security Architect",
+          "SOC Analyst",
+          "Incident Response Specialist",
+          "Cybersecurity Consultant"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "General IT Consultancy",
+    "category": "IT",
+    "icon": "Briefcase",
+    "color": "#10B981",
+    "duration": "8 weeks",
+    "deliveryMode": "Hybrid (Online + Client Engagement Projects)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "Role of IT Consultants in Modern Business",
+          "IT Service Management (ITIL Framework)",
+          "Understanding Client Needs and Requirements",
+          "IT Strategy and Digital Transformation",
+          "Business Process Analysis"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "IT Infrastructure Basics",
+          "Help Desk and Technical Support",
+          "System Administration Fundamentals",
+          "Software Licensing and Asset Management",
+          "Basic Project Management"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "IT Governance and Compliance",
+          "Vendor Management and Procurement",
+          "IT Budgeting and Cost Analysis",
+          "Change Management Processes",
+          "Service Level Agreements (SLAs)"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Enterprise Architecture Frameworks (TOGAF)",
+          "IT Risk Management",
+          "Business Continuity Planning",
+          "Digital Transformation Strategy",
+          "Mergers & Acquisitions IT Integration",
+          "Emerging Technologies Assessment"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Conducting IT Audits",
+          "Creating IT Roadmaps",
+          "Vendor Selection and RFP Process",
+          "Disaster Recovery Planning",
+          "IT Security Policy Development"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Small Business IT Infrastructure Setup",
+          "Enterprise System Upgrade Project",
+          "Cloud Migration Consulting",
+          "IT Process Optimization Initiative",
+          "Technology Vendor Evaluation"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "Microsoft Office Suite & Project",
+          "ServiceNow & Jira Service Management",
+          "PowerBI for IT Reporting",
+          "Visio for Architecture Diagrams",
+          "Confluence for Documentation",
+          "Tableau for Data Visualization"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "ITIL 4 Foundation",
+          "PMP (Project Management Professional)",
+          "TOGAF Certification",
+          "COBIT Foundation"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "IT Consultant",
+          "Business Analyst",
+          "IT Project Manager",
+          "Enterprise Architect",
+          "IT Service Manager",
+          "Digital Transformation Specialist"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "VoIP Engineering",
+    "category": "VoIP",
+    "icon": "Phone",
+    "color": "#F59E0B",
+    "duration": "10 weeks",
+    "deliveryMode": "Hybrid (Online + Hands-on Lab Sessions)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "VoIP Technology Overview",
+          "Traditional Telephony vs VoIP",
+          "SIP Protocol Fundamentals",
+          "Codec Types and Quality (G.711, G.729, Opus)",
+          "VoIP Ecosystem and Market Trends"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "IP Networking for VoIP",
+          "Quality of Service (QoS) Basics",
+          "VoIP Hardware (IP Phones, Adapters, Gateways)",
+          "Softphone Configuration",
+          "Basic PBX Concepts"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "Asterisk PBX Installation and Configuration",
+          "FreePBX Management",
+          "SIP Trunking and Providers",
+          "VoIP Security (TLS, SRTP)",
+          "Call Routing and Dial Plans",
+          "Interactive Voice Response (IVR) Setup"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Enterprise VoIP Architecture Design",
+          "High Availability and Failover",
+          "Session Border Controllers (SBC)",
+          "WebRTC and Browser-Based Communication",
+          "Unified Communications Integration (Microsoft Teams, Zoom)",
+          "VoIP Traffic Analysis and Troubleshooting"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Setting up Asterisk/FreePBX Server",
+          "Configuring SIP Extensions and Trunks",
+          "Building Custom IVR Menus",
+          "VoIP Network Performance Testing",
+          "Implementing VoIP Security Measures"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Small Office VoIP Deployment",
+          "Call Center Solution Implementation",
+          "Cloud-Based VoIP System Setup",
+          "VoIP Migration from Legacy PBX",
+          "Multi-Site VoIP Network Integration"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "Asterisk & FreePBX",
+          "3CX Phone System",
+          "Cisco Unified Communications",
+          "Wireshark for VoIP Analysis",
+          "Grandstream & Yealink IP Phones",
+          "SIP Testers & Simulators"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "Asterisk dCAP Certification",
+          "Cisco CCNA Collaboration",
+          "3CX Advanced Certification",
+          "VoIP Certified Professional"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "VoIP Engineer",
+          "Unified Communications Specialist",
+          "Telecom System Administrator",
+          "VoIP Support Technician",
+          "Communication Architect",
+          "Call Center Technology Manager"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Network Infrastructure Design",
+    "category": "Network",
+    "icon": "Network",
+    "color": "#6366F1",
+    "duration": "12 weeks",
+    "deliveryMode": "Hybrid (Online Theory + Physical Lab Setup)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "Network Fundamentals (OSI Model, TCP/IP)",
+          "LAN, WAN, and MAN Topologies",
+          "Network Design Principles",
+          "Scalability and Redundancy Concepts",
+          "Network Documentation Standards"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "Ethernet and Switching Basics",
+          "IP Addressing and Subnetting",
+          "VLAN Configuration",
+          "Router Fundamentals",
+          "Wireless Networking (Wi-Fi 5, Wi-Fi 6)"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "Cisco and MikroTik Router Configuration",
+          "OSPF and EIGRP Routing Protocols",
+          "Network Address Translation (NAT)",
+          "Access Control Lists (ACLs)",
+          "Spanning Tree Protocol (STP)",
+          "Link Aggregation (LACP)"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "Enterprise Campus Network Design",
+          "Data Center Networking Architecture",
+          "SD-WAN Implementation",
+          "BGP Routing and Internet Connectivity",
+          "Network Security Integration",
+          "High Availability and Failover Design",
+          "Network Automation and Scripting"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Building a Multi-VLAN Network",
+          "Configuring Inter-VLAN Routing",
+          "Setting up Enterprise Wi-Fi (UniFi, Cisco Meraki)",
+          "Structured Cabling Installation",
+          "Network Performance Testing and Optimization"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Office Network Infrastructure Design",
+          "School Campus Network Deployment",
+          "Hotel or Hospital Wi-Fi Solution",
+          "Data Center Network Setup",
+          "Multi-Branch WAN Connectivity"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "Cisco Routers and Switches",
+          "MikroTik RouterOS",
+          "UniFi and Aruba Wireless",
+          "Wireshark, SolarWinds, PRTG",
+          "Fiber Optic Tools (OTDR, Fusion Splicer)",
+          "Network Simulation (Cisco Packet Tracer, GNS3)"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "Cisco CCNA (Routing & Switching)",
+          "Cisco CCNP Enterprise",
+          "MikroTik MTCNA/MTCRE",
+          "CompTIA Network+",
+          "Ubiquiti UniFi Certified Professional"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "Network Engineer",
+          "Network Architect",
+          "Systems Integrator",
+          "NOC (Network Operations Center) Specialist",
+          "Wireless Network Specialist",
+          "Network Infrastructure Consultant"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "CCTV & Smart Surveillance Systems",
+    "category": "Surveillance",
+    "icon": "Video",
+    "color": "#EC4899",
+    "duration": "8 weeks",
+    "deliveryMode": "Hybrid (Online + On-Site Installation Training)",
+    "sections": [
+      {
+        "title": "Introduction",
+        "items": [
+          "Surveillance Technology Evolution",
+          "Analog vs IP CCTV Systems",
+          "Camera Types (Dome, Bullet, PTZ)",
+          "Video Management Systems (VMS)",
+          "Legal and Privacy Considerations"
+        ]
+      },
+      {
+        "title": "Beginner Level",
+        "items": [
+          "Camera Specifications (Resolution, Lens, Sensor)",
+          "Coaxial Cabling and Power Supply",
+          "DVR and NVR Configuration",
+          "Basic Camera Installation Techniques",
+          "Viewing CCTV Footage on Monitors and Mobile"
+        ]
+      },
+      {
+        "title": "Intermediate Level",
+        "items": [
+          "IP Camera Setup and Network Configuration",
+          "PoE (Power over Ethernet) Implementation",
+          "Video Storage Calculations and HDD Management",
+          "Motion Detection and Video Analytics",
+          "Remote Access and Cloud Recording",
+          "Integrating Alarm Systems with CCTV"
+        ]
+      },
+      {
+        "title": "Advanced Level",
+        "items": [
+          "AI-Powered Smart Surveillance (Facial Recognition, LPR)",
+          "Multi-Site Centralized Monitoring",
+          "Thermal Imaging and Perimeter Security",
+          "Video Analytics and Business Intelligence",
+          "Integration with Access Control Systems",
+          "Cybersecurity for Surveillance Networks"
+        ]
+      },
+      {
+        "title": "Practical Labs",
+        "items": [
+          "Installing Hikvision/Dahua IP Cameras",
+          "Configuring Network Video Recorders (NVR)",
+          "Setting up 24/7 Recording Schedules",
+          "Fiber Optic Transmission for Long-Distance CCTV",
+          "Mobile App Configuration for Remote Viewing"
+        ]
+      },
+      {
+        "title": "Real World Projects",
+        "items": [
+          "Retail Store Surveillance System",
+          "School or Hospital Security Setup",
+          "Warehouse and Factory Monitoring",
+          "Smart City Surveillance (Traffic, Public Safety)",
+          "Residential Smart Security Solutions"
+        ]
+      },
+      {
+        "title": "Tools & Technologies",
+        "items": [
+          "Hikvision & Dahua Equipment",
+          "Axis Communications IP Cameras",
+          "Milestone XProtect VMS",
+          "UniFi Protect",
+          "Fiber Optic Tools and Testers",
+          "Network Analyzers for CCTV Troubleshooting"
+        ]
+      },
+      {
+        "title": "Certification Preparation",
+        "items": [
+          "Hikvision Certified Security Associate",
+          "Dahua Technology Certification",
+          "Axis Communications Network Video Certification",
+          "Security Industry Association (SIA) Certifications"
+        ]
+      },
+      {
+        "title": "Career Opportunities",
+        "items": [
+          "CCTV Installation Technician",
+          "Security Systems Integrator",
+          "Surveillance System Designer",
+          "Video Analytics Specialist",
+          "Smart Security Consultant",
+          "Security Operations Center (SOC) Operator"
+        ]
+      }
+    ]
+  }
+]
