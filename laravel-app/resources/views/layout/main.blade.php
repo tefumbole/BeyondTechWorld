@@ -2672,6 +2672,7 @@
           </footer>
         </div>
         @yield('scripts')
+        @include('components.image_paste_script')
         <script>
             if ('serviceWorker' in navigator ) {
                 window.addEventListener('load', function() {

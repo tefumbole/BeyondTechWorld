@@ -9,9 +9,9 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div class="text-center mb-16">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-brand-blue mb-4">Get in Touch</h1>
+            <h1 class="text-4xl md:text-5xl font-extrabold text-brand-blue mb-4">{{ \App\Support\SiteContent::text('contact.heading', 'Get in Touch') }}</h1>
             <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                Have a question, need assistance, or want to explore partnership opportunities? We're here to help. Reach out to the Beyond Enterprise team today.
+                {{ \App\Support\SiteContent::text('contact.intro', "Have a question, need assistance, or want to explore partnership opportunities? We're here to help. Reach out to the Beyond Enterprise team today.") }}
             </p>
         </div>
 
@@ -23,9 +23,9 @@
                         <i data-lucide="map-pin" class="w-5 h-5"></i> Office Location
                     </h3>
                     <div class="space-y-3 text-gray-600">
-                        <p class="font-semibold text-gray-800">Beyond Enterprise.</p>
-                        <p>Norrsken House Kigali</p>
-                        <p>Kigali, Rwanda</p>
+                        <p class="font-semibold text-gray-800">{{ \App\Support\SiteContent::text('contact.office_name', 'Beyond Enterprise.') }}</p>
+                        <p>{{ \App\Support\SiteContent::text('contact.office_line1', 'Norrsken House Kigali') }}</p>
+                        <p>{{ \App\Support\SiteContent::text('contact.office_line2', 'Kigali, Rwanda') }}</p>
                     </div>
                 </div>
 
@@ -35,13 +35,13 @@
                     </h3>
                     <div class="space-y-4 text-gray-600">
                         <div>
-                            <p class="font-bold text-gray-800">Nasrah Umwela</p>
-                            <p class="text-sm text-gray-500">Lead Technical Director</p>
+                            <p class="font-bold text-gray-800">{{ \App\Support\SiteContent::text('contact.person_name', 'Nasrah Umwela') }}</p>
+                            <p class="text-sm text-gray-500">{{ \App\Support\SiteContent::text('contact.person_role', 'Lead Technical Director') }}</p>
                         </div>
                         <div class="flex items-center gap-3 pt-2">
                             <div class="bg-blue-100 p-2 rounded-full text-brand-blue"><i data-lucide="phone" class="w-4 h-4"></i></div>
                             <div>
-                                <p class="font-medium">+237 675 321 739</p>
+                                <p class="font-medium">{{ \App\Support\SiteContent::text('contact.phone', '+237 675 321 739') }}</p>
                                 <a href="https://wa.me/237675321739" target="_blank" rel="noopener" class="text-brand-gold hover:text-brand-blue text-xs font-semibold inline-flex items-center gap-1">
                                     <i data-lucide="message-circle" class="w-3 h-3"></i> Chat on WhatsApp
                                 </a>
@@ -49,11 +49,11 @@
                         </div>
                         <div class="flex items-center gap-3 pt-2">
                             <div class="bg-yellow-100 p-2 rounded-full text-brand-gold"><i data-lucide="mail" class="w-4 h-4"></i></div>
-                            <a href="mailto:info@beyondtechworld.com" class="font-medium hover:text-brand-blue">info@beyondtechworld.com</a>
+                            <a href="mailto:{{ \App\Support\SiteContent::text('contact.email', 'info@beyondtechworld.com') }}" class="font-medium hover:text-brand-blue">{{ \App\Support\SiteContent::text('contact.email', 'info@beyondtechworld.com') }}</a>
                         </div>
                         <div class="flex items-center gap-3 pt-2">
                             <div class="bg-gray-200 p-2 rounded-full text-gray-700"><i data-lucide="globe" class="w-4 h-4"></i></div>
-                            <a href="https://beyondtechworld.com" class="font-medium hover:text-brand-blue">www.beyondtechworld.com</a>
+                            <a href="https://beyondtechworld.com" class="font-medium hover:text-brand-blue">{{ \App\Support\SiteContent::text('contact.website', 'www.beyondtechworld.com') }}</a>
                         </div>
                     </div>
                 </div>
@@ -65,8 +65,8 @@
                         <div>
                             <h3 class="font-bold text-lg mb-2 text-brand-gold">Business Hours</h3>
                             <div class="space-y-1 text-sm">
-                                <div class="flex justify-between"><span class="text-blue-100">Mon - Fri:</span><span class="font-medium">9:00 AM - 6:00 PM</span></div>
-                                <div class="flex justify-between"><span class="text-blue-100">Sat & Sun:</span><span class="font-medium opacity-80">Closed</span></div>
+                                <div class="flex justify-between"><span class="text-blue-100">Mon - Fri:</span><span class="font-medium">{{ \App\Support\SiteContent::text('contact.hours_weekday', '9:00 AM - 6:00 PM') }}</span></div>
+                                <div class="flex justify-between"><span class="text-blue-100">Sat & Sun:</span><span class="font-medium opacity-80">{{ \App\Support\SiteContent::text('contact.hours_weekend', 'Closed') }}</span></div>
                             </div>
                         </div>
                     </div>

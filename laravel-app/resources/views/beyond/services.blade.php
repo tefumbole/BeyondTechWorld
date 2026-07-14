@@ -6,15 +6,15 @@
 @section('content')
 
 @include('beyond.partials.hero', [
-    'title' => 'Our <span class="text-brand-gold">Services</span>',
-    'subtitle' => 'Comprehensive technology solutions tailored to your needs',
+    'title' => \App\Support\SiteContent::html('services.hero_title', 'Our <span class="text-brand-gold">Services</span>'),
+    'subtitle' => \App\Support\SiteContent::text('services.hero_subtitle', 'Comprehensive technology solutions tailored to your needs'),
 ])
 
 <section class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-brand-blue">Explore Our Expertise</h2>
-            <p class="text-xl text-gray-600 mt-4">From IT infrastructure to cutting-edge AI solutions, we've got you covered.</p>
+            <h2 class="text-4xl font-bold text-brand-blue">{{ \App\Support\SiteContent::text('services.heading', 'Explore Our Expertise') }}</h2>
+            <p class="text-xl text-gray-600 mt-4">{{ \App\Support\SiteContent::text('services.subheading', "From IT infrastructure to cutting-edge AI solutions, we've got you covered.") }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             @foreach ($services as $service)

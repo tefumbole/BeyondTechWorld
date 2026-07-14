@@ -37,7 +37,7 @@
 
 {{-- Hero --}}
 <section class="relative min-h-screen flex flex-col items-center justify-center overflow-hidden py-20 md:py-0">
-    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image:url('/branding/beyond-hero.png');">
+    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style="background-image:url('{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}');">
         <div class="absolute inset-0 bg-black/15"></div>
     </div>
 
@@ -50,16 +50,16 @@
         <div class="mb-8 flex flex-col items-center">
             <img src="/branding/beyond-logo.png" alt="Beyond Enterprise" class="h-20 md:h-24 w-auto object-contain mb-6 drop-shadow-2xl">
             <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 drop-shadow-2xl tracking-tight">
-                Your Technology Bridge to <span class="text-brand-gold">Kigali</span>
+                {!! \App\Support\SiteContent::html('home.hero_title', 'Your Technology Bridge to <span class="text-brand-gold">Kigali</span>') !!}
             </h1>
             <p class="text-xl md:text-2xl text-white/90 font-light max-w-3xl mx-auto drop-shadow-md">
-                Professional IT Consultancy, Enterprise Networking, and Audio-Visual Production, Cloud, AI and Cyber
+                {{ \App\Support\SiteContent::text('home.hero_subtitle', 'Professional IT Consultancy, Enterprise Networking, and Audio-Visual Production, Cloud, AI and Cyber') }}
             </p>
         </div>
         <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-6">
             <a href="{{ url('/contact') }}"
                class="bg-brand-gold hover:bg-[#b5952f] text-brand-blue h-14 px-8 text-lg font-bold shadow-[0_0_15px_rgba(212,175,55,0.4)] rounded-full hover:scale-105 transition-transform inline-flex items-center justify-center">
-                Get a Free Quote <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
+                {{ \App\Support\SiteContent::text('home.cta_primary', 'Get a Free Quote') }} <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
             </a>
             <a href="https://wa.me/237675321739" target="_blank" rel="noopener"
                class="h-14 px-8 text-lg font-bold rounded-full shadow-xl hover:shadow-2xl bg-brand-light/40 hover:bg-brand-light/60 border border-white/30 backdrop-blur-sm text-white inline-flex items-center justify-center gap-2 transition-all">
@@ -73,8 +73,8 @@
 <section class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-brand-blue mb-4">Our Services</h2>
-            <p class="text-xl text-gray-600">Comprehensive technology solutions for your needs</p>
+            <h2 class="text-4xl font-bold text-brand-blue mb-4">{{ \App\Support\SiteContent::text('home.services_heading', 'Our Services') }}</h2>
+            <p class="text-xl text-gray-600">{{ \App\Support\SiteContent::text('home.services_subheading', 'Comprehensive technology solutions for your needs') }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             @foreach ($services as $s)
@@ -92,8 +92,8 @@
 <section class="py-16 bg-brand-blue">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-white mb-4">Why Beyond Enterprise?</h2>
-            <p class="text-xl text-gray-300">Excellence in every solution we deliver</p>
+            <h2 class="text-4xl font-bold text-white mb-4">{{ \App\Support\SiteContent::text('home.why_heading', 'Why Beyond Enterprise?') }}</h2>
+            <p class="text-xl text-gray-300">{{ \App\Support\SiteContent::text('home.why_subheading', 'Excellence in every solution we deliver') }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             @foreach ($whyUs as $f)
@@ -111,8 +111,8 @@
 <section class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-brand-blue mb-4">Industries We Serve</h2>
-            <p class="text-xl text-gray-600">Trusted by diverse organizations across Africa and the World</p>
+            <h2 class="text-4xl font-bold text-brand-blue mb-4">{{ \App\Support\SiteContent::text('home.industries_heading', 'Industries We Serve') }}</h2>
+            <p class="text-xl text-gray-600">{{ \App\Support\SiteContent::text('home.industries_subheading', 'Trusted by diverse organizations across Africa and the World') }}</p>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             @foreach ($industries as $ind)
@@ -129,8 +129,8 @@
 <section class="py-16 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold text-brand-blue mb-4">What Our Clients Say</h2>
-            <p class="text-xl text-gray-600">Trusted by businesses and organizations across Kigali</p>
+            <h2 class="text-4xl font-bold text-brand-blue mb-4">{{ \App\Support\SiteContent::text('home.testimonials_heading', 'What Our Clients Say') }}</h2>
+            <p class="text-xl text-gray-600">{{ \App\Support\SiteContent::text('home.testimonials_subheading', 'Trusted by businesses and organizations across Kigali') }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             @foreach ($testimonials as $t)
@@ -149,8 +149,8 @@
 {{-- CTA --}}
 <section class="py-16 bg-gradient-to-r from-brand-blue via-brand-light to-brand-blue">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-4xl font-bold text-white mb-6">Ready to Get Started?</h2>
-        <p class="text-xl text-gray-200 mb-8">Contact us today for a consultation and let us bridge your technology needs.</p>
+        <h2 class="text-4xl font-bold text-white mb-6">{{ \App\Support\SiteContent::text('home.cta_heading', 'Ready to Get Started?') }}</h2>
+        <p class="text-xl text-gray-200 mb-8">{{ \App\Support\SiteContent::text('home.cta_text', 'Contact us today for a consultation and let us bridge your technology needs.') }}</p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="https://wa.me/237675321739" target="_blank" rel="noopener"
                class="px-8 py-4 text-lg rounded-lg shadow-xl hover:shadow-2xl bg-[#25D366] hover:bg-[#1EBE57] text-white font-semibold inline-flex items-center justify-center gap-2">

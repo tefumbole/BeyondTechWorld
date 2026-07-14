@@ -208,6 +208,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/site-content', 'SiteContentController@index')->name('site-content.index');
     Route::post('/admin/site-content/landing-menu', 'SiteContentController@saveLandingMenu')->name('site-content.landing-menu');
     Route::post('/admin/site-content/side-menu', 'SiteContentController@saveSideMenu')->name('site-content.side-menu');
+    Route::post('/admin/site-content/content/{page}', 'SiteContentController@saveContent')->name('site-content.content');
 	Route::get('/wp', 'HomeController@whatsapp');
 	Route::get('/mmt', 'HomeController@mobileMoneyToken');
 	Route::get('/mmr', 'HomeController@mobileMoneyRequest');

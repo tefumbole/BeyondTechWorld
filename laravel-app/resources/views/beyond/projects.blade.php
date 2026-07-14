@@ -6,8 +6,8 @@
 @section('content')
 
 @include('beyond.partials.hero', [
-    'title' => 'Our <span class="text-brand-gold">Projects</span>',
-    'subtitle' => 'See our engineering precision in action',
+    'title' => \App\Support\SiteContent::html('projects.hero_title', 'Our <span class="text-brand-gold">Projects</span>'),
+    'subtitle' => \App\Support\SiteContent::text('projects.hero_subtitle', 'See our engineering precision in action'),
 ])
 
 <section class="py-16 bg-white">

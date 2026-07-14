@@ -10,9 +10,9 @@
         <div class="absolute inset-0 bg-cover bg-center" style="background-image:url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');"></div>
     </div>
     <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h1 class="text-4xl md:text-6xl font-bold mb-6">Bridging Technology & Innovation</h1>
+        <h1 class="text-4xl md:text-6xl font-bold mb-6">{{ \App\Support\SiteContent::text('about.hero_title', 'Bridging Technology & Innovation') }}</h1>
         <p class="text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto font-light">
-            We are a premier IT consultancy and infrastructure firm dedicated to transforming businesses through cutting-edge technology solutions.
+            {{ \App\Support\SiteContent::text('about.hero_subtitle', 'We are a premier IT consultancy and infrastructure firm dedicated to transforming businesses through cutting-edge technology solutions.') }}
         </p>
     </div>
 </section>
@@ -21,9 +21,9 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid md:grid-cols-2 gap-12 items-center">
             <div>
-                <h2 class="text-3xl font-bold text-brand-blue mb-6">Our Mission</h2>
+                <h2 class="text-3xl font-bold text-brand-blue mb-6">{{ \App\Support\SiteContent::text('about.mission_heading', 'Our Mission') }}</h2>
                 <p class="text-lg text-gray-600 mb-8 leading-relaxed">
-                    To empower organizations in Africa and beyond with robust, scalable, and secure technology infrastructure. We strive to be the bridge that connects complex technological challenges with simple, effective, and sustainable solutions.
+                    {{ \App\Support\SiteContent::text('about.mission_text', 'To empower organizations in Africa and beyond with robust, scalable, and secure technology infrastructure. We strive to be the bridge that connects complex technological challenges with simple, effective, and sustainable solutions.') }}
                 </p>
                 <div class="grid grid-cols-2 gap-6">
                     <div class="flex items-start gap-3">
@@ -43,7 +43,7 @@
                 </div>
             </div>
             <div class="relative rounded-2xl overflow-hidden shadow-2xl">
-                <img src="https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/513a28b3-47b7-490b-b30a-f9398973361b-a4hCG.png" alt="Team Collaboration" class="w-full h-full object-cover">
+                <img src="{{ \App\Support\SiteContent::image('about.about_image', 'https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/513a28b3-47b7-490b-b30a-f9398973361b-a4hCG.png') }}" alt="Team Collaboration" class="w-full h-full object-cover">
             </div>
         </div>
     </div>
@@ -64,16 +64,16 @@
 
 <section class="py-20 bg-brand-blue">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-4xl font-bold text-white mb-4">Our Leadership</h2>
+        <h2 class="text-4xl font-bold text-white mb-4">{{ \App\Support\SiteContent::text('about.leadership_heading', 'Our Leadership') }}</h2>
         <div class="h-1 w-24 bg-brand-gold mx-auto"></div>
-        <p class="mt-4 text-xl text-gray-300 mb-8">The visionaries driving Beyond Enterprise forward</p>
+        <p class="mt-4 text-xl text-gray-300 mb-8">{{ \App\Support\SiteContent::text('about.leadership_subtext', 'The visionaries driving Beyond Enterprise forward') }}</p>
         <p class="text-gray-400 max-w-xl mx-auto">Leadership profiles will appear here once connected to the member directory.</p>
     </div>
 </section>
 
 <section class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-3xl font-bold text-brand-blue mb-12">Our Core Values</h2>
+        <h2 class="text-3xl font-bold text-brand-blue mb-12">{{ \App\Support\SiteContent::text('about.values_heading', 'Our Core Values') }}</h2>
         <div class="grid md:grid-cols-3 gap-8">
             @foreach ([
                 ['users', 'Client First', 'We prioritize our clients\' needs and success above all else.'],
@@ -92,8 +92,8 @@
 
 <section class="py-16 bg-gradient-to-r from-brand-blue to-brand-dark text-white text-center">
     <div class="max-w-4xl mx-auto px-4">
-        <h2 class="text-3xl font-bold mb-6">Ready to work with us?</h2>
-        <p class="text-xl mb-8 opacity-90">Let's build something extraordinary together.</p>
+        <h2 class="text-3xl font-bold mb-6">{{ \App\Support\SiteContent::text('about.cta_heading', 'Ready to work with us?') }}</h2>
+        <p class="text-xl mb-8 opacity-90">{{ \App\Support\SiteContent::text('about.cta_text', "Let's build something extraordinary together.") }}</p>
         <a href="https://wa.me/237675321739" target="_blank" rel="noopener"
            class="inline-flex items-center gap-2 bg-brand-gold text-brand-blue font-bold text-lg px-8 py-4 rounded-full hover:bg-white hover:scale-105 transition-all">
             <i data-lucide="message-circle" class="w-5 h-5"></i> Chat on WhatsApp
