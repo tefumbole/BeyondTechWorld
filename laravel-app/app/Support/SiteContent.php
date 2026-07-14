@@ -129,6 +129,14 @@ class SiteContent
                     'hours_weekend' => ['text', 'Business hours (Sat-Sun)', 'Closed'],
                 ],
             ],
+            'gallery' => [
+                'label' => 'Gallery',
+                'url' => '/gallery',
+                'fields' => [
+                    'hero_title'    => ['html', 'Hero title (HTML allowed)', 'Our <span class="text-brand-gold">Gallery</span>'],
+                    'hero_subtitle' => ['text', 'Hero subtitle', 'Events, projects, and moments from Beyond Enterprise'],
+                ],
+            ],
         ];
     }
 
@@ -137,5 +145,41 @@ class SiteContent
         $schema = self::schema();
 
         return $schema[$page] ?? null;
+    }
+
+    /** Keys for editable content pages (Home, About, …). */
+    public static function contentTabItems()
+    {
+        $items = [];
+        foreach (self::schema() as $key => $page) {
+            $items[$key] = $page['label'];
+        }
+
+        return $items;
+    }
+
+    /** Saved order of content page tabs in Site Content admin. */
+    public static function contentTabOrder()
+    {
+        return SiteMenu::ordered('content_tabs_order', self::contentTabItems());
+    }
+
+    /** Page schema keyed by page, sorted for the admin tab bar. */
+    public static function orderedSchema()
+    {
+        $schema = self::schema();
+        $ordered = [];
+        foreach (self::contentTabOrder() as $key) {
+            if (isset($schema[$key])) {
+                $ordered[$key] = $schema[$key];
+            }
+        }
+        foreach ($schema as $key => $page) {
+            if (! isset($ordered[$key])) {
+                $ordered[$key] = $page;
+            }
+        }
+
+        return $ordered;
     }
 }

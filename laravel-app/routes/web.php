@@ -220,6 +220,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/site-content/landing-menu', 'SiteContentController@saveLandingMenu')->name('site-content.landing-menu');
     Route::post('/admin/site-content/side-menu', 'SiteContentController@saveSideMenu')->name('site-content.side-menu');
     Route::post('/admin/site-content/settings-menu', 'SiteContentController@saveSettingsMenu')->name('site-content.settings-menu');
+    Route::post('/admin/site-content/content-tabs', 'SiteContentController@saveContentTabs')->name('site-content.content-tabs');
     Route::post('/admin/site-content/content/{page}', 'SiteContentController@saveContent')->name('site-content.content');
     Route::post('/admin/site-content/gallery/items', 'SiteContentController@storeGalleryItem')->name('site-content.gallery.store');
     Route::post('/admin/site-content/gallery/items/{id}', 'SiteContentController@updateGalleryItem')->name('site-content.gallery.update');
