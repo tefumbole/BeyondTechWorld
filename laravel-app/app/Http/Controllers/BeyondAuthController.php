@@ -33,7 +33,7 @@ class BeyondAuthController extends Controller
             $user = Auth::guard('beyond')->user();
             $profile = BeyondProfile::find($user->id);
 
-            return redirect($this->postLoginRedirect($request, $user, $profile));
+            return redirect($this->loginRedirect($request, $user, $profile));
         }
 
         return view('beyond.auth.login', [
@@ -50,6 +50,51 @@ class BeyondAuthController extends Controller
         }
 
         return $this->auth->redirectPath($user->role, $profile);
+    }
+
+    /**
+     * Resolve the post-login destination. For admin-role Beyond users we also
+     * sign them into the POS (web guard) so a single Beyond login + OTP lands
+     * directly on the admin dashboard — no second login window.
+     */
+    protected function loginRedirect(Request $request, $user, $profile)
+    {
+        if ($this->bridgePosAdmin($user)) {
+            $intended = $request->session()->pull('beyond_intended');
+            if ($intended && strpos($intended, '/') === 0) {
+                return $intended;
+            }
+
+            return '/admin';
+        }
+
+        return $this->postLoginRedirect($request, $user, $profile);
+    }
+
+    /**
+     * Single sign-on bridge: if the Beyond user has an admin role and a matching
+     * active POS account (by email) exists, authenticate the web guard too.
+     */
+    protected function bridgePosAdmin($user)
+    {
+        $adminRoles = ['admin', 'super_admin', 'director', 'manager'];
+        if (! in_array(strtolower((string) $user->role), $adminRoles, true)) {
+            return false;
+        }
+
+        $posUser = \App\User::where('email', $user->email)
+            ->where('is_active', 1)
+            ->where('is_deleted', 0)
+            ->first();
+        if (! $posUser) {
+            return false;
+        }
+
+        $posUser->otp_verify = 1;
+        $posUser->save();
+        Auth::guard('web')->login($posUser, true);
+
+        return true;
     }
 
     public function login(Request $request)
@@ -76,7 +121,7 @@ class BeyondAuthController extends Controller
         if ($this->auth->shouldSkipOtp()) {
             $request->session()->put('beyond_otp_verified', true);
 
-            return redirect($this->postLoginRedirect($request, $user, $profile));
+            return redirect($this->loginRedirect($request, $user, $profile));
         }
 
         $otp = $this->auth->createOtp($phone, 'login');
@@ -125,7 +170,7 @@ class BeyondAuthController extends Controller
         $request->session()->put('beyond_otp_verified', true);
         $profile = BeyondProfile::find($user->id);
 
-        return redirect($this->postLoginRedirect($request, $user, $profile));
+        return redirect($this->loginRedirect($request, $user, $profile));
     }
 
     public function resendOtp(Request $request)
@@ -150,6 +195,9 @@ class BeyondAuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('beyond')->logout();
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
         $request->session()->forget(['beyond_otp_verified', 'beyond_masked_phone', 'password_reset_phone']);
 
         return redirect('/login');
