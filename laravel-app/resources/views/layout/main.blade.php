@@ -2100,9 +2100,6 @@
                     <a href="{{route('user.profile', ['id' => Auth::id()])}}" class="sidebar-user-link">
                         <i class="dripicons-user"></i> My Profile
                     </a>
-                    <a href="{{ route('shop.signup') }}" class="sidebar-user-link">
-                        <i class="dripicons-plus"></i> Sign Up
-                    </a>
                     <a href="{{ route('logout') }}" class="sidebar-user-link logout-link"
                        onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
                         <i class="dripicons-power"></i> Sign Out
