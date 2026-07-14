@@ -43,9 +43,16 @@ class BeyondController extends Controller
         ]);
     }
 
+    public function gallery()
+    {
+        return view('beyond.gallery', [
+            'items' => \App\GalleryItem::published()->ordered()->get(),
+        ]);
+    }
+
     public function contact()
     {
-        return view('beyond.contact');
+        return redirect(url('/about') . '#contact', 301);
     }
 
     public function events()
