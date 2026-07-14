@@ -10,6 +10,38 @@
     'subtitle' => 'Join us at upcoming events, workshops, and technology showcases across Rwanda',
 ])
 
+{{-- Page-level countdown for the next upcoming event --}}
+@php
+    $nextCountdown = null;
+    foreach ($events as $row) {
+        if (!empty($row['countdown_at']) && optional($row['pub'])->show_countdown) {
+            $nextCountdown = $row;
+            break;
+        }
+    }
+@endphp
+@if($nextCountdown)
+    @php
+        $ncEvent = $nextCountdown['event'];
+        $ncPub = $nextCountdown['pub'];
+    @endphp
+    <div class="bg-brand-navy border-b border-brand-gold/30">
+        <div class="max-w-4xl mx-auto px-4 py-2 text-center">
+            <p class="text-brand-gold text-sm font-semibold mt-4 mb-1">
+                Countdown — {{ $ncPub->public_title ?: $ncEvent->name }}
+            </p>
+        </div>
+        @include('beyond.partials.event_countdown', [
+            'targetIso' => $nextCountdown['countdown_at']->toIso8601String(),
+            'timezone' => $ncEvent->timezone ?: 'Africa/Kigali',
+            'completionMessage' => $ncPub->countdown_completion_message ?: 'The event is here!',
+            'hideAfter' => $ncPub->hide_countdown_after_completion,
+            'compact' => false,
+            'uid' => 'page-next',
+        ])
+    </div>
+@endif
+
 <section class="py-12 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {{-- Filters --}}
@@ -47,7 +79,7 @@
                         @php
                             $fp = $fe->publication;
                             $fflyer = $pubService->publicFlyerUrl($fe, $fp);
-                            $fstatus = $pubService->computePublicStatus($fe, $fp);
+                            $fcountdown = $pubService->resolveCountdownTargetAt($fe, $fp);
                         @endphp
                         <a href="{{ url('/events/' . $fe->slug) }}" class="group block bg-white rounded-xl border-2 border-brand-gold/40 hover:border-brand-gold transition-all hover:shadow-xl overflow-hidden">
                             <div class="relative h-40 overflow-hidden bg-gray-200">
@@ -64,6 +96,18 @@
                                 <h3 class="font-bold text-gray-900 line-clamp-2 group-hover:text-brand-blue">{{ $fp->public_title ?: $fe->name }}</h3>
                                 @if($fe->event_start_at)
                                     <p class="text-sm text-gray-500 mt-1">{{ $fe->event_start_at->format('M d, Y') }}</p>
+                                @endif
+                                @if($fcountdown && optional($fp)->show_countdown)
+                                    <div onclick="event.preventDefault(); event.stopPropagation();">
+                                        @include('beyond.partials.event_countdown', [
+                                            'targetIso' => $fcountdown->toIso8601String(),
+                                            'timezone' => $fe->timezone ?: 'Africa/Kigali',
+                                            'completionMessage' => $fp->countdown_completion_message ?: 'The event is here!',
+                                            'hideAfter' => false,
+                                            'compact' => true,
+                                            'uid' => 'feat-' . $fe->id,
+                                        ])
+                                    </div>
                                 @endif
                             </div>
                         </a>
@@ -86,6 +130,7 @@
                         $pub = $row['pub'];
                         $flyer = $row['flyer'];
                         $status = $row['public_status'];
+                        $countdownAt = $row['countdown_at'] ?? null;
                         $statusLabels = \App\Services\EventPublicationService::PUBLIC_STATUSES;
                         $statusColors = [
                             'coming_soon' => 'bg-blue-100 text-blue-800',
@@ -97,50 +142,64 @@
                             'cancelled' => 'bg-red-100 text-red-800',
                         ];
                     @endphp
-                    <a href="{{ url('/events/' . $ev->slug) }}" class="group block bg-white rounded-xl border border-gray-200 hover:border-brand-blue transition-all hover:shadow-xl overflow-hidden">
-                        <div class="relative h-48 overflow-hidden bg-gray-200">
-                            @if ($flyer)
-                                <img src="{{ $flyer }}" alt="{{ $pub->public_title ?: $ev->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                            @else
-                                <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-blue to-brand-light">
-                                    <i data-lucide="calendar" class="w-16 h-16 text-white opacity-50"></i>
-                                </div>
+                    <div class="bg-white rounded-xl border border-gray-200 hover:border-brand-blue transition-all hover:shadow-xl overflow-hidden flex flex-col">
+                        <a href="{{ url('/events/' . $ev->slug) }}" class="group block">
+                            <div class="relative h-48 overflow-hidden bg-gray-200">
+                                @if ($flyer)
+                                    <img src="{{ $flyer }}" alt="{{ $pub->public_title ?: $ev->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                @else
+                                    <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-blue to-brand-light">
+                                        <i data-lucide="calendar" class="w-16 h-16 text-white opacity-50"></i>
+                                    </div>
+                                @endif
+                                @if($ev->event_start_at)
+                                    <div class="absolute top-3 right-3 bg-brand-gold text-brand-blue font-bold px-3 py-1 rounded-full text-xs">
+                                        {{ $ev->event_start_at->format('M d') }}
+                                    </div>
+                                @endif
+                                @if($status)
+                                    <span class="absolute bottom-3 left-3 text-xs font-semibold px-2 py-1 rounded-full {{ $statusColors[$status] ?? 'bg-gray-100 text-gray-700' }}">
+                                        {{ $statusLabels[$status] ?? $status }}
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="p-5 pb-2">
+                                <p class="text-xs text-brand-blue font-medium mb-1">{{ \App\Event::TYPES[$ev->event_type] ?? $ev->event_type }}</p>
+                                <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-brand-blue">{{ $pub->public_title ?: $ev->name }}</h3>
+                                @if($pub->public_summary)
+                                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ $pub->public_summary }}</p>
+                                @endif
+                                @if ($ev->event_start_at)
+                                    <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                                        <i data-lucide="calendar" class="w-4 h-4 text-brand-blue"></i>
+                                        <span>{{ $ev->event_start_at->format('l, F d, Y') }}</span>
+                                    </div>
+                                @endif
+                                @if (!empty($pub->public_location) || !empty($pub->public_venue))
+                                    <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                                        <i data-lucide="map-pin" class="w-4 h-4 text-brand-blue"></i>
+                                        <span class="line-clamp-1">{{ $pub->public_venue ?: $pub->public_location }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </a>
+                        <div class="px-5 pb-5 mt-auto">
+                            @if($countdownAt && optional($pub)->show_countdown)
+                                @include('beyond.partials.event_countdown', [
+                                    'targetIso' => $countdownAt->toIso8601String(),
+                                    'timezone' => $ev->timezone ?: 'Africa/Kigali',
+                                    'completionMessage' => $pub->countdown_completion_message ?: 'The event is here!',
+                                    'hideAfter' => false,
+                                    'compact' => true,
+                                    'uid' => 'card-' . $ev->id,
+                                ])
                             @endif
-                            @if($ev->event_start_at)
-                                <div class="absolute top-3 right-3 bg-brand-gold text-brand-blue font-bold px-3 py-1 rounded-full text-xs">
-                                    {{ $ev->event_start_at->format('M d') }}
-                                </div>
-                            @endif
-                            @if($status)
-                                <span class="absolute bottom-3 left-3 text-xs font-semibold px-2 py-1 rounded-full {{ $statusColors[$status] ?? 'bg-gray-100 text-gray-700' }}">
-                                    {{ $statusLabels[$status] ?? $status }}
-                                </span>
-                            @endif
-                        </div>
-                        <div class="p-5">
-                            <p class="text-xs text-brand-blue font-medium mb-1">{{ \App\Event::TYPES[$ev->event_type] ?? $ev->event_type }}</p>
-                            <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-brand-blue">{{ $pub->public_title ?: $ev->name }}</h3>
-                            @if($pub->public_summary)
-                                <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ $pub->public_summary }}</p>
-                            @endif
-                            @if ($ev->event_start_at)
-                                <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                                    <i data-lucide="calendar" class="w-4 h-4 text-brand-blue"></i>
-                                    <span>{{ $ev->event_start_at->format('l, F d, Y') }}</span>
-                                </div>
-                            @endif
-                            @if (!empty($pub->public_location) || !empty($pub->public_venue))
-                                <div class="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                                    <i data-lucide="map-pin" class="w-4 h-4 text-brand-blue"></i>
-                                    <span class="line-clamp-1">{{ $pub->public_venue ?: $pub->public_location }}</span>
-                                </div>
-                            @endif
-                            <div class="flex items-center gap-2 text-brand-blue font-semibold text-sm">
+                            <a href="{{ url('/events/' . $ev->slug) }}" class="mt-3 inline-flex items-center gap-2 text-brand-blue font-semibold text-sm">
                                 <span>View Details</span>
                                 <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                            </div>
+                            </a>
                         </div>
-                    </a>
+                    </div>
                 @endforeach
             </div>
         @endif
