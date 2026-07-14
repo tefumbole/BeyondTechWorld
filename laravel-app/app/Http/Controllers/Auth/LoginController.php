@@ -107,8 +107,8 @@ class LoginController extends Controller
     }
 
     public function sendOTP($phone) {
-        $otp = rand(1, 999999);
-        $msg = "Your OTP is: " . $otp . "\n That will be expired after 5 minutes";
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $msg = \App\Support\WhatsAppMessage::otpMessage($otp);
         try {
             $this->wpMessage($phone, $msg);
         } catch (\Exception $e) {

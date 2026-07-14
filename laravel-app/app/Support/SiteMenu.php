@@ -20,6 +20,7 @@ class SiteMenu
             'register'     => 'Register Now',
             'apply'        => 'Apply Now',
             'about'        => 'About Us',
+            'gallery'      => 'Gallery',
             'shareholders' => 'Shareholders',
             'contact'      => 'Contact Us',
         ];
@@ -36,6 +37,7 @@ class SiteMenu
             'purchase'     => 'Purchase',
             'sale'         => 'Sale',
             'booking'      => 'Rental Module',
+            'events'       => 'Events',
             'shop'         => 'Shops',
             'order'        => 'Online Order',
             'payments'     => 'Payments',
@@ -87,5 +89,62 @@ class SiteMenu
     public static function sideOrder()
     {
         return self::ordered('side_menu_order', self::sideItems());
+    }
+
+    /** Settings submenu items inside #setting (key => label). */
+    public static function settingsItems()
+    {
+        return [
+            'role'               => 'Role Permission',
+            'notification'       => 'Send Notification',
+            'warehouse'          => 'Warehouse',
+            'biller-list'        => 'Biller List',
+            'customer-group'     => 'Customer Group',
+            'brand'              => 'Brand',
+            'unit'               => 'Unit',
+            'currency'           => 'Currency',
+            'tax'                => 'Tax',
+            'user'               => 'User Profile',
+            'create-sms'         => 'Create SMS',
+            'backup-database'    => 'Backup Database',
+            'general-setting'    => 'General Setting',
+            'env-setting'        => '.env Settings',
+            'mail-setting'       => 'Mail Setting',
+            'reward-point-setting' => 'Reward Point Setting',
+            'sms-setting'        => 'SMS Setting',
+            'pos-setting'        => 'POS Settings',
+            'hrm-setting'        => 'HRM Setting',
+        ];
+    }
+
+    public static function settingsOrder()
+    {
+        return self::ordered('settings_menu_order', self::settingsItems());
+    }
+
+    /** Map settings submenu <li id="..."> to stable reorder keys. */
+    public static function settingsLiKeyMap()
+    {
+        return [
+            'role-menu'               => 'role',
+            'notification-menu'         => 'notification',
+            'warehouse-menu'          => 'warehouse',
+            'biller-list-menu'        => 'biller-list',
+            'customer-group-menu'     => 'customer-group',
+            'brand-menu'              => 'brand',
+            'unit-menu'               => 'unit',
+            'currency-menu'           => 'currency',
+            'tax-menu'                => 'tax',
+            'user-menu'               => 'user',
+            'create-sms-menu'         => 'create-sms',
+            'backup-database-menu'    => 'backup-database',
+            'general-setting-menu'    => 'general-setting',
+            'env-setting-menu'        => 'env-setting',
+            'mail-setting-menu'       => 'mail-setting',
+            'reward-point-setting-menu' => 'reward-point-setting',
+            'sms-setting-menu'        => 'sms-setting',
+            'pos-setting-menu'        => 'pos-setting',
+            'hrm-setting-menu'        => 'hrm-setting',
+        ];
     }
 }
