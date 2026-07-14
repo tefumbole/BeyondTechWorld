@@ -1931,6 +1931,26 @@ class RoleController extends Controller
         else
             $role->revokePermissionTo('booking_contract_approve');
 
+        foreach ([
+            'events_module', 'events.view', 'events.create', 'events.update', 'events.delete',
+            'events.approve', 'events.manage_workforce', 'events.manage_budget', 'events.change_status',
+            'events.manage_publication', 'events.publish', 'events.unpublish', 'events.settings',
+            'event_workers.view', 'event_workers.create', 'event_workers.update',
+            'event_contracts.view', 'event_contracts.create', 'event_contracts.send', 'event_contracts.approve',
+            'event_reminders.view', 'event_reminders.create', 'event_reminders.send',
+            'event_timesheets.view', 'event_timesheets.manage', 'event_timesheets.approve',
+            'event_payments.view', 'event_payments.create', 'event_payments.approve',
+        ] as $eventPerm) {
+            if ($request->has($eventPerm)) {
+                $permission = Permission::firstOrCreate(['name' => $eventPerm]);
+                if (! $role->hasPermissionTo($eventPerm)) {
+                    $role->givePermissionTo($permission);
+                }
+            } else {
+                $role->revokePermissionTo($eventPerm);
+            }
+        }
+
         return redirect('role')->with('message', 'Permission updated successfully');
     }
 

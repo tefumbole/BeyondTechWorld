@@ -32,6 +32,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('letters:send-scheduled')->everyMinute();
         $schedule->command('rental:return-reminders')->everyFiveMinutes();
         $schedule->command('bookings:send-reminders')->everyMinute();
+        $schedule->command('events:publish-scheduled')->everyMinute();
+        $schedule->command('events:process-reminders')->everyMinute();
     }
 
     /**

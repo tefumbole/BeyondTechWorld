@@ -33,13 +33,20 @@ Route::get('/rental/scan/{token}', 'RentalContractController@rentalScan')->name(
 Route::get('/goods-received/{token}', 'BookingGoodsReceiptController@show')->name('goods.received.show');
 Route::post('/goods-received/{token}/sign', 'BookingGoodsReceiptController@sign')->name('goods.received.sign');
 
+Route::get('/event-contract/{token}', 'EventContractSigningController@show')->name('event.contract.sign');
+Route::post('/event-contract/{token}/sign', 'EventContractSigningController@sign')->name('event.contract.sign.submit');
+
 
 Route::get('/', 'BeyondController@home')->name('beyond.home');
 Route::get('/about', 'BeyondController@about')->name('beyond.about');
 Route::get('/services', 'BeyondController@services')->name('beyond.services');
 Route::get('/projects', 'BeyondController@projects')->name('beyond.projects');
+Route::get('/gallery', 'BeyondController@gallery')->name('beyond.gallery');
 Route::get('/contact', 'BeyondController@contact')->name('beyond.contact');
-Route::get('/events', 'BeyondController@events')->name('beyond.events');
+Route::get('/events', 'PublicEventController@index')->name('beyond.events');
+Route::get('/events/{slug}', 'PublicEventController@show')->name('beyond.event.detail');
+Route::get('/api/public/events', 'PublicEventController@apiList');
+Route::get('/api/public/events/{slug}', 'PublicEventController@apiShow');
 Route::get('/trainings', 'TrainingController@trainings')->name('beyond.trainings');
 Route::get('/register-now', 'TrainingController@registerNow')->name('beyond.register');
 Route::post('/register-now', 'TrainingController@storeRegistration')->name('training.register');
@@ -98,6 +105,10 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::post('/staff/timesheet', 'StaffTimesheetController@store')->name('staff.timesheet.store');
     Route::patch('/staff/timesheet/{id}', 'StaffTimesheetController@update')->name('staff.timesheet.update');
     Route::delete('/staff/timesheet/{id}', 'StaffTimesheetController@destroy')->name('staff.timesheet.destroy');
+    Route::get('/staff/my-events', 'StaffEventTimesheetController@myEvents')->name('staff.my-events');
+    Route::get('/staff/events/{assignmentId}/timesheet', 'StaffEventTimesheetController@show')->name('staff.event-timesheet');
+    Route::post('/staff/events/{assignmentId}/timesheet', 'StaffEventTimesheetController@storeEntry')->name('staff.event-timesheet.entry');
+    Route::post('/staff/events/{assignmentId}/timesheet/submit', 'StaffEventTimesheetController@submit')->name('staff.event-timesheet.submit');
 });
 
 // Beyond public portal auth (otp, forgot-password, profile — login registered after Auth::routes)
@@ -208,7 +219,54 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/site-content', 'SiteContentController@index')->name('site-content.index');
     Route::post('/admin/site-content/landing-menu', 'SiteContentController@saveLandingMenu')->name('site-content.landing-menu');
     Route::post('/admin/site-content/side-menu', 'SiteContentController@saveSideMenu')->name('site-content.side-menu');
+    Route::post('/admin/site-content/settings-menu', 'SiteContentController@saveSettingsMenu')->name('site-content.settings-menu');
     Route::post('/admin/site-content/content/{page}', 'SiteContentController@saveContent')->name('site-content.content');
+    Route::post('/admin/site-content/gallery/items', 'SiteContentController@storeGalleryItem')->name('site-content.gallery.store');
+    Route::post('/admin/site-content/gallery/items/{id}', 'SiteContentController@updateGalleryItem')->name('site-content.gallery.update');
+    Route::post('/admin/site-content/gallery/items/{id}/delete', 'SiteContentController@deleteGalleryItem')->name('site-content.gallery.delete');
+    Route::post('/admin/site-content/gallery/reorder', 'SiteContentController@reorderGalleryItems')->name('site-content.gallery.reorder');
+
+    // Events module (Phase 1)
+    Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
+    Route::get('/admin/events/list', 'EventController@index')->name('events.index');
+    Route::get('/admin/events/create', 'EventController@create')->name('events.create');
+    Route::post('/admin/events', 'EventController@store')->name('events.store');
+    Route::get('/admin/events/calendar', 'EventController@calendar')->name('events.calendar');
+    Route::get('/admin/events/settings/categories', 'EventWorkerCategoryController@index')->name('events.settings.categories');
+    Route::post('/admin/events/settings/categories', 'EventWorkerCategoryController@store')->name('events.settings.categories.store');
+    Route::post('/admin/events/settings/categories/{id}', 'EventWorkerCategoryController@update')->name('events.settings.categories.update');
+    Route::post('/admin/events/settings/categories/{id}/delete', 'EventWorkerCategoryController@destroy')->name('events.settings.categories.destroy');
+    Route::get('/admin/events/workforce/profiles', 'EventWorkforceController@profiles')->name('events.workforce.profiles');
+    Route::post('/admin/events/workforce/profiles', 'EventWorkforceController@storeProfile')->name('events.workforce.profiles.store');
+    Route::get('/admin/events/workforce/search', 'EventWorkforceController@search')->name('events.workforce.search');
+    Route::get('/admin/events/timesheets', 'EventTimesheetController@index')->name('events.timesheets.index');
+    Route::post('/admin/events/timesheets/{id}/approve', 'EventTimesheetController@approve')->name('events.timesheets.approve');
+    Route::post('/admin/events/timesheets/{id}/reject', 'EventTimesheetController@reject')->name('events.timesheets.reject');
+    Route::get('/admin/events/payments', 'EventPaymentController@index')->name('events.payments.index');
+    Route::post('/admin/events/payments/{paymentId}/mark-paid', 'EventPaymentController@markPaid')->name('events.payments.mark-paid');
+    Route::get('/admin/events/reminders', 'EventReminderController@index')->name('events.reminders.index');
+    Route::get('/admin/events/settings/contract-templates', 'EventContractTemplateController@index')->name('events.settings.contract-templates');
+    Route::post('/admin/events/settings/contract-templates', 'EventContractTemplateController@store')->name('events.settings.contract-templates.store');
+    Route::post('/admin/events/settings/contract-templates/{id}', 'EventContractTemplateController@update')->name('events.settings.contract-templates.update');
+    Route::get('/admin/event-contracts/{contractId}/review', 'EventContractController@review')->name('events.contracts.review');
+    Route::post('/admin/event-contracts/{contractId}/approve', 'EventContractController@approve')->name('events.contracts.approve');
+    Route::get('/admin/event-contracts/{contractId}/preview', 'EventContractController@preview')->name('events.contracts.preview');
+    Route::get('/admin/events/{id}', 'EventController@show')->name('events.show');
+    Route::get('/admin/events/{id}/edit', 'EventController@edit')->name('events.edit');
+    Route::put('/admin/events/{id}', 'EventController@update')->name('events.update');
+    Route::delete('/admin/events/{id}', 'EventController@destroy')->name('events.destroy');
+    Route::post('/admin/events/{id}/publication', 'EventPublicationController@update')->name('events.publication.update');
+    Route::post('/admin/events/{id}/publish', 'EventPublicationController@publish')->name('events.publish');
+    Route::post('/admin/events/{id}/unpublish', 'EventPublicationController@unpublish')->name('events.unpublish');
+    Route::post('/admin/events/{id}/workforce/assign', 'EventWorkforceController@assign')->name('events.workforce.assign');
+    Route::post('/admin/events/{id}/workforce/{assignmentId}/remove', 'EventWorkforceController@removeAssignment')->name('events.workforce.remove');
+    Route::post('/admin/events/{id}/labour-budget', 'EventWorkforceController@saveBudget')->name('events.labour-budget.save');
+    Route::post('/admin/events/{id}/contracts/generate', 'EventContractController@generate')->name('events.contracts.generate');
+    Route::post('/admin/events/{id}/contracts/{contractId}/send', 'EventContractController@send')->name('events.contracts.send');
+    Route::post('/admin/events/{id}/reminders', 'EventReminderController@storeForEvent')->name('events.reminders.store');
+    Route::delete('/admin/events/reminders/{id}', 'EventReminderController@destroy')->name('events.reminders.destroy');
+    Route::post('/admin/events/{id}/payments', 'EventPaymentController@createForAssignment')->name('events.payments.create');
+
 	Route::get('/wp', 'HomeController@whatsapp');
 	Route::get('/mmt', 'HomeController@mobileMoneyToken');
 	Route::get('/mmr', 'HomeController@mobileMoneyRequest');

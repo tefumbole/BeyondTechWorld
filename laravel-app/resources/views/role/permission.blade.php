@@ -1668,6 +1668,67 @@
                                 </tr>
                                 {{--                                Booking Module end--}}
 
+                                {{--                                Events Module--}}
+                                <tr class="permission-section-header">
+                                    <th colspan="5">
+                                        <div class="checkbox">
+                                            <input type="checkbox" class="section-select-all" id="section-events-module">
+                                            <label for="section-events-module">Events Module</label>
+                                        </div>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td>Events</td>
+                                    <td class="report-permissions" colspan="5">
+                                        @foreach([
+                                            'events_module' => 'Events Module',
+                                            'events.view' => 'View',
+                                            'events.create' => 'Create',
+                                            'events.update' => 'Update',
+                                            'events.delete' => 'Delete',
+                                            'events.approve' => 'Approve',
+                                            'events.manage_workforce' => 'Manage Workforce',
+                                            'events.manage_budget' => 'Manage Budget',
+                                            'events.change_status' => 'Change Status',
+                                            'events.manage_publication' => 'Manage Publication',
+                                            'events.publish' => 'Publish to Website',
+                                            'events.unpublish' => 'Unpublish from Website',
+                                            'events.settings' => 'Event Settings',
+                                            'event_workers.view' => 'View Worker Profiles',
+                                            'event_workers.create' => 'Create Worker Profiles',
+                                            'event_workers.update' => 'Update Worker Profiles',
+                                            'event_contracts.view' => 'View Contracts',
+                                            'event_contracts.create' => 'Create Contracts',
+                                            'event_contracts.send' => 'Send Contracts',
+                                            'event_contracts.approve' => 'Approve Contracts',
+                                            'event_reminders.view' => 'View Reminders',
+                                            'event_reminders.create' => 'Create Reminders',
+                                            'event_reminders.send' => 'Send Reminders',
+                                            'event_timesheets.view' => 'View Timesheets',
+                                            'event_timesheets.manage' => 'Manage Timesheets',
+                                            'event_timesheets.approve' => 'Approve Timesheets',
+                                            'event_payments.view' => 'View Payments',
+                                            'event_payments.create' => 'Create Payments',
+                                            'event_payments.approve' => 'Approve Payments',
+                                        ] as $perm => $label)
+                                        @php $pid = str_replace('.', '_', $perm); @endphp
+                                        <span>
+                                            <div class="checkbox">
+                                                @if(in_array($perm, $all_permission))
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}" checked>
+                                                @else
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}">
+                                                @endif
+                                                <label for="{{ $pid }}" class="padding05">{{ $label }}</label>
+                                            </div>
+                                        </span>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                                <tr class="permission-section-end">
+                                    <th colspan="5">Events Module End</th>
+                                </tr>
+
                                 {{--                                Booking Module--}}
                                 <tr class="permission-section-header">
                                     <th colspan="5">

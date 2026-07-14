@@ -1119,6 +1119,41 @@
                                 </ul>
                             </li>
                         @endif
+                        <?php
+                        $events_module_permission = DB::table('permissions')->where('name', 'events_module')->first();
+                        $events_module_active = $events_module_permission ? DB::table('role_has_permissions')->where([
+                            ['permission_id', $events_module_permission->id],
+                            ['role_id', $role->id]
+                        ])->first() : null;
+                        ?>
+                        @if($events_module_active)
+                            <li><a href="#events-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-calendar"></i><span>Events</span></a>
+                                <ul id="events-module" class="collapse list-unstyled ">
+                                    @if(in_array('events.view', $all_permission))
+                                        <li id="events-dashboard-menu"><a href="{{ route('events.dashboard') }}">Events Dashboard</a></li>
+                                        <li id="events-list-menu"><a href="{{ route('events.index') }}">All Events</a></li>
+                                        <li id="events-calendar-menu"><a href="{{ route('events.calendar') }}">Event Calendar</a></li>
+                                    @endif
+                                    @if(in_array('events.create', $all_permission))
+                                        <li id="events-create-menu"><a href="{{ route('events.create') }}">Create Event</a></li>
+                                    @endif
+                                    @if(in_array('events.manage_workforce', $all_permission) || in_array('event_workers.view', $all_permission))
+                                        <li id="events-workforce-menu"><a href="{{ route('events.workforce.profiles') }}">Event Workforce</a></li>
+                                    @endif
+                                    @if(in_array('events.view', $all_permission))
+                                        <li id="events-timesheets-menu"><a href="{{ route('events.timesheets.index') }}">Event Timesheets</a></li>
+                                        <li id="events-payments-menu"><a href="{{ route('events.payments.index') }}">Labour Payments</a></li>
+                                        <li id="events-reminders-menu"><a href="{{ route('events.reminders.index') }}">Event Reminders</a></li>
+                                    @endif
+                                    @if(in_array('event_contracts.view', $all_permission))
+                                        <li id="events-contract-templates-menu"><a href="{{ route('events.settings.contract-templates') }}">Contract Templates</a></li>
+                                    @endif
+                                    @if(in_array('events.settings', $all_permission))
+                                        <li id="events-settings-menu"><a href="{{ route('events.settings.categories') }}">Event Settings</a></li>
+                                    @endif
+                                </ul>
+                            </li>
+                        @endif
                         @if(in_array('shops-index', $all_permission))
                             <li>
                                 <a href="#shop" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-building"></i><span>Shops</span><span></a>
@@ -2067,7 +2102,7 @@
                                     <li id="create-sms-menu"><a href="{{route('setting.createSms')}}">{{trans('file.Create SMS')}}</a></li>
                                 @endif
                                 @if($backup_database_permission_active)
-                                    <li><a href="{{route('setting.backup')}}">{{trans('file.Backup Database')}}</a></li>
+                                    <li id="backup-database-menu"><a href="{{route('setting.backup')}}">{{trans('file.Backup Database')}}</a></li>
                                 @endif
                                 @if($general_setting_permission_active)
                                     <li id="general-setting-menu"><a href="{{route('setting.general')}}">{{trans('file.General Setting')}}</a></li>
@@ -2091,7 +2126,11 @@
                             </ul>
                         </li>
                     </ul>
-                    @php $__sideMenuOrder = \App\Support\SiteMenu::sideOrder(); @endphp
+                    @php
+                        $__sideMenuOrder = \App\Support\SiteMenu::sideOrder();
+                        $__settingsMenuOrder = \App\Support\SiteMenu::settingsOrder();
+                        $__settingsLiKeyMap = \App\Support\SiteMenu::settingsLiKeyMap();
+                    @endphp
                     <script>
                     (function () {
                         var order = @json($__sideMenuOrder);
@@ -2104,6 +2143,7 @@
                             var href = a.getAttribute('href') || '';
                             if (href.charAt(0) === '#') return href.slice(1);
                             if (/\/admin\/site-content/.test(href)) return 'site-content';
+                            if (/\/admin\/events/.test(href)) return 'events';
                             if (/\/admin\/?$/.test(href)) return 'dashboard';
                             return null;
                         }
@@ -2112,6 +2152,21 @@
                             if (li.tagName !== 'LI') return;
                             var k = keyOf(li);
                             if (k && !map[k]) map[k] = li;
+                        });
+                        order.forEach(function (k) { if (map[k]) ul.appendChild(map[k]); });
+                    })();
+                    (function () {
+                        var order = @json($__settingsMenuOrder);
+                        var liKeyMap = @json($__settingsLiKeyMap);
+                        var ul = document.getElementById('setting');
+                        if (!ul || !order || !order.length) return;
+                        var map = {};
+                        Array.prototype.slice.call(ul.children).forEach(function (li) {
+                            if (li.tagName !== 'LI') return;
+                            var liId = li.getAttribute('id');
+                            if (!liId || !liKeyMap[liId]) return;
+                            var k = liKeyMap[liId];
+                            if (!map[k]) map[k] = li;
                         });
                         order.forEach(function (k) { if (map[k]) ul.appendChild(map[k]); });
                     })();
