@@ -12,7 +12,7 @@
                 @if($errors->any())
                     <div class="alert alert-danger">{{ $errors->first() }}</div>
                 @endif
-                @include('events.partials.form', ['event' => $event, 'customers' => $customers, 'bookings' => $bookings])
+                @include('events.partials.form', ['event' => $event, 'customers' => $customers, 'bookings' => $bookings, 'workerProfiles' => $workerProfiles])
             </div>
         </div>
     </div>

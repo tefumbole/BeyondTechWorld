@@ -2141,7 +2141,12 @@
                             if (!a) return null;
                             if (a.getAttribute('data-nav-key')) return a.getAttribute('data-nav-key');
                             var href = a.getAttribute('href') || '';
-                            if (href.charAt(0) === '#') return href.slice(1);
+                            if (href.charAt(0) === '#') {
+                                var anchor = href.slice(1);
+                                // collapse target ids differ from Site Content reorder keys
+                                if (anchor === 'events-module') return 'events';
+                                return anchor;
+                            }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';
                             if (/\/admin\/events/.test(href)) return 'events';
                             if (/\/admin\/?$/.test(href)) return 'dashboard';

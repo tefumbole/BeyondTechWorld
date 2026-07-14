@@ -37,11 +37,15 @@
         'register'     => ['label' => 'Register Now', 'url' => url('/register-now')],
         'apply'        => ['label' => 'Apply Now', 'url' => url('/apply-now'), 'special' => true],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
+        'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
         'shareholders' => ['label' => 'Shareholders', 'url' => url('/shareholders')],
-        'contact'      => ['label' => 'Contact Us', 'url' => url('/contact')],
     ];
     $navLinks = [];
     foreach (\App\Support\SiteMenu::landingOrder() as $navKey) {
+        // Legacy saved menus may still include "contact" — skip; contact lives on About Us
+        if ($navKey === 'contact') {
+            continue;
+        }
         if (isset($navDefs[$navKey])) {
             $navLinks[] = $navDefs[$navKey];
         }
@@ -142,10 +146,10 @@
                 <h3 class="text-lg font-semibold text-brand-gold mb-4">Quick Links</h3>
                 <nav class="flex flex-col space-y-2 text-sm">
                     <a href="{{ url('/') }}" class="text-gray-300 hover:text-brand-gold">Home</a>
-                    <a href="{{ url('/about') }}" class="text-gray-300 hover:text-brand-gold">About</a>
+                    <a href="{{ url('/about') }}" class="text-gray-300 hover:text-brand-gold">About Us</a>
                     <a href="{{ url('/services') }}" class="text-gray-300 hover:text-brand-gold">Services</a>
                     <a href="{{ url('/projects') }}" class="text-gray-300 hover:text-brand-gold">Projects</a>
-                    <a href="{{ url('/contact') }}" class="text-gray-300 hover:text-brand-gold">Contact</a>
+                    <a href="{{ url('/events') }}" class="text-gray-300 hover:text-brand-gold">Events</a>
                     <a href="{{ url('/shareholders') }}" class="text-gray-300 hover:text-brand-gold">Shareholders Portal</a>
                 </nav>
             </div>

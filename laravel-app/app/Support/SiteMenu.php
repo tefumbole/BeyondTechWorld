@@ -22,7 +22,7 @@ class SiteMenu
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
             'shareholders' => 'Shareholders',
-            'contact'      => 'Contact Us',
+            // Contact is merged into About Us (#contact) — not a separate nav item
         ];
     }
 

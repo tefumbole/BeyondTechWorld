@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class EventService
 {
-    public function create(array $data)
+    public function create(array $data, $publishOnWebsite = true)
     {
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data, $publishOnWebsite) {
             $event = new Event($data);
             $event->created_by = Auth::id();
             $event->updated_by = Auth::id();
@@ -21,11 +21,30 @@ class EventService
             }
             $event->save();
 
-            EventPublication::create([
+            $pubData = [
                 'event_id' => $event->id,
                 'public_title' => $event->name,
-                'publication_status' => 'draft',
-            ]);
+                'public_summary' => $event->internal_description,
+                'public_venue' => $event->venue,
+                'public_location' => trim(($event->city ?: '') . ($event->venue_address ? ', ' . $event->venue_address : ''), ', '),
+                'public_contact_name' => $event->client_contact_person,
+                'public_contact_phone' => $event->client_telephone,
+                'public_contact_email' => $event->client_email,
+                'show_event_time' => true,
+                'show_countdown' => true,
+                'countdown_target_type' => 'event_start_at',
+            ];
+
+            if ($publishOnWebsite) {
+                $pubData['publish_on_website'] = true;
+                $pubData['publication_status'] = 'published';
+                $pubData['visibility_at'] = now();
+            } else {
+                $pubData['publish_on_website'] = false;
+                $pubData['publication_status'] = 'draft';
+            }
+
+            EventPublication::create($pubData);
 
             $this->recordStatus($event, null, $event->internal_status, 'Event created');
 

@@ -57,7 +57,7 @@
             </p>
         </div>
         <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-6">
-            <a href="{{ url('/contact') }}"
+            <a href="{{ url('/about') }}#contact"
                class="bg-brand-gold hover:bg-[#b5952f] text-brand-blue h-14 px-8 text-lg font-bold shadow-[0_0_15px_rgba(212,175,55,0.4)] rounded-full hover:scale-105 transition-transform inline-flex items-center justify-center">
                 {{ \App\Support\SiteContent::text('home.cta_primary', 'Get a Free Quote') }} <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
             </a>
@@ -124,6 +124,50 @@
         </div>
     </div>
 </section>
+
+{{-- Events --}}
+@if(!empty($homeEvents) && $homeEvents->isNotEmpty())
+<section class="py-16 bg-white border-t border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-brand-blue mb-4">Upcoming Events</h2>
+            <p class="text-xl text-gray-600">Highlights and events from Beyond Enterprise</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            @foreach($homeEvents as $ev)
+                <a href="{{ url('/events/' . $ev['slug']) }}" class="group block bg-white rounded-xl border border-gray-200 hover:border-brand-blue hover:shadow-xl transition overflow-hidden">
+                    <div class="relative h-44 bg-gray-200 overflow-hidden">
+                        @if(!empty($ev['flyer']))
+                            <img src="{{ $ev['flyer'] }}" alt="{{ $ev['title'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        @else
+                            <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-blue to-brand-light">
+                                <i data-lucide="calendar" class="w-12 h-12 text-white opacity-60"></i>
+                            </div>
+                        @endif
+                        @if(!empty($ev['start']))
+                            <span class="absolute top-3 right-3 bg-brand-gold text-brand-blue text-xs font-bold px-3 py-1 rounded-full">{{ $ev['start']->format('M d') }}</span>
+                        @endif
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-lg font-bold text-gray-900 group-hover:text-brand-blue line-clamp-2 mb-2">{{ $ev['title'] }}</h3>
+                        @if(!empty($ev['start']))
+                            <p class="text-sm text-gray-600 mb-1"><i data-lucide="calendar" class="w-4 h-4 inline text-brand-blue"></i> {{ $ev['start']->format('D, M j, Y g:i A') }}</p>
+                        @endif
+                        @if(!empty($ev['venue']))
+                            <p class="text-sm text-gray-600 line-clamp-1"><i data-lucide="map-pin" class="w-4 h-4 inline text-brand-blue"></i> {{ $ev['venue'] }}</p>
+                        @endif
+                    </div>
+                </a>
+            @endforeach
+        </div>
+        <div class="text-center mt-10">
+            <a href="{{ url('/events') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-brand-blue text-white font-semibold hover:bg-brand-dark transition">
+                View all events <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+        </div>
+    </div>
+</section>
+@endif
 
 {{-- Testimonials --}}
 <section class="py-16 bg-gray-50">
