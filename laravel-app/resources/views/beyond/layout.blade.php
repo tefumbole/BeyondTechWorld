@@ -157,6 +157,10 @@
         </div>
         <div class="mt-12 pt-8 border-t border-gray-700 text-center">
             <p class="text-gray-400 text-sm">© {{ date('Y') }} Beyond Enterprise. All rights reserved.</p>
+            <p class="text-gray-500 text-xs mt-2">
+                Developed By: <span class="text-gray-300 font-medium">Sr. Engr. Tefu R. Mbole</span>
+                <a href="https://wa.me/237675321739" target="_blank" rel="noopener" class="text-[#25D366] hover:underline font-semibold">+237675321739</a>
+            </p>
             <p class="text-gray-500 text-xs mt-2">Kigali, Rwanda</p>
             <p class="text-gray-600 text-xs mt-1">v{{ \App\Support\AppVersion::label() }}</p>
         </div>
