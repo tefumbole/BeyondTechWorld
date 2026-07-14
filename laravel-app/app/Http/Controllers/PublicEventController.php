@@ -46,8 +46,10 @@ class PublicEventController extends Controller
         } elseif ($filter === 'past') {
             $query->whereNotNull('event_end_at')->where('event_end_at', '<', $now);
         } else {
+            // Upcoming / default: future, ongoing, or published with no date yet
             $query->where(function ($w) use ($now) {
-                $w->where('event_start_at', '>=', $now)
+                $w->whereNull('event_start_at')
+                    ->orWhere('event_start_at', '>=', $now)
                     ->orWhere(function ($x) use ($now) {
                         $x->where('event_start_at', '<=', $now)
                             ->where(function ($y) use ($now) {
