@@ -3,14 +3,18 @@
 @section('content')
 @php
     $tmTab = 'tasks.create';
-    $usersJson = $users->map(function ($u) {
+    $usersJson = collect($users)->map(function ($u) {
+        if (is_array($u)) {
+            return $u;
+        }
         return [
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
             'phone' => $u->phone,
-            'address' => $u->address,
-            'role' => $u->role,
+            'address' => $u->address ?? '',
+            'role' => $u->role ?? '',
+            'source' => $u->source ?? 'Portal',
         ];
     })->values();
 @endphp
@@ -80,20 +84,27 @@ window.TM_USERS = @json($usersJson);
     function filterUsers(query, roleFilter) {
         var q = (query || '').toLowerCase();
         return (window.TM_USERS || []).filter(function (u) {
-            if (roleFilter === 'staff' && ['customer','client','student','applicant'].indexOf((u.role||'').toLowerCase()) !== -1) return false;
-            if (roleFilter === 'customers' && ['customer','client','student','applicant'].indexOf((u.role||'').toLowerCase()) === -1) return false;
+            var role = (u.role || '').toLowerCase();
+            var source = (u.source || '').toLowerCase();
+            if (roleFilter === 'staff' && role === 'customer' && source !== 'user' && source !== 'portal') return false;
+            if (roleFilter === 'staff' && source === 'customer') return false;
+            if (roleFilter === 'customers' && source !== 'customer' && role !== 'customer' && role !== 'client') return false;
             if (!q) return true;
             return (u.name||'').toLowerCase().indexOf(q) !== -1
                 || (u.email||'').toLowerCase().indexOf(q) !== -1
-                || (u.phone||'').toLowerCase().indexOf(q) !== -1;
+                || (u.phone||'').toLowerCase().indexOf(q) !== -1
+                || (u.address||'').toLowerCase().indexOf(q) !== -1
+                || (u.source||'').toLowerCase().indexOf(q) !== -1;
         });
     }
 
     function renderUserList(el, users, selectedIds, onToggle) {
         el.innerHTML = users.map(function (u) {
             var sel = selectedIds.indexOf(u.id) !== -1 ? ' selected' : '';
-            return '<div class="tm-user-item'+sel+'" data-id="'+esc(u.id)+'">'
-                + '<div class="font-weight-bold">'+esc(u.name || 'Untitled')+'</div>'
+                return '<div class="tm-user-item'+sel+'" data-id="'+esc(u.id)+'">'
+                + '<div class="font-weight-bold">'+esc(u.name || 'Untitled')
+                + (u.source ? ' <span class="badge badge-light">'+esc(u.source)+'</span>' : '')
+                + '</div>'
                 + '<div class="meta">'+esc(u.email || '')+' · '+esc(u.phone || '')+'</div>'
                 + '</div>';
         }).join('') || '<div class="p-3 text-muted small">No members found.</div>';

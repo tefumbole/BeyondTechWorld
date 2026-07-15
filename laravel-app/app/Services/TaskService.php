@@ -23,22 +23,7 @@ class TaskService
 
     public function eligibleUsers($filter = 'all', $search = '')
     {
-        $q = BeyondUser::query()->orderBy('name');
-        if ($filter === 'staff') {
-            $q->whereIn('role', ['staff', 'admin', 'super_admin', 'task_assignee']);
-        } elseif ($filter === 'customers') {
-            $q->whereIn('role', ['customer', 'client', 'student', 'applicant']);
-        }
-        if ($search !== '') {
-            $term = '%' . $search . '%';
-            $q->where(function ($w) use ($term) {
-                $w->where('name', 'like', $term)
-                    ->orWhere('email', 'like', $term)
-                    ->orWhere('phone', 'like', $term);
-            });
-        }
-
-        return $q->limit(200)->get(['id', 'name', 'email', 'phone', 'address', 'role']);
+        return app(PeopleDirectoryService::class)->eligibleForTasks($filter, $search);
     }
 
     public function dashboardStats()
@@ -110,6 +95,28 @@ class TaskService
                 continue;
             }
 
+            $directory = app(PeopleDirectoryService::class);
+            $resolvedAssignees = [];
+            foreach ($assigneeIds as $ref) {
+                $bid = $directory->resolveToBeyondUserId($ref);
+                if ($bid) {
+                    $resolvedAssignees[] = $bid;
+                }
+            }
+            $resolvedAssignees = array_values(array_unique($resolvedAssignees));
+            if (! count($resolvedAssignees)) {
+                continue;
+            }
+
+            $resolvedCc = [];
+            foreach (array_values(array_unique(array_filter((array) ($row['cc_ids'] ?? [])))) as $ccRef) {
+                $bid = $directory->resolveToBeyondUserId($ccRef);
+                if ($bid && ! in_array($bid, $resolvedAssignees, true)) {
+                    $resolvedCc[] = $bid;
+                }
+            }
+            $resolvedCc = array_values(array_unique($resolvedCc));
+
             $sendMode = ($row['send_mode'] ?? 'now') === 'schedule' ? 'schedule' : 'now';
             $scheduledFor = null;
             if ($sendMode === 'schedule' && ! empty($row['schedule_at'])) {
@@ -140,7 +147,7 @@ class TaskService
                 'notifications_sent' => false,
             ]);
 
-            foreach ($assigneeIds as $uid) {
+            foreach ($resolvedAssignees as $uid) {
                 TaskAssignment::create([
                     'id' => (string) Str::uuid(),
                     'task_id' => $taskId,
@@ -151,10 +158,7 @@ class TaskService
                 ]);
             }
 
-            foreach (array_values(array_unique(array_filter((array) ($row['cc_ids'] ?? [])))) as $ccId) {
-                if (in_array($ccId, $assigneeIds, true)) {
-                    continue;
-                }
+            foreach ($resolvedCc as $ccId) {
                 TaskCc::create([
                     'id' => (string) Str::uuid(),
                     'task_id' => $taskId,

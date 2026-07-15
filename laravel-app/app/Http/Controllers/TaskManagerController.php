@@ -57,7 +57,17 @@ class TaskManagerController extends Controller
     public function create()
     {
         $this->authorizeTasks('tasks.create');
-        $users = $this->tasks->eligibleUsers();
+        $users = collect($this->tasks->eligibleUsers())->map(function ($u) {
+            return is_array($u) ? $u : [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'address' => $u->address ?? '',
+                'role' => $u->role ?? '',
+                'source' => $u->source ?? 'Portal',
+            ];
+        })->values();
         $categories = $this->tasks->categories();
 
         return view('task_manager.create', compact('users', 'categories'));

@@ -1738,6 +1738,7 @@
                                         @if($customer_add_permission_active)
                                             <li id="customer-create-menu"><a href="{{route('customer.create')}}">{{trans('file.Add Customer')}}</a></li>
                                         @endif
+                                        <li id="people-transfer-menu"><a href="{{route('people.transfer')}}">Export / Import People</a></li>
                                     @endif
 
                                     @if($biller_index_permission_active)

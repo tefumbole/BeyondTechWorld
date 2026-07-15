@@ -357,6 +357,13 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 
     Route::get('customer/payment_check', 'CustomerController@CustomerPayemntCheck')->name('customer.payment_check');
 	Route::post('importcustomer', 'CustomerController@importCustomer')->name('customer.import');
+    Route::get('people/transfer', 'PeopleTransferController@index')->name('people.transfer');
+    Route::get('people/export/customers', 'PeopleTransferController@exportCustomers')->name('people.export.customers');
+    Route::get('people/export/users', 'PeopleTransferController@exportUsers')->name('people.export.users');
+    Route::get('people/sample/customers', 'PeopleTransferController@sampleCustomers')->name('people.sample.customers');
+    Route::get('people/sample/users', 'PeopleTransferController@sampleUsers')->name('people.sample.users');
+    Route::post('people/import/customers', 'PeopleTransferController@importCustomers')->name('people.import.customers');
+    Route::post('people/import/users', 'PeopleTransferController@importUsers')->name('people.import.users');
 	Route::get('customer/getDeposit/{id}', 'CustomerController@getDeposit');
 	Route::post('customer/add_deposit', 'CustomerController@addDeposit')->name('customer.addDeposit');
 	Route::post('customer/update_deposit', 'CustomerController@updateDeposit')->name('customer.updateDeposit');
