@@ -1200,6 +1200,30 @@
                                 </ul>
                             </li>
                         @endif
+                        @php
+                            $timesheets_module_permission = \Spatie\Permission\Models\Permission::where('name', 'timesheets_module')->first();
+                            $timesheets_module_active = $role && $timesheets_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $timesheets_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($timesheets_module_active)
+                            <li><a href="#timesheets-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-clock"></i><span>TimeSheets (Employee)</span></a>
+                                <ul id="timesheets-module" class="collapse list-unstyled ">
+                                    <li id="ts-activities-menu"><a href="{{ route('timesheet.activities') }}">Create Activity</a></li>
+                                    <li id="ts-fill-menu"><a href="{{ route('timesheet.fill') }}">Fill Time Sheet</a></li>
+                                    <li id="ts-week-menu"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="#timesheet-admin-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-graph-bar"></i><span>TimeSheet Admin</span></a>
+                                <ul id="timesheet-admin-module" class="collapse list-unstyled ">
+                                    <li id="tsa-report-menu"><a href="{{ route('timesheet.admin.report') }}">TimeSheet Report</a></li>
+                                    <li id="tsa-ot-menu"><a href="{{ route('timesheet.admin.overtime') }}">Overtime Report</a></li>
+                                    <li id="tsa-manage-menu"><a href="{{ route('timesheet.admin.manage') }}">Manage All</a></li>
+                                    <li id="tsa-cat-menu"><a href="{{ route('timesheet.admin.categories') }}">Categories</a></li>
+                                </ul>
+                            </li>
+                        @endif
                         @if(in_array('shops-index', $all_permission))
                             <li>
                                 <a href="#shop" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-building"></i><span>Shops</span><span></a>
@@ -2220,6 +2244,8 @@
                                 if (anchor === 'tasks-module') return 'tasks';
                                 if (anchor === 'announcements-module') return 'announcements';
                                 if (anchor === 'courses-module') return 'courses';
+                                if (anchor === 'timesheets-module') return 'timesheets';
+                                if (anchor === 'timesheet-admin-module') return 'timesheet-admin';
                                 return anchor;
                             }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';

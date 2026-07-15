@@ -41,6 +41,8 @@ class SiteMenu
             'tasks'        => 'Task Manager',
             'announcements'=> 'Announcements',
             'courses'      => 'Courses',
+            'timesheets'   => 'TimeSheets (Employee)',
+            'timesheet-admin' => 'TimeSheet Admin',
             'shop'         => 'Shops',
             'order'        => 'Online Order',
             'payments'     => 'Payments',

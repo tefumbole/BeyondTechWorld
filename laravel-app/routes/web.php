@@ -282,6 +282,29 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/course-feedback', 'CourseManagerController@feedback')->name('courses.feedback');
     Route::post('/admin/course-feedback/{id}/delete', 'CourseManagerController@destroyFeedback')->name('courses.feedback.destroy');
 
+    // Timesheet — Employee
+    Route::get('/admin/timesheet/activities', 'TimesheetEmployeeController@activities')->name('timesheet.activities');
+    Route::post('/admin/timesheet/activities', 'TimesheetEmployeeController@storeActivity')->name('timesheet.activities.store');
+    Route::post('/admin/timesheet/activities/{id}', 'TimesheetEmployeeController@updateActivity')->name('timesheet.activities.update');
+    Route::post('/admin/timesheet/activities/{id}/delete', 'TimesheetEmployeeController@destroyActivity')->name('timesheet.activities.destroy');
+    Route::get('/admin/timesheet/fill', 'TimesheetEmployeeController@fill')->name('timesheet.fill');
+    Route::post('/admin/timesheet/entries', 'TimesheetEmployeeController@storeEntry')->name('timesheet.entries.store');
+    Route::post('/admin/timesheet/entries/{id}', 'TimesheetEmployeeController@updateEntry')->name('timesheet.entries.update');
+    Route::post('/admin/timesheet/entries/{id}/delete', 'TimesheetEmployeeController@destroyEntry')->name('timesheet.entries.destroy');
+    Route::get('/admin/timesheet/working-week', 'TimesheetEmployeeController@workingWeek')->name('timesheet.working-week');
+    Route::post('/admin/timesheet/working-week', 'TimesheetEmployeeController@saveWorkingWeek')->name('timesheet.working-week.save');
+
+    // Timesheet — Admin
+    Route::get('/admin/timesheet-admin/report', 'TimesheetAdminController@report')->name('timesheet.admin.report');
+    Route::get('/admin/timesheet-admin/overtime', 'TimesheetAdminController@overtime')->name('timesheet.admin.overtime');
+    Route::get('/admin/timesheet-admin/manage', 'TimesheetAdminController@manage')->name('timesheet.admin.manage');
+    Route::post('/admin/timesheet-admin/entries/{id}/status', 'TimesheetAdminController@updateEntryStatus')->name('timesheet.admin.entries.status');
+    Route::post('/admin/timesheet-admin/entries/{id}/delete', 'TimesheetAdminController@destroyEntry')->name('timesheet.admin.entries.destroy');
+    Route::get('/admin/timesheet-admin/categories', 'TimesheetAdminController@categories')->name('timesheet.admin.categories');
+    Route::post('/admin/timesheet-admin/categories', 'TimesheetAdminController@storeCategory')->name('timesheet.admin.categories.store');
+    Route::post('/admin/timesheet-admin/categories/{id}', 'TimesheetAdminController@updateCategory')->name('timesheet.admin.categories.update');
+    Route::post('/admin/timesheet-admin/categories/{id}/delete', 'TimesheetAdminController@destroyCategory')->name('timesheet.admin.categories.destroy');
+
     // Events module (Phase 1)
     Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');
