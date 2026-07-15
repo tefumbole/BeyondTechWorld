@@ -3,15 +3,15 @@
 @section('content')
 @php $tmTab = 'tasks.index'; @endphp
 <section class="forms">
-    <div class="container-fluid">
+    <div class="container-fluid tm-shell">
         @include('task_manager.partials.tabs')
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap" style="gap:12px;">
             <div>
-                <h3 style="color:#0b3f90;" class="mb-1">All Tasks</h3>
-                <p class="text-muted mb-0">Manage tasks and track assignments.</p>
+                <h1 class="tm-title">All Tasks</h1>
+                <p class="tm-subtitle">Manage tasks and track assignments.</p>
             </div>
             @if(in_array('tasks.create', $all_permission ?? []))
-                <a href="{{ route('tasks.create') }}" class="btn btn-primary btn-sm"><i class="dripicons-plus"></i> New Task</a>
+                <a href="{{ route('tasks.create') }}" class="tm-btn-primary"><i class="dripicons-plus"></i> New Task</a>
             @endif
         </div>
 
@@ -23,14 +23,14 @@
             <input type="text" name="q" value="{{ request('q') }}" class="form-control mr-2 mb-2" placeholder="Search subject…">
             <select name="status" class="form-control mr-2 mb-2">
                 <option value="all">All statuses</option>
-                @foreach(['Pending','Accepted','In Progress','Completed'] as $s)
+                @foreach(['Pending','Accepted','In Progress','Completed','Overdue'] as $s)
                     <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ $s }}</option>
                 @endforeach
             </select>
-            <button class="btn btn-primary mb-2">Filter</button>
+            <button class="tm-btn-primary mb-2" type="submit">Filter</button>
         </form>
 
-        <div class="card">
+        <div class="tm-page-card">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
@@ -77,7 +77,7 @@
                 </table>
             </div>
             @if(method_exists($tasks, 'links'))
-                <div class="card-footer">{{ $tasks->appends(request()->query())->links() }}</div>
+                <div class="mt-3">{{ $tasks->appends(request()->query())->links() }}</div>
             @endif
         </div>
     </div>

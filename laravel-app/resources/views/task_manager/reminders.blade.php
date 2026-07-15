@@ -3,14 +3,16 @@
 @section('content')
 @php $tmTab = 'tasks.reminders'; @endphp
 <section class="forms">
-    <div class="container-fluid">
+    <div class="container-fluid tm-shell">
         @include('task_manager.partials.tabs')
-        <h3 style="color:#0b3f90;"><i class="dripicons-clock"></i> Task Reminders</h3>
-        <p class="text-muted">Scheduled WhatsApp reminders for upcoming task deadlines.</p>
+        <div class="mb-4">
+            <h1 class="tm-title"><i class="dripicons-clock"></i> Task Reminders</h1>
+            <p class="tm-subtitle">Scheduled WhatsApp reminders for upcoming task deadlines.</p>
+        </div>
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
-        <div class="card">
+        <div class="tm-page-card">
             <div class="table-responsive">
                 <table class="table mb-0">
                     <thead>
@@ -53,7 +55,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer">{{ $reminders->links() }}</div>
+            <div class="mt-3">{{ $reminders->links() }}</div>
         </div>
     </div>
 </section>

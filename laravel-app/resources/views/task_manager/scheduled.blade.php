@@ -3,11 +3,13 @@
 @section('content')
 @php $tmTab = 'tasks.scheduled'; @endphp
 <section class="forms">
-    <div class="container-fluid">
+    <div class="container-fluid tm-shell">
         @include('task_manager.partials.tabs')
-        <h3 style="color:#0b3f90;">Scheduled Tasks</h3>
-        <p class="text-muted">Tasks waiting for their send time (Africa/Kigali).</p>
-        <div class="card">
+        <div class="mb-4">
+            <h1 class="tm-title">Scheduled Tasks</h1>
+            <p class="tm-subtitle">Tasks waiting for their send time (Africa/Kigali).</p>
+        </div>
+        <div class="tm-page-card">
             <div class="table-responsive">
                 <table class="table mb-0">
                     <thead><tr><th>Subject</th><th>Send at</th><th>Assignees</th><th>Priority</th></tr></thead>
@@ -26,7 +28,7 @@
                 </table>
             </div>
             @if(method_exists($tasks, 'links'))
-                <div class="card-footer">{{ $tasks->links() }}</div>
+                <div class="mt-3">{{ $tasks->links() }}</div>
             @endif
         </div>
     </div>

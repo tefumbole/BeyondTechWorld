@@ -1,59 +1,150 @@
 @extends('layout.main')
 
 @section('content')
-@php $tmTab = 'tasks.dashboard'; @endphp
+@php
+    $tmTab = 'tasks.dashboard';
+    $pending = (int) ($stats['pending'] ?? 0);
+    $inProgress = (int) ($stats['in_progress'] ?? 0);
+    $completed = (int) ($stats['completed'] ?? 0);
+    $overdue = (int) ($stats['overdue'] ?? 0);
+    $chartMax = max(1, $pending, $inProgress, $completed, $overdue);
+@endphp
 <section class="forms">
-    <div class="container-fluid">
+    <div class="container-fluid tm-shell">
         @include('task_manager.partials.tabs')
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+
+        <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap" style="gap:12px;">
             <div>
-                <h3 class="mb-1" style="color:#0b3f90;">Task Dashboard</h3>
-                <p class="text-muted mb-0">Overview of team assignments — click a stat to open that list.</p>
+                <h1 class="tm-title">Task Dashboard</h1>
+                <p class="tm-subtitle">Overview of team assignments — click a stat to open that list.</p>
             </div>
-            <div>
-                <a href="{{ route('tasks.dashboard') }}" class="btn btn-outline-secondary btn-sm">Refresh</a>
+            <div class="d-flex" style="gap:8px;">
+                <a href="{{ route('tasks.dashboard') }}" class="tm-btn-outline"><i class="dripicons-clockwise"></i> Refresh</a>
                 @if(in_array('tasks.create', $all_permission ?? []))
-                    <a href="{{ route('tasks.create') }}" class="btn btn-primary btn-sm"><i class="dripicons-plus"></i> New Task</a>
+                    <a href="{{ route('tasks.create') }}" class="tm-btn-primary"><i class="dripicons-plus"></i> New Task</a>
                 @endif
             </div>
         </div>
 
         <div class="row">
             @foreach([
-                ['Total Tasks', $stats['total'], 'primary', route('tasks.index')],
-                ['Pending', $stats['pending'], 'secondary', route('tasks.pending')],
-                ['In Progress', $stats['in_progress'], 'warning', route('tasks.index', ['status' => 'In Progress'])],
-                ['Completed', $stats['completed'], 'success', route('tasks.index', ['status' => 'Completed'])],
-                ['Overdue', $stats['overdue'], 'danger', route('tasks.index')],
+                ['Total Tasks', $stats['total'], 'dripicons-checklist', 'blue', route('tasks.index')],
+                ['Pending', $pending, 'dripicons-clock', 'gray', route('tasks.index', ['status' => 'Pending'])],
+                ['In Progress', $inProgress, 'dripicons-clockwise', 'yellow', route('tasks.index', ['status' => 'In Progress'])],
+                ['Completed', $completed, 'dripicons-checkmark', 'green', route('tasks.index', ['status' => 'Completed'])],
+                ['Overdue', $overdue, 'dripicons-warning', 'red', route('tasks.index', ['status' => 'Overdue'])],
             ] as $card)
-                <div class="col-md-4 col-xl mb-3">
-                    <a href="{{ $card[3] }}" class="text-decoration-none">
-                        <div class="card border-0 shadow-sm h-100">
-                            <div class="card-body">
-                                <div class="text-muted small">{{ $card[0] }}</div>
-                                <div class="display-4 font-weight-bold text-{{ $card[2] }}">{{ $card[1] }}</div>
+                <div class="col-6 col-md-4 col-xl mb-3">
+                    <a href="{{ $card[4] }}" class="tm-stat">
+                        <div class="tm-stat-row">
+                            <div>
+                                <p class="tm-stat-label">{{ $card[0] }}</p>
+                                <p class="tm-stat-value">{{ $card[1] }}</p>
                             </div>
+                            <div class="tm-stat-icon {{ $card[3] }}"><i class="{{ $card[2] }}"></i></div>
                         </div>
                     </a>
                 </div>
             @endforeach
         </div>
 
-        <div class="card">
-            <div class="card-body">
-                <h5 style="color:#0b3f90;">Status Distribution</h5>
-                <p class="mb-0">Total active workload: <strong>{{ $stats['open'] }} open tasks</strong>.</p>
-                <div class="progress mt-3" style="height:28px;">
-                    @php
-                        $total = max(1, $stats['pending'] + $stats['in_progress'] + $stats['completed'] + $stats['overdue']);
-                    @endphp
-                    <div class="progress-bar bg-secondary" style="width:{{ round(100*$stats['pending']/$total) }}%">Pending {{ $stats['pending'] }}</div>
-                    <div class="progress-bar bg-warning" style="width:{{ round(100*$stats['in_progress']/$total) }}%">In Progress {{ $stats['in_progress'] }}</div>
-                    <div class="progress-bar bg-success" style="width:{{ round(100*$stats['completed']/$total) }}%">Completed {{ $stats['completed'] }}</div>
-                    <div class="progress-bar bg-danger" style="width:{{ round(100*$stats['overdue']/$total) }}%">Overdue {{ $stats['overdue'] }}</div>
+        <div class="row mt-2">
+            <div class="col-lg-6 mb-3">
+                <div class="tm-panel">
+                    <h5><i class="dripicons-graph-bar"></i> Tasks by Status</h5>
+                    <div style="height:280px;position:relative;">
+                        <canvas id="tm-bar-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="tm-panel">
+                    <h5><i class="dripicons-graph-pie"></i> Status Distribution</h5>
+                    <div style="height:240px;position:relative;">
+                        <canvas id="tm-pie-chart"></canvas>
+                    </div>
+                    <div class="tm-chip-legend">
+                        <span><i style="background:#94a3b8;"></i> Pending</span>
+                        <span><i style="background:#eab308;"></i> In Progress</span>
+                        <span><i style="background:#22c55e;"></i> Completed</span>
+                        <span><i style="background:#ef4444;"></i> Overdue</span>
+                    </div>
+                    <p class="text-muted small mb-0 mt-3">Total active workload: <strong>{{ $stats['open'] }} open tasks</strong>.</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var labels = ['Pending', 'In Progress', 'Completed', 'Overdue'];
+    var values = [{{ $pending }}, {{ $inProgress }}, {{ $completed }}, {{ $overdue }}];
+    var colors = ['#94a3b8', '#eab308', '#22c55e', '#ef4444'];
+
+    var barCtx = document.getElementById('tm-bar-chart');
+    if (barCtx) {
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 8,
+                    maxBarThickness: 48
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: {{ $chartMax }},
+                        ticks: { precision: 0 },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    var pieCtx = document.getElementById('tm-pie-chart');
+    if (pieCtx) {
+        new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return ctx.label + ': ' + ctx.raw;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
 @endsection

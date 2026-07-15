@@ -51,6 +51,24 @@ class TaskService
 
     public function allTasks($status = null, $q = null)
     {
+        if ($status === 'Overdue') {
+            $assignments = TaskAssignment::with(['task.category', 'task.ccRecipients', 'task.assignments'])
+                ->orderByDesc('created_at')
+                ->get()
+                ->filter(function ($a) {
+                    return $a->task && $this->isOverdue($a);
+                });
+            $taskIds = $assignments->pluck('task_id')->unique()->values();
+            $query = Task::with(['assignments', 'category', 'ccRecipients'])
+                ->whereIn('id', $taskIds)
+                ->orderByDesc('created_at');
+            if ($q) {
+                $query->where('title', 'like', '%' . $q . '%');
+            }
+
+            return $query->paginate(30);
+        }
+
         $query = Task::with(['assignments', 'category', 'ccRecipients'])->orderByDesc('created_at');
         if ($status === 'scheduled') {
             $query->where('is_scheduled', true)->where('notifications_sent', false);

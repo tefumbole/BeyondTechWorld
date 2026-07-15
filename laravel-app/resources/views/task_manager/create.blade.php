@@ -18,6 +18,14 @@
         ];
     })->values();
 @endphp
+<section class="forms">
+    <div class="container-fluid tm-shell">
+        @include('task_manager.partials.tabs')
+        <div class="mb-4">
+            <h1 class="tm-title">Create Task</h1>
+            <p class="tm-subtitle">Each task can have its own color, period, assignees, PDF, and schedule. Timezone: Africa/Kigali.</p>
+        </div>
+        <div class="tm-page-card">
 <style>
     .tm-chip {
         display: inline-flex; align-items: center; gap: 6px;
@@ -49,12 +57,6 @@
     .tm-send-opt.active { border-color: #0b3f90; background: #eef4ff; }
 </style>
 
-<section class="forms">
-    <div class="container-fluid">
-        @include('task_manager.partials.tabs')
-        <h3 style="color:#0b3f90;">Create Task</h3>
-        <p class="text-muted">Each task can have its own color, period, assignees, PDF, and schedule. Timezone: Africa/Kigali.</p>
-
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
@@ -63,8 +65,9 @@
             @csrf
             <div id="tm-tasks"></div>
             <button type="button" class="btn btn-light border w-100 mb-3" id="tm-add-task" style="border-style:dashed!important;">+ Add Another Task</button>
-            <button type="submit" class="btn btn-primary btn-lg"><i class="dripicons-rocket"></i> Send Tasks</button>
+            <button type="submit" class="tm-btn-primary" style="padding:12px 18px;"><i class="dripicons-rocket"></i> Send Tasks</button>
         </form>
+        </div>
     </div>
 </section>
 
