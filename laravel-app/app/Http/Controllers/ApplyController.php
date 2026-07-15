@@ -30,12 +30,15 @@ class ApplyController extends Controller
             return $job->isInternship();
         })->values();
 
+        // If there are only internships (no jobs), show Internships first.
+        $internshipsFirst = $jobs->isEmpty() && $internships->isNotEmpty();
+
         $stats = [];
         foreach ($all as $job) {
             $stats[$job->id] = $this->jobs->stats($job);
         }
 
-        return view('beyond.apply.index', compact('jobs', 'internships', 'stats', 'search'));
+        return view('beyond.apply.index', compact('jobs', 'internships', 'stats', 'search', 'internshipsFirst'));
     }
 
     public function show($id)
@@ -68,22 +71,21 @@ class ApplyController extends Controller
             'full_name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'country_code' => 'required|string|max:10',
-            'phone' => 'required|string|max:50',
-            'whatsapp_country_code' => 'required|string|max:10',
             'whatsapp_number' => 'required|string|max:50',
             'availability' => 'required|string|max:50',
             'availability_days' => 'nullable|integer|min:1|max:365',
             'cover_letter' => 'nullable|string|max:5000',
-            'cv' => 'required|file|mimes:pdf,doc,docx|max:5120',
         ];
 
         if ($job->isInternship()) {
+            $rules['cv'] = 'nullable|file|mimes:pdf,doc,docx|max:5120';
             $rules['student_id'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
             $rules['internship_letter'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
             $rules['selfie'] = 'required|file|mimes:jpeg,jpg,png|max:5120';
             $rules['signature_image'] = 'required|string|max:500000';
             $rules['agreement_accepted'] = 'required|accepted';
         } else {
+            $rules['cv'] = 'required|file|mimes:pdf,doc,docx|max:5120';
             $rules['expected_salary'] = 'nullable|string|max:100';
         }
 

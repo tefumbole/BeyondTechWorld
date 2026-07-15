@@ -134,18 +134,7 @@ class JobBoardController extends Controller
     {
         $this->authorizeJobs();
         $status = $request->get('status', 'all');
-        $jbTab = $request->get('tab');
-        if (! $jbTab) {
-            if ($status === Application::STATUS_AWAITING) {
-                $jbTab = 'jobs.awaiting';
-            } elseif ($status === Application::STATUS_SELECTED) {
-                $jbTab = 'jobs.selected';
-            } elseif ($status === Application::STATUS_REJECTED) {
-                $jbTab = 'jobs.rejected';
-            } else {
-                $jbTab = 'jobs.applications';
-            }
-        }
+        $jbTab = $request->get('tab', 'jobs.applications');
 
         $items = $this->applications->adminList(
             $request->get('job_id', 'all'),
@@ -162,6 +151,7 @@ class JobBoardController extends Controller
             'q' => $request->get('q'),
             'jbTab' => $jbTab,
             'pageTitle' => $this->applicationsTitle($status),
+            'showStatusFilter' => $jbTab === 'jobs.applications',
         ]);
     }
 
@@ -212,7 +202,7 @@ class JobBoardController extends Controller
             return 'Rejected';
         }
 
-        return 'Applications';
+        return 'All Applications';
     }
 
     protected function validatedJob(Request $request)

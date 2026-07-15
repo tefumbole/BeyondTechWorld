@@ -29,17 +29,24 @@ class BeyondWasenderService
     public function sendText($phone, $message)
     {
         if (! $this->isConfigured()) {
+            // Same Wasender credentials as OTP / shareholders / bookings.
             if (app()->environment('local')) {
-                \Log::info('[beyond-otp] Wasender not configured — OTP message: '.$message);
+                \Log::info('[beyond-whatsapp] Wasender not configured — message: '.$message);
 
                 return ['success' => true, 'dev' => true];
             }
+
+            \Log::warning('[beyond-whatsapp] Wasender not configured (missing WASENDER_API_KEY or WASENDER_SESSION_ID)');
 
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
 
         try {
             $to = $this->formatPhone($phone);
+            if (! $to) {
+                return ['success' => false, 'error' => 'Invalid WhatsApp number'];
+            }
+
             $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
             $url = $base.'/send-message';
             $payload = json_encode(['to' => $to, 'text' => $message]);
@@ -58,19 +65,30 @@ class BeyondWasenderService
             ]);
             $body = curl_exec($ch);
             $err = curl_error($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
             if ($err) {
+                \Log::warning('[beyond-whatsapp] curl error', ['error' => $err, 'to' => $to]);
+
                 return ['success' => false, 'error' => $err];
             }
 
             $decoded = json_decode($body, true);
-            if (is_array($decoded) && isset($decoded['success']) && $decoded['success'] !== true) {
-                return ['success' => false, 'error' => $decoded['message'] ?? $decoded['error'] ?? 'Wasender rejected message'];
+            if ($http >= 400 || (is_array($decoded) && isset($decoded['success']) && $decoded['success'] !== true)) {
+                $error = is_array($decoded)
+                    ? ($decoded['message'] ?? $decoded['error'] ?? 'Wasender rejected message')
+                    : ('HTTP '.$http);
+
+                \Log::warning('[beyond-whatsapp] send failed', ['error' => $error, 'to' => $to, 'http' => $http]);
+
+                return ['success' => false, 'error' => $error];
             }
 
             return ['success' => true];
         } catch (\Throwable $e) {
+            \Log::warning('[beyond-whatsapp] exception', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }

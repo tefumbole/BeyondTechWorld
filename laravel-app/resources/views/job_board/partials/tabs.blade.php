@@ -41,6 +41,7 @@
         ['jobs.index', 'Job Postings', 'dripicons-briefcase'],
         ['jobs.create', 'Add Job', 'dripicons-plus'],
         ['jobs.createInternship', 'Add Internship', 'dripicons-user'],
+        ['jobs.applications', 'All Applications', 'dripicons-user-group'],
         ['jobs.awaiting', 'Awaiting Approval', 'dripicons-clock'],
         ['jobs.selected', 'Selected', 'dripicons-checkmark'],
         ['jobs.rejected', 'Rejected', 'dripicons-wrong'],

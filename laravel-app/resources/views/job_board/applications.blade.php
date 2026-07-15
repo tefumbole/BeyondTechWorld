@@ -27,7 +27,23 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4 mb-2">
+                @if(!empty($showStatusFilter))
+                    <div class="col-md-3 mb-2">
+                        <label class="jb-label">Status</label>
+                        <select name="status" class="jb-field">
+                            @foreach([
+                                'all' => 'All',
+                                'awaiting_approval' => 'Awaiting Approval',
+                                'selected' => 'Selected',
+                                'rejected' => 'Rejected',
+                                'hired' => 'Hired',
+                            ] as $val => $label)
+                                <option value="{{ $val }}" @if(($status ?? 'all')===$val) selected @endif>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div class="col-md-{{ !empty($showStatusFilter) ? '3' : '4' }} mb-2">
                     <label class="jb-label">Search</label>
                     <input type="search" name="q" value="{{ $q }}" class="jb-field" placeholder="Name, email, WhatsApp, reference…">
                 </div>

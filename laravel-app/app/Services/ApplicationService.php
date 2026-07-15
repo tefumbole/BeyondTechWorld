@@ -29,15 +29,16 @@ class ApplicationService
         return $ref;
     }
 
-    public function apply(JobPosting $job, array $data, UploadedFile $cv, $userId = null, array $extraFiles = [])
+    public function apply(JobPosting $job, array $data, UploadedFile $cv = null, $userId = null, array $extraFiles = [])
     {
-        [$cvUrl, $cvPath] = $this->storeCv($job, $cv);
+        $cvUrl = null;
+        $cvPath = null;
+        if ($cv) {
+            [$cvUrl, $cvPath] = $this->storeCv($job, $cv);
+        }
 
-        $phone = $this->combinePhone($data['country_code'] ?? '', $data['phone'] ?? '');
-        $whatsapp = $this->combinePhone(
-            $data['whatsapp_country_code'] ?? ($data['country_code'] ?? ''),
-            $data['whatsapp_number'] ?? ($data['phone'] ?? '')
-        );
+        // Single WhatsApp number is used for contact + notifications.
+        $whatsapp = $this->combinePhone($data['country_code'] ?? '', $data['whatsapp_number'] ?? ($data['phone'] ?? ''));
 
         $payload = [
             'id' => (string) Str::uuid(),
@@ -45,7 +46,7 @@ class ApplicationService
             'user_id' => $userId,
             'full_name' => trim($data['full_name']),
             'email' => trim($data['email']),
-            'phone' => $phone,
+            'phone' => $whatsapp,
             'whatsapp_number' => $whatsapp,
             'country' => $data['country'] ?? null,
             'cover_letter' => $data['cover_letter'] ?? null,
@@ -62,10 +63,10 @@ class ApplicationService
 
         if ($job->isInternship()) {
             if (! empty($extraFiles['student_id'])) {
-                $payload['student_id_path'] = $this->storeImageUpload($extraFiles['student_id'], 'student_id', $job->id);
+                $payload['student_id_path'] = $this->storeUploadFlexible($extraFiles['student_id'], 'student_id', $job->id);
             }
             if (! empty($extraFiles['internship_letter'])) {
-                $payload['internship_letter_path'] = $this->storeDocUpload($extraFiles['internship_letter'], 'internship_letter', $job->id);
+                $payload['internship_letter_path'] = $this->storeUploadFlexible($extraFiles['internship_letter'], 'internship_letter', $job->id);
             }
             if (! empty($extraFiles['selfie'])) {
                 $payload['selfie_path'] = $this->storeImageUpload($extraFiles['selfie'], 'selfie', $job->id);
@@ -116,6 +117,16 @@ class ApplicationService
         $file->move($dir, $name);
 
         return 'uploads/applications/'.$name;
+    }
+
+    protected function storeUploadFlexible(UploadedFile $file, $prefix, $jobId)
+    {
+        $mime = (string) $file->getMimeType();
+        if (strpos($mime, 'image/') === 0) {
+            return $this->storeImageUpload($file, $prefix, $jobId);
+        }
+
+        return $this->storeDocUpload($file, $prefix, $jobId);
     }
 
     protected function storeImageUpload(UploadedFile $file, $prefix, $jobId)

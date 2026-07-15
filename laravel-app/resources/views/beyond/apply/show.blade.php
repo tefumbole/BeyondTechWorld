@@ -112,26 +112,15 @@
                                 <input required name="email" value="{{ old('email') }}" type="email" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
                             </div>
                             <div>
-                                <label class="text-sm font-semibold text-gray-700">Phone *</label>
+                                <label class="text-sm font-semibold text-gray-700">WhatsApp Number *</label>
+                                <p class="text-xs text-gray-500 mt-0.5">Your only contact number — used for all application status notifications.</p>
                                 <div class="flex gap-2 mt-1">
                                     <select name="country_code" class="rounded-md border border-gray-200 px-2 py-2 focus:border-brand-blue outline-none w-32">
                                         @foreach ($countryCodes as $code => $label)
-                                            <option value="{{ $code }}" @if(old('country_code', '+250') === $code) selected @endif>{{ $code }}</option>
+                                            <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
                                         @endforeach
                                     </select>
-                                    <input required name="phone" value="{{ old('phone') }}" type="tel" placeholder="788 123 456" class="flex-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">WhatsApp Number *</label>
-                                <p class="text-xs text-gray-500 mt-0.5">Used for application status notifications.</p>
-                                <div class="flex gap-2 mt-1">
-                                    <select name="whatsapp_country_code" class="rounded-md border border-gray-200 px-2 py-2 focus:border-brand-blue outline-none w-32">
-                                        @foreach ($countryCodes as $code => $label)
-                                            <option value="{{ $code }}" @if(old('whatsapp_country_code', old('country_code', '+250')) === $code) selected @endif>{{ $code }}</option>
-                                        @endforeach
-                                    </select>
-                                    <input required name="whatsapp_number" value="{{ old('whatsapp_number') }}" type="tel" placeholder="788 123 456" class="flex-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
+                                    <input required name="whatsapp_number" value="{{ old('whatsapp_number') }}" type="tel" placeholder="675 321 739" class="flex-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
                                 </div>
                             </div>
                             @unless($isInternship)
@@ -152,22 +141,32 @@
                                 <label class="text-sm font-semibold text-gray-700">Available in (days)</label>
                                 <input name="availability_days" value="{{ old('availability_days') }}" type="number" min="1" max="365" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
                             </div>
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">Resume / CV (PDF, DOC, DOCX) *</label>
-                                <input required name="cv" type="file" accept=".pdf,.doc,.docx"
-                                       class="w-full mt-1 text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-brand-blue file:text-white file:font-semibold hover:file:bg-brand-dark">
-                            </div>
+                            @unless($isInternship)
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">Resume / CV (PDF, DOC, DOCX) *</label>
+                                    <input required name="cv" type="file" accept=".pdf,.doc,.docx"
+                                           class="w-full mt-1 text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-brand-blue file:text-white file:font-semibold hover:file:bg-brand-dark">
+                                </div>
+                            @else
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">Resume / CV (optional)</label>
+                                    <input name="cv" type="file" accept=".pdf,.doc,.docx"
+                                           class="w-full mt-1 text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-brand-blue file:text-white file:font-semibold hover:file:bg-brand-dark">
+                                    <p class="text-xs text-gray-500 mt-1">Not required for internships.</p>
+                                </div>
+                            @endunless
 
                             @if ($isInternship)
                                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-3">
                                     <p class="text-sm font-bold text-emerald-900">Internship documents</p>
+                                    <p class="text-xs text-emerald-800">You can snap a photo with your camera or attach an existing file.</p>
                                     <div>
                                         <label class="text-sm font-semibold text-gray-700">Student ID *</label>
-                                        <input required name="student_id" type="file" accept="image/*,.pdf" class="w-full mt-1 text-sm">
+                                        <input required name="student_id" type="file" accept="image/*,.pdf" capture="environment" class="w-full mt-1 text-sm">
                                     </div>
                                     <div>
                                         <label class="text-sm font-semibold text-gray-700">Internship Letter *</label>
-                                        <input required name="internship_letter" type="file" accept="image/*,.pdf" class="w-full mt-1 text-sm">
+                                        <input required name="internship_letter" type="file" accept="image/*,.pdf" capture="environment" class="w-full mt-1 text-sm">
                                     </div>
                                     <div>
                                         <label class="text-sm font-semibold text-gray-700">Selfie / Photo *</label>

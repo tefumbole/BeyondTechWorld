@@ -1193,6 +1193,7 @@
                                     <li id="jobs-list-menu"><a href="{{ route('jobs.index') }}">Job Postings</a></li>
                                     <li id="jobs-create-menu"><a href="{{ route('jobs.create') }}">Add Job</a></li>
                                     <li id="jobs-create-intern-menu"><a href="{{ route('jobs.createInternship') }}">Add Internship</a></li>
+                                    <li id="jobs-apps-menu"><a href="{{ route('jobs.applications') }}">All Applications</a></li>
                                     <li id="jobs-awaiting-menu"><a href="{{ route('jobs.awaiting') }}">Awaiting Approval</a></li>
                                     <li id="jobs-selected-menu"><a href="{{ route('jobs.selected') }}">Selected</a></li>
                                     <li id="jobs-rejected-menu"><a href="{{ route('jobs.rejected') }}">Rejected</a></li>
