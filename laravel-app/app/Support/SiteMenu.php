@@ -39,6 +39,7 @@ class SiteMenu
             'booking'      => 'Rental Module',
             'events'       => 'Events',
             'tasks'        => 'Task Manager',
+            'announcements'=> 'Announcements',
             'shop'         => 'Shops',
             'order'        => 'Online Order',
             'payments'     => 'Payments',

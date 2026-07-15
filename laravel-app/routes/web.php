@@ -244,6 +244,23 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/tasks/settings/templates/{id}/delete', 'TaskManagerController@destroyTemplate')->name('tasks.settings.templates.destroy');
     Route::get('/admin/tasks/users/search', 'TaskManagerController@searchUsers')->name('tasks.users.search');
 
+    // WhatsApp Announcements Manager (AlphaBridge-style)
+    Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');
+    Route::post('/admin/announcements', 'AnnouncementManagerController@store')->name('announcements.store');
+    Route::get('/admin/announcements/list', 'AnnouncementManagerController@index')->name('announcements.index');
+    Route::get('/admin/announcements/scheduled', 'AnnouncementManagerController@scheduled')->name('announcements.scheduled');
+    Route::get('/admin/announcements/reminders', 'AnnouncementManagerController@reminders')->name('announcements.reminders');
+    Route::post('/admin/announcements/reminders/{id}/delete', 'AnnouncementManagerController@deleteReminder')->name('announcements.reminders.delete');
+    Route::post('/admin/announcements/{id}/delete', 'AnnouncementManagerController@destroy')->name('announcements.destroy');
+    Route::get('/admin/announcements/templates', 'AnnouncementManagerController@templates')->name('announcements.templates');
+    Route::post('/admin/announcements/templates', 'AnnouncementManagerController@storeTemplate')->name('announcements.templates.store');
+    Route::post('/admin/announcements/templates/{id}/delete', 'AnnouncementManagerController@destroyTemplate')->name('announcements.templates.destroy');
+    Route::get('/admin/announcements/categories', 'AnnouncementManagerController@categories')->name('announcements.categories');
+    Route::post('/admin/announcements/categories', 'AnnouncementManagerController@storeCategory')->name('announcements.categories.store');
+    Route::post('/admin/announcements/categories/{id}/delete', 'AnnouncementManagerController@destroyCategory')->name('announcements.categories.destroy');
+    Route::get('/admin/announcements/settings', 'AnnouncementManagerController@settings')->name('announcements.settings');
+    Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
+
     // Events module (Phase 1)
     Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');

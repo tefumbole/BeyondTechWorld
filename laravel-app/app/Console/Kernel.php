@@ -35,6 +35,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('events:publish-scheduled')->everyMinute();
         $schedule->command('events:process-reminders')->everyMinute();
         $schedule->command('tasks:process')->everyMinute();
+        $schedule->command('announcements:process')->everyMinute();
     }
 
     /**

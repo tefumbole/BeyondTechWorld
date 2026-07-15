@@ -1363,7 +1363,32 @@
                                 </ul>
                             </li>
                         @endif
-                        @if(in_array('announcement_index', $all_permission))
+                        @php
+                            $announcements_module_permission = \Spatie\Permission\Models\Permission::where('name', 'announcements_module')->first();
+                            $announcements_module_active = $role && $announcements_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $announcements_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                            if (! $announcements_module_active && in_array('announcement_index', $all_permission ?? [])) {
+                                $announcements_module_active = true;
+                            }
+                        @endphp
+                        @if($announcements_module_active)
+                            <li><a href="#announcements-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-bullhorn"></i><span>Announcements</span></a>
+                                <ul id="announcements-module" class="collapse list-unstyled ">
+                                    <li id="announcements-compose-menu"><a href="{{ route('announcements.compose') }}">Compose</a></li>
+                                    <li id="announcements-list-menu"><a href="{{ route('announcements.index') }}">All Announcements</a></li>
+                                    <li id="announcements-scheduled-menu"><a href="{{ route('announcements.scheduled') }}">Scheduled</a></li>
+                                    <li id="announcements-reminders-menu"><a href="{{ route('announcements.reminders') }}">Reminders</a></li>
+                                    <li id="announcements-templates-menu"><a href="{{ route('announcements.templates') }}">Templates</a></li>
+                                    <li id="announcements-categories-menu"><a href="{{ route('announcements.categories') }}">Categories</a></li>
+                                    <li id="announcements-settings-menu"><a href="{{ route('announcements.settings') }}">Settings</a></li>
+                                    @if(in_array('announcement_index', $all_permission ?? []))
+                                        <li id="announcement-legacy-menu"><a href="{{ route('announcement.index') }}">Legacy Letters</a></li>
+                                    @endif
+                                </ul>
+                            </li>
+                        @elseif(in_array('announcement_index', $all_permission))
                             <li id="announcement-main-menu">
                                 <a href="{{ route('announcement.index') }}"> <i class="fa fa-bullhorn"></i><span>{{trans('file.Announcement')}}</span></a>
                             </li>
@@ -2173,6 +2198,7 @@
                                 // collapse target ids differ from Site Content reorder keys
                                 if (anchor === 'events-module') return 'events';
                                 if (anchor === 'tasks-module') return 'tasks';
+                                if (anchor === 'announcements-module') return 'announcements';
                                 return anchor;
                             }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';
