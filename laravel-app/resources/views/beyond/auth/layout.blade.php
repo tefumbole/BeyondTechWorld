@@ -20,7 +20,7 @@
             <div class="relative mx-auto mb-4 h-24 w-24">
                 <div class="beyond-logo-ring absolute inset-0 rounded-full"></div>
                 <div class="absolute inset-[3px] rounded-full bg-white flex items-center justify-center overflow-hidden">
-                    <img src="/branding/beyond-logo.png" alt="Beyond Enterprise"
+                    <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}"
                          class="beyond-logo-spin h-[80%] w-[80%] object-contain">
                 </div>
             </div>

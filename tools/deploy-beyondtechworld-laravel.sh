@@ -59,12 +59,16 @@ fix_writable_dirs() {
   mkdir -p \
     storage/framework/{cache/data,sessions,views} \
     storage/logs \
-    bootstrap/cache
+    bootstrap/cache \
+    public/logo \
+    public/images/site \
+    public/uploads/applications
 
   # Ownership: PHP-FPM must write here. Root-created cache shards cause admin 500s.
-  chown -R "$WEB_USER:$WEB_GROUP" storage bootstrap/cache
+  chown -R "$WEB_USER:$WEB_GROUP" storage bootstrap/cache public/logo public/images public/uploads 2>/dev/null || true
   find storage bootstrap/cache -type d -exec chmod 775 {} \;
   find storage bootstrap/cache -type f -exec chmod 664 {} \; 2>/dev/null || true
+  chmod -R ug+rwx public/logo public/images public/uploads 2>/dev/null || true
 
   # Sanity: discard root-owned leftovers if any remain outside storage (rare)
   if [[ "$(id -u)" -eq 0 ]]; then

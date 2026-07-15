@@ -48,7 +48,7 @@
 
     <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full mt-20 md:mt-0">
         <div class="mb-8 flex flex-col items-center">
-            <img src="/branding/beyond-logo.png" alt="Beyond Enterprise" class="h-20 md:h-24 w-auto object-contain mb-6 drop-shadow-2xl">
+            <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}" class="h-20 md:h-24 w-auto object-contain mb-6 drop-shadow-2xl">
             <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 drop-shadow-2xl tracking-tight">
                 {!! \App\Support\SiteContent::html('home.hero_title', 'Your Technology Bridge to <span class="text-brand-gold">Kigali</span>') !!}
             </h1>

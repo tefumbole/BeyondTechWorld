@@ -3,9 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Beyond Enterprise') | Beyond Enterprise</title>
+    @php
+        $siteLogoUrl = \App\Support\SiteBrand::logoUrl($general_setting ?? null);
+        $siteTitle = \App\Support\SiteBrand::siteTitle($general_setting ?? null);
+        $webUser = Auth::guard('web')->user();
+        $beyondUser = Auth::guard('beyond')->user();
+        $headerUser = $webUser ?: $beyondUser;
+        $isAdminSession = (bool) $webUser;
+        $headerName = $headerUser ? $headerUser->name : '';
+        $headerRole = $isAdminSession
+            ? 'ADMINISTRATOR'
+            : strtoupper(str_replace('_', ' ', optional($beyondUser)->role ?: 'USER'));
+        $headerInitial = $headerName !== '' ? mb_strtoupper(mb_substr($headerName, 0, 1)) : 'U';
+        $shortName = \Illuminate\Support\Str::limit($headerName, 18, '…');
+    @endphp
+    <title>@yield('title', $siteTitle) | {{ $siteTitle }}</title>
     <meta name="description" content="@yield('meta_description', 'Beyond Enterprise — IT consultancy, networks, CCTV security, and professional sound/screen/lighting solutions.')">
-    <link rel="icon" href="/branding/beyond-logo.png">
+    <link rel="icon" href="{{ $siteLogoUrl }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -53,11 +67,11 @@
     $currentUrl = url()->current();
 @endphp
 
-<header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false }">
+<header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="userMenu = false">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-20">
             <a href="{{ url('/') }}" class="flex items-center">
-                <img src="/branding/beyond-logo.png" alt="Beyond Enterprise"
+                <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}"
                      class="h-[40px] md:h-[50px] lg:h-[60px] w-auto object-contain hover:scale-105 transition-all duration-300">
             </a>
 
@@ -86,17 +100,49 @@
                 <a href="https://mail.hostinger.com" target="_blank" rel="noopener" class="text-white hover:text-brand-gold transition-colors" title="Webmail">
                     <i data-lucide="mail" class="w-5 h-5"></i>
                 </a>
-                @auth('beyond')
-                    <a href="{{ url('/user/profile') }}" class="text-white hover:text-brand-gold text-sm font-medium hidden xl:inline">{{ Auth::guard('beyond')->user()->name }}</a>
-                    <form method="POST" action="{{ route('beyond.logout') }}" class="inline">
-                        @csrf
-                        <button type="submit" class="bg-brand-dark border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-blue font-medium transition-all rounded-md px-4 py-2">Logout</button>
-                    </form>
+
+                @if ($headerUser)
+                    <div class="relative" @click.outside="userMenu = false">
+                        <button type="button" @click="userMenu = !userMenu"
+                                class="flex items-center gap-2.5 pl-1 pr-1 py-1 rounded-md hover:bg-white/10 transition-colors text-left">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-brand-gold bg-gradient-to-br from-brand-gold to-brand-dark text-brand-blue font-bold text-lg">
+                                {{ $headerInitial }}
+                            </span>
+                            <span class="hidden xl:flex flex-col leading-tight min-w-0">
+                                <span class="text-white font-semibold text-sm truncate max-w-[140px]">{{ $shortName }}</span>
+                                <span class="text-brand-gold text-[11px] font-bold tracking-wide uppercase">{{ $headerRole }}</span>
+                            </span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-sky-200/90 shrink-0"></i>
+                        </button>
+                        <div x-show="userMenu" x-cloak x-transition
+                             class="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-xl border border-gray-100 py-1 z-50">
+                            <div class="px-4 py-2.5 text-sm font-bold text-gray-800">My Account</div>
+                            <div class="border-t border-gray-100"></div>
+                            @if ($isAdminSession)
+                                <a href="{{ url('/admin') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                    <i data-lucide="layout-grid" class="w-4 h-4 text-gray-700"></i> Admin Dashboard
+                                </a>
+                                <a href="{{ url('/') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                    <i data-lucide="home" class="w-4 h-4 text-gray-700"></i> Home Page
+                                </a>
+                            @else
+                                <a href="{{ url('/user/profile') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                    <i data-lucide="user" class="w-4 h-4 text-gray-700"></i> My Profile
+                                </a>
+                            @endif
+                            <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
+                                @csrf
+                                <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                                    <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 @else
                     <a href="{{ url('/login') }}" class="bg-brand-dark border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-blue font-medium transition-all rounded-md px-4 py-2 flex items-center gap-2">
                         <i data-lucide="log-in" class="w-4 h-4"></i> Login
                     </a>
-                @endauth
+                @endif
             </div>
 
             <button @click="open = !open" class="lg:hidden text-white hover:text-brand-gold transition-colors">
@@ -110,18 +156,30 @@
                 @foreach ($navLinks as $link)
                     <a href="{{ $link['url'] }}" class="text-lg font-medium {{ !empty($link['special']) ? 'text-brand-gold' : 'text-white hover:text-brand-gold' }}">{{ $link['label'] }}</a>
                 @endforeach
-                <div class="pt-3 border-t border-white/10">
-                    @auth('beyond')
-                        <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
-                        <form method="POST" action="{{ route('beyond.logout') }}" class="mt-2">
+                <div class="pt-3 border-t border-white/10 space-y-2">
+                    @if ($headerUser)
+                        <div class="flex items-center gap-3 px-1 py-2">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-brand-gold bg-brand-gold text-brand-blue font-bold">{{ $headerInitial }}</span>
+                            <div>
+                                <div class="text-white font-semibold text-sm">{{ $headerName }}</div>
+                                <div class="text-brand-gold text-xs font-bold uppercase">{{ $headerRole }}</div>
+                            </div>
+                        </div>
+                        @if ($isAdminSession)
+                            <a href="{{ url('/admin') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">Admin Dashboard</a>
+                            <a href="{{ url('/') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white">Home Page</a>
+                        @else
+                            <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
+                        @endif
+                        <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
                             @csrf
-                            <button type="submit" class="w-full py-2 rounded border border-white/20 text-white">Logout</button>
+                            <button type="submit" class="w-full py-2 rounded border border-red-400/50 text-red-300">Logout</button>
                         </form>
                     @else
                         <a href="{{ url('/login') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-brand-gold text-brand-gold font-medium">
                             <i data-lucide="log-in" class="w-5 h-5"></i> Login
                         </a>
-                    @endauth
+                    @endif
                 </div>
             </nav>
         </div>
@@ -137,9 +195,9 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
                 <a href="{{ url('/') }}" class="inline-block mb-2">
-                    <img src="/branding/beyond-logo.png" alt="Beyond Enterprise" class="h-[50px] w-auto object-contain">
+                    <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="h-[50px] w-auto object-contain">
                 </a>
-                <div class="text-2xl font-bold"><span class="text-brand-gold">Beyond Enterprise</span></div>
+                <div class="text-2xl font-bold"><span class="text-brand-gold">{{ $siteTitle }}</span></div>
                 <p class="text-gray-300 text-sm mt-4">Your Technology Bridge to Kigali. Professional IT, networking, security, and audio-visual solutions.</p>
             </div>
             <div>

@@ -62,6 +62,19 @@
                         <input type="number" name="max_applicants" min="1" class="jb-field" value="{{ old('max_applicants', optional($job)->max_applicants) }}">
                     </div>
                     <div class="col-12 mb-3">
+                        <div class="jb-card" style="padding:14px 16px;border:1px solid #d4af37;background:#fffbeb;">
+                            <label class="jb-label mb-1" style="color:#003D82;">Countdown timer</label>
+                            <p class="text-muted mb-2" style="font-size:13px;margin:0 0 10px;">
+                                Show a live days/hours countdown on the public Apply Now page. Requires a deadline above.
+                            </p>
+                            <label class="mb-0 d-flex align-items-center" style="gap:10px;font-weight:600;">
+                                <input type="checkbox" name="enable_countdown" value="1" style="width:18px;height:18px;"
+                                       @if(old('enable_countdown', optional($job)->enable_countdown ?? true)) checked @endif>
+                                Enable deadline countdown on public page
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12 mb-3">
                         <label class="jb-label">Description</label>
                         <textarea name="description" class="jb-field" rows="4">{{ old('description', optional($job)->description) }}</textarea>
                     </div>
@@ -72,12 +85,6 @@
                     <div class="col-md-6 mb-3">
                         <label class="jb-label">Responsibilities</label>
                         <textarea name="responsibilities" class="jb-field" rows="4">{{ old('responsibilities', optional($job)->responsibilities) }}</textarea>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <label class="mb-0 d-flex align-items-center" style="gap:8px;">
-                            <input type="checkbox" name="enable_countdown" value="1" @if(old('enable_countdown', optional($job)->enable_countdown ?? true)) checked @endif>
-                            Enable deadline countdown on public page
-                        </label>
                     </div>
                 </div>
                 <div class="d-flex" style="gap:10px;">

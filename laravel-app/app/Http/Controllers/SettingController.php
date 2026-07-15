@@ -137,32 +137,42 @@ class SettingController extends Controller
         $general_setting->profit_percentage = $data['profit_percentage'];
         $general_setting->letter_serial_no = $data['letter_serial_no'];
         $general_setting->commission = $data['commission'];
+        $logoDir = base_path('public/logo');
+        if (! is_dir($logoDir)) {
+            if (! @mkdir($logoDir, 0775, true) && ! is_dir($logoDir)) {
+                return redirect()->back()->with('not_permitted', 'Could not create public/logo directory. Check server permissions.');
+            }
+        }
+        if (! is_writable($logoDir)) {
+            @chmod($logoDir, 0775);
+        }
+
         $logo = $request->site_logo;
         $email_header = $request->email_header;
         $email_footer = $request->email_footer;
         $email_water_mark = $request->email_water_mark;
         if ($logo) {
             $ext = pathinfo($logo->getClientOriginalName(), PATHINFO_EXTENSION);
-            $logoName = date("Ymdhis") . '.' . $ext;
-            $logo->move('public/logo', $logoName);
+            $logoName = date('Ymdhis').'.'.$ext;
+            $logo->move($logoDir, $logoName);
             $general_setting->site_logo = $logoName;
         }
         if ($email_header) {
             $ext = pathinfo($email_header->getClientOriginalName(), PATHINFO_EXTENSION);
-            $headerName = date("Ymdhi") . '.' . $ext;
-            $email_header->move('public/logo', $headerName);
+            $headerName = date('Ymdhi').'.'.$ext;
+            $email_header->move($logoDir, $headerName);
             $general_setting->email_header = $headerName;
         }
         if ($email_footer) {
             $ext = pathinfo($email_footer->getClientOriginalName(), PATHINFO_EXTENSION);
-            $footerName = date("Ymdis") . '.' . $ext;
-            $email_footer->move('public/logo', $footerName);
+            $footerName = date('Ymdis').'.'.$ext;
+            $email_footer->move($logoDir, $footerName);
             $general_setting->email_footer = $footerName;
         }
         if ($email_water_mark) {
             $ext = pathinfo($email_water_mark->getClientOriginalName(), PATHINFO_EXTENSION);
-            $waterMarkName = date("Ymdhs") . '.' . $ext;
-            $email_water_mark->move('public/logo', $waterMarkName);
+            $waterMarkName = date('Ymdhs').'.'.$ext;
+            $email_water_mark->move($logoDir, $waterMarkName);
             $general_setting->email_water_mark = $waterMarkName;
         }
         $general_setting->save();
