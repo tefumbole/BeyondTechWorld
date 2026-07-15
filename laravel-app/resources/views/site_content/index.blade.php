@@ -20,6 +20,20 @@
     .reorder-actions .btn { min-width: 34px; margin-left: 3px; }
     .reorder-actions .move-top,
     .reorder-actions .move-bottom { font-size: 14px; line-height: 1; }
+    .reorder-list .list-group-item { cursor: grab; }
+    .reorder-list .list-group-item.sortable-ghost {
+        opacity: 0.45;
+        border: 2px dashed #0b3f90;
+        background: #eef4ff;
+    }
+    .reorder-list .list-group-item.sortable-drag { cursor: grabbing; box-shadow: 0 8px 20px rgba(11,63,144,0.18); }
+    .reorder-drag-handle {
+        color: #0b3f90;
+        font-weight: 700;
+        font-size: 12px;
+        margin-right: 10px;
+        user-select: none;
+    }
 </style>
 <section class="forms">
     <div class="container-fluid">
@@ -77,25 +91,25 @@
                             $order = $sideOrder;
                             $action = route('site-content.side-menu');
                             $heading = 'Side Menu — Order';
-                            $hint = 'Reorder the admin sidebar. Use the arrows for one step, or Top/Bottom to jump instantly, then press Save.';
+                            $hint = 'Drag items to reorder the admin sidebar (or use arrows). Click Save when done.';
                         } elseif ($tab == 'settings-menu') {
                             $items = $settings;
                             $order = $settingsOrder;
                             $action = route('site-content.settings-menu');
                             $heading = 'Settings Menu — Order';
-                            $hint = 'Reorder items inside Settings (gear icon) in the admin sidebar. Use Top/Bottom for quick placement, then press Save.';
+                            $hint = 'Drag items to reorder Settings submenu items (or use arrows). Click Save when done.';
                         } elseif ($tab == 'content-tabs') {
                             $items = \App\Support\SiteContent::contentTabItems();
                             $order = \App\Support\SiteContent::contentTabOrder();
                             $action = route('site-content.content-tabs');
                             $heading = 'Settings — Content Tab Order';
-                            $hint = 'Reorder the page tabs (Home, About, Services, Projects, Contact, Gallery) shown in this screen. Use Top/Bottom for quick placement, then press Save.';
+                            $hint = 'Drag items to reorder Site Content page tabs (or use arrows). Click Save when done.';
                         } else {
                             $items = $landing;
                             $order = $landingOrder;
                             $action = route('site-content.landing-menu');
                             $heading = 'Landing Menu — Order';
-                            $hint = 'Reorder the public site header menu. Use Top/Bottom for quick placement, then press Save.';
+                            $hint = 'Drag items to reorder the public site header menu (or use arrows). Click Save when done.';
                         }
                     @endphp
                     <h5 class="mb-1">{{ $heading }}</h5>
@@ -105,10 +119,13 @@
                         <ul class="list-group reorder-list" id="reorder-list" style="max-width:720px;">
                             @foreach($order as $key)
                                 @if(isset($items[$key]))
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>{{ $items[$key] }}</span>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center" data-key="{{ $key }}">
+                                        <span class="d-flex align-items-center">
+                                            <span class="reorder-drag-handle" title="Drag to reorder">⋮⋮</span>
+                                            <span>{{ $items[$key] }}</span>
+                                        </span>
                                         <span class="reorder-actions">
-                                            <input type="hidden" name="order[]" value="{{ $key }}">
+                                            <input type="hidden" name="order[]" value="{{ $key }}" class="reorder-order-input">
                                             <button type="button" class="btn btn-sm btn-outline-success move-top" title="Send to top">&#8679;</button>
                                             <button type="button" class="btn btn-sm btn-light move-up" title="Move up one">&#9650;</button>
                                             <button type="button" class="btn btn-sm btn-light move-down" title="Move down one">&#9660;</button>
@@ -165,10 +182,19 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 (function () {
     var list = document.getElementById('reorder-list');
     if (!list) return;
+
+    function syncOrderInputs() {
+        Array.prototype.forEach.call(list.children, function (li) {
+            var input = li.querySelector('.reorder-order-input');
+            if (input) input.value = li.getAttribute('data-key') || input.value;
+        });
+    }
+
     list.addEventListener('click', function (e) {
         var btn = e.target.closest('button');
         if (!btn) return;
@@ -185,7 +211,20 @@
             var next = li.nextElementSibling;
             if (next) list.insertBefore(next, li);
         }
+        syncOrderInputs();
     });
+
+    if (window.Sortable) {
+        Sortable.create(list, {
+            animation: 150,
+            handle: '.reorder-drag-handle, .list-group-item',
+            filter: 'button, input, a',
+            preventOnFilter: false,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: syncOrderInputs
+        });
+    }
 })();
 </script>
 @endsection
