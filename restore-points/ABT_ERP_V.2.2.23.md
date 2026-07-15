@@ -39,7 +39,15 @@ After a restore, return `main` to latest intentionally — do not leave producti
 
 ## Database / file backup
 
-See matching files under `backups/` (local) and/or `/var/www/beyondtechworld/backups/` on the VPS for this restore point stamp.
+Production backup created with this restore point:
+
+| File | Location |
+|------|----------|
+| SQL dump (~867 KB) | `backups/production-ABT_ERP_V.2.2.23-20260715-215549.sql` (also on VPS) |
+| Uploads/logo tar (~19 MB) | `backups/production-files-ABT_ERP_V.2.2.23-20260715-215549.tar.gz` |
+| Manifest | `backups/production-ABT_ERP_V.2.2.23-20260715-215549.manifest.txt` |
+
+VPS copies: `/var/www/beyondtechworld/backups/production-ABT_ERP_V.2.2.23-20260715-215549.*`
 
 ## Create the next restore point
 
