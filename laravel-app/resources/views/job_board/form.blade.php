@@ -1,16 +1,31 @@
 @extends('layout.main')
 
 @section('content')
-@php $editing = (bool) $job; @endphp
+@php
+    $editing = (bool) $job;
+    $postingType = old('posting_type', $postingType ?? optional($job)->posting_type ?: 'job');
+    $isInternship = $postingType === 'internship';
+@endphp
 <section class="forms">
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
         <div class="mb-4">
-            <h1 class="jb-title">{{ $editing ? 'Edit Job' : 'Add Job' }}</h1>
-            <p class="jb-subtitle">{{ $editing ? 'Update this posting.' : 'Create a new public job posting.' }}</p>
+            <h1 class="jb-title">
+                @if($editing)
+                    Edit {{ $isInternship ? 'Internship' : 'Job' }}
+                @else
+                    Add {{ $isInternship ? 'Internship' : 'Job' }}
+                @endif
+            </h1>
+            <p class="jb-subtitle">
+                {{ $editing ? 'Update this posting.' : ($isInternship ? 'Create a public internship advert (no salary).' : 'Create a public job posting with salary.') }}
+            </p>
         </div>
 
+        @if(session('message'))
+            <div class="alert alert-success">{{ session('message') }}</div>
+        @endif
         @if($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
@@ -18,8 +33,9 @@
         @endif
 
         <div class="jb-card">
-            <form method="POST" action="{{ $editing ? route('jobs.update', $job->id) : route('jobs.store') }}">
+            <form method="POST" action="{{ $editing ? route('jobs.update', $job->id) : route('jobs.store') }}" id="job-form">
                 @csrf
+                <input type="hidden" name="posting_type" value="{{ $postingType }}">
                 <div class="row">
                     <div class="col-md-8 mb-3">
                         <label class="jb-label">Title *</label>
@@ -43,12 +59,23 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Employment Type</label>
-                        <input type="text" name="employment_type" class="jb-field" placeholder="Full-Time" value="{{ old('employment_type', optional($job)->employment_type ?: optional($job)->type) }}">
+                        <input type="text" name="employment_type" class="jb-field"
+                               placeholder="{{ $isInternship ? 'Internship' : 'Full-Time' }}"
+                               value="{{ old('employment_type', optional($job)->employment_type ?: ($isInternship ? 'Internship' : 'Full-Time')) }}">
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="jb-label">Salary</label>
-                        <input type="text" name="salary" class="jb-field" value="{{ old('salary', optional($job)->salary) }}">
-                    </div>
+                    @unless($isInternship)
+                        <div class="col-md-4 mb-3">
+                            <label class="jb-label">Salary *</label>
+                            <input type="text" name="salary" class="jb-field" placeholder="e.g. 600,000 RWF"
+                                   value="{{ old('salary', optional($job)->salary) }}">
+                        </div>
+                    @else
+                        <div class="col-md-4 mb-3">
+                            <label class="jb-label">Compensation</label>
+                            <input type="text" class="jb-field" value="Unpaid internship" disabled>
+                            <small class="text-muted">Internships do not include a salary field.</small>
+                        </div>
+                    @endunless
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Deadline</label>
                         <input type="date" name="deadline" class="jb-field" value="{{ old('deadline', optional($job)->deadline ? \Carbon\Carbon::parse($job->deadline)->format('Y-m-d') : '') }}">
@@ -65,7 +92,7 @@
                         <div class="jb-card" style="padding:14px 16px;border:1px solid #d4af37;background:#fffbeb;">
                             <label class="jb-label mb-1" style="color:#003D82;">Countdown timer</label>
                             <p class="text-muted mb-2" style="font-size:13px;margin:0 0 10px;">
-                                Show a live days/hours countdown on the public Apply Now page. Requires a deadline above.
+                                Show a live days/hours/minutes/seconds countdown on the public Apply Now page. Requires a deadline above.
                             </p>
                             <label class="mb-0 d-flex align-items-center" style="gap:10px;font-weight:600;">
                                 <input type="checkbox" name="enable_countdown" value="1" style="width:18px;height:18px;"
@@ -88,7 +115,7 @@
                     </div>
                 </div>
                 <div class="d-flex" style="gap:10px;">
-                    <button type="submit" class="jb-btn">{{ $editing ? 'Save Changes' : 'Create Job' }}</button>
+                    <button type="submit" class="jb-btn">{{ $editing ? 'Save Changes' : ('Create '.($isInternship ? 'Internship' : 'Job')) }}</button>
                     <a href="{{ route('jobs.index') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>

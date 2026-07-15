@@ -9,16 +9,21 @@ use Illuminate\Support\Str;
 
 class JobService
 {
-    public function activeJobs($search = null)
+    public function activeJobs($search = null, $postingType = null)
     {
         $query = JobPosting::whereIn('status', ['active', 'open']);
+
+        if ($postingType) {
+            $query->where('posting_type', $postingType);
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhere('department', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
-                    ->orWhere('type', 'like', "%{$search}%");
+                    ->orWhere('type', 'like', "%{$search}%")
+                    ->orWhere('employment_type', 'like', "%{$search}%");
             });
         }
 
@@ -69,6 +74,21 @@ class JobService
         return $job;
     }
 
+    public function clone(JobPosting $job)
+    {
+        $copy = $job->replicate([
+            'current_applicants', 'posted_at', 'created_at', 'updated_at',
+        ]);
+        $copy->id = (string) Str::uuid();
+        $copy->title = $job->title.' (Copy)';
+        $copy->status = 'draft';
+        $copy->current_applicants = 0;
+        $copy->posted_at = null;
+        $copy->save();
+
+        return $copy;
+    }
+
     public function delete(JobPosting $job)
     {
         Application::where('job_id', $job->id)->delete();
@@ -78,7 +98,9 @@ class JobService
 
     protected function normalizeJobPayload(array $data)
     {
-        $type = $data['employment_type'] ?? $data['type'] ?? 'Full-Time';
+        $postingType = ($data['posting_type'] ?? 'job') === 'internship' ? 'internship' : 'job';
+        $type = $data['employment_type'] ?? $data['type'] ?? ($postingType === 'internship' ? 'Internship' : 'Full-Time');
+        $salary = $postingType === 'internship' ? null : ($data['salary'] ?? null);
 
         return [
             'title' => $data['title'],
@@ -87,7 +109,8 @@ class JobService
             'department' => $data['department'] ?? null,
             'employment_type' => $type,
             'type' => $type,
-            'salary' => $data['salary'] ?? null,
+            'posting_type' => $postingType,
+            'salary' => $salary,
             'requirements' => $data['requirements'] ?? null,
             'qualifications' => $data['qualifications'] ?? null,
             'responsibilities' => $data['responsibilities'] ?? null,

@@ -11,7 +11,7 @@ class JobPosting extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'id', 'title', 'description', 'location', 'type', 'employment_type',
+        'id', 'title', 'description', 'location', 'type', 'employment_type', 'posting_type',
         'department', 'salary', 'min_requirements', 'requirements', 'qualifications',
         'responsibilities', 'deadline', 'max_positions', 'max_applicants',
         'expected_applicants', 'enable_countdown', 'current_applicants', 'status',
@@ -35,5 +35,15 @@ class JobPosting extends Model
     public function getIsExpiredAttribute()
     {
         return $this->deadline && $this->deadline->isPast();
+    }
+
+    public function isInternship()
+    {
+        return ($this->posting_type ?: 'job') === 'internship';
+    }
+
+    public function typeLabel()
+    {
+        return $this->isInternship() ? 'Internship' : 'Job';
     }
 }

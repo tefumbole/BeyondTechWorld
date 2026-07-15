@@ -65,7 +65,19 @@ class JobBoardController extends Controller
 
         return view('job_board.form', [
             'job' => null,
+            'postingType' => 'job',
             'jbTab' => 'jobs.create',
+        ]);
+    }
+
+    public function createInternship()
+    {
+        $this->authorizeJobs();
+
+        return view('job_board.form', [
+            'job' => null,
+            'postingType' => 'internship',
+            'jbTab' => 'jobs.createInternship',
         ]);
     }
 
@@ -74,8 +86,9 @@ class JobBoardController extends Controller
         $this->authorizeJobs();
         $data = $this->validatedJob($request);
         $this->jobs->store($data);
+        $label = ($data['posting_type'] ?? 'job') === 'internship' ? 'Internship' : 'Job';
 
-        return redirect()->route('jobs.index')->with('message', 'Job posting created.');
+        return redirect()->route('jobs.index')->with('message', $label.' posting created.');
     }
 
     public function edit($id)
@@ -85,6 +98,7 @@ class JobBoardController extends Controller
 
         return view('job_board.form', [
             'job' => $job,
+            'postingType' => $job->posting_type ?: 'job',
             'jbTab' => 'jobs.index',
         ]);
     }
@@ -95,7 +109,16 @@ class JobBoardController extends Controller
         $job = JobPosting::findOrFail($id);
         $this->jobs->update($job, $this->validatedJob($request));
 
-        return redirect()->route('jobs.index')->with('message', 'Job posting updated.');
+        return redirect()->route('jobs.index')->with('message', 'Posting updated.');
+    }
+
+    public function clone($id)
+    {
+        $this->authorizeJobs();
+        $job = JobPosting::findOrFail($id);
+        $copy = $this->jobs->clone($job);
+
+        return redirect()->route('jobs.edit', $copy->id)->with('message', 'Posting cloned. Review and activate when ready.');
     }
 
     public function destroy($id)
@@ -110,35 +133,86 @@ class JobBoardController extends Controller
     public function applications(Request $request)
     {
         $this->authorizeJobs();
+        $status = $request->get('status', 'all');
+        $jbTab = $request->get('tab');
+        if (! $jbTab) {
+            if ($status === Application::STATUS_AWAITING) {
+                $jbTab = 'jobs.awaiting';
+            } elseif ($status === Application::STATUS_SELECTED) {
+                $jbTab = 'jobs.selected';
+            } elseif ($status === Application::STATUS_REJECTED) {
+                $jbTab = 'jobs.rejected';
+            } else {
+                $jbTab = 'jobs.applications';
+            }
+        }
+
         $items = $this->applications->adminList(
             $request->get('job_id', 'all'),
-            $request->get('status', 'all'),
+            $status,
             $request->get('q')
         );
-        $jobs = JobPosting::orderBy('title')->get(['id', 'title']);
+        $jobs = JobPosting::orderBy('title')->get(['id', 'title', 'posting_type']);
 
         return view('job_board.applications', [
             'items' => $items,
             'jobs' => $jobs,
             'jobId' => $request->get('job_id', 'all'),
-            'status' => $request->get('status', 'all'),
+            'status' => $status,
             'q' => $request->get('q'),
-            'jbTab' => 'jobs.applications',
+            'jbTab' => $jbTab,
+            'pageTitle' => $this->applicationsTitle($status),
         ]);
+    }
+
+    public function awaiting(Request $request)
+    {
+        $request->merge(['status' => Application::STATUS_AWAITING, 'tab' => 'jobs.awaiting']);
+
+        return $this->applications($request);
+    }
+
+    public function selected(Request $request)
+    {
+        $request->merge(['status' => Application::STATUS_SELECTED, 'tab' => 'jobs.selected']);
+
+        return $this->applications($request);
+    }
+
+    public function rejected(Request $request)
+    {
+        $request->merge(['status' => Application::STATUS_REJECTED, 'tab' => 'jobs.rejected']);
+
+        return $this->applications($request);
     }
 
     public function updateApplication(Request $request, $id)
     {
         $this->authorizeJobs();
         $data = $request->validate([
-            'status' => 'required|string|in:new,reviewed,shortlisted,interview,rejected,hired,withdrawn',
+            'status' => 'required|string|in:awaiting_approval,selected,rejected,hired,new,reviewed,shortlisted,interview,withdrawn',
             'rejection_reason' => 'nullable|string|max:2000',
             'interview_date' => 'nullable|date',
         ]);
         $app = Application::findOrFail($id);
         $this->applications->updateStatus($app, $data);
 
-        return back()->with('message', 'Application updated.');
+        return back()->with('message', 'Application updated. Candidate notified via WhatsApp when applicable.');
+    }
+
+    protected function applicationsTitle($status)
+    {
+        if ($status === Application::STATUS_AWAITING) {
+            return 'Awaiting Approval';
+        }
+        if ($status === Application::STATUS_SELECTED) {
+            return 'Selected';
+        }
+        if ($status === Application::STATUS_REJECTED) {
+            return 'Rejected';
+        }
+
+        return 'Applications';
     }
 
     protected function validatedJob(Request $request)
@@ -149,6 +223,7 @@ class JobBoardController extends Controller
             'location' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
             'employment_type' => 'nullable|string|max:100',
+            'posting_type' => 'required|string|in:job,internship',
             'salary' => 'nullable|string|max:100',
             'requirements' => 'nullable|string',
             'qualifications' => 'nullable|string',
@@ -161,6 +236,12 @@ class JobBoardController extends Controller
             'status' => 'required|string|in:active,open,draft,closed,archived',
         ]);
         $data['enable_countdown'] = $request->has('enable_countdown');
+        if (($data['posting_type'] ?? '') === 'internship') {
+            $data['salary'] = null;
+            if (empty($data['employment_type'])) {
+                $data['employment_type'] = 'Internship';
+            }
+        }
 
         return $data;
     }

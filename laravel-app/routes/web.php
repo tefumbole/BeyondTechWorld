@@ -65,6 +65,8 @@ Route::get('/apply-now', 'ApplyController@index')->name('apply.index');
 Route::get('/apply-now/{id}', 'ApplyController@show')->name('apply.show');
 Route::post('/apply-now/{id}', 'ApplyController@store')->name('apply.store');
 Route::get('/application-confirmation/{reference}', 'ApplyController@confirmation')->name('apply.confirmation');
+Route::get('/application-agreement/{token}', 'ApplicationAgreementController@show')->name('apply.agreement');
+Route::post('/application-agreement/{token}', 'ApplicationAgreementController@sign')->name('apply.agreement.sign');
 
 // Applicant portal — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
@@ -248,11 +250,16 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     // Job Board admin
     Route::get('/admin/jobs', 'JobBoardController@index')->name('jobs.index');
     Route::get('/admin/jobs/create', 'JobBoardController@create')->name('jobs.create');
+    Route::get('/admin/jobs/create-internship', 'JobBoardController@createInternship')->name('jobs.createInternship');
     Route::post('/admin/jobs', 'JobBoardController@store')->name('jobs.store');
     Route::get('/admin/jobs/applications', 'JobBoardController@applications')->name('jobs.applications');
+    Route::get('/admin/jobs/awaiting-approval', 'JobBoardController@awaiting')->name('jobs.awaiting');
+    Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
+    Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
     Route::post('/admin/jobs/applications/{id}', 'JobBoardController@updateApplication')->name('jobs.applications.update');
     Route::get('/admin/jobs/{id}/edit', 'JobBoardController@edit')->name('jobs.edit');
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');
+    Route::post('/admin/jobs/{id}/clone', 'JobBoardController@clone')->name('jobs.clone');
     Route::post('/admin/jobs/{id}/delete', 'JobBoardController@destroy')->name('jobs.destroy');
 
     // WhatsApp Announcements Manager (AlphaBridge-style)

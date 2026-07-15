@@ -23,6 +23,11 @@
         display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none;
     }
     .jb-btn:hover { background: #0a3578; color: #fff; text-decoration: none; }
+    .jb-btn-secondary {
+        background: #fff; border: 1px solid #0b3f90; color: #0b3f90;
+        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px;
+        display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none;
+    }
     .jb-field { width: 100%; border: 1px solid #d7deea; border-radius: 8px; padding: 9px 12px; font-size: 14px; }
     .jb-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
     .jb-badge {
@@ -35,7 +40,10 @@
     $tabs = [
         ['jobs.index', 'Job Postings', 'dripicons-briefcase'],
         ['jobs.create', 'Add Job', 'dripicons-plus'],
-        ['jobs.applications', 'Applications', 'dripicons-user-group'],
+        ['jobs.createInternship', 'Add Internship', 'dripicons-user'],
+        ['jobs.awaiting', 'Awaiting Approval', 'dripicons-clock'],
+        ['jobs.selected', 'Selected', 'dripicons-checkmark'],
+        ['jobs.rejected', 'Rejected', 'dripicons-wrong'],
     ];
 @endphp
 <nav class="jb-nav" aria-label="Job Board">

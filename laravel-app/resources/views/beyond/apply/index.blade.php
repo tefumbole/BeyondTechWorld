@@ -1,7 +1,7 @@
 @extends('beyond.layout')
 
 @section('title', 'Apply Now — Jobs & Internships')
-@section('meta_description', 'Apply for jobs, internships, and openings published on the Beyond Enterprise Job Board.')
+@section('meta_description', 'Apply for jobs and internships published on the Beyond Enterprise Job Board.')
 
 @section('content')
 <div class="min-h-screen bg-gray-50 pb-20">
@@ -9,7 +9,7 @@
         <div class="max-w-7xl mx-auto text-center relative z-10">
             <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">Apply Now</h1>
             <p class="text-xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
-                Browse jobs, internships, and other openings from our Job Board — then apply online in minutes.
+                Browse real jobs and internship adverts — then apply online in minutes.
             </p>
         </div>
     </div>
@@ -34,73 +34,55 @@
             </div>
         </form>
 
-        @if ($jobs->isEmpty())
-            <div class="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
-                <i data-lucide="briefcase" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
-                <h3 class="text-2xl font-bold text-gray-700 mb-2">No openings available</h3>
-                <p class="text-gray-500 max-w-md mx-auto">
-                    {{ $search ? "We couldn't find any roles matching your search." : 'Active Job Board postings (jobs, internships, and more) will appear here.' }}
-                </p>
+        <section class="mb-14">
+            <div class="flex items-end justify-between mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-brand-blue">Jobs</h2>
+                    <p class="text-gray-500 text-sm mt-1">Paid roles with salary details.</p>
+                </div>
             </div>
-        @else
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                @foreach ($jobs as $job)
-                    @php $stat = $stats[$job->id]; @endphp
-                    <div class="h-full hover:shadow-xl transition-all duration-300 border-t-4 border-t-brand-gold flex flex-col overflow-hidden relative rounded-xl bg-white shadow-lg">
-                        <div class="p-6 flex flex-col h-full">
-                            <div class="flex flex-wrap gap-2 items-center mb-4">
-                                <span class="bg-gray-100 text-gray-700 font-medium capitalize border border-gray-200 text-xs px-2.5 py-1 rounded-full">{{ $job->department ?: 'General' }}</span>
-                                <span class="bg-blue-100 text-blue-700 border border-blue-200 text-xs px-2.5 py-1 rounded-full">{{ $job->employment_type ?: 'Full-Time' }}</span>
-                            </div>
 
-                            @if ($job->enable_countdown && $job->deadline)
-                                <div class="mb-4 text-xs font-semibold {{ $job->is_expired ? 'text-red-600' : 'text-brand-blue' }}">
-                                    <i data-lucide="clock" class="w-3.5 h-3.5 inline"></i>
-                                    {{ $job->is_expired ? 'Applications closed' : 'Closes '.$job->deadline->diffForHumans() }}
-                                </div>
-                            @endif
+            @if ($jobs->isEmpty())
+                <div class="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+                    <i data-lucide="briefcase" class="w-14 h-14 text-gray-300 mx-auto mb-3"></i>
+                    <h3 class="text-xl font-bold text-gray-700 mb-2">No jobs available</h3>
+                    <p class="text-gray-500 max-w-md mx-auto">
+                        {{ $search ? "No jobs matched your search." : 'Active job postings will appear here.' }}
+                    </p>
+                </div>
+            @else
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    @foreach ($jobs as $job)
+                        @include('beyond.apply.partials.job_card', ['job' => $job, 'stats' => $stats])
+                    @endforeach
+                </div>
+            @endif
+        </section>
 
-                            <h3 class="text-xl font-bold text-brand-blue mb-3 line-clamp-2 min-h-[3.5rem]">{{ $job->title }}</h3>
-
-                            <div class="space-y-4 mb-6 flex-1">
-                                <div class="flex items-center text-gray-600 text-sm">
-                                    <i data-lucide="map-pin" class="w-4 h-4 mr-2 text-brand-gold shrink-0"></i>
-                                    <span class="truncate">{{ $job->location ?: 'Remote' }}</span>
-                                </div>
-                                @if ($job->salary)
-                                    <div class="flex items-center text-gray-700 font-medium text-sm">
-                                        <i data-lucide="dollar-sign" class="w-4 h-4 mr-2 text-brand-gold shrink-0"></i>
-                                        <span>{{ $job->salary }} RWF</span>
-                                    </div>
-                                @endif
-                                <div class="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100 text-xs text-gray-700">
-                                    <div class="flex items-center gap-1.5">
-                                        <i data-lucide="briefcase" class="w-3.5 h-3.5 text-blue-600"></i>
-                                        <span class="font-semibold">{{ $job->max_positions ?: 1 }} Position(s) Available</span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5">
-                                        <i data-lucide="users" class="w-3.5 h-3.5 text-blue-600"></i>
-                                        <span>{{ $stat['total_applicants'] }}{{ $job->max_applicants ? '/'.$job->max_applicants : '' }} Applicant(s)</span>
-                                    </div>
-                                    <div class="flex items-center gap-1 text-gray-400 italic border-t border-gray-200 pt-2 mt-1">
-                                        <i data-lucide="clock" class="w-3 h-3"></i>
-                                        Last submission: {{ $stat['last_application_date'] }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mt-auto pt-4 border-t border-gray-100">
-                                <a href="{{ route('apply.show', $job->id) }}"
-                                   class="w-full inline-flex items-center justify-center gap-2 text-white font-semibold shadow-md transition-all py-2.5 rounded-md {{ $job->is_expired ? 'bg-gray-400 cursor-not-allowed pointer-events-none' : 'bg-brand-blue hover:bg-brand-dark' }}">
-                                    {{ $job->is_expired ? 'Closed' : 'View & Apply' }}
-                                    @if (! $job->is_expired)<i data-lucide="arrow-right" class="w-4 h-4"></i>@endif
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
+        <section>
+            <div class="flex items-end justify-between mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-brand-blue">Internships</h2>
+                    <p class="text-gray-500 text-sm mt-1">Unpaid internship adverts for students.</p>
+                </div>
             </div>
-        @endif
+
+            @if ($internships->isEmpty())
+                <div class="text-center py-16 bg-white rounded-xl shadow-sm border border-gray-100">
+                    <i data-lucide="graduation-cap" class="w-14 h-14 text-gray-300 mx-auto mb-3"></i>
+                    <h3 class="text-xl font-bold text-gray-700 mb-2">No internships available</h3>
+                    <p class="text-gray-500 max-w-md mx-auto">
+                        {{ $search ? "No internships matched your search." : 'Active internship adverts will appear here.' }}
+                    </p>
+                </div>
+            @else
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    @foreach ($internships as $job)
+                        @include('beyond.apply.partials.job_card', ['job' => $job, 'stats' => $stats])
+                    @endforeach
+                </div>
+            @endif
+        </section>
     </div>
 </div>
 @endsection

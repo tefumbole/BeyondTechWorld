@@ -17,9 +17,14 @@
         @else
             <div class="bg-white rounded-xl shadow-lg p-8 text-center border-t-8 border-brand-blue">
                 <i data-lucide="check-circle" class="w-20 h-20 text-brand-blue mx-auto mb-4"></i>
-                <h1 class="text-3xl font-bold text-brand-blue mb-2">Application Submitted Successfully!</h1>
+                <h1 class="text-3xl font-bold text-brand-blue mb-2">Application Under Review</h1>
                 <p class="text-gray-600 text-lg">
-                    We have received your application for <span class="font-semibold text-brand-blue">{{ optional($application->job)->title }}</span>.
+                    We have received your application for <span class="font-semibold text-brand-blue">{{ optional($application->job)->title }}</span>
+                    and it is now <strong>under review</strong>.
+                </p>
+                <p class="text-sm text-gray-500 mt-3">
+                    A WhatsApp confirmation was sent to
+                    <strong>{{ $application->whatsapp_number ?: $application->phone }}</strong>.
                 </p>
                 <div class="mt-6 inline-block bg-gray-100 px-6 py-3 rounded-lg border border-gray-200">
                     <span class="text-gray-500 text-sm block mb-1">YOUR REFERENCE NUMBER</span>
@@ -32,8 +37,8 @@
                 <ul class="space-y-4">
                     @foreach ([
                         'Save your reference number — you can use it to track your application.',
-                        'Our recruitment team will review your CV and contact shortlisted candidates.',
-                        'You will be notified via WhatsApp and email about interview schedules.',
+                        'Your application is under review. Selected candidates receive an agreement link on WhatsApp to sign.',
+                        'You will be notified on WhatsApp at every stage (under review, selected, rejected, or hired).',
                     ] as $i => $step)
                         <li class="flex gap-3">
                             <span class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 text-brand-blue flex items-center justify-center font-bold text-sm">{{ $i + 1 }}</span>
