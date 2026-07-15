@@ -3,6 +3,9 @@
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 16px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
     }
     .gallery-admin-card {
         border: 1px solid #e3e9f4;
@@ -10,6 +13,15 @@
         overflow: hidden;
         background: #fff;
         position: relative;
+        cursor: grab;
+    }
+    .gallery-admin-card.sortable-ghost {
+        opacity: 0.4;
+        border: 2px dashed #0b3f90;
+    }
+    .gallery-admin-card.sortable-drag {
+        cursor: grabbing;
+        box-shadow: 0 12px 28px rgba(11, 63, 144, 0.25);
     }
     .gallery-admin-card .thumb {
         height: 160px;
@@ -24,12 +36,27 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        pointer-events: none;
     }
     .gallery-admin-card .delete-btn {
         position: absolute;
         top: 8px;
         right: 8px;
-        z-index: 2;
+        z-index: 3;
+        cursor: pointer;
+    }
+    .gallery-admin-card .drag-handle {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 3;
+        background: rgba(255,255,255,0.92);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #0b3f90;
+        cursor: grab;
     }
     .gallery-upload-zone {
         border: 2px dashed #c5d3ea;
@@ -58,7 +85,7 @@
         <i class="dripicons-preview"></i> Preview / View live page
     </a>
 </div>
-<p class="text-muted" style="font-size:13px;">Add photos of your events and paste video links (YouTube, TikTok, Instagram, Facebook). Visitors see them inline on the public Gallery page.</p>
+<p class="text-muted" style="font-size:13px;">Add photos and video links. Drag cards to reorder. Use the red trash button to remove an item.</p>
 
 {{-- Hero fields --}}
 <form method="POST" action="{{ route('site-content.content', 'gallery') }}" class="mb-4" style="max-width:820px;">
@@ -108,7 +135,7 @@
             <div class="col-md-4 form-group" id="gallery-file-wrap">
                 <label class="font-weight-bold">File <span class="text-danger" id="gallery-file-req">*</span></label>
                 <input type="file" name="file" id="gallery-file" class="form-control-file" accept="image/*,video/*,audio/*">
-                <small class="text-muted">Paste (Ctrl/Cmd+V) into the page after choosing Image type, or pick a file.</small>
+                <small class="text-muted">Paste (Ctrl/Cmd+V) after choosing Image type, or pick a file.</small>
             </div>
             <div class="col-md-4 form-group d-none" id="gallery-url-wrap">
                 <label class="font-weight-bold">Link <span class="text-danger">*</span></label>
@@ -124,19 +151,20 @@
 </div>
 
 @if($galleryItems->count())
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
         <h6 class="font-weight-bold mb-0">Gallery items ({{ $galleryItems->count() }})</h6>
-        <small class="text-muted">Reorder with arrows, then Save order.</small>
+        <small class="text-muted">Drag cards to reorder — order saves automatically.</small>
     </div>
 
     <form method="POST" action="{{ route('site-content.gallery.reorder') }}" id="gallery-reorder-form">
         @csrf
-        <ul class="list-unstyled gallery-admin-grid" id="gallery-reorder-list">
+        <ul class="gallery-admin-grid" id="gallery-reorder-list">
             @foreach($galleryItems as $item)
-                <li class="gallery-admin-card">
-                    <input type="hidden" name="order[]" value="{{ $item->id }}">
+                <li class="gallery-admin-card" data-id="{{ $item->id }}">
+                    <input type="hidden" name="order[]" value="{{ $item->id }}" class="gallery-order-input">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮ Drag</span>
                     <button type="button" class="btn btn-sm btn-danger rounded-circle delete-btn delete-gallery-item"
-                            data-id="{{ $item->id }}" title="Delete">
+                            data-id="{{ $item->id }}" title="Remove">
                         <i class="dripicons-trash"></i>
                     </button>
                     <div class="thumb">
@@ -157,46 +185,48 @@
                     </div>
                     <div class="p-3">
                         <span class="gallery-type-badge">{{ $galleryTypes[$item->type] ?? $item->type }}</span>
-                        <div class="reorder-actions mb-2">
-                            <button type="button" class="btn btn-sm btn-outline-success move-top" title="Send to top">&#8679;</button>
-                            <button type="button" class="btn btn-sm btn-light move-up" title="Move up">&#9650;</button>
-                            <button type="button" class="btn btn-sm btn-light move-down" title="Move down">&#9660;</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger move-bottom" title="Send to bottom">&#8681;</button>
-                        </div>
-                        <input type="text" class="form-control form-control-sm mb-2" value="{{ $item->title }}" readonly placeholder="Title">
-                        <textarea class="form-control form-control-sm" rows="2" readonly placeholder="Caption">{{ $item->description }}</textarea>
-                        <details class="mt-2">
-                            <summary class="small text-primary" style="cursor:pointer;">Edit item</summary>
-                            <form method="POST" action="{{ route('site-content.gallery.update', $item->id) }}" enctype="multipart/form-data" class="mt-2">
-                                @csrf
-                                <select name="type" class="form-control form-control-sm mb-2">
+                        <div class="font-weight-bold small mb-1">{{ $item->title ?: 'Untitled' }}</div>
+                        @if($item->description)
+                            <div class="text-muted small mb-2" style="max-height:2.6em;overflow:hidden;">{{ $item->description }}</div>
+                        @endif
+                        <button type="button" class="btn btn-link btn-sm p-0 edit-gallery-toggle" data-target="edit-{{ $item->id }}">▶ Edit item</button>
+                        <div id="edit-{{ $item->id }}" class="mt-2 d-none gallery-edit-panel">
+                            <div class="form-group mb-2">
+                                <select class="form-control form-control-sm gallery-edit-type" data-id="{{ $item->id }}">
                                     @foreach($galleryTypes as $k => $label)
                                         <option value="{{ $k }}" {{ $item->type === $k ? 'selected' : '' }}>{{ $label }}</option>
                                     @endforeach
                                 </select>
-                                <input type="text" name="title" class="form-control form-control-sm mb-2" value="{{ $item->title }}" placeholder="Title">
-                                <textarea name="description" rows="2" class="form-control form-control-sm mb-2" placeholder="Caption">{{ $item->description }}</textarea>
-                                <input type="url" name="media_url" class="form-control form-control-sm mb-2" value="{{ $item->media_url }}" placeholder="Link (for social types)">
-                                <input type="file" name="file" class="form-control-file mb-2">
-                                <button type="submit" class="btn btn-sm btn-outline-primary">Update</button>
-                            </form>
-                        </details>
+                            </div>
+                            <input type="text" class="form-control form-control-sm mb-2 gallery-edit-title" value="{{ $item->title }}" placeholder="Title">
+                            <textarea class="form-control form-control-sm mb-2 gallery-edit-desc" rows="2" placeholder="Caption">{{ $item->description }}</textarea>
+                            <input type="url" class="form-control form-control-sm mb-2 gallery-edit-url" value="{{ $item->media_url }}" placeholder="Link (for social types)">
+                            <button type="button" class="btn btn-sm btn-outline-primary save-gallery-edit" data-id="{{ $item->id }}">Update</button>
+                        </div>
                     </div>
                 </li>
             @endforeach
         </ul>
-        <button type="submit" class="btn btn-primary mt-3">Save order</button>
     </form>
-
-    @foreach($galleryItems as $item)
-        <form id="gallery-del-{{ $item->id }}" method="POST" action="{{ route('site-content.gallery.delete', $item->id) }}" class="d-none">
-            @csrf
-        </form>
-    @endforeach
 @else
     <p class="text-muted">No gallery items yet. Add your first photo or video link above.</p>
 @endif
 
+{{-- Separate delete forms outside nested forms --}}
+@foreach($galleryItems as $item)
+    <form id="gallery-del-{{ $item->id }}" method="POST" action="{{ route('site-content.gallery.delete', $item->id) }}" class="d-none">
+        @csrf
+    </form>
+    <form id="gallery-upd-{{ $item->id }}" method="POST" action="{{ route('site-content.gallery.update', $item->id) }}" enctype="multipart/form-data" class="d-none">
+        @csrf
+        <input type="hidden" name="type" class="upd-type" value="{{ $item->type }}">
+        <input type="hidden" name="title" class="upd-title" value="{{ $item->title }}">
+        <input type="hidden" name="description" class="upd-description" value="{{ $item->description }}">
+        <input type="hidden" name="media_url" class="upd-media_url" value="{{ $item->media_url }}">
+    </form>
+@endforeach
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 (function () {
     var typeSel = document.getElementById('gallery-type');
@@ -207,6 +237,7 @@
     var fileTypes = ['image', 'video', 'audio'];
 
     function syncTypeFields() {
+        if (!typeSel) return;
         var t = typeSel.value;
         var isFile = fileTypes.indexOf(t) !== -1;
         fileWrap.classList.toggle('d-none', !isFile);
@@ -220,27 +251,25 @@
     }
 
     var list = document.getElementById('gallery-reorder-list');
-    if (list) {
-        list.addEventListener('click', function (e) {
-            var btn = e.target.closest('button');
-            if (!btn || btn.type === 'submit') return;
-            var li = btn.closest('li');
-            if (!li) return;
-            if (btn.classList.contains('move-top')) {
-                if (list.firstElementChild !== li) list.insertBefore(li, list.firstElementChild);
-            } else if (btn.classList.contains('move-bottom')) {
-                list.appendChild(li);
-            } else if (btn.classList.contains('move-up')) {
-                var prev = li.previousElementSibling;
-                if (prev) list.insertBefore(li, prev);
-            } else if (btn.classList.contains('move-down')) {
-                var next = li.nextElementSibling;
-                if (next) list.insertBefore(next, li);
+    if (list && window.Sortable) {
+        Sortable.create(list, {
+            animation: 150,
+            handle: '.drag-handle, .thumb, .gallery-admin-card',
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            filter: '.delete-btn, .edit-gallery-toggle, .gallery-edit-panel, button, input, textarea, select, a',
+            preventOnFilter: false,
+            onEnd: function () {
+                Array.prototype.forEach.call(list.children, function (li) {
+                    var input = li.querySelector('.gallery-order-input');
+                    if (input) input.value = li.getAttribute('data-id');
+                });
+                var form = document.getElementById('gallery-reorder-form');
+                if (form) form.submit();
             }
         });
     }
 
-    // Paste image into file input area when Image type selected
     document.addEventListener('paste', function (e) {
         if (!typeSel || typeSel.value !== 'image') return;
         var items = e.clipboardData && e.clipboardData.items;
@@ -257,13 +286,40 @@
             }
         }
     });
-    // Delete gallery item
+
     document.querySelectorAll('.delete-gallery-item').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             if (!confirm('Remove this gallery item?')) return;
             var id = btn.getAttribute('data-id');
             var f = document.getElementById('gallery-del-' + id);
             if (f) f.submit();
+        });
+    });
+
+    document.querySelectorAll('.edit-gallery-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var panel = document.getElementById(btn.getAttribute('data-target'));
+            if (panel) panel.classList.toggle('d-none');
+        });
+    });
+
+    document.querySelectorAll('.save-gallery-edit').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = btn.getAttribute('data-id');
+            var card = btn.closest('.gallery-admin-card');
+            var f = document.getElementById('gallery-upd-' + id);
+            if (!f || !card) return;
+            f.querySelector('.upd-type').value = card.querySelector('.gallery-edit-type').value;
+            f.querySelector('.upd-title').value = card.querySelector('.gallery-edit-title').value;
+            f.querySelector('.upd-description').value = card.querySelector('.gallery-edit-desc').value;
+            f.querySelector('.upd-media_url').value = card.querySelector('.gallery-edit-url').value;
+            f.submit();
         });
     });
 })();

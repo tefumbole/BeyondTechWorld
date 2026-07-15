@@ -47,6 +47,7 @@
         'timezone' => $event->timezone ?: 'Africa/Kigali',
         'completionMessage' => $pub->countdown_completion_message ?: 'The event is here!',
         'hideAfter' => $pub->hide_countdown_after_completion,
+        'compact' => false,
     ])
 @endif
 

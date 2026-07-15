@@ -190,5 +190,47 @@
     document.addEventListener('alpine:initialized', () => { if (window.lucide) lucide.createIcons(); });
 </script>
 @stack('scripts')
+<script>
+(function () {
+    if (window.__eventCountdownInit) return;
+    window.__eventCountdownInit = true;
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function bindCountdown(el) {
+        if (el.__countdownBound) return;
+        el.__countdownBound = true;
+        var targetIso = el.getAttribute('data-target');
+        if (!targetIso) return;
+        var hideAfter = el.getAttribute('data-hide-after') === '1';
+        var doneMsg = el.querySelector('[data-done]');
+        var units = el.querySelector('[data-units]');
+        var target = new Date(targetIso).getTime();
+        if (isNaN(target)) return;
+        function tick() {
+            var diff = target - Date.now();
+            if (diff <= 0) {
+                if (units) units.classList.add('hidden');
+                if (doneMsg) doneMsg.classList.remove('hidden');
+                if (hideAfter) setTimeout(function () { el.style.display = 'none'; }, 8000);
+                return false;
+            }
+            var secs = Math.floor(diff / 1000);
+            var days = Math.floor(secs / 86400); secs %= 86400;
+            var hours = Math.floor(secs / 3600); secs %= 3600;
+            var mins = Math.floor(secs / 60); secs %= 60;
+            var d = el.querySelector('.cd-days');
+            var h = el.querySelector('.cd-hours');
+            var m = el.querySelector('.cd-mins');
+            var s = el.querySelector('.cd-secs');
+            if (d) d.textContent = days;
+            if (h) h.textContent = pad(hours);
+            if (m) m.textContent = pad(mins);
+            if (s) s.textContent = pad(secs);
+            return true;
+        }
+        if (tick()) setInterval(tick, 1000);
+    }
+    document.querySelectorAll('[data-countdown]').forEach(bindCountdown);
+})();
+</script>
 </body>
 </html>

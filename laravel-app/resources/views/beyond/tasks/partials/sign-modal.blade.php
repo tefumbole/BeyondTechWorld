@@ -28,7 +28,6 @@
     </div>
 </div>
 
-@once
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
@@ -47,11 +46,13 @@ function beyondSigSubmit(id, form) {
     document.getElementById('sigval_' + id).value = pad.toDataURL('image/png');
     return true;
 }
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('canvas[id^="sigpad_"]').forEach(function (c) {
-        beyondInitSig(c.id.replace('sigpad_', ''));
+if (!window.__beyondSigBoot) {
+    window.__beyondSigBoot = true;
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('canvas[id^="sigpad_"]').forEach(function (c) {
+            beyondInitSig(c.id.replace('sigpad_', ''));
+        });
     });
-});
+}
 </script>
 @endpush
-@endonce
