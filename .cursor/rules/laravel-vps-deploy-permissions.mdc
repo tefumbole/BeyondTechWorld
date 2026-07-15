@@ -1,0 +1,43 @@
+---
+description: Always use the Laravel VPS deploy script so storage stays writable
+alwaysApply: true
+---
+
+# BeyondTechWorld Laravel production deploys
+
+Production site is **Laravel** at `/var/www/beyondtechworld/laravel-app` (not only the Node API deploy).
+
+## When the user asks to deploy Laravel / beyondtechworld.com features
+
+Use this (after push), not ad-hoc root `php artisan` alone:
+
+```bash
+ssh myvps 'cd /var/www/beyondtechworld && git pull && bash tools/deploy-beyondtechworld-laravel.sh'
+# with a specific migration:
+ssh myvps 'cd /var/www/beyondtechworld && git pull && bash tools/deploy-beyondtechworld-laravel.sh --migrate-path=database/migrations/YYYY_….php'
+# all pending migrations:
+ssh myvps 'cd /var/www/beyondtechworld && git pull && bash tools/deploy-beyondtechworld-laravel.sh --migrate-all'
+```
+
+## Why
+
+Running `php artisan` as **root** creates files under `storage/framework/cache` owned by root. PHP-FPM (`www-data`) then cannot write Spatie/permission/session cache → **admin 500 Permission denied**.
+
+The deploy script:
+
+1. Runs Artisan as `www-data` when possible
+2. Always `chown -R www-data:www-data storage bootstrap/cache` **before and after** Artisan
+3. Clears view/route/config/cache and reloads php-fpm
+
+## If you must run one-off Artisan on the VPS
+
+Always finish with:
+
+```bash
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R ug+rwx storage bootstrap/cache
+```
+
+Or: `sudo -u www-data php artisan …`
+
+Do **not** use `tools/deploy-beyondtechworld-vps.sh` for Laravel feature deploys — that script is the Node/React API stack on port 3004.

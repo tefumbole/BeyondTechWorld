@@ -45,12 +45,37 @@ if [[ -f composer.json ]] && command -v composer >/dev/null 2>&1; then
     composer install --no-dev --optimize-autoloader --no-interaction
 fi
 
-php artisan migrate --force
-php artisan config:clear
-php artisan cache:clear
-php artisan view:clear
-php artisan config:cache
-php artisan view:cache
+WEB_USER="${WEB_USER:-www-data}"
+WEB_GROUP="${WEB_GROUP:-www-data}"
+
+fix_writable_dirs() {
+    mkdir -p storage/framework/{cache/data,sessions,views} storage/logs bootstrap/cache
+    if id -u "$WEB_USER" >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 ]]; then
+        chown -R "$WEB_USER:$WEB_GROUP" storage bootstrap/cache
+        find storage bootstrap/cache -type d -exec chmod 775 {} \;
+        find storage bootstrap/cache -type f -exec chmod 664 {} \; 2>/dev/null || true
+    fi
+}
+
+# Avoid root-owned cache shards (causes admin 500: Permission denied on Spatie cache)
+fix_writable_dirs
+
+run_artisan() {
+    if id -u "$WEB_USER" >/dev/null 2>&1 && [[ "$(id -u)" -eq 0 ]]; then
+        sudo -u "$WEB_USER" -H php artisan "$@"
+    else
+        php artisan "$@"
+    fi
+}
+
+run_artisan migrate --force
+run_artisan config:clear
+run_artisan cache:clear
+run_artisan view:clear
+run_artisan config:cache
+run_artisan view:cache
+
+fix_writable_dirs
 
 PUBLIC_HTACCESS="$SITE_ROOT/public/.htaccess"
 CACHE_SNIPPET="$(dirname "$0")/static-cache.htaccess"

@@ -20,7 +20,9 @@
                     <h1 class="ts-title">Working Week Configuration</h1>
                     <p class="ts-subtitle">Set your weekly schedule and working hours.</p>
                 </div>
-                <button type="submit" class="ts-btn ts-btn-sm"><i class="dripicons-document-edit"></i> Save Changes</button>
+                <button type="submit" class="ts-btn ts-btn-sm">
+                    <i class="dripicons-document-edit"></i> Save Changes
+                </button>
             </div>
 
             @if(session('message'))
@@ -36,10 +38,11 @@
                         </div>
                         <p class="text-muted small mb-3">Define working hours for each day of the week.</p>
 
-                        <div class="p-3 mb-3" style="background:#eff6ff;border-radius:10px;">
+                        <div class="ts-lunch-box">
                             <label class="ts-label mb-1">Lunch Break (Minutes)</label>
-                            <input type="number" name="lunch_break_minutes" id="lunch_break" class="ts-field" style="max-width:140px;"
-                                   min="0" max="180" value="{{ old('lunch_break_minutes', $ww->lunch_break_minutes ?? 60) }}">
+                            <input type="number" name="lunch_break_minutes" id="lunch_break" class="ts-field"
+                                   style="max-width:140px;" min="0" max="180"
+                                   value="{{ old('lunch_break_minutes', $ww->lunch_break_minutes ?? 60) }}">
                             <div class="text-muted small mt-1">Deducted from daily total.</div>
                         </div>
 
@@ -50,17 +53,17 @@
                                 $end = old($day.'_end', $ww->{$day.'_end'} ?: '17:00');
                                 $hrs = $summary['day_hours'][$day] ?? 0;
                             @endphp
-                            <div class="ts-day-row" data-day="{{ $day }}">
-                                <label class="mb-0 d-flex align-items-center" style="gap:8px;min-width:130px;font-weight:600;">
+                            <div class="ts-day-row {{ $active ? '' : 'is-off' }}" data-day="{{ $day }}">
+                                <label class="mb-0 d-flex align-items-center" style="gap:10px;font-weight:600;">
                                     <input type="checkbox" name="{{ $day }}" value="1" class="day-toggle" @if($active) checked @endif>
                                     <span class="day-label">{{ $labels[$day] }}</span>
                                 </label>
-                                <span class="day-off text-muted small" style="@if($active) display:none; @endif">Day Off</span>
-                                <div class="day-times d-flex align-items-center flex-wrap" style="gap:8px;@if(!$active) display:none; @endif">
-                                    <label class="mb-0 small text-muted">From</label>
-                                    <input type="time" name="{{ $day }}_start" class="ts-field day-start" style="width:auto;" value="{{ substr($start, 0, 5) }}">
-                                    <label class="mb-0 small text-muted">To</label>
-                                    <input type="time" name="{{ $day }}_end" class="ts-field day-end" style="width:auto;" value="{{ substr($end, 0, 5) }}">
+                                <span class="day-off text-muted" style="font-size:14px;@if($active) display:none; @endif">Day Off</span>
+                                <div class="ts-day-times day-times" style="@if(!$active) display:none; @endif">
+                                    <span class="text-muted small">From</span>
+                                    <input type="time" name="{{ $day }}_start" class="ts-field day-start" value="{{ substr($start, 0, 5) }}">
+                                    <span class="text-muted small">To</span>
+                                    <input type="time" name="{{ $day }}_end" class="ts-field day-end" value="{{ substr($end, 0, 5) }}">
                                 </div>
                                 <span class="ts-day-hours day-hours-badge" style="@if(!$active) display:none; @endif">{{ number_format($hrs, 2) }}h</span>
                             </div>
@@ -70,19 +73,19 @@
 
                 <div class="col-lg-4 mb-4">
                     <div class="ts-summary">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <strong>Summary</strong>
+                        <div class="d-flex align-items-center mb-3" style="gap:8px;">
                             <i class="dripicons-information"></i>
+                            <strong style="font-size:1.05rem;">Summary</strong>
                         </div>
-                        <div class="d-flex justify-content-between mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-4" style="font-size:15px;">
                             <span>Working Days</span>
-                            <strong id="sum-days">{{ $summary['working_days'] }}</strong>
+                            <strong id="sum-days" style="font-size:1.15rem;">{{ $summary['working_days'] }}</strong>
                         </div>
-                        <div class="mb-2" style="opacity:.85;font-size:12px;letter-spacing:.04em;">TOTAL EXPECTED HOURS</div>
+                        <div style="opacity:.9;font-size:11px;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">TOTAL EXPECTED HOURS</div>
                         <div class="gold" id="sum-hours">{{ number_format($summary['expected'], 2) }}h</div>
-                        <div class="small mt-1" style="opacity:.8;">Per week based on current configuration.</div>
-                        <div class="mt-4 p-3" style="background:rgba(0,0,0,.15);border-radius:10px;font-size:13px;">
-                            Lunch break of <span id="sum-lunch">{{ $ww->lunch_break_minutes ?? 60 }}</span> min is deducted daily.
+                        <div class="small mt-2" style="opacity:.8;">Per week based on current configuration.</div>
+                        <div class="mt-4 p-3" style="background:rgba(0,0,0,.18);border-radius:10px;font-size:13px;line-height:1.4;">
+                            Lunch break of <strong id="sum-lunch">{{ $ww->lunch_break_minutes ?? 60 }}</strong> min is deducted daily.
                         </div>
                     </div>
                 </div>
@@ -99,8 +102,7 @@
         return (parseInt(p[0], 10) * 60) + parseInt(p[1] || 0, 10);
     }
     function dayHours(row, lunch) {
-        var on = row.querySelector('.day-toggle').checked;
-        if (!on) return 0;
+        if (!row.querySelector('.day-toggle').checked) return 0;
         var s = parseHm(row.querySelector('.day-start').value);
         var e = parseHm(row.querySelector('.day-end').value);
         if (s === null || e === null) return 0;
@@ -115,6 +117,7 @@
         var days = 0, total = 0;
         document.querySelectorAll('.ts-day-row').forEach(function (row) {
             var on = row.querySelector('.day-toggle').checked;
+            row.classList.toggle('is-off', !on);
             row.querySelector('.day-times').style.display = on ? 'flex' : 'none';
             row.querySelector('.day-off').style.display = on ? 'none' : '';
             var badge = row.querySelector('.day-hours-badge');

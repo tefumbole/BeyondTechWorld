@@ -174,6 +174,21 @@ php artisan view:cache
 > Route caching (`route:cache`) is intentionally **not** used here to stay
 > compatible with the existing route definitions.
 
+### Writable storage (critical on VPS)
+
+Never leave `storage/` or `bootstrap/cache` owned by `root`. PHP-FPM (`www-data`)
+must own them, or the admin dashboard 500s when Spatie permission cache is written.
+
+**Preferred (VPS):**
+
+```bash
+bash tools/deploy-beyondtechworld-laravel.sh
+# or after any manual artisan:
+chown -R www-data:www-data storage bootstrap/cache
+# or run artisan as www-data:
+sudo -u www-data php artisan view:clear
+```
+
 ---
 
 ## 11. Existing Hostinger deploy script

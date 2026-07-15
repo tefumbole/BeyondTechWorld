@@ -10,7 +10,7 @@ The user **does not have VPS access** at this time. Treat production/VPS as off-
 ## Never do unless the user explicitly asks
 
 - SSH into the VPS (e.g. `ssh myvps`, `ssh root@…`)
-- Run deploy or VPS scripts: `npm run vps:deploy`, `tools/deploy-alphabridge-vps.sh`, `tools/migrate-hostinger.sh`, `tools/vps-fix-alphabridge.sh`, `tools/pull-production-db.sh`, etc.
+- Run deploy or VPS scripts: `npm run vps:deploy`, `tools/deploy-alphabridge-vps.sh`, `tools/deploy-beyondtechworld-laravel.sh`, `tools/migrate-hostinger.sh`, `tools/vps-fix-alphabridge.sh`, `tools/pull-production-db.sh`, etc.
 - Push, rsync, scp, or copy code or builds to the VPS or production server
 - Run remote commands on production (PM2 restart, nginx reload, `npm run db:migrate` on VPS, etc.)
 - Git push to a production/deploy remote if that would update the live server

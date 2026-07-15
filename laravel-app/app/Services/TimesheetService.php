@@ -68,7 +68,9 @@ class TimesheetService
 
     public function activitiesForOwner($userId, $category = null)
     {
-        $q = TimesheetActivity::where('owner_user_id', $userId)->orderBy('name');
+        $q = TimesheetActivity::with('categoryRel')
+            ->where('owner_user_id', $userId)
+            ->orderBy('name');
         if ($category && $category !== 'all') {
             $q->where(function ($w) use ($category) {
                 $w->where('category', $category)->orWhere('category_id', $category);
@@ -81,9 +83,13 @@ class TimesheetService
     public function storeActivity($userId, array $data)
     {
         $catName = $data['category'] ?? null;
+        $color = $data['color'] ?? '#003D82';
         if (! empty($data['category_id'])) {
             $cat = TimesheetCategory::find($data['category_id']);
-            $catName = $cat ? $cat->name : $catName;
+            if ($cat) {
+                $catName = $cat->name;
+                $color = $cat->color ?: $color;
+            }
         }
 
         return TimesheetActivity::create([
@@ -91,7 +97,7 @@ class TimesheetService
             'description' => $data['description'] ?? null,
             'category_id' => $data['category_id'] ?? null,
             'category' => $catName,
-            'color' => $data['color'] ?? '#003D82',
+            'color' => $color,
             'is_active' => true,
             'owner_user_id' => $userId,
         ]);
@@ -103,16 +109,24 @@ class TimesheetService
         if (! $a) {
             return null;
         }
-        if (! empty($data['category_id'])) {
-            $cat = TimesheetCategory::find($data['category_id']);
-            $data['category'] = $cat ? $cat->name : ($data['category'] ?? $a->category);
+        $color = $data['color'] ?? $a->color;
+        if (array_key_exists('category_id', $data)) {
+            if (! empty($data['category_id'])) {
+                $cat = TimesheetCategory::find($data['category_id']);
+                if ($cat) {
+                    $data['category'] = $cat->name;
+                    $color = $cat->color ?: $color;
+                }
+            } else {
+                $data['category'] = null;
+            }
         }
         $a->fill([
             'name' => $data['name'] ?? $a->name,
             'description' => array_key_exists('description', $data) ? $data['description'] : $a->description,
             'category_id' => array_key_exists('category_id', $data) ? $data['category_id'] : $a->category_id,
-            'category' => $data['category'] ?? $a->category,
-            'color' => $data['color'] ?? $a->color,
+            'category' => array_key_exists('category', $data) ? $data['category'] : $a->category,
+            'color' => $color,
         ]);
         $a->save();
 

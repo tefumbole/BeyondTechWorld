@@ -20,12 +20,19 @@ npm run dev:local
 ## Deploy
 
 ```bash
-# Alpha Bridge
+# Alpha Bridge (Node API)
 ssh myvps "cd /var/www/alphabridge && git pull && bash tools/deploy-alphabridge-vps.sh"
 
-# Beyond Enterprise
+# Beyond Enterprise — live Laravel site (use this for feature deploys)
+ssh myvps "cd /var/www/beyondtechworld && git pull && bash tools/deploy-beyondtechworld-laravel.sh"
+# optional: --migrate-all   or   --migrate-path=database/migrations/….php
+
+# Beyond Enterprise — Node API stack (port 3004 only; not the live Laravel admin)
 ssh myvps "cd /var/www/beyondtechworld && git pull && bash tools/deploy-beyondtechworld-vps.sh"
 ```
+
+The Laravel script always restores `www-data` ownership on `storage/` and
+`bootstrap/cache` so admin does not 500 after root-run Artisan.
 
 ## Beyond Enterprise database (separate from Alpha Bridge)
 
