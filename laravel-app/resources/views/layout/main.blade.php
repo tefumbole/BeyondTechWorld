@@ -1154,6 +1154,32 @@
                                 </ul>
                             </li>
                         @endif
+                        <?php
+                        $tasks_module_permission = DB::table('permissions')->where('name', 'tasks_module')->first();
+                        $tasks_module_active = $tasks_module_permission ? DB::table('role_has_permissions')->where([
+                            ['permission_id', $tasks_module_permission->id],
+                            ['role_id', $role->id]
+                        ])->first() : null;
+                        ?>
+                        @if($tasks_module_active)
+                            <li><a href="#tasks-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-checklist"></i><span>Task Manager</span></a>
+                                <ul id="tasks-module" class="collapse list-unstyled ">
+                                    @if(in_array('tasks.view', $all_permission))
+                                        <li id="tasks-dashboard-menu"><a href="{{ route('tasks.dashboard') }}">Task Dashboard</a></li>
+                                        <li id="tasks-list-menu"><a href="{{ route('tasks.index') }}">All Tasks</a></li>
+                                        <li id="tasks-scheduled-menu"><a href="{{ route('tasks.scheduled') }}">Scheduled</a></li>
+                                        <li id="tasks-reminders-menu"><a href="{{ route('tasks.reminders') }}">Reminders</a></li>
+                                        <li id="tasks-pending-menu"><a href="{{ route('tasks.pending') }}">Pending Acceptances</a></li>
+                                    @endif
+                                    @if(in_array('tasks.create', $all_permission))
+                                        <li id="tasks-create-menu"><a href="{{ route('tasks.create') }}">Create Task</a></li>
+                                    @endif
+                                    @if(in_array('tasks.settings', $all_permission))
+                                        <li id="tasks-settings-menu"><a href="{{ route('tasks.settings') }}">Task Settings</a></li>
+                                    @endif
+                                </ul>
+                            </li>
+                        @endif
                         @if(in_array('shops-index', $all_permission))
                             <li>
                                 <a href="#shop" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-building"></i><span>Shops</span><span></a>
@@ -2145,6 +2171,7 @@
                                 var anchor = href.slice(1);
                                 // collapse target ids differ from Site Content reorder keys
                                 if (anchor === 'events-module') return 'events';
+                                if (anchor === 'tasks-module') return 'tasks';
                                 return anchor;
                             }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';

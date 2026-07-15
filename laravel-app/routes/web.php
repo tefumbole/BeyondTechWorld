@@ -227,6 +227,23 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/site-content/gallery/items/{id}/delete', 'SiteContentController@deleteGalleryItem')->name('site-content.gallery.delete');
     Route::post('/admin/site-content/gallery/reorder', 'SiteContentController@reorderGalleryItems')->name('site-content.gallery.reorder');
 
+    // Task Manager (admin)
+    Route::get('/admin/tasks', 'TaskManagerController@dashboard')->name('tasks.dashboard');
+    Route::get('/admin/tasks/create', 'TaskManagerController@create')->name('tasks.create');
+    Route::post('/admin/tasks', 'TaskManagerController@store')->name('tasks.store');
+    Route::get('/admin/tasks/list', 'TaskManagerController@index')->name('tasks.index');
+    Route::get('/admin/tasks/scheduled', 'TaskManagerController@scheduled')->name('tasks.scheduled');
+    Route::get('/admin/tasks/reminders', 'TaskManagerController@reminders')->name('tasks.reminders');
+    Route::post('/admin/tasks/reminders/{id}/delete', 'TaskManagerController@deleteReminder')->name('tasks.reminders.delete');
+    Route::get('/admin/tasks/pending-acceptances', 'TaskManagerController@pendingAcceptances')->name('tasks.pending');
+    Route::post('/admin/tasks/{id}/delete', 'TaskManagerController@destroy')->name('tasks.destroy');
+    Route::get('/admin/tasks/settings', 'TaskManagerController@settings')->name('tasks.settings');
+    Route::post('/admin/tasks/settings/categories', 'TaskManagerController@storeCategory')->name('tasks.settings.categories.store');
+    Route::post('/admin/tasks/settings/categories/{id}/delete', 'TaskManagerController@destroyCategory')->name('tasks.settings.categories.destroy');
+    Route::post('/admin/tasks/settings/templates', 'TaskManagerController@storeTemplate')->name('tasks.settings.templates.store');
+    Route::post('/admin/tasks/settings/templates/{id}/delete', 'TaskManagerController@destroyTemplate')->name('tasks.settings.templates.destroy');
+    Route::get('/admin/tasks/users/search', 'TaskManagerController@searchUsers')->name('tasks.users.search');
+
     // Events module (Phase 1)
     Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');

@@ -38,6 +38,7 @@ class SiteMenu
             'sale'         => 'Sale',
             'booking'      => 'Rental Module',
             'events'       => 'Events',
+            'tasks'        => 'Task Manager',
             'shop'         => 'Shops',
             'order'        => 'Online Order',
             'payments'     => 'Payments',
