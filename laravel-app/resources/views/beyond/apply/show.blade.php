@@ -157,22 +157,37 @@
                             @endunless
 
                             @if ($isInternship)
-                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-3">
-                                    <p class="text-sm font-bold text-emerald-900">Internship documents</p>
-                                    <p class="text-xs text-emerald-800">You can snap a photo with your camera or attach an existing file.</p>
+                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-4">
                                     <div>
-                                        <label class="text-sm font-semibold text-gray-700">Student ID *</label>
-                                        <input required name="student_id" type="file" accept="image/*,.pdf" capture="environment" class="w-full mt-1 text-sm">
+                                        <p class="text-sm font-bold text-emerald-900">Internship documents</p>
+                                        <p class="text-xs text-emerald-800 mt-1">Use <strong>Snap with camera</strong> to turn on your camera, or <strong>Attach file</strong> to upload.</p>
                                     </div>
-                                    <div>
-                                        <label class="text-sm font-semibold text-gray-700">Internship Letter *</label>
-                                        <input required name="internship_letter" type="file" accept="image/*,.pdf" capture="environment" class="w-full mt-1 text-sm">
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-semibold text-gray-700">Selfie / Photo *</label>
-                                        <input required name="selfie" type="file" accept="image/*" capture="user" class="w-full mt-1 text-sm">
-                                        <p class="text-xs text-gray-500 mt-1">Take a selfie or attach a clear photo of yourself.</p>
-                                    </div>
+
+                                    @foreach ([
+                                        ['student_id', 'Student ID', 'environment', 'Snap Student ID'],
+                                        ['internship_letter', 'Internship Letter', 'environment', 'Snap Internship Letter'],
+                                        ['selfie', 'Selfie / Photo', 'user', 'Snap Selfie'],
+                                    ] as [$field, $label, $facing, $snapTitle])
+                                        <div data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}">
+                                            <label class="text-sm font-semibold text-gray-700">{{ $label }} *</label>
+                                            <input type="file" name="{{ $field }}" data-doc-target accept="image/*{{ $field !== 'selfie' ? ',.pdf' : '' }}" class="sr-only" tabindex="-1">
+                                            <input type="file" data-doc-attach accept="image/*{{ $field !== 'selfie' ? ',.pdf' : '' }}" class="hidden" id="attach-{{ $field }}">
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                <label for="attach-{{ $field }}" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-brand-blue text-brand-blue text-xs font-bold cursor-pointer bg-white hover:bg-blue-50">
+                                                    <i data-lucide="paperclip" class="w-3.5 h-3.5"></i> Attach file
+                                                </label>
+                                                <button type="button" data-doc-snap class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-brand-blue text-white text-xs font-bold hover:bg-brand-dark">
+                                                    <i data-lucide="camera" class="w-3.5 h-3.5"></i> Snap with camera
+                                                </button>
+                                            </div>
+                                            <p class="text-xs text-emerald-700 mt-1.5 min-h-[1rem]" data-doc-status>No file yet</p>
+                                            <img data-doc-preview alt="{{ $label }} preview" class="hidden mt-2 max-h-28 rounded-md border border-emerald-200 object-cover">
+                                            @if ($field === 'selfie')
+                                                <p class="text-xs text-gray-500 mt-1">Front camera opens for selfie; you can Flip to use the other camera.</p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+
                                     <div>
                                         <label class="text-sm font-semibold text-gray-700">Signature *</label>
                                         <canvas id="apply-signature-pad" class="w-full mt-1 border-2 border-dashed border-brand-gold rounded-md bg-white" style="height:140px;touch-action:none;"></canvas>
@@ -205,9 +220,11 @@
 
 @if ($isInternship && $availability['available'])
 @push('scripts')
+@include('beyond.apply.partials.camera_capture')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
 (function () {
+    if (window.lucide) lucide.createIcons();
     var canvas = document.getElementById('apply-signature-pad');
     if (!canvas || !window.SignaturePad) return;
     var pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
@@ -224,6 +241,16 @@
     resize();
     document.getElementById('clear-signature').addEventListener('click', function () { pad.clear(); });
     document.getElementById('apply-form').addEventListener('submit', function (e) {
+        var missing = [];
+        ['student_id', 'internship_letter', 'selfie'].forEach(function (name) {
+            var input = document.querySelector('input[name="' + name + '"]');
+            if (!input || !input.files || !input.files.length) missing.push(name.replace('_', ' '));
+        });
+        if (missing.length) {
+            e.preventDefault();
+            alert('Please snap or attach: ' + missing.join(', '));
+            return;
+        }
         if (pad.isEmpty()) {
             e.preventDefault();
             alert('Please sign in the signature box.');
