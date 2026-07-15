@@ -78,8 +78,11 @@ class EventContractController extends Controller
 
         if ($phone) {
             try {
-                $msg = 'Beyond Enterprise: Please sign your event contract for '
-                    . $contract->event->name . '. Link: ' . $url;
+                $msg = \App\Support\WhatsAppMessage::eventContractSignRequest(
+                    optional($profile)->name ?: optional(optional($profile)->customer)->name,
+                    $contract->event->name,
+                    $url
+                );
                 $this->sendWhatsAppToPhone($phone, $msg);
             } catch (\Exception $e) {
                 Log::warning('Contract send WhatsApp failed: ' . $e->getMessage());

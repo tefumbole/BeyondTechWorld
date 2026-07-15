@@ -318,6 +318,18 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function eventContractSignRequest($workerName, $eventName, $signUrl)
+    {
+        $msg = self::statusBlock('📝', 'Event Contract');
+        $msg .= self::greeting($workerName ?: 'Team member');
+        $msg .= "Please review and sign your event contract with *" . self::companyName() . "*.\n\n";
+        $msg .= self::bullet('Event', $eventName);
+        $msg .= self::actionLink('Sign contract', $signUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function clientSignedPendingReview($customerName, $bookingRef, $reviewUrl = null)
     {
         $msg = self::statusBlock('✅', 'Agreement Signed');
