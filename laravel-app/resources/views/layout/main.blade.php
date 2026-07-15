@@ -1181,6 +1181,22 @@
                             </li>
                         @endif
                         @php
+                            $jobs_module_permission = \Spatie\Permission\Models\Permission::where('name', 'jobs_module')->first();
+                            $jobs_module_active = $role && $jobs_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $jobs_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($jobs_module_active)
+                            <li><a href="#jobs-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-briefcase"></i><span>Job Board</span></a>
+                                <ul id="jobs-module" class="collapse list-unstyled ">
+                                    <li id="jobs-list-menu"><a href="{{ route('jobs.index') }}">Job Postings</a></li>
+                                    <li id="jobs-create-menu"><a href="{{ route('jobs.create') }}">Add Job</a></li>
+                                    <li id="jobs-apps-menu"><a href="{{ route('jobs.applications') }}">Applications</a></li>
+                                </ul>
+                            </li>
+                        @endif
+                        @php
                             $courses_module_permission = \Spatie\Permission\Models\Permission::where('name', 'courses_module')->first();
                             $courses_module_active = $role && $courses_module_permission ? \DB::table('role_has_permissions')->where([
                                 ['permission_id', $courses_module_permission->id],
@@ -2242,6 +2258,7 @@
                                 // collapse target ids differ from Site Content reorder keys
                                 if (anchor === 'events-module') return 'events';
                                 if (anchor === 'tasks-module') return 'tasks';
+                                if (anchor === 'jobs-module') return 'jobs';
                                 if (anchor === 'announcements-module') return 'announcements';
                                 if (anchor === 'courses-module') return 'courses';
                                 if (anchor === 'timesheets-module') return 'timesheets';

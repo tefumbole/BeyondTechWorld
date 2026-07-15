@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\BeyondUser;
 use App\TimesheetActivity;
 use App\TimesheetCategory;
 use App\TimesheetEntry;
@@ -78,6 +79,20 @@ class TimesheetService
         }
 
         return $q->get();
+    }
+
+    /** Shared activities + those owned by this Beyond portal user. */
+    public function activitiesForPortal($beUserId)
+    {
+        return TimesheetActivity::with('categoryRel')
+            ->where('is_active', true)
+            ->where(function ($q) use ($beUserId) {
+                $q->where(function ($shared) {
+                    $shared->whereNull('owner_user_id')->whereNull('owner_be_user_id');
+                })->orWhere('owner_be_user_id', $beUserId);
+            })
+            ->orderBy('name')
+            ->get();
     }
 
     public function storeActivity($userId, array $data)
@@ -200,9 +215,12 @@ class TimesheetService
                 $activityName = $activity->name;
             }
         }
+        $beUser = BeyondUser::find($userId);
 
         return TimesheetEntry::create([
             'be_user_id' => $userId,
+            'user_id' => null,
+            'employee_name' => $beUser ? ($beUser->name ?: $beUser->email) : null,
             'activity_id' => $data['activity_id'] ?? null,
             'activity_name' => $activityName,
             'entry_date' => $data['entry_date'],
@@ -379,9 +397,7 @@ class TimesheetService
                 $q->where('entry_date', '<=', $to);
             }
         }
-        if ($userId && $userId !== 'all') {
-            $q->where('user_id', $userId);
-        }
+        $this->applyEmployeeFilter($q, $userId);
 
         return $q->paginate(50);
     }
@@ -391,12 +407,11 @@ class TimesheetService
         $q = TimesheetEntry::query()
             ->whereBetween('entry_date', [$from, $to])
             ->orderBy('entry_date');
-        if ($userId && $userId !== 'all') {
-            $q->where('user_id', $userId);
-        }
+        $this->applyEmployeeFilter($q, $userId);
         $rows = $q->get();
         $byEmployee = $rows->groupBy(function ($e) {
-            return $e->employee_name ?: ('User #' . $e->user_id);
+            return $e->employee_name
+                ?: ($e->user_id ? ('User #'.$e->user_id) : ($e->be_user_id ? ('Portal #'.substr($e->be_user_id, 0, 8)) : 'Unknown'));
         })->map(function ($group) {
             return [
                 'hours' => round((float) $group->sum('hours'), 2),
@@ -414,22 +429,28 @@ class TimesheetService
     public function overtimeReport($from, $to, $userId = null)
     {
         $q = TimesheetEntry::query()->whereBetween('entry_date', [$from, $to]);
-        if ($userId && $userId !== 'all') {
-            $q->where('user_id', $userId);
-        }
+        $this->applyEmployeeFilter($q, $userId);
         $entries = $q->get();
 
         $grouped = [];
         foreach ($entries as $e) {
-            if (! $e->user_id) {
+            if ($e->user_id) {
+                $identity = 'pos:'.$e->user_id;
+                $name = $e->employee_name ?: ('User #'.$e->user_id);
+            } elseif ($e->be_user_id) {
+                $identity = 'be:'.$e->be_user_id;
+                $name = $e->employee_name ?: ('Portal #'.substr($e->be_user_id, 0, 8));
+            } else {
                 continue;
             }
             $weekStart = Carbon::parse($e->entry_date)->startOfWeek(Carbon::MONDAY)->toDateString();
-            $key = $e->user_id . '|' . $weekStart;
+            $key = $identity.'|'.$weekStart;
             if (! isset($grouped[$key])) {
                 $grouped[$key] = [
+                    'identity' => $identity,
                     'user_id' => $e->user_id,
-                    'employee_name' => $e->employee_name ?: ('User #' . $e->user_id),
+                    'be_user_id' => $e->be_user_id,
+                    'employee_name' => $name,
                     'week_start' => $weekStart,
                     'total_hours' => 0.0,
                 ];
@@ -439,12 +460,16 @@ class TimesheetService
 
         $out = [];
         foreach ($grouped as $row) {
-            $ww = WorkingWeek::where('user_id', $row['user_id'])->first();
+            if (! empty($row['user_id'])) {
+                $ww = WorkingWeek::where('user_id', $row['user_id'])->first();
+            } else {
+                $ww = WorkingWeek::where('be_user_id', $row['be_user_id'])->first();
+            }
             $expected = $ww ? $this->weeklyExpectedHours($ww) : 40.0;
             $ot = max(0, round($row['total_hours'] - $expected, 2));
             $out[] = [
                 'employee_name' => $row['employee_name'],
-                'user_id' => $row['user_id'],
+                'user_id' => $row['identity'],
                 'week_start' => $row['week_start'],
                 'total_hours' => round($row['total_hours'], 2),
                 'expected_hours' => $expected,
@@ -458,9 +483,51 @@ class TimesheetService
         return $out;
     }
 
+    /**
+     * Filter by POS user (pos:123 / bare id) or portal Beyond user (be:uuid).
+     */
+    protected function applyEmployeeFilter($q, $userId)
+    {
+        if (! $userId || $userId === 'all') {
+            return;
+        }
+        if (strpos($userId, 'be:') === 0) {
+            $q->where('be_user_id', substr($userId, 3));
+
+            return;
+        }
+        if (strpos($userId, 'pos:') === 0) {
+            $q->where('user_id', (int) substr($userId, 4));
+
+            return;
+        }
+        $q->where('user_id', $userId);
+    }
+
     public function employeeOptions()
     {
-        return User::where('is_deleted', false)->orderBy('name')->limit(300)->get(['id', 'name']);
+        $out = collect();
+        User::where('is_deleted', false)->orderBy('name')->limit(200)->get(['id', 'name'])
+            ->each(function ($u) use ($out) {
+                $out->push((object) [
+                    'id' => 'pos:'.$u->id,
+                    'name' => $u->name.' (Admin)',
+                ]);
+            });
+
+        $beIds = TimesheetEntry::whereNotNull('be_user_id')->distinct()->pluck('be_user_id');
+        if ($beIds->isNotEmpty()) {
+            BeyondUser::whereIn('id', $beIds)->orderBy('name')->get(['id', 'name', 'email'])
+                ->each(function ($u) use ($out) {
+                    $label = $u->name ?: $u->email ?: substr($u->id, 0, 8);
+                    $out->push((object) [
+                        'id' => 'be:'.$u->id,
+                        'name' => $label.' (Portal)',
+                    ]);
+                });
+        }
+
+        return $out->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
     }
 
     public function updateEntryStatus($id, $status)

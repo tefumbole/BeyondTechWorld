@@ -123,7 +123,7 @@ Route::post('/complete-profile', 'BeyondAuthController@completeProfile')->middle
 Route::get('/user/profile', 'BeyondAuthController@showProfile')->middleware(['beyond.auth', 'beyond.otp']);
 Route::patch('/user/profile', 'BeyondAuthController@updateProfile')->middleware(['beyond.auth', 'beyond.otp']);
 Route::get('/store', 'FrontendController@index')->name('frontend.home');
-Route::get('/logout', 'FrontendController@logout')->name('logout');
+Route::get('/shop/logout', 'FrontendController@logout')->name('shop.logout');
 Route::get('/shop/login', 'FrontendController@login')->name('shop.login');
 Route::get('/shop/signup', 'FrontendController@signup')->name('shop.signup');
 Route::post('/shop/signup', 'FrontendController@signupStore')->name('shop.signup');
@@ -201,7 +201,8 @@ Route::post('/admin/login', 'Auth\LoginController@login');
 // Beyond portal login (must be after Auth::routes — Laravel 6 always registers /login in auth())
 Route::get('/login', 'BeyondAuthController@showLogin')->name('beyond.login');
 Route::post('/login', 'BeyondAuthController@login');
-Route::post('/logout', 'BeyondAuthController@logout')->name('beyond.logout');
+// Portal logout must NOT share POST /logout with Auth::routes (admin POS logout).
+Route::post('/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
 
 Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');
@@ -209,7 +210,7 @@ Route::group(['middleware' => 'auth'], function() {
 
 Route::group(['middleware' => ['auth', 'active']], function() {
 
-    Route::post('/logout', 'HomeController@logout')->name('logout');
+    // Auth::routes already registers POST /logout → LoginController@logout (overridden).
 	Route::get('/otp/screen', 'HomeController@otpCheck')->name('check.otp');
 	Route::post('/otp/screen/store', 'HomeController@otpCheckStore')->name('check.otp.store');
 	Route::post('/otp/screen/resend', 'HomeController@otpResend')->name('check.otp.resend');
@@ -243,6 +244,16 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/tasks/settings/templates', 'TaskManagerController@storeTemplate')->name('tasks.settings.templates.store');
     Route::post('/admin/tasks/settings/templates/{id}/delete', 'TaskManagerController@destroyTemplate')->name('tasks.settings.templates.destroy');
     Route::get('/admin/tasks/users/search', 'TaskManagerController@searchUsers')->name('tasks.users.search');
+
+    // Job Board admin
+    Route::get('/admin/jobs', 'JobBoardController@index')->name('jobs.index');
+    Route::get('/admin/jobs/create', 'JobBoardController@create')->name('jobs.create');
+    Route::post('/admin/jobs', 'JobBoardController@store')->name('jobs.store');
+    Route::get('/admin/jobs/applications', 'JobBoardController@applications')->name('jobs.applications');
+    Route::post('/admin/jobs/applications/{id}', 'JobBoardController@updateApplication')->name('jobs.applications.update');
+    Route::get('/admin/jobs/{id}/edit', 'JobBoardController@edit')->name('jobs.edit');
+    Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');
+    Route::post('/admin/jobs/{id}/delete', 'JobBoardController@destroy')->name('jobs.destroy');
 
     // WhatsApp Announcements Manager (AlphaBridge-style)
     Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');

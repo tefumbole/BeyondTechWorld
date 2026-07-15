@@ -39,6 +39,7 @@ class SiteMenu
             'booking'      => 'Rental Module',
             'events'       => 'Events',
             'tasks'        => 'Task Manager',
+            'jobs'         => 'Job Board',
             'announcements'=> 'Announcements',
             'courses'      => 'Courses',
             'timesheets'   => 'TimeSheets (Employee)',

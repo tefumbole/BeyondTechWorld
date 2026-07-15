@@ -95,6 +95,41 @@ class ApplicationService
             ->get();
     }
 
+    public function adminList($jobId = null, $status = null, $search = null)
+    {
+        $q = Application::with('job')->orderByDesc('created_at');
+        if ($jobId && $jobId !== 'all') {
+            $q->where('job_id', $jobId);
+        }
+        if ($status && $status !== 'all') {
+            $q->where('status', $status);
+        }
+        if ($search) {
+            $q->where(function ($w) use ($search) {
+                $w->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('reference_number', 'like', "%{$search}%");
+            });
+        }
+
+        return $q->paginate(50);
+    }
+
+    public function updateStatus(Application $application, array $data)
+    {
+        $application->status = $data['status'] ?? $application->status;
+        if (array_key_exists('rejection_reason', $data)) {
+            $application->rejection_reason = $data['rejection_reason'];
+        }
+        if (array_key_exists('interview_date', $data)) {
+            $application->interview_date = $data['interview_date'] ?: null;
+        }
+        $application->save();
+
+        return $application;
+    }
+
     public function countryCodes()
     {
         return [

@@ -28,7 +28,7 @@
         <span id="resend-label">Resend OTP</span>
     </button>
 </form>
-<form method="POST" action="{{ url('/logout') }}" class="mt-2">
+<form method="POST" action="{{ route('beyond.logout') }}" class="mt-2">
     @csrf
     <button type="submit" class="w-full text-sm text-gray-500 hover:text-brand-blue flex items-center justify-center gap-1">
         <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Login

@@ -114,7 +114,7 @@
                                     <li><a href={{ route('frontend.order.index') }}>My Orders</a></li>
                                     <li><a href={{ route('frontend.book.index') }}>My Booking</a></li>
                                     <li><a href={{ route('frontend.service.index') }}>My Services</a></li>
-                                    <li><a href="{{ route('logout') }}">Sign out</a></li>
+                                    <li><a href="{{ route('shop.logout') }}">Sign out</a></li>
                                 @else
                                     <li><a href="{{ route('shop.login') }}">Sign in</a></li>
                                 @endif

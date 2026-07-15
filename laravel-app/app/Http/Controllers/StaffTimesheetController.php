@@ -20,9 +20,10 @@ class StaffTimesheetController extends Controller
         $user = Auth::guard('beyond')->user();
         $month = $request->query('month', now()->format('Y-m'));
 
-        $entries = $this->timesheet->entriesForMonth($user->id, $month);
+        // Portal entries are keyed by be_user_id (not POS user_id).
+        $entries = $this->timesheet->entriesForMonth($user->id, $month, false);
         $summary = $this->timesheet->summarize($entries);
-        $activities = $this->timesheet->activities();
+        $activities = $this->timesheet->activitiesForPortal($user->id);
 
         return view('beyond.timesheet.index', compact('user', 'month', 'entries', 'summary', 'activities'));
     }

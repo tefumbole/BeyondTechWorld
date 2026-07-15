@@ -88,7 +88,7 @@
                 </a>
                 @auth('beyond')
                     <a href="{{ url('/user/profile') }}" class="text-white hover:text-brand-gold text-sm font-medium hidden xl:inline">{{ Auth::guard('beyond')->user()->name }}</a>
-                    <form method="POST" action="{{ url('/logout') }}" class="inline">
+                    <form method="POST" action="{{ route('beyond.logout') }}" class="inline">
                         @csrf
                         <button type="submit" class="bg-brand-dark border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-blue font-medium transition-all rounded-md px-4 py-2">Logout</button>
                     </form>
@@ -113,7 +113,7 @@
                 <div class="pt-3 border-t border-white/10">
                     @auth('beyond')
                         <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
-                        <form method="POST" action="{{ url('/logout') }}" class="mt-2">
+                        <form method="POST" action="{{ route('beyond.logout') }}" class="mt-2">
                             @csrf
                             <button type="submit" class="w-full py-2 rounded border border-white/20 text-white">Logout</button>
                         </form>

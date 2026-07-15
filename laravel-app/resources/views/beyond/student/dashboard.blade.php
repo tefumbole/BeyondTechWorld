@@ -16,7 +16,7 @@
                 <a href="{{ route('student.progress') }}" class="inline-flex items-center gap-2 border border-brand-blue text-brand-blue px-4 py-2 rounded-md font-medium hover:bg-blue-50">
                     <i data-lucide="trending-up" class="w-4 h-4"></i> My Progress
                 </a>
-                <form method="POST" action="{{ url('/logout') }}">
+                <form method="POST" action="{{ route('beyond.logout') }}">
                     @csrf
                     <button type="submit" class="inline-flex items-center gap-2 border border-red-200 text-red-600 px-4 py-2 rounded-md font-medium hover:bg-red-50">
                         <i data-lucide="log-out" class="w-4 h-4"></i> Logout
