@@ -401,7 +401,7 @@ class RentalContractController extends Controller
 
     public static function createForBooking(Booking $booking, $contractType = null)
     {
-        $type = in_array($contractType, ['equipment', 'accommodation'], true)
+        $type = in_array($contractType, ['equipment', 'accommodation', 'software_license'], true)
             ? $contractType
             : BookingCategoryHelper::contractTypeForBooking($booking);
 
@@ -432,7 +432,9 @@ class RentalContractController extends Controller
         $msg = WhatsAppMessage::signatureRequest(
             $customer->name,
             $booking->reference_no,
-            $link
+            $link,
+            null,
+            $contract->contract_type
         );
 
         $controller->sendWhatsAppToCustomer($customer, $msg);
@@ -653,18 +655,28 @@ class RentalContractController extends Controller
     {
         $type = $contract->contract_type ?: BookingCategoryHelper::contractTypeForBooking($booking);
 
-        return $type === 'accommodation'
-            ? 'booking.accommodation_agreement'
-            : 'booking.rental_agreement';
+        if ($type === 'accommodation') {
+            return 'booking.accommodation_agreement';
+        }
+        if ($type === 'software_license') {
+            return 'booking.software_license_agreement';
+        }
+
+        return 'booking.rental_agreement';
     }
 
     private function signedPdfViewForContract(BookingContract $contract, Booking $booking)
     {
         $type = $contract->contract_type ?: BookingCategoryHelper::contractTypeForBooking($booking);
 
-        return $type === 'accommodation'
-            ? 'pdf.signed_accommodation_contract'
-            : 'pdf.signed_rental_contract';
+        if ($type === 'accommodation') {
+            return 'pdf.signed_accommodation_contract';
+        }
+        if ($type === 'software_license') {
+            return 'pdf.signed_software_license_contract';
+        }
+
+        return 'pdf.signed_rental_contract';
     }
 
     private function persistSignatureImage(BookingContract $contract, $type = 'client')

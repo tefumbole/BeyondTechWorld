@@ -53,7 +53,7 @@
     @endif
 
     <div class="portal-card">
-        <h4>Your Rentals</h4>
+        <h4>{{ ($contract->contract_type ?? '') === 'software_license' ? 'Your Subscriptions' : 'Your Rentals' }}</h4>
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
@@ -62,7 +62,7 @@
                         <th>Date</th>
                         <th>Status</th>
                         <th>Total</th>
-                        <th>Equipment</th>
+                        <th>{{ ($contract->contract_type ?? '') === 'software_license' ? 'Products' : 'Equipment' }}</th>
                     </tr>
                 </thead>
                 <tbody>

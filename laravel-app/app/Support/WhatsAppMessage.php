@@ -43,15 +43,26 @@ class WhatsAppMessage
         return "\n_" . self::companyName() . '_';
     }
 
-    public static function signatureRequest($customerName, $bookingRef, $signUrl, $company = null)
+    public static function signatureRequest($customerName, $bookingRef, $signUrl, $company = null, $contractType = null)
     {
         $company = $company ?: self::companyName();
-        $msg = self::statusBlock('📝', 'Rental Agreement');
+        if ($contractType === 'accommodation') {
+            $heading = 'Accommodation Agreement';
+            $body = "Please review and sign your student accommodation agreement with *{$company}*.\n\n";
+        } elseif ($contractType === 'software_license') {
+            $heading = 'Software License Subscription';
+            $body = "Please review and sign your software license / subscription agreement with *{$company}*.\n\n";
+        } else {
+            $heading = 'Rental Agreement';
+            $body = "Please review and sign your equipment rental agreement with *{$company}*.\n\n";
+        }
+
+        $msg = self::statusBlock('📝', $heading);
         $msg .= self::greeting($customerName);
-        $msg .= "Please review and sign your equipment rental agreement with *{$company}*.\n\n";
+        $msg .= $body;
         $msg .= self::bullet('Booking Ref', $bookingRef);
         $msg .= self::actionLink('Sign agreement', $signUrl);
-        $msg .= "\nYour booking receipt will be generated after admin review. You will read the agreement, sign digitally, and upload your ID card.";
+        $msg .= "\nYour booking receipt will be generated after admin review. You will read the agreement, sign digitally, and upload your ID card. After approval you can access your client portal.";
         $msg .= self::footer();
 
         return $msg;

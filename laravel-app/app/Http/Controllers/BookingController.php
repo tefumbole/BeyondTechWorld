@@ -925,10 +925,10 @@ class BookingController extends Controller
 
         if (!empty($data['send_for_signature'])) {
             $contractType = $request->input('contract_type');
-            if (!in_array($contractType, ['equipment', 'accommodation'], true)) {
+            if (!in_array($contractType, ['equipment', 'accommodation', 'software_license'], true)) {
                 return redirect()->back()->withInput()->with(
                     'not_permitted',
-                    'Please select Equipment Rental Contract or Accommodation Contract before sending for signature.'
+                    'Please select Equipment Rental, Accommodation, or Licenses Software Subscription before sending for signature.'
                 );
             }
             $customer = Customer::find($data['customer_id'] ?? null);
@@ -1379,9 +1379,13 @@ class BookingController extends Controller
             $lims_sale_data->load('customer');
             $contractType = $request->input('contract_type');
             $contract = RentalContractController::createForBooking($lims_sale_data, $contractType);
-            $contractLabel = $contractType === 'accommodation'
-                ? 'Accommodation agreement'
-                : 'Equipment rental agreement';
+            if ($contractType === 'accommodation') {
+                $contractLabel = 'Accommodation agreement';
+            } elseif ($contractType === 'software_license') {
+                $contractLabel = 'Software license subscription agreement';
+            } else {
+                $contractLabel = 'Equipment rental agreement';
+            }
             try {
                 RentalContractController::sendSignatureLink($lims_sale_data, $contract);
                 $message = 'Booking saved. ' . $contractLabel . ' sent for signature via WhatsApp. Receipt will be generated after the client signs.';

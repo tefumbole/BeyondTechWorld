@@ -585,6 +585,10 @@
                                         <input type="radio" class="custom-control-input" id="contract_type_accommodation" name="contract_type" value="accommodation">
                                         <label class="custom-control-label" for="contract_type_accommodation"><strong>Accommodation Contract</strong> (student housing / rooms)</label>
                                     </div>
+                                    <div class="custom-control custom-radio mb-2">
+                                        <input type="radio" class="custom-control-input" id="contract_type_software_license" name="contract_type" value="software_license">
+                                        <label class="custom-control-label" for="contract_type_software_license"><strong>Licenses Software Subscription</strong> (IPTV, antivirus, software licenses)</label>
+                                    </div>
                                     <p class="text-muted mb-0">When a contract type is selected, use <strong>Save &amp; Send for Signature</strong> to WhatsApp the agreement link to the client. The booking receipt is generated only after the client signs. Signature is allowed only once.</p>
                                     <input type="hidden" name="send_for_signature" id="send_for_signature" value="0">
                                 </div>
@@ -927,9 +931,13 @@
         return $('input[name="contract_type"]:checked').val() || 'none';
     }
 
+    function isSignatureContractType(type) {
+        return type === 'equipment' || type === 'accommodation' || type === 'software_license';
+    }
+
     function toggleContractSendButton() {
         var type = selectedContractType();
-        if (type === 'equipment' || type === 'accommodation') {
+        if (isSignatureContractType(type)) {
             $('#send-contract-button').show();
         } else {
             $('#send-contract-button').hide();
@@ -942,9 +950,9 @@
 
     $('#send-contract-button').on('click', function (e) {
         var type = selectedContractType();
-        if (type !== 'equipment' && type !== 'accommodation') {
+        if (!isSignatureContractType(type)) {
             e.preventDefault();
-            alert('Please select Equipment Rental Contract or Accommodation Contract.');
+            alert('Please select Equipment Rental, Accommodation, or Licenses Software Subscription.');
             return false;
         }
         $('#send_for_signature').val('1');
