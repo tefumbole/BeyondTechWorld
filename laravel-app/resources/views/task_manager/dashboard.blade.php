@@ -12,7 +12,7 @@
             </div>
             <div>
                 <a href="{{ route('tasks.dashboard') }}" class="btn btn-outline-secondary btn-sm">Refresh</a>
-                @if(in_array('tasks.create', $all_permission))
+                @if(in_array('tasks.create', $all_permission ?? []))
                     <a href="{{ route('tasks.create') }}" class="btn btn-primary btn-sm"><i class="dripicons-plus"></i> New Task</a>
                 @endif
             </div>

@@ -10,7 +10,7 @@
                 <h3 style="color:#0b3f90;" class="mb-1">All Tasks</h3>
                 <p class="text-muted mb-0">Manage tasks and track assignments.</p>
             </div>
-            @if(in_array('tasks.create', $all_permission))
+            @if(in_array('tasks.create', $all_permission ?? []))
                 <a href="{{ route('tasks.create') }}" class="btn btn-primary btn-sm"><i class="dripicons-plus"></i> New Task</a>
             @endif
         </div>
@@ -62,7 +62,7 @@
                                 <td>{{ $task->ccRecipients->count() }}</td>
                                 <td>{{ $task->status }}</td>
                                 <td class="text-right">
-                                    @if(in_array('tasks.delete', $all_permission))
+                                    @if(in_array('tasks.delete', $all_permission ?? []))
                                         <form method="POST" action="{{ route('tasks.destroy', $task->id) }}" class="d-inline" onsubmit="return confirm('Delete this task?');">
                                             @csrf
                                             <button class="btn btn-sm btn-outline-danger"><i class="dripicons-trash"></i></button>

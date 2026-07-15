@@ -10,25 +10,37 @@ use App\TaskReminder;
 use App\Services\TaskService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class TaskManagerController extends Controller
 {
     protected $tasks;
+    protected $all_permission = [];
 
     public function __construct(TaskService $tasks)
     {
         $this->tasks = $tasks;
+        $this->middleware(function ($request, $next) {
+            if (Auth::check()) {
+                $role = Role::find(Auth::user()->role_id);
+                if ($role) {
+                    foreach (Role::findByName($role->name)->permissions as $permission) {
+                        $this->all_permission[] = $permission->name;
+                    }
+                }
+            }
+            View::share('all_permission', $this->all_permission);
+
+            return $next($request);
+        });
     }
 
     protected function authorizeTasks($permission = 'tasks.view')
     {
-        $user = Auth::user();
-        $role = $user ? \Spatie\Permission\Models\Role::find($user->role_id) : null;
-        if (! $role) {
-            abort(403, 'You are not allowed to access Task Manager.');
-        }
-        if ($role->hasPermissionTo('tasks_module') || $role->hasPermissionTo($permission)) {
+        if (in_array('tasks_module', $this->all_permission, true)
+            || in_array($permission, $this->all_permission, true)) {
             return;
         }
         abort(403, 'You are not allowed to access Task Manager.');
