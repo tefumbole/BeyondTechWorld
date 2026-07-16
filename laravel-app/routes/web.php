@@ -58,7 +58,10 @@ Route::post('/rentals', 'PublicRentalController@store')->name('beyond.rentals.st
 Route::get('/rentals/confirmation/{reference}', 'PublicRentalController@confirmation')->name('beyond.rentals.confirmation');
 
 Route::get('/permissions', 'PublicPermissionController@index')->name('beyond.permissions');
+Route::get('/permissions/name-search', 'PublicPermissionController@searchNames')->name('beyond.permissions.search');
 Route::post('/permissions', 'PublicPermissionController@store')->name('beyond.permissions.store');
+Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('beyond.permissions.verify');
+Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');
 Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@confirmation')->name('beyond.permissions.confirmation');
 
 // Student portal (training) — requires Beyond auth + OTP
@@ -211,6 +214,7 @@ Route::post('/admin/login', 'Auth\LoginController@login');
 // Beyond portal login (must be after Auth::routes — Laravel 6 always registers /login in auth())
 Route::get('/login', 'BeyondAuthController@showLogin')->name('beyond.login');
 Route::post('/login', 'BeyondAuthController@login');
+Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 // Portal logout must NOT share POST /logout with Auth::routes (admin POS logout).
 Route::post('/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
 

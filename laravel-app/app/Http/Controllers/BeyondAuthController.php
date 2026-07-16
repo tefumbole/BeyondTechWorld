@@ -6,6 +6,7 @@ use App\BeyondProfile;
 use App\BeyondUser;
 use App\Services\BeyondAuthService;
 use App\Services\BeyondWasenderService;
+use App\Support\CountryDialCodes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -39,7 +40,88 @@ class BeyondAuthController extends Controller
         return view('beyond.auth.login', [
             'prefill' => $request->get('u', ''),
             'guestPassword' => $request->get('guest') === '1',
+            'tab' => $request->get('tab') === 'signup' ? 'signup' : 'signin',
+            'countryCodes' => CountryDialCodes::all(),
         ]);
+    }
+
+    public function register(Request $request)
+    {
+        $data = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'country_code' => 'required|string|max:10',
+            'phone' => 'required|string|max:40',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $phone = CountryDialCodes::combine($data['country_code'], $data['phone']);
+        if (strlen(preg_replace('/\D/', '', $phone)) < 8) {
+            return back()->withInput()->withErrors(['phone' => 'Enter a valid WhatsApp number.']);
+        }
+
+        if ($this->auth->findByPhone($phone)) {
+            return back()->withInput()->withErrors([
+                'phone' => 'An account already exists with this phone. Sign in or reset your password via WhatsApp OTP.',
+            ]);
+        }
+
+        if (! empty($data['email']) && BeyondUser::whereRaw('LOWER(email) = ?', [strtolower($data['email'])])->exists()) {
+            return back()->withInput()->withErrors(['email' => 'Email is already registered. Sign in or reset your password.']);
+        }
+
+        $base = $this->auth->normalizeUsername(Str::slug($data['full_name'], '.') ?: 'user');
+        if ($base === '') {
+            $base = 'user';
+        }
+        $username = $base;
+        $i = 1;
+        while (BeyondUser::whereRaw('LOWER(username) = ?', [strtolower($username)])->exists()) {
+            $username = $base.$i;
+            $i++;
+        }
+
+        $email = $data['email'] ?? null;
+        if (! $email) {
+            $email = $username.'@beyond.local';
+            $n = 1;
+            while (BeyondUser::whereRaw('LOWER(email) = ?', [strtolower($email)])->exists()) {
+                $email = $username.$n.'@beyond.local';
+                $n++;
+            }
+        }
+
+        $user = BeyondUser::create([
+            'id' => (string) Str::uuid(),
+            'name' => $data['full_name'],
+            'email' => $email,
+            'username' => $username,
+            'password_hash' => $this->auth->hashPassword($data['password']),
+            'role' => 'staff',
+            'status' => 'active',
+            'phone' => $phone,
+            'must_change_credentials' => false,
+        ]);
+        $this->auth->syncProfile($user);
+
+        Auth::guard('beyond')->login($user);
+        $request->session()->put('beyond_masked_phone', $this->whatsapp->maskPhone($phone));
+
+        if ($this->auth->shouldSkipOtp()) {
+            $request->session()->put('beyond_otp_verified', true);
+
+            return redirect($this->loginRedirect($request, $user, BeyondProfile::find($user->id)));
+        }
+
+        $otp = $this->auth->createOtp($phone, 'login');
+        $send = $this->whatsapp->sendOtp($phone, $otp['code']);
+        if (! ($send['success'] ?? false)) {
+            return back()->withInput()->withErrors(['phone' => $send['error'] ?? 'Failed to send WhatsApp OTP.']);
+        }
+
+        $request->session()->forget('beyond_otp_verified');
+
+        return redirect('/otp-verification')->with('success', 'Account created. Enter the WhatsApp code to finish sign up.');
     }
 
     protected function postLoginRedirect(Request $request, $user, $profile)
@@ -203,22 +285,32 @@ class BeyondAuthController extends Controller
         return redirect('/login');
     }
 
-    public function showForgotPassword()
+    public function showForgotPassword(Request $request)
     {
-        return view('beyond.auth.forgot-password');
+        return view('beyond.auth.forgot-password', [
+            'prefillPhone' => $request->get('phone', ''),
+            'countryCodes' => CountryDialCodes::all(),
+        ]);
     }
 
     public function requestPasswordReset(Request $request)
     {
-        $request->validate(['phone' => 'required|string']);
+        $data = $request->validate([
+            'phone' => 'required|string|max:40',
+            'country_code' => 'nullable|string|max:10',
+        ]);
 
-        $user = $this->auth->findByPhone($request->phone);
+        $phone = ! empty($data['country_code'])
+            ? CountryDialCodes::combine($data['country_code'], $data['phone'])
+            : $data['phone'];
+
+        $user = $this->auth->findByPhone($phone);
         if (! $user) {
             return back()->withErrors(['phone' => 'No account found with this phone number.']);
         }
 
-        $otp = $this->auth->createOtp($request->phone, 'password_reset');
-        $send = $this->whatsapp->sendOtp($request->phone, $otp['code'], 'password_reset');
+        $otp = $this->auth->createOtp($phone, 'password_reset');
+        $send = $this->whatsapp->sendOtp($phone, $otp['code'], 'password_reset');
         if (! $send['success']) {
             return back()->withErrors(['phone' => $send['error'] ?? 'Failed to send verification code.']);
         }
