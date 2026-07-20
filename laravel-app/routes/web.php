@@ -286,7 +286,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
     Route::get('/admin/jobs/applications/{id}', 'JobBoardController@showApplication')->name('jobs.applications.show');
     Route::get('/admin/jobs/applications/{id}/document/{type}', 'JobBoardController@document')->name('jobs.applications.document')
-        ->where('type', 'cv|student_id|letter|selfie');
+        ->where('type', 'cv|student_id|student_id_back|letter|selfie');
     Route::post('/admin/jobs/applications/{id}', 'JobBoardController@updateApplication')->name('jobs.applications.update');
     Route::get('/admin/jobs/{id}/edit', 'JobBoardController@edit')->name('jobs.edit');
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');

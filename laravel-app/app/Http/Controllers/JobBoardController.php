@@ -195,6 +195,7 @@ class JobBoardController extends Controller
         $map = [
             'cv' => $app->cv_url ?: $app->cv_path,
             'student_id' => $app->student_id_path,
+            'student_id_back' => $app->student_id_back_path,
             'letter' => $app->internship_letter_path,
             'selfie' => $app->selfie_path,
         ];

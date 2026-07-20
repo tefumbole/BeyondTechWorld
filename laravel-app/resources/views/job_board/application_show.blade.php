@@ -95,9 +95,17 @@
                         @endif
                         @if($app->student_id_path)
                             <div>
-                                <div class="jb-label">Student ID</div>
+                                <div class="jb-label">ID card — Front</div>
                                 <a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">
-                                    <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" alt="Student ID">
+                                    <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" alt="ID Front">
+                                </a>
+                            </div>
+                        @endif
+                        @if($app->student_id_back_path)
+                            <div>
+                                <div class="jb-label">ID card — Back</div>
+                                <a href="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" target="_blank" rel="noopener">
+                                    <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" alt="ID Back">
                                 </a>
                             </div>
                         @endif
@@ -119,7 +127,7 @@
                                 </a>
                             </div>
                         @endif
-                        @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->internship_letter_path && !$app->selfie_path)
+                        @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->student_id_back_path && !$app->internship_letter_path && !$app->selfie_path)
                             <p class="text-muted mb-0">No documents uploaded.</p>
                         @endif
                     </div>

@@ -63,7 +63,10 @@ class ApplicationService
 
         if ($job->isInternship()) {
             if (! empty($extraFiles['student_id'])) {
-                $payload['student_id_path'] = $this->storeUploadFlexible($extraFiles['student_id'], 'student_id', $job->id);
+                $payload['student_id_path'] = $this->storeUploadFlexible($extraFiles['student_id'], 'student_id_front', $job->id);
+            }
+            if (! empty($extraFiles['student_id_back'])) {
+                $payload['student_id_back_path'] = $this->storeUploadFlexible($extraFiles['student_id_back'], 'student_id_back', $job->id);
             }
             if (! empty($extraFiles['internship_letter'])) {
                 $payload['internship_letter_path'] = $this->storeUploadFlexible($extraFiles['internship_letter'], 'internship_letter', $job->id);

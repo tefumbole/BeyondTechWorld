@@ -163,8 +163,38 @@
                                         <p class="text-xs text-emerald-800 mt-1">Use <strong>Snap with camera</strong> to turn on your camera, or <strong>Attach file</strong> to upload.</p>
                                     </div>
 
+                                    <div class="rounded-md border border-emerald-300 bg-white/70 p-3 space-y-3">
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-800">National ID card *</p>
+                                            <p class="text-xs text-gray-600 mt-1">Both sides are required — like a Cameroon National Identity Card:</p>
+                                            <ul class="text-xs text-gray-600 mt-1 list-disc pl-4 space-y-0.5">
+                                                <li><strong>Front</strong> — photo, names, date of birth, chip side</li>
+                                                <li><strong>Back</strong> — parents, address, issue/expiry dates, unique identifier</li>
+                                            </ul>
+                                        </div>
+                                        @foreach ([
+                                            ['student_id', 'ID card — Front', 'environment', 'Snap ID Front'],
+                                            ['student_id_back', 'ID card — Back', 'environment', 'Snap ID Back'],
+                                        ] as [$field, $label, $facing, $snapTitle])
+                                            <div data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}">
+                                                <label class="text-sm font-semibold text-gray-700">{{ $label }} *</label>
+                                                <input type="file" name="{{ $field }}" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1">
+                                                <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-{{ $field }}">
+                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                    <label for="attach-{{ $field }}" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-brand-blue text-brand-blue text-xs font-bold cursor-pointer bg-white hover:bg-blue-50">
+                                                        <i data-lucide="paperclip" class="w-3.5 h-3.5"></i> Attach file
+                                                    </label>
+                                                    <button type="button" data-doc-snap class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-brand-blue text-white text-xs font-bold hover:bg-brand-dark">
+                                                        <i data-lucide="camera" class="w-3.5 h-3.5"></i> Snap with camera
+                                                    </button>
+                                                </div>
+                                                <p class="text-xs text-emerald-700 mt-1.5 min-h-[1rem]" data-doc-status>No file yet</p>
+                                                <img data-doc-preview alt="{{ $label }} preview" class="hidden mt-2 max-h-28 rounded-md border border-emerald-200 object-cover">
+                                            </div>
+                                        @endforeach
+                                    </div>
+
                                     @foreach ([
-                                        ['student_id', 'Student ID', 'environment', 'Snap Student ID'],
                                         ['internship_letter', 'Internship Letter', 'environment', 'Snap Internship Letter'],
                                         ['selfie', 'Selfie / Photo', 'user', 'Snap Selfie'],
                                     ] as [$field, $label, $facing, $snapTitle])
@@ -242,9 +272,15 @@
     document.getElementById('clear-signature').addEventListener('click', function () { pad.clear(); });
     document.getElementById('apply-form').addEventListener('submit', function (e) {
         var missing = [];
-        ['student_id', 'internship_letter', 'selfie'].forEach(function (name) {
-            var input = document.querySelector('input[name="' + name + '"]');
-            if (!input || !input.files || !input.files.length) missing.push(name.replace('_', ' '));
+        var requiredDocs = [
+            ['student_id', 'ID card front'],
+            ['student_id_back', 'ID card back'],
+            ['internship_letter', 'internship letter'],
+            ['selfie', 'selfie']
+        ];
+        requiredDocs.forEach(function (pair) {
+            var input = document.querySelector('input[name="' + pair[0] + '"]');
+            if (!input || !input.files || !input.files.length) missing.push(pair[1]);
         });
         if (missing.length) {
             e.preventDefault();

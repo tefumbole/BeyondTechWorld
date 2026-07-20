@@ -92,7 +92,10 @@
                                         <a href="{{ route('jobs.applications.document', [$app->id, 'cv']) }}" target="_blank" rel="noopener">CV</a>
                                     @endif
                                     @if($app->student_id_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">Student ID</a>
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">ID Front</a>
+                                    @endif
+                                    @if($app->student_id_back_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" target="_blank" rel="noopener">ID Back</a>
                                     @endif
                                     @if($app->internship_letter_path)
                                         <br><a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">Letter</a>
@@ -101,7 +104,7 @@
                                         <br><a href="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" target="_blank" rel="noopener">Selfie</a>
                                     @endif
                                     @if($app->agreement_signed_at)<br><span class="text-success">Agreement signed</span>@endif
-                                    @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->internship_letter_path && !$app->selfie_path)
+                                    @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->student_id_back_path && !$app->internship_letter_path && !$app->selfie_path)
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>

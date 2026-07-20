@@ -18,7 +18,7 @@ class Application extends Model
     protected $fillable = [
         'id', 'job_id', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
         'cover_letter', 'expected_salary', 'availability', 'availability_days',
-        'cv_url', 'cv_path', 'student_id_path', 'internship_letter_path', 'selfie_path',
+        'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path', 'selfie_path',
         'signature_image', 'agreement_token', 'agreement_sent_at', 'agreement_signed_at',
         'agreement_signature_image', 'status', 'reference_number', 'rejection_reason',
         'interview_date', 'submitted_at',

@@ -80,6 +80,7 @@ class ApplyController extends Controller
         if ($job->isInternship()) {
             $rules['cv'] = 'nullable|file|mimes:pdf,doc,docx|max:5120';
             $rules['student_id'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
+            $rules['student_id_back'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
             $rules['internship_letter'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
             $rules['selfie'] = 'required|file|mimes:jpeg,jpg,png|max:5120';
             $rules['signature_image'] = 'required|string|max:500000';
@@ -100,6 +101,7 @@ class ApplyController extends Controller
             $user ? $user->id : null,
             [
                 'student_id' => $request->file('student_id'),
+                'student_id_back' => $request->file('student_id_back'),
                 'internship_letter' => $request->file('internship_letter'),
                 'selfie' => $request->file('selfie'),
             ]
