@@ -7,7 +7,7 @@
 
         <div class="mb-4">
             <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
-            <p class="jb-subtitle">Click a row to open the full application (documents, ID, selfie, signature). Status changes notify candidates on WhatsApp.</p>
+            <p class="jb-subtitle">Click anywhere on a row (except Actions / Docs) to open the full application. Status changes notify candidates on WhatsApp.</p>
         </div>
 
         @if(session('message'))
@@ -54,7 +54,7 @@
         </form>
 
         <div class="jb-card">
-            <div class="table-responsive">
+            <div class="table-responsive" style="overflow:visible;">
                 <table class="table mb-0">
                     <thead>
                         <tr>
@@ -70,23 +70,24 @@
                     </thead>
                     <tbody>
                         @forelse($items as $app)
-                            <tr class="jb-row-click" data-href="{{ route('jobs.applications.show', $app->id) }}">
-                                <td>
+                            @php $showUrl = route('jobs.applications.show', $app->id); @endphp
+                            <tr class="jb-row-click" data-href="{{ $showUrl }}">
+                                <td class="jb-nav-cell">
                                     <strong>{{ $app->full_name }}</strong>
                                 </td>
-                                <td>
+                                <td class="jb-nav-cell">
                                     <span class="text-muted small">{{ $app->email }}</span><br>
                                     <span class="text-muted small">WA: {{ $app->whatsapp_number ?: $app->phone ?: '—' }}</span>
                                 </td>
-                                <td>
+                                <td class="jb-nav-cell">
                                     {{ optional($app->job)->title ?: '—' }}
                                     @if(optional($app->job)->isInternship())
                                         <br><span class="jb-badge">Internship</span>
                                     @endif
                                 </td>
-                                <td><code>{{ $app->reference_number }}</code></td>
-                                <td>{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y') : '—' }}</td>
-                                <td class="small jb-docs" onclick="event.stopPropagation();">
+                                <td class="jb-nav-cell"><code>{{ $app->reference_number }}</code></td>
+                                <td class="jb-nav-cell">{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y') : '—' }}</td>
+                                <td class="small jb-no-nav">
                                     @if($app->cv_url || $app->cv_path)
                                         <a href="{{ route('jobs.applications.document', [$app->id, 'cv']) }}" target="_blank" rel="noopener">CV</a>
                                     @endif
@@ -104,11 +105,11 @@
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
-                                <td><span class="jb-badge">{{ $app->statusLabel() }}</span></td>
-                                <td class="text-right" onclick="event.stopPropagation();">
-                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form d-inline-flex flex-column align-items-end" style="gap:6px;min-width:200px;">
+                                <td class="jb-nav-cell"><span class="jb-badge">{{ $app->statusLabel() }}</span></td>
+                                <td class="text-right jb-no-nav">
+                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form d-inline-flex flex-column align-items-end" style="gap:6px;min-width:200px;" onclick="event.stopPropagation();">
                                         @csrf
-                                        <select name="status" class="jb-field jb-status-select" style="width:100%;">
+                                        <select name="status" class="jb-field jb-status-select form-control" style="width:100%;pointer-events:auto;position:relative;z-index:5;">
                                             @foreach([
                                                 'awaiting_approval' => 'Awaiting Approval',
                                                 'selected' => 'Selected',
@@ -118,8 +119,7 @@
                                                 <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted') || ($st==='hired' && $app->status==='hired')) selected @endif>{{ $label }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="text" name="status_reason" class="jb-field jb-reason-input" data-current="{{ $app->status }}" placeholder="Reason (optional)" value="{{ $app->rejection_reason }}">
-                                        <a href="{{ route('jobs.applications.show', $app->id) }}" class="btn btn-sm btn-outline-primary" style="width:100%;">View Application</a>
+                                        <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}" style="width:100%;">
                                         <button type="submit" class="btn btn-sm btn-primary" style="width:100%;">Save & Notify</button>
                                     </form>
                                 </td>
@@ -136,6 +136,18 @@
         </div>
     </div>
 </section>
+<style>
+    tr.jb-row-click td.jb-nav-cell { cursor: pointer; }
+    tr.jb-row-click:hover td.jb-nav-cell { background: #f8fafc; }
+    td.jb-no-nav { cursor: default; }
+    td.jb-no-nav select,
+    td.jb-no-nav input,
+    td.jb-no-nav button {
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 6;
+    }
+</style>
 @endsection
 
 @section('scripts')
@@ -156,9 +168,9 @@
     });
     $('.jb-status-form').each(function () { syncReason($(this)); });
 
-    $(document).on('click', 'tr.jb-row-click', function (e) {
-        if ($(e.target).closest('a, button, form, input, select, textarea, .jb-docs').length) return;
-        var href = $(this).data('href');
+    // Only navigate from data cells — never from Actions / Docs (keeps status dropdown usable)
+    $(document).on('click', 'tr.jb-row-click td.jb-nav-cell', function () {
+        var href = $(this).closest('tr').data('href');
         if (href) window.location.href = href;
     });
 })();
