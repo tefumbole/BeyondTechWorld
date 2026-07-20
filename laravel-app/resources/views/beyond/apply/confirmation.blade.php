@@ -23,8 +23,9 @@
                     and it is now <strong>under review</strong>.
                 </p>
                 <p class="text-sm text-gray-500 mt-3">
-                    A WhatsApp confirmation was sent to
-                    <strong>{{ $application->whatsapp_number ?: $application->phone }}</strong>.
+                    Status updates will be sent on WhatsApp to
+                    <strong>{{ $application->whatsapp_number ?: $application->phone }}</strong>
+                    when messaging is available.
                 </p>
                 <div class="mt-6 inline-block bg-gray-100 px-6 py-3 rounded-lg border border-gray-200">
                     <span class="text-gray-500 text-sm block mb-1">YOUR REFERENCE NUMBER</span>

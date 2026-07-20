@@ -48,6 +48,10 @@ class ApplyController extends Controller
             return redirect()->route('apply.index')->with('warning', 'That posting is no longer available.');
         }
 
+        if (! in_array($job->status, ['active', 'open'], true)) {
+            return redirect()->route('apply.index')->with('warning', 'That posting is currently closed.');
+        }
+
         $stats = $this->jobs->stats($job);
         $availability = $this->jobs->availability($job);
         $countryCodes = $this->applications->countryCodes();

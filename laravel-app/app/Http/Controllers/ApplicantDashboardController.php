@@ -40,10 +40,18 @@ class ApplicantDashboardController extends Controller
                 }
             })->first();
 
-        if (! $application || ! $application->cv_path || ! file_exists(base_path($application->cv_path))) {
+        if (! $application) {
             abort(404);
         }
 
-        return response()->download(base_path($application->cv_path));
+        $path = $application->absoluteUploadPath($application->cv_path ?: $application->cv_url);
+        if (! $path && $application->cv_path && is_file($application->cv_path)) {
+            $path = $application->cv_path; // legacy absolute paths
+        }
+        if (! $path) {
+            abort(404);
+        }
+
+        return response()->download($path);
     }
 }

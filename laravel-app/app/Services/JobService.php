@@ -11,7 +11,10 @@ class JobService
 {
     public function activeJobs($search = null, $postingType = null)
     {
-        $query = JobPosting::whereIn('status', ['active', 'open']);
+        $query = JobPosting::whereIn('status', ['active', 'open'])
+            ->where(function ($q) {
+                $q->whereNull('deadline')->orWhereDate('deadline', '>=', now()->toDateString());
+            });
 
         if ($postingType) {
             $query->where('posting_type', $postingType);
@@ -27,7 +30,11 @@ class JobService
             });
         }
 
-        return $query->orderByDesc('created_at')->get();
+        return $query->orderByDesc('created_at')->get()->filter(function ($job) {
+            $availability = $this->availability($job);
+
+            return ! empty($availability['available']);
+        })->values();
     }
 
     public function allJobs($search = null, $status = null)

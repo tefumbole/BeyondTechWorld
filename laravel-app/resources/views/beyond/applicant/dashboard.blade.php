@@ -5,13 +5,15 @@
 
 @php
     $statusColors = [
-        'new' => 'bg-blue-100 text-blue-800',
-        'under_review' => 'bg-yellow-100 text-yellow-800',
-        'reviewing' => 'bg-yellow-100 text-yellow-800',
-        'shortlisted' => 'bg-purple-100 text-purple-800',
+        'awaiting_approval' => 'bg-yellow-100 text-yellow-800',
+        'new' => 'bg-yellow-100 text-yellow-800',
+        'reviewed' => 'bg-yellow-100 text-yellow-800',
         'interview' => 'bg-indigo-100 text-indigo-800',
+        'selected' => 'bg-purple-100 text-purple-800',
+        'shortlisted' => 'bg-purple-100 text-purple-800',
         'hired' => 'bg-green-100 text-green-800',
         'rejected' => 'bg-red-100 text-red-700',
+        'withdrawn' => 'bg-red-100 text-red-700',
     ];
 @endphp
 
@@ -56,7 +58,7 @@
                             <div class="p-4 border rounded-lg bg-white shadow-sm border-l-4 border-l-brand-gold">
                                 <div class="flex justify-between items-start gap-3 mb-2">
                                     <h3 class="font-bold text-gray-900">{{ optional($app->job)->title ?? 'Position' }}</h3>
-                                    <span class="text-xs px-2 py-1 rounded font-bold capitalize {{ $badge }}">{{ str_replace('_', ' ', $app->status) }}</span>
+                                    <span class="text-xs px-2 py-1 rounded font-bold {{ $badge }}">{{ $app->statusLabel() }}</span>
                                 </div>
                                 <p class="text-sm text-gray-500 mb-3">
                                     Applied {{ $app->created_at->format('M j, Y') }} · Ref: <span class="font-mono">{{ $app->reference_number }}</span>

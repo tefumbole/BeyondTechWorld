@@ -115,11 +115,11 @@
                                         <select name="status" class="jb-field jb-status-select form-control" style="width:100%;pointer-events:auto;position:relative;z-index:5;">
                                             @foreach([
                                                 'awaiting_approval' => 'Awaiting Approval',
-                                                'selected' => 'Selected',
+                                                'selected' => 'Selected (send agreement)',
                                                 'rejected' => 'Rejected',
-                                                'hired' => 'Hired',
+                                                'hired' => 'Hired (only if agreement signed)',
                                             ] as $st => $label)
-                                                <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted') || ($st==='hired' && $app->status==='hired')) selected @endif>{{ $label }}</option>
+                                                <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
                                             @endforeach
                                         </select>
                                         <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}" style="width:100%;">

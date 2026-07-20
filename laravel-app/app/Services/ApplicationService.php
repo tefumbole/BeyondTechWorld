@@ -109,7 +109,8 @@ class ApplicationService
 
         $relative = 'uploads/applications/'.$name;
 
-        return ['/'.$relative, $dir.'/'.$name];
+        // Keep URL + path relative (same scheme as ID/letter/selfie) so downloads work after deploy.
+        return ['/'.$relative, $relative];
     }
 
     protected function storeDocUpload(UploadedFile $file, $prefix, $jobId)
@@ -202,7 +203,9 @@ class ApplicationService
                     Application::STATUS_AWAITING, 'new', 'reviewed', 'interview',
                 ]);
             } elseif ($status === Application::STATUS_SELECTED) {
-                $q->whereIn('status', [Application::STATUS_SELECTED, 'shortlisted', Application::STATUS_HIRED]);
+                $q->whereIn('status', [Application::STATUS_SELECTED, 'shortlisted']);
+            } elseif ($status === Application::STATUS_HIRED) {
+                $q->where('status', Application::STATUS_HIRED);
             } elseif ($status === Application::STATUS_REJECTED) {
                 $q->whereIn('status', [Application::STATUS_REJECTED, 'withdrawn']);
             } else {
@@ -226,6 +229,12 @@ class ApplicationService
     {
         $previous = $application->status;
         $status = $data['status'] ?? $application->status;
+
+        // Hired without a signed agreement → treat as Selected and send agreement link.
+        if ($status === Application::STATUS_HIRED && empty($application->agreement_signed_at)) {
+            $status = Application::STATUS_SELECTED;
+        }
+
         $application->status = $status;
         if (array_key_exists('rejection_reason', $data)) {
             $application->rejection_reason = $data['rejection_reason'];
