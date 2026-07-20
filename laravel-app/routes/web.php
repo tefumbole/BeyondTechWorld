@@ -53,6 +53,17 @@ Route::post('/register-now', 'TrainingController@storeRegistration')->name('trai
 Route::get('/registration-confirmation/{reference}', 'TrainingController@registered')->name('training.registered');
 Route::redirect('/registration', '/register-now');
 
+// Legacy upload URLs (missing /public/) → correct static path
+Route::get('/uploads/applications/{file}', function ($file) {
+    $safe = basename($file);
+    $path = base_path('public/uploads/applications/'.$safe);
+    if (! is_file($path)) {
+        abort(404);
+    }
+
+    return response()->file($path);
+})->where('file', '[A-Za-z0-9._-]+');
+
 Route::get('/rentals', 'PublicRentalController@index')->name('beyond.rentals');
 Route::post('/rentals', 'PublicRentalController@store')->name('beyond.rentals.store');
 Route::get('/rentals/confirmation/{reference}', 'PublicRentalController@confirmation')->name('beyond.rentals.confirmation');
@@ -273,6 +284,9 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/jobs/awaiting-approval', 'JobBoardController@awaiting')->name('jobs.awaiting');
     Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
+    Route::get('/admin/jobs/applications/{id}', 'JobBoardController@showApplication')->name('jobs.applications.show');
+    Route::get('/admin/jobs/applications/{id}/document/{type}', 'JobBoardController@document')->name('jobs.applications.document')
+        ->where('type', 'cv|student_id|letter|selfie');
     Route::post('/admin/jobs/applications/{id}', 'JobBoardController@updateApplication')->name('jobs.applications.update');
     Route::get('/admin/jobs/{id}/edit', 'JobBoardController@edit')->name('jobs.edit');
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');

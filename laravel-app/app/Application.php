@@ -52,4 +52,52 @@ class Application extends Model
 
         return $map[$this->status] ?? ucfirst(str_replace('_', ' ', (string) $this->status));
     }
+
+    /**
+     * Public URL for a stored upload path under public/uploads/...
+     * Stored values look like "uploads/applications/file.jpg" or "/uploads/applications/file.jpg".
+     */
+    public static function publicUploadUrl($path)
+    {
+        if (! $path) {
+            return null;
+        }
+        $path = trim((string) $path);
+        if (preg_match('#^https?://#i', $path) || strpos($path, 'data:') === 0) {
+            return $path;
+        }
+        $path = ltrim($path, '/');
+        if (strpos($path, 'public/') === 0) {
+            return url($path);
+        }
+
+        return url('public/'.$path);
+    }
+
+    public function documentPublicUrl($field)
+    {
+        if ($field === 'cv') {
+            return self::publicUploadUrl($this->cv_url ?: $this->cv_path);
+        }
+
+        return self::publicUploadUrl($this->{$field} ?? null);
+    }
+
+    public function absoluteUploadPath($relative)
+    {
+        if (! $relative) {
+            return null;
+        }
+        $relative = ltrim((string) $relative, '/');
+        if (strpos($relative, 'public/') === 0) {
+            $relative = substr($relative, 7);
+        }
+        // Absolute filesystem path already
+        if (strpos($relative, '/') === 0 || preg_match('#^[A-Za-z]:\\\\#', $relative)) {
+            return is_file($relative) ? $relative : null;
+        }
+        $full = base_path('public/'.$relative);
+
+        return is_file($full) ? $full : null;
+    }
 }

@@ -8,6 +8,7 @@ use App\Services\ApplicationService;
 use App\Services\JobService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\View;
 use Spatie\Permission\Models\Role;
 
@@ -176,14 +177,60 @@ class JobBoardController extends Controller
         return $this->applications($request);
     }
 
+    public function showApplication($id)
+    {
+        $this->authorizeJobs();
+        $app = Application::with('job')->findOrFail($id);
+
+        return view('job_board.application_show', [
+            'app' => $app,
+            'jbTab' => 'jobs.applications',
+        ]);
+    }
+
+    public function document($id, $type)
+    {
+        $this->authorizeJobs();
+        $app = Application::findOrFail($id);
+        $map = [
+            'cv' => $app->cv_url ?: $app->cv_path,
+            'student_id' => $app->student_id_path,
+            'letter' => $app->internship_letter_path,
+            'selfie' => $app->selfie_path,
+        ];
+        if (! isset($map[$type]) || ! $map[$type]) {
+            abort(404, 'Document not found.');
+        }
+
+        $path = $app->absoluteUploadPath($map[$type]);
+        if (! $path && $type === 'cv' && $app->cv_path && is_file($app->cv_path)) {
+            $path = $app->cv_path;
+        }
+        if (! $path) {
+            // Fallback: try basename under uploads dir
+            $base = basename(parse_url($map[$type], PHP_URL_PATH) ?: $map[$type]);
+            $try = base_path('public/uploads/applications/'.$base);
+            $path = is_file($try) ? $try : null;
+        }
+        if (! $path) {
+            abort(404, 'File missing on server.');
+        }
+
+        return Response::file($path);
+    }
+
     public function updateApplication(Request $request, $id)
     {
         $this->authorizeJobs();
         $data = $request->validate([
             'status' => 'required|string|in:awaiting_approval,selected,rejected,hired,new,reviewed,shortlisted,interview,withdrawn',
             'rejection_reason' => 'nullable|string|max:2000',
+            'status_reason' => 'nullable|string|max:2000',
             'interview_date' => 'nullable|date',
         ]);
+        if (! empty($data['status_reason']) && empty($data['rejection_reason'])) {
+            $data['rejection_reason'] = $data['status_reason'];
+        }
         $app = Application::findOrFail($id);
         $this->applications->updateStatus($app, $data);
 

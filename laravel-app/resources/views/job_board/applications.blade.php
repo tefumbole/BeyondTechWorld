@@ -7,7 +7,7 @@
 
         <div class="mb-4">
             <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
-            <p class="jb-subtitle">Review candidates. Status changes notify them on WhatsApp. Selecting a candidate sends the agreement link.</p>
+            <p class="jb-subtitle">Click a row to open the full application (documents, ID, selfie, signature). Status changes notify candidates on WhatsApp.</p>
         </div>
 
         @if(session('message'))
@@ -58,7 +58,8 @@
                 <table class="table mb-0">
                     <thead>
                         <tr>
-                            <th>Candidate</th>
+                            <th>Student Name</th>
+                            <th>Contact</th>
                             <th>Role</th>
                             <th>Reference</th>
                             <th>Submitted</th>
@@ -69,9 +70,11 @@
                     </thead>
                     <tbody>
                         @forelse($items as $app)
-                            <tr>
+                            <tr class="jb-row-click" data-href="{{ route('jobs.applications.show', $app->id) }}">
                                 <td>
-                                    <strong>{{ $app->full_name }}</strong><br>
+                                    <strong>{{ $app->full_name }}</strong>
+                                </td>
+                                <td>
                                     <span class="text-muted small">{{ $app->email }}</span><br>
                                     <span class="text-muted small">WA: {{ $app->whatsapp_number ?: $app->phone ?: '—' }}</span>
                                 </td>
@@ -83,34 +86,46 @@
                                 </td>
                                 <td><code>{{ $app->reference_number }}</code></td>
                                 <td>{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y') : '—' }}</td>
-                                <td class="small">
-                                    @if($app->cv_url)<a href="{{ $app->cv_url }}" target="_blank" rel="noopener">CV</a>@endif
-                                    @if($app->student_id_path)<br><a href="{{ url($app->student_id_path) }}" target="_blank" rel="noopener">Student ID</a>@endif
-                                    @if($app->internship_letter_path)<br><a href="{{ url($app->internship_letter_path) }}" target="_blank" rel="noopener">Letter</a>@endif
-                                    @if($app->selfie_path)<br><a href="{{ url($app->selfie_path) }}" target="_blank" rel="noopener">Selfie</a>@endif
+                                <td class="small jb-docs" onclick="event.stopPropagation();">
+                                    @if($app->cv_url || $app->cv_path)
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'cv']) }}" target="_blank" rel="noopener">CV</a>
+                                    @endif
+                                    @if($app->student_id_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">Student ID</a>
+                                    @endif
+                                    @if($app->internship_letter_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">Letter</a>
+                                    @endif
+                                    @if($app->selfie_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" target="_blank" rel="noopener">Selfie</a>
+                                    @endif
                                     @if($app->agreement_signed_at)<br><span class="text-success">Agreement signed</span>@endif
+                                    @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->internship_letter_path && !$app->selfie_path)
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 </td>
                                 <td><span class="jb-badge">{{ $app->statusLabel() }}</span></td>
-                                <td class="text-right">
-                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="d-inline-flex flex-column align-items-end" style="gap:6px;min-width:180px;">
+                                <td class="text-right" onclick="event.stopPropagation();">
+                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form d-inline-flex flex-column align-items-end" style="gap:6px;min-width:200px;">
                                         @csrf
-                                        <select name="status" class="jb-field" style="width:100%;">
+                                        <select name="status" class="jb-field jb-status-select" style="width:100%;">
                                             @foreach([
                                                 'awaiting_approval' => 'Awaiting Approval',
                                                 'selected' => 'Selected',
                                                 'rejected' => 'Rejected',
                                                 'hired' => 'Hired',
                                             ] as $st => $label)
-                                                <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
+                                                <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted') || ($st==='hired' && $app->status==='hired')) selected @endif>{{ $label }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="text" name="rejection_reason" class="jb-field" placeholder="Rejection reason (optional)" value="{{ $app->rejection_reason }}">
-                                        <button type="submit" class="btn btn-sm btn-primary">Save & Notify</button>
+                                        <input type="text" name="status_reason" class="jb-field jb-reason-input" data-current="{{ $app->status }}" placeholder="Reason (optional)" value="{{ $app->rejection_reason }}">
+                                        <a href="{{ route('jobs.applications.show', $app->id) }}" class="btn btn-sm btn-outline-primary" style="width:100%;">View Application</a>
+                                        <button type="submit" class="btn btn-sm btn-primary" style="width:100%;">Save & Notify</button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="text-center text-muted py-4">No applications found.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-4">No applications found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -121,4 +136,31 @@
         </div>
     </div>
 </section>
+@endsection
+
+@section('scripts')
+<script>
+(function () {
+    function reasonPlaceholder(status) {
+        if (status === 'selected') return 'Selection reason (optional)';
+        if (status === 'hired') return 'Hired reason (optional)';
+        if (status === 'rejected') return 'Rejection reason (optional)';
+        return 'Note / reason (optional)';
+    }
+    function syncReason($form) {
+        var status = $form.find('.jb-status-select').val();
+        $form.find('.jb-reason-input').attr('placeholder', reasonPlaceholder(status));
+    }
+    $(document).on('change', '.jb-status-select', function () {
+        syncReason($(this).closest('.jb-status-form'));
+    });
+    $('.jb-status-form').each(function () { syncReason($(this)); });
+
+    $(document).on('click', 'tr.jb-row-click', function (e) {
+        if ($(e.target).closest('a, button, form, input, select, textarea, .jb-docs').length) return;
+        var href = $(this).data('href');
+        if (href) window.location.href = href;
+    });
+})();
+</script>
 @endsection

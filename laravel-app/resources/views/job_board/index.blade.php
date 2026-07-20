@@ -66,7 +66,7 @@
                                 <td>{{ (int) $job->current_applicants }}</td>
                                 <td><span class="jb-badge">{{ $job->status }}</span></td>
                                 <td class="text-right text-nowrap">
-                                    <a href="{{ route('jobs.awaiting', ['job_id' => $job->id]) }}" class="btn btn-sm btn-outline-secondary">Apps</a>
+                                    <a href="{{ route('jobs.applications', ['job_id' => $job->id]) }}" class="btn btn-sm btn-outline-secondary">Apps</a>
                                     <a href="{{ route('jobs.edit', $job->id) }}" class="btn btn-sm btn-primary" title="Edit"><i class="dripicons-pencil"></i></a>
                                     <form method="POST" action="{{ route('jobs.clone', $job->id) }}" class="d-inline">
                                         @csrf
