@@ -5,10 +5,29 @@
 @push('head')
 <style>
     @keyframes beyondLogoSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .beyond-logo-spin { animation: beyondLogoSpin 6s linear infinite; }
-    .beyond-logo-ring {
-        background: conic-gradient(from 0deg, #D4AF37, #003D82, #0066CC, #D4AF37);
-        animation: beyondLogoSpin 8s linear infinite;
+    @keyframes beyondLogoGlow {
+        0%, 100% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.18), 0 0 28px rgba(212, 175, 55, 0.45); }
+        50% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0.28), 0 0 40px rgba(212, 175, 55, 0.65); }
+    }
+    .beyond-logo-spin-wrap {
+        width: 6.5rem;
+        height: 6.5rem;
+        border-radius: 9999px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: beyondLogoGlow 2.8s ease-in-out infinite;
+    }
+    .beyond-logo-spin {
+        width: 5.75rem;
+        height: 5.75rem;
+        border-radius: 9999px;
+        object-fit: contain;
+        animation: beyondLogoSpin 6s linear infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .beyond-logo-spin, .beyond-logo-spin-wrap { animation: none; }
     }
 </style>
 @endpush
@@ -17,12 +36,9 @@
 <div class="min-h-[80vh] bg-gradient-to-br from-brand-blue to-[#001f42] flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div class="pt-8 pb-4 px-8 text-center">
-            <div class="relative mx-auto mb-4 h-24 w-24">
-                <div class="beyond-logo-ring absolute inset-0 rounded-full"></div>
-                <div class="absolute inset-[3px] rounded-full bg-white flex items-center justify-center overflow-hidden">
-                    <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}"
-                         class="beyond-logo-spin h-[80%] w-[80%] object-contain">
-                </div>
+            <div class="beyond-logo-spin-wrap mx-auto mb-4">
+                <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}"
+                     class="beyond-logo-spin">
             </div>
             @if (!empty($header))
                 {!! $header !!}
@@ -39,6 +55,10 @@
                 </div>
             @endif
             @yield('auth_body')
+            <div class="mt-6 pt-4 border-t border-gray-100 text-center text-xs text-gray-500 leading-relaxed">
+                <div class="font-bold text-brand-blue tracking-wide">{{ \App\Support\AppVersion::bcl() }}</div>
+                <div class="mt-1">Developed By: <span class="font-semibold text-gray-700">Sr. Engr. Tefu R. Mbole</span></div>
+            </div>
         </div>
     </div>
 </div>

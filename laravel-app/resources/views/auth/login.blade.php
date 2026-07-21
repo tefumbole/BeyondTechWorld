@@ -23,118 +23,117 @@
             align-items: center;
             justify-content: center;
             padding: 16px;
-            background: linear-gradient(135deg, #003D82 0%, #001f42 55%, #002855 100%);
+            background: #0a2540;
         }
-        @keyframes beyondLogoSpin {
+        @keyframes logoSpin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        @keyframes logoGlow {
+            0%, 100% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.18), 0 0 28px rgba(212, 175, 55, 0.45); }
+            50% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0.28), 0 0 40px rgba(212, 175, 55, 0.65); }
+        }
         .auth-card {
             width: 100%;
-            max-width: 460px;
-            border-radius: 18px;
+            max-width: 420px;
+            border-radius: 16px;
             background: #fff;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.28);
-            padding: 36px 32px 32px;
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+            padding: 40px 32px 28px;
             text-align: center;
-            overflow: hidden;
         }
-        .logo-wrap {
-            position: relative;
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 16px;
-        }
-        .logo-ring {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, #D4AF37, #003D82, #0066CC, #D4AF37);
-            animation: beyondLogoSpin 8s linear infinite;
-        }
-        .logo-inner {
-            position: absolute;
-            inset: 3px;
+        .logo-spin-wrap {
+            width: 104px;
+            height: 104px;
+            margin: 0 auto 18px;
             border-radius: 50%;
             background: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            animation: logoGlow 2.8s ease-in-out infinite;
         }
         .auth-logo {
-            width: 80%;
-            height: 80%;
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
             object-fit: contain;
-            animation: beyondLogoSpin 6s linear infinite;
+            background: #fff;
+            animation: logoSpin 6s linear infinite;
         }
         .auth-title {
             margin: 0;
-            color: #003D82;
-            font-size: clamp(22px, 4.5vw, 30px);
+            color: #0b3f90;
+            font-size: clamp(22px, 4.5vw, 28px);
             font-weight: 800;
+            letter-spacing: 0.02em;
             line-height: 1.2;
+            text-transform: uppercase;
         }
         .auth-sub {
-            margin: 6px 0 0;
-            color: #003D82;
+            margin: 8px 0 0;
+            color: #6b7280;
             font-size: 14px;
             font-weight: 500;
-            opacity: 0.85;
         }
         .auth-rule {
-            width: 96px;
-            height: 4px;
-            margin: 16px auto 28px;
-            border-radius: 999px;
-            background: #003D82;
+            width: 100%;
+            height: 2px;
+            margin: 18px 0 24px;
+            background: #0b3f90;
+            border: 0;
         }
-        .form-label {
-            display: block;
-            text-align: left;
-            font-size: 14px;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 6px;
+        .field {
+            position: relative;
+            margin-bottom: 14px;
+        }
+        .field svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: #0b3f90;
+            pointer-events: none;
         }
         .auth-input {
             width: 100%;
             height: 48px;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-            background: #fff;
+            border-radius: 999px;
+            border: 0;
+            background: #f3f1e8;
             font-size: 15px;
-            padding: 0 14px;
-            margin-bottom: 16px;
-            transition: border-color .15s, box-shadow .15s;
+            padding: 0 16px 0 42px;
+            color: #1f2937;
         }
         .auth-input:focus {
             outline: none;
-            border-color: #003D82;
-            box-shadow: 0 0 0 3px rgba(0, 61, 130, 0.15);
+            box-shadow: 0 0 0 2px rgba(11, 63, 144, 0.25);
         }
         .btn-login {
             width: 100%;
             height: 50px;
             border: 0;
-            border-radius: 8px;
-            background: #003D82;
+            border-radius: 999px;
+            background: #0b3f90;
             color: #fff;
             font-size: 16px;
             font-weight: 700;
-            margin-top: 4px;
+            margin-top: 8px;
             cursor: pointer;
-            transition: background .15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .btn-login:hover { background: #002855; }
+        .btn-login:hover { background: #083272; }
         .alert {
             text-align: left;
             font-size: 14px;
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 12px 14px;
             margin-bottom: 16px;
-        }
-        .alert-danger {
             background: #fef2f2;
             border: 1px solid #fecaca;
             color: #991b1b;
@@ -142,64 +141,90 @@
         .portal-link {
             margin-top: 18px;
             font-size: 13px;
-            color: #6b7280;
+            color: #4b5563;
         }
         .portal-link a {
-            color: #D4AF37;
+            color: #0b3f90;
             font-weight: 600;
             text-decoration: none;
         }
         .portal-link a:hover { text-decoration: underline; }
-        .version-footer {
-            position: fixed;
-            bottom: 14px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            color: rgba(255, 255, 255, .72);
+        .credit-footer {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
             font-size: 12px;
+            line-height: 1.55;
+            color: #6b7280;
+        }
+        .credit-footer .version {
+            font-weight: 700;
+            color: #0b3f90;
+            letter-spacing: 0.02em;
+        }
+        .credit-footer .dev {
+            margin-top: 4px;
+        }
+        .credit-footer .dev strong {
+            color: #374151;
+            font-weight: 600;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .auth-logo, .logo-spin-wrap { animation: none; }
         }
     </style>
 </head>
 <body>
 <div class="auth-card">
-    <div class="logo-wrap">
-        <div class="logo-ring" aria-hidden="true"></div>
-        <div class="logo-inner">
-            <img src="{{ $logoUrl }}" alt="{{ $appName }}" class="auth-logo">
-        </div>
+    <div class="logo-spin-wrap" aria-hidden="true">
+        <img src="{{ $logoUrl }}" alt="{{ $appName }}" class="auth-logo">
     </div>
     <h1 class="auth-title">{{ $appName }}</h1>
-    <p class="auth-sub">Staff Admin Portal</p>
-    <div class="auth-rule"></div>
+    <p class="auth-sub">Sign in to the dashboard</p>
+    <hr class="auth-rule">
 
     @if(session()->has('delete_message'))
-        <div class="alert alert-danger">{{ session()->get('delete_message') }}</div>
+        <div class="alert">{{ session()->get('delete_message') }}</div>
     @endif
     @if ($errors->has('name'))
-        <div class="alert alert-danger">{{ $errors->first('name') }}</div>
+        <div class="alert">{{ $errors->first('name') }}</div>
     @endif
     @if ($errors->has('password'))
-        <div class="alert alert-danger">{{ $errors->first('password') }}</div>
+        <div class="alert">{{ $errors->first('password') }}</div>
     @endif
 
     <form method="POST" action="{{ route('login') }}" id="login-form">
         @csrf
-        <label class="form-label" for="login-username">Email or Username</label>
-        <input id="login-username" type="text" name="name" class="auth-input" value="{{ old('name') }}" required autocomplete="username">
-
-        <label class="form-label" for="login-password">Password</label>
-        <input id="login-password" type="password" name="password" class="auth-input" required autocomplete="current-password">
-
-        <button type="submit" class="btn-login">Login</button>
+        <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input id="login-username" type="text" name="name" class="auth-input" value="{{ old('name') }}" placeholder="Username" required autocomplete="username">
+        </div>
+        <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input id="login-password" type="password" name="password" class="auth-input" placeholder="Password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-login">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+            Sign In
+        </button>
     </form>
 
     <p class="portal-link">
-        User portal? <a href="{{ url('/login') }}">Sign in here</a>
+        ← <a href="{{ url('/') }}">Back to Homepage</a>
+        &nbsp;·&nbsp;
+        <a href="{{ url('/login') }}">User portal</a>
     </p>
-</div>
-<div class="version-footer">
-    {{ \App\Support\AppVersion::display() }}
+
+    <div class="credit-footer">
+        <div class="version">{{ \App\Support\AppVersion::bcl() }}</div>
+        <div class="dev">Developed By: <strong>Sr. Engr. Tefu R. Mbole</strong></div>
+    </div>
 </div>
 </body>
 </html>
