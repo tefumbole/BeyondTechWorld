@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Http\Controllers\Controller;
+use App\Services\Messaging\NotificationRouter;
 use App\Support\AnnouncementPersonalization;
 use App\WaAnnouncement;
 use Illuminate\Support\Facades\Log;
@@ -15,9 +16,10 @@ class AnnouncementNotificationService extends Controller
             return false;
         }
         try {
-            $this->sendWhatsAppToPhone($phone, $message);
+            // Announcements always go through Wasender (not Twilio Content Templates).
+            $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message);
 
-            return true;
+            return ! empty($result['success']);
         } catch (\Exception $e) {
             Log::warning('Announcement WhatsApp failed: ' . $e->getMessage());
 

@@ -17,10 +17,10 @@ use App\HrmSetting;
 use App\RewardPointSetting;
 use DB;
 use ZipArchive;
-use Twilio\Rest\Client;
-use Clickatell\Rest;
-use Clickatell\ClickatellException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Artisan;
+use App\Support\EnvFile;
+use App\Services\Messaging\NotificationRouter;
 
 class SettingController extends Controller
 {
@@ -324,29 +324,143 @@ class SettingController extends Controller
 
     public function smsSetting()
     {
-        return view('setting.sms_setting');
+        return redirect()->route('setting.messaging');
     }
 
     public function smsSettingStore(Request $request)
     {
-        if(!env('USER_VERIFIED'))
+        return redirect()->route('setting.messaging');
+    }
+
+    public function messagingSetting()
+    {
+        $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
+        if (Auth::user()->role_id > 2 && (!$role || (!$role->hasPermissionTo('sms_setting') && !$role->hasPermissionTo('env_setting')))) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+        }
+
+        $bool = function ($key, $default = true) {
+            $raw = EnvFile::get($key, $default ? 'true' : 'false');
+            return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
+        };
+
+        return view('setting.messaging_setting', [
+            'whatsappEnabled' => $bool('MESSAGING_WHATSAPP_ENABLED', true),
+            'smsEnabled' => $bool('MESSAGING_SMS_ENABLED', true),
+            'whatsappService' => strtoupper((string) EnvFile::get('WHATSAPP_SERVICE', 'WASENDER')),
+            'defaultCountryCode' => EnvFile::get('WHATSAPP_DEFAULT_COUNTRY_CODE', '237'),
+            'companyName' => EnvFile::get('COMPANY_NAME', 'Beyond Enterprise'),
+            'twilioFallback' => $bool('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
+            'wasenderApiKey' => EnvFile::get('WASENDER_API_KEY', ''),
+            'wasenderSessionId' => EnvFile::get('WASENDER_SESSION_ID', ''),
+            'wasenderBaseUrl' => EnvFile::get('WASENDER_BASE_URL', 'https://wasenderapi.com/api'),
+            'wasenderMinInterval' => EnvFile::get('WASENDER_MIN_SEND_INTERVAL_MS', '6000'),
+            'wasenderDocDelay' => EnvFile::get('WASENDER_TEXT_TO_DOCUMENT_DELAY_MS', '6000'),
+            'twilioSid' => EnvFile::get('TWILIO_SID', EnvFile::get('ACCOUNT_SID', '')),
+            'twilioAuthToken' => EnvFile::get('TWILIO_AUTH_TOKEN', EnvFile::get('AUTH_TOKEN', '')),
+            'twilioWhatsappFrom' => EnvFile::get('TWILIO_WHATSAPP_FROM', ''),
+            'contentSidAdmission' => EnvFile::get(
+                'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION',
+                'HX47150e179fdbab79738d060fb0ac6415'
+            ),
+            'contentSidOtp' => EnvFile::get('TWILIO_WHATSAPP_CONTENT_SID_OTP', ''),
+            'contentSidStatus' => EnvFile::get('TWILIO_WHATSAPP_CONTENT_SID_STATUS', ''),
+            'smsGateway' => strtolower((string) EnvFile::get('SMS_GATEWAY', 'twilio')),
+            'accountSid' => EnvFile::get('ACCOUNT_SID', EnvFile::get('TWILIO_SID', '')),
+            'authToken' => EnvFile::get('AUTH_TOKEN', EnvFile::get('TWILIO_AUTH_TOKEN', '')),
+            'twilioNumber' => EnvFile::get('TWILIO_NUMBER', EnvFile::get('Twilio_Number', '')),
+            'clickatellApiKey' => EnvFile::get('CLICKATELL_API_KEY', ''),
+        ]);
+    }
+
+    public function messagingSettingStore(Request $request)
+    {
+        $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
+        if (Auth::user()->role_id > 2 && (!$role || (!$role->hasPermissionTo('sms_setting') && !$role->hasPermissionTo('env_setting')))) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+        }
+
+        if (! env('USER_VERIFIED')) {
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
-
-        $data = $request->all();
-        //writting bulksms info in .env file
-        $path = '.env';
-        if($data['gateway'] == 'twilio'){
-            $searchArray = array('SMS_GATEWAY='.env('SMS_GATEWAY'), 'ACCOUNT_SID='.env('ACCOUNT_SID'), 'AUTH_TOKEN='.env('AUTH_TOKEN'), 'Twilio_Number='.env('Twilio_Number') );
-
-            $replaceArray = array('SMS_GATEWAY='.$data['gateway'], 'ACCOUNT_SID='.$data['account_sid'], 'AUTH_TOKEN='.$data['auth_token'], 'Twilio_Number='.$data['twilio_number'] );
-        }
-        else{
-            $searchArray = array( 'SMS_GATEWAY='.env('SMS_GATEWAY'), 'CLICKATELL_API_KEY='.env('CLICKATELL_API_KEY') );
-            $replaceArray = array( 'SMS_GATEWAY='.$data['gateway'], 'CLICKATELL_API_KEY='.$data['api_key'] );
         }
 
-        file_put_contents($path, str_replace($searchArray, $replaceArray, file_get_contents($path)));
-        return redirect()->back()->with('message', 'Data updated successfully');
+        $whatsappService = strtoupper((string) $request->input('whatsapp_service', 'WASENDER'));
+        if (! in_array($whatsappService, ['WASENDER', 'TWILIO'], true)) {
+            $whatsappService = 'WASENDER';
+        }
+
+        $smsGateway = strtolower((string) $request->input('sms_gateway', 'twilio'));
+        if (! in_array($smsGateway, ['twilio', 'clickatell'], true)) {
+            $smsGateway = 'twilio';
+        }
+
+        $accountSid = trim((string) $request->input('account_sid', ''));
+        $authToken = trim((string) $request->input('auth_token', ''));
+        $twilioSid = trim((string) $request->input('twilio_sid', ''));
+        $twilioAuthToken = trim((string) $request->input('twilio_auth_token', ''));
+
+        // Keep SMS and WhatsApp Twilio account keys in sync when one side is blank.
+        if ($twilioSid === '' && $accountSid !== '') {
+            $twilioSid = $accountSid;
+        }
+        if ($accountSid === '' && $twilioSid !== '') {
+            $accountSid = $twilioSid;
+        }
+        if ($twilioAuthToken === '' && $authToken !== '') {
+            $twilioAuthToken = $authToken;
+        }
+        if ($authToken === '' && $twilioAuthToken !== '') {
+            $authToken = $twilioAuthToken;
+        }
+
+        $admissionSid = trim((string) $request->input(
+            'twilio_content_sid_admission',
+            'HX47150e179fdbab79738d060fb0ac6415'
+        ));
+        if ($admissionSid === '') {
+            $admissionSid = 'HX47150e179fdbab79738d060fb0ac6415';
+        }
+
+        $pairs = [
+            'MESSAGING_WHATSAPP_ENABLED' => $request->input('whatsapp_enabled') === 'true' ? 'true' : 'false',
+            'MESSAGING_SMS_ENABLED' => $request->input('sms_enabled') === 'true' ? 'true' : 'false',
+            'WHATSAPP_SERVICE' => $whatsappService,
+            'WHATSAPP_DEFAULT_COUNTRY_CODE' => trim((string) $request->input('whatsapp_default_country_code', '237')),
+            'COMPANY_NAME' => trim((string) $request->input('company_name', 'Beyond Enterprise')),
+            'WHATSAPP_TWILIO_FALLBACK_WASENDER' => $request->input('twilio_fallback_wasender') === 'true' ? 'true' : 'false',
+            'WASENDER_API_KEY' => trim((string) $request->input('wasender_api_key', '')),
+            'WASENDER_SESSION_ID' => trim((string) $request->input('wasender_session_id', '')),
+            'WASENDER_BASE_URL' => trim((string) $request->input('wasender_base_url', 'https://wasenderapi.com/api')),
+            'WASENDER_MIN_SEND_INTERVAL_MS' => (string) (int) $request->input('wasender_min_send_interval_ms', 6000),
+            'WASENDER_TEXT_TO_DOCUMENT_DELAY_MS' => (string) (int) $request->input('wasender_text_to_document_delay_ms', 6000),
+            'TWILIO_SID' => $twilioSid,
+            'TWILIO_AUTH_TOKEN' => $twilioAuthToken,
+            'TWILIO_WHATSAPP_FROM' => trim((string) $request->input('twilio_whatsapp_from', '')),
+            'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION' => $admissionSid,
+            'TWILIO_WHATSAPP_CONTENT_SID_OTP' => trim((string) $request->input('twilio_content_sid_otp', '')),
+            'TWILIO_WHATSAPP_CONTENT_SID_STATUS' => trim((string) $request->input('twilio_content_sid_status', '')),
+            'SMS_GATEWAY' => $smsGateway,
+            'ACCOUNT_SID' => $accountSid,
+            'AUTH_TOKEN' => $authToken,
+            'TWILIO_NUMBER' => trim((string) $request->input('twilio_number', '')),
+            'CLICKATELL_API_KEY' => trim((string) $request->input('clickatell_api_key', '')),
+        ];
+
+        if (! EnvFile::upsert($pairs)) {
+            return redirect()->back()->with('not_permitted', '.env file is missing or not writable.');
+        }
+
+        try {
+            Artisan::call('config:clear');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        if (function_exists('opcache_reset')) {
+            @opcache_reset();
+        }
+
+        return redirect()->route('setting.messaging')->with('message', 'Messaging settings saved successfully.');
     }
 
     public function createSms()
@@ -358,44 +472,33 @@ class SettingController extends Controller
     public function sendSms(Request $request)
     {
         $data = $request->all();
-        $numbers = explode(",", $data['mobile']);
+        $numbers = explode(',', $data['mobile']);
+        $router = app(NotificationRouter::class);
 
-        if( env('SMS_GATEWAY') == 'twilio') {
-            $account_sid = env('ACCOUNT_SID');
-            $auth_token = env('AUTH_TOKEN');
-            $twilio_phone_number = env('TWILIO_NUMBER');
-            try{
-                $client = new Client($account_sid, $auth_token);
-            foreach ($numbers as $number) {
-                    $client->messages->create(
-                        $number,
-                        array(
-                            "from" => $twilio_phone_number,
-                            "body" => $data['message']
-                        )
-                    );
-                }
-            }
-            catch(\Exception $e){
-                return redirect()->back()->with('not_permitted', 'Please setup your <a href="sms_setting">SMS Setting</a> to send SMS.');
-            }
-            $message = "SMS sent successfully";
+        if (! $router->smsEnabled()) {
+            return redirect()->back()->with('not_permitted', 'SMS sending is disabled in <a href="'.route('setting.messaging').'">Messaging Settings</a>.');
         }
-        elseif( env('SMS_GATEWAY') == 'clickatell') {
-            try {
-                $clickatell = new \Clickatell\Rest(env('CLICKATELL_API_KEY'));
-                foreach ($numbers as $number) {
-                    $result = $clickatell->sendMessage(['to' => [$number], 'content' => $data['message']]);
-                }
+
+        $failed = [];
+        foreach ($numbers as $number) {
+            $number = trim($number);
+            if ($number === '') {
+                continue;
             }
-            catch (ClickatellException $e) {
-                return redirect()->back()->with('not_permitted', 'Please setup your <a href="sms_setting">SMS Setting</a> to send SMS.');
+            $result = $router->sendSms($number, $data['message']);
+            if (empty($result['success'])) {
+                $failed[] = $number.': '.($result['error'] ?? 'failed');
             }
-            $message = "SMS sent successfully";
         }
-        else
-            return redirect()->back()->with('not_permitted', 'Please setup your <a href="sms_setting">SMS Setting</a> to send SMS.');
-        return redirect()->back()->with('message', $message);
+
+        if (! empty($failed)) {
+            return redirect()->back()->with(
+                'not_permitted',
+                'Some SMS failed. Configure <a href="'.route('setting.messaging').'">Messaging Settings</a>. '.implode('; ', $failed)
+            );
+        }
+
+        return redirect()->back()->with('message', 'SMS sent successfully');
     }
 
     public function hrmSetting()

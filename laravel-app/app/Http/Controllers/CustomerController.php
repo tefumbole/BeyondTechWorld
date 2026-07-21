@@ -27,9 +27,9 @@ class CustomerController extends Controller
                 $all_permission[] = $permission->name;
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
-            $lims_customer_all = Customer::where('is_active', true)->get();
-            $customer_groups = CustomerGroup::where('is_active', true)->get();
-            $depositors = User::where('role_id', 14)->where('is_active', true)->get();
+            $lims_customer_all = Customer::whereRaw('COALESCE(is_active, 0) = 1')->get();
+            $customer_groups = CustomerGroup::whereRaw('COALESCE(is_active, 0) = 1')->get();
+            $depositors = User::where('role_id', 14)->whereRaw('COALESCE(is_active, 0) = 1')->get();
             return view('customer.index', compact('lims_customer_all', 'all_permission', 'depositors', 'customer_groups'));
         }
         else
@@ -106,7 +106,9 @@ class CustomerController extends Controller
             $message = 'Customer created successfully';
         }
 
-        $lims_customer_data['name'] = $lims_customer_data['customer_name'];
+        $lims_customer_data['name'] = $lims_customer_data['customer_name']
+            ?? $lims_customer_data['name']
+            ?? '';
         $lims_customer_data['address'] = $lims_customer_data['address'] ?? 'NAN';
         $lims_customer_data['city'] = $lims_customer_data['city'] ?? 'NAN';
         $lims_customer_data['credit_limit'] = $lims_customer_data['credit_limit'] ?? 0;
@@ -123,11 +125,25 @@ class CustomerController extends Controller
             }
         }
 
-        Customer::create($lims_customer_data);
+        $customer = Customer::create($lims_customer_data);
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'customer' => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'phone_number' => $customer->phone_number,
+                    'label' => $customer->name.' ('.$customer->phone_number.')',
+                ],
+            ]);
+        }
         if(isset($lims_customer_data['pos']) && $lims_customer_data['pos'] == 1)
             return redirect('pos')->with('message', $message);
         elseif(isset($lims_customer_data['letter']) && $lims_customer_data['letter'] == 1)
             return back()->with('message', $message);
+        elseif(isset($lims_customer_data['quotation']) && $lims_customer_data['quotation'] == 1)
+            return back()->with('message', $message)->with('new_customer_id', $customer->id);
         else
             return redirect('customer')->with('create_message', $message);
     }

@@ -6,11 +6,14 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
-                <div class="card">
+                <div class="card quotation-qc">
                     <div class="card-header d-flex align-items-center">
-                        <h4>{{trans('file.Add Quotation')}}</h4>
+                        <h4>{{ !empty($cloneQuotation) ? 'Clone Quotation' : trans('file.Add Quotation') }}</h4>
                     </div>
                     <div class="card-body">
+                        @if(!empty($cloneQuotation))
+                            <div class="alert alert-info">Cloning quotation <strong>{{ $cloneQuotation->reference_no }}</strong>. Change client, products, amounts, then save as a new quote.</div>
+                        @endif
                         <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                         {!! Form::open(['route' => 'quotations.store', 'method' => 'post', 'files' => true, 'id' => 'quotation-form']) !!}
                         <div class="row">
@@ -21,7 +24,7 @@
                                             <label>{{trans('file.Biller')}} *</label>
                                             <select required name="biller_id" class="selectpicker form-control" data-live-search="true" id="biller-id"  title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}">{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->biller_id == $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -31,7 +34,7 @@
                                             <label>{{trans('file.Supplier')}}</label>
                                             <select name="supplier_id" class="selectpicker form-control" data-live-search="true" id="supplier-id"   title="Select Supplier...">
                                                 @foreach($lims_supplier_list as $supplier)
-                                                <option value="{{$supplier->id}}">{{$supplier->name . ' (' . $supplier->company_name . ')'}}</option>
+                                                <option value="{{$supplier->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->supplier_id == $supplier->id) selected @endif>{{$supplier->name . ' (' . $supplier->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -41,11 +44,14 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label>{{trans('file.customer')}} *</label>
-                                            <select id="customer_id" name="customer_id" required class="selectpicker form-control" data-live-search="true" id="customer-id"   title="Select customer...">
-                                                @foreach($lims_customer_list as $customer)
-                                                <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
-                                                @endforeach
-                                            </select>
+                                            <div class="input-with-action">
+                                                <select id="customer_id" name="customer_id" required class="selectpicker form-control" data-live-search="true" title="Select customer...">
+                                                    @foreach($lims_customer_list as $customer)
+                                                    <option value="{{$customer->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->customer_id == $customer->id) selected @endif>{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="button" class="btn btn-default" data-toggle="modal" data-target="#addCustomer" title="{{trans('file.Add Customer')}}"><i class="dripicons-plus"></i></button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -53,16 +59,19 @@
                                             <label>{{trans('file.Warehouse')}} *</label>
                                             <select id="warehouse_id" name="warehouse_id" required class="selectpicker form-control" data-live-search="true"   title="Select warehouse...">
                                                 @foreach($lims_warehouse_list as $warehouse)
-                                                <option value="{{$warehouse->id}}">{{$warehouse->name}}</option>
+                                                <option value="{{$warehouse->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->warehouse_id == $warehouse->id) selected @endif>{{$warehouse->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
                                     </div>
                                     <div class="col-md-12 mt-2">
                                         <label>{{trans('file.Select Product')}}</label>
-                                        <div class="search-box input-group">
-                                            <button class="btn btn-secondary"><i class="fa fa-barcode"></i></button>
-                                            <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                        <div class="input-with-action">
+                                            <div class="search-box input-group" style="flex:1;">
+                                                <button type="button" class="btn btn-secondary"><i class="fa fa-barcode"></i></button>
+                                                <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                            </div>
+                                            <button type="button" class="btn btn-default" data-toggle="modal" data-target="#addProduct" title="{{trans('file.add_product')}}"><i class="dripicons-plus"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -140,7 +149,7 @@
                                             <select class="form-control" name="order_tax_rate">
                                                 <option value="0">{{trans('file.No Tax')}}</option>
                                                 @foreach($lims_tax_list as $tax)
-                                                <option value="{{$tax->rate}}">{{$tax->name}}</option>
+                                                <option value="{{$tax->rate}}" @if(!empty($cloneQuotation) && (float)$cloneQuotation->order_tax_rate == (float)$tax->rate) selected @endif>{{$tax->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -148,13 +157,13 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Order Discount')}}</label>
-                                            <input type="number" name="order_discount" class="form-control" step="any">
+                                            <input type="number" name="order_discount" class="form-control" step="any" value="{{ !empty($cloneQuotation) ? $cloneQuotation->order_discount : '' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Shipping Cost')}}</label>
-                                            <input type="number" name="shipping_cost" class="form-control" step="any">
+                                            <input type="number" name="shipping_cost" class="form-control" step="any" value="{{ !empty($cloneQuotation) ? $cloneQuotation->shipping_cost : '' }}">
                                         </div>
                                     </div>
                                 </div>
@@ -163,9 +172,10 @@
                                 		<div class="form-group">
                                 			<label>{{trans('file.Status')}}</label>
                                 			<select class="form-control" name="quotation_status">
-                                				<option value="1">{{trans('file.Pending')}}</option>
-                                				<option value="2">{{trans('file.Sent')}}</option>
+                                				<option value="2" selected>Send for client approval</option>
+                                				<option value="1">Save as draft</option>
                                 			</select>
+                                			<small class="text-muted">Client will receive a WhatsApp link to read the quotation agreement, then approve (with signature) or reject (with comment).</small>
                                 		</div>
                                 	</div>
                                 	<div class="col-md-4">
@@ -185,7 +195,7 @@
                                 	<div class="col-md-12">
                                 		<div class="form-group">
                                 			<label>{{trans('file.Note')}}</label>
-                                			<textarea rows="5" name="note" class="form-control"></textarea>
+                                			<textarea rows="5" name="note" class="form-control">{{ !empty($cloneQuotation) ? $cloneQuotation->note : '' }}</textarea>
                                 		</div>
                                 	</div>
                                 </div>
@@ -271,6 +281,7 @@
             </div>
         </div>
     </div>
+    @include('quotation.partials.quick_create_modals')
 </section>
 
 <script type="text/javascript">
@@ -304,10 +315,15 @@ var temp_unit_operator = [];
 var temp_unit_operation_value = [];
 
 var rowindex;
-var customer_group_rate;
+var customer_group_rate = 0;
 var row_product_price;
 var pos;
+var product_warehouse_price = [];
 var currency = <?php echo json_encode($currency) ?>;
+var quotationGetCustomerGroupUrl = @json(url('quotations/getcustomergroup'));
+var quotationGetProductUrl = @json(url('quotations/getproduct'));
+var quotationProductSearchUrl = @json(route('product_quotation.search'));
+var checkBatchUrl = @json(url('check-batch-availability'));
 
 	$('.selectpicker').selectpicker({
     	style: 'btn-link',
@@ -317,14 +333,14 @@ var currency = <?php echo json_encode($currency) ?>;
 
 	$('select[name="customer_id"]').on('change', function() {
     	var id = $(this).val();
-	    $.get('getcustomergroup/' + id, function(data) {
+	    $.get(quotationGetCustomerGroupUrl + '/' + id, function(data) {
 	        customer_group_rate = (data / 100);
 	    });
 	});
 
 	$('select[name="warehouse_id"]').on('change', function() {
 	    var id = $(this).val();
-	    $.get('getproduct/' + id, function(data) {
+	    $.get(quotationGetProductUrl + '/' + id, function(data) {
 	        lims_product_array = [];
 	        product_code = data[0];
 	        product_name = data[1];
@@ -391,7 +407,7 @@ var currency = <?php echo json_encode($currency) ?>;
         rowindex = $(this).closest('tr').index();
         var product_id = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product-id').val();
         var warehouse_id = $('#warehouse_id').val();
-        $.get('../check-batch-availability/' + product_id + '/' + $(this).val() + '/' + warehouse_id, function(data) {
+        $.get(checkBatchUrl + '/' + product_id + '/' + $(this).val() + '/' + warehouse_id, function(data) {
             if(data['message'] != 'ok') {
                 alert(data['message']);
                 $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.batch-no').val('');
@@ -525,20 +541,34 @@ $('#quotation-form').on('submit',function(e){
     }
 });
 
-function productSearch(data){
+function productSearch(data, lineOpts, done){
+    lineOpts = lineOpts || null;
     $.ajax({
         type: 'GET',
-        url: 'lims_product_search',
+        url: quotationProductSearchUrl,
         data: {
             data: data
         },
         success: function(data) {
             var flag = 1;
+            var startQty = (lineOpts && lineOpts.qty) ? parseFloat(lineOpts.qty) : 1;
             $(".product-code").each(function(i) {
                 if ($(this).val() == data[1]) {
                     rowindex = i;
-                    var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
+                    var qty = (lineOpts && lineOpts.qty)
+                        ? parseFloat(lineOpts.qty)
+                        : parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
                     $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
+                    if (lineOpts && lineOpts.net_unit_price != null) {
+                        product_price[rowindex] = parseFloat(lineOpts.net_unit_price);
+                        var $priceInput = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .product_price_change');
+                        if ($priceInput.length) {
+                            $priceInput.val(parseFloat(lineOpts.net_unit_price).toFixed(2));
+                        }
+                    }
+                    if (lineOpts && lineOpts.discount != null) {
+                        product_discount[rowindex] = parseFloat(lineOpts.discount) / Math.max(qty, 1);
+                    }
                     checkQuantity(String(qty), true);
                     flag = 0;
                 }
@@ -548,23 +578,14 @@ function productSearch(data){
                 var newRow = $("<tr>");
                 var cols = '';
                 temp_unit_name = (data[6]).split(',');
-                @if(in_array("price-change", $all_permission))
-                    cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
-                @else
-                    cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link"></button></td>';
-                @endif
+                cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
                 cols += '<td>' + data[1] + '</td>';
                 if(data[12])
                     cols += '<td><input type="text" class="form-control batch-no" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
                 else
                     cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
-                cols += '<td><input type="number" class="form-control qty" name="qty[]" value="1" step="any" required/></td>';
-
-                @if(in_array("price-change", $all_permission))
-                    cols += '<td class="col-sm-2"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
-                @else
-                    cols += '<td class="net_unit_cost"></td>';
-                @endif
+                cols += '<td><input type="number" class="form-control qty" name="qty[]" value="' + startQty + '" step="any" required/></td>';
+                cols += '<td class="col-sm-2"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
 
                 cols += '<td class="discount">0.00</td>';
                 cols += '<td class="tax"></td>';
@@ -583,21 +604,39 @@ function productSearch(data){
                 $("table.order-list tbody").prepend(newRow);
                 rowindex = newRow.index();
                 pos = product_code.indexOf(data[1]);
-                if(!data[11] && product_warehouse_price[pos]) {
-                    product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
+                var basePrice;
+                if (lineOpts && lineOpts.net_unit_price != null) {
+                    basePrice = parseFloat(lineOpts.net_unit_price);
+                } else if(!data[11] && product_warehouse_price[pos]) {
+                    basePrice = parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate);
                 }
                 else {
-                    product_price.splice(rowindex, 0, parseFloat(data[2] * currency['exchange_rate']) + parseFloat(data[2] * currency['exchange_rate'] * customer_group_rate));
+                    basePrice = parseFloat(data[2] * currency['exchange_rate']) + parseFloat(data[2] * currency['exchange_rate'] * customer_group_rate);
                 }
-                product_discount.splice(rowindex, 0, '0.00');
+                product_price.splice(rowindex, 0, basePrice);
+                var unitDiscount = 0;
+                if (lineOpts && lineOpts.discount != null && startQty > 0) {
+                    unitDiscount = parseFloat(lineOpts.discount) / startQty;
+                }
+                product_discount.splice(rowindex, 0, unitDiscount);
                 tax_rate.splice(rowindex, 0, parseFloat(data[3]));
                 tax_name.splice(rowindex, 0, data[4]);
                 tax_method.splice(rowindex, 0, data[5]);
                 unit_name.splice(rowindex, 0, data[6]);
                 unit_operator.splice(rowindex, 0, data[7]);
                 unit_operation_value.splice(rowindex, 0, data[8]);
-                checkQuantity(1, true);
+                checkQuantity(startQty, true);
+                if (lineOpts && lineOpts.net_unit_price != null) {
+                    var $priceInput = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .product_price_change');
+                    if ($priceInput.length) {
+                        $priceInput.val(parseFloat(lineOpts.net_unit_price).toFixed(2));
+                    }
+                }
             }
+            if (typeof done === 'function') done();
+        },
+        error: function () {
+            if (typeof done === 'function') done();
         }
     });
 }
@@ -809,6 +848,69 @@ function calculateGrandTotal() {
     $('#grand_total').text(grand_total.toFixed(2));
     $('input[name="grand_total"]').val(grand_total.toFixed(2));
 }
+
+@if(!empty($cloneQuotation))
+(function loadClonedQuotationLines() {
+    var cloneLines = @json($cloneLines ?? []);
+    if (!cloneLines.length) {
+        return;
+    }
+
+    var warehouseId = $('#warehouse_id').val();
+    var customerId = $('#customer_id').val();
+    var lineIndex = 0;
+
+    function loadNextLine() {
+        if (lineIndex >= cloneLines.length) {
+            calculateTotal();
+            return;
+        }
+        var line = cloneLines[lineIndex++];
+        var label = line.code;
+        // Prefer autocomplete label form if present in warehouse cache
+        var idx = product_code.indexOf(line.code);
+        if (idx > -1) {
+            label = product_code[idx] + ' (' + product_name[idx] + ')';
+        }
+        productSearch(label, {
+            qty: line.qty,
+            net_unit_price: line.net_unit_price,
+            discount: line.discount
+        }, loadNextLine);
+    }
+
+    function startLines() {
+        if (warehouseId) {
+            $.get(quotationGetProductUrl + '/' + warehouseId, function(data) {
+                lims_product_array = [];
+                product_code = data[0];
+                product_name = data[1];
+                product_qty = data[2];
+                product_type = data[3];
+                product_id = data[4];
+                product_list = data[5];
+                qty_list = data[6];
+                product_warehouse_price = data[7];
+                $.each(product_code, function(index) {
+                    lims_product_array.push(product_code[index] + ' (' + product_name[index] + ')');
+                });
+                loadNextLine();
+            });
+        } else {
+            loadNextLine();
+        }
+    }
+
+    if (customerId) {
+        $.get(quotationGetCustomerGroupUrl + '/' + customerId, function(data) {
+            customer_group_rate = (data / 100);
+            startLines();
+        }).fail(startLines);
+    } else {
+        startLines();
+    }
+})();
+@endif
 
 </script>
 @endsection

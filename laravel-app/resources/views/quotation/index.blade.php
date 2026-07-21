@@ -11,6 +11,9 @@
             @if(in_array("quotes-add", $all_permission))
                 <a href="{{route('quotations.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{trans('file.Add Quotation')}}</a>
             @endif
+            <div class="mt-3">
+                @include('quotation.partials.tabs')
+            </div>
         </div>
         <div class="table-responsive">
             <table id="quotation-table" class="table quotation-list">
@@ -23,6 +26,7 @@
                     <th>{{trans('file.customer')}}</th>
                     <th>{{trans('file.Supplier')}}</th>
                     <th>{{trans('file.Quotation Status')}}</th>
+                    <th>Client comment</th>
                     <th>{{trans('file.grand total')}}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
@@ -30,27 +34,32 @@
                 <tbody>
                 @foreach($lims_quotation_all as $key=>$quotation)
                         <?php
-                        if($quotation->quotation_status == 1)
-                            $status = trans('file.Pending');
-                        else
-                            $status = trans('file.Sent');
+                        $status = \App\Quotation::statusLabel($quotation->quotation_status);
+                        $st = (int) $quotation->quotation_status;
                         ?>
                     <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", "{{trim(preg_replace('/\s+/', ' ', $quotation->note))}}", "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
                         <td>{{$key}}</td>
                         <td>{{ date($general_setting->date_format, strtotime($quotation->created_at->toDateString())) . ' '. $quotation->created_at->toTimeString() }}</td>
                         <td>{{ $quotation->reference_no }}</td>
-                        <td>{{ $quotation->biller->name }}</td>
-                        <td>{{ $quotation->customer->name }}</td>
+                        <td>{{ optional($quotation->biller)->name }}</td>
+                        <td>{{ optional($quotation->customer)->name }}</td>
                         @if($quotation->supplier_id)
-                            <td>{{ $quotation->supplier->name }}</td>
+                            <td>{{ optional($quotation->supplier)->name }}</td>
                         @else
                             <td>N/A</td>
                         @endif
-                        @if($quotation->quotation_status == 1)
-                            <td><div class="badge badge-danger">{{$status}}</div></td>
-                        @else
-                            <td><div class="badge badge-success">{{$status}}</div></td>
-                        @endif
+                        <td>
+                            @if($st === \App\Quotation::STATUS_APPROVED)
+                                <div class="badge badge-success">{{$status}}</div>
+                            @elseif($st === \App\Quotation::STATUS_REJECTED)
+                                <div class="badge badge-danger">{{$status}}</div>
+                            @elseif($st === \App\Quotation::STATUS_AWAITING)
+                                <div class="badge badge-warning">{{$status}}</div>
+                            @else
+                                <div class="badge badge-secondary">{{$status}}</div>
+                            @endif
+                        </td>
+                        <td style="max-width:220px;white-space:normal;">{{ $quotation->client_comment ?: '—' }}</td>
                         <td>{{ number_format($quotation->grand_total, 2, '.', ',') }}</td>
                         <td>
                             <div class="btn-group">
@@ -62,17 +71,28 @@
                                     <li>
                                         <button type="button" class="btn btn-link view"><i class="fa fa-eye"></i>  {{trans('file.View')}}</button>
                                     </li>
-                                    @if(in_array("quotes-edit", $all_permission))
+                                    @if(in_array("quotes-edit", $all_permission) && in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED], true))
                                         <li>
-                                            <a class="btn btn-link" href="{{ route('quotations.edit', $quotation->id) }}"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</a></button>
+                                            <a class="btn btn-link" href="{{ route('quotations.edit', $quotation->id) }}"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</a>
                                         </li>
                                     @endif
-                                    <li>
-                                        <a class="btn btn-link" href="{{ route('quotation.create_sale', ['id' => $quotation->id]) }}"><i class="fa fa-shopping-cart"></i> {{trans('file.Create Sale')}}</a></button>
-                                    </li>
-                                    <li>
-                                        <a class="btn btn-link" href="{{ route('quotation.create_purchase', ['id' => $quotation->id]) }}"><i class="fa fa-shopping-basket"></i> {{trans('file.Create Purchase')}}</a></button>
-                                    </li>
+                                    @if(in_array("quotes-add", $all_permission))
+                                        <li>
+                                            <a class="btn btn-link" href="{{ route('quotation.clone', $quotation->id) }}"><i class="dripicons-copy"></i> Clone</a>
+                                        </li>
+                                    @endif
+                                    @if(in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED], true))
+                                        <li>
+                                            {{ Form::open(['route' => ['quotation.resend_approval', $quotation->id], 'method' => 'POST', 'style' => 'display:inline'] ) }}
+                                            <button type="submit" class="btn btn-link" onclick="return confirm('Send / resend approval link to the client via WhatsApp?');"><i class="fa fa-whatsapp"></i> Send for approval</button>
+                                            {{ Form::close() }}
+                                        </li>
+                                    @endif
+                                    @if($st === \App\Quotation::STATUS_APPROVED)
+                                        <li>
+                                            <a class="btn btn-link" href="{{ route('quotation.create_sale', ['id' => $quotation->id]) }}"><i class="fa fa-shopping-cart"></i> {{trans('file.Create Sale')}}</a>
+                                        </li>
+                                    @endif
                                     <li class="divider"></li>
                                     @if(in_array("quotes-delete", $all_permission))
                                         {{ Form::open(['route' => ['quotations.destroy', $quotation->id], 'method' => 'DELETE'] ) }}
@@ -90,6 +110,7 @@
                 <tfoot class="tfoot active">
                 <th></th>
                 <th>{{trans('file.Total')}}</th>
+                <th></th>
                 <th></th>
                 <th></th>
                 <th></th>
@@ -219,7 +240,7 @@
             'columnDefs': [
                 {
                     "orderable": false,
-                    'targets': [0, 8]
+                    'targets': [0, 9]
                 },
                 {
                     'render': function(data, type, row, meta){

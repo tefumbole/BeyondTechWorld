@@ -13,6 +13,7 @@ use App\Supplier;
 use App\Warehouse;
 use App\Biller;
 use App\Product;
+use App\Category;
 use App\Unit;
 use App\Tax;
 use App\Quotation;
@@ -32,10 +33,23 @@ use Spatie\Permission\Models\Permission;
 use App\Mail\UserNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use App\Support\ActiveRecords;
+use App\Support\WhatsAppMessage;
 
 class QuotationController extends Controller
 {
-    public function index()
+    protected function activeMasters()
+    {
+        return [
+            'lims_biller_list' => ActiveRecords::of(Biller::class),
+            'lims_warehouse_list' => ActiveRecords::of(Warehouse::class),
+            'lims_customer_list' => ActiveRecords::of(Customer::class),
+            'lims_supplier_list' => ActiveRecords::of(Supplier::class),
+            'lims_tax_list' => ActiveRecords::of(Tax::class),
+        ];
+    }
+
+    public function index(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);
         $setting = GeneralSetting::first();
@@ -49,34 +63,230 @@ class QuotationController extends Controller
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
 
-            if(Auth::user()->role_id > 2 && config('staff_access') == 'own')
-                $lims_quotation_all = Quotation::with('biller', 'customer', 'supplier', 'user')->orderBy('id', 'desc')->where('user_id', Auth::id())->get();
-            else
-                $lims_quotation_all = Quotation::with('biller', 'customer', 'supplier', 'user')->orderBy('id', 'desc')->get();
-            return view('quotation.index', compact('header','footer', 'water_mark', 'lims_quotation_all', 'all_permission'));
+            $tab = $request->get('tab', 'awaiting');
+            if (! in_array($tab, ['awaiting', 'approved', 'rejected', 'draft'], true)) {
+                $tab = 'awaiting';
+            }
+
+            $statusMap = [
+                'draft' => Quotation::STATUS_PENDING,
+                'awaiting' => Quotation::STATUS_AWAITING,
+                'approved' => Quotation::STATUS_APPROVED,
+                'rejected' => Quotation::STATUS_REJECTED,
+            ];
+
+            $query = Quotation::with('biller', 'customer', 'supplier', 'user')
+                ->where('quotation_status', $statusMap[$tab])
+                ->orderBy('id', 'desc');
+
+            if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
+                $query->where('user_id', Auth::id());
+            }
+
+            $lims_quotation_all = $query->get();
+
+            $baseCounts = Quotation::query();
+            if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
+                $baseCounts->where('user_id', Auth::id());
+            }
+            $tabCounts = [
+                'awaiting' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_AWAITING)->count(),
+                'approved' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_APPROVED)->count(),
+                'rejected' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_REJECTED)->count(),
+                'draft' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_PENDING)->count(),
+            ];
+
+            return view('quotation.index', compact(
+                'header', 'footer', 'water_mark', 'lims_quotation_all', 'all_permission', 'tab', 'tabCounts'
+            ));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    }
+
+    protected function formExtras()
+    {
+        $gs = GeneralSetting::first();
+
+        return [
+            'lims_customer_group_all' => CustomerGroup::whereRaw('COALESCE(is_active, 0) = 1')->orderBy('name')->get(),
+            'lims_category_list' => Category::whereRaw('COALESCE(is_active, 0) = 1')->orderBy('name')->get(),
+            'lims_unit_list' => Unit::whereRaw('COALESCE(is_active, 0) = 1')->orderBy('unit_name')->get(),
+            'default_category_id' => optional($gs)->category,
+            'default_unit_id' => optional($gs)->unit,
+            'default_profit' => optional($gs)->profit_percentage ?: 25,
+            'cloneQuotation' => null,
+            'cloneLines' => [],
+        ];
     }
 
     public function create()
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('quotes-add')){
-            $lims_biller_list = Biller::where('is_active', true)->get();
-            $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-            $lims_customer_list = Customer::where('is_active', true)->get();
-            $lims_supplier_list = Supplier::where('is_active', true)->get();
-            $lims_tax_list = Tax::where('is_active', true)->get();
+            extract($this->activeMasters());
+            extract($this->formExtras());
+            $all_permission = [];
             $permissions = $role->permissions;
             foreach ($permissions as $permission) {
                 $all_permission[] = $permission->name;
             }
 
-            return view('quotation.create', compact('all_permission', 'lims_biller_list', 'lims_warehouse_list', 'lims_customer_list', 'lims_supplier_list', 'lims_tax_list'));
+            return view('quotation.create', compact(
+                'all_permission',
+                'lims_biller_list',
+                'lims_warehouse_list',
+                'lims_customer_list',
+                'lims_supplier_list',
+                'lims_tax_list',
+                'lims_customer_group_all',
+                'lims_category_list',
+                'lims_unit_list',
+                'default_category_id',
+                'default_unit_id',
+                'default_profit',
+                'cloneQuotation',
+                'cloneLines'
+            ));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    }
+
+    public function cloneQuotation($id)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role->hasPermissionTo('quotes-add')) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+        }
+
+        $sourceQuotation = Quotation::with(['customer', 'biller', 'warehouse', 'supplier'])->findOrFail($id);
+        $sourceLines = [];
+        $rows = ProductQuotation::where('quotation_id', $id)->get();
+        foreach ($rows as $row) {
+            $product = Product::find($row->product_id);
+            if (! $product) {
+                continue;
+            }
+            $code = $product->code;
+            if ($row->variant_id) {
+                $variant = ProductVariant::select('item_code')
+                    ->FindExactProduct($row->product_id, $row->variant_id)
+                    ->first();
+                if ($variant) {
+                    $code = $variant->item_code;
+                }
+            }
+            $sourceLines[] = [
+                'code' => $code,
+                'qty' => $row->qty,
+                'net_unit_price' => $row->net_unit_price,
+                'discount' => $row->discount,
+            ];
+        }
+
+        extract($this->activeMasters());
+        extract($this->formExtras());
+        $cloneQuotation = $sourceQuotation;
+        $cloneLines = $sourceLines;
+        // Keep clone customer/supplier even if inactive
+        if ($cloneQuotation->customer_id && ! $lims_customer_list->contains('id', $cloneQuotation->customer_id)) {
+            $c = Customer::find($cloneQuotation->customer_id);
+            if ($c) {
+                $lims_customer_list->push($c);
+            }
+        }
+
+        $all_permission = [];
+        $permissions = $role->permissions;
+        foreach ($permissions as $permission) {
+            $all_permission[] = $permission->name;
+        }
+
+        return view('quotation.create', compact(
+            'all_permission',
+            'lims_biller_list',
+            'lims_warehouse_list',
+            'lims_customer_list',
+            'lims_supplier_list',
+            'lims_tax_list',
+            'lims_customer_group_all',
+            'lims_category_list',
+            'lims_unit_list',
+            'default_category_id',
+            'default_unit_id',
+            'default_profit',
+            'cloneQuotation',
+            'cloneLines'
+        ));
+    }
+
+    public function quickStoreProduct(Request $request)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || (! $role->hasPermissionTo('quotes-add') && ! $role->hasPermissionTo('quotes-edit') && ! $role->hasPermissionTo('products-add'))) {
+            return response()->json(['success' => false, 'message' => 'Not permitted'], 403);
+        }
+
+        $data = $request->validate([
+            'product_name' => 'required|string|max:255',
+            'product_price' => 'required|numeric|min:0',
+            'category' => 'required|integer',
+            'unit' => 'required|integer',
+            'profit' => 'nullable|numeric|min:0',
+            'warehouse_id' => 'nullable|integer',
+        ]);
+
+        $profit = isset($data['profit']) ? (float) $data['profit'] : 25;
+        $price = (float) $data['product_price'];
+        do {
+            $code = (string) mt_rand(10000000, 99999999);
+        } while (Product::where('code', $code)->exists());
+
+        $payload = [
+            'type' => 'standard',
+            'barcode_symbology' => 'C128',
+            'name' => htmlspecialchars(trim($data['product_name'])),
+            'code' => $code,
+            'price' => $price,
+            'cost' => max(0, $price - ($price / 100 * $profit)),
+            'unit_id' => $data['unit'],
+            'category_id' => $data['category'],
+            'purchase_unit_id' => $data['unit'],
+            'sale_unit_id' => $data['unit'],
+            'rent_price_per_hour' => 0,
+            'rent_price_per_day' => 0,
+            'rent_price_per_month' => 0,
+            'qty' => 1000000,
+            'is_active' => true,
+            'featured' => false,
+            'image' => 'zummXD2dvAtI.png',
+            'tax_method' => 1,
+        ];
+
+        $product = Product::create($payload);
+        $warehouseId = ! empty($data['warehouse_id'])
+            ? (int) $data['warehouse_id']
+            : optional(Warehouse::whereRaw('COALESCE(is_active, 0) = 1')->first())->id;
+        if ($warehouseId) {
+            Product_Warehouse::create([
+                'product_id' => $product->id,
+                'warehouse_id' => $warehouseId,
+                'qty' => 1000000,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product created',
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'price' => $product->price,
+                'label' => $product->name.' ['.$product->code.']',
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -101,11 +311,18 @@ class QuotationController extends Controller
             $data['document'] = $documentName;
         }
         $data['reference_no'] = 'qr-' . date("Ymd") . '-'. date("his");
+        // Only draft (1) or send for approval (2) from create form
+        $data['quotation_status'] = (int) ($data['quotation_status'] ?? Quotation::STATUS_AWAITING);
+        if (! in_array($data['quotation_status'], [Quotation::STATUS_PENDING, Quotation::STATUS_AWAITING], true)) {
+            $data['quotation_status'] = Quotation::STATUS_AWAITING;
+        }
         $lims_quotation_data = Quotation::create($data);
-        if($lims_quotation_data->quotation_status == 2){
+        $mail_data = [];
+        $lims_customer_data = Customer::find($data['customer_id']);
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING){
+            $lims_quotation_data->ensureApprovalToken();
             //collecting mail data
-            $lims_customer_data = Customer::find($data['customer_id']);
-            $mail_data['email'] = $lims_customer_data->email;
+            $mail_data['email'] = $lims_customer_data ? $lims_customer_data->email : null;
             $mail_data['reference_no'] = $lims_quotation_data->reference_no;
             $mail_data['total_qty'] = $lims_quotation_data->total_qty;
             $mail_data['total_price'] = $lims_quotation_data->total_price;
@@ -164,7 +381,7 @@ class QuotationController extends Controller
             ProductQuotation::create($product_quotation);
         }
         $message = 'Quotation created successfully';
-        if($lims_quotation_data->quotation_status == 2 && $mail_data['email']){
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && !empty($mail_data['email'])){
             try{
                 Mail::send( 'mail.quotation_details', $mail_data, function( $message ) use ($mail_data)
                 {
@@ -175,11 +392,17 @@ class QuotationController extends Controller
                 $message = 'Quotation created successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
             }
         }
-        if($lims_quotation_data->quotation_status == 2){
-            $biller = Biller::find($request->biller_id)->name;
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && $lims_customer_data){
+            $biller = optional(Biller::find($request->biller_id))->name;
             $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
+            $lims_quotation_data->approval_sent_at = now();
+            $lims_quotation_data->save();
+            return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
         }
-        return redirect('quotations')->with('message', $message);
+        if ($lims_quotation_data->quotation_status == Quotation::STATUS_PENDING) {
+            return redirect()->route('quotations.index', ['tab' => 'draft'])->with('message', $message);
+        }
+        return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
     }
 
     public function sendMail(Request $request)
@@ -229,7 +452,8 @@ class QuotationController extends Controller
                     $message->to( $mail_data['email'] )->subject( 'Quotation Details' );
                 });
                 $message = 'Mail sent successfully';
-                $lims_quotation_data->quotation_status = 2;
+                $lims_quotation_data->quotation_status = Quotation::STATUS_AWAITING;
+                $lims_quotation_data->ensureApprovalToken();
                 $lims_quotation_data->save();
             }
             catch(\Exception $e){
@@ -313,45 +537,38 @@ class QuotationController extends Controller
     }
 
     public function sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price){
-        $general_setting = GeneralSetting::first();
+        $approvalUrl = $lims_quotation_data->approvalUrl();
+        $msg = WhatsAppMessage::quotationApprovalRequest(
+            $lims_customer_data->name,
+            $lims_quotation_data->reference_no,
+            number_format((float) $lims_quotation_data->grand_total, 2),
+            $approvalUrl
+        );
 
-        $msg = '*Subject:* Quotation Details for '. $lims_customer_data->name . '\n\n';
-        $msg .= 'Dear '. $lims_customer_data->name . '\n\n';
-        $msg .= 'Thank you for choosing '.$general_setting->site_title.' as your preferred supplier. We are pleased to confirm the availability of the products requested.\n\n\n';
-
-        $msg .= '*Quotation Details:*\n';
-        $msg .= 'Quotation Number: '.$lims_quotation_data->reference_no.'\n';
-        $msg .=  'Quotation Date: '.$lims_quotation_data->created_at.'\n\n';
-
-        $msg .= '*Product Detail:*\n';
-        foreach ($mail_data['products'] as $key => $product) {
-            $msg .= $key+1 .') ['. $product . '] [' . $mail_data['qty'][$key] . '] x [ '. number_format($net_unit_price[$key], 2) .'] = ['. number_format($mail_data['total'][$key], 2) .']\n';
+        // Append line summary when available
+        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
+            $msg .= "\n*Products:*\n";
+            foreach ($mail_data['products'] as $key => $product) {
+                $qty = $mail_data['qty'][$key] ?? '';
+                $lineTotal = isset($mail_data['total'][$key]) ? number_format($mail_data['total'][$key], 2) : '';
+                $msg .= ($key + 1) . ') '.$product.' × '.$qty.' = '.$lineTotal."\n";
+            }
         }
 
-        $msg .= 'Total Amount: ' . number_format($mail_data['grand_total'], 2) . '\n\n';
-
-        $msg .= 'Once again, we appreciate your business and trust in '. $general_setting->site_title .'. We strive to provide exceptional products and services, and we are confident that you will be satisfied with our products.\n';
-        $msg .= 'Thank you for choosing ' . $general_setting->site_title . '.\n\n';
-
-        $msg .= 'Best regards,\n';
-        $msg .= $biller. '\n';
-        $msg .= $general_setting->site_title;
-
-        $message = 'Quotation created successfully';
+        $message = 'Quotation sent for client approval via WhatsApp.';
         try{
             $this->wpMessage($lims_customer_data->phone_number, $msg);
         }
         catch(\Exception $e){
-            $message = 'Quotation created successfully. Please setup your whatsapp setting.';
+            $message = 'Quotation saved, but WhatsApp approval link could not be sent: '.$e->getMessage();
         }
-        // send QR code
+        // send QR code (points to approval page)
         $path = public_path('public/images/quotations/qr/');
         if (!File::exists($path)) {
             File::makeDirectory($path, 0755, true);
         }
         $filename = 'qr_code_' . $lims_quotation_data->reference_no . '.png';
-        $url = url("quotation/scan/$lims_quotation_data->reference_no");
-        QrCode::format('png')->size(300)->generate($url, $path . $filename);
+        QrCode::format('png')->size(300)->generate($approvalUrl, $path . $filename);
         try {
             $this->wpAttachMessage($path.$filename, $lims_customer_data->phone_number, $filename);
         } catch (\Exception $e) {
@@ -584,14 +801,38 @@ class QuotationController extends Controller
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('quotes-edit')){
-            $lims_customer_list = Customer::where('is_active', true)->get();
-            $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-            $lims_biller_list = Biller::where('is_active', true)->get();
-            $lims_supplier_list = Supplier::where('is_active', true)->get();
-            $lims_tax_list = Tax::where('is_active', true)->get();
+            extract($this->activeMasters());
+            extract($this->formExtras());
             $lims_quotation_data = Quotation::find($id);
+            // Keep currently selected inactive records visible so edit doesn't break
+            if ($lims_quotation_data) {
+                if ($lims_quotation_data->customer_id && ! $lims_customer_list->contains('id', $lims_quotation_data->customer_id)) {
+                    $c = Customer::find($lims_quotation_data->customer_id);
+                    if ($c) { $lims_customer_list->push($c); }
+                }
+            }
             $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
-            return view('quotation.edit',compact('lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_tax_list', 'lims_quotation_data','lims_product_quotation_data', 'lims_supplier_list'));
+            $permissions = $role->permissions;
+            $all_permission = [];
+            foreach ($permissions as $permission) {
+                $all_permission[] = $permission->name;
+            }
+            return view('quotation.edit', compact(
+                'lims_customer_list',
+                'lims_warehouse_list',
+                'lims_biller_list',
+                'lims_tax_list',
+                'lims_quotation_data',
+                'lims_product_quotation_data',
+                'lims_supplier_list',
+                'lims_customer_group_all',
+                'lims_category_list',
+                'lims_unit_list',
+                'default_category_id',
+                'default_unit_id',
+                'default_profit',
+                'all_permission'
+            ));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -620,12 +861,23 @@ class QuotationController extends Controller
         }
         $lims_quotation_data = Quotation::find($id);
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
+        // When re-sending a rejected/draft quotation, reset client response fields
+        $newStatus = (int) ($data['quotation_status'] ?? $lims_quotation_data->quotation_status);
+        if ($newStatus === Quotation::STATUS_AWAITING) {
+            $data['client_comment'] = null;
+            $data['client_signed_at'] = null;
+            $data['client_signature_path'] = null;
+            $data['client_responded_at'] = null;
+        }
         //update quotation table
         $lims_quotation_data->update($data);
-        if($lims_quotation_data->quotation_status == 2){
+        $lims_quotation_data = $lims_quotation_data->fresh();
+        $mail_data = [];
+        $lims_customer_data = Customer::find($data['customer_id']);
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING){
+            $lims_quotation_data->ensureApprovalToken();
             //collecting mail data
-            $lims_customer_data = Customer::find($data['customer_id']);
-            $mail_data['email'] = $lims_customer_data->email;
+            $mail_data['email'] = $lims_customer_data ? $lims_customer_data->email : null;
             $mail_data['reference_no'] = $lims_quotation_data->reference_no;
             $mail_data['total_qty'] = $data['total_qty'];
             $mail_data['total_price'] = $data['total_price'];
@@ -718,7 +970,7 @@ class QuotationController extends Controller
 
         $message = 'Quotation updated successfully';
 
-        if($lims_quotation_data->quotation_status == 2 && $mail_data['email']){
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && !empty($mail_data['email'])){
             try{
                 Mail::send( 'mail.quotation_details', $mail_data, function( $message ) use ($mail_data)
                 {
@@ -729,20 +981,66 @@ class QuotationController extends Controller
                 $message = 'Quotation updated successfully. Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
             }
         }
-        if($lims_quotation_data->quotation_status == 2){
-            $biller = Biller::find($request->biller_id)->name;
+        if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && $lims_customer_data){
+            $biller = optional(Biller::find($request->biller_id))->name;
             $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
+            $lims_quotation_data->approval_sent_at = now();
+            $lims_quotation_data->save();
+            return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
         }
-        return redirect('quotations')->with('message', $message);
+
+        $tab = 'awaiting';
+        if ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_APPROVED) {
+            $tab = 'approved';
+        } elseif ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_REJECTED) {
+            $tab = 'rejected';
+        } elseif ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_PENDING) {
+            $tab = 'draft';
+        }
+        return redirect()->route('quotations.index', ['tab' => $tab])->with('message', $message);
+    }
+
+    public function resendApproval($id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        if (! in_array((int) $quotation->quotation_status, [Quotation::STATUS_AWAITING, Quotation::STATUS_REJECTED, Quotation::STATUS_PENDING], true)) {
+            return back()->with('not_permitted', 'Only draft, awaiting, or rejected quotations can be sent for approval.');
+        }
+
+        $quotation->quotation_status = Quotation::STATUS_AWAITING;
+        $quotation->client_comment = null;
+        $quotation->client_signed_at = null;
+        $quotation->client_signature_path = null;
+        $quotation->client_responded_at = null;
+        $quotation->ensureApprovalToken();
+        $quotation->approval_sent_at = now();
+        $quotation->save();
+
+        $customer = Customer::find($quotation->customer_id);
+        if (! $customer || empty($customer->phone_number)) {
+            return redirect()->route('quotations.index', ['tab' => 'awaiting'])
+                ->with('not_permitted', 'Customer phone number is required to send the approval link.');
+        }
+
+        $mail_data = [
+            'grand_total' => $quotation->grand_total,
+            'products' => [],
+            'qty' => [],
+            'total' => [],
+        ];
+        $message = $this->sendWhatsappMsg($customer, $quotation, $mail_data, optional($quotation->biller)->name, []);
+
+        return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
     }
 
     public function createSale($id)
     {
-        $lims_customer_list = Customer::where('is_active', true)->get();
-        $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-        $lims_biller_list = Biller::where('is_active', true)->get();
-        $lims_tax_list = Tax::where('is_active', true)->get();
         $lims_quotation_data = Quotation::find($id);
+        if (! $lims_quotation_data || (int) $lims_quotation_data->quotation_status !== Quotation::STATUS_APPROVED) {
+            return redirect()->route('quotations.index', ['tab' => 'approved'])
+                ->with('not_permitted', 'Create Sale is only available for client-approved quotations.');
+        }
+        extract($this->activeMasters());
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
         $lims_pos_setting_data = PosSetting::latest()->first();
         return view('quotation.create_sale',compact('lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_tax_list', 'lims_quotation_data','lims_product_quotation_data', 'lims_pos_setting_data'));
@@ -750,9 +1048,8 @@ class QuotationController extends Controller
 
     public function createPurchase($id)
     {
-        $lims_supplier_list = Supplier::where('is_active', true)->get();
-        $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-        $lims_tax_list = Tax::where('is_active', true)->get();
+        extract($this->activeMasters());
+        $lims_tax_list = ActiveRecords::of(Tax::class);
         $lims_quotation_data = Quotation::find($id);
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
         $lims_product_list_without_variant = $this->productWithoutVariant();

@@ -24,6 +24,10 @@ Route::get('/order/payment/check/display', 'CartController@placeOrderAfterPaymen
 Route::get('/booking/payment/check', 'CartController@placeBookingAfterPayment')->name('booking.payment.check');
 Route::get('/booking/payment/check/display', 'CartController@placeBookingAfterPaymentDisplay')->name('booking.payment.check.display');
 
+Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->name('quotation.client.show');
+Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
+Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');
+
 Route::get('/rental-agreement/{token}', 'RentalContractController@show')->name('rental.agreement');
 Route::post('/rental-agreement/{token}/sign', 'RentalContractController@sign')->name('rental.agreement.sign');
 Route::get('/rental-portal/{token}', 'RentalContractController@portal')->name('rental.portal');
@@ -545,10 +549,14 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('quotations/getproduct/{id}', 'QuotationController@getProduct')->name('quotation.getproduct');
 	Route::get('quotations/{id}/create_sale', 'QuotationController@createSale')->name('quotation.create_sale');
 	Route::get('quotations/{id}/create_purchase', 'QuotationController@createPurchase')->name('quotation.create_purchase');
+	Route::get('quotations/{id}/clone', 'QuotationController@cloneQuotation')->name('quotation.clone');
+	Route::post('quotations/quick-product', 'QuotationController@quickStoreProduct')->name('quotation.quick_product');
 	Route::post('quotations/sendmail', 'QuotationController@sendMail')->name('quotation.sendmail');
 	Route::post('quotations/sendwhatsapp', 'QuotationController@sendWhatsapp')->name('quotation.sendwhatsapp');
+	Route::post('quotations/{id}/resend-approval', 'QuotationController@resendApproval')->name('quotation.resend_approval');
 	Route::post('quotations/deletebyselection', 'QuotationController@deleteBySelection');
-	Route::resource('quotations', 'QuotationController');
+	Route::get('quotations', 'QuotationController@index')->name('quotations.index');
+	Route::resource('quotations', 'QuotationController')->except(['index']);
 
 	Route::post('purchases/purchase-data', 'PurchaseController@purchaseData')->name('purchases.data');
 	Route::get('purchases/product_purchase/{id}','PurchaseController@productPurchaseData');
@@ -641,6 +649,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('backup', 'SettingController@backup')->name('setting.backup');
 	Route::get('setting/general_setting/change-theme/{theme}', 'SettingController@changeTheme');
 	Route::get('setting/mail_setting', 'SettingController@mailSetting')->name('setting.mail');
+	Route::get('setting/messaging', 'SettingController@messagingSetting')->name('setting.messaging');
+	Route::post('setting/messaging_store', 'SettingController@messagingSettingStore')->name('setting.messagingStore');
 	Route::get('setting/sms_setting', 'SettingController@smsSetting')->name('setting.sms');
 	Route::get('setting/createsms', 'SettingController@createSms')->name('setting.createSms');
 	Route::post('setting/sendsms', 'SettingController@sendSms')->name('setting.sendSms');

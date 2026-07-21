@@ -2389,8 +2389,11 @@
                                 @if($reward_point_setting_permission_active)
                                     <li id="reward-point-setting-menu"><a href="{{route('setting.rewardPoint')}}">{{trans('file.Reward Point Setting')}}</a></li>
                                 @endif
+                                @if($sms_setting_permission_active || $general_setting_permission_active)
+                                    <li id="messaging-setting-menu"><a href="{{route('setting.messaging')}}">Messaging Settings</a></li>
+                                @endif
                                 @if($sms_setting_permission_active)
-                                    <li id="sms-setting-menu"><a href="{{route('setting.sms')}}">{{trans('file.SMS Setting')}}</a></li>
+                                    <li id="sms-setting-menu"><a href="{{route('setting.messaging')}}">{{trans('file.SMS Setting')}}</a></li>
                                 @endif
                                 @if($pos_setting_permission_active)
                                     <li id="pos-setting-menu"><a href="{{route('setting.pos')}}">POS {{trans('file.settings')}}</a></li>

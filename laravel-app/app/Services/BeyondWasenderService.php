@@ -21,9 +21,9 @@ class BeyondWasenderService
 
     public function sendOtp($phone, $code, $label = 'login')
     {
-        $message = \App\Support\WhatsAppMessage::otpMessage($code, $label, 10);
-
-        return $this->sendText($phone, $message);
+        // Route through NotificationRouter (Twilio Content SID when configured, else Wasender).
+        return app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppOtp($phone, $code, $label, 10);
     }
 
     public function sendText($phone, $message)

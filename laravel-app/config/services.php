@@ -32,6 +32,7 @@ return [
 
     'whatsapp' => [
         'service' => env('WHATSAPP_SERVICE', 'WASENDER'),
+        'enabled' => env('MESSAGING_WHATSAPP_ENABLED', true),
         'wasender_api_key' => env('WASENDER_API_KEY'),
         'wasender_session_id' => env('WASENDER_SESSION_ID'),
         'wasender_base_url' => env('WASENDER_BASE_URL', env('WASENDER_API_URL', 'https://wasenderapi.com/api')),
@@ -44,6 +45,25 @@ return [
         'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '237'),
         'ultramsg_instance' => env('ULTRAMSG_INSTANCE'),
         'ultramsg_token' => env('ULTRAMSG_TOKEN'),
+        'twilio_sid' => env('TWILIO_SID', env('ACCOUNT_SID')),
+        'twilio_token' => env('TWILIO_AUTH_TOKEN', env('AUTH_TOKEN')),
+        'twilio_whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        'content_sid_admission' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION',
+            'HX47150e179fdbab79738d060fb0ac6415'
+        ),
+        'content_sid_otp' => env('TWILIO_WHATSAPP_CONTENT_SID_OTP'),
+        'content_sid_status' => env('TWILIO_WHATSAPP_CONTENT_SID_STATUS'),
+        'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
+    ],
+
+    'sms' => [
+        'enabled' => env('MESSAGING_SMS_ENABLED', true),
+        'gateway' => env('SMS_GATEWAY', 'twilio'),
+        'account_sid' => env('ACCOUNT_SID', env('TWILIO_SID')),
+        'auth_token' => env('AUTH_TOKEN', env('TWILIO_AUTH_TOKEN')),
+        'twilio_number' => env('TWILIO_NUMBER', env('Twilio_Number')),
+        'clickatell_api_key' => env('CLICKATELL_API_KEY'),
     ],
 
 ];

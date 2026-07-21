@@ -53,11 +53,35 @@ class Controller extends BaseController
     private function usesWasender()
     {
         $service = $this->whatsappServiceName();
+        if ($service === 'TWILIO') {
+            return false;
+        }
         if (in_array($service, ['ULTRAMSG', 'ULTRA'], true)) {
             return false;
         }
 
         return $service === 'WASENDER' || !empty($this->whatsappConfig('wasender_api_key'));
+    }
+
+    private function whatsappMessagingEnabled()
+    {
+        return filter_var($this->whatsappConfig('enabled', true), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Documents still go through Wasender when Twilio is selected but fallback is enabled. */
+    private function usesWasenderForDocuments()
+    {
+        if ($this->usesWasender()) {
+            return true;
+        }
+
+        if ($this->whatsappServiceName() !== 'TWILIO') {
+            return false;
+        }
+
+        $fallback = filter_var($this->whatsappConfig('twilio_fallback_wasender', true), FILTER_VALIDATE_BOOLEAN);
+
+        return $fallback && ! empty($this->whatsappConfig('wasender_api_key'));
     }
 
     private function assertWasenderConfigured()
@@ -513,49 +537,59 @@ class Controller extends BaseController
     }
 
     public function wpMessage($number, $msg){
-        if ($this->usesWasender()) {
-            $this->assertWasenderConfigured();
-            return $this->sendWasenderTextMessage($number, $msg);
+        if (! $this->whatsappMessagingEnabled()) {
+            \Log::info('[whatsapp] messaging disabled — skip wpMessage');
+            return true;
         }
 
-        $this->throttleWhatsAppSend();
+        $router = app(\App\Services\Messaging\NotificationRouter::class);
+        $result = $router->sendWhatsAppText($number, $msg);
 
+        if (! empty($result['success']) || ! empty($result['skipped'])) {
+            return $result['sid'] ?? true;
+        }
+
+        // Legacy UltraMsg path when router could not send and provider is ULTRAMSG
         $service = $this->whatsappServiceName();
-        if ($service !== 'ULTRAMSG' && $service !== 'ULTRA') {
-            throw new \Exception('WhatsApp messaging uses WasenderAPI. Set WHATSAPP_SERVICE=WASENDER, WASENDER_API_KEY, and WASENDER_SESSION_ID in your environment settings.');
+        if ($service === 'ULTRAMSG' || $service === 'ULTRA') {
+            $this->throttleWhatsAppSend();
+
+            list($instance, $token) = $this->getUltraMsgConfig();
+            $params= [
+                'token' => $token,
+                'to' => $number,
+                'body' => $msg
+            ];
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => "https://api.ultramsg.com/".$instance."/messages/chat",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_SSL_VERIFYPEER => 0,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_POSTFIELDS => http_build_query($params),
+                CURLOPT_HTTPHEADER => array(
+                    "content-type: application/x-www-form-urlencoded"
+                ),
+            ));
+
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+
+            curl_close($curl);
+
+            if ($response === false || !empty($err)) {
+                throw new \Exception('WhatsApp message sending failed');
+            }
+
+            return true;
         }
 
-        list($instance, $token) = $this->getUltraMsgConfig();
-        $params= [
-            'token' => $token,
-            'to' => $number,
-            'body' => $msg
-        ];
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => "https://api.ultramsg.com/".$instance."/messages/chat",
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYHOST => 0,
-            CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => http_build_query($params),
-            CURLOPT_HTTPHEADER => array(
-                "content-type: application/x-www-form-urlencoded"
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        $err = curl_error($curl);
-
-        curl_close($curl);
-
-        if ($response === false || !empty($err)) {
-            throw new \Exception('WhatsApp message sending failed');
-        }
+        throw new \Exception($result['error'] ?? 'WhatsApp message sending failed. Check Settings → Messaging Settings.');
     }
 
     protected function sendWhatsAppToCustomer($customer, $msg)
@@ -575,10 +609,16 @@ class Controller extends BaseController
 
     protected function sendWhatsAppDocumentToCustomer($customer, $path, $filename, $publicUrl = null)
     {
-        if ($this->usesWasender()) {
+        if (! $this->whatsappMessagingEnabled()) {
+            \Log::info('[whatsapp] messaging disabled — skip document');
+            return true;
+        }
+
+        if ($this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
             if (empty($publicUrl)) {
-                $publicUrl = $this->resolveWhatsAppDocumentUrl($path);
+                // Force Wasender upload path even when WHATSAPP_SERVICE=TWILIO
+                $publicUrl = $this->wasenderUploadLocalFile($path);
             }
 
             return $this->wasenderAttachment($path, $customer, $publicUrl, $filename);
@@ -586,7 +626,7 @@ class Controller extends BaseController
 
         $service = $this->whatsappServiceName();
         if ($service !== 'ULTRAMSG' && $service !== 'ULTRA') {
-            throw new \Exception('WhatsApp attachments use WasenderAPI. Set WHATSAPP_SERVICE=WASENDER, WASENDER_API_KEY, and WASENDER_SESSION_ID in your environment settings.');
+            throw new \Exception('WhatsApp attachments use WasenderAPI. Keep Wasender keys set (fallback) or set WHATSAPP_SERVICE=WASENDER in Messaging Settings.');
         }
 
         $phone = $this->getCustomerPhoneNumber($customer);
@@ -595,10 +635,15 @@ class Controller extends BaseController
 
     protected function sendWhatsAppDocumentToPhone($phone, $path, $filename, $publicUrl = null)
     {
-        if ($this->usesWasender()) {
+        if (! $this->whatsappMessagingEnabled()) {
+            \Log::info('[whatsapp] messaging disabled — skip document');
+            return true;
+        }
+
+        if ($this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
             if (empty($publicUrl)) {
-                $publicUrl = $this->resolveWhatsAppDocumentUrl($path);
+                $publicUrl = $this->wasenderUploadLocalFile($path);
             }
 
             $recipient = (object) ['phone_number' => $phone];
@@ -607,7 +652,7 @@ class Controller extends BaseController
 
         $service = $this->whatsappServiceName();
         if ($service !== 'ULTRAMSG' && $service !== 'ULTRA') {
-            throw new \Exception('WhatsApp attachments use WasenderAPI. Set WHATSAPP_SERVICE=WASENDER, WASENDER_API_KEY, and WASENDER_SESSION_ID in your environment settings.');
+            throw new \Exception('WhatsApp attachments use WasenderAPI. Keep Wasender keys set (fallback) or set WHATSAPP_SERVICE=WASENDER in Messaging Settings.');
         }
 
         return $this->sendUltraMsgDocumentRequest($path, $phone, $filename);
@@ -667,21 +712,26 @@ class Controller extends BaseController
     }
 
     public function wpPDFAnnouncement($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null){
-        if ($this->usesWasender()) {
-            $this->assertWasenderConfigured();
-            if (empty($wa_path)) {
-                $wa_path = $this->resolveWhatsAppDocumentUrl($path);
+        // Announcement attachments always use Wasender (same policy as announcement text).
+        if (! $this->whatsappMessagingEnabled()) {
+            \Log::info('[whatsapp] messaging disabled — skip announcement document');
+            return true;
+        }
+
+        $this->assertWasenderConfigured();
+
+        if (! is_file($path)) {
+            $candidate = public_path(ltrim((string) $path, '/'));
+            if (is_file($candidate)) {
+                $path = $candidate;
             }
-            return $this->wasenderAttachment($path, $lims_customer_data, $wa_path, $filename);
         }
 
-        $service = $this->whatsappServiceName();
-        if ($service !== 'ULTRAMSG' && $service !== 'ULTRA') {
-            throw new \Exception('WhatsApp attachments use WasenderAPI. Set WHATSAPP_SERVICE=WASENDER, WASENDER_API_KEY, and WASENDER_SESSION_ID in your environment settings.');
+        if (empty($wa_path)) {
+            $wa_path = $this->wasenderUploadLocalFile($path);
         }
 
-        $to = $this->getCustomerPhoneNumber($lims_customer_data);
-        return $this->sendUltraMsgDocumentRequest($path, $to, $filename);
+        return $this->wasenderAttachment($path, $lims_customer_data, $wa_path, $filename);
     }
 
     public function sendWhatsappMsgForPlacingOrderToBuyer($order){

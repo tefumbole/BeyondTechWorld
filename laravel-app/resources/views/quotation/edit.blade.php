@@ -6,7 +6,7 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
-                <div class="card">
+                <div class="card quotation-qc">
                     <div class="card-header d-flex align-items-center">
                         <h4>{{trans('file.Update Quotation')}}</h4>
                     </div>
@@ -50,11 +50,14 @@
                                         <div class="form-group">
                                             <label>{{trans('file.customer')}} *</label>
                                             <input type="hidden" name="customer_id_hidden" value="{{ $lims_quotation_data->customer_id }}" />
-                                            <select required id="customer_id" name="customer_id" class="selectpicker form-control" data-live-search="true" id="customer-id" data-live-search-style="begins" title="Select customer...">
-                                                @foreach($lims_customer_list as $customer)
-                                                <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
-                                                @endforeach
-                                            </select>
+                                            <div class="input-with-action">
+                                                <select required id="customer_id" name="customer_id" class="selectpicker form-control" data-live-search="true" data-live-search-style="begins" title="Select customer...">
+                                                    @foreach($lims_customer_list as $customer)
+                                                    <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="button" class="btn btn-default" data-toggle="modal" data-target="#addCustomer" title="{{trans('file.Add Customer')}}"><i class="dripicons-plus"></i></button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -72,9 +75,12 @@
                                 <div class="row mt-3">
                                     <div class="col-md-12">
                                         <label>{{trans('file.Select Product')}}</label>
-                                        <div class="search-box input-group">
-                                            <button type="button" class="btn btn-secondary btn-lg"><i class="fa fa-barcode"></i></button>
-                                            <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                        <div class="input-with-action">
+                                            <div class="search-box input-group" style="flex:1;">
+                                                <button type="button" class="btn btn-secondary btn-lg"><i class="fa fa-barcode"></i></button>
+                                                <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                            </div>
+                                            <button type="button" class="btn btn-default" data-toggle="modal" data-target="#addProduct" title="{{trans('file.add_product')}}"><i class="dripicons-plus"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -299,9 +305,13 @@
                                             <label>{{trans('file.Status')}} *</label>
                                             <input type="hidden" name="quotation_status_hidden" value="{{$lims_quotation_data->quotation_status}}">
                                             <select name="quotation_status" class="form-control">
-                                                <option value="1">{{trans('file.Pending')}}</option>
-                                                <option value="2">{{trans('file.Sent')}}</option>
+                                                <option value="2">Send for client approval</option>
+                                                <option value="1">Save as draft</option>
+                                                @if(in_array((int)$lims_quotation_data->quotation_status, [3, 4], true))
+                                                    <option value="{{ $lims_quotation_data->quotation_status }}">{{ \App\Quotation::statusLabel($lims_quotation_data->quotation_status) }} (current)</option>
+                                                @endif
                                             </select>
+                                            <small class="text-muted">Choosing “Send for client approval” WhatsApps a new approval link and clears a previous reject/approve response.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -394,6 +404,7 @@
             </div>
         </div>
     </div>
+    @include('quotation.partials.quick_create_modals')
 </section>
 
 <script type="text/javascript">
@@ -479,13 +490,18 @@ if(!$('input[name="shipping_cost"]').val())
 $('#shipping_cost').text(parseFloat($('input[name="shipping_cost"]').val()).toFixed(2));
 $('#grand_total').text(parseFloat($('input[name="grand_total"]').val()).toFixed(2));
 
+var quotationGetCustomerGroupUrl = @json(url('quotations/getcustomergroup'));
+var quotationGetProductUrl = @json(url('quotations/getproduct'));
+var quotationProductSearchUrl = @json(route('product_quotation.search'));
+var checkBatchUrl = @json(url('check-batch-availability'));
+
 var id = $('select[name="customer_id"]').val();
-$.get('../getcustomergroup/' + id, function(data) {
+$.get(quotationGetCustomerGroupUrl + '/' + id, function(data) {
     customer_group_rate = (data / 100);
 });
 
 var id = $('select[name="warehouse_id"]').val();
-$.get('../getproduct/' + id, function(data) {
+$.get(quotationGetProductUrl + '/' + id, function(data) {
     lims_product_array = [];
     product_code = data[0];
     product_name = data[1];
@@ -503,14 +519,14 @@ $.get('../getproduct/' + id, function(data) {
 
 $('select[name="customer_id"]').on('change', function() {
     var id = $(this).val();
-    $.get('../getcustomergroup/' + id, function(data) {
+    $.get(quotationGetCustomerGroupUrl + '/' + id, function(data) {
         customer_group_rate = (data / 100);
     });
 });
 
 $('select[name="warehouse_id"]').on('change', function() {
     var id = $(this).val();
-    $.get('../getproduct/' + id, function(data) {
+    $.get(quotationGetProductUrl + '/' + id, function(data) {
         lims_product_array = [];
         product_code = data[0];
         product_name = data[1];
@@ -591,7 +607,7 @@ $("#myTable").on("change", ".batch-no", function () {
     rowindex = $(this).closest('tr').index();
     var product_id = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product-id').val();
     var warehouse_id = $('#warehouse_id').val();
-    $.get('../../check-batch-availability/' + product_id + '/' + $(this).val() + '/' + warehouse_id, function(data) {
+    $.get(checkBatchUrl + '/' + product_id + '/' + $(this).val() + '/' + warehouse_id, function(data) {
         if(data['message'] != 'ok') {
             alert(data['message']);
             $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.batch-no').val('');
@@ -707,20 +723,31 @@ $('#quotation-form').on('submit',function(e){
     }
 });
 
-function productSearch(data) {
+function productSearch(data, lineOpts, done) {
+    lineOpts = lineOpts || null;
     $.ajax({
         type: 'GET',
-        url: '../lims_product_search',
+        url: quotationProductSearchUrl,
         data: {
             data: data
         },
         success: function(data) {
             var flag = 1;
+            var startQty = (lineOpts && lineOpts.qty) ? parseFloat(lineOpts.qty) : 1;
             $(".product-code").each(function(i) {
                 if ($(this).val() == data[1]) {
                     rowindex = i;
-                    var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
+                    var qty = (lineOpts && lineOpts.qty)
+                        ? parseFloat(lineOpts.qty)
+                        : parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
                     $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
+                    if (lineOpts && lineOpts.net_unit_price != null) {
+                        product_price[rowindex] = parseFloat(lineOpts.net_unit_price);
+                        var $priceInput = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .product_price_change');
+                        if ($priceInput.length) {
+                            $priceInput.val(parseFloat(lineOpts.net_unit_price).toFixed(2));
+                        }
+                    }
                     checkQuantity(String(qty), true);
                     flag = 0;
                 }
@@ -736,7 +763,7 @@ function productSearch(data) {
                     cols += '<td><input type="text" class="form-control batch-no" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
                 else
                     cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
-                cols += '<td><input type="number" class="form-control qty" name="qty[]" value="1" step="any" required/></td>';
+                cols += '<td><input type="number" class="form-control qty" name="qty[]" value="' + startQty + '" step="any" required/></td>';
                 cols += '<td class="net_unit_price"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
                 cols += '<td class="discount">0.00</td>';
                 cols += '<td class="tax"></td>';
@@ -756,12 +783,16 @@ function productSearch(data) {
                 $("table.order-list tbody").prepend(newRow);
                 rowindex = newRow.index();
                 pos = product_code.indexOf(data[1]);
-                if(!data[11] && product_warehouse_price[pos]) {
-                    product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
+                var basePrice;
+                if (lineOpts && lineOpts.net_unit_price != null) {
+                    basePrice = parseFloat(lineOpts.net_unit_price);
+                } else if(!data[11] && product_warehouse_price[pos]) {
+                    basePrice = parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate);
                 }
                 else {
-                    product_price.splice(rowindex, 0, parseFloat(data[2] * currency['exchange_rate']) + parseFloat(data[2] * currency['exchange_rate'] * customer_group_rate));
+                    basePrice = parseFloat(data[2] * currency['exchange_rate']) + parseFloat(data[2] * currency['exchange_rate'] * customer_group_rate);
                 }
+                product_price.splice(rowindex, 0, basePrice);
 
                 product_discount.splice(rowindex, 0, '0.00');
                 tax_rate.splice(rowindex, 0, parseFloat(data[3]));
@@ -770,8 +801,18 @@ function productSearch(data) {
                 unit_name.splice(rowindex, 0, data[6]);
                 unit_operator.splice(rowindex, 0, data[7]);
                 unit_operation_value.splice(rowindex, 0, data[8]);
-                checkQuantity(1, true);
+                checkQuantity(startQty, true);
+                if (lineOpts && lineOpts.net_unit_price != null) {
+                    var $priceInput = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .product_price_change');
+                    if ($priceInput.length) {
+                        $priceInput.val(parseFloat(lineOpts.net_unit_price).toFixed(2));
+                    }
+                }
             }
+            if (typeof done === 'function') done();
+        },
+        error: function () {
+            if (typeof done === 'function') done();
         }
     });
 }

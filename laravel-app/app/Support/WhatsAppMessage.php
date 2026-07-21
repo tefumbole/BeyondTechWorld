@@ -126,6 +126,20 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function quotationApprovalRequest($customerName, $referenceNo, $grandTotal, $approvalUrl)
+    {
+        $msg = self::statusBlock('📋', 'Quotation for Approval');
+        $msg .= self::greeting($customerName);
+        $msg .= "Please review your quotation from *".self::companyName()."*.\n\n";
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Total', $grandTotal);
+        $msg .= "\nThis is a *quotation* (not a receipt). Review the agreement, then approve or reject with a comment.\n";
+        $msg .= self::actionLink('Review & respond', $approvalUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function bookingConfirmation($customerName, $referenceNo, $orderDate, array $lines, $grandTotal, $payingMethod, $facilityName, $facilityAddress, $facilityPhone, $bookingNote = '')
     {
         $msg = self::statusBlock('✅', 'Booking Confirmed');

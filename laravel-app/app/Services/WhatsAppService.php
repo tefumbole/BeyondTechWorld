@@ -2,40 +2,27 @@
 
 namespace App\Services;
 
-use Twilio\Rest\Client;
-
+/**
+ * Legacy facade — delegates to TwilioWhatsAppService / NotificationRouter.
+ * Prefer App\Services\Messaging\NotificationRouter for new code.
+ */
 class WhatsAppService
 {
     protected $twilio;
 
-    public function __construct()
+    public function __construct(TwilioWhatsAppService $twilio)
     {
-        $this->twilio = new Client(env('TWILIO_SID'), env('TWILIO_AUTH_TOKEN'));
+        $this->twilio = $twilio;
     }
 
     public function sendMessage($to, $message)
     {
-        try {
-//            $message = $this->twilio->messages->create(
-//                "whatsapp:".$to, // Receiver's WhatsApp number
-//                [
-//                    "from" => env('TWILIO_WHATSAPP_FROM'), // Twilio WhatsApp number
-//                    "contentSid" => "HT09b62399e946d995b21b70d505f54802", // Correct Template SID
-//                    "contentVariables" => '{"1": "rehan"}', // Proper JSON format
-//                    "contentLanguage" => "English (US)" // Correct Language and Locale
-//                ]
-//            );
+        return app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppText($to, $message);
+    }
 
-            $message = $this->twilio->messages->create(
-                "whatsapp:+923410060960", // Recipient's WhatsApp number
-                [
-                    "from" => env('TWILIO_WHATSAPP_FROM'), // Twilio WhatsApp number
-                    "body" => "Hello! This is a non-template message from Twilio."
-                ]
-            );
-            return $message->sid;
-        } catch (\Exception $e) {
-            return "Error: " . $e->getMessage();
-        }
+    public function sendContentTemplate($to, $contentSid, array $variables = [], $mediaUrl = null)
+    {
+        return $this->twilio->sendContentTemplate($to, $contentSid, $variables, $mediaUrl);
     }
 }
