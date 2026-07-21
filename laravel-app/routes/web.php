@@ -237,9 +237,11 @@ Route::post('/admin/login', function (\Illuminate\Http\Request $request) {
     return app(\App\Http\Controllers\BeyondAuthController::class)->login($request);
 });
 
-// Alias name for older Beyond portal links (same URI handled by Auth login route)
-Route::get('/login', 'BeyondAuthController@showLogin')->name('beyond.login');
-Route::post('/login', 'BeyondAuthController@login');
+// GET/POST /login stay on Auth::routes → LoginController (delegates to BeyondAuthController).
+// Do not re-register /login under another name — that removed route('login') and caused 500s.
+Route::get('/beyond/login', function () {
+    return redirect('/login');
+})->name('beyond.login');
 
 Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 // Portal logout must NOT share POST /logout with Auth::routes (admin POS logout).

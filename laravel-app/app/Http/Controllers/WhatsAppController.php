@@ -11,9 +11,10 @@ class WhatsAppController extends Controller
 {
     protected $whatsappService;
 
-    public function __construct()
+    public function __construct(WhatsAppService $whatsappService = null)
     {
-        $this->whatsappService = new WhatsAppService();
+        // Resolve via container so TwilioWhatsAppService is injected (fixes artisan route:list / DI).
+        $this->whatsappService = $whatsappService ?: app(WhatsAppService::class);
     }
 
     public function send()

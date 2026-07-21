@@ -133,11 +133,11 @@
         </div>
     </section>
 
-    @include('quotation.partials.system_letterhead')
+    @php extract(\App\Support\Letterhead::viewVars(), EXTR_SKIP); @endphp
     <div id="quotation-details" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
-        <div role="document" class="modal-dialog {{ $quotationLetterhead ? 'modal-lg' : '' }}">
+        <div role="document" class="modal-dialog {{ !empty($quotationLetterhead) ? 'modal-lg' : '' }}">
             <div class="modal-content quotation-details-sheet">
-                <div class="container mt-3 pb-2 {{ $quotationLetterhead ? '' : 'border-bottom' }}">
+                <div class="container mt-3 pb-2 {{ !empty($quotationLetterhead) ? '' : 'border-bottom' }}">
                     <div class="row">
                         <div class="col-md-5">
                             <button id="print-btn" type="button" class="btn btn-default btn-sm d-print-none"><i class="dripicons-print"></i></button>
@@ -154,7 +154,7 @@
                         <div class="col-md-3">
                             <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
                         </div>
-                        @if($quotationLetterhead)
+                        @if(!empty($quotationLetterhead))
                             <div class="col-md-12 px-0 quotation-system-header">
                                 <img src="{{ $quotationHeaderUrl }}" alt="Header" style="width:100%;display:block;">
                             </div>
@@ -170,7 +170,7 @@
                     </div>
                 </div>
                 <div class="quotation-details-body" style="position:relative;">
-                    @if($quotationWatermarkUrl)
+                    @if(!empty($quotationWatermarkUrl))
                         <img src="{{ $quotationWatermarkUrl }}" alt="" class="quotation-system-watermark">
                     @endif
                     <div id="quotation-content" class="modal-body"></div>
@@ -180,7 +180,7 @@
                     </table>
                     <div id="quotation-footer" class="modal-body"></div>
                 </div>
-                @if($quotationLetterFooter)
+                @if(!empty($quotationLetterFooter))
                     <img src="{{ $quotationFooterUrl }}" alt="Footer" class="quotation-system-footer" style="width:100%;display:block;">
                 @endif
             </div>

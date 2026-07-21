@@ -319,7 +319,7 @@
     </div>
 </div>
 
-@include('quotation.partials.system_letterhead')
+@php extract(\App\Support\Letterhead::viewVars(), EXTR_SKIP); @endphp
 <div id="quotation-details" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
     <div role="document" class="modal-dialog {{ !empty($quotationLetterhead) ? 'modal-lg' : '' }}">
       <div class="modal-content">

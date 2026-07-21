@@ -85,8 +85,8 @@
     </style>
 </head>
 <body>
-@include('quotation.partials.system_letterhead')
-@if($quotationLetterhead)
+@php extract(\App\Support\Letterhead::viewVars(), EXTR_SKIP); @endphp
+@if(!empty($quotationLetterhead))
     <style>
         .btn { width: 25% !important; }
         .btn-info { float: right; }
@@ -115,7 +115,7 @@
 
                 <div id="receipt-data">
                     <div class="centered">
-                        @if(! $quotationLetterhead)
+                        @if(empty($quotationLetterhead))
                             @if($general_setting->site_logo)
                                 <img src="{{url('public/logo', $general_setting->site_logo)}}" height="42" width="50" style="margin:10px 0;filter: brightness(0);">
                             @endif

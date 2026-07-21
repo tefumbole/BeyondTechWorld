@@ -11,6 +11,24 @@ use App\GeneralSetting;
 class Letterhead
 {
     /**
+     * Variables for quotation browser views (call in the parent Blade, not only in @include).
+     */
+    public static function viewVars()
+    {
+        $letterhead = self::ensureSynced();
+
+        return [
+            'letterhead' => $letterhead,
+            'quotationLetterhead' => ! empty($letterhead['has_header']),
+            'quotationLetterFooter' => ! empty($letterhead['has_footer']),
+            'quotationWatermark' => $letterhead['watermark_file'] ?? null,
+            'quotationHeaderUrl' => $letterhead['header_url'] ?? null,
+            'quotationFooterUrl' => $letterhead['footer_url'] ?? null,
+            'quotationWatermarkUrl' => $letterhead['watermark_url'] ?? null,
+        ];
+    }
+
+    /**
      * @param  object|null  $settings  GeneralSetting row or shared view object
      * @return array{has_header:bool,has_footer:bool,has_watermark:bool,header_file:?string,footer_file:?string,watermark_file:?string,header_path:?string,footer_path:?string,watermark_path:?string,header_url:?string,footer_url:?string,watermark_url:?string}
      */
