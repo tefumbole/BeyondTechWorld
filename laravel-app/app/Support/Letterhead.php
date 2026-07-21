@@ -5,13 +5,19 @@ namespace App\Support;
 use App\GeneralSetting;
 
 /**
- * Resolves system letterhead images (header / footer / watermark)
- * for quotations, letters, and PDFs — same General Settings assets.
+ * Resolves Beyond letterhead images (header / footer / watermark)
+ * for quotations, letters, and PDFs.
+ *
+ * Prefer General Settings uploads, then committed Beyond branding assets.
+ * Never fall back to Alpha Bridge / apps/api system-assets letterheads.
  */
 class Letterhead
 {
+    const BEYOND_HEADER = 'beyond-letterhead-header.png';
+    const BEYOND_FOOTER = 'beyond-letterhead-footer.png';
+
     /**
-     * Variables for quotation browser views (call in the parent Blade, not only in @include).
+     * Variables for quotation browser views (call in the parent Blade).
      */
     public static function viewVars()
     {
@@ -29,19 +35,18 @@ class Letterhead
     }
 
     /**
-     * @param  object|null  $settings  GeneralSetting row or shared view object
-     * @return array{has_header:bool,has_footer:bool,has_watermark:bool,header_file:?string,footer_file:?string,watermark_file:?string,header_path:?string,footer_path:?string,watermark_path:?string,header_url:?string,footer_url:?string,watermark_url:?string}
+     * @param  object|null  $settings
+     * @return array
      */
     public static function resolve($settings = null)
     {
         $settings = $settings ?: GeneralSetting::query()->orderByDesc('id')->first();
 
-        $headerPath = self::locate($settings->email_header ?? null)
-            ?: self::locateNewestSystemAsset('pdf-letterhead_pdf-header');
-        $footerPath = self::locate($settings->email_footer ?? null)
-            ?: self::locateNewestSystemAsset('pdf-letterhead_pdf-footer');
+        $headerPath = self::locateBeyondOrConfigured($settings->email_header ?? null, 'header');
+        $footerPath = self::locateBeyondOrConfigured($settings->email_footer ?? null, 'footer');
         $watermarkPath = self::locate($settings->email_water_mark ?? null)
-            ?: self::locate($settings->site_logo ?? null);
+            ?: self::locate($settings->site_logo ?? null)
+            ?: self::locateBranding('beyond-logo.png');
 
         return [
             'has_header' => (bool) $headerPath,
@@ -60,9 +65,8 @@ class Letterhead
     }
 
     /**
-     * Ensure configured header/footer exist under public/logo.
-     * Copies from apps/api system-assets when Laravel logo files are missing,
-     * and updates general_settings filenames when needed.
+     * Install Beyond letterheads into public/logo and point general_settings at them
+     * when missing or still pointing at Alpha Bridge assets.
      */
     public static function ensureSynced()
     {
@@ -78,35 +82,98 @@ class Letterhead
 
         $changed = false;
 
-        $headerSrc = self::locate($settings->email_header)
-            ?: self::locateNewestSystemAsset('pdf-letterhead_pdf-header');
-        if ($headerSrc && ! self::locate($settings->email_header)) {
-            $name = 'letterhead-header-'.basename($headerSrc);
-            $dest = $logoDir.DIRECTORY_SEPARATOR.$name;
-            if (@copy($headerSrc, $dest)) {
-                @chmod($dest, 0664);
-                $settings->email_header = $name;
+        foreach (['header' => self::BEYOND_HEADER, 'footer' => self::BEYOND_FOOTER] as $kind => $beyondName) {
+            $field = $kind === 'header' ? 'email_header' : 'email_footer';
+            $current = (string) ($settings->{$field} ?? '');
+            $needsBeyond = $current === ''
+                || self::isForeignLetterhead($current)
+                || ! self::locate($current);
+
+            $installed = self::installBeyondAsset($beyondName);
+            if (! $installed) {
+                continue;
+            }
+
+            if ($needsBeyond || $current !== $beyondName) {
+                // Keep a custom Beyond upload if it exists and is not foreign branding
+                if ($current !== '' && ! self::isForeignLetterhead($current) && self::locate($current)) {
+                    continue;
+                }
+                $settings->{$field} = $beyondName;
                 $changed = true;
             }
         }
 
-        $footerSrc = self::locate($settings->email_footer)
-            ?: self::locateNewestSystemAsset('pdf-letterhead_pdf-footer');
-        if ($footerSrc && ! self::locate($settings->email_footer)) {
-            $name = 'letterhead-footer-'.basename($footerSrc);
-            $dest = $logoDir.DIRECTORY_SEPARATOR.$name;
-            if (@copy($footerSrc, $dest)) {
-                @chmod($dest, 0664);
-                $settings->email_footer = $name;
-                $changed = true;
-            }
+        // Watermark: prefer Beyond site logo when configured mark file is missing
+        if (! self::locate($settings->email_water_mark ?? null) && ! empty($settings->site_logo) && self::locate($settings->site_logo)) {
+            $settings->email_water_mark = $settings->site_logo;
+            $changed = true;
         }
 
         if ($changed) {
             $settings->save();
         }
 
-        return self::resolve($settings);
+        return self::resolve($settings->fresh());
+    }
+
+    /**
+     * Alpha Bridge / legacy API letterheads must not be used on Beyond.
+     */
+    protected static function isForeignLetterhead($filename)
+    {
+        $name = strtolower((string) $filename);
+
+        return strpos($name, 'pdf-letterhead') !== false
+            || strpos($name, 'letterhead-header-pdf-letterhead') !== false
+            || strpos($name, 'letterhead-footer-pdf-letterhead') !== false
+            || strpos($name, 'alpha') !== false
+            || strpos($name, 'alphabridge') !== false;
+    }
+
+    protected static function locateBeyondOrConfigured($configured, $kind)
+    {
+        $configured = trim((string) $configured);
+        if ($configured !== '' && ! self::isForeignLetterhead($configured)) {
+            $path = self::locate($configured);
+            if ($path) {
+                return $path;
+            }
+        }
+
+        $beyondName = $kind === 'header' ? self::BEYOND_HEADER : self::BEYOND_FOOTER;
+        $installed = self::installBeyondAsset($beyondName);
+
+        return $installed ?: self::locate($beyondName) ?: self::locateBranding($beyondName);
+    }
+
+    /**
+     * Copy branding letterhead into public/logo (writable web path).
+     */
+    protected static function installBeyondAsset($filename)
+    {
+        $dest = public_path('logo/'.$filename);
+        if (is_file($dest)) {
+            return $dest;
+        }
+
+        $src = self::locateBranding($filename);
+        if (! $src) {
+            return null;
+        }
+
+        $logoDir = public_path('logo');
+        if (! is_dir($logoDir)) {
+            @mkdir($logoDir, 0775, true);
+        }
+
+        if (@copy($src, $dest)) {
+            @chmod($dest, 0664);
+
+            return $dest;
+        }
+
+        return is_file($src) ? $src : null;
     }
 
     protected static function locate($filename)
@@ -119,8 +186,8 @@ class Letterhead
         $candidates = [
             public_path('logo/'.$filename),
             base_path('public/logo/'.$filename),
-            // legacy docroot layouts
-            base_path('../public/logo/'.$filename),
+            public_path('branding/'.$filename),
+            base_path('public/branding/'.$filename),
         ];
 
         foreach ($candidates as $path) {
@@ -132,45 +199,35 @@ class Letterhead
         return null;
     }
 
-    protected static function locateNewestSystemAsset($prefix)
+    protected static function locateBranding($filename)
     {
-        $dirs = [
-            base_path('../apps/api/uploads/system-assets'),
-            dirname(base_path()).'/apps/api/uploads/system-assets',
-            '/var/www/beyondtechworld/apps/api/uploads/system-assets',
+        $candidates = [
+            public_path('branding/'.$filename),
+            base_path('public/branding/'.$filename),
         ];
-
-        $matches = [];
-        foreach ($dirs as $dir) {
-            if (! is_dir($dir)) {
-                continue;
-            }
-            foreach (glob(rtrim($dir, '/').'/'.$prefix.'*.png') ?: [] as $file) {
-                if (is_file($file) && strpos(basename($file), '._') !== 0) {
-                    $matches[$file] = @filemtime($file) ?: 0;
-                }
+        foreach ($candidates as $path) {
+            if ($path && is_file($path)) {
+                return $path;
             }
         }
 
-        if (empty($matches)) {
-            return null;
-        }
-
-        arsort($matches);
-        reset($matches);
-
-        return key($matches);
+        return null;
     }
 
     protected static function publicUrl($absolutePath)
     {
+        $real = realpath($absolutePath) ?: $absolutePath;
         $logoDir = realpath(public_path('logo'));
-        $real = realpath($absolutePath);
-        if ($logoDir && $real && strpos($real, $logoDir) === 0) {
+        $brandDir = realpath(public_path('branding'));
+
+        if ($logoDir && strpos($real, $logoDir) === 0) {
             return url('public/logo/'.basename($real));
         }
+        if ($brandDir && strpos($real, $brandDir) === 0) {
+            return url('public/branding/'.basename($real));
+        }
 
-        // File lives outside public/logo (e.g. system-assets) — serve via logo copy when possible
-        return url('public/logo/'.basename($absolutePath));
+        // Prefer logo URL after installBeyondAsset
+        return url('public/logo/'.basename($real));
     }
 }
