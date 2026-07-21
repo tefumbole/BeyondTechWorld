@@ -35,6 +35,7 @@ use App\Mail\UserNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use App\Support\ActiveRecords;
+use App\Support\BookingNoteFormatter;
 use App\Support\WhatsAppMessage;
 
 class QuotationController extends Controller
@@ -296,6 +297,9 @@ class QuotationController extends Controller
         //return dd($data);
         $data['user_id'] = Auth::id();
         $data = $this->applyCcCustomerIds($request, $data);
+        if (array_key_exists('note', $data)) {
+            $data['note'] = BookingNoteFormatter::forStorage($data['note']);
+        }
         $document = $request->document;
         if($document){
             $v = Validator::make(
@@ -966,6 +970,9 @@ class QuotationController extends Controller
         $data = $request->except('document');
         //return dd($data);
         $data = $this->applyCcCustomerIds($request, $data);
+        if (array_key_exists('note', $data)) {
+            $data['note'] = BookingNoteFormatter::forStorage($data['note']);
+        }
         $document = $request->document;
         if($document) {
             $v = Validator::make(

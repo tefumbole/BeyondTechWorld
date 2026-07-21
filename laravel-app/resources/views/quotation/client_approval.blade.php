@@ -15,6 +15,11 @@
         .card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:18px 20px; margin-bottom:14px; }
         .card h3 { margin:0 0 10px; color:var(--accent); }
         .card p, .card li { color:#e8efff; line-height:1.6; font-size:15px; }
+        .note-content { color:#e8efff; line-height:1.65; font-size:15px; }
+        .note-content ul, .note-content ol { margin:8px 0 8px 1.25rem; padding:0; }
+        .note-content li { margin:4px 0; }
+        .note-content p { margin:0 0 10px; }
+        .note-content strong, .note-content b { color:#fff; }
         table.items { width:100%; border-collapse:collapse; margin-top:8px; }
         table.items th, table.items td { border-bottom:1px solid rgba(255,255,255,.12); padding:10px 8px; text-align:left; font-size:14px; }
         table.items th { color:var(--accent); }
@@ -83,6 +88,13 @@
         </table>
         <div class="totals">Grand total: {{ number_format((float)$quotation->grand_total, 2) }}</div>
     </div>
+
+    @if(trim((string) ($quotation->note ?? '')) !== '')
+    <div class="card">
+        <h3>Note</h3>
+        <div class="note-content">{!! \App\Support\BookingNoteFormatter::forDisplay($quotation->note) !!}</div>
+    </div>
+    @endif
 
     <div class="card">
         <h3>Quotation agreement</h3>

@@ -226,7 +226,7 @@
                     </table>
                         <div style="text-align:left">
                             <span style="font-weight: bold">{{trans('file.Note')}}:</span>
-                            {!! $lims_sale_data->note !!}
+                            {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
                         </div>
                         <div style="text-align:left">
                             <span style="font-weight: bold">{{trans('file.Created By')}}:</span>

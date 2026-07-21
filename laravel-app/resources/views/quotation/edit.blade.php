@@ -339,7 +339,8 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label>{{trans('file.Note')}}</label>
-                                            <textarea rows="5" class="form-control" name="note" >{{ $lims_quotation_data->note }}</textarea>
+                                            <textarea rows="5" class="form-control quotation-note-editor" id="quotation_note" name="note">{!! \App\Support\BookingNoteFormatter::forStorage($lims_quotation_data->note) ?: '' !!}</textarea>
+                                            <small class="text-muted">Use bold, italic, underline, and bullets for readable client-facing notes.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -735,7 +736,10 @@ $(window).keydown(function(e){
     }
 });
 
-$('#quotation-form').on('submit',function(e){
+$('#quotation-form, #payment-form').on('submit',function(e){
+    if (typeof tinymce !== 'undefined') {
+        tinymce.triggerSave();
+    }
     var rownumber = $('table.order-list tbody tr:last').index();
     if (rownumber < 0) {
         alert("Please insert product to order table!")
@@ -1055,5 +1059,16 @@ $('select[name="order_tax_rate"]').on("change", function() {
     calculateGrandTotal();
 });
 
+if (typeof tinymce !== 'undefined') {
+    tinymce.init({
+        selector: 'textarea.quotation-note-editor',
+        height: 220,
+        menubar: false,
+        plugins: 'lists link paste code',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | removeformat',
+        branding: false,
+        statusbar: false
+    });
+}
 </script>
 @endsection

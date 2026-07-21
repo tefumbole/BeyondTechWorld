@@ -271,7 +271,7 @@
                         <!-- </tfoot> -->
                     </table>
                     @if($general_setting->invoice_format != 'mini')
-                        <h1>{{trans('file.Note')}}:</h1> {!! $lims_sale_data->note !!}<br>
+                        <h1>{{trans('file.Note')}}:</h1> {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}<br>
                     @else
                     @endif
                     <!-- <div class="centered" style="margin:30px 0 50px">

@@ -210,7 +210,8 @@
                                 	<div class="col-md-12">
                                 		<div class="form-group">
                                 			<label>{{trans('file.Note')}}</label>
-                                			<textarea rows="5" name="note" class="form-control">{{ !empty($cloneQuotation) ? $cloneQuotation->note : '' }}</textarea>
+                                			<textarea rows="5" name="note" id="quotation_note" class="form-control quotation-note-editor">{!! !empty($cloneQuotation) ? (\App\Support\BookingNoteFormatter::forStorage($cloneQuotation->note) ?: '') : '' !!}</textarea>
+                                			<small class="text-muted">Use bold, italic, underline, and bullets for readable client-facing notes.</small>
                                 		</div>
                                 	</div>
                                 </div>
@@ -549,6 +550,9 @@ $(window).keydown(function(e){
 });
 
 $('#quotation-form').on('submit',function(e){
+    if (typeof tinymce !== 'undefined') {
+        tinymce.triggerSave();
+    }
     var rownumber = $('table.order-list tbody tr:last').index();
     if (rownumber < 0) {
         alert("Please insert product to order table!")
@@ -927,5 +931,16 @@ function calculateGrandTotal() {
 })();
 @endif
 
+if (typeof tinymce !== 'undefined') {
+    tinymce.init({
+        selector: 'textarea.quotation-note-editor',
+        height: 220,
+        menubar: false,
+        plugins: 'lists link paste code',
+        toolbar: 'undo redo | bold italic underline | bullist numlist | removeformat',
+        branding: false,
+        statusbar: false
+    });
+}
 </script>
 @endsection

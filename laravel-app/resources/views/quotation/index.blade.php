@@ -37,7 +37,7 @@
                         $status = \App\Quotation::statusLabel($quotation->quotation_status);
                         $st = (int) $quotation->quotation_status;
                         ?>
-                    <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", "{{trim(preg_replace('/\s+/', ' ', $quotation->note))}}", "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
+                    <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", {!! json_encode(trim(preg_replace('/\s+/', ' ', \App\Support\BookingNoteFormatter::forPlainText($quotation->note)))) !!}, "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
                         <td>{{$key}}</td>
                         <td>{{ date($general_setting->date_format, strtotime($quotation->created_at->toDateString())) . ' '. $quotation->created_at->toTimeString() }}</td>
                         <td>{{ $quotation->reference_no }}</td>
@@ -442,7 +442,8 @@
 
                 $("table.product-quotation-list").append(newBody);
             });
-            var htmlfooter = '<p><strong>{{trans("file.Note")}}:</strong> '+quotation[22]+'</p><strong>{{trans("file.Created By")}}:</strong><br>'+quotation[23]+'<br>'+quotation[24];
+            var noteSafe = $('<div>').text(quotation[22] || '').html();
+            var htmlfooter = '<p><strong>{{trans("file.Note")}}:</strong> '+noteSafe+'</p><strong>{{trans("file.Created By")}}:</strong><br>'+quotation[23]+'<br>'+quotation[24];
             $('#quotation-content').html(htmltext);
             $('#quotation-footer').html(htmlfooter);
             $('#quotation-details').modal('show');
