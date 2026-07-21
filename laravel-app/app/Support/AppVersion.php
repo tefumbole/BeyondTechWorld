@@ -26,19 +26,19 @@ class AppVersion
     }
 
     /**
-     * ERP display form used in General Settings: ABT_ERP_V.2.2.45
+     * Canonical ERP display: BCL_ERP_V2.2.47
      */
     public static function erp()
     {
-        return 'ABT_ERP_V.'.self::label();
+        return 'BCL_ERP_V'.self::label();
     }
 
     /**
-     * Display form used on login/portals: BCL V2.2.38
+     * Same as erp() — login/portals and settings stay consistent.
      */
     public static function bcl()
     {
-        return 'BCL V'.self::label();
+        return self::erp();
     }
 
     public static function build()
@@ -59,7 +59,7 @@ class AppVersion
 
     public static function display()
     {
-        return self::bcl();
+        return self::erp();
     }
 
     /**
@@ -91,6 +91,7 @@ class AppVersion
     protected static function normalizeSemver($value)
     {
         $value = trim((string) $value);
+        $value = preg_replace('/^BCL_ERP_V\.?/i', '', $value);
         $value = preg_replace('/^ABT_ERP_V\.?/i', '', $value);
         $value = preg_replace('/^BCL\s*V\.?\s*/i', '', $value);
         $value = ltrim($value, 'vV');
