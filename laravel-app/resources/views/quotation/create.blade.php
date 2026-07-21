@@ -201,7 +201,7 @@
                                 				<option value="2" selected>Send for client approval (WhatsApp)</option>
                                 				<option value="1">Save as draft</option>
                                 			</select>
-                                			<small class="text-muted">Client will receive a WhatsApp link to read the quotation agreement, then approve (with signature) or reject (with comment).</small>
+                                			<small class="text-muted">Client will receive a WhatsApp link to review the quotation and notes, then approve (with signature) or reject (with comment).</small>
                                 		</div>
                                 	</div>
                                 	<div class="col-md-4">
@@ -221,8 +221,15 @@
                                 	<div class="col-md-12">
                                 		<div class="form-group">
                                 			<label>{{trans('file.Note')}}</label>
-                                			<textarea rows="5" name="note" id="quotation_note" class="form-control quotation-note-editor">{!! !empty($cloneQuotation) ? (\App\Support\BookingNoteFormatter::forStorage($cloneQuotation->note) ?: '') : '' !!}</textarea>
-                                			<small class="text-muted">Use bold, italic, underline, and bullets for readable client-facing notes.</small>
+                                			@php
+                                				if (!empty($cloneQuotation)) {
+                                					$quotationNoteHtml = \App\Support\BookingNoteFormatter::forStorage($cloneQuotation->note) ?: '';
+                                				} else {
+                                					$quotationNoteHtml = \App\Support\BookingNoteFormatter::defaultQuotationNote(optional($general_setting)->site_title);
+                                				}
+                                			@endphp
+                                			<textarea rows="5" name="note" id="quotation_note" class="form-control quotation-note-editor">{!! $quotationNoteHtml !!}</textarea>
+                                			<small class="text-muted">Default terms are editable — modify or delete as needed. Use bold, italic, underline, and bullets; formatting is shown to the client on the approval link, PDF, and preview.</small>
                                 		</div>
                                 	</div>
                                 </div>

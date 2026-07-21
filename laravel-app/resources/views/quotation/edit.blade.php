@@ -351,6 +351,7 @@
                                         <div class="form-group">
                                             <label>{{trans('file.Note')}}</label>
                                             <textarea rows="5" class="form-control quotation-note-editor" id="quotation_note" name="note">{!! \App\Support\BookingNoteFormatter::forStorage($lims_quotation_data->note) ?: '' !!}</textarea>
+                                            <small class="text-muted">Formatting (bold, italic, bullets) is shown on the client approval link, PDF, and quotation preview.</small>
                                             <small class="text-muted">Use bold, italic, underline, and bullets for readable client-facing notes.</small>
                                         </div>
                                     </div>

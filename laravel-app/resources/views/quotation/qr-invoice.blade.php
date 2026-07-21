@@ -60,6 +60,9 @@
             align-content: center;
         }
         small{font-size:11px;}
+        .invoice-note ul, .invoice-note ol { margin: 6px 0 6px 1.25rem; padding: 0; }
+        .invoice-note li { margin: 3px 0; }
+        .invoice-note p { margin: 0 0 8px; }
 
         @media print {
             * {
@@ -246,7 +249,10 @@
                         <!-- </tfoot> -->
                     </table>
                     @if($general_setting->invoice_format != 'mini')
-                        <h1>{{trans('file.Note')}}:</h1> {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}<br>
+                        <div class="invoice-note">
+                            <h1>{{trans('file.Note')}}:</h1>
+                            {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
+                        </div>
                     @else
                     @endif
                     <!-- <div class="centered" style="margin:30px 0 50px">

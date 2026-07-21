@@ -368,7 +368,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label>{{trans('file.Sale Note')}}</label>
-                                            <textarea rows="5" class="form-control" name="sale_note" >{{$lims_quotation_data->note}}</textarea>
+                                            <textarea rows="5" class="form-control" name="sale_note">{!! \App\Support\BookingNoteFormatter::forStorage($lims_quotation_data->note) ?: '' !!}</textarea>
                                         </div>
                                     </div>
                                     <div class="col-md-6">

@@ -151,17 +151,6 @@
     @endif
 
     <div class="card">
-        <h3>Quotation agreement</h3>
-        <p>Please read carefully before approving or rejecting:</p>
-        <ol>
-            <li><strong>This document is a quotation, not a receipt or invoice.</strong> It is an offer of goods/services and pricing for your consideration only. No payment obligation arises until a sale or booking is confirmed after your approval.</li>
-            <li><strong>Suppliers / fulfilment will be arranged upon cleared payments.</strong> Procurement, reservation, or delivery of items proceeds only after payment has been received and cleared as agreed with {{ $general_setting->site_title ?? 'our company' }}.</li>
-            <li><strong>You reserve the right to request modifications.</strong> You may request changes to quantities, items, or terms. Revised quotations may be issued for your review before final acceptance.</li>
-            <li>By signing and approving, you confirm that you have reviewed the quoted items and totals, and you authorise {{ $general_setting->site_title ?? 'our company' }} to proceed toward order processing subject to payment and availability.</li>
-        </ol>
-    </div>
-
-    <div class="card">
         <h3>Your comment</h3>
         <p style="color:var(--muted);font-size:13px;margin-top:0;">Required if you reject. Optional if you approve.</p>
         <textarea id="client_comment_shared" rows="3" placeholder="Add a comment for our team…">{{ old('client_comment') }}</textarea>
@@ -200,7 +189,7 @@
         <div class="modal-body">
             <label class="checkbox-row" style="color:#1f2a44;">
                 <input type="checkbox" id="agree_box">
-                <span>I have read the quotation agreement. I understand this is a quotation (not a receipt), suppliers are arranged upon cleared payment, and I may request modifications.</span>
+                <span>I have read the quotation notes and terms above, and I confirm my approval.</span>
             </label>
             <canvas id="signature-pad"></canvas>
         </div>
@@ -257,7 +246,7 @@
 
     document.getElementById('sig-confirm').addEventListener('click', function () {
         if (!document.getElementById('agree_box').checked) {
-            alert('Please accept the quotation agreement before approving.');
+            alert('Please confirm that you have read the quotation notes and terms before approving.');
             return;
         }
         if (!hasInk) {

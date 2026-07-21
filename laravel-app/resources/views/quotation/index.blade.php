@@ -37,7 +37,7 @@
                         $status = \App\Quotation::statusLabel($quotation->quotation_status);
                         $st = (int) $quotation->quotation_status;
                         ?>
-                    <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", {!! json_encode(trim(preg_replace('/\s+/', ' ', \App\Support\BookingNoteFormatter::forPlainText($quotation->note)))) !!}, "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
+                    <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", {!! json_encode(\App\Support\BookingNoteFormatter::forDisplay($quotation->note), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}, "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
                         <td>{{$key}}</td>
                         <td>{{ date($general_setting->date_format, strtotime($quotation->created_at->toDateString())) . ' '. $quotation->created_at->toTimeString() }}</td>
                         <td>{{ $quotation->reference_no }}</td>
@@ -202,6 +202,11 @@
         }
         .quotation-details-body .modal-body,
         .quotation-details-body table { position: relative; z-index: 1; }
+        .quotation-note { text-align: left; margin-bottom: 12px; }
+        .quotation-note-body { margin-top: 6px; line-height: 1.55; }
+        .quotation-note-body ul, .quotation-note-body ol { margin: 6px 0 6px 1.25rem; padding: 0; }
+        .quotation-note-body li { margin: 4px 0; }
+        .quotation-note-body p { margin: 0 0 8px; }
         @media print {
             .quotation-details-sheet { box-shadow: none !important; border: 0 !important; }
             .quotation-system-footer { page-break-inside: avoid; }
@@ -455,8 +460,10 @@
 
                 $("table.product-quotation-list").append(newBody);
             });
-            var noteSafe = $('<div>').text(quotation[22] || '').html();
-            var htmlfooter = '<p><strong>{{trans("file.Note")}}:</strong> '+noteSafe+'</p><strong>{{trans("file.Created By")}}:</strong><br>'+quotation[23]+'<br>'+quotation[24];
+            var noteHtml = quotation[22] || '';
+            var htmlfooter = '<div class="quotation-note"><strong>{{trans("file.Note")}}:</strong><div class="quotation-note-body">'
+                + noteHtml
+                + '</div></div><strong>{{trans("file.Created By")}}:</strong><br>'+quotation[23]+'<br>'+quotation[24];
             $('#quotation-content').html(htmltext);
             $('#quotation-footer').html(htmlfooter);
             $('#quotation-details').modal('show');
