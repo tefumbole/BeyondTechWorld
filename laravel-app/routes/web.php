@@ -220,15 +220,27 @@ Route::get('/letters/scan/{id}', 'QRController@letterScan')->name('letters.scan'
 
 
 Auth::routes(['register' => false, 'reset' => false, 'verify' => false]);
-// Admin login lives at /admin/login. Named `login` so the framework's default
-// auth redirects (Authenticate middleware, admin views) resolve here — the Beyond
-// portal below intentionally takes over the /login URI for public users.
-Route::get('/admin/login', 'Auth\LoginController@showLoginForm')->name('login');
-Route::post('/admin/login', 'Auth\LoginController@login');
+// GET/POST /login are registered by Auth::routes → LoginController, which delegates
+// to BeyondAuthController (unified staff-first then customer routing).
 
-// Beyond portal login (must be after Auth::routes — Laravel 6 always registers /login in auth())
+// Legacy /admin/login → same unified portal
+Route::get('/admin/login', function () {
+    $qs = request()->getQueryString();
+
+    return redirect('/login'.($qs ? '?'.$qs : ''));
+})->name('admin.login');
+Route::post('/admin/login', function (\Illuminate\Http\Request $request) {
+    if (! $request->filled('identifier') && $request->filled('name')) {
+        $request->merge(['identifier' => $request->input('name')]);
+    }
+
+    return app(\App\Http\Controllers\BeyondAuthController::class)->login($request);
+});
+
+// Alias name for older Beyond portal links (same URI handled by Auth login route)
 Route::get('/login', 'BeyondAuthController@showLogin')->name('beyond.login');
 Route::post('/login', 'BeyondAuthController@login');
+
 Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 // Portal logout must NOT share POST /logout with Auth::routes (admin POS logout).
 Route::post('/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');

@@ -4,17 +4,23 @@
 
 @php
     $title = 'Sign in';
-    $header = '<h1 class="text-2xl font-bold text-brand-blue">Beyond Enterprise</h1><p class="text-brand-blue text-sm mt-1">Secure Portal</p>';
+    $header = '<h1 class="text-2xl font-bold text-brand-blue">Beyond Enterprise</h1><p class="text-brand-blue text-sm mt-1">Sign in to continue</p>';
     $activeTab = $tab ?? 'signin';
+    $asCustomer = !empty($asCustomer);
+    $signinQuery = [];
+    if (request('redirect')) { $signinQuery['redirect'] = request('redirect'); }
+    if ($asCustomer) { $signinQuery['as'] = 'customer'; }
+    $signinUrl = url('/login'.(count($signinQuery) ? '?'.http_build_query($signinQuery) : ''));
+    $signupUrl = url('/login?tab=signup'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : ''));
 @endphp
 
 @section('auth_body')
 <div class="flex rounded-lg bg-gray-100 p-1 mb-6" role="tablist">
-    <a href="{{ url('/login'.(request('redirect') ? '?redirect='.urlencode(request('redirect')) : '')) }}"
+    <a href="{{ $signinUrl }}"
        class="flex-1 text-center py-2 rounded-md text-sm font-bold transition {{ $activeTab === 'signin' ? 'bg-white text-brand-blue shadow' : 'text-gray-600 hover:text-brand-blue' }}">
         Sign in
     </a>
-    <a href="{{ url('/login?tab=signup'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : '')) }}"
+    <a href="{{ $signupUrl }}"
        class="flex-1 text-center py-2 rounded-md text-sm font-bold transition {{ $activeTab === 'signup' ? 'bg-white text-brand-blue shadow' : 'text-gray-600 hover:text-brand-blue' }}">
         Sign up
     </a>
@@ -69,15 +75,24 @@
     </p>
 </form>
 @else
+@if($asCustomer)
+    <div class="mb-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm">
+        Signing in as a <strong>customer</strong> account.
+        <a href="{{ url('/login'.(request('redirect') ? '?redirect='.urlencode(request('redirect')) : '')) }}" class="font-semibold underline">Use staff login instead</a>
+    </div>
+@endif
 <form method="POST" action="{{ url('/login') }}" class="space-y-5">
     @csrf
+    @if($asCustomer)
+        <input type="hidden" name="as" value="customer">
+    @endif
     <div class="space-y-2">
         <label class="text-sm font-semibold text-gray-700">Email or Username</label>
         <div class="relative">
             <i data-lucide="user" class="absolute left-3 top-3 h-4 w-4 text-gray-400"></i>
             <input type="text" name="identifier" value="{{ old('identifier', $prefill) }}" required
                    class="w-full pl-10 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="email or username">
+                   placeholder="email or username" autocomplete="username">
         </div>
     </div>
     <div class="space-y-2">
@@ -87,19 +102,22 @@
             <input type="password" name="password" required
                    value="{{ $guestPassword ? 'system' : '' }}"
                    class="w-full pl-10 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="••••••••">
+                   placeholder="••••••••" autocomplete="current-password">
         </div>
     </div>
     <div class="flex items-center justify-between text-sm">
         <a href="{{ url('/forgot-password') }}" class="text-brand-light hover:text-brand-blue font-medium">Forgot Password?</a>
-        <a href="{{ url('/login?tab=signup'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : '')) }}" class="text-brand-gold font-semibold hover:underline">Sign up</a>
+        <a href="{{ $signupUrl }}" class="text-brand-gold font-semibold hover:underline">Sign up</a>
     </div>
     <button type="submit" class="w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3 rounded-md flex items-center justify-center gap-2">
         Sign in <i data-lucide="arrow-right" class="w-4 h-4"></i>
     </button>
-    <p class="text-center text-sm text-gray-600">
-        Staff admin? <a href="{{ url('/admin/login') }}" class="text-brand-gold font-semibold hover:underline">Admin login</a>
+    @unless($asCustomer)
+    <p class="text-center text-xs text-gray-500">
+        Same email as a customer account?
+        <a href="{{ url('/login?as=customer'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : '')) }}" class="text-brand-gold font-semibold hover:underline">Sign in as customer</a>
     </p>
+    @endunless
 </form>
 @endif
 @endsection

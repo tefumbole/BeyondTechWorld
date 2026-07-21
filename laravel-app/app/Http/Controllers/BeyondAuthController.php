@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\BeyondProfile;
 use App\BeyondUser;
+use App\Http\Controllers\Auth\LoginController;
 use App\Services\BeyondAuthService;
 use App\Services\BeyondWasenderService;
 use App\Support\CountryDialCodes;
+use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class BeyondAuthController extends Controller
 {
@@ -30,6 +34,28 @@ class BeyondAuthController extends Controller
             $request->session()->put('beyond_intended', $redirect);
         }
 
+        // Already signed in as staff / admin
+        if (Auth::guard('web')->check()) {
+            $webUser = Auth::guard('web')->user();
+            $role = $webUser ? Role::find($webUser->role_id) : null;
+            $needsOtp = false;
+            if ($role && (int) $role->id !== 5) {
+                try {
+                    $needsOtp = $role->hasPermissionTo('one_time_otp');
+                } catch (\Throwable $e) {
+                    $needsOtp = false;
+                }
+            }
+            if ($needsOtp && (int) $webUser->otp_verify !== 1) {
+                return redirect()->route('check.otp');
+            }
+            if ($role && (int) $role->id === 5 && (int) $webUser->otp_verify !== 1) {
+                return redirect()->route('otp_screen');
+            }
+
+            return redirect('/admin');
+        }
+
         if (Auth::guard('beyond')->check() && $request->session()->get('beyond_otp_verified')) {
             $user = Auth::guard('beyond')->user();
             $profile = BeyondProfile::find($user->id);
@@ -37,11 +63,14 @@ class BeyondAuthController extends Controller
             return redirect($this->loginRedirect($request, $user, $profile));
         }
 
+        $asCustomer = $request->get('as') === 'customer' || old('as') === 'customer';
+
         return view('beyond.auth.login', [
             'prefill' => $request->get('u', ''),
             'guestPassword' => $request->get('guest') === '1',
             'tab' => $request->get('tab') === 'signup' ? 'signup' : 'signin',
             'countryCodes' => CountryDialCodes::all(),
+            'asCustomer' => $asCustomer,
         ]);
     }
 
@@ -184,10 +213,23 @@ class BeyondAuthController extends Controller
         $request->validate([
             'identifier' => 'required|string',
             'password' => 'required|string',
+            'as' => 'nullable|in:customer,staff',
         ]);
 
-        $user = $this->auth->findByLogin($request->identifier);
-        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
+        $identifier = trim($request->identifier);
+        $password = $request->password;
+        $forceCustomer = $request->input('as') === 'customer';
+
+        // Unified login: staff/admin (users) first, then Beyond customer — unless forced customer.
+        if (! $forceCustomer) {
+            $staffResponse = $this->attemptStaffLogin($request, $identifier, $password);
+            if ($staffResponse !== null) {
+                return $staffResponse;
+            }
+        }
+
+        $user = $this->auth->findByLogin($identifier);
+        if (! $user || ! Hash::check($password, $user->password_hash)) {
             return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
         }
 
@@ -195,6 +237,11 @@ class BeyondAuthController extends Controller
         $phone = optional($profile)->phone ?: $user->phone;
         if (! $phone || strlen(preg_replace('/\D/', '', $phone)) < 8) {
             return back()->withInput()->withErrors(['identifier' => 'No valid phone number on this account. Contact support.']);
+        }
+
+        // Avoid mixed sessions
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
         }
 
         Auth::guard('beyond')->login($user);
@@ -208,13 +255,87 @@ class BeyondAuthController extends Controller
 
         $otp = $this->auth->createOtp($phone, 'login');
         $send = $this->whatsapp->sendOtp($phone, $otp['code']);
-        if (! $send['success']) {
+        if (! ($send['success'] ?? false)) {
             return back()->withInput()->withErrors(['identifier' => $send['error'] ?? 'Failed to send WhatsApp OTP.']);
         }
 
         $request->session()->forget('beyond_otp_verified');
 
         return redirect('/otp-verification')->with('success', 'Verification code sent to your WhatsApp.');
+    }
+
+    /**
+     * Try ERP staff/admin login (users table / web guard).
+     * Returns a redirect response on handle, or null if no staff account exists for this identifier.
+     * If a staff account exists but the password is wrong, returns an error (does not fall through to Beyond).
+     */
+    protected function attemptStaffLogin(Request $request, $identifier, $password)
+    {
+        $staff = $this->findStaffUser($identifier);
+        if (! $staff) {
+            return null;
+        }
+
+        $fieldType = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
+        $loginValue = $fieldType === 'email' ? $staff->email : $staff->name;
+        if (! Auth::guard('web')->attempt([
+            $fieldType => $loginValue,
+            'password' => $password,
+            'is_active' => 1,
+        ])) {
+            return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
+        }
+
+        if (Auth::guard('beyond')->check()) {
+            Auth::guard('beyond')->logout();
+        }
+        $request->session()->forget(['beyond_otp_verified', 'beyond_masked_phone']);
+
+        $role = Role::find(Auth::user()->role_id);
+        if ($role && (int) $role->id !== 5) {
+            $needsOtp = false;
+            try {
+                $needsOtp = $role->hasPermissionTo('one_time_otp');
+            } catch (\Throwable $e) {
+                $needsOtp = false;
+            }
+            if ($needsOtp) {
+                Auth::user()->update(['otp_verify' => 0]);
+
+                return redirect()->route('check.otp');
+            }
+
+            return redirect('/admin');
+        }
+
+        // ERP shop-customer role (legacy POS customer login)
+        Auth::user()->update(['otp_verify' => 0]);
+        $otp = app(LoginController::class)->sendOTP(Auth::user()->phone);
+        Session::put('otp', $otp);
+
+        return redirect()->route('otp_screen');
+    }
+
+    protected function findStaffUser($identifier)
+    {
+        $id = trim((string) $identifier);
+        if ($id === '') {
+            return null;
+        }
+
+        $query = User::query()
+            ->where('is_active', 1)
+            ->where(function ($q) {
+                $q->where('is_deleted', 0)
+                    ->orWhere('is_deleted', false)
+                    ->orWhereNull('is_deleted');
+            });
+
+        if (filter_var($id, FILTER_VALIDATE_EMAIL)) {
+            return (clone $query)->whereRaw('LOWER(email) = ?', [strtolower($id)])->first();
+        }
+
+        return (clone $query)->whereRaw('LOWER(name) = ?', [strtolower($id)])->first();
     }
 
     public function showOtp(Request $request)
