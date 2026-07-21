@@ -301,7 +301,7 @@ class QuotationController extends Controller
         if (array_key_exists('note', $data)) {
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
-        $data['show_client_discount'] = $request->input('show_client_discount') == '1';
+        $data['show_client_discount'] = true;
         $document = $request->document;
         if($document){
             $v = Validator::make(
@@ -733,20 +733,29 @@ class QuotationController extends Controller
 
     /**
      * Pricing block for WhatsApp / stakeholder messages.
+     * Always includes discount when present (or inferred from totals).
      */
     protected function quotationWhatsAppPricing(Quotation $quotation, array $mail_data = [])
     {
+        $subtotal = (float) ($mail_data['total_price'] ?? $quotation->total_price ?? 0);
         $discount = (float) ($mail_data['order_discount'] ?? $quotation->order_discount ?? 0);
-        $showDiscount = array_key_exists('show_client_discount', $quotation->getAttributes())
-            ? (bool) $quotation->show_client_discount
-            : true;
+        $tax = (float) ($mail_data['order_tax'] ?? $quotation->order_tax ?? 0);
+        $shipping = (float) ($mail_data['shipping_cost'] ?? $quotation->shipping_cost ?? 0);
+        $grand = (float) ($mail_data['grand_total'] ?? $quotation->grand_total ?? 0);
+
+        if ($discount <= 0 && $subtotal > 0) {
+            $inferred = round($subtotal + $tax + $shipping - $grand, 2);
+            if ($inferred > 0.009) {
+                $discount = $inferred;
+            }
+        }
 
         return [
-            'subtotal' => (float) ($mail_data['total_price'] ?? $quotation->total_price ?? 0),
+            'subtotal' => $subtotal,
             'order_discount' => $discount,
-            'order_tax' => (float) ($mail_data['order_tax'] ?? $quotation->order_tax ?? 0),
-            'shipping_cost' => (float) ($mail_data['shipping_cost'] ?? $quotation->shipping_cost ?? 0),
-            'show_discount' => $showDiscount && $discount > 0,
+            'order_tax' => $tax,
+            'shipping_cost' => $shipping,
+            'show_discount' => $discount > 0.009,
         ];
     }
 
@@ -1015,7 +1024,7 @@ class QuotationController extends Controller
         if (array_key_exists('note', $data)) {
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
-        $data['show_client_discount'] = $request->input('show_client_discount') == '1';
+        $data['show_client_discount'] = true;
         $document = $request->document;
         if($document) {
             $v = Validator::make(

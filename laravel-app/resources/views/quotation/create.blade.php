@@ -186,15 +186,10 @@
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <input type="hidden" name="show_client_discount" value="0">
-                                            <label class="d-flex align-items-start" style="gap:8px;font-weight:normal;">
-                                                <input type="checkbox" name="show_client_discount" value="1" style="margin-top:4px;"
-                                                    @if(empty($cloneQuotation) || (int)($cloneQuotation->show_client_discount ?? 1) === 1) checked @endif>
-                                                <span>
-                                                    <strong>Show discount to client</strong><br>
-                                                    <small class="text-muted">When checked, WhatsApp and the approval page show Subtotal, Discount, and Total due (never a line amount that ignores the discount).</small>
-                                                </span>
-                                            </label>
+                                            <input type="hidden" name="show_client_discount" value="1">
+                                            <p class="text-muted mb-0" style="font-size:13px;">
+                                                <strong>Client pricing:</strong> When an order discount is set, the approval link and WhatsApp always show Subtotal, Discount, and Total due so the client is not confused.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

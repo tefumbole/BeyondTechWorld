@@ -248,10 +248,10 @@ class WhatsAppMessage
             : (string) $grandTotal;
 
         $msg = "\n*Amount:*\n";
+        if ($subtotal > 0) {
+            $msg .= self::bullet('Subtotal', number_format($subtotal, 2));
+        }
         if ($showDiscount && $discount > 0) {
-            if ($subtotal > 0) {
-                $msg .= self::bullet('Subtotal', number_format($subtotal, 2));
-            }
             $msg .= self::bullet('Discount', '-'.number_format($discount, 2));
         }
         if ($tax > 0) {

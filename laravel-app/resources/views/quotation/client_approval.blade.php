@@ -75,9 +75,19 @@
     </div>
 
     @php
+        $subtotal = (float) ($quotation->total_price ?? 0);
+        $orderTax = (float) ($quotation->order_tax ?? 0);
+        $shipping = (float) ($quotation->shipping_cost ?? 0);
+        $grandTotal = (float) ($quotation->grand_total ?? 0);
         $orderDiscount = (float) ($quotation->order_discount ?? 0);
-        $showDiscount = ((int) ($quotation->show_client_discount ?? 1) === 1) && $orderDiscount > 0;
-        $showLinePrices = $showDiscount || $orderDiscount <= 0;
+        // Always surface a discount when totals don't match (never leave clients guessing).
+        if ($orderDiscount <= 0 && $subtotal > 0) {
+            $inferred = round($subtotal + $orderTax + $shipping - $grandTotal, 2);
+            if ($inferred > 0.009) {
+                $orderDiscount = $inferred;
+            }
+        }
+        $showDiscount = $orderDiscount > 0.009;
     @endphp
     <div class="card">
         <h3>Quoted items</h3>
@@ -86,10 +96,8 @@
             <tr>
                 <th>Item</th>
                 <th>Qty</th>
-                @if($showLinePrices)
-                    <th>Unit price</th>
-                    <th>Total</th>
-                @endif
+                <th>Unit price</th>
+                <th>Total</th>
             </tr>
             </thead>
             <tbody>
@@ -97,41 +105,39 @@
                 <tr>
                     <td>{{ $line['name'] }}</td>
                     <td>{{ $line['qty'] }} {{ $line['unit'] }}</td>
-                    @if($showLinePrices)
-                        <td>{{ number_format((float)$line['net_unit_price'], 2) }}</td>
-                        <td>{{ number_format((float)$line['total'], 2) }}</td>
-                    @endif
+                    <td>{{ number_format((float)$line['net_unit_price'], 2) }}</td>
+                    <td>{{ number_format((float)$line['total'], 2) }}</td>
                 </tr>
             @endforeach
             </tbody>
         </table>
         <div class="totals">
             <table class="totals-table">
+                <tr>
+                    <td>Subtotal</td>
+                    <td>{{ number_format($subtotal, 2) }}</td>
+                </tr>
                 @if($showDiscount)
-                    <tr>
-                        <td>Subtotal</td>
-                        <td>{{ number_format((float)$quotation->total_price, 2) }}</td>
-                    </tr>
                     <tr class="discount">
                         <td>Discount</td>
                         <td>-{{ number_format($orderDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if((float)($quotation->order_tax ?? 0) > 0)
+                @if($orderTax > 0)
                     <tr>
                         <td>Tax</td>
-                        <td>{{ number_format((float)$quotation->order_tax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 2) }}</td>
                     </tr>
                 @endif
-                @if((float)($quotation->shipping_cost ?? 0) > 0)
+                @if($shipping > 0)
                     <tr>
                         <td>Shipping</td>
-                        <td>{{ number_format((float)$quotation->shipping_cost, 2) }}</td>
+                        <td>{{ number_format($shipping, 2) }}</td>
                     </tr>
                 @endif
                 <tr class="grand">
                     <td>Total due</td>
-                    <td>{{ number_format((float)$quotation->grand_total, 2) }}</td>
+                    <td>{{ number_format($grandTotal, 2) }}</td>
                 </tr>
             </table>
         </div>

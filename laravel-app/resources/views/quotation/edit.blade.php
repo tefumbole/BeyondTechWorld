@@ -311,15 +311,10 @@
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <input type="hidden" name="show_client_discount" value="0">
-                                            <label class="d-flex align-items-start" style="gap:8px;font-weight:normal;">
-                                                <input type="checkbox" name="show_client_discount" value="1" style="margin-top:4px;"
-                                                    @if((int)($lims_quotation_data->show_client_discount ?? 1) === 1) checked @endif>
-                                                <span>
-                                                    <strong>Show discount to client</strong><br>
-                                                    <small class="text-muted">Shows Subtotal, Discount, and Total due on WhatsApp and the approval page (avoids confusing pre-discount line amounts).</small>
-                                                </span>
-                                            </label>
+                                            <input type="hidden" name="show_client_discount" value="1">
+                                            <p class="text-muted mb-0" style="font-size:13px;">
+                                                <strong>Client pricing:</strong> Order discount is always shown on the client approval link and WhatsApp (Subtotal → Discount → Total due).
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
