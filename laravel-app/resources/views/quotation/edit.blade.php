@@ -71,6 +71,26 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>CC (Company / Engineer copy)</label>
+                                            @php
+                                                $selectedCcIds = !empty($lims_quotation_data->cc_customer_ids)
+                                                    ? array_filter(explode(',', $lims_quotation_data->cc_customer_ids))
+                                                    : [];
+                                            @endphp
+                                            <select name="cc_customer[]" class="selectpicker form-control" data-live-search="true" data-size="8" multiple title="Select CC recipients...">
+                                                @foreach($lims_customer_list as $customer)
+                                                    <option value="{{ $customer->id }}"
+                                                        data-tokens="{{ $customer->name }} {{ $customer->phone_number }}"
+                                                        @if(in_array((string)$customer->id, $selectedCcIds) || in_array($customer->id, $selectedCcIds)) selected @endif>
+                                                        {{ $customer->name }} ({{ $customer->phone_number }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">CC and the creator get WhatsApp updates when sent / signed / rejected.</small>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="row mt-3">
                                     <div class="col-md-12">

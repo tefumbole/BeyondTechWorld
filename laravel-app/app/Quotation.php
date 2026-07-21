@@ -18,6 +18,7 @@ class Quotation extends Model
         'biller_id',
         'supplier_id',
         'customer_id',
+        'cc_customer_ids',
         'warehouse_id',
         'item',
         'total_qty',
@@ -95,6 +96,16 @@ class Quotation extends Model
         }
 
         return url('public/'.$path);
+    }
+
+    /** @return int[] */
+    public function ccCustomerIdList()
+    {
+        if (empty($this->cc_customer_ids)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', $this->cc_customer_ids))));
     }
 
     public function biller()

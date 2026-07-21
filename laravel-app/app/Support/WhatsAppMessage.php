@@ -140,6 +140,71 @@ class WhatsAppMessage
         return $msg;
     }
 
+    /**
+     * Notify quotation creator / CC on send, approve, or reject.
+     *
+     * @param  string  $event  sent|approved|rejected
+     * @param  array  $lines  optional [['name'=>,'qty'=>,'total'=>], ...]
+     */
+    public static function quotationStakeholderNotify(
+        $recipientName,
+        $event,
+        $referenceNo,
+        $customerName,
+        $grandTotal,
+        $comment = '',
+        array $lines = [],
+        $approvalUrl = null,
+        $listUrl = null
+    ) {
+        $event = strtolower((string) $event);
+        if ($event === 'approved') {
+            $msg = self::statusBlock('✅', 'Quotation Approved');
+            $msg .= self::greeting($recipientName);
+            $msg .= "*{$customerName}* approved quotation *{$referenceNo}*.\n\n";
+        } elseif ($event === 'rejected') {
+            $msg = self::statusBlock('❌', 'Quotation Rejected');
+            $msg .= self::greeting($recipientName);
+            $msg .= "*{$customerName}* rejected quotation *{$referenceNo}*.\n\n";
+        } else {
+            $msg = self::statusBlock('📤', 'Quotation Sent for Approval');
+            $msg .= self::greeting($recipientName);
+            $msg .= "Quotation *{$referenceNo}* was sent to *{$customerName}* for approval.\n\n";
+        }
+
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Client', $customerName);
+        $msg .= self::bullet('Total', $grandTotal);
+
+        if (! empty($lines)) {
+            $msg .= "\n*Items:*\n";
+            foreach ($lines as $index => $line) {
+                $name = $line['name'] ?? 'Item';
+                $qty = $line['qty'] ?? '';
+                $total = isset($line['total']) ? number_format((float) $line['total'], 2) : '';
+                $msg .= ($index + 1).") {$name} × {$qty}";
+                if ($total !== '') {
+                    $msg .= " = {$total}";
+                }
+                $msg .= "\n";
+            }
+        }
+
+        if ($comment !== '' && $comment !== null) {
+            $msg .= "\n*Client comment:*\n{$comment}\n";
+        }
+
+        if ($event === 'sent' && $approvalUrl) {
+            $msg .= self::actionLink('Client approval link', $approvalUrl);
+        }
+        if ($listUrl) {
+            $msg .= self::actionLink('Open quotations', $listUrl);
+        }
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function bookingConfirmation($customerName, $referenceNo, $orderDate, array $lines, $grandTotal, $payingMethod, $facilityName, $facilityAddress, $facilityPhone, $bookingNote = '')
     {
         $msg = self::statusBlock('✅', 'Booking Confirmed');

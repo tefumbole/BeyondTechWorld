@@ -73,6 +73,8 @@ class QuotationApprovalController extends Controller
         $quotation->client_responded_at = now();
         $quotation->save();
 
+        $this->notifyStakeholders($quotation->fresh(), 'approved');
+
         return view('quotation.client_responded', [
             'quotation' => $quotation->fresh(['customer', 'biller']),
             'general_setting' => GeneralSetting::first(),
@@ -100,10 +102,21 @@ class QuotationApprovalController extends Controller
         $quotation->client_responded_at = now();
         $quotation->save();
 
+        $this->notifyStakeholders($quotation->fresh(), 'rejected');
+
         return view('quotation.client_responded', [
             'quotation' => $quotation->fresh(['customer', 'biller']),
             'general_setting' => GeneralSetting::first(),
         ]);
+    }
+
+    protected function notifyStakeholders(Quotation $quotation, $event)
+    {
+        try {
+            app(QuotationController::class)->notifyQuotationStakeholders($quotation, $event);
+        } catch (\Throwable $e) {
+            Log::warning('Quotation client-response notify failed: '.$e->getMessage());
+        }
     }
 
     protected function findByToken($token)

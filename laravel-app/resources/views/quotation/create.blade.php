@@ -64,6 +64,21 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label>CC (Company / Engineer copy)</label>
+                                            <select name="cc_customer[]" class="selectpicker form-control" data-live-search="true" data-size="8" multiple title="Select CC recipients...">
+                                                @foreach($lims_customer_list as $customer)
+                                                    <option value="{{ $customer->id }}"
+                                                        data-tokens="{{ $customer->name }} {{ $customer->phone_number }}"
+                                                        @if(!empty($cloneQuotation) && !empty($cloneQuotation->cc_customer_ids) && in_array($customer->id, explode(',', $cloneQuotation->cc_customer_ids))) selected @endif>
+                                                        {{ $customer->name }} ({{ $customer->phone_number }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">CC contacts and the quotation creator are notified by WhatsApp when the quote is sent, and when the client approves or rejects.</small>
+                                        </div>
+                                    </div>
                                     <div class="col-md-12 mt-2">
                                         <label>{{trans('file.Select Product')}}</label>
                                         <div class="input-with-action">

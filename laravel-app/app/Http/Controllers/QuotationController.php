@@ -17,6 +17,7 @@ use App\Category;
 use App\Unit;
 use App\Tax;
 use App\Quotation;
+use App\User;
 use App\Delivery;
 use App\PosSetting;
 use App\ProductQuotation;
@@ -294,6 +295,7 @@ class QuotationController extends Controller
         $data = $request->except('document');
         //return dd($data);
         $data['user_id'] = Auth::id();
+        $data = $this->applyCcCustomerIds($request, $data);
         $document = $request->document;
         if($document){
             $v = Validator::make(
@@ -589,7 +591,117 @@ class QuotationController extends Controller
             \Log::warning('Quotation QR WhatsApp attach skipped: '.$e->getMessage());
         }
 
+        // Creator + CC notifications (copy of status / items)
+        $this->notifyQuotationStakeholders($lims_quotation_data, 'sent', $mail_data);
+
         return $message;
+    }
+
+    /**
+     * Persist multi-select CC customers (same pattern as rentals).
+     */
+    protected function applyCcCustomerIds(Request $request, array $data)
+    {
+        $ccCustomerIds = $request->input('cc_customer', []);
+        $data['cc_customer_ids'] = ! empty($ccCustomerIds)
+            ? implode(',', array_unique(array_map('intval', (array) $ccCustomerIds)))
+            : null;
+        unset($data['cc_customer']);
+
+        return $data;
+    }
+
+    /**
+     * WhatsApp the quotation creator and CC contacts.
+     *
+     * @param  string  $event  sent|approved|rejected
+     */
+    public function notifyQuotationStakeholders(Quotation $quotation, $event, array $mail_data = [])
+    {
+        $customer = Customer::find($quotation->customer_id);
+        $customerName = $customer ? $customer->name : 'Client';
+        $grandTotal = number_format((float) $quotation->grand_total, 2);
+        $comment = (string) ($quotation->client_comment ?? '');
+        $lines = [];
+        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
+            foreach ($mail_data['products'] as $key => $product) {
+                $lines[] = [
+                    'name' => $product,
+                    'qty' => $mail_data['qty'][$key] ?? '',
+                    'total' => $mail_data['total'][$key] ?? null,
+                ];
+            }
+        } else {
+            $rows = ProductQuotation::where('quotation_id', $quotation->id)->get();
+            foreach ($rows as $row) {
+                $product = Product::find($row->product_id);
+                $lines[] = [
+                    'name' => $product ? $product->name : 'Item',
+                    'qty' => $row->qty,
+                    'total' => $row->total,
+                ];
+            }
+        }
+
+        $tab = 'awaiting';
+        if ($event === 'approved') {
+            $tab = 'approved';
+        } elseif ($event === 'rejected') {
+            $tab = 'rejected';
+        }
+        $listUrl = url('quotations?tab='.$tab);
+        $approvalUrl = $event === 'sent' ? $quotation->approvalUrl() : null;
+
+        $recipients = [];
+
+        $creator = User::find($quotation->user_id);
+        if ($creator && ! empty(trim((string) $creator->phone))) {
+            $recipients[] = [
+                'phone' => $creator->phone,
+                'name' => $creator->name,
+            ];
+        }
+
+        foreach ($quotation->ccCustomerIdList() as $ccId) {
+            $cc = Customer::find($ccId);
+            if (! $cc || empty(trim((string) $cc->phone_number))) {
+                continue;
+            }
+            // Don't double-notify the same phone as the primary client on "sent"
+            if ($customer && trim((string) $cc->phone_number) === trim((string) $customer->phone_number) && $event === 'sent') {
+                continue;
+            }
+            $recipients[] = [
+                'phone' => $cc->phone_number,
+                'name' => $cc->name,
+            ];
+        }
+
+        // De-dupe by phone digits
+        $seen = [];
+        foreach ($recipients as $recipient) {
+            $digits = preg_replace('/\D/', '', (string) $recipient['phone']);
+            if ($digits === '' || isset($seen[$digits])) {
+                continue;
+            }
+            $seen[$digits] = true;
+            try {
+                $msg = WhatsAppMessage::quotationStakeholderNotify(
+                    $recipient['name'],
+                    $event,
+                    $quotation->reference_no,
+                    $customerName,
+                    $grandTotal,
+                    $comment,
+                    $lines,
+                    $approvalUrl,
+                    $listUrl
+                );
+                $this->wpMessage($recipient['phone'], $msg);
+            } catch (\Throwable $e) {
+                \Log::warning('Quotation stakeholder notify failed: '.$e->getMessage());
+            }
+        }
     }
 
     public function getCustomerGroup($id)
@@ -853,6 +965,7 @@ class QuotationController extends Controller
     {
         $data = $request->except('document');
         //return dd($data);
+        $data = $this->applyCcCustomerIds($request, $data);
         $document = $request->document;
         if($document) {
             $v = Validator::make(
