@@ -183,6 +183,8 @@
     var modal = document.getElementById('sig-modal');
     document.getElementById('btn-approve').addEventListener('click', function () {
         modal.classList.add('open');
+        // Canvas is display:none until open — size it after layout so drawing works
+        setTimeout(function () { resize(); }, 50);
     });
     document.getElementById('sig-cancel').addEventListener('click', function () { modal.classList.remove('open'); });
     document.getElementById('sig-clear').addEventListener('click', function () { resize(); });
@@ -196,8 +198,15 @@
             alert('Please draw your signature.');
             return;
         }
+        var dataUrl = canvas.toDataURL('image/png');
+        if (!dataUrl || dataUrl.length < 200) {
+            alert('Could not capture signature. Please clear and sign again.');
+            return;
+        }
         document.getElementById('approve_comment').value = document.getElementById('client_comment_shared').value;
-        document.getElementById('signature_data').value = canvas.toDataURL('image/png');
+        document.getElementById('signature_data').value = dataUrl;
+        document.getElementById('sig-preview').src = dataUrl;
+        document.getElementById('sig-preview').style.display = 'block';
         document.getElementById('approve-form').submit();
     });
 

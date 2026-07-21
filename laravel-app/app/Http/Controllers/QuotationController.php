@@ -393,10 +393,15 @@ class QuotationController extends Controller
             }
         }
         if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && $lims_customer_data){
-            $biller = optional(Biller::find($request->biller_id))->name;
-            $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
-            $lims_quotation_data->approval_sent_at = now();
-            $lims_quotation_data->save();
+            try {
+                $biller = optional(Biller::find($request->biller_id))->name;
+                $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
+                $lims_quotation_data->approval_sent_at = now();
+                $lims_quotation_data->save();
+            } catch (\Throwable $e) {
+                \Log::error('Quotation WhatsApp notify failed: '.$e->getMessage());
+                $message = 'Quotation created. Approval link could not be sent automatically — use “Send for approval” from the list.';
+            }
             return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
         }
         if ($lims_quotation_data->quotation_status == Quotation::STATUS_PENDING) {
@@ -562,20 +567,26 @@ class QuotationController extends Controller
         catch(\Exception $e){
             $message = 'Quotation saved, but WhatsApp approval link could not be sent: '.$e->getMessage();
         }
-        // send QR code (points to approval page)
-        $path = public_path('public/images/quotations/qr/');
-        if (!File::exists($path)) {
-            File::makeDirectory($path, 0755, true);
-        }
-        $filename = 'qr_code_' . $lims_quotation_data->reference_no . '.png';
-        QrCode::format('png')->size(300)->generate($approvalUrl, $path . $filename);
+
+        // Optional QR attachment — must never fail the quotation save (writable under public/images)
         try {
-            $this->wpAttachMessage($path.$filename, $lims_customer_data->phone_number, $filename);
-        } catch (\Exception $e) {
-        }
-        // Delete the QR code file after sending
-        if (file_exists($path.$filename)) {
-            unlink($path.$filename);
+            $path = public_path('images/quotations/qr');
+            if (! File::isDirectory($path)) {
+                File::makeDirectory($path, 0775, true);
+            }
+            $filename = 'qr_code_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_quotation_data->reference_no).'.png';
+            $full = $path.DIRECTORY_SEPARATOR.$filename;
+            QrCode::format('png')->size(300)->generate($approvalUrl, $full);
+            try {
+                $this->wpAttachMessage($full, $lims_customer_data->phone_number, $filename);
+            } catch (\Exception $e) {
+                // text link already sent
+            }
+            if (File::exists($full)) {
+                File::delete($full);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation QR WhatsApp attach skipped: '.$e->getMessage());
         }
 
         return $message;
@@ -982,10 +993,15 @@ class QuotationController extends Controller
             }
         }
         if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING && $lims_customer_data){
-            $biller = optional(Biller::find($request->biller_id))->name;
-            $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
-            $lims_quotation_data->approval_sent_at = now();
-            $lims_quotation_data->save();
+            try {
+                $biller = optional(Biller::find($request->biller_id))->name;
+                $message = $this->sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price);
+                $lims_quotation_data->approval_sent_at = now();
+                $lims_quotation_data->save();
+            } catch (\Throwable $e) {
+                \Log::error('Quotation WhatsApp notify (update) failed: '.$e->getMessage());
+                $message = 'Quotation updated. Approval link could not be sent automatically — use “Send for approval” from the list.';
+            }
             return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
         }
 
@@ -1028,7 +1044,12 @@ class QuotationController extends Controller
             'qty' => [],
             'total' => [],
         ];
-        $message = $this->sendWhatsappMsg($customer, $quotation, $mail_data, optional($quotation->biller)->name, []);
+        try {
+            $message = $this->sendWhatsappMsg($customer, $quotation, $mail_data, optional($quotation->biller)->name, []);
+        } catch (\Throwable $e) {
+            \Log::error('Quotation resend approval failed: '.$e->getMessage());
+            $message = 'Quotation is awaiting approval, but WhatsApp could not be sent: '.$e->getMessage();
+        }
 
         return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
     }

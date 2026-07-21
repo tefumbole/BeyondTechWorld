@@ -80,6 +80,23 @@ class Quotation extends Model
         return url('quotation-approval/'.$token);
     }
 
+    /**
+     * Public URL for the stored client signature (docroot is laravel-app/).
+     */
+    public function clientSignatureUrl()
+    {
+        if (empty($this->client_signature_path)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->client_signature_path), '/');
+        if (strpos($path, 'public/') === 0) {
+            return url($path);
+        }
+
+        return url('public/'.$path);
+    }
+
     public function biller()
     {
         return $this->belongsTo('App\Biller');

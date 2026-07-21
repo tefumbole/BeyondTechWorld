@@ -59,7 +59,17 @@
                                 <div class="badge badge-secondary">{{$status}}</div>
                             @endif
                         </td>
-                        <td style="max-width:220px;white-space:normal;">{{ $quotation->client_comment ?: '—' }}</td>
+                        <td style="max-width:220px;white-space:normal;">
+                            {{ $quotation->client_comment ?: '—' }}
+                            @if($st === \App\Quotation::STATUS_APPROVED && $quotation->clientSignatureUrl())
+                                <div class="mt-1">
+                                    <a href="{{ $quotation->clientSignatureUrl() }}" target="_blank" rel="noopener">View signature</a>
+                                    @if($quotation->client_signed_at)
+                                        <br><small class="text-muted">Signed {{ $quotation->client_signed_at->format('Y-m-d H:i') }}</small>
+                                    @endif
+                                </div>
+                            @endif
+                        </td>
                         <td>{{ number_format($quotation->grand_total, 2, '.', ',') }}</td>
                         <td>
                             <div class="btn-group">

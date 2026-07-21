@@ -22,10 +22,18 @@
             <div class="badge ok">Approved</div>
             <h1>Thank you</h1>
             <p>You approved quotation <strong>{{ $quotation->reference_no }}</strong>. Our team will follow up. This was a quotation (not a receipt); suppliers are arranged upon cleared payment.</p>
-        @else
+            @if($quotation->clientSignatureUrl())
+                <p style="margin-top:18px;"><strong>Your signature</strong></p>
+                <img src="{{ $quotation->clientSignatureUrl() }}" alt="Signature" style="max-width:100%;background:#fff;border-radius:10px;padding:8px;">
+            @endif
+        @elseif((int)$quotation->quotation_status === \App\Quotation::STATUS_REJECTED)
             <div class="badge no">Rejected</div>
             <h1>Response received</h1>
             <p>You rejected quotation <strong>{{ $quotation->reference_no }}</strong>. Our team may contact you about modifications.</p>
+        @else
+            <div class="badge no">Unavailable</div>
+            <h1>Link not active</h1>
+            <p>This quotation is not open for approval right now.</p>
         @endif
         @if($quotation->client_comment)
             <p><strong>Your comment:</strong><br>{{ $quotation->client_comment }}</p>

@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\GeneralSetting;
-use App\ProductQuotation;
 use App\Product;
+use App\ProductQuotation;
 use App\Quotation;
 use App\Unit;
 use App\Variant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class QuotationApprovalController extends Controller
@@ -22,6 +23,14 @@ class QuotationApprovalController extends Controller
         }
 
         if (in_array((int) $quotation->quotation_status, [Quotation::STATUS_APPROVED, Quotation::STATUS_REJECTED], true)) {
+            return view('quotation.client_responded', [
+                'quotation' => $quotation,
+                'general_setting' => GeneralSetting::first(),
+            ]);
+        }
+
+        // Only awaiting quotations are signable
+        if ((int) $quotation->quotation_status !== Quotation::STATUS_AWAITING) {
             return view('quotation.client_responded', [
                 'quotation' => $quotation,
                 'general_setting' => GeneralSetting::first(),
@@ -54,7 +63,7 @@ class QuotationApprovalController extends Controller
 
         $sigPath = $this->storeSignature($quotation, $data['signature_data']);
         if (! $sigPath) {
-            return back()->with('not_permitted', 'Please provide a valid signature.')->withInput();
+            return back()->with('not_permitted', 'Please provide a valid signature (draw in the pad, then confirm).')->withInput();
         }
 
         $quotation->quotation_status = Quotation::STATUS_APPROVED;
@@ -142,23 +151,43 @@ class QuotationApprovalController extends Controller
 
     protected function storeSignature(Quotation $quotation, $dataUrl)
     {
-        if (! preg_match('/^data:image\/(png|jpeg);base64,/', $dataUrl)) {
+        if (! is_string($dataUrl) || ! preg_match('/^data:image\/(png|jpeg);base64,/', $dataUrl)) {
             return null;
         }
 
         $raw = substr($dataUrl, strpos($dataUrl, ',') + 1);
-        $binary = base64_decode($raw);
-        if ($binary === false || strlen($binary) < 100) {
+        $binary = base64_decode($raw, true);
+        if ($binary === false || strlen($binary) < 80) {
             return null;
         }
 
+        // Writable path under public/uploads (deploy ensures www-data ownership)
         $dir = public_path('uploads/quotations/signatures');
-        if (! File::isDirectory($dir)) {
-            File::makeDirectory($dir, 0755, true);
+        try {
+            if (! File::isDirectory($dir)) {
+                File::makeDirectory($dir, 0775, true);
+            }
+            if (! is_writable($dir)) {
+                @chmod($dir, 0775);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Quotation signature dir failed: '.$e->getMessage());
+
+            return null;
         }
 
-        $filename = 'qsig_'.$quotation->id.'_'.Str::random(8).'.png';
-        File::put($dir.DIRECTORY_SEPARATOR.$filename, $binary);
+        $filename = 'qsig_'.$quotation->id.'_'.Str::random(10).'.png';
+        $full = $dir.DIRECTORY_SEPARATOR.$filename;
+        try {
+            if (File::put($full, $binary) === false) {
+                return null;
+            }
+            @chmod($full, 0664);
+        } catch (\Throwable $e) {
+            Log::error('Quotation signature write failed: '.$e->getMessage());
+
+            return null;
+        }
 
         return 'uploads/quotations/signatures/'.$filename;
     }
