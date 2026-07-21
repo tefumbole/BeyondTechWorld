@@ -296,6 +296,7 @@
                                                 <strong>{{trans('file.Order Discount')}}</strong>
                                             </label>
                                             <input type="number" name="order_discount" class="form-control" value="{{$lims_quotation_data->order_discount}}" step="any"/>
+                                            <small class="text-muted">Client sees this when “Show discount to client” is checked.</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -304,6 +305,21 @@
                                                 <strong>{{trans('file.Shipping Cost')}}</strong>
                                             </label>
                                             <input type="number" name="shipping_cost" class="form-control" value="{{$lims_quotation_data->shipping_cost}}" step="any"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <input type="hidden" name="show_client_discount" value="0">
+                                            <label class="d-flex align-items-start" style="gap:8px;font-weight:normal;">
+                                                <input type="checkbox" name="show_client_discount" value="1" style="margin-top:4px;"
+                                                    @if((int)($lims_quotation_data->show_client_discount ?? 1) === 1) checked @endif>
+                                                <span>
+                                                    <strong>Show discount to client</strong><br>
+                                                    <small class="text-muted">Shows Subtotal, Discount, and Total due on WhatsApp and the approval page (avoids confusing pre-discount line amounts).</small>
+                                                </span>
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -325,13 +341,13 @@
                                             <label>{{trans('file.Status')}} *</label>
                                             <input type="hidden" name="quotation_status_hidden" value="{{$lims_quotation_data->quotation_status}}">
                                             <select name="quotation_status" class="form-control">
-                                                <option value="2">Send for client approval</option>
-                                                <option value="1">Save as draft</option>
+                                                <option value="2">Save &amp; send / resend for client approval (WhatsApp)</option>
+                                                <option value="1">Save as draft (no WhatsApp)</option>
                                                 @if(in_array((int)$lims_quotation_data->quotation_status, [3, 4], true))
-                                                    <option value="{{ $lims_quotation_data->quotation_status }}">{{ \App\Quotation::statusLabel($lims_quotation_data->quotation_status) }} (current)</option>
+                                                    <option value="{{ $lims_quotation_data->quotation_status }}">Keep as {{ \App\Quotation::statusLabel($lims_quotation_data->quotation_status) }} (no WhatsApp)</option>
                                                 @endif
                                             </select>
-                                            <small class="text-muted">Choosing “Send for client approval” WhatsApps a new approval link and clears a previous reject/approve response.</small>
+                                            <small class="text-muted">After editing, choose “Save &amp; send / resend…” to WhatsApp the updated quotation. That clears a previous approve/reject response.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -345,11 +361,21 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary" id="submit-button">
+                                    <input type="submit" value="Save quotation" class="btn btn-primary" id="submit-button">
                                 </div>
                             </div>
                         </div>
                         {!! Form::close() !!}
+                        @if(in_array((int)$lims_quotation_data->quotation_status, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED], true))
+                            <div class="mt-2 mb-3">
+                                {{ Form::open(['route' => ['quotation.resend_approval', $lims_quotation_data->id], 'method' => 'POST', 'id' => 'quotation-resend-form']) }}
+                                <button type="submit" class="btn btn-success" onclick="return confirm('Resend the current quotation to the client via WhatsApp? Save any edits first if you changed amounts or notes.');">
+                                    <i class="fa fa-whatsapp"></i> Resend approval WhatsApp
+                                </button>
+                                <small class="text-muted d-block mt-1">Uses the last saved quotation. Save first if you just edited.</small>
+                                {{ Form::close() }}
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -497,7 +523,15 @@ $('select[name="customer_id"]').val($('input[name="customer_id_hidden"]').val())
 $('select[name="warehouse_id"]').val($('input[name="warehouse_id_hidden"]').val());
 $('select[name="biller_id"]').val($('input[name="biller_id_hidden"]').val());
 $('select[name="order_tax_rate"]').val($('input[name="order_tax_rate_hidden"]').val());
-$('select[name="quotation_status"]').val($('input[name="quotation_status_hidden"]').val());
+(function () {
+    var st = parseInt($('input[name="quotation_status_hidden"]').val(), 10);
+    // Prefer “send/resend” after edit for awaiting / rejected / approved
+    if (st === 2 || st === 3 || st === 4) {
+        $('select[name="quotation_status"]').val('2');
+    } else {
+        $('select[name="quotation_status"]').val(String(st));
+    }
+})();
 $('.selectpicker').selectpicker('refresh');
 
 $('#item').text($('input[name="item"]').val() + '(' + $('input[name="total_qty"]').val() + ')');

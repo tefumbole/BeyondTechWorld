@@ -300,6 +300,7 @@ class QuotationController extends Controller
         if (array_key_exists('note', $data)) {
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
+        $data['show_client_discount'] = $request->input('show_client_discount') == '1';
         $document = $request->document;
         if($document){
             $v = Validator::make(
@@ -549,22 +550,16 @@ class QuotationController extends Controller
 
     public function sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price){
         $approvalUrl = $lims_quotation_data->approvalUrl();
+        $products = $this->quotationWhatsAppProducts($lims_quotation_data, $mail_data);
+        $pricing = $this->quotationWhatsAppPricing($lims_quotation_data, $mail_data);
+
         $msg = WhatsAppMessage::quotationApprovalRequest(
             $lims_customer_data->name,
             $lims_quotation_data->reference_no,
             number_format((float) $lims_quotation_data->grand_total, 2),
-            $approvalUrl
+            $approvalUrl,
+            array_merge($pricing, ['products' => $products])
         );
-
-        // Append line summary when available
-        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
-            $msg .= "\n*Products:*\n";
-            foreach ($mail_data['products'] as $key => $product) {
-                $qty = $mail_data['qty'][$key] ?? '';
-                $lineTotal = isset($mail_data['total'][$key]) ? number_format($mail_data['total'][$key], 2) : '';
-                $msg .= ($key + 1) . ') '.$product.' × '.$qty.' = '.$lineTotal."\n";
-            }
-        }
 
         $message = 'Quotation sent for client approval via WhatsApp.';
         try{
@@ -626,26 +621,8 @@ class QuotationController extends Controller
         $customerName = $customer ? $customer->name : 'Client';
         $grandTotal = number_format((float) $quotation->grand_total, 2);
         $comment = (string) ($quotation->client_comment ?? '');
-        $lines = [];
-        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
-            foreach ($mail_data['products'] as $key => $product) {
-                $lines[] = [
-                    'name' => $product,
-                    'qty' => $mail_data['qty'][$key] ?? '',
-                    'total' => $mail_data['total'][$key] ?? null,
-                ];
-            }
-        } else {
-            $rows = ProductQuotation::where('quotation_id', $quotation->id)->get();
-            foreach ($rows as $row) {
-                $product = Product::find($row->product_id);
-                $lines[] = [
-                    'name' => $product ? $product->name : 'Item',
-                    'qty' => $row->qty,
-                    'total' => $row->total,
-                ];
-            }
-        }
+        $lines = $this->quotationWhatsAppProducts($quotation, $mail_data);
+        $pricing = $this->quotationWhatsAppPricing($quotation, $mail_data);
 
         $tab = 'awaiting';
         if ($event === 'approved') {
@@ -699,13 +676,69 @@ class QuotationController extends Controller
                     $comment,
                     $lines,
                     $approvalUrl,
-                    $listUrl
+                    $listUrl,
+                    $pricing
                 );
                 $this->wpMessage($recipient['phone'], $msg);
             } catch (\Throwable $e) {
                 \Log::warning('Quotation stakeholder notify failed: '.$e->getMessage());
             }
         }
+    }
+
+    /**
+     * Item lines for WhatsApp: name × qty only (never undiscounted line totals).
+     */
+    protected function quotationWhatsAppProducts(Quotation $quotation, array $mail_data = [])
+    {
+        $lines = [];
+        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
+            foreach ($mail_data['products'] as $key => $product) {
+                $lines[] = [
+                    'name' => $product,
+                    'qty' => $mail_data['qty'][$key] ?? '',
+                ];
+            }
+
+            return $lines;
+        }
+
+        $rows = ProductQuotation::where('quotation_id', $quotation->id)->get();
+        foreach ($rows as $row) {
+            $product = Product::find($row->product_id);
+            $name = $product ? $product->name : 'Item';
+            if ($row->variant_id) {
+                $variant = Variant::find($row->variant_id);
+                if ($variant) {
+                    $name .= ' ['.$variant->name.']';
+                }
+            }
+            $lines[] = [
+                'name' => $name,
+                'qty' => $row->qty,
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Pricing block for WhatsApp / stakeholder messages.
+     */
+    protected function quotationWhatsAppPricing(Quotation $quotation, array $mail_data = [])
+    {
+        $discount = (float) ($mail_data['order_discount'] ?? $quotation->order_discount ?? 0);
+        $showDiscount = array_key_exists('show_client_discount', $quotation->getAttributes())
+            ? (bool) $quotation->show_client_discount
+            : true;
+
+        return [
+            'subtotal' => (float) ($mail_data['total_price'] ?? $quotation->total_price ?? 0),
+            'order_discount' => $discount,
+            'order_tax' => (float) ($mail_data['order_tax'] ?? $quotation->order_tax ?? 0),
+            'shipping_cost' => (float) ($mail_data['shipping_cost'] ?? $quotation->shipping_cost ?? 0),
+            'show_discount' => $showDiscount && $discount > 0,
+        ];
     }
 
     public function getCustomerGroup($id)
@@ -973,6 +1006,7 @@ class QuotationController extends Controller
         if (array_key_exists('note', $data)) {
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
+        $data['show_client_discount'] = $request->input('show_client_discount') == '1';
         $document = $request->document;
         if($document) {
             $v = Validator::make(
@@ -1139,8 +1173,13 @@ class QuotationController extends Controller
     public function resendApproval($id)
     {
         $quotation = Quotation::findOrFail($id);
-        if (! in_array((int) $quotation->quotation_status, [Quotation::STATUS_AWAITING, Quotation::STATUS_REJECTED, Quotation::STATUS_PENDING], true)) {
-            return back()->with('not_permitted', 'Only draft, awaiting, or rejected quotations can be sent for approval.');
+        if (! in_array((int) $quotation->quotation_status, [
+            Quotation::STATUS_AWAITING,
+            Quotation::STATUS_REJECTED,
+            Quotation::STATUS_PENDING,
+            Quotation::STATUS_APPROVED,
+        ], true)) {
+            return back()->with('not_permitted', 'This quotation cannot be sent for approval.');
         }
 
         $quotation->quotation_status = Quotation::STATUS_AWAITING;
@@ -1160,6 +1199,10 @@ class QuotationController extends Controller
 
         $mail_data = [
             'grand_total' => $quotation->grand_total,
+            'total_price' => $quotation->total_price,
+            'order_discount' => $quotation->order_discount,
+            'order_tax' => $quotation->order_tax,
+            'shipping_cost' => $quotation->shipping_cost,
             'products' => [],
             'qty' => [],
             'total' => [],

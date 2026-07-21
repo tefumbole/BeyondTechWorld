@@ -28,6 +28,7 @@ class Quotation extends Model
         'order_tax_rate',
         'order_tax',
         'order_discount',
+        'show_client_discount',
         'shipping_cost',
         'grand_total',
         'quotation_status',

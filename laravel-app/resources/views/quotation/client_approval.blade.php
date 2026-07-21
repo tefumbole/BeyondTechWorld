@@ -23,7 +23,12 @@
         table.items { width:100%; border-collapse:collapse; margin-top:8px; }
         table.items th, table.items td { border-bottom:1px solid rgba(255,255,255,.12); padding:10px 8px; text-align:left; font-size:14px; }
         table.items th { color:var(--accent); }
-        .totals { text-align:right; font-weight:800; margin-top:10px; color:#fff; }
+        .totals { text-align:right; margin-top:12px; color:#fff; }
+        .totals-table { width:100%; max-width:320px; margin-left:auto; border-collapse:collapse; }
+        .totals-table td { padding:6px 0; font-size:14px; color:#e8efff; }
+        .totals-table td:last-child { text-align:right; font-variant-numeric:tabular-nums; padding-left:16px; }
+        .totals-table .discount td { color:#fbbf24; }
+        .totals-table .grand td { font-weight:800; color:#fff; font-size:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,.18); }
         .checkbox-row { display:flex; gap:10px; align-items:flex-start; margin:12px 0; }
         textarea, input[type=text] { width:100%; border-radius:10px; border:1px solid #d7deea; padding:12px; font-size:15px; }
         .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:10px; padding:12px 18px; font-weight:700; cursor:pointer; border:0; text-decoration:none; }
@@ -69,24 +74,67 @@
         </p>
     </div>
 
+    @php
+        $orderDiscount = (float) ($quotation->order_discount ?? 0);
+        $showDiscount = ((int) ($quotation->show_client_discount ?? 1) === 1) && $orderDiscount > 0;
+        $showLinePrices = $showDiscount || $orderDiscount <= 0;
+    @endphp
     <div class="card">
         <h3>Quoted items</h3>
         <table class="items">
             <thead>
-            <tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Total</th></tr>
+            <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                @if($showLinePrices)
+                    <th>Unit price</th>
+                    <th>Total</th>
+                @endif
+            </tr>
             </thead>
             <tbody>
             @foreach($lines as $line)
                 <tr>
                     <td>{{ $line['name'] }}</td>
                     <td>{{ $line['qty'] }} {{ $line['unit'] }}</td>
-                    <td>{{ number_format((float)$line['net_unit_price'], 2) }}</td>
-                    <td>{{ number_format((float)$line['total'], 2) }}</td>
+                    @if($showLinePrices)
+                        <td>{{ number_format((float)$line['net_unit_price'], 2) }}</td>
+                        <td>{{ number_format((float)$line['total'], 2) }}</td>
+                    @endif
                 </tr>
             @endforeach
             </tbody>
         </table>
-        <div class="totals">Grand total: {{ number_format((float)$quotation->grand_total, 2) }}</div>
+        <div class="totals">
+            <table class="totals-table">
+                @if($showDiscount)
+                    <tr>
+                        <td>Subtotal</td>
+                        <td>{{ number_format((float)$quotation->total_price, 2) }}</td>
+                    </tr>
+                    <tr class="discount">
+                        <td>Discount</td>
+                        <td>-{{ number_format($orderDiscount, 2) }}</td>
+                    </tr>
+                @endif
+                @if((float)($quotation->order_tax ?? 0) > 0)
+                    <tr>
+                        <td>Tax</td>
+                        <td>{{ number_format((float)$quotation->order_tax, 2) }}</td>
+                    </tr>
+                @endif
+                @if((float)($quotation->shipping_cost ?? 0) > 0)
+                    <tr>
+                        <td>Shipping</td>
+                        <td>{{ number_format((float)$quotation->shipping_cost, 2) }}</td>
+                    </tr>
+                @endif
+                <tr class="grand">
+                    <td>Total due</td>
+                    <td>{{ number_format((float)$quotation->grand_total, 2) }}</td>
+                </tr>
+            </table>
+        </div>
     </div>
 
     @if(trim((string) ($quotation->note ?? '')) !== '')

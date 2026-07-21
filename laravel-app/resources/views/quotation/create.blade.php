@@ -173,6 +173,7 @@
                                         <div class="form-group">
                                             <label>{{trans('file.Order Discount')}}</label>
                                             <input type="number" name="order_discount" class="form-control" step="any" value="{{ !empty($cloneQuotation) ? $cloneQuotation->order_discount : '' }}">
+                                            <small class="text-muted">Applied before the client total. Use the option below so the client sees subtotal, discount, and total due.</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -183,11 +184,26 @@
                                     </div>
                                 </div>
                                 <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <input type="hidden" name="show_client_discount" value="0">
+                                            <label class="d-flex align-items-start" style="gap:8px;font-weight:normal;">
+                                                <input type="checkbox" name="show_client_discount" value="1" style="margin-top:4px;"
+                                                    @if(empty($cloneQuotation) || (int)($cloneQuotation->show_client_discount ?? 1) === 1) checked @endif>
+                                                <span>
+                                                    <strong>Show discount to client</strong><br>
+                                                    <small class="text-muted">When checked, WhatsApp and the approval page show Subtotal, Discount, and Total due (never a line amount that ignores the discount).</small>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
                                 	<div class="col-md-4">
                                 		<div class="form-group">
                                 			<label>{{trans('file.Status')}}</label>
                                 			<select class="form-control" name="quotation_status">
-                                				<option value="2" selected>Send for client approval</option>
+                                				<option value="2" selected>Send for client approval (WhatsApp)</option>
                                 				<option value="1">Save as draft</option>
                                 			</select>
                                 			<small class="text-muted">Client will receive a WhatsApp link to read the quotation agreement, then approve (with signature) or reject (with comment).</small>

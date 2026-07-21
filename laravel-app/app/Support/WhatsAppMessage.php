@@ -126,13 +126,23 @@ class WhatsAppMessage
         return $msg;
     }
 
-    public static function quotationApprovalRequest($customerName, $referenceNo, $grandTotal, $approvalUrl)
+    /**
+     * Client-facing quotation WhatsApp.
+     *
+     * Never lists undiscounted line prices when a discount applies — clients see
+     * subtotal / discount / final total (or final total only).
+     *
+     * @param  array  $options  products [['name','qty']], subtotal, order_discount,
+     *                          order_tax, shipping_cost, show_discount (bool)
+     */
+    public static function quotationApprovalRequest($customerName, $referenceNo, $grandTotal, $approvalUrl, array $options = [])
     {
         $msg = self::statusBlock('📋', 'Quotation for Approval');
         $msg .= self::greeting($customerName);
         $msg .= "Please review your quotation from *".self::companyName()."*.\n\n";
         $msg .= self::bullet('Reference', $referenceNo);
-        $msg .= self::bullet('Total', $grandTotal);
+        $msg .= self::quotationProductsBlock($options['products'] ?? []);
+        $msg .= self::quotationPricingBlock($grandTotal, $options);
         $msg .= "\nThis is a *quotation* (not a receipt). Review the agreement, then approve or reject with a comment.\n";
         $msg .= self::actionLink('Review & respond', $approvalUrl);
         $msg .= self::footer();
@@ -144,7 +154,8 @@ class WhatsAppMessage
      * Notify quotation creator / CC on send, approve, or reject.
      *
      * @param  string  $event  sent|approved|rejected
-     * @param  array  $lines  optional [['name'=>,'qty'=>,'total'=>], ...]
+     * @param  array  $lines  optional [['name'=>,'qty'=>], ...]  (no undiscounted totals)
+     * @param  array  $pricing  optional pricing keys for quotationPricingBlock
      */
     public static function quotationStakeholderNotify(
         $recipientName,
@@ -155,7 +166,8 @@ class WhatsAppMessage
         $comment = '',
         array $lines = [],
         $approvalUrl = null,
-        $listUrl = null
+        $listUrl = null,
+        array $pricing = []
     ) {
         $event = strtolower((string) $event);
         if ($event === 'approved') {
@@ -174,21 +186,8 @@ class WhatsAppMessage
 
         $msg .= self::bullet('Reference', $referenceNo);
         $msg .= self::bullet('Client', $customerName);
-        $msg .= self::bullet('Total', $grandTotal);
-
-        if (! empty($lines)) {
-            $msg .= "\n*Items:*\n";
-            foreach ($lines as $index => $line) {
-                $name = $line['name'] ?? 'Item';
-                $qty = $line['qty'] ?? '';
-                $total = isset($line['total']) ? number_format((float) $line['total'], 2) : '';
-                $msg .= ($index + 1).") {$name} × {$qty}";
-                if ($total !== '') {
-                    $msg .= " = {$total}";
-                }
-                $msg .= "\n";
-            }
-        }
+        $msg .= self::quotationProductsBlock($lines);
+        $msg .= self::quotationPricingBlock($grandTotal, $pricing);
 
         if ($comment !== '' && $comment !== null) {
             $msg .= "\n*Client comment:*\n{$comment}\n";
@@ -201,6 +200,67 @@ class WhatsAppMessage
             $msg .= self::actionLink('Open quotations', $listUrl);
         }
         $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
+     * Product lines as name × qty only (no misleading pre-discount amounts).
+     *
+     * @param  array  $products  [['name'=>,'qty'=>], ...]
+     */
+    public static function quotationProductsBlock(array $products)
+    {
+        if (empty($products)) {
+            return '';
+        }
+
+        $msg = "\n*Items:*\n";
+        foreach ($products as $index => $line) {
+            $name = $line['name'] ?? (is_string($line) ? $line : 'Item');
+            $qty = $line['qty'] ?? '';
+            $msg .= ($index + 1).") {$name}";
+            if ($qty !== '' && $qty !== null) {
+                $msg .= " × {$qty}";
+            }
+            $msg .= "\n";
+        }
+
+        return $msg;
+    }
+
+    /**
+     * Final pricing for clients: optional subtotal + discount, then total due.
+     *
+     * @param  string|float  $grandTotal  already formatted or numeric
+     */
+    public static function quotationPricingBlock($grandTotal, array $options = [])
+    {
+        $subtotal = (float) ($options['subtotal'] ?? 0);
+        $discount = (float) ($options['order_discount'] ?? 0);
+        $tax = (float) ($options['order_tax'] ?? 0);
+        $shipping = (float) ($options['shipping_cost'] ?? 0);
+        $showDiscount = array_key_exists('show_discount', $options)
+            ? (bool) $options['show_discount']
+            : ($discount > 0);
+        $formattedGrand = is_numeric($grandTotal)
+            ? number_format((float) $grandTotal, 2)
+            : (string) $grandTotal;
+
+        $msg = "\n*Amount:*\n";
+        if ($showDiscount && $discount > 0) {
+            if ($subtotal > 0) {
+                $msg .= self::bullet('Subtotal', number_format($subtotal, 2));
+            }
+            $msg .= self::bullet('Discount', '-'.number_format($discount, 2));
+        }
+        if ($tax > 0) {
+            $msg .= self::bullet('Tax', number_format($tax, 2));
+        }
+        if ($shipping > 0) {
+            $msg .= self::bullet('Shipping', number_format($shipping, 2));
+        }
+        $msg .= self::bullet('Total due', $formattedGrand);
 
         return $msg;
     }
