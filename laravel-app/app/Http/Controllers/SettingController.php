@@ -39,6 +39,7 @@ class SettingController extends Controller
     }
     public function generalSetting()
     {
+        \App\Support\AppVersion::syncToSettings();
         $lims_general_setting_data = GeneralSetting::latest()->first();
         $lims_account_list = Account::where('is_active', true)->get();
         $lims_unit_list = Unit::where('is_active', true)->get();
@@ -124,7 +125,8 @@ class SettingController extends Controller
         $general_setting = GeneralSetting::latest()->first();
         $general_setting->id = 1;
         $general_setting->site_title = $data['site_title'];
-        $general_setting->app_version = $data['app_version'] ?? $general_setting->app_version;
+        // Always mirror laravel-app/VERSION (bumped on commit/push); ignore form edits.
+        $general_setting->app_version = \App\Support\AppVersion::erp();
         $general_setting->currency = $data['currency'];
         $general_setting->currency_position = $data['currency_position'];
         $general_setting->staff_access = $data['staff_access'];

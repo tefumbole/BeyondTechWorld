@@ -85,41 +85,20 @@
     </style>
 </head>
 <body>
-
-@if($general_setting->invoice_format == 'beyond_a4')
+@include('quotation.partials.system_letterhead')
+@if($quotationLetterhead)
     <style>
-        .btn {
-            width: 25% !important;
-        }
-        .btn-info {
-            float: right;
-        }
-        /*.lastPage {*/
-        /*    page: last_page;*/
-        /*    page-break-before: always; !* Use if your last page is blank, else omit. *!*/
-        /*}*/
-
-        /*@media print {*/
-        /*    #print-footer {*/
-        /*        position: absolute;*/
-        /*        bottom: 0;*/
-        /*        display: none;*/
-        /*    }*/
-        /*    @page last_page {*/
-        /*        #print-footer {*/
-        /*            position: relative;*/
-        /*            display: inline-block;*/
-        /*            top: 500px*/
-        /*        }*/
-        /*    }*/
-        /*}*/
+        .btn { width: 25% !important; }
+        .btn-info { float: right; }
     </style>
-    <img src="{{url('public/logo', $header)}}" style=" width: 100%;">
-    <img src="{{url('public/logo', $water_mark)}}" class="waterm-mark">
-    <div style="max-width:95vw;margin:0 auto; ">
-        @else
-            <div style="max-width:400px;margin:0 auto; ">
-                @endif
+    <img src="{{ $quotationHeaderUrl }}" style="width:100%;display:block;" alt="Header">
+    @if($quotationWatermarkUrl)
+        <img src="{{ $quotationWatermarkUrl }}" class="waterm-mark" alt="">
+    @endif
+    <div style="max-width:95vw;margin:0 auto;">
+@else
+    <div style="max-width:400px;margin:0 auto;">
+@endif
 
                 @if(preg_match('~[0-9]~', url()->previous()))
                     @php $url = '../../pos'; @endphp
@@ -129,8 +108,6 @@
                 <div class="hidden-print">
                     <table>
                         <tr>
-{{--                            <td><a href="{{$url}}" class="btn btn-info"><i class="fa fa-arrow-left"></i> {{trans('file.Back')}}</a> </td>--}}
-{{--                            <td><button onclick="window.print();" class="btn btn-primary"><i class="dripicons-print"></i> {{trans('file.Print')}}</button></td>--}}
                         </tr>
                     </table>
                     <br>
@@ -138,17 +115,15 @@
 
                 <div id="receipt-data">
                     <div class="centered">
-
-                        @if($general_setting->invoice_format != 'beyond_a4')
+                        @if(! $quotationLetterhead)
                             @if($general_setting->site_logo)
                                 <img src="{{url('public/logo', $general_setting->site_logo)}}" height="42" width="50" style="margin:10px 0;filter: brightness(0);">
                             @endif
                             <h2>{{@$lims_biller_data->company_name}}</h2>
+                            <p>{{trans('file.Address')}}: {{$lims_warehouse_data->address}}
+                                <br>{{trans('file.Phone Number')}}: {{$lims_warehouse_data->phone}}
+                            </p>
                         @endif
-
-                        <p>{{trans('file.Address')}}: {{$lims_warehouse_data->address}}
-                            <br>{{trans('file.Phone Number')}}: {{$lims_warehouse_data->phone}}
-                        </p>
                     </div>
                     <p>{{trans('file.Date')}}: {{$lims_sale_data->created_at}}<br>
                         {{trans('file.reference')}}: {{$lims_sale_data->reference_no}}<br>
@@ -280,9 +255,9 @@
         </div> -->
                 </div>
             </div>
-            @if($general_setting->invoice_format == 'beyond_a4')
-                <div class="lastPage" >
-                    <img id="print-footer" src="{{url('public/logo', $footer)}}" style=" width: 100%;">
+            @if($quotationLetterFooter)
+                <div class="lastPage">
+                    <img id="print-footer" src="{{ $quotationFooterUrl }}" style="width:100%;display:block;" alt="Footer">
                 </div>
             @endif
 {{--            <script type="text/javascript">--}}

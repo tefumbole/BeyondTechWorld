@@ -94,16 +94,20 @@ else
   echo "==> 3. Skip migrate (pass --migrate-all or --migrate-path=…)"
 fi
 
-echo "==> 4. Clear / rebuild caches"
+echo "==> 4. Sync application version + letterhead assets"
+run_artisan app:sync-version || true
+run_artisan app:sync-letterhead || true
+
+echo "==> 5. Clear / rebuild caches"
 run_artisan view:clear || true
 run_artisan route:clear || true
 run_artisan config:clear || true
 run_artisan cache:clear || true
 
-echo "==> 5. Re-fix writable dirs AFTER artisan (critical)"
+echo "==> 6. Re-fix writable dirs AFTER artisan (critical)"
 fix_writable_dirs
 
-echo "==> 6. Reload PHP-FPM"
+echo "==> 7. Reload PHP-FPM"
 if systemctl is-active --quiet php7.4-fpm 2>/dev/null; then
   systemctl reload php7.4-fpm && echo "    php7.4-fpm reloaded"
 elif systemctl is-active --quiet php8.1-fpm 2>/dev/null; then

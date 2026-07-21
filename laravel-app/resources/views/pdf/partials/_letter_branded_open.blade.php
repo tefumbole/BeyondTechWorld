@@ -1,9 +1,10 @@
 @php
-    $watermarkFile = !empty($general_setting->email_water_mark)
-        ? $general_setting->email_water_mark
-        : $general_setting->site_logo;
-    $watermarkPath = $watermarkFile ? public_path('logo/' . $watermarkFile) : null;
-    $hasLetterhead = $general_setting->invoice_format == 'beyond_a4' && !empty($general_setting->email_header);
+    $useSystemLetterhead = ! empty($use_system_letterhead);
+    $letterhead = $letterhead ?? \App\Support\Letterhead::resolve($general_setting ?? null);
+    $hasLetterhead = ! empty($letterhead['has_header']) && (
+        $useSystemLetterhead || (($general_setting->invoice_format ?? '') == 'beyond_a4')
+    );
+    $watermarkPath = ! empty($letterhead['watermark_path']) ? $letterhead['watermark_path'] : null;
 @endphp
 
 @if($watermarkPath && file_exists($watermarkPath))
@@ -12,8 +13,8 @@
     </div>
 @endif
 
-@if($general_setting->invoice_format == 'beyond_a4' && !empty($general_setting->email_header))
-    <img src="{{ public_path('logo/') . $general_setting->email_header }}" class="letter-header-img" alt="">
+@if($hasLetterhead && ! empty($letterhead['header_path']))
+    <img src="{{ $letterhead['header_path'] }}" class="letter-header-img" alt="">
 @endif
 
 <div class="letter-page {{ $hasLetterhead ? 'has-letterhead' : '' }}">

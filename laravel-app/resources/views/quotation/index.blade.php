@@ -133,16 +133,13 @@
         </div>
     </section>
 
+    @include('quotation.partials.system_letterhead')
     <div id="quotation-details" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
-        <div role="document" class="modal-dialog">
-            <div class="modal-content">
-                <div class="container mt-3 pb-2 border-bottom">
+        <div role="document" class="modal-dialog {{ $quotationLetterhead ? 'modal-lg' : '' }}">
+            <div class="modal-content quotation-details-sheet">
+                <div class="container mt-3 pb-2 {{ $quotationLetterhead ? '' : 'border-bottom' }}">
                     <div class="row">
-                        @if($general_setting->invoice_format == 'beyond_a4')
-                            <div class="col-md-5">
-                        @else
-                            <div class="col-md-3">
-                        @endif
+                        <div class="col-md-5">
                             <button id="print-btn" type="button" class="btn btn-default btn-sm d-print-none"><i class="dripicons-print"></i></button>
                             {{ Form::open(['route' => 'quotation.sendmail', 'method' => 'post', 'class' => 'sendmail-form'] ) }}
                             <input type="hidden" name="quotation_id">
@@ -153,47 +150,63 @@
                             <button class="btn btn-default btn-sm d-print-none"><i class="fa fa-whatsapp"></i></button>
                             {{ Form::close() }}
                         </div>
-                        @if($general_setting->invoice_format != 'beyond_a4')
-                            <div class="col-md-6">
-                                <h3 id="exampleModalLabel" class="modal-title text-center container-fluid">{{$general_setting->site_title}}</h3>
+                        <div class="col-md-4"></div>
+                        <div class="col-md-3">
+                            <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+                        </div>
+                        @if($quotationLetterhead)
+                            <div class="col-md-12 px-0 quotation-system-header">
+                                <img src="{{ $quotationHeaderUrl }}" alt="Header" style="width:100%;display:block;">
                             </div>
-                            <div class="col-md-3">
-                                <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                            </div>
-                            <div class="col-md-12 text-center">
-                                <i style="font-size: 15px;">Quotation Details</i>
+                            <div class="col-md-12">
+                                <center><h3 class="mt-3 mb-2">Quotation Details</h3></center>
                             </div>
                         @else
-                            <div class="col-md-4">
-                            </div>
-                            <div class="col-md-3">
-                                <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                            </div>
-                            <div class="col-md-12">
-                                <img src="{{url('public/logo', $general_setting->email_header)}}" style=" width: 100%;">
-                                <img src="{{url('public/logo', $general_setting->email_water_mark)}}" style="width: 20%; position: absolute; top: 330%; right: 330px; opacity: 0.3;">
-                            </div>
-                            <div class="col-md-12">
-                                <center><h3>Quotation Details</h3></center>
+                            <div class="col-md-12 text-center">
+                                <h3 id="exampleModalLabel" class="modal-title">{{ $general_setting->site_title }}</h3>
+                                <i style="font-size: 15px;">Quotation Details</i>
                             </div>
                         @endif
                     </div>
                 </div>
-                <div id="quotation-content" class="modal-body">
+                <div class="quotation-details-body" style="position:relative;">
+                    @if($quotationWatermarkUrl)
+                        <img src="{{ $quotationWatermarkUrl }}" alt="" class="quotation-system-watermark">
+                    @endif
+                    <div id="quotation-content" class="modal-body"></div>
+                    <br>
+                    <table class=" table-bordered product-quotation-list">
+                        <tbody></tbody>
+                    </table>
+                    <div id="quotation-footer" class="modal-body"></div>
                 </div>
-                <br>
-                <table class=" table-bordered product-quotation-list">
-
-                    <tbody>
-                    </tbody>
-                </table>
-                <div id="quotation-footer" class="modal-body"></div>
-                @if($general_setting->invoice_format == 'beyond_a4')
-                    <img src="{{url('public/logo', $general_setting->email_footer)}}" style=" width: 100%;">
+                @if($quotationLetterFooter)
+                    <img src="{{ $quotationFooterUrl }}" alt="Footer" class="quotation-system-footer" style="width:100%;display:block;">
                 @endif
             </div>
         </div>
     </div>
+    <style>
+        .quotation-system-header { position: relative; }
+        .quotation-details-body { position: relative; min-height: 200px; }
+        .quotation-system-watermark {
+            width: 45%;
+            max-width: 280px;
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .quotation-details-body .modal-body,
+        .quotation-details-body table { position: relative; z-index: 1; }
+        @media print {
+            .quotation-details-sheet { box-shadow: none !important; border: 0 !important; }
+            .quotation-system-footer { page-break-inside: avoid; }
+        }
+    </style>
 
     <script type="text/javascript">
 

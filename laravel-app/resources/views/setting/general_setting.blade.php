@@ -38,7 +38,10 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Application Version</label>
-                                        <input type="text" name="app_version" class="form-control" value="@if($lims_general_setting_data){{$lims_general_setting_data->app_version}}@endif" placeholder="e.g. ABT_ERP_V.1.1.21">
+                                        <input type="text" name="app_version" class="form-control" readonly
+                                               value="{{ \App\Support\AppVersion::erp() }}"
+                                               placeholder="e.g. ABT_ERP_V.1.1.21">
+                                        <small class="text-muted">Auto-updates from <code>VERSION</code> on every commit/push and deploy. Not editable.</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">

@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\GeneralSetting;
+use Illuminate\Support\Facades\Schema;
+
 class AppVersion
 {
     public static function label()
@@ -20,6 +23,14 @@ class AppVersion
         }
 
         return '2.2.0';
+    }
+
+    /**
+     * ERP display form used in General Settings: ABT_ERP_V.2.2.45
+     */
+    public static function erp()
+    {
+        return 'ABT_ERP_V.'.self::label();
     }
 
     /**
@@ -51,9 +62,36 @@ class AppVersion
         return self::bcl();
     }
 
+    /**
+     * Persist laravel-app/VERSION into general_settings.app_version (after each deploy/push).
+     *
+     * @return string The ERP version string written
+     */
+    public static function syncToSettings()
+    {
+        $version = self::erp();
+
+        try {
+            if (! Schema::hasTable('general_settings') || ! Schema::hasColumn('general_settings', 'app_version')) {
+                return $version;
+            }
+        } catch (\Throwable $e) {
+            return $version;
+        }
+
+        $row = GeneralSetting::query()->orderByDesc('id')->first();
+        if ($row && (string) $row->app_version !== $version) {
+            $row->app_version = $version;
+            $row->save();
+        }
+
+        return $version;
+    }
+
     protected static function normalizeSemver($value)
     {
         $value = trim((string) $value);
+        $value = preg_replace('/^ABT_ERP_V\.?/i', '', $value);
         $value = preg_replace('/^BCL\s*V\.?\s*/i', '', $value);
         $value = ltrim($value, 'vV');
 

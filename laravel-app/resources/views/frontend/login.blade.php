@@ -139,7 +139,7 @@
 <main class="main">
     @php
         $appName = $general_setting->site_title ?? config('app.name', 'Application');
-        $appVersion = $general_setting->app_version ?? env('APP_VERSION', 'V1.1.21');
+        $appVersion = \App\Support\AppVersion::erp();
     @endphp
     <div class="auth-card">
         <div class="auth-card-top">

@@ -319,26 +319,38 @@
     </div>
 </div>
 
+@include('quotation.partials.system_letterhead')
 <div id="quotation-details" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
-    <div role="document" class="modal-dialog">
+    <div role="document" class="modal-dialog {{ !empty($quotationLetterhead) ? 'modal-lg' : '' }}">
       <div class="modal-content">
-        <div class="container mt-3 pb-2 border-bottom">
+        <div class="container mt-3 pb-2 {{ !empty($quotationLetterhead) ? '' : 'border-bottom' }}">
             <div class="row">
                 <div class="col-md-3">
                     <button id="quotation-print-btn" type="button" class="btn btn-default btn-sm d-print-none"><i class="dripicons-print"></i> {{trans('file.Print')}}</button>
                 </div>
-                <div class="col-md-6">
-                    <h3 id="exampleModalLabel" class="modal-title text-center container-fluid">{{$general_setting->site_title}}</h3>
-                </div>
+                <div class="col-md-6"></div>
                 <div class="col-md-3">
                     <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
                 </div>
-                <div class="col-md-12 text-center">
-                    <i style="font-size: 15px;">{{trans('file.Quotation Details')}}</i>
-                </div>
+                @if(!empty($quotationLetterhead))
+                    <div class="col-md-12 px-0">
+                        <img src="{{ $quotationHeaderUrl }}" alt="Header" style="width:100%;display:block;">
+                    </div>
+                    <div class="col-md-12 text-center">
+                        <h3 class="mt-3 mb-2">{{trans('file.Quotation Details')}}</h3>
+                    </div>
+                @else
+                    <div class="col-md-12 text-center">
+                        <h3 id="exampleModalLabel" class="modal-title">{{$general_setting->site_title}}</h3>
+                        <i style="font-size: 15px;">{{trans('file.Quotation Details')}}</i>
+                    </div>
+                @endif
             </div>
         </div>
-            <div id="quotation-content" class="modal-body">
+            <div id="quotation-content" class="modal-body" style="position:relative;">
+                @if(!empty($quotationWatermarkUrl))
+                    <img src="{{ $quotationWatermarkUrl }}" alt="" style="width:40%;max-width:240px;position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);opacity:.12;pointer-events:none;">
+                @endif
             </div>
             <br>
             <table class="table table-bordered product-quotation-list">
@@ -354,7 +366,9 @@
                 <tbody>
                 </tbody>
             </table>
-            <!-- <div id="quotation-footer" class="modal-body"></div> -->
+            @if(!empty($quotationLetterFooter))
+                <img src="{{ $quotationFooterUrl }}" alt="Footer" style="width:100%;display:block;">
+            @endif
       </div>
     </div>
 </div>

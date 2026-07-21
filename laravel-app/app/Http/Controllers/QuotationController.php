@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use App\Support\ActiveRecords;
 use App\Support\BookingNoteFormatter;
+use App\Support\Letterhead;
 use App\Support\WhatsAppMessage;
 
 class QuotationController extends Controller
@@ -481,70 +482,69 @@ class QuotationController extends Controller
 
     public function sendWhatsapp(Request $request)
     {
-
         $data = $request->all();
+
         return $this->genPDFInvoice($data['quotation_id']);
     }
 
-
-    public function genPDFInvoice($id)
+    /**
+     * Build branded quotation PDF (system header/footer/watermark) and return absolute path.
+     */
+    public function buildQuotationPdf($id)
     {
-        $role = Role::find(Auth::user()->role_id);
-        $permissions = Role::findByName($role->name)->permissions;
-
-        foreach ($permissions as $permission) {
-            $all_permission[] = $permission->name;
-        }
-        $lims_sale_data = Quotation::find($id);
+        $lims_sale_data = Quotation::findOrFail($id);
         $lims_product_sale_data = ProductQuotation::where('quotation_id', $id)->get();
-        $lims_biller_data = Biller::find($lims_sale_data->biller_id);
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
-        $lims_account_data = null;
-        $lims_account_data_debit = null;
-        $lims_account_data_cradit = null;
-
 
         $setting = GeneralSetting::first();
-        $header = $setting->email_header;
-        $footer = $setting->email_footer;
-        $water_mark = $setting->email_water_mark;
+        $letterhead = Letterhead::ensureSynced();
 
         $numberToWords = new NumberToWords();
-        if(\App::getLocale() == 'ar' || \App::getLocale() == 'hi' || \App::getLocale() == 'vi' || \App::getLocale() == 'en-gb')
+        if (in_array(\App::getLocale(), ['ar', 'hi', 'vi', 'en-gb'], true)) {
             $numberTransformer = $numberToWords->getNumberTransformer('en');
-        else
+        } else {
             $numberTransformer = $numberToWords->getNumberTransformer(\App::getLocale());
-        $numberInWords = $numberTransformer->toWords($lims_sale_data->grand_total);
+        }
+        $numberInWords = $numberTransformer->toWords((int) round((float) $lims_sale_data->grand_total));
 
         $data = [
-            'header' => $header,
-            'footer' => $footer,
-            'water_mark' => $water_mark,
-            'all_permission' => $all_permission,
-            'lims_account_data_cradit' => $lims_account_data_cradit,
-            'lims_account_data_debit' => $lims_account_data_debit,
+            'header' => $letterhead['header_file'],
+            'footer' => $letterhead['footer_file'],
+            'water_mark' => $letterhead['watermark_file'],
+            'letterhead' => $letterhead,
+            'general_setting' => $setting,
+            'use_system_letterhead' => true,
             'lims_sale_data' => $lims_sale_data,
             'lims_product_sale_data' => $lims_product_sale_data,
             'lims_warehouse_data' => $lims_warehouse_data,
             'lims_customer_data' => $lims_customer_data,
-            'numberInWords' => $numberInWords
+            'numberInWords' => $numberInWords,
         ];
-//        return view('pdf.quotation_pdf', $data);
-        $pdf = PDF::loadView('pdf.quotation_pdf', $data);
 
+        $pdf = PDF::loadView('pdf.quotation_pdf', $data)->setPaper('A4', 'portrait');
         $content = $pdf->download()->getOriginalContent();
 
-        Storage::put('public/quotation/quotation_invoice.pdf',$content);
-        $path = storage_path('app/public/quotation/quotation_invoice.pdf');
+        Storage::put('public/quotation/quotation_invoice.pdf', $content);
 
-        $message = 'Quotation notification sent successfully';
-        try{
-            $this->wpPDFMessage($path, $lims_customer_data, 'quotation_invoice.pdf');
+        return storage_path('app/public/quotation/quotation_invoice.pdf');
+    }
+
+    public function genPDFInvoice($id)
+    {
+        $lims_sale_data = Quotation::findOrFail($id);
+        $lims_customer_data = Customer::find($lims_sale_data->customer_id);
+
+        $message = 'Quotation PDF sent via WhatsApp with system header and footer.';
+        try {
+            $path = $this->buildQuotationPdf($id);
+            $filename = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_sale_data->reference_no).'.pdf';
+            $this->wpPDFMessage($path, $lims_customer_data, $filename);
+        } catch (\Throwable $e) {
+            \Log::error('Quotation WhatsApp PDF failed: '.$e->getMessage());
+            $message = 'Quotation PDF could not be sent: '.$e->getMessage();
         }
-        catch(\Exception $e){
-            $message = 'Quotation notification not sent: ' . $e->getMessage();
-        }
+
         return back()->with('message', $message);
     }
 
@@ -569,7 +569,16 @@ class QuotationController extends Controller
             $message = 'Quotation saved, but WhatsApp approval link could not be sent: '.$e->getMessage();
         }
 
-        // Optional QR attachment — must never fail the quotation save (writable under public/images)
+        // Branded quotation PDF (header / footer / watermark) — same as preview WhatsApp button
+        try {
+            $pdfPath = $this->buildQuotationPdf($lims_quotation_data->id);
+            $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_quotation_data->reference_no).'.pdf';
+            $this->wpPDFMessage($pdfPath, $lims_customer_data, $pdfName);
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation branded PDF WhatsApp attach skipped: '.$e->getMessage());
+        }
+
+        // Optional QR attachment — must never fail the quotation save
         try {
             $path = public_path('images/quotations/qr');
             if (! File::isDirectory($path)) {

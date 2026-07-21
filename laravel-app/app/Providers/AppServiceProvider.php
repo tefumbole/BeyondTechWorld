@@ -50,6 +50,10 @@ class AppServiceProvider extends ServiceProvider
 
         //get general setting value
         $general_setting = DB::table('general_settings')->latest()->first();
+        // Live version from laravel-app/VERSION (updated on each commit/push)
+        if ($general_setting) {
+            $general_setting->app_version = \App\Support\AppVersion::erp();
+        }
         $currency = $general_setting ? (\App\Currency::find($general_setting->currency) ?? '') : '';
         View::share('general_setting', $general_setting);
         View::share('currency', $currency);

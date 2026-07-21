@@ -1,5 +1,9 @@
 @php
-    $hasLetterhead = ($general_setting->invoice_format ?? '') == 'beyond_a4' && !empty($general_setting->email_header);
+    // Letters: Beyond A4 + resolvable header. Quotations: set $use_system_letterhead = true.
+    $useSystemLetterhead = ! empty($use_system_letterhead);
+    $letterhead = $letterhead ?? \App\Support\Letterhead::resolve($general_setting ?? null);
+    $hasLetterhead = ! empty($letterhead['has_header'])
+        && ($useSystemLetterhead || ($general_setting->invoice_format ?? '') == 'beyond_a4');
 @endphp
 <style type="text/css">
     /* Reserve top/bottom page margins for the repeating letterhead & footer
