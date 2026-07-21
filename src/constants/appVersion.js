@@ -1,5 +1,5 @@
 /** Beyond Enterprise ERP release identifier — update when creating a new restore point. */
-export const APP_VERSION = 'ABT_ERP_V.2.2.45';
+export const APP_VERSION = 'ABT_ERP_V.2.2.46';
 
 export const APP_VERSION_LABEL = 'Version';
 
