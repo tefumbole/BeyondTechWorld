@@ -26,10 +26,21 @@ class BeyondWasenderService
             ->sendWhatsAppOtp($phone, $code, $label, 10);
     }
 
+    /**
+     * Public send — respects WHATSAPP_SERVICE (Twilio beyond_notice template when TWILIO).
+     */
     public function sendText($phone, $message)
     {
+        return app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppText($phone, $message);
+    }
+
+    /**
+     * Direct WasenderAPI send (used only as NotificationRouter fallback).
+     */
+    public function sendTextRaw($phone, $message)
+    {
         if (! $this->isConfigured()) {
-            // Same Wasender credentials as OTP / shareholders / bookings.
             if (app()->environment('local')) {
                 \Log::info('[beyond-whatsapp] Wasender not configured — message: '.$message);
 

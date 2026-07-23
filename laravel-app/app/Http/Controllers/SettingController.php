@@ -349,10 +349,10 @@ class SettingController extends Controller
         return view('setting.messaging_setting', [
             'whatsappEnabled' => $bool('MESSAGING_WHATSAPP_ENABLED', true),
             'smsEnabled' => $bool('MESSAGING_SMS_ENABLED', true),
-            'whatsappService' => strtoupper((string) EnvFile::get('WHATSAPP_SERVICE', 'WASENDER')),
+            'whatsappService' => strtoupper((string) EnvFile::get('WHATSAPP_SERVICE', 'TWILIO')),
             'defaultCountryCode' => EnvFile::get('WHATSAPP_DEFAULT_COUNTRY_CODE', '237'),
             'companyName' => EnvFile::get('COMPANY_NAME', 'Beyond Enterprise'),
-            'twilioFallback' => $bool('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
+            'twilioFallback' => $bool('WHATSAPP_TWILIO_FALLBACK_WASENDER', false),
             'wasenderApiKey' => EnvFile::get('WASENDER_API_KEY', ''),
             'wasenderSessionId' => EnvFile::get('WASENDER_SESSION_ID', ''),
             'wasenderBaseUrl' => EnvFile::get('WASENDER_BASE_URL', 'https://wasenderapi.com/api'),
@@ -366,7 +366,10 @@ class SettingController extends Controller
                 'HX47150e179fdbab79738d060fb0ac6415'
             ),
             'contentSidOtp' => EnvFile::get('TWILIO_WHATSAPP_CONTENT_SID_OTP', ''),
-            'contentSidStatus' => EnvFile::get('TWILIO_WHATSAPP_CONTENT_SID_STATUS', ''),
+            'contentSidStatus' => EnvFile::get(
+                'TWILIO_WHATSAPP_CONTENT_SID_STATUS',
+                'HX47150e179fdbab79738d060fb0ac6415'
+            ),
             'smsGateway' => strtolower((string) EnvFile::get('SMS_GATEWAY', 'twilio')),
             'accountSid' => EnvFile::get('ACCOUNT_SID', EnvFile::get('TWILIO_SID', '')),
             'authToken' => EnvFile::get('AUTH_TOKEN', EnvFile::get('TWILIO_AUTH_TOKEN', '')),
@@ -386,9 +389,9 @@ class SettingController extends Controller
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
         }
 
-        $whatsappService = strtoupper((string) $request->input('whatsapp_service', 'WASENDER'));
+        $whatsappService = strtoupper((string) $request->input('whatsapp_service', 'TWILIO'));
         if (! in_array($whatsappService, ['WASENDER', 'TWILIO'], true)) {
-            $whatsappService = 'WASENDER';
+            $whatsappService = 'TWILIO';
         }
 
         $smsGateway = strtolower((string) $request->input('sms_gateway', 'twilio'));
@@ -415,12 +418,14 @@ class SettingController extends Controller
             $authToken = $twilioAuthToken;
         }
 
-        $admissionSid = trim((string) $request->input(
-            'twilio_content_sid_admission',
-            'HX47150e179fdbab79738d060fb0ac6415'
-        ));
+        $beyondNoticeSid = 'HX47150e179fdbab79738d060fb0ac6415';
+        $admissionSid = trim((string) $request->input('twilio_content_sid_admission', $beyondNoticeSid));
         if ($admissionSid === '') {
-            $admissionSid = 'HX47150e179fdbab79738d060fb0ac6415';
+            $admissionSid = $beyondNoticeSid;
+        }
+        $statusSid = trim((string) $request->input('twilio_content_sid_status', $beyondNoticeSid));
+        if ($statusSid === '') {
+            $statusSid = $beyondNoticeSid;
         }
 
         $pairs = [
@@ -440,7 +445,7 @@ class SettingController extends Controller
             'TWILIO_WHATSAPP_FROM' => trim((string) $request->input('twilio_whatsapp_from', '')),
             'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION' => $admissionSid,
             'TWILIO_WHATSAPP_CONTENT_SID_OTP' => trim((string) $request->input('twilio_content_sid_otp', '')),
-            'TWILIO_WHATSAPP_CONTENT_SID_STATUS' => trim((string) $request->input('twilio_content_sid_status', '')),
+            'TWILIO_WHATSAPP_CONTENT_SID_STATUS' => $statusSid,
             'SMS_GATEWAY' => $smsGateway,
             'ACCOUNT_SID' => $accountSid,
             'AUTH_TOKEN' => $authToken,

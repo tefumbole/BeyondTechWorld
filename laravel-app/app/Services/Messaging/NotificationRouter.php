@@ -50,43 +50,22 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $provider = $this->whatsappProvider();
-
-        if ($provider === 'TWILIO') {
-            $statusSid = trim((string) config('services.whatsapp.content_sid_status', ''));
-            if ($statusSid !== '') {
-                $vars = $this->statusVariablesFrom($body, $statusVars);
-                $result = $this->twilioWhatsApp->sendContentTemplate($phone, $statusSid, $vars);
-                $result['provider'] = 'twilio';
-
-                if (! empty($result['success']) || ! $this->twilioFallbackWasender()) {
-                    return $result;
-                }
-
-                \Log::warning('[messaging] Twilio status template failed — falling back to Wasender', [
-                    'error' => $result['error'] ?? null,
-                ]);
-            } elseif ($this->twilioFallbackWasender() && $this->wasender->isConfigured()) {
-                \Log::info('[messaging] TWILIO selected but no status Content SID — Wasender fallback for free-form');
-            } else {
-                \Log::warning('[messaging] TWILIO free-form blocked (no content_sid_status and no Wasender fallback)');
-
-                return [
-                    'success' => false,
-                    'provider' => 'twilio',
-                    'error' => 'Twilio Content SID for status messages is not configured.',
-                ];
+        if ($this->whatsappProvider() === 'TWILIO') {
+            $result = $this->sendTwilioStatusTemplate($phone, $body, $statusVars);
+            if ($result !== null) {
+                return $result;
             }
         }
 
-        $result = $this->wasender->sendText($phone, $body);
+        $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
         return $result;
     }
 
     /**
-     * OTP always uses Wasender (Twilio OTP template not approved).
+     * OTP via Twilio beyond_notice Content Template when WHATSAPP_SERVICE=TWILIO.
+     * Wasender remains available as fallback when enabled.
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
@@ -99,16 +78,52 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $result = $this->wasender->sendText($phone, $message);
+        $purposeLabel = WhatsAppMessage::otpPurposeLabel($purpose);
+        $minutes = max(1, (int) $expiresMinutes);
+
+        if ($this->whatsappProvider() === 'TWILIO') {
+            $sid = $this->resolveNoticeContentSid('otp');
+
+            if ($sid !== '') {
+                $vars = $this->statusVariablesFrom($message, [
+                    'title' => 'Verification code',
+                    'name' => 'Client',
+                    'message' => 'Your one-time passcode (OTP) is '.$otp.'. It expires in '.$minutes.' minutes. Do not share this code.',
+                    'reference' => $purposeLabel,
+                    'details' => 'Expires in '.$minutes.' minutes',
+                ]);
+
+                $result = $this->twilioWhatsApp->sendContentTemplate($phone, $sid, $vars);
+                $result['provider'] = 'twilio';
+
+                if (! empty($result['success']) || ! $this->twilioFallbackWasender()) {
+                    return $result;
+                }
+
+                \Log::warning('[messaging] Twilio OTP template failed — falling back to Wasender', [
+                    'error' => $result['error'] ?? null,
+                ]);
+            } elseif (! $this->twilioFallbackWasender()) {
+                return [
+                    'success' => false,
+                    'provider' => 'twilio',
+                    'error' => 'Twilio Content SID for OTP/status messages is not configured.',
+                ];
+            } else {
+                \Log::info('[messaging] TWILIO selected but no OTP/status Content SID — Wasender fallback for OTP');
+            }
+        }
+
+        $result = $this->wasender->sendTextRaw($phone, $message);
         $result['provider'] = 'wasender';
 
         return $result;
     }
 
     /**
-     * Announcements always use Wasender (free-form / bulk; not Twilio Content Templates).
+     * Announcements use the same Twilio beyond_notice template when provider is TWILIO.
      *
-     * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool}
+     * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
     public function sendWhatsAppAnnouncement($phone, $body)
     {
@@ -118,14 +133,27 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $result = $this->wasender->sendText($phone, $body);
+        if ($this->whatsappProvider() === 'TWILIO') {
+            $result = $this->sendTwilioStatusTemplate($phone, $body, [
+                'title' => 'Announcement',
+                'name' => 'Client',
+                'message' => $this->truncate((string) $body, 800),
+                'reference' => 'Announcement',
+                'details' => '-',
+            ]);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
         return $result;
     }
 
     /**
-     * Approved admission Content Template (HX47150e…).
+     * Admission / hired notice via beyond_notice (5 vars: headline, name, message, reference, extra).
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,sid?:string}
      */
@@ -136,16 +164,19 @@ class NotificationRouter
         }
 
         $provider = $this->whatsappProvider();
-        $sid = trim((string) config(
-            'services.whatsapp.content_sid_admission',
-            'HX47150e179fdbab79738d060fb0ac6415'
-        ));
+        $company = WhatsAppMessage::companyName();
+        $body = "Your application to {$programName} has been successfully received. "
+            ."You have been admitted to the {$departmentName} programme for the {$yearName} academic year. "
+            .'Your admission letter is attached to this message. Welcome to our institution!';
 
         if ($provider === 'TWILIO') {
+            $sid = $this->resolveNoticeContentSid('admission');
             $result = $this->twilioWhatsApp->sendContentTemplate($phone, $sid, [
-                '1' => $programName,
-                '2' => $departmentName,
-                '3' => $yearName,
+                '1' => 'Congratulations',
+                '2' => 'Client',
+                '3' => $this->truncate($body, 800),
+                '4' => $programName !== '' ? $programName : '-',
+                '5' => trim($departmentName.($yearName !== '' ? ' · '.$yearName : '')) ?: '-',
             ], $mediaUrl);
             $result['provider'] = 'twilio';
 
@@ -154,15 +185,13 @@ class NotificationRouter
             }
         }
 
-        // Wasender fallback: plain-text equivalent of the admission notice
-        $company = WhatsAppMessage::companyName();
-        $body = "Dear Client\n\nCongratulations!\n\n"
+        $wasenderBody = "Dear Client\n\nCongratulations!\n\n"
             ."Your application to *{$programName}* has been successful received. "
             ."You have been admitted to the *{$departmentName}* programme for the *{$yearName}* academic year.\n\n"
             .'Your admission letter is attached to this message.'."\n\n"
             ."Welcome to our institution!\n\n_{$company}_";
 
-        $result = $this->wasender->sendText($phone, $body);
+        $result = $this->wasender->sendTextRaw($phone, $wasenderBody);
         $result['provider'] = 'wasender';
 
         return $result;
@@ -233,7 +262,77 @@ class NotificationRouter
     }
 
     /**
-     * Map free-form body into beyond_status_notice-style variables when SID is set.
+     * Send via status Content SID. Returns null when caller should try Wasender.
+     *
+     * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
+     * @return array{success:bool,provider?:string,error?:string,sid?:string}|null
+     */
+    protected function sendTwilioStatusTemplate($phone, $body, array $statusVars = [])
+    {
+        $statusSid = $this->resolveNoticeContentSid('status');
+        if ($statusSid !== '') {
+            $vars = $this->statusVariablesFrom($body, $statusVars);
+            $result = $this->twilioWhatsApp->sendContentTemplate($phone, $statusSid, $vars);
+            $result['provider'] = 'twilio';
+
+            if (! empty($result['success']) || ! $this->twilioFallbackWasender()) {
+                return $result;
+            }
+
+            \Log::warning('[messaging] Twilio status template failed — falling back to Wasender', [
+                'error' => $result['error'] ?? null,
+            ]);
+
+            return null;
+        }
+
+        if ($this->twilioFallbackWasender() && $this->wasender->isConfigured()) {
+            \Log::info('[messaging] TWILIO selected but no status Content SID — Wasender fallback for free-form');
+
+            return null;
+        }
+
+        \Log::warning('[messaging] TWILIO free-form blocked (no content_sid_status and no Wasender fallback)');
+
+        return [
+            'success' => false,
+            'provider' => 'twilio',
+            'error' => 'Twilio Content SID for status messages is not configured.',
+        ];
+    }
+
+    /**
+     * beyond_notice Content SID (HX47150e…). Prefer role-specific env, else shared default.
+     *
+     * @param  string  $role  status|otp|admission
+     */
+    protected function resolveNoticeContentSid($role = 'status')
+    {
+        $default = 'HX47150e179fdbab79738d060fb0ac6415';
+        $role = strtolower((string) $role);
+
+        if ($role === 'otp') {
+            $otp = trim((string) config('services.whatsapp.content_sid_otp', ''));
+            if ($otp !== '') {
+                return $otp;
+            }
+        }
+
+        if ($role === 'admission') {
+            $admission = trim((string) config('services.whatsapp.content_sid_admission', ''));
+            if ($admission !== '') {
+                return $admission;
+            }
+        }
+
+        $status = trim((string) config('services.whatsapp.content_sid_status', ''));
+
+        return $status !== '' ? $status : $default;
+    }
+
+    /**
+     * Map free-form body into beyond_notice variables:
+     * {{1}} headline, {{2}} name, {{3}} main message, {{4}} reference, {{5}} extra.
      *
      * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
      * @return array<string,string>

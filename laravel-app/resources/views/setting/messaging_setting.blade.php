@@ -18,9 +18,9 @@
                         <div class="alert alert-info">
                             <strong>Routing policy:</strong>
                             <ul class="mb-0 pl-3">
-                                <li><strong>Wasender</strong> — always used for <em>OTP</em> and <em>Announcements</em> (OTP Twilio template not approved).</li>
-                                <li><strong>Twilio</strong> — used for approved Content Templates (e.g. admission/hired) when provider is set to Twilio.</li>
-                                <li>Keep Wasender credentials filled even when Twilio is the primary provider.</li>
+                                <li><strong>Wasender</strong> — all WhatsApp text/OTP/announcements when provider is Wasender.</li>
+                                <li><strong>Twilio</strong> — OTP, announcements, and status texts use Content Templates when provider is Twilio. Admission/hired uses the admission SID.</li>
+                                <li>Keep Wasender credentials filled for PDF attachments and optional fallback while you test Twilio.</li>
                             </ul>
                         </div>
                         {!! Form::open(['route' => 'setting.messagingStore', 'method' => 'post']) !!}
@@ -52,10 +52,10 @@
                                     <div class="form-group">
                                         <label>Provider *</label>
                                         <select class="form-control" name="whatsapp_service" id="whatsapp_service">
-                                            <option value="WASENDER" @if($whatsappService === 'WASENDER') selected @endif>Wasender (all messages)</option>
-                                            <option value="TWILIO" @if($whatsappService === 'TWILIO') selected @endif>Twilio templates + Wasender for OTP/announcements</option>
+                                            <option value="TWILIO" @if($whatsappService === 'TWILIO') selected @endif>Twilio (beyond_notice — all messages)</option>
+                                            <option value="WASENDER" @if($whatsappService === 'WASENDER') selected @endif>Wasender (free-form)</option>
                                         </select>
-                                        <small class="text-muted">OTP and announcements always use Wasender regardless of this setting.</small>
+                                        <small class="text-muted">Twilio sends every text/OTP/announcement through the beyond_notice Content Template. Clear or comment Wasender keys for Twilio-only.</small>
                                     </div>
                                     <div class="form-group">
                                         <label>Default country code</label>
@@ -66,17 +66,17 @@
                                         <input type="text" name="company_name" class="form-control" value="{{ $companyName }}">
                                     </div>
                                     <div class="form-group">
-                                        <label>When Twilio cannot send free-form, fall back to Wasender</label>
+                                        <label>When Twilio fails, fall back to Wasender</label>
                                         <select class="form-control" name="twilio_fallback_wasender">
-                                            <option value="true" @if($twilioFallback) selected @endif>Yes (recommended)</option>
-                                            <option value="false" @if(! $twilioFallback) selected @endif>No</option>
+                                            <option value="false" @if(! $twilioFallback) selected @endif>No (Twilio-only)</option>
+                                            <option value="true" @if($twilioFallback) selected @endif>Yes</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
 
                             <div id="wasender-fields" class="row mt-2">
-                                <div class="col-md-12"><h6>Wasender credentials</h6></div>
+                                <div class="col-md-12"><h6>Wasender credentials (optional when Twilio-only)</h6></div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>WASENDER_API_KEY</label>
@@ -105,7 +105,7 @@
 
                             <div id="twilio-wa-fields" class="row mt-2">
                                 <div class="col-md-12"><h6>Twilio WhatsApp credentials</h6>
-                                    <p class="text-muted small">Account SID / Auth Token can match SMS Twilio keys. Content SID for admission defaults to your approved template.</p>
+                                    <p class="text-muted small">beyond_notice template: @{{1}} headline, @{{2}} name, @{{3}} message, @{{4}} reference, @{{5}} extra. SID defaults to HX47150e179fdbab79738d060fb0ac6415.</p>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -123,16 +123,20 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Admission Content SID *</label>
-                                        <input type="text" name="twilio_content_sid_admission" class="form-control" value="{{ $contentSidAdmission }}">
-                                        <small class="text-muted">Variables: @{{1}} programme, @{{2}} department, @{{3}} year — used for Hired/admission</small>
+                                        <label>Status / beyond_notice Content SID *</label>
+                                        <input type="text" name="twilio_content_sid_status" class="form-control" value="{{ $contentSidStatus }}" placeholder="HX47150e179fdbab79738d060fb0ac6415">
+                                        <small class="text-muted">Used for OTP, announcements, quotations, bookings, and all generic texts.</small>
                                     </div>
                                     <div class="form-group">
-                                        <label>Status / generic Content SID (optional)</label>
-                                        <input type="text" name="twilio_content_sid_status" class="form-control" value="{{ $contentSidStatus }}" placeholder="Other approved templates; leave empty for Wasender">
+                                        <label>Admission Content SID</label>
+                                        <input type="text" name="twilio_content_sid_admission" class="form-control" value="{{ $contentSidAdmission }}">
+                                        <small class="text-muted">Defaults to the same beyond_notice SID (mapped into the 5 variables).</small>
                                     </div>
-                                    <input type="hidden" name="twilio_content_sid_otp" value="">
-                                    <p class="text-muted small mb-0">OTP Content SID is not used — OTP always sends via Wasender.</p>
+                                    <div class="form-group">
+                                        <label>OTP Content SID (optional)</label>
+                                        <input type="text" name="twilio_content_sid_otp" class="form-control" value="{{ $contentSidOtp }}" placeholder="Leave empty to reuse beyond_notice">
+                                        <small class="text-muted">If empty, OTP uses the Status / beyond_notice SID.</small>
+                                    </div>
                                 </div>
                             </div>
 

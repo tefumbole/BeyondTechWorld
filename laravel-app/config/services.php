@@ -31,7 +31,9 @@ return [
     ],
 
     'whatsapp' => [
-        'service' => env('WHATSAPP_SERVICE', 'WASENDER'),
+        // TWILIO = all texts/OTP/announcements via beyond_notice Content Template.
+        // WASENDER = free-form WasenderAPI (comment/clear Wasender keys when on Twilio-only).
+        'service' => env('WHATSAPP_SERVICE', 'TWILIO'),
         'enabled' => env('MESSAGING_WHATSAPP_ENABLED', true),
         'wasender_api_key' => env('WASENDER_API_KEY'),
         'wasender_session_id' => env('WASENDER_SESSION_ID'),
@@ -48,13 +50,17 @@ return [
         'twilio_sid' => env('TWILIO_SID', env('ACCOUNT_SID')),
         'twilio_token' => env('TWILIO_AUTH_TOKEN', env('AUTH_TOKEN')),
         'twilio_whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        // beyond_notice — 5 vars: headline, name, message, reference, extra
         'content_sid_admission' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION',
             'HX47150e179fdbab79738d060fb0ac6415'
         ),
         'content_sid_otp' => env('TWILIO_WHATSAPP_CONTENT_SID_OTP'),
-        'content_sid_status' => env('TWILIO_WHATSAPP_CONTENT_SID_STATUS'),
-        'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
+        'content_sid_status' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_STATUS',
+            'HX47150e179fdbab79738d060fb0ac6415'
+        ),
+        'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', false),
     ],
 
     'sms' => [
