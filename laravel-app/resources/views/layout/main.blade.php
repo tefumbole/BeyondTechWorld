@@ -2342,6 +2342,14 @@
                                     ['permission_id', $reward_point_setting_permission->id],
                                     ['role_id', $role->id]
                                 ])->first();
+
+                                $empty_database_permission = DB::table('permissions')->where('name', 'empty_database')->first();
+                                $empty_database_permission_active = $empty_database_permission
+                                    ? DB::table('role_has_permissions')->where([
+                                        ['permission_id', $empty_database_permission->id],
+                                        ['role_id', $role->id]
+                                    ])->first()
+                                    : null;
                                 ?>
                                 @if($role->name == 'Admin')
                                     <li id="role-menu"><a href="{{route('role.index')}}">{{trans('file.Role Permission')}}</a></li>
@@ -2373,11 +2381,20 @@
                                     <li id="tax-menu"><a href="{{route('tax.index')}}">{{trans('file.Tax')}}</a></li>
                                 @endif
                                 <li id="user-menu"><a href="{{route('user.profile', ['id' => Auth::id()])}}">{{trans('file.User Profile')}}</a></li>
+                                <li id="my-transactions-menu"><a href="{{url('my-transactions/'.date('Y').'/'.date('m'))}}">{{trans('file.My Transaction')}}</a></li>
+                                @if(Auth::user()->role_id != 5)
+                                    <li id="my-holiday-menu"><a href="{{url('holidays/my-holiday/'.date('Y').'/'.date('m'))}}">{{trans('file.My Holiday')}}</a></li>
+                                @endif
                                 @if($create_sms_permission_active)
                                     <li id="create-sms-menu"><a href="{{route('setting.createSms')}}">{{trans('file.Create SMS')}}</a></li>
                                 @endif
                                 @if($backup_database_permission_active)
                                     <li id="backup-database-menu"><a href="{{route('setting.backup')}}">{{trans('file.Backup Database')}}</a></li>
+                                @endif
+                                @if($empty_database_permission_active)
+                                    <li id="empty-database-menu">
+                                        <a onclick="return confirm('Are you sure want to delete? If you do this all of your data will be lost.')" href="{{route('setting.emptyDatabase')}}">{{trans('file.Empty Database')}}</a>
+                                    </li>
                                 @endif
                                 @if($general_setting_permission_active)
                                     <li id="general-setting-menu"><a href="{{route('setting.general')}}">{{trans('file.General Setting')}}</a></li>
@@ -2500,12 +2517,6 @@
                           ['permission_id', $add_permission->id],
                           ['role_id', $role->id]
                       ])->first();
-
-                      $empty_database_permission = DB::table('permissions')->where('name', 'empty_database')->first();
-                      $empty_database_permission_active = DB::table('role_has_permissions')->where([
-                          ['permission_id', $empty_database_permission->id],
-                          ['role_id', $role->id]
-                      ])->first();
                     ?>
                     @if($add_permission_active)
                     <li class="nav-item"><a class="dropdown-item btn-pos btn-sm" href="{{route('sale.pos')}}"><i class="dripicons-shopping-bag"></i><span> POS</span></a></li>
@@ -2601,33 +2612,6 @@
                                 <a href="{{ url('language_switch/lao') }}" class="btn btn-link"> Lao</a>
                               </li>
                           </ul>
-                    </li>
-                    <li class="nav-item">
-                      <a rel="nofollow" data-target="#" href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" class="nav-link dropdown-item"><i class="dripicons-user"></i> <span>{{ucfirst(Auth::user()->name)}}</span> <i class="fa fa-angle-down"></i>
-                      </a>
-                      <ul class="right-sidebar">
-                          <li>
-                            <a href="{{route('user.profile', ['id' => Auth::id()])}}"><i class="dripicons-user"></i> {{trans('file.profile')}}</a>
-                          </li>
-                          @if($general_setting_permission_active)
-                          <li>
-                            <a href="{{route('setting.general')}}"><i class="dripicons-gear"></i> {{trans('file.settings')}}</a>
-                          </li>
-                          @endif
-                          <li>
-                            <a href="{{url('my-transactions/'.date('Y').'/'.date('m'))}}"><i class="dripicons-swap"></i> {{trans('file.My Transaction')}}</a>
-                          </li>
-                          @if(Auth::user()->role_id != 5)
-                          <li>
-                            <a href="{{url('holidays/my-holiday/'.date('Y').'/'.date('m'))}}"><i class="dripicons-vibrate"></i> {{trans('file.My Holiday')}}</a>
-                          </li>
-                          @endif
-                          @if($empty_database_permission_active)
-                          <li>
-                            <a onclick="return confirm('Are you sure want to delete? If you do this all of your data will be lost.')" href="{{route('setting.emptyDatabase')}}"><i class="dripicons-stack"></i> {{trans('file.Empty Database')}}</a>
-                          </li>
-                          @endif
-                      </ul>
                     </li>
                   </ul>
                 </div>
