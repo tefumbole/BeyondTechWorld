@@ -129,12 +129,16 @@ class HomeController extends Controller
     protected function forceSendOTP($user)
     {
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $msg = \App\Support\WhatsAppMessage::otpMessage($otp);
+        $phone = trim((string) $user->phone);
+        if ($phone === '') {
+            throw new \Exception('No phone number on this account for WhatsApp OTP.');
+        }
 
-        try {
-            $this->wpMessage($user->phone, $msg);
-        } catch (\Exception $e) {
-            throw new \Exception('Could not send OTP via WhatsApp: ' . $e->getMessage());
+        $result = app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppOtp($phone, $otp, 'login', 10);
+
+        if (empty($result['success'])) {
+            throw new \Exception('Could not send OTP via WhatsApp: '.($result['error'] ?? 'unknown error'));
         }
 
         $user->update(['otp' => $otp, 'otp_time' => date('Y-m-d H:i:s')]);

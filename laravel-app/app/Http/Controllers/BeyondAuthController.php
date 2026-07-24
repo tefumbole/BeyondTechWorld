@@ -300,7 +300,7 @@ class BeyondAuthController extends Controller
                 $needsOtp = false;
             }
             if ($needsOtp) {
-                Auth::user()->update(['otp_verify' => 0]);
+                Auth::user()->update(['otp_verify' => 0, 'otp' => null, 'otp_time' => null]);
 
                 return redirect()->route('check.otp');
             }
@@ -310,7 +310,15 @@ class BeyondAuthController extends Controller
 
         // ERP shop-customer role (legacy POS customer login)
         Auth::user()->update(['otp_verify' => 0]);
-        $otp = app(LoginController::class)->sendOTP(Auth::user()->phone);
+        try {
+            $otp = app(LoginController::class)->sendOTP(Auth::user()->phone);
+        } catch (\Throwable $e) {
+            Auth::guard('web')->logout();
+
+            return back()->withInput()->withErrors([
+                'identifier' => 'Login succeeded but WhatsApp OTP failed: '.$e->getMessage(),
+            ]);
+        }
         Session::put('otp', $otp);
 
         return redirect()->route('otp_screen');

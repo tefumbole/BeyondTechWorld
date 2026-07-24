@@ -16,7 +16,7 @@ class AnnouncementNotificationService extends Controller
             return false;
         }
         try {
-            // Announcements always go through Wasender (not Twilio Content Templates).
+            // Uses NotificationRouter: Twilio beyond_notice when WHATSAPP_SERVICE=TWILIO.
             $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message);
 
             return ! empty($result['success']);

@@ -43,11 +43,16 @@ class LoginController extends Controller
     public function sendOTP($phone)
     {
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $msg = \App\Support\WhatsAppMessage::otpMessage($otp);
-        try {
-            $this->wpMessage($phone, $msg);
-        } catch (\Exception $e) {
-            return $otp;
+        $result = app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppOtp($phone, $otp, 'login', 10);
+
+        if (empty($result['success'])) {
+            \Log::warning('[login-otp] send failed', [
+                'phone' => $phone,
+                'error' => $result['error'] ?? null,
+                'provider' => $result['provider'] ?? null,
+            ]);
+            throw new \Exception($result['error'] ?? 'Failed to send WhatsApp OTP.');
         }
 
         return $otp;
