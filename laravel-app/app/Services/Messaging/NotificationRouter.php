@@ -123,9 +123,10 @@ class NotificationRouter
     /**
      * Announcements use the same Twilio beyond_notice template when provider is TWILIO.
      *
+     * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
-    public function sendWhatsAppAnnouncement($phone, $body)
+    public function sendWhatsAppAnnouncement($phone, $body, array $statusVars = [])
     {
         if (! $this->whatsappEnabled()) {
             \Log::info('[messaging] WhatsApp disabled — skip announcement');
@@ -134,13 +135,13 @@ class NotificationRouter
         }
 
         if ($this->whatsappProvider() === 'TWILIO') {
-            $result = $this->sendTwilioStatusTemplate($phone, $body, [
+            $result = $this->sendTwilioStatusTemplate($phone, $body, array_merge([
                 'title' => 'Announcement',
                 'name' => 'Client',
                 'message' => $this->truncate((string) $body, 800),
                 'reference' => 'Announcement',
                 'details' => '-',
-            ]);
+            ], $statusVars));
             if ($result !== null) {
                 return $result;
             }

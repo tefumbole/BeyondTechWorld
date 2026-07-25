@@ -10,14 +10,17 @@ use Illuminate\Support\Facades\Log;
 
 class AnnouncementNotificationService extends Controller
 {
-    protected function sendPhone($phone, $message)
+    /**
+     * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
+     */
+    protected function sendPhone($phone, $message, array $statusVars = [])
     {
         if (empty(trim((string) $phone))) {
             return false;
         }
         try {
             // Uses NotificationRouter: Twilio beyond_notice when WHATSAPP_SERVICE=TWILIO.
-            $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message);
+            $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message, $statusVars);
 
             return ! empty($result['success']);
         } catch (\Exception $e) {
@@ -25,6 +28,32 @@ class AnnouncementNotificationService extends Controller
 
             return false;
         }
+    }
+
+    /**
+     * Map announcement fields into beyond_notice variables:
+     * {{1}} headline, {{2}} name, {{3}} message, {{4}} reference, {{5}} extra.
+     */
+    protected function twilioVars(WaAnnouncement $announcement, array $person, $message)
+    {
+        $name = trim((string) ($person['name'] ?? ''));
+        $subject = trim((string) ($announcement->subject ?? ''));
+        $reference = trim((string) ($announcement->reference ?? ''));
+
+        $plain = trim(preg_replace('/\s+/', ' ', strip_tags((string) $message)));
+        if (mb_strlen($plain) > 800) {
+            $plain = rtrim(mb_substr($plain, 0, 799)).'…';
+        }
+
+        return [
+            'title' => $subject !== '' ? $subject : 'Announcement',
+            'name' => $name !== '' ? $name : 'Client',
+            'message' => $plain !== '' ? $plain : '-',
+            'reference' => $reference !== '' ? $reference : 'Announcement',
+            'details' => ! empty($announcement->scheduled_for)
+                ? 'Scheduled '.$announcement->scheduled_for->format('d M Y H:i')
+                : 'Beyond announcement',
+        ];
     }
 
     protected function sendAttachment($phone, WaAnnouncement $announcement)
@@ -62,7 +91,7 @@ class AnnouncementNotificationService extends Controller
             $ok = false;
             if ($announcement->send_whatsapp) {
                 $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
-                $ok = $this->sendPhone($phone, $msg);
+                $ok = $this->sendPhone($phone, $msg, $this->twilioVars($announcement, $person, $msg));
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
                     $sent++;
@@ -83,7 +112,7 @@ class AnnouncementNotificationService extends Controller
             $ok = false;
             if ($announcement->send_whatsapp) {
                 $msg = AnnouncementPersonalization::buildMessage($announcement, $person, true);
-                $ok = $this->sendPhone($phone, $msg);
+                $ok = $this->sendPhone($phone, $msg, $this->twilioVars($announcement, $person, $msg));
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
                     $ccSent++;
