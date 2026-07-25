@@ -74,4 +74,35 @@ class AnnouncementPersonalization
 
         return implode("\n", $lines);
     }
+
+    /**
+     * Clean body for Twilio beyond_notice {{3}} — no Ref/header/subject wrappers
+     * (those map to other template variables and the template already greets the client).
+     */
+    public static function buildTwilioBody($announcement, array $person, $isCc = false)
+    {
+        $settingsInstitution = $announcement->header ?: 'Beyond Enterprise';
+        $vars = self::recipientVars($person, $announcement->reference ?: '', $settingsInstitution);
+        $body = trim(self::personalize($announcement->body ?: '', $vars));
+        $footer = trim(self::personalize($announcement->footer ?: '', $vars));
+
+        $parts = [];
+        if ($isCc) {
+            $parts[] = 'You have been CC\'d on this announcement.';
+        }
+        if ($body !== '') {
+            $parts[] = $body;
+        }
+        if ($footer !== '') {
+            $parts[] = $footer;
+        }
+
+        $text = trim(implode("\n\n", $parts));
+        // WhatsApp template variables are plain text — strip markdown emphasis.
+        $text = preg_replace('/\*+/', '', $text);
+        $text = preg_replace('/_+/', '', $text);
+        $text = trim(preg_replace("/[ \t]+/", ' ', str_replace(["\r\n", "\r"], "\n", $text)));
+
+        return $text;
+    }
 }
