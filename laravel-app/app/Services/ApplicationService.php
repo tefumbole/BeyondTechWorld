@@ -49,6 +49,12 @@ class ApplicationService
             'phone' => $whatsapp,
             'whatsapp_number' => $whatsapp,
             'country' => $data['country'] ?? null,
+            'school' => $job->isInternship() ? trim((string) ($data['school'] ?? '')) : null,
+            'level_of_study' => $job->isInternship() ? trim((string) ($data['level_of_study'] ?? '')) : null,
+            'education_status' => $job->isInternship() ? ($data['education_status'] ?? null) : null,
+            'is_academic_required' => $job->isInternship()
+                ? filter_var($data['is_academic_required'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                : null,
             'cover_letter' => $data['cover_letter'] ?? null,
             'expected_salary' => $job->isInternship() ? null : ($data['expected_salary'] ?? null),
             'availability' => $data['availability'] ?? 'Immediately',
@@ -62,6 +68,16 @@ class ApplicationService
         ];
 
         if ($job->isInternship()) {
+            if ($payload['school'] === '') {
+                $payload['school'] = null;
+            }
+            if ($payload['level_of_study'] === '') {
+                $payload['level_of_study'] = null;
+            }
+            // Graduated candidates are not on an academic-required internship by default.
+            if (($payload['education_status'] ?? null) === 'graduated') {
+                $payload['is_academic_required'] = false;
+            }
             if (! empty($extraFiles['student_id'])) {
                 $payload['student_id_path'] = $this->storeUploadFlexible($extraFiles['student_id'], 'student_id_front', $job->id);
             }
@@ -253,6 +269,8 @@ class ApplicationService
                 $this->notifier->selected($application, $application->job, $url);
             } elseif ($status === Application::STATUS_REJECTED) {
                 $this->notifier->rejected($application, $application->job);
+            } elseif ($status === Application::STATUS_HIRED) {
+                $this->notifier->hiredAdmission($application, $application->job);
             } elseif ($status === Application::STATUS_AWAITING && $previous !== Application::STATUS_AWAITING) {
                 $this->notifier->underReview($application, $application->job);
             }
@@ -271,6 +289,7 @@ class ApplicationService
 
         if ($application->job) {
             $this->notifier->agreementSigned($application, $application->job);
+            $this->notifier->hiredAdmission($application, $application->job);
         }
 
         return $application;

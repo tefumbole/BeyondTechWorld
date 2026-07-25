@@ -44,6 +44,18 @@
                     </table>
                 </div>
 
+                @if($isInternship || $app->school || $app->level_of_study || $app->education_status)
+                <div class="jb-card">
+                    <h5 style="color:#0b3f90;font-weight:800;">Education</h5>
+                    <table class="table table-sm mb-0">
+                        <tr><th style="width:200px;">School / Institution</th><td>{{ $app->school ?: '—' }}</td></tr>
+                        <tr><th>Level of study</th><td>{{ $app->level_of_study ?: '—' }}</td></tr>
+                        <tr><th>Student / Graduated</th><td>{{ $app->educationStatusLabel() }}</td></tr>
+                        <tr><th>Academic-required internship</th><td>{{ $app->academicRequiredLabel() }}</td></tr>
+                    </table>
+                </div>
+                @endif
+
                 <div class="jb-card">
                     <h5 style="color:#0b3f90;font-weight:800;">Role applied for</h5>
                     <p class="mb-1"><strong>{{ optional($job)->title ?: '—' }}</strong>
@@ -139,7 +151,7 @@
                         @csrf
                         <div>
                             <label class="jb-label">Status</label>
-                            <select name="status" class="jb-field jb-status-select">
+                            <select name="status" class="jb-native-select jb-status-select" autocomplete="off">
                                 @foreach([
                                     'awaiting_approval' => 'Awaiting Approval',
                                     'selected' => 'Selected',
@@ -149,6 +161,13 @@
                                     <option value="{{ $st }}" @if($app->status === $st || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
+                            <style>
+                                .jb-native-select {
+                                    display:block;width:100%;min-height:38px;padding:8px 10px;
+                                    border:1px solid #0b3f90;border-radius:8px;background:#fff;color:#0b3f90;
+                                    font-weight:600;appearance:auto;-webkit-appearance:menulist;
+                                }
+                            </style>
                         </div>
                         <div>
                             <label class="jb-label jb-reason-label">Reason</label>

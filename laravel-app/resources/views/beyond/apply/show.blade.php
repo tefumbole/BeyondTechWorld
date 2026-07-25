@@ -155,7 +155,11 @@
 
                     <form method="POST" action="{{ route('apply.store', $job->id) }}" enctype="multipart/form-data"
                           class="p-5 md:p-6 space-y-5" id="apply-form"
-                          x-data="{ availability: '{{ old('availability', 'Immediately') }}' }">
+                          x-data="{
+                              availability: '{{ old('availability', 'Immediately') }}',
+                              educationStatus: '{{ old('education_status', 'currently_studying') }}',
+                              academicRequired: '{{ old('is_academic_required', '1') }}'
+                          }">
                         @csrf
 
                         <div>
@@ -201,6 +205,51 @@
                                 </div>
                             </div>
                         </div>
+
+                        @if($isInternship)
+                        <div>
+                            <h3 class="text-sm font-extrabold uppercase tracking-wide text-brand-blue mb-3 pb-2 border-b border-gray-100">Education</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">School / Institution *</label>
+                                    <input required name="school" value="{{ old('school') }}" type="text" placeholder="e.g. University of Bamenda" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
+                                </div>
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">Level of study *</label>
+                                    <select required name="level_of_study" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
+                                        <option value="">Select level…</option>
+                                        @foreach (['Secondary / High School', 'Certificate', 'Diploma / HND', 'Bachelor’s degree', 'Master’s degree', 'PhD / Doctorate', 'Other'] as $level)
+                                            <option value="{{ $level }}" @if(old('level_of_study') === $level) selected @endif>{{ $level }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-semibold text-gray-700">Are you still a student or have you graduated? *</label>
+                                    <select required name="education_status" x-model="educationStatus" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
+                                        <option value="currently_studying" @if(old('education_status', 'currently_studying') === 'currently_studying') selected @endif>Currently studying</option>
+                                        <option value="graduated" @if(old('education_status') === 'graduated') selected @endif>Graduated</option>
+                                    </select>
+                                </div>
+                                <div x-show="educationStatus === 'currently_studying'" x-cloak>
+                                    <label class="text-sm font-semibold text-gray-700">Is this an academic-required internship? *</label>
+                                    <p class="text-xs text-gray-500 mt-0.5">Choose Yes if your school/programme requires this internship for graduation.</p>
+                                    <select name="is_academic_required" x-model="academicRequired"
+                                            x-bind:disabled="educationStatus !== 'currently_studying'"
+                                            class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
+                                        <option value="1">Yes — required by my school / programme</option>
+                                        <option value="0">No — voluntary / personal development</option>
+                                    </select>
+                                </div>
+                                <template x-if="educationStatus === 'graduated'">
+                                    <input type="hidden" name="is_academic_required" value="0">
+                                </template>
+                                <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-0"
+                                   x-show="educationStatus === 'currently_studying' && academicRequired === '1'" x-cloak>
+                                    An internship letter from your school is required for academic internships.
+                                </p>
+                            </div>
+                        </div>
+                        @endif
 
                         <div>
                             <h3 class="text-sm font-extrabold uppercase tracking-wide text-brand-blue mb-3 pb-2 border-b border-gray-100">Documents</h3>
@@ -255,8 +304,26 @@
                                         @endforeach
                                     </div>
 
+                                    <div data-apply-doc data-facing="environment" data-title="Snap Internship Letter">
+                                        <label class="text-sm font-semibold text-gray-700">
+                                            Internship Letter
+                                            <span x-text="(educationStatus === 'currently_studying' && academicRequired === '1') ? '*' : '(optional)'"></span>
+                                        </label>
+                                        <input type="file" name="internship_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1">
+                                        <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-internship_letter">
+                                        <div class="mt-2 flex flex-wrap gap-2">
+                                            <label for="attach-internship_letter" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-brand-blue text-brand-blue text-xs font-bold cursor-pointer bg-white hover:bg-blue-50">
+                                                <i data-lucide="paperclip" class="w-3.5 h-3.5"></i> Attach file
+                                            </label>
+                                            <button type="button" data-doc-snap class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-brand-blue text-white text-xs font-bold hover:bg-brand-dark">
+                                                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Snap with camera
+                                            </button>
+                                        </div>
+                                        <p class="text-xs text-emerald-700 mt-1.5 min-h-[1rem]" data-doc-status>No file yet</p>
+                                        <img data-doc-preview alt="Internship Letter preview" class="hidden mt-2 max-h-28 rounded-md border border-emerald-200 object-cover">
+                                    </div>
+
                                     @foreach ([
-                                        ['internship_letter', 'Internship Letter', 'environment', 'Snap Internship Letter'],
                                         ['selfie', 'Selfie / Photo', 'user', 'Snap Selfie'],
                                     ] as [$field, $label, $facing, $snapTitle])
                                         <div data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}">

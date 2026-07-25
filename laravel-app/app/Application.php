@@ -17,6 +17,7 @@ class Application extends Model
 
     protected $fillable = [
         'id', 'job_id', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
+        'school', 'level_of_study', 'education_status', 'is_academic_required',
         'cover_letter', 'expected_salary', 'availability', 'availability_days',
         'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path', 'selfie_path',
         'signature_image', 'agreement_token', 'agreement_sent_at', 'agreement_signed_at',
@@ -25,6 +26,29 @@ class Application extends Model
     ];
 
     protected $dates = ['interview_date', 'submitted_at', 'agreement_sent_at', 'agreement_signed_at'];
+
+    protected $casts = [
+        'is_academic_required' => 'boolean',
+    ];
+
+    public function educationStatusLabel()
+    {
+        $map = [
+            'currently_studying' => 'Currently studying',
+            'graduated' => 'Graduated',
+        ];
+
+        return $map[$this->education_status] ?? ($this->education_status ?: '—');
+    }
+
+    public function academicRequiredLabel()
+    {
+        if ($this->is_academic_required === null) {
+            return '—';
+        }
+
+        return $this->is_academic_required ? 'Yes (academic requirement)' : 'No (voluntary)';
+    }
 
     public function job()
     {

@@ -7,11 +7,14 @@
 
         <div class="mb-4">
             <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
-            <p class="jb-subtitle">Click anywhere on a row (except Actions / Docs) to open the full application. Status changes notify candidates on WhatsApp.</p>
+            <p class="jb-subtitle">Click a name/contact/role cell to open the full application. Use the Actions dropdown to change status.</p>
         </div>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
+        @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
 
         <form method="GET" class="jb-card">
@@ -53,13 +56,14 @@
             </div>
         </form>
 
-        <div class="jb-card">
-            <div class="table-responsive" style="overflow:visible;">
-                <table class="table mb-0">
+        <div class="jb-card jb-apps-card">
+            <div class="table-responsive jb-apps-table-wrap">
+                <table class="table mb-0 jb-apps-table">
                     <thead>
                         <tr>
                             <th>Student Name</th>
                             <th>Contact</th>
+                            <th>Education</th>
                             <th>Role</th>
                             <th>Reference</th>
                             <th>Submitted</th>
@@ -78,6 +82,18 @@
                                 <td class="jb-nav-cell">
                                     <span class="text-muted small">{{ $app->email }}</span><br>
                                     <span class="text-muted small">WA: {{ $app->whatsapp_number ?: $app->phone ?: '—' }}</span>
+                                </td>
+                                <td class="jb-nav-cell small">
+                                    @if($app->school || $app->level_of_study || $app->education_status)
+                                        <strong>{{ $app->school ?: '—' }}</strong><br>
+                                        <span class="text-muted">{{ $app->level_of_study ?: '—' }}</span><br>
+                                        <span>{{ $app->educationStatusLabel() }}</span>
+                                        @if($app->education_status === 'currently_studying')
+                                            <br><span class="jb-badge">{{ $app->academicRequiredLabel() }}</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
                                 </td>
                                 <td class="jb-nav-cell">
                                     {{ optional($app->job)->title ?: '—' }}
@@ -109,10 +125,10 @@
                                     @endif
                                 </td>
                                 <td class="jb-nav-cell"><span class="jb-badge">{{ $app->statusLabel() }}</span></td>
-                                <td class="text-right jb-no-nav">
-                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form d-inline-flex flex-column align-items-end" style="gap:6px;min-width:200px;" onclick="event.stopPropagation();">
+                                <td class="text-right jb-no-nav jb-actions-cell">
+                                    <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form" style="display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:210px;">
                                         @csrf
-                                        <select name="status" class="jb-field jb-status-select form-control" style="width:100%;pointer-events:auto;position:relative;z-index:5;">
+                                        <select name="status" class="jb-native-select jb-status-select" autocomplete="off">
                                             @foreach([
                                                 'awaiting_approval' => 'Awaiting Approval',
                                                 'selected' => 'Selected (send agreement)',
@@ -122,13 +138,13 @@
                                                 <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}" style="width:100%;">
-                                        <button type="submit" class="btn btn-sm btn-primary" style="width:100%;">Save & Notify</button>
+                                        <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}">
+                                        <button type="submit" class="btn btn-sm btn-primary">Save &amp; Notify</button>
                                     </form>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">No applications found.</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted py-4">No applications found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -140,16 +156,39 @@
     </div>
 </section>
 <style>
+    .jb-apps-card { overflow: visible; }
+    .jb-apps-table-wrap { overflow: visible !important; }
+    .jb-apps-table { position: relative; }
     tr.jb-row-click td.jb-nav-cell { cursor: pointer; }
     tr.jb-row-click:hover td.jb-nav-cell { background: #f8fafc; }
-    td.jb-no-nav { cursor: default; }
-    td.jb-no-nav select,
-    td.jb-no-nav input,
-    td.jb-no-nav button {
+    td.jb-no-nav, td.jb-actions-cell { cursor: default; position: relative; z-index: 20; }
+    .jb-native-select {
+        display: block;
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #0b3f90;
+        border-radius: 8px;
+        background: #fff;
+        color: #0b3f90;
+        font-weight: 600;
+        font-size: 13px;
+        appearance: auto;
+        -webkit-appearance: menulist;
+        -moz-appearance: menulist;
         pointer-events: auto !important;
         position: relative;
-        z-index: 6;
+        z-index: 30;
     }
+    .jb-actions-cell .jb-field,
+    .jb-actions-cell .btn {
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 30;
+    }
+    /* Prevent bootstrap-select / theme from hijacking these */
+    .jb-native-select.bootstrap-select,
+    .jb-actions-cell .bootstrap-select { display: none !important; }
 </style>
 @endsection
 
@@ -166,12 +205,27 @@
         var status = $form.find('.jb-status-select').val();
         $form.find('.jb-reason-input').attr('placeholder', reasonPlaceholder(status));
     }
+
+    // Destroy bootstrap-select if theme auto-wrapped these selects
+    if ($.fn.selectpicker) {
+        $('.jb-status-select').each(function () {
+            var $el = $(this);
+            if ($el.parent().hasClass('bootstrap-select') || $el.data('selectpicker')) {
+                try { $el.selectpicker('destroy'); } catch (e) {}
+            }
+            $el.removeClass('selectpicker form-control');
+        });
+    }
+
+    $(document).on('mousedown click touchstart change', '.jb-actions-cell, .jb-status-form, .jb-native-select, .jb-reason-input', function (e) {
+        e.stopPropagation();
+    });
+
     $(document).on('change', '.jb-status-select', function () {
         syncReason($(this).closest('.jb-status-form'));
     });
     $('.jb-status-form').each(function () { syncReason($(this)); });
 
-    // Only navigate from data cells — never from Actions / Docs (keeps status dropdown usable)
     $(document).on('click', 'tr.jb-row-click td.jb-nav-cell', function () {
         var href = $(this).closest('tr').data('href');
         if (href) window.location.href = href;
