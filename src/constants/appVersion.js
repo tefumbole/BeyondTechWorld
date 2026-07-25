@@ -1,5 +1,5 @@
 /** Beyond Enterprise ERP release identifier — update when creating a new restore point. */
-export const APP_VERSION = 'BCL_ERP_V2.2.56';
+export const APP_VERSION = 'BCL_ERP_V2.2.57';
 
 export const APP_VERSION_LABEL = 'Version';
 
