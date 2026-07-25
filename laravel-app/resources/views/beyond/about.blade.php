@@ -89,8 +89,8 @@
                     </div>
                     <h3 class="text-2xl font-bold text-white">
                         {{ $leader->name }}
-                        @if($leader->countryFlag())
-                            <span class="ml-1" title="{{ $leader->country }}">{{ $leader->countryFlag() }}</span>
+                        @if($leader->country)
+                            <span class="ml-1" title="{{ $leader->country }}">{{ $leader->countryFlag() ?: '' }}</span>
                         @endif
                     </h3>
                     <p class="mt-1 text-sm font-semibold uppercase tracking-wide text-brand-gold">{{ $leader->title }}</p>

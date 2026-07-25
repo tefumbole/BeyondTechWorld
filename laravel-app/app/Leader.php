@@ -57,11 +57,37 @@ class Leader extends Model
 
     public function countryFlag()
     {
-        $map = self::countryFlags();
+        $name = trim((string) $this->country);
+        if ($name === '') {
+            return '';
+        }
 
-        return $map[$this->country] ?? '';
+        $map = self::countryFlags();
+        if (isset($map[$name])) {
+            return $map[$name];
+        }
+
+        foreach ($map as $key => $flag) {
+            if (strcasecmp($key, $name) === 0) {
+                return $flag;
+            }
+        }
+
+        return '';
     }
 
+    public function countryLabel()
+    {
+        $name = trim((string) $this->country);
+        if ($name === '') {
+            return '';
+        }
+        $flag = $this->countryFlag();
+
+        return trim(($flag ? $flag.' ' : '').$name);
+    }
+
+    /** name => flag emoji (empty string allowed). */
     public static function countryFlags()
     {
         return [
@@ -75,17 +101,73 @@ class Leader extends Model
             'South Africa' => '🇿🇦',
             'Ethiopia' => '🇪🇹',
             'Egypt' => '🇪🇬',
+            'Morocco' => '🇲🇦',
+            'Algeria' => '🇩🇿',
+            'Tunisia' => '🇹🇳',
+            'Senegal' => '🇸🇳',
+            "Côte d'Ivoire" => '🇨🇮',
             'Democratic Republic of the Congo' => '🇨🇩',
+            'Republic of the Congo' => '🇨🇬',
+            'Gabon' => '🇬🇦',
+            'Chad' => '🇹🇩',
+            'Central African Republic' => '🇨🇫',
+            'Equatorial Guinea' => '🇬🇶',
+            'Angola' => '🇦🇴',
+            'Zambia' => '🇿🇲',
+            'Zimbabwe' => '🇿🇼',
+            'Mozambique' => '🇲🇿',
+            'Botswana' => '🇧🇼',
+            'Namibia' => '🇳🇦',
+            'Burundi' => '🇧🇮',
+            'Malawi' => '🇲🇼',
+            'Mali' => '🇲🇱',
+            'Burkina Faso' => '🇧🇫',
+            'Niger' => '🇳🇪',
+            'Guinea' => '🇬🇳',
+            'Benin' => '🇧🇯',
+            'Togo' => '🇹🇬',
+            'Sierra Leone' => '🇸🇱',
+            'Liberia' => '🇱🇷',
+            'Sudan' => '🇸🇩',
+            'South Sudan' => '🇸🇸',
+            'Somalia' => '🇸🇴',
+            'Libya' => '🇱🇾',
             'United States' => '🇺🇸',
             'Canada' => '🇨🇦',
             'United Kingdom' => '🇬🇧',
+            'Ireland' => '🇮🇪',
             'France' => '🇫🇷',
             'Germany' => '🇩🇪',
+            'Spain' => '🇪🇸',
+            'Portugal' => '🇵🇹',
+            'Italy' => '🇮🇹',
+            'Netherlands' => '🇳🇱',
             'Belgium' => '🇧🇪',
-            'India' => '🇮🇳',
-            'China' => '🇨🇳',
+            'Switzerland' => '🇨🇭',
+            'Sweden' => '🇸🇪',
+            'Norway' => '🇳🇴',
+            'Denmark' => '🇩🇰',
+            'Finland' => '🇫🇮',
+            'Poland' => '🇵🇱',
+            'Russia' => '🇷🇺',
+            'Turkey' => '🇹🇷',
             'United Arab Emirates' => '🇦🇪',
-            'Other' => '',
+            'Saudi Arabia' => '🇸🇦',
+            'Qatar' => '🇶🇦',
+            'India' => '🇮🇳',
+            'Pakistan' => '🇵🇰',
+            'China' => '🇨🇳',
+            'Japan' => '🇯🇵',
+            'South Korea' => '🇰🇷',
+            'Indonesia' => '🇮🇩',
+            'Malaysia' => '🇲🇾',
+            'Singapore' => '🇸🇬',
+            'Philippines' => '🇵🇭',
+            'Australia' => '🇦🇺',
+            'New Zealand' => '🇳🇿',
+            'Brazil' => '🇧🇷',
+            'Argentina' => '🇦🇷',
+            'Mexico' => '🇲🇽',
         ];
     }
 }

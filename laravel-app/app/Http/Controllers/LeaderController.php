@@ -23,7 +23,7 @@ class LeaderController extends Controller
 
         return view('leaders.index', [
             'leaders' => Leader::ordered()->get(),
-            'countries' => array_keys(Leader::countryFlags()),
+            'countryFlags' => Leader::countryFlags(),
         ]);
     }
 
@@ -92,13 +92,18 @@ class LeaderController extends Controller
 
         $data = $request->validate($rules);
 
+        $country = isset($data['country']) ? trim((string) $data['country']) : '';
+        if ($country === '' || strcasecmp($country, 'Other') === 0) {
+            $country = null;
+        }
+
         return [
             'name' => trim($data['name']),
             'title' => trim($data['title']),
             'description' => isset($data['description']) ? trim($data['description']) : null,
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
-            'country' => $data['country'] ?? null,
+            'country' => $country,
         ];
     }
 
