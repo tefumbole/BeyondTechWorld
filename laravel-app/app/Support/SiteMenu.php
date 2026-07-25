@@ -35,6 +35,7 @@ class SiteMenu
         return [
             'dashboard'    => 'Dashboard',
             'site-content' => 'Site Content',
+            'leaders'      => 'About Us Leaders',
             'product'      => 'Product',
             'purchase'     => 'Purchase',
             'sale'         => 'Sale',

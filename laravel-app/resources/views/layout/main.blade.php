@@ -1001,6 +1001,7 @@
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
+                            <li><a href="{{ url('/admin/leaders') }}"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
                         @endif
                         <?php
                         $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
@@ -2450,6 +2451,7 @@
                                 return anchor;
                             }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';
+                            if (/\/admin\/leaders/.test(href)) return 'leaders';
                             if (/\/admin\/events/.test(href)) return 'events';
                             if (/\/admin\/?$/.test(href)) return 'dashboard';
                             return null;

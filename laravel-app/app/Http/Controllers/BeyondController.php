@@ -32,7 +32,9 @@ class BeyondController extends Controller
 
     public function about()
     {
-        return view('beyond.about');
+        return view('beyond.about', [
+            'leaders' => \App\Leader::published()->ordered()->get(),
+        ]);
     }
 
     public function services()

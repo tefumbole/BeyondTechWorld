@@ -271,6 +271,13 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/site-content/gallery/items/{id}/delete', 'SiteContentController@deleteGalleryItem')->name('site-content.gallery.delete');
     Route::post('/admin/site-content/gallery/reorder', 'SiteContentController@reorderGalleryItems')->name('site-content.gallery.reorder');
 
+    // About Us — Leaders (Alpha Bridge Members equivalent)
+    Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
+    Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');
+    Route::post('/admin/leaders/reorder', 'LeaderController@reorder')->name('leaders.reorder');
+    Route::post('/admin/leaders/{id}', 'LeaderController@update')->name('leaders.update');
+    Route::post('/admin/leaders/{id}/delete', 'LeaderController@destroy')->name('leaders.destroy');
+
     // Task Manager (admin)
     Route::get('/admin/tasks', 'TaskManagerController@dashboard')->name('tasks.dashboard');
     Route::get('/admin/tasks/create', 'TaskManagerController@create')->name('tasks.create');
