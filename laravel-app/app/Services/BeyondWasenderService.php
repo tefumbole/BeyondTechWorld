@@ -27,7 +27,7 @@ class BeyondWasenderService
     }
 
     /**
-     * Public send — respects WHATSAPP_SERVICE (Twilio beyond_notice template when TWILIO).
+     * Public send — respects WHATSAPP_SERVICE (Wasender by default; Twilio templates when TWILIO).
      */
     public function sendText($phone, $message)
     {

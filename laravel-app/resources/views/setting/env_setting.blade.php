@@ -27,14 +27,15 @@
                                 <a href="{{ route('setting.messaging') }}">Settings → Messaging Settings</a>
                                 to configure WhatsApp (Wasender / Twilio), SMS, and Content SIDs without editing this file.
                                 <pre class="mb-0 mt-2" style="font-size: 12px; background: #f8f9fa; padding: 12px; border-radius: 6px;"># WasenderAPI (also editable under Messaging Settings)
-# WASENDER_API_KEY=
-# WASENDER_SESSION_ID=
+WASENDER_API_KEY=your_session_api_key
+WASENDER_SESSION_ID=
 WASENDER_BASE_URL=https://wasenderapi.com/api
 WASENDER_MIN_SEND_INTERVAL_MS=6000
 WASENDER_TEXT_TO_DOCUMENT_DELAY_MS=6000
 COMPANY_NAME=Beyond Enterprise
-WHATSAPP_SERVICE=TWILIO
-WHATSAPP_TWILIO_FALLBACK_WASENDER=false
+WHATSAPP_SERVICE=WASENDER
+WHATSAPP_TWILIO_FALLBACK_WASENDER=true
+# Twilio keys below are for SMS (and optional WhatsApp templates if WHATSAPP_SERVICE=TWILIO)
 TWILIO_WHATSAPP_CONTENT_SID_ADMISSION=HX47150e179fdbab79738d060fb0ac6415
 TWILIO_WHATSAPP_CONTENT_SID_STATUS=HX47150e179fdbab79738d060fb0ac6415</pre>
                             </div>

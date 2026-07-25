@@ -31,9 +31,9 @@ return [
     ],
 
     'whatsapp' => [
-        // TWILIO = all texts/OTP/announcements via beyond_notice Content Template.
-        // WASENDER = free-form WasenderAPI (comment/clear Wasender keys when on Twilio-only).
-        'service' => env('WHATSAPP_SERVICE', 'TWILIO'),
+        // WASENDER = WhatsApp texts/OTP/announcements/documents via WasenderAPI.
+        // TWILIO = optional WhatsApp Content Templates; SMS still uses services.sms (Twilio).
+        'service' => env('WHATSAPP_SERVICE', 'WASENDER'),
         'enabled' => env('MESSAGING_WHATSAPP_ENABLED', true),
         'wasender_api_key' => env('WASENDER_API_KEY'),
         'wasender_session_id' => env('WASENDER_SESSION_ID'),
@@ -60,7 +60,7 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_STATUS',
             'HX47150e179fdbab79738d060fb0ac6415'
         ),
-        'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', false),
+        'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
     ],
 
     'sms' => [

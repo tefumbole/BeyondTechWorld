@@ -19,7 +19,7 @@ class AnnouncementNotificationService extends Controller
             return false;
         }
         try {
-            // Uses NotificationRouter: Twilio beyond_notice when WHATSAPP_SERVICE=TWILIO.
+            // NotificationRouter: Wasender by default; Twilio beyond_notice only if WHATSAPP_SERVICE=TWILIO.
             $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message, $statusVars);
 
             return ! empty($result['success']);

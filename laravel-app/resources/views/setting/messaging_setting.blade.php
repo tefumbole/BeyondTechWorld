@@ -52,10 +52,10 @@
                                     <div class="form-group">
                                         <label>Provider *</label>
                                         <select class="form-control" name="whatsapp_service" id="whatsapp_service">
-                                            <option value="TWILIO" @if($whatsappService === 'TWILIO') selected @endif>Twilio (beyond_notice — all messages)</option>
-                                            <option value="WASENDER" @if($whatsappService === 'WASENDER') selected @endif>Wasender (free-form)</option>
+                                            <option value="WASENDER" @if($whatsappService === 'WASENDER') selected @endif>WasenderAPI (WhatsApp — default)</option>
+                                            <option value="TWILIO" @if($whatsappService === 'TWILIO') selected @endif>Twilio WhatsApp templates (optional)</option>
                                         </select>
-                                        <small class="text-muted">Twilio sends every text/OTP/announcement through the beyond_notice Content Template. Clear or comment Wasender keys for Twilio-only.</small>
+                                        <small class="text-muted">WhatsApp uses Wasender by default. Twilio Account SID / Auth Token / Number below are used for SMS regardless of this setting.</small>
                                     </div>
                                     <div class="form-group">
                                         <label>Default country code</label>
@@ -66,17 +66,17 @@
                                         <input type="text" name="company_name" class="form-control" value="{{ $companyName }}">
                                     </div>
                                     <div class="form-group">
-                                        <label>When Twilio fails, fall back to Wasender</label>
+                                        <label>When Twilio WhatsApp fails, fall back to Wasender</label>
                                         <select class="form-control" name="twilio_fallback_wasender">
-                                            <option value="false" @if(! $twilioFallback) selected @endif>No (Twilio-only)</option>
                                             <option value="true" @if($twilioFallback) selected @endif>Yes</option>
+                                            <option value="false" @if(! $twilioFallback) selected @endif>No</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
 
                             <div id="wasender-fields" class="row mt-2">
-                                <div class="col-md-12"><h6>Wasender credentials (optional when Twilio-only)</h6></div>
+                                <div class="col-md-12"><h6>Wasender credentials (WhatsApp)</h6></div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>WASENDER_API_KEY</label>

@@ -349,10 +349,10 @@ class SettingController extends Controller
         return view('setting.messaging_setting', [
             'whatsappEnabled' => $bool('MESSAGING_WHATSAPP_ENABLED', true),
             'smsEnabled' => $bool('MESSAGING_SMS_ENABLED', true),
-            'whatsappService' => strtoupper((string) EnvFile::get('WHATSAPP_SERVICE', 'TWILIO')),
+            'whatsappService' => strtoupper((string) EnvFile::get('WHATSAPP_SERVICE', 'WASENDER')),
             'defaultCountryCode' => EnvFile::get('WHATSAPP_DEFAULT_COUNTRY_CODE', '237'),
             'companyName' => EnvFile::get('COMPANY_NAME', 'Beyond Enterprise'),
-            'twilioFallback' => $bool('WHATSAPP_TWILIO_FALLBACK_WASENDER', false),
+            'twilioFallback' => $bool('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
             'wasenderApiKey' => EnvFile::get('WASENDER_API_KEY', ''),
             'wasenderSessionId' => EnvFile::get('WASENDER_SESSION_ID', ''),
             'wasenderBaseUrl' => EnvFile::get('WASENDER_BASE_URL', 'https://wasenderapi.com/api'),
@@ -389,9 +389,9 @@ class SettingController extends Controller
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
         }
 
-        $whatsappService = strtoupper((string) $request->input('whatsapp_service', 'TWILIO'));
+        $whatsappService = strtoupper((string) $request->input('whatsapp_service', 'WASENDER'));
         if (! in_array($whatsappService, ['WASENDER', 'TWILIO'], true)) {
-            $whatsappService = 'TWILIO';
+            $whatsappService = 'WASENDER';
         }
 
         $smsGateway = strtolower((string) $request->input('sms_gateway', 'twilio'));
