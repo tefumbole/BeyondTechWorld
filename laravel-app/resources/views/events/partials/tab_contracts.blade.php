@@ -1,6 +1,40 @@
+@include('contracts.partials.attach_panel', ['linkType' => 'event', 'linkId' => $event->id])
+
+@if(! $event->assignments->isEmpty())
+<div class="card mb-3" style="border:1px solid #d7e6f7;">
+    <div class="card-body">
+        <h6 class="mb-2" style="font-weight:700;color:#0b3f90;">Bulk Engineer Engagements (Enterprise Contracts)</h6>
+        <p class="text-muted small">Creates draft contracts from the <strong>ENG-EVENT</strong> template for selected workers. Open each from the Contracts module to send for signature.</p>
+        <form method="POST" action="{{ route('contracts.bulk_engineer', $event->id) }}">
+            @csrf
+            <div class="table-responsive mb-2">
+                <table class="table table-sm">
+                    <thead><tr><th style="width:36px;"></th><th>Worker</th><th>Role</th><th>Daily rate</th></tr></thead>
+                    <tbody>
+                        @foreach($event->assignments as $a)
+                            <tr>
+                                <td><input type="checkbox" name="assignment_ids[]" value="{{ $a->id }}" checked></td>
+                                <td>{{ optional($a->workerProfile)->displayName() }}</td>
+                                <td>{{ $a->assignment_role }}</td>
+                                <td>{{ number_format((int) ($a->event_daily_rate ?: $a->default_daily_rate ?: 0), 0) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @if(in_array('contracts.create', $all_permission) || in_array('contracts.bulk', $all_permission) || in_array('contracts_module', $all_permission))
+                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Create enterprise Engineer Engagement drafts for selected workers?');">
+                    Create enterprise contracts
+                </button>
+            @endif
+        </form>
+    </div>
+</div>
+@endif
+
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="font-weight-bold">Event Contracts</span>
+        <span class="font-weight-bold">Legacy Event Contracts</span>
         <a href="{{ route('events.settings.contract-templates') }}" class="btn btn-sm btn-outline-secondary">Manage templates</a>
     </div>
     <div class="card-body">
@@ -14,7 +48,7 @@
                         <label>Assignment</label>
                         <select name="assignment_id" class="form-control" required>
                             @foreach($event->assignments as $a)
-                                <option value="{{ $a->id }}">{{ $a->workerProfile->displayName() }} — {{ $a->assignment_role }}</option>
+                                <option value="{{ $a->id }}">{{ optional($a->workerProfile)->displayName() }} — {{ $a->assignment_role }}</option>
                             @endforeach
                         </select>
                     </div>

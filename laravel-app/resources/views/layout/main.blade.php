@@ -1361,6 +1361,29 @@
                             </li>
                         @endif
                         @php
+                            $contracts_module_permission = \Spatie\Permission\Models\Permission::where('name', 'contracts_module')->first();
+                            $contracts_module_active = $role && $contracts_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $contracts_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($contracts_module_active)
+                            <li><a href="#contracts-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document-edit"></i><span>Contracts</span></a>
+                                <ul id="contracts-module" class="collapse list-unstyled ">
+                                    <li id="contracts-dashboard-menu"><a href="{{ route('contracts.dashboard') }}">Dashboard</a></li>
+                                    <li id="contracts-list-menu"><a href="{{ route('contracts.index') }}">Contract List</a></li>
+                                    <li id="contracts-awaiting-client-menu"><a href="{{ route('contracts.awaiting_client') }}">Awaiting Client Signature</a></li>
+                                    <li id="contracts-awaiting-admin-menu"><a href="{{ route('contracts.awaiting_admin') }}">Awaiting Admin Signature</a></li>
+                                    <li id="contracts-signed-menu"><a href="{{ route('contracts.signed') }}">Signed</a></li>
+                                    <li id="contracts-create-menu"><a href="{{ route('contracts.create') }}">Create Contract</a></li>
+                                    <li id="contracts-templates-menu"><a href="{{ route('contracts.templates') }}">Templates</a></li>
+                                    <li id="contracts-clauses-menu"><a href="{{ route('contracts.clauses') }}">Clause Library</a></li>
+                                    <li id="contracts-report-menu"><a href="{{ route('contracts.report') }}">Reports</a></li>
+                                    <li id="contracts-settings-menu"><a href="{{ route('contracts.settings') }}">Settings</a></li>
+                                </ul>
+                            </li>
+                        @endif
+                        @php
                             $courses_module_permission = \Spatie\Permission\Models\Permission::where('name', 'courses_module')->first();
                             $courses_module_active = $role && $courses_module_permission ? \DB::table('role_has_permissions')->where([
                                 ['permission_id', $courses_module_permission->id],

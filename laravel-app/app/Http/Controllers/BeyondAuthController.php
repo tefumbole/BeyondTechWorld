@@ -39,7 +39,7 @@ class BeyondAuthController extends Controller
             $webUser = Auth::guard('web')->user();
             $role = $webUser ? Role::find($webUser->role_id) : null;
             $needsOtp = false;
-            if ($role && (int) $role->id !== 5) {
+            if ($role && (int) $role->id !== 5 && ! \App\Support\LocalDevAuth::skipStaffOtp()) {
                 try {
                     $needsOtp = $role->hasPermissionTo('one_time_otp');
                 } catch (\Throwable $e) {
@@ -303,10 +303,12 @@ class BeyondAuthController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if ($role && (int) $role->id !== 5) {
             $needsOtp = false;
-            try {
-                $needsOtp = $role->hasPermissionTo('one_time_otp');
-            } catch (\Throwable $e) {
-                $needsOtp = false;
+            if (! \App\Support\LocalDevAuth::skipStaffOtp()) {
+                try {
+                    $needsOtp = $role->hasPermissionTo('one_time_otp');
+                } catch (\Throwable $e) {
+                    $needsOtp = false;
+                }
             }
             if ($needsOtp) {
                 Auth::user()->update(['otp_verify' => 0, 'otp' => null, 'otp_time' => null]);
@@ -321,10 +323,13 @@ class BeyondAuthController extends Controller
                 return redirect()->route('check.otp');
             }
 
+            Auth::user()->update(['otp_verify' => 1, 'otp' => null, 'otp_time' => null]);
             \App\Services\ActivityLogService::log([
                 'action' => 'login',
                 'entity' => 'auth',
-                'summary' => 'Logged in to admin',
+                'summary' => \App\Support\LocalDevAuth::skipStaffOtp()
+                    ? 'Logged in to admin (local OTP skipped)'
+                    : 'Logged in to admin',
                 'method' => 'POST',
                 'path' => '/login',
             ], $request);

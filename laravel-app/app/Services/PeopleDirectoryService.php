@@ -104,6 +104,7 @@ class PeopleDirectoryService
                         'email' => $c->email,
                         'phone' => $c->phone_number,
                         'address' => $c->address,
+                        'organization' => $c->company_name,
                         'role' => 'customer',
                         'source' => 'Customer',
                     ]);

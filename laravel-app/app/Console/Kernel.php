@@ -17,6 +17,9 @@ class Kernel extends ConsoleKernel
         Commands\SendScheduledAnnouncements::class,
         Commands\RentalReturnReminderCron::class,
         Commands\SendBookingReminders::class,
+        Commands\SendContractSignatureReminders::class,
+        Commands\ProcessContractReminders::class,
+        Commands\ProcessContractExpiryAlerts::class,
     ];
 
     /**
@@ -36,6 +39,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('events:process-reminders')->everyMinute();
         $schedule->command('tasks:process')->everyMinute();
         $schedule->command('announcements:process')->everyMinute();
+        $schedule->command('contracts:process-reminders')->everyMinute();
+        $schedule->command('contracts:expiry-alerts')->dailyAt('08:00');
     }
 
     /**

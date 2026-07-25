@@ -43,6 +43,7 @@ class SiteMenu
             'events'       => 'Events',
             'tasks'        => 'Task Manager',
             'jobs'         => 'Job Board',
+            'contracts'    => 'Contracts',
             'permissions'  => 'Permissions',
             'announcements'=> 'Announcements',
             'courses'      => 'Courses',

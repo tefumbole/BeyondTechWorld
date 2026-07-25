@@ -40,3 +40,6 @@ npm-debug.log
 yarn-error.log
 .idea/php.xml
 server.php
+
+# Local artisan serve bridge (symlink public/public -> .)
+/public/public

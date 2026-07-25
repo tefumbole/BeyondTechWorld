@@ -15,7 +15,7 @@ class RoleController extends Controller
     public function index()
     {
         $role = Role::find(Auth::user()->role_id);
-        if($role->hasPermissionTo('one_time_otp')) {
+        if (! \App\Support\LocalDevAuth::skipStaffOtp() && $role->hasPermissionTo('one_time_otp')) {
             if (Auth::user()->otp_verify == 0) {
                 return redirect()->route('check.otp');
             }

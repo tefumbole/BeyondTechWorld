@@ -40,6 +40,10 @@ Route::post('/goods-received/{token}/sign', 'BookingGoodsReceiptController@sign'
 Route::get('/event-contract/{token}', 'EventContractSigningController@show')->name('event.contract.sign');
 Route::post('/event-contract/{token}/sign', 'EventContractSigningController@sign')->name('event.contract.sign.submit');
 
+Route::get('/contracts/sign/{token}', 'ContractSignController@show')->name('contracts.sign.show');
+Route::post('/contracts/sign/{token}', 'ContractSignController@submit')->name('contracts.sign.submit');
+Route::post('/contracts/sign/{token}/decline', 'ContractSignController@decline')->name('contracts.sign.decline');
+
 
 Route::get('/', 'BeyondController@home')->name('beyond.home');
 Route::get('/about', 'BeyondController@about')->name('beyond.about');
@@ -300,6 +304,52 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/permissions/requests', 'StaffPermissionAdminController@requests')->name('permissions.requests');
     Route::get('/admin/permissions/approved', 'StaffPermissionAdminController@approved')->name('permissions.approved');
     Route::post('/admin/permissions/{id}', 'StaffPermissionAdminController@update')->name('permissions.update');
+
+    // Contracts Module
+    Route::get('/admin/contracts', 'ContractController@index')->name('contracts.index');
+    Route::get('/admin/contracts/dashboard', 'ContractDashboardController@index')->name('contracts.dashboard');
+    Route::get('/admin/contracts/report', 'ContractDashboardController@report')->name('contracts.report');
+    Route::get('/admin/contracts/awaiting-client', 'ContractController@awaitingClient')->name('contracts.awaiting_client');
+    Route::get('/admin/contracts/awaiting-admin', 'ContractController@awaitingAdmin')->name('contracts.awaiting_admin');
+    Route::get('/admin/contracts/signed', 'ContractController@signed')->name('contracts.signed');
+    Route::get('/admin/contracts/create', 'ContractController@create')->name('contracts.create');
+    Route::post('/admin/contracts', 'ContractController@store')->name('contracts.store');
+    Route::get('/admin/contracts/people-search', 'ContractController@peopleSearch')->name('contracts.people_search');
+    Route::post('/admin/contracts/quick-customer', 'ContractController@quickCustomer')->name('contracts.quick_customer');
+    Route::get('/admin/contracts/link-meta', 'ContractController@linkMeta')->name('contracts.link_meta');
+    Route::get('/admin/contracts/templates/{id}/body', 'ContractController@templateBody')->name('contracts.templates.body');
+    Route::get('/admin/contracts/templates', 'ContractTemplateController@index')->name('contracts.templates');
+    Route::get('/admin/contracts/templates/create', 'ContractTemplateController@create')->name('contracts.templates.create');
+    Route::post('/admin/contracts/templates', 'ContractTemplateController@store')->name('contracts.templates.store');
+    Route::post('/admin/contracts/templates/preview', 'ContractTemplateController@preview')->name('contracts.templates.preview');
+    Route::get('/admin/contracts/templates/{id}/edit', 'ContractTemplateController@edit')->name('contracts.templates.edit');
+    Route::get('/admin/contracts/templates/{id}/preview', 'ContractTemplateController@preview')->name('contracts.templates.preview.show');
+    Route::post('/admin/contracts/templates/{id}', 'ContractTemplateController@update')->name('contracts.templates.update');
+    Route::post('/admin/contracts/templates/{id}/publish', 'ContractTemplateController@publish')->name('contracts.templates.publish');
+    Route::get('/admin/contracts/clauses', 'ContractClauseController@index')->name('contracts.clauses');
+    Route::get('/admin/contracts/clauses/json', 'ContractClauseController@json')->name('contracts.clauses.json');
+    Route::get('/admin/contracts/clauses/create', 'ContractClauseController@create')->name('contracts.clauses.create');
+    Route::post('/admin/contracts/clauses', 'ContractClauseController@store')->name('contracts.clauses.store');
+    Route::get('/admin/contracts/clauses/{id}/edit', 'ContractClauseController@edit')->name('contracts.clauses.edit');
+    Route::post('/admin/contracts/clauses/{id}', 'ContractClauseController@update')->name('contracts.clauses.update');
+    Route::post('/admin/contracts/clauses/{id}/delete', 'ContractClauseController@destroy')->name('contracts.clauses.destroy');
+    Route::get('/admin/contracts/settings', 'ContractSettingsController@edit')->name('contracts.settings');
+    Route::post('/admin/contracts/settings', 'ContractSettingsController@update')->name('contracts.settings.update');
+    Route::post('/admin/events/{id}/contracts/bulk-enterprise', 'ContractController@bulkEngineerEngagements')->name('contracts.bulk_engineer');
+    Route::get('/admin/contracts/{id}', 'ContractController@show')->name('contracts.show');
+    Route::get('/admin/contracts/{id}/edit', 'ContractController@edit')->name('contracts.edit');
+    Route::post('/admin/contracts/{id}', 'ContractController@update')->name('contracts.update');
+    Route::get('/admin/contracts/{id}/preview', 'ContractController@preview')->name('contracts.preview');
+    Route::post('/admin/contracts/{id}/ready', 'ContractController@ready')->name('contracts.ready');
+    Route::post('/admin/contracts/{id}/send', 'ContractController@send')->name('contracts.send');
+    Route::post('/admin/contracts/{id}/resend/{signatoryId}', 'ContractController@resend')->name('contracts.resend');
+    Route::post('/admin/contracts/{id}/sign-admin', 'ContractController@signAdmin')->name('contracts.sign_admin');
+    Route::post('/admin/contracts/{id}/cancel', 'ContractController@cancel')->name('contracts.cancel');
+    Route::post('/admin/contracts/{id}/supersede', 'ContractController@supersede')->name('contracts.supersede');
+    Route::post('/admin/contracts/{id}/attach', 'ContractController@attach')->name('contracts.attach');
+    Route::post('/admin/contracts/{id}/reminders', 'ContractController@storeReminder')->name('contracts.reminders.store');
+    Route::post('/admin/contracts/{id}/reminders/{reminderId}/delete', 'ContractController@destroyReminder')->name('contracts.reminders.destroy');
+    Route::get('/admin/contracts/{id}/documents/{docId}', 'ContractController@download')->name('contracts.download');
 
     Route::get('/admin/jobs', 'JobBoardController@index')->name('jobs.index');
     Route::get('/admin/jobs/create', 'JobBoardController@create')->name('jobs.create');

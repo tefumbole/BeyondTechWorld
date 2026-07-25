@@ -41,8 +41,11 @@ class HomeController extends Controller
 
     public function dashboard()
     {
-        if(Auth::user()->otp_verify == 0) {
+        if (Auth::user()->otp_verify == 0 && ! \App\Support\LocalDevAuth::skipStaffOtp()) {
             return redirect()->route('check.otp');
+        }
+        if (\App\Support\LocalDevAuth::skipStaffOtp() && Auth::user()->otp_verify == 0) {
+            Auth::user()->update(['otp_verify' => 1, 'otp' => null, 'otp_time' => null]);
         }
         $role = Role::find(Auth::user()->role_id);
         return view('home');
@@ -58,12 +61,20 @@ class HomeController extends Controller
     public function otpCheck(){
         $user = Auth::user();
 
+        // Local: skip WhatsApp OTP entirely and enter admin.
+        if (\App\Support\LocalDevAuth::skipStaffOtp()) {
+            $user->update(['otp_verify' => 1, 'otp' => null, 'otp_time' => null]);
+
+            return redirect('/admin');
+        }
+
         try {
             $this->sendOTP($user);
         } catch (\Exception $e) {
             return view('otp_screen', [
                 'resend_seconds' => $this->otpResendSecondsRemaining($user),
                 'whatsapp_error' => $e->getMessage(),
+                'local_otp_code' => session('local_otp_code'),
             ]);
         }
 
@@ -71,6 +82,8 @@ class HomeController extends Controller
 
         return view('otp_screen', [
             'resend_seconds' => $this->otpResendSecondsRemaining($user),
+            'whatsapp_error' => session('whatsapp_error'),
+            'local_otp_code' => session('local_otp_code'),
         ]);
     }
 
@@ -154,6 +167,19 @@ class HomeController extends Controller
             ->sendWhatsAppOtp($phone, $otp, 'login', 10);
 
         if (empty($result['success'])) {
+            // Local/dev: still issue the OTP so admins can continue when WhatsApp is down.
+            if (config('app.env') === 'local' || config('app.debug')) {
+                $user->update(['otp' => $otp, 'otp_time' => date('Y-m-d H:i:s')]);
+                \Log::warning('[otp] WhatsApp send failed in local — OTP available on screen', [
+                    'user_id' => $user->id,
+                    'error' => $result['error'] ?? null,
+                ]);
+                session()->flash('local_otp_code', $otp);
+                session()->flash('whatsapp_error', 'Could not send OTP via WhatsApp: '.($result['error'] ?? 'unknown error'));
+
+                return $otp;
+            }
+
             throw new \Exception('Could not send OTP via WhatsApp: '.($result['error'] ?? 'unknown error'));
         }
 
@@ -322,7 +348,7 @@ echo $response;
         $this->manageBooking();
         $role = Role::find(Auth::user()->role_id);
         $role->revokePermissionTo('search_all_products');
-        if($role->hasPermissionTo('one_time_otp')) {
+        if (! \App\Support\LocalDevAuth::skipStaffOtp() && $role->hasPermissionTo('one_time_otp')) {
             if (Auth::user()->otp_verify == 0) {
                 return redirect()->route('check.otp');
             }
