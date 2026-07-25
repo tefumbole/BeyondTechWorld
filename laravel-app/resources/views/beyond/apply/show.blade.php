@@ -413,9 +413,18 @@
         var requiredDocs = [
             ['student_id', 'ID card front'],
             ['student_id_back', 'ID card back'],
-            ['internship_letter', 'internship letter'],
             ['selfie', 'selfie']
         ];
+        var formEl = document.getElementById('apply-form');
+        var eduStatus = formEl && formEl.__x && formEl.__x.$data
+            ? formEl.__x.$data.educationStatus
+            : (document.querySelector('select[name="education_status"]') || {}).value;
+        var academic = formEl && formEl.__x && formEl.__x.$data
+            ? formEl.__x.$data.academicRequired
+            : (document.querySelector('select[name="is_academic_required"]:not([disabled])') || {}).value;
+        if (eduStatus === 'currently_studying' && String(academic) === '1') {
+            requiredDocs.push(['internship_letter', 'internship letter']);
+        }
         requiredDocs.forEach(function (pair) {
             var input = document.querySelector('input[name="' + pair[0] + '"]');
             if (!input || !input.files || !input.files.length) missing.push(pair[1]);

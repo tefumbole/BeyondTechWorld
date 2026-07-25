@@ -7,7 +7,7 @@
 
         <div class="mb-4">
             <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
-            <p class="jb-subtitle">Click a name/contact/role cell to open the full application. Use the Actions dropdown to change status.</p>
+            <p class="jb-subtitle">Click anywhere on a row (except Actions / Docs) to open the full application — including education, documents, signatures, and status history. Status changes notify candidates on WhatsApp.</p>
         </div>
 
         @if(session('message'))
@@ -48,7 +48,7 @@
                 @endif
                 <div class="col-md-{{ !empty($showStatusFilter) ? '3' : '4' }} mb-2">
                     <label class="jb-label">Search</label>
-                    <input type="search" name="q" value="{{ $q }}" class="jb-field" placeholder="Name, email, WhatsApp, reference…">
+                    <input type="search" name="q" value="{{ $q }}" class="jb-field" placeholder="Name, email, WhatsApp, school, reference…">
                 </div>
                 <div class="col-md-2 mb-2">
                     <button type="submit" class="jb-btn" style="width:100%;justify-content:center;">Filter</button>
@@ -84,13 +84,11 @@
                                     <span class="text-muted small">WA: {{ $app->whatsapp_number ?: $app->phone ?: '—' }}</span>
                                 </td>
                                 <td class="jb-nav-cell small">
-                                    @if($app->school || $app->level_of_study || $app->education_status)
+                                    @if($app->school || $app->level_of_study || $app->education_status || $app->is_academic_required !== null)
                                         <strong>{{ $app->school ?: '—' }}</strong><br>
                                         <span class="text-muted">{{ $app->level_of_study ?: '—' }}</span><br>
-                                        <span>{{ $app->educationStatusLabel() }}</span>
-                                        @if($app->education_status === 'currently_studying')
-                                            <br><span class="jb-badge">{{ $app->academicRequiredLabel() }}</span>
-                                        @endif
+                                        <span>{{ $app->educationStatusLabel() }}</span><br>
+                                        <span class="jb-badge">{{ $app->academicRequiredLabel() }}</span>
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif

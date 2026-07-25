@@ -234,7 +234,10 @@ class ApplicationService
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('whatsapp_number', 'like', "%{$search}%")
-                    ->orWhere('reference_number', 'like', "%{$search}%");
+                    ->orWhere('reference_number', 'like', "%{$search}%")
+                    ->orWhere('school', 'like', "%{$search}%")
+                    ->orWhere('level_of_study', 'like', "%{$search}%")
+                    ->orWhere('country', 'like', "%{$search}%");
             });
         }
 
