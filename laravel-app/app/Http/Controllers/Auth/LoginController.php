@@ -65,6 +65,13 @@ class LoginController extends Controller
     public function logout(Request $request)
     {
         if (Auth::guard('web')->check()) {
+            \App\Services\ActivityLogService::log([
+                'action' => 'logout',
+                'entity' => 'auth',
+                'summary' => 'Logged out',
+                'method' => 'POST',
+                'path' => '/logout',
+            ], $request);
             Auth::guard('web')->user()->update(['otp_verify' => '0']);
             Auth::guard('web')->logout();
         }

@@ -283,6 +283,15 @@ class BeyondAuthController extends Controller
             'password' => $password,
             'is_active' => 1,
         ])) {
+            \App\Services\ActivityLogService::log([
+                'action' => 'failed_login',
+                'entity' => 'auth',
+                'user_name' => $identifier,
+                'summary' => 'Failed login for '.$identifier,
+                'method' => 'POST',
+                'path' => '/login',
+            ], $request);
+
             return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
         }
 
@@ -301,9 +310,24 @@ class BeyondAuthController extends Controller
             }
             if ($needsOtp) {
                 Auth::user()->update(['otp_verify' => 0, 'otp' => null, 'otp_time' => null]);
+                \App\Services\ActivityLogService::log([
+                    'action' => 'login',
+                    'entity' => 'auth',
+                    'summary' => 'Password OK — OTP required',
+                    'method' => 'POST',
+                    'path' => '/login',
+                ], $request);
 
                 return redirect()->route('check.otp');
             }
+
+            \App\Services\ActivityLogService::log([
+                'action' => 'login',
+                'entity' => 'auth',
+                'summary' => 'Logged in to admin',
+                'method' => 'POST',
+                'path' => '/login',
+            ], $request);
 
             return redirect('/admin');
         }

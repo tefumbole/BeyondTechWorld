@@ -659,6 +659,10 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::post('user/deletebyselection', 'UserController@deleteBySelection');
 	Route::resource('user','UserController');
 
+	Route::get('setting/activity-logs', 'ActivityLogController@index')->name('activity-logs.index');
+	Route::post('setting/activity-logs/clicks', 'ActivityLogController@storeClicks')->name('activity-logs.clicks');
+	Route::post('setting/activity-logs/delete', 'ActivityLogController@destroy')->name('activity-logs.destroy');
+
 	Route::get('setting/general_setting', 'SettingController@generalSetting')->name('setting.general');
 	Route::post('setting/general_setting_store', 'SettingController@generalSettingStore')->name('setting.generalStore');
 	Route::get('setting/env_setting', 'SettingController@envSetting')->name('setting.env');

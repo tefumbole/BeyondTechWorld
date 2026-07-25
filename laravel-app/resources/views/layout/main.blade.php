@@ -2399,7 +2399,11 @@
                                 @endif
                                 @if($general_setting_permission_active)
                                     <li id="general-setting-menu"><a href="{{route('setting.general')}}">{{trans('file.General Setting')}}</a></li>
+                                    <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
                                     <li id="env-setting-menu"><a href="{{route('setting.env')}}">.env Settings</a></li>
+                                @endif
+                                @if(!$general_setting_permission_active && in_array((int) Auth::user()->role_id, [1, 2], true))
+                                    <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
                                 @endif
                                 @if($mail_setting_permission_active)
                                     <li id="mail-setting-menu"><a href="{{route('setting.mail')}}">{{trans('file.Mail Setting')}}</a></li>
@@ -3005,6 +3009,7 @@
         @yield('scripts')
         @include('components.image_paste_script')
         @include('components.whatsapp_phone_script')
+        @include('components.activity_click_logger')
         <script>
             if ('serviceWorker' in navigator ) {
                 window.addEventListener('load', function() {

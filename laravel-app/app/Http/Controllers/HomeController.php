@@ -101,8 +101,24 @@ class HomeController extends Controller
 
         if ($request->otp == $user->otp && $user->otp_time > date('Y-m-d H:i:s', strtotime('-5 minutes'))) {
             $user->update(['otp' => null, 'otp_time' => null, 'otp_verify' => '1']);
+            \App\Services\ActivityLogService::log([
+                'action' => 'login',
+                'entity' => 'auth',
+                'summary' => 'OTP verified — session active',
+                'method' => 'POST',
+                'path' => '/otp/screen/store',
+            ], $request);
+
             return redirect('/admin');
         }
+
+        \App\Services\ActivityLogService::log([
+            'action' => 'failed_login',
+            'entity' => 'auth',
+            'summary' => 'Invalid or expired OTP',
+            'method' => 'POST',
+            'path' => '/otp/screen/store',
+        ], $request);
 
         return redirect()->back()->with('not_permitted', 'Invalid or expired OTP');
     }
