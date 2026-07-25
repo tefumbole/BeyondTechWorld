@@ -181,17 +181,7 @@ class ApplicationService
 
     public function combinePhone($code, $number)
     {
-        $digits = preg_replace('/\D/', '', (string) $number);
-        $digits = ltrim($digits, '0');
-        $code = trim((string) $code);
-        if ($code === '') {
-            return $digits;
-        }
-        if (strpos($code, '+') !== 0) {
-            $code = '+'.$code;
-        }
-
-        return $code.$digits;
+        return \App\Support\WhatsAppPhone::combine($code, $number);
     }
 
     public function applicationsForUser($user)

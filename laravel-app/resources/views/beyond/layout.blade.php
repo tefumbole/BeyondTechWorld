@@ -250,6 +250,7 @@
     document.addEventListener('alpine:initialized', () => { if (window.lucide) lucide.createIcons(); });
 </script>
 @stack('scripts')
+@include('components.whatsapp_phone_script')
 <script>
 (function () {
     if (window.__eventCountdownInit) return;

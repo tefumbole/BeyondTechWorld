@@ -2,10 +2,15 @@
 
 namespace App;
 
+use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Database\Eloquent\Model;
 
 class TrainingRegistration extends Model
 {
+    use NormalizesWhatsAppPhones;
+
+    protected $whatsappPhoneAttributes = ['client_phone'];
+
     protected $table = 'registrations';
     protected $keyType = 'string';
     public $incrementing = false;

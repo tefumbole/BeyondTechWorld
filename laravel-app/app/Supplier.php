@@ -2,10 +2,15 @@
 
 namespace App;
 
+use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
 {
+    use NormalizesWhatsAppPhones;
+
+    protected $whatsappPhoneAttributes = ['phone_number'];
+
     protected $fillable =[
 
         "name", "image", "company_name", "vat_number",

@@ -45,7 +45,7 @@
             </div>
             <div>
                 <label class="text-sm font-semibold text-gray-700">Phone Number *</label>
-                <input type="tel" name="phone_number" value="{{ old('phone_number') }}" required pattern="[0-9]{6,15}"
+                <input type="tel" name="phone_number" data-wa-phone="local" value="{{ old('phone_number') }}" required pattern="[0-9]{6,15}" autocomplete="tel-national"
                        class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
                        placeholder="Digits only">
             </div>

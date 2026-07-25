@@ -2,12 +2,17 @@
 
 namespace App;
 
+use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Shareholder extends Model
 {
     use SoftDeletes;
+    use NormalizesWhatsAppPhones;
+
+    /** Local phone_number stays national digits; full_phone_number is E.164 digits. */
+    protected $whatsappPhoneAttributes = ['full_phone_number', 'phone'];
 
     protected $table = 'shareholders';
     protected $keyType = 'string';

@@ -461,5 +461,6 @@
         });
     }
 </script>
+@include('components.whatsapp_phone_script')
 </body>
 </html>

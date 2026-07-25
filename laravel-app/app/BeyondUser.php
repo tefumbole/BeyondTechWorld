@@ -2,10 +2,15 @@
 
 namespace App;
 
+use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class BeyondUser extends Authenticatable
 {
+    use NormalizesWhatsAppPhones;
+
+    protected $whatsappPhoneAttributes = ['phone'];
+
     protected $table = 'be_users';
     protected $keyType = 'string';
     public $incrementing = false;

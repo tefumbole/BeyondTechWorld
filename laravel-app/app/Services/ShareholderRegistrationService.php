@@ -42,7 +42,14 @@ class ShareholderRegistrationService
             throw new \InvalidArgumentException("Only {$available} shares are currently available.");
         }
 
-        $fullPhone = $this->combinePhone($data['country_code'], $data['phone_number']);
+        $fullPhone = \App\Support\WhatsAppPhone::combine($data['country_code'], $data['phone_number']);
+        $fullDigits = \App\Support\WhatsAppPhone::sanitizeForStorage($fullPhone);
+        $ccDigits = preg_replace('/\D/', '', (string) $data['country_code']);
+        $localDigits = preg_replace('/\D/', '', (string) $data['phone_number']);
+        $localDigits = ltrim($localDigits, '0');
+        if ($ccDigits !== '' && strpos($localDigits, $ccDigits) === 0) {
+            $localDigits = substr($localDigits, strlen($ccDigits));
+        }
         $investment = round($shares * $settings['price_per_share'], 2);
         $user = Auth::guard('beyond')->user();
 
@@ -51,9 +58,9 @@ class ShareholderRegistrationService
             'full_name' => trim($data['full_name']),
             'name' => trim($data['full_name']),
             'email' => trim($data['email']),
-            'phone_number' => preg_replace('/\D/', '', $data['phone_number']),
+            'phone_number' => $localDigits,
             'country_code' => $data['country_code'],
-            'full_phone_number' => $fullPhone,
+            'full_phone_number' => $fullDigits,
             'company_name' => $data['company_name'] ?? null,
             'address' => trim($data['address']),
             'nationality' => $data['nationality'] ?? null,
@@ -74,13 +81,7 @@ class ShareholderRegistrationService
 
     public function combinePhone($code, $number)
     {
-        $digits = preg_replace('/\D/', '', $number);
-        $code = trim($code);
-        if (strpos($code, '+') !== 0) {
-            $code = '+'.$code;
-        }
-
-        return $code.$digits;
+        return \App\Support\WhatsAppPhone::combine($code, $number);
     }
 
     public function countryCodes()

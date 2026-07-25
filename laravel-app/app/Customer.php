@@ -2,26 +2,20 @@
 
 namespace App;
 
+use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
+    use NormalizesWhatsAppPhones;
+
+    protected $whatsappPhoneAttributes = ['phone_number'];
+
     protected $fillable =[
         "customer_group_id", "user_id", "name", "company_name",
         "email", "phone_number", "tax_no", "address", "city",
         "state", "postal_code", "country", "points", "deposit", "expense", "is_active", "credit_limit"
     ];
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::saving(function (Customer $customer) {
-            if (!empty($customer->phone_number)) {
-                $customer->phone_number = \App\Support\WhatsAppPhone::sanitizeForStorage($customer->phone_number);
-            }
-        });
-    }
 
     public function user()
     {

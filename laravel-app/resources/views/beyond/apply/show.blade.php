@@ -182,7 +182,7 @@
                                                 <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
                                             @endforeach
                                         </select>
-                                        <input required name="whatsapp_number" value="{{ old('whatsapp_number') }}" type="tel" placeholder="675 321 739" class="flex-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
+                                        <input required name="whatsapp_number" data-wa-phone="local" value="{{ old('whatsapp_number') }}" type="tel" placeholder="675321739" autocomplete="tel-national" class="flex-1 rounded-md border border-gray-200 px-3 py-2.5 focus:border-brand-blue outline-none">
                                     </div>
                                 </div>
                                 @unless($isInternship)

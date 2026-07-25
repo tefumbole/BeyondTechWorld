@@ -60,7 +60,7 @@
                         </div>
                         <div class="col-md-4 form-group">
                             <label class="font-weight-bold">Phone <span class="text-muted">(admin only)</span></label>
-                            <input type="text" name="phone" class="form-control" value="{{ old('phone') }}" placeholder="Not shown publicly">
+                            <input type="tel" name="phone" data-wa-phone="full" class="form-control wa-phone" value="{{ old('phone') }}" placeholder="+237681239720" autocomplete="tel">
                         </div>
                         <div class="col-md-12 form-group">
                             <label class="font-weight-bold">Bio / description</label>
