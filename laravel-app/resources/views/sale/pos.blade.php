@@ -2495,10 +2495,6 @@
 
         $("#shipping-cost-val").val(getSavedValue("shipping-cost-val"));
 
-        if(localStorage.getItem("tbody-id")) {
-            $("#tbody-id").html(localStorage.getItem("tbody-id"));
-        }
-
         function saveValue(e) {
             var id = e.id;  // get the sender's id to save it.
             var val = e.value; // get the value.
@@ -2512,61 +2508,100 @@
             return localStorage.getItem(v);
         }
 
-        if(getSavedValue("localStorageQty")) {
-            localStorageQty = getSavedValue("localStorageQty").split(",");
-            localStorageProductDiscount = getSavedValue("localStorageProductDiscount").split(",");
-            localStorageTaxRate = getSavedValue("localStorageTaxRate").split(",");
-            localStorageNetUnitPrice = getSavedValue("localStorageNetUnitPrice").split(",");
-            localStorageTaxValue = getSavedValue("localStorageTaxValue").split(",");
-            localStorageTaxName = getSavedValue("localStorageTaxName").split(",");
-            localStorageTaxMethod = getSavedValue("localStorageTaxMethod").split(",");
-            localStorageSubTotalUnit = getSavedValue("localStorageSubTotalUnit").split(",");
-            localStorageSubTotal = getSavedValue("localStorageSubTotal").split(",");
-            localStorageProductId = getSavedValue("localStorageProductId").split(",");
-            localStorageProductCode = getSavedValue("localStorageProductCode").split(",");
-            localStorageSaleUnit = getSavedValue("localStorageSaleUnit").split(",");
-            localStorageTempUnitName = getSavedValue("localStorageTempUnitName").split(",,");
-            localStorageSaleUnitOperator = getSavedValue("localStorageSaleUnitOperator").split(",,");
-            localStorageSaleUnitOperationValue = getSavedValue("localStorageSaleUnitOperationValue").split(",,");
-            /*localStorageQty.pop();
-    localStorage.setItem("localStorageQty", localStorageQty);*/
-            for(var i = 0; i < localStorageQty.length; i++) {
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ') .qty').val(localStorageQty[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.discount-value').val(localStorageProductDiscount[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-rate').val(localStorageTaxRate[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.net_unit_price').val(localStorageNetUnitPrice[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.product_price_change').attr("value", localStorageNetUnitPrice[i])
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-value').val(localStorageTaxValue[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-name').val(localStorageTaxName[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-method').val(localStorageTaxMethod[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.product-price').text(localStorageSubTotalUnit[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sub-total').text(localStorageSubTotal[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.subtotal-value').val(localStorageSubTotal[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.product-id').val(localStorageProductId[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.product-code').val(localStorageProductCode[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit').val(localStorageSaleUnit[i]);
-                if(i==0) {
-                    localStorageTempUnitName[i] += ',';
-                    localStorageSaleUnitOperator[i] += ',';
-                    localStorageSaleUnitOperationValue[i] += ',';
-                }
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit-operator').val(localStorageSaleUnitOperator[i]);
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit-operation-value').val(localStorageSaleUnitOperationValue[i]);
+        function clearPosCartStorage() {
+            [
+                'tbody-id', 'localStorageQty', 'localStorageProductDiscount', 'localStorageTaxRate',
+                'localStorageNetUnitPrice', 'localStorageTaxValue', 'localStorageTaxName',
+                'localStorageTaxMethod', 'localStorageSubTotalUnit', 'localStorageSubTotal',
+                'localStorageProductId', 'localStorageProductCode', 'localStorageSaleUnit',
+                'localStorageTempUnitName', 'localStorageSaleUnitOperator', 'localStorageSaleUnitOperationValue'
+            ].forEach(function (k) { localStorage.removeItem(k); });
+        }
 
-                product_price.push(parseFloat($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.product_price').val()));
-                var quantity = parseFloat($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.qty').val());
-                product_discount.push(parseFloat(localStorageProductDiscount[i] / localStorageQty[i]).toFixed(2));
-                tax_rate.push(parseFloat($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-rate').val()));
-                tax_name.push($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-name').val());
-                tax_method.push($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.tax-method').val());
-                temp_unit_name = $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit').val().split(',');
-                unit_name.push(localStorageTempUnitName[i]);
-                unit_operator.push($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit-operator').val());
-                unit_operation_value.push($('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit-operation-value').val());
-                $('table.order-list tbody tr:nth-child(' + (i + 1) + ')').find('.sale-unit').val(temp_unit_name[0]);
-                calculateTotal();
-                //calculateRowProductData(localStorageQty[i]);
+        // Restoring a corrupt cart from localStorage previously threw and killed all POS JS
+        // (product click/search handlers never bound). Guard and discard bad state.
+        try {
+            if (localStorage.getItem("tbody-id")) {
+                $("#tbody-id").html(localStorage.getItem("tbody-id"));
             }
+
+            if (getSavedValue("localStorageQty")) {
+                localStorageQty = getSavedValue("localStorageQty").split(",");
+                localStorageProductDiscount = getSavedValue("localStorageProductDiscount").split(",");
+                localStorageTaxRate = getSavedValue("localStorageTaxRate").split(",");
+                localStorageNetUnitPrice = getSavedValue("localStorageNetUnitPrice").split(",");
+                localStorageTaxValue = getSavedValue("localStorageTaxValue").split(",");
+                localStorageTaxName = getSavedValue("localStorageTaxName").split(",");
+                localStorageTaxMethod = getSavedValue("localStorageTaxMethod").split(",");
+                localStorageSubTotalUnit = getSavedValue("localStorageSubTotalUnit").split(",");
+                localStorageSubTotal = getSavedValue("localStorageSubTotal").split(",");
+                localStorageProductId = getSavedValue("localStorageProductId").split(",");
+                localStorageProductCode = getSavedValue("localStorageProductCode").split(",");
+                localStorageSaleUnit = getSavedValue("localStorageSaleUnit").split(",");
+                localStorageTempUnitName = getSavedValue("localStorageTempUnitName").split(",,");
+                localStorageSaleUnitOperator = getSavedValue("localStorageSaleUnitOperator").split(",,");
+                localStorageSaleUnitOperationValue = getSavedValue("localStorageSaleUnitOperationValue").split(",,");
+
+                var restoredRows = $("#tbody-id tr").length;
+                if (!restoredRows || restoredRows !== localStorageQty.length) {
+                    clearPosCartStorage();
+                    $("#tbody-id").empty();
+                    localStorageQty = [];
+                } else {
+                    for (var i = 0; i < localStorageQty.length; i++) {
+                        var $row = $('table.order-list tbody tr:nth-child(' + (i + 1) + ')');
+                        if (!$row.length) { throw new Error('missing cart row'); }
+                        var saleUnitVal = $row.find('.sale-unit').val();
+                        if (saleUnitVal == null || saleUnitVal === '') { throw new Error('missing sale unit'); }
+                        $row.find('.qty').val(localStorageQty[i]);
+                        $row.find('.discount-value').val(localStorageProductDiscount[i]);
+                        $row.find('.tax-rate').val(localStorageTaxRate[i]);
+                        $row.find('.net_unit_price').val(localStorageNetUnitPrice[i]);
+                        $row.find('.product_price_change').attr("value", localStorageNetUnitPrice[i]);
+                        $row.find('.tax-value').val(localStorageTaxValue[i]);
+                        $row.find('.tax-name').val(localStorageTaxName[i]);
+                        $row.find('.tax-method').val(localStorageTaxMethod[i]);
+                        $row.find('.product-price').text(localStorageSubTotalUnit[i]);
+                        $row.find('.sub-total').text(localStorageSubTotal[i]);
+                        $row.find('.subtotal-value').val(localStorageSubTotal[i]);
+                        $row.find('.product-id').val(localStorageProductId[i]);
+                        $row.find('.product-code').val(localStorageProductCode[i]);
+                        $row.find('.sale-unit').val(localStorageSaleUnit[i]);
+                        if (i == 0) {
+                            localStorageTempUnitName[i] += ',';
+                            localStorageSaleUnitOperator[i] += ',';
+                            localStorageSaleUnitOperationValue[i] += ',';
+                        }
+                        $row.find('.sale-unit-operator').val(localStorageSaleUnitOperator[i]);
+                        $row.find('.sale-unit-operation-value').val(localStorageSaleUnitOperationValue[i]);
+
+                        product_price.push(parseFloat($row.find('.product_price').val()));
+                        product_discount.push(parseFloat(localStorageProductDiscount[i] / localStorageQty[i]).toFixed(2));
+                        tax_rate.push(parseFloat($row.find('.tax-rate').val()));
+                        tax_name.push($row.find('.tax-name').val());
+                        tax_method.push($row.find('.tax-method').val());
+                        temp_unit_name = String(saleUnitVal).split(',');
+                        unit_name.push(localStorageTempUnitName[i]);
+                        unit_operator.push($row.find('.sale-unit-operator').val());
+                        unit_operation_value.push($row.find('.sale-unit-operation-value').val());
+                        $row.find('.sale-unit').val(temp_unit_name[0]);
+                        calculateTotal();
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('POS cart restore skipped:', e);
+            clearPosCartStorage();
+            $("#tbody-id").empty();
+            localStorageQty = [];
+            product_price = [];
+            product_discount = [];
+            tax_rate = [];
+            tax_name = [];
+            tax_method = [];
+            unit_name = [];
+            unit_operator = [];
+            unit_operation_value = [];
         }
 
 
@@ -2784,24 +2819,24 @@
         });
 
         // Ensure warehouse/biller are set before product lookup (defaults from richest stock).
-        if (!$('select[name=warehouse_id]').val()) {
+        if (!posWarehouseId()) {
             var fallbackWh = $("input[name='warehouse_id_hidden']").val();
             if (fallbackWh) {
-                $('select[name=warehouse_id]').val(fallbackWh);
+                $('#warehouse_id').val(fallbackWh);
                 warehouse_id = fallbackWh;
             }
         }
-        if (!$('select[name=biller_id]').val()) {
+        if (!$('#biller_id').val()) {
             var fallbackBiller = $("input[name='biller_id_hidden']").val();
             if (fallbackBiller) {
-                $('select[name=biller_id]').val(fallbackBiller);
+                $('#biller_id').val(fallbackBiller);
                 biller_id = fallbackBiller;
             }
         }
 
         $('.selectpicker').selectpicker('refresh');
 
-        var id = $("#customer_id").val();
+        var id = posCustomerId();
         if (id) {
             $('#customer-deposit-balance').text(parseFloat(deposit[id] || 0).toFixed(2));
             $('#customer-amount-owing').text(parseFloat(customer_owing[id] || 0).toFixed(2));
@@ -2811,9 +2846,11 @@
             $.get('/sales/getcustomergroup/' + id, function(data) {
                 customer_group_rate = (data / 100);
             });
+        } else {
+            customer_group_rate = 0;
         }
 
-        var id = $("#warehouse_id").val();
+        var id = posWarehouseId();
         if (!id) {
             lims_product_array = [];
         } else
@@ -3073,7 +3110,7 @@
                 }
                 $.getJSON('/sales/pos_product_suggest', {
                     q: request.term,
-                    warehouse_id: $('#warehouse_id').val()
+                    warehouse_id: posWarehouseId()
                 }).done(function(rows) {
                     var merged = local.slice();
                     $.each(rows || [], function(_, label) {
@@ -3163,28 +3200,52 @@
             rowindex = $(this).closest('tr').index();
         });
 
+        function posWarehouseId() {
+            var v = $('#warehouse_id').val();
+            if (Array.isArray(v)) v = v[0];
+            return v || $("input[name='warehouse_id_hidden']").val() || '';
+        }
+        function posCustomerId() {
+            var v = $('#customer_id').val();
+            if (Array.isArray(v)) v = v[0];
+            return v || '';
+        }
+        function posCurrencyRate() {
+            if (currency && typeof currency === 'object' && currency.exchange_rate != null) {
+                return parseFloat(currency.exchange_rate) || 1;
+            }
+            return 1;
+        }
+
         $(document).on('click', '.sound-btn', function() {
-            var audio = $("#mysoundclip1")[0];
-            audio.play();
+            try {
+                var audio = $("#mysoundclip1")[0];
+                if (audio && audio.play) {
+                    var p = audio.play();
+                    if (p && p.catch) p.catch(function () {});
+                }
+            } catch (e) {}
         });
 
-        $(document).on('click', '.product-img', function() {
-            var customer_id = $('#customer_id').val();
-            var warehouse_id = $('select[name="warehouse_id"]').val();
-            if(!customer_id)
+        $(document).on('click', '.product-img', function(e) {
+            e.preventDefault();
+            var customer_id = posCustomerId();
+            var warehouse_id = posWarehouseId();
+            if(!customer_id) {
                 alert('Please select Customer!');
-            else if(!warehouse_id)
-                alert('Please select Warehouse!');
-            else{
-                var raw = String($(this).data('product') || '');
-                var code = raw.indexOf(' (') >= 0 ? raw.split(' (')[0].trim() : raw.split(/\s+/)[0];
-                if (!code) {
-                    alert('Product code missing');
-                    return;
-                }
-                // Always add via search API — featured tiles are not limited to current warehouse cache.
-                productSearch(code);
+                return;
             }
+            if(!warehouse_id) {
+                alert('Please select Warehouse!');
+                return;
+            }
+            var raw = String($(this).attr('data-product') || $(this).data('product') || '');
+            var code = raw.indexOf(' (') >= 0 ? raw.split(' (')[0].trim() : raw.split(/\s+/)[0];
+            if (!code) {
+                alert('Product code missing');
+                return;
+            }
+            productSearch(code);
         });
         //Delete product
         $("table.order-list tbody").on("click", ".ibtnDel", function(event) {
@@ -3639,8 +3700,8 @@
         }
 
         function productSearch(data) {
-            var customer_id = $('#customer_id').val();
-            var warehouse_id = $('select[name="warehouse_id"]').val();
+            var customer_id = posCustomerId();
+            var warehouse_id = posWarehouseId();
             if (!customer_id) {
                 alert('Please select Customer!');
                 return;
@@ -3649,13 +3710,10 @@
                 alert('Please select Warehouse!');
                 return;
             }
-            if (typeof customer_group_rate === 'undefined' || customer_group_rate === null) {
+            if (typeof customer_group_rate === 'undefined' || customer_group_rate === null || isNaN(customer_group_rate)) {
                 customer_group_rate = 0;
             }
             var payload = data;
-            if (typeof payload === 'string' && payload.indexOf(' (') >= 0) {
-                payload = payload; // limsProductSearch already splits on "("
-            }
             $.ajax({
                 type: 'GET',
                 url: '/sales/lims_product_search',
@@ -3664,30 +3722,35 @@
                     warehouse_id: warehouse_id
                 },
                 success: function(data) {
-                    if (!data || data.error || !data[1]) {
-                        alert(data && data.error ? data.error : 'Product not found');
-                        return;
-                    }
-                    ensureProductStockCache(data);
-                    var flag = 1;
-                    $(".product-code").each(function(i) {
-                        if ($(this).val() == data[1]) {
-                            rowindex = i;
-                            var pre_qty = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val();
-                            if(pre_qty)
-                                var qty = parseFloat(pre_qty) + 1;
-                            else
-                                var qty = 1;
-                            $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
-                            flag = 0;
-                            checkQuantity(String(qty), true);
-                            flag = 0;
-                            localStorage.setItem("tbody-id", $("table.order-list tbody").html());
+                    try {
+                        if (!data || data.error || !data[1]) {
+                            alert(data && data.error ? data.error : 'Product not found');
+                            return;
                         }
-                    });
-                    $("input[name='product_code_name']").val('');
-                    if(flag){
-                        addNewProduct(data);
+                        ensureProductStockCache(data);
+                        var flag = 1;
+                        $(".product-code").each(function(i) {
+                            if ($(this).val() == data[1]) {
+                                rowindex = i;
+                                var pre_qty = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val();
+                                if(pre_qty)
+                                    var qty = parseFloat(pre_qty) + 1;
+                                else
+                                    var qty = 1;
+                                $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
+                                flag = 0;
+                                checkQuantity(String(qty), true);
+                                flag = 0;
+                                localStorage.setItem("tbody-id", $("table.order-list tbody").html());
+                            }
+                        });
+                        $("input[name='product_code_name']").val('');
+                        if(flag){
+                            addNewProduct(data);
+                        }
+                    } catch (err) {
+                        console.error('POS add product failed:', err);
+                        alert('Could not add product: ' + (err && err.message ? err.message : 'unknown error'));
                     }
                 },
                 error: function(xhr) {
@@ -3749,10 +3812,10 @@
             rowindex = newRow.index();
 
             if(!data[11] && product_warehouse_price[pos]) {
-                product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
+                product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * posCurrencyRate()) + parseFloat(product_warehouse_price[pos] * posCurrencyRate() * customer_group_rate));
             }
             else {
-                product_price.splice(rowindex, 0, parseFloat(data[2] * currency['exchange_rate']) + parseFloat(data[2] * currency['exchange_rate'] * customer_group_rate));
+                product_price.splice(rowindex, 0, parseFloat(data[2] * posCurrencyRate()) + parseFloat(data[2] * posCurrencyRate() * customer_group_rate));
             }
             product_discount.splice(rowindex, 0, '0.00');
             tax_rate.splice(rowindex, 0, parseFloat(data[3]));
