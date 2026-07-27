@@ -192,6 +192,7 @@
 
 <script>
 window.AN_USERS = @json($users);
+window.AN_USERS_SEARCH = @json(route('announcements.users.search'));
 window.AN_PRESELECT = @json([
     'recipients' => $clone['recipient_ids'] ?? [],
     'cc' => $clone['cc_ids'] ?? [],
@@ -200,6 +201,7 @@ window.AN_PRESELECT = @json([
     var recipients = (window.AN_PRESELECT.recipients || []).slice();
     var ccs = (window.AN_PRESELECT.cc || []).slice();
     var rRole = 'customers', cRole = 'all';
+    var searchTimers = {};
 
     function esc(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -207,7 +209,14 @@ window.AN_PRESELECT = @json([
         });
     }
 
-    function filterUsers(query, roleFilter) {
+    function mergeUsers(list) {
+        var map = {};
+        (window.AN_USERS || []).forEach(function (u) { map[u.id] = u; });
+        (list || []).forEach(function (u) { map[u.id] = u; });
+        window.AN_USERS = Object.keys(map).map(function (k) { return map[k]; });
+    }
+
+    function filterUsersLocal(query, roleFilter) {
         var q = (query || '').toLowerCase();
         return (window.AN_USERS || []).filter(function (u) {
             var role = (u.role || '').toLowerCase();
@@ -219,6 +228,28 @@ window.AN_PRESELECT = @json([
                 || (u.email||'').toLowerCase().indexOf(q) !== -1
                 || (u.phone||'').toLowerCase().indexOf(q) !== -1;
         });
+    }
+
+    function searchUsers(query, roleFilter, done) {
+        var q = (query || '').trim();
+        if (!q || q.length < 2 || !window.AN_USERS_SEARCH) {
+            done(filterUsersLocal(query, roleFilter));
+            return;
+        }
+        var filter = roleFilter === 'staff' ? 'staff' : (roleFilter === 'customers' ? 'customers' : 'all');
+        fetch(window.AN_USERS_SEARCH + '?q=' + encodeURIComponent(q) + '&filter=' + encodeURIComponent(filter), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (rows) {
+            mergeUsers(rows);
+            done(filterUsersLocal(query, roleFilter));
+        }).catch(function () {
+            done(filterUsersLocal(query, roleFilter));
+        });
+    }
+
+    function filterUsers(query, roleFilter) {
+        return filterUsersLocal(query, roleFilter);
     }
 
     function renderList(el, users, selected, onToggle) {
@@ -258,33 +289,45 @@ window.AN_PRESELECT = @json([
     }
 
     function refreshRecipients() {
-        renderList(document.querySelector('.an-rlist'), filterUsers(document.querySelector('.an-rsearch').value, rRole), recipients, function (id) {
-            var i = recipients.indexOf(id);
-            if (i === -1) recipients.push(id); else recipients.splice(i, 1);
-            refreshRecipients();
+        var q = document.querySelector('.an-rsearch').value;
+        searchUsers(q, rRole, function (users) {
+            renderList(document.querySelector('.an-rlist'), users, recipients, function (id) {
+                var i = recipients.indexOf(id);
+                if (i === -1) recipients.push(id); else recipients.splice(i, 1);
+                refreshRecipients();
+            });
+            renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
+                recipients = recipients.filter(function (x) { return x !== id; });
+                refreshRecipients();
+            });
+            syncHiddens(document.querySelector('.an-rhiddens'), recipients, 'recipient_ids');
         });
-        renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
-            recipients = recipients.filter(function (x) { return x !== id; });
-            refreshRecipients();
-        });
-        syncHiddens(document.querySelector('.an-rhiddens'), recipients, 'recipient_ids');
     }
 
     function refreshCc() {
-        renderList(document.querySelector('.an-clist'), filterUsers(document.querySelector('.an-csearch').value, cRole), ccs, function (id) {
-            var i = ccs.indexOf(id);
-            if (i === -1) ccs.push(id); else ccs.splice(i, 1);
-            refreshCc();
+        var q = document.querySelector('.an-csearch').value;
+        searchUsers(q, cRole, function (users) {
+            renderList(document.querySelector('.an-clist'), users, ccs, function (id) {
+                var i = ccs.indexOf(id);
+                if (i === -1) ccs.push(id); else ccs.splice(i, 1);
+                refreshCc();
+            });
+            renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
+                ccs = ccs.filter(function (x) { return x !== id; });
+                refreshCc();
+            }, 'CC:');
+            syncHiddens(document.querySelector('.an-chiddens'), ccs, 'cc_ids');
         });
-        renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
-            ccs = ccs.filter(function (x) { return x !== id; });
-            refreshCc();
-        }, 'CC:');
-        syncHiddens(document.querySelector('.an-chiddens'), ccs, 'cc_ids');
     }
 
-    document.querySelector('.an-rsearch').addEventListener('input', refreshRecipients);
-    document.querySelector('.an-csearch').addEventListener('input', refreshCc);
+    document.querySelector('.an-rsearch').addEventListener('input', function () {
+        clearTimeout(searchTimers.r);
+        searchTimers.r = setTimeout(refreshRecipients, 250);
+    });
+    document.querySelector('.an-csearch').addEventListener('input', function () {
+        clearTimeout(searchTimers.c);
+        searchTimers.c = setTimeout(refreshCc, 250);
+    });
     document.querySelectorAll('.an-rf').forEach(function (btn) {
         btn.addEventListener('click', function () {
             rRole = btn.getAttribute('data-role');

@@ -180,10 +180,12 @@
 
 <script>
 window.TM_USERS = @json($usersJson);
+window.TM_USERS_SEARCH = @json(route('tasks.users.search'));
 (function () {
     var container = document.getElementById('tm-tasks');
     var taskIndex = 0;
     var colors = ['#0b3f90', '#16a34a', '#ea580c', '#dc2626', '#7c3aed', '#0d9488'];
+    var searchTimers = {};
 
     function esc(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -200,7 +202,14 @@ window.TM_USERS = @json($usersJson);
         };
     }
 
-    function filterUsers(query, roleFilter) {
+    function mergeUsers(list) {
+        var map = {};
+        (window.TM_USERS || []).forEach(function (u) { map[u.id] = u; });
+        (list || []).forEach(function (u) { map[u.id] = u; });
+        window.TM_USERS = Object.keys(map).map(function (k) { return map[k]; });
+    }
+
+    function filterUsersLocal(query, roleFilter) {
         var q = (query || '').toLowerCase();
         return (window.TM_USERS || []).filter(function (u) {
             var role = (u.role || '').toLowerCase();
@@ -215,6 +224,28 @@ window.TM_USERS = @json($usersJson);
                 || (u.address||'').toLowerCase().indexOf(q) !== -1
                 || (u.source||'').toLowerCase().indexOf(q) !== -1;
         });
+    }
+
+    function searchUsers(query, roleFilter, done) {
+        var q = (query || '').trim();
+        if (!q || q.length < 2 || !window.TM_USERS_SEARCH) {
+            done(filterUsersLocal(query, roleFilter));
+            return;
+        }
+        var filter = roleFilter === 'staff' ? 'staff' : (roleFilter === 'customers' ? 'customers' : 'all');
+        fetch(window.TM_USERS_SEARCH + '?q=' + encodeURIComponent(q) + '&filter=' + encodeURIComponent(filter), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (rows) {
+            mergeUsers(rows);
+            done(filterUsersLocal(query, roleFilter));
+        }).catch(function () {
+            done(filterUsersLocal(query, roleFilter));
+        });
+    }
+
+    function filterUsers(query, roleFilter) {
+        return filterUsersLocal(query, roleFilter);
     }
 
     function renderUserList(el, users, selectedIds, onToggle) {
@@ -411,28 +442,34 @@ window.TM_USERS = @json($usersJson);
             }).join('');
         }
         function refreshAssignees() {
-            renderUserList(aList, filterUsers(wrap.querySelector('.tm-asearch').value, aRole), assignees, function (id) {
-                var idx = assignees.indexOf(id);
-                if (idx === -1) assignees.push(id); else assignees.splice(idx, 1);
-                refreshAssignees();
+            var q = wrap.querySelector('.tm-asearch').value;
+            searchUsers(q, aRole, function (users) {
+                renderUserList(aList, users, assignees, function (id) {
+                    var idx = assignees.indexOf(id);
+                    if (idx === -1) assignees.push(id); else assignees.splice(idx, 1);
+                    refreshAssignees();
+                });
+                renderChips(aChips, assignees, function (id) {
+                    assignees = assignees.filter(function (x) { return x !== id; });
+                    refreshAssignees();
+                });
+                syncAssigneeHiddens();
             });
-            renderChips(aChips, assignees, function (id) {
-                assignees = assignees.filter(function (x) { return x !== id; });
-                refreshAssignees();
-            });
-            syncAssigneeHiddens();
         }
         function refreshCc() {
-            renderUserList(cList, filterUsers(wrap.querySelector('.tm-csearch').value, cRole), ccs, function (id) {
-                var idx = ccs.indexOf(id);
-                if (idx === -1) ccs.push(id); else ccs.splice(idx, 1);
-                refreshCc();
+            var q = wrap.querySelector('.tm-csearch').value;
+            searchUsers(q, cRole, function (users) {
+                renderUserList(cList, users, ccs, function (id) {
+                    var idx = ccs.indexOf(id);
+                    if (idx === -1) ccs.push(id); else ccs.splice(idx, 1);
+                    refreshCc();
+                });
+                renderChips(cChips, ccs, function (id) {
+                    ccs = ccs.filter(function (x) { return x !== id; });
+                    refreshCc();
+                }, 'CC:');
+                syncCcHiddens();
             });
-            renderChips(cChips, ccs, function (id) {
-                ccs = ccs.filter(function (x) { return x !== id; });
-                refreshCc();
-            }, 'CC:');
-            syncCcHiddens();
         }
 
         wrap.querySelector('.tm-task-remove').addEventListener('click', function () {
@@ -440,8 +477,14 @@ window.TM_USERS = @json($usersJson);
             renumberTasks();
         });
 
-        wrap.querySelector('.tm-asearch').addEventListener('input', refreshAssignees);
-        wrap.querySelector('.tm-csearch').addEventListener('input', refreshCc);
+        wrap.querySelector('.tm-asearch').addEventListener('input', function () {
+            clearTimeout(searchTimers['a'+i]);
+            searchTimers['a'+i] = setTimeout(refreshAssignees, 250);
+        });
+        wrap.querySelector('.tm-csearch').addEventListener('input', function () {
+            clearTimeout(searchTimers['c'+i]);
+            searchTimers['c'+i] = setTimeout(refreshCc, 250);
+        });
         wrap.querySelectorAll('.tm-af').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 aRole = btn.getAttribute('data-role');

@@ -10,23 +10,27 @@
     <meta name="robots" content="all,follow">
     @php
         $use_system_letterhead = true;
+        // In-flow letterhead avoids DomPDF fixed-header overlap / extra blank pages on WhatsApp PDFs.
+        $letterhead_flow = true;
         $letterhead = $letterhead ?? \App\Support\Letterhead::ensureSynced();
         $hasLetterhead = ! empty($letterhead['has_header']);
     @endphp
     @include('pdf.partials._letter_branded_styles')
     <style type="text/css">
         * {
-            font-size: 14px;
-            line-height: 24px;
+            font-size: 12px;
+            line-height: 1.35;
             font-family: DejaVu Sans, 'Ubuntu', sans-serif;
         }
         td, th, tr, table { border-collapse: collapse; }
         tr { border-bottom: 1px dotted #ddd; }
-        td, th { padding: 7px 0; text-align: left; }
+        td, th { padding: 5px 2px; text-align: left; }
         table { width: 100%; }
+        .table-data { page-break-inside: avoid; }
+        .quotation-note { page-break-inside: avoid; }
         .centered { text-align: center; }
-        .quotation-title { text-align: center; margin: 8px 0 16px; }
-        .quotation-title h3 { font-size: 18px; margin: 0; }
+        .quotation-title { text-align: center; margin: 4px 0 10px; }
+        .quotation-title h3 { font-size: 16px; margin: 0; }
         .quotation-note ul, .quotation-note ol { margin: 6px 0 6px 1.2rem; padding: 0; }
         .quotation-note p { margin: 0 0 8px; }
     </style>

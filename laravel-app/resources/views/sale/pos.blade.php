@@ -27,6 +27,38 @@
         body.beyond-pos-active .pos-section .grand-total,
         body.beyond-pos-active .pos-section .total-section { background: linear-gradient(135deg, #0b3f90, #072f6b) !important; color: #fff !important; border-radius: 10px; }
         body.beyond-pos-active .pos-section .payment-buttons .btn { border-radius: 10px; font-weight: 700; }
+        body.beyond-pos-active .pos-section .product-img img {
+            width: 100%;
+            max-height: 90px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+            background: #f5f7fb;
+        }
+        body.beyond-pos-active .pos-section .product-img p {
+            font-size: 12px;
+            line-height: 1.25;
+            max-height: 2.5em;
+            overflow: hidden;
+            margin: 4px 0 0;
+        }
+        body.beyond-pos-active .pos-section .table-container [class*="dripicons-"]:before,
+        body.beyond-pos-active .pos-section .payment-buttons [class*="dripicons-"]:before,
+        body.beyond-pos-active .pos-section .btn [class*="dripicons-"]:before {
+            font-family: "dripicons-v2" !important;
+            font-style: normal;
+            font-weight: normal;
+            speak: none;
+            display: inline-block;
+            text-decoration: inherit;
+            width: 1em;
+            margin-right: .2em;
+            text-align: center;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1em;
+        }
+        body.beyond-pos-active .pos-section .btn-default .dripicons-plus:before { font-size: 16px; }
     </style>
     <script>document.body.classList.add('beyond-pos-active');</script>
     @if(false)
@@ -1198,24 +1230,20 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                @if($lims_pos_setting_data)
-                                                    <input type="hidden" name="warehouse_id_hidden" value="{{$lims_pos_setting_data->warehouse_id}}">
-                                                @endif
+                                                <input type="hidden" name="warehouse_id_hidden" value="{{ optional($lims_pos_setting_data)->warehouse_id }}">
                                                 <select required id="warehouse_id" name="warehouse_id" class="selectpicker form-control" data-live-search="true"   title="Select warehouse...">
                                                     @foreach($lims_warehouse_list as $warehouse)
-                                                        <option value="{{$warehouse->id}}">{{$warehouse->name}}</option>
+                                                        <option value="{{$warehouse->id}}" @if(optional($lims_pos_setting_data)->warehouse_id == $warehouse->id) selected @endif>{{$warehouse->name}}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                @if($lims_pos_setting_data)
-                                                    <input type="hidden" name="biller_id_hidden" value="{{$lims_pos_setting_data->biller_id}}">
-                                                @endif
+                                                <input type="hidden" name="biller_id_hidden" value="{{ optional($lims_pos_setting_data)->biller_id }}">
                                                 <select required id="biller_id" name="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
                                                     @foreach($lims_biller_list as $biller)
-                                                        <option value="{{$biller->id}}">{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                        <option value="{{$biller->id}}" @if(optional($lims_pos_setting_data)->biller_id == $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -1748,9 +1776,9 @@
                                                 @foreach($lims_category_list as $category)
                                                     <div class="col-md-3 category-img text-center" data-category="{{$category->id}}">
                                                         @if($category->image)
-                                                            <img  src="{{url('public/images/category', $category->image)}}" />
+                                                            <img  src="{{ asset('images/category/'.$category->image) }}" />
                                                         @else
-                                                            <img  src="{{url('public/images/product/zummXD2dvAtI.png')}}" />
+                                                            <img  src="{{ asset('images/product/zummXD2dvAtI.png') }}" />
                                                         @endif
                                                         <p class="text-center">{{$category->name}}</p>
                                                     </div>
@@ -1770,12 +1798,12 @@
                                 @foreach($lims_brand_list as $brand)
                                     @if($brand->image)
                                         <div class="col-md-3 brand-img text-center" data-brand="{{$brand->id}}">
-                                            <img  src="{{url('public/images/brand',$brand->image)}}" />
+                                            <img  src="{{asset('images/brand/'.$brand->image)}}" />
                                             <p class="text-center">{{$brand->title}}</p>
                                         </div>
                                     @else
                                         <div class="col-md-3 brand-img" data-brand="{{$brand->id}}">
-                                            <img  src="{{url('public/images/product/zummXD2dvAtI.png')}}" />
+                                            <img  src="{{asset('images/product/zummXD2dvAtI.png')}}" />
                                             <p class="text-center">{{$brand->title}}</p>
                                         </div>
                                     @endif
@@ -1807,12 +1835,12 @@
                                 <tbody>
                                 @for ($i=0; $i < ceil($product_number/5); $i++)
                                     <tr>
-                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{url('public/images/product',$lims_product_list[0+$i*5]->base_image)}}" width="100%" />
+                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[0+$i*5]->base_image)}}" width="100%" />
                                             <p>{{$lims_product_list[0+$i*5]->name}}</p>
                                             <span>{{$lims_product_list[0+$i*5]->code}}</span>
                                         </td>
                                         @if(!empty($lims_product_list[1+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{url('public/images/product',$lims_product_list[1+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[1+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[1+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[1+$i*5]->code}}</span>
                                             </td>
@@ -1820,7 +1848,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[2+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{url('public/images/product',$lims_product_list[2+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[2+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[2+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[2+$i*5]->code}}</span>
                                             </td>
@@ -1828,7 +1856,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[3+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{url('public/images/product',$lims_product_list[3+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[3+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[3+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[3+$i*5]->code}}</span>
                                             </td>
@@ -1836,7 +1864,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[4+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{url('public/images/product',$lims_product_list[4+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[4+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[4+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[4+$i*5]->code}}</span>
                                             </td>
@@ -2436,6 +2464,9 @@
         var biller_id = <?php echo json_encode(\Auth::user()->biller_id) ?>;
         var coupon_list = <?php echo json_encode($lims_coupon_list) ?>;
         var currency = <?php echo json_encode($currency) ?>;
+        window.POS_PRODUCT_IMAGE_BASE = @json(rtrim(asset('images/product'), '/') . '/');
+        var newCustomerId = @json(session('new_customer_id'));
+        var posMinSearchChars = {{ (int) (env('MINIMUM_SEARCH_CHAR') ?: 1) }};
 
         var localStorageQty = [];
         var localStorageProductId = [];
@@ -2730,7 +2761,7 @@
             $('select[name=biller_id]').val(biller_id);
         }
 
-        if(getSavedValue("biller_id")) {
+        if(getSavedValue("customer_id")) {
             $('select[name=customer_id]').val(getSavedValue("customer_id"));
         }
         else {
@@ -2740,12 +2771,29 @@
         if(localStorage.getItem('customer_id')) {
             $("#customer_id").val(localStorage.getItem('customer_id'));
         }
+        if (newCustomerId) {
+            $("#customer_id").val(String(newCustomerId));
+            localStorage.setItem('customer_id', String(newCustomerId));
+        }
         $('#customer_id').on('change', function(){
             var selected_customer_id = $(this).val();
             localStorage.setItem('customer_id', selected_customer_id);
         });
-        if(localStorage.getItem('customer_id')) {
-            $("#customer_id").val(localStorage.getItem('customer_id'));
+
+        // Ensure warehouse/biller are set before product lookup (defaults from richest stock).
+        if (!$('select[name=warehouse_id]').val()) {
+            var fallbackWh = $("input[name='warehouse_id_hidden']").val();
+            if (fallbackWh) {
+                $('select[name=warehouse_id]').val(fallbackWh);
+                warehouse_id = fallbackWh;
+            }
+        }
+        if (!$('select[name=biller_id]').val()) {
+            var fallbackBiller = $("input[name='biller_id_hidden']").val();
+            if (fallbackBiller) {
+                $('select[name=biller_id]').val(fallbackBiller);
+                biller_id = fallbackBiller;
+            }
         }
 
         $('.selectpicker').selectpicker('refresh');
@@ -2756,11 +2804,16 @@
             $('#customer-amount-owing').text(parseFloat(customer_owing[id] || 0).toFixed(2));
             $('#customer-balance-panel').show();
         }
-        $.get('/sales/getcustomergroup/' + id, function(data) {
-            customer_group_rate = (data / 100);
-        });
+        if (id) {
+            $.get('/sales/getcustomergroup/' + id, function(data) {
+                customer_group_rate = (data / 100);
+            });
+        }
 
         var id = $("#warehouse_id").val();
+        if (!id) {
+            lims_product_array = [];
+        } else
         $.get('/sales/getproduct/' + id, function(data) {
             lims_product_array = [];
             product_code = data[0];
@@ -2779,7 +2832,9 @@
             });
         });
 
-        isCashRegisterAvailable(id);
+        if (id) {
+            isCashRegisterAvailable(id);
+        }
 
         function isCashRegisterAvailable(warehouse_id) {
             $.ajax({
@@ -2897,9 +2952,9 @@
                 $.each(data['name'], function(index) {
                     var product_info = data['code'][index]+' (' + data['name'][index] + ')';
                     if(index % 5 == 0 && index != 0)
-                        tableData += '</tr><tr><td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="public/images/product/'+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
+                        tableData += '</tr><tr><td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
                     else
-                        tableData += '<td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="public/images/product/'+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
+                        tableData += '<td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
                 });
 
                 if(data['name'].length % 5){
@@ -3021,7 +3076,7 @@
                 var data = ui.item.value;
                 productSearch(data);
             },
-            minLength: {{ env('MINIMUM_SEARCH_CHAR') }}
+            minLength: posMinSearchChars
         });
 
         $('#myTable').keyboard({
@@ -3541,6 +3596,16 @@
         });
 
         function productSearch(data) {
+            var customer_id = $('#customer_id').val();
+            var warehouse_id = $('select[name="warehouse_id"]').val();
+            if (!customer_id) {
+                alert('Please select Customer!');
+                return;
+            }
+            if (!warehouse_id) {
+                alert('Please select Warehouse!');
+                return;
+            }
             $.ajax({
                 type: 'GET',
                 url: '/sales/lims_product_search',
@@ -3548,6 +3613,10 @@
                     data: data
                 },
                 success: function(data) {
+                    if (!data || data.error || !data[1]) {
+                        alert(data && data.error ? data.error : 'Product not found');
+                        return;
+                    }
                     var flag = 1;
                     $(".product-code").each(function(i) {
                         if ($(this).val() == data[1]) {
@@ -3568,6 +3637,9 @@
                     if(flag){
                         addNewProduct(data);
                     }
+                },
+                error: function() {
+                    alert('Product not found or not available.');
                 }
             });
         }

@@ -49,6 +49,17 @@ class AnnouncementManagerController extends Controller
         return collect($this->announcements->eligibleUsers())->values();
     }
 
+    public function searchUsers(Request $request)
+    {
+        $this->authorizeAnnouncements('announcements.create');
+        $users = $this->announcements->eligibleUsers(
+            $request->query('filter', 'all'),
+            $request->query('q', '')
+        );
+
+        return response()->json(collect($users)->values());
+    }
+
     public function compose(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');

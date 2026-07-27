@@ -1,15 +1,21 @@
 @php
     // Letters: Beyond A4 + resolvable header. Quotations: set $use_system_letterhead = true.
+    // DomPDF often overlaps fixed letterheads — set $letterhead_flow = true for in-flow header/footer.
     $useSystemLetterhead = ! empty($use_system_letterhead);
+    $letterheadFlow = ! empty($letterhead_flow);
     $letterhead = $letterhead ?? \App\Support\Letterhead::resolve($general_setting ?? null);
     $hasLetterhead = ! empty($letterhead['has_header'])
         && ($useSystemLetterhead || ($general_setting->invoice_format ?? '') == 'beyond_a4');
 @endphp
 <style type="text/css">
+@if($letterheadFlow)
+    @page { margin: 18px 16px 22px 16px; }
+@else
     /* Reserve top/bottom page margins for the repeating letterhead & footer
        images so multi-page letters keep the header on top and footer at the
        bottom of every page, and body text never collides with them. */
     @page { margin: {{ $hasLetterhead ? '155px 0 120px 0' : '0' }}; }
+@endif
     body {
         margin: 0;
         padding: 0;
@@ -37,6 +43,28 @@
         width: 100%;
         max-width: 420px;
     }
+@if($letterheadFlow)
+    .letter-header-img {
+        position: relative;
+        display: block;
+        width: 100%;
+        max-height: 110px;
+        margin: 0 0 10px 0;
+        z-index: 1;
+    }
+    .letter-footer-img {
+        position: relative;
+        display: block;
+        width: 100%;
+        max-height: 80px;
+        margin: 18px 0 0 0;
+        z-index: 1;
+        page-break-inside: avoid;
+    }
+    .letter-page.has-letterhead {
+        padding-top: 0;
+    }
+@else
     /* Fixed positioning makes dompdf repeat these on every page. */
     .letter-header-img {
         position: fixed;
@@ -56,6 +84,7 @@
         display: block;
         z-index: 1;
     }
+@endif
     .letter-meta { margin: 18px 0; }
     .letter-body {
         position: relative;

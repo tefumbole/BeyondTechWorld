@@ -83,6 +83,8 @@ class PeopleDirectoryService
         }
 
         if ($filter === 'all' || $filter === 'customers') {
+            // Newest customers first so POS-created contacts are not truncated off the list.
+            $customerLimit = $term !== '' ? 200 : ($filter === 'customers' ? 500 : 250);
             Customer::query()
                 ->where('is_active', true)
                 ->when($term !== '', function ($q) use ($like) {
@@ -94,8 +96,8 @@ class PeopleDirectoryService
                             ->orWhere('address', 'like', $like);
                     });
                 })
-                ->orderBy('name')
-                ->limit(300)
+                ->orderByDesc('id')
+                ->limit($customerLimit)
                 ->get(['id', 'name', 'email', 'phone_number', 'address', 'company_name'])
                 ->each(function ($c) use ($out) {
                     $out->push([
@@ -111,7 +113,16 @@ class PeopleDirectoryService
                 });
         }
 
-        return $out->unique('id')->values()->take(400);
+        $combined = $out->unique('id')->values();
+        // Searches must return all matches; only cap the unfiltered preload list.
+        if ($term !== '') {
+            return $combined->take(300);
+        }
+        if ($filter === 'customers') {
+            return $combined->take(500);
+        }
+
+        return $combined->take(600);
     }
 
     /**

@@ -1638,6 +1638,27 @@ class SaleController extends Controller
 
             $product_number = count($lims_product_list);
             $lims_pos_setting_data = PosSetting::latest()->first();
+            // If POS settings omit warehouse/biller, prefer warehouse with the most stocked SKUs.
+            if (! $lims_pos_setting_data || ! $lims_pos_setting_data->warehouse_id) {
+                $richestWarehouseId = \DB::table('product_warehouse')
+                    ->select('warehouse_id', \DB::raw('COUNT(DISTINCT product_id) as sku_count'), \DB::raw('SUM(qty) as total_qty'))
+                    ->where('qty', '>', 0)
+                    ->groupBy('warehouse_id')
+                    ->orderByDesc('sku_count')
+                    ->orderByDesc('total_qty')
+                    ->value('warehouse_id');
+                if (! $lims_pos_setting_data) {
+                    $lims_pos_setting_data = new PosSetting();
+                }
+                if ($richestWarehouseId) {
+                    $lims_pos_setting_data->warehouse_id = $richestWarehouseId;
+                } elseif ($lims_warehouse_list->count()) {
+                    $lims_pos_setting_data->warehouse_id = $lims_warehouse_list->first()->id;
+                }
+            }
+            if (! $lims_pos_setting_data->biller_id && $lims_biller_list->count()) {
+                $lims_pos_setting_data->biller_id = $lims_biller_list->first()->id;
+            }
             $lims_brand_list = Brand::select('id', 'title', 'image')->where('is_active', true)->get();
 
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
@@ -1877,7 +1898,12 @@ class SaleController extends Controller
                     ['product_variants.item_code', $product_code[0]],
                     ['products.is_active', true]
                 ])->first();
-            $product_variant_id = $lims_product_data->product_variant_id;
+            if ($lims_product_data) {
+                $product_variant_id = $lims_product_data->product_variant_id;
+            }
+        }
+        if (! $lims_product_data) {
+            return response()->json(['error' => 'Product not found'], 404);
         }
 
         $product[] = $lims_product_data->name;

@@ -139,7 +139,7 @@ class CustomerController extends Controller
             ]);
         }
         if(isset($lims_customer_data['pos']) && $lims_customer_data['pos'] == 1)
-            return redirect('pos')->with('message', $message);
+            return redirect('pos')->with('message', $message)->with('new_customer_id', $customer->id);
         elseif(isset($lims_customer_data['letter']) && $lims_customer_data['letter'] == 1)
             return back()->with('message', $message);
         elseif(isset($lims_customer_data['quotation']) && $lims_customer_data['quotation'] == 1)
