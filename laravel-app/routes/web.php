@@ -582,6 +582,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('pos', 'SaleController@posSale')->name('sale.pos');
 	Route::get('sales/lims_sale_search', 'SaleController@limsSaleSearch')->name('sale.search');
 	Route::get('sales/lims_product_search', 'SaleController@limsProductSearch')->name('product_sale.search');
+	Route::get('sales/pos_product_suggest', 'SaleController@posProductSuggest')->name('sale.pos.product.suggest');
 	Route::get('sales/getcustomergroup/{id}', 'SaleController@getCustomerGroup')->name('sale.getcustomergroup');
 	Route::get('sales/getproduct/{id}', 'SaleController@getProduct')->name('sale.getproduct');
 	Route::get('sales/searchAllProducts', 'SaleController@searchAllProducts')->name('sale.search.all.products');

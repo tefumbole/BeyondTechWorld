@@ -1638,18 +1638,26 @@ class SaleController extends Controller
 
             $product_number = count($lims_product_list);
             $lims_pos_setting_data = PosSetting::latest()->first();
-            // If POS settings omit warehouse/biller, prefer warehouse with the most stocked SKUs.
-            if (! $lims_pos_setting_data || ! $lims_pos_setting_data->warehouse_id) {
-                $richestWarehouseId = \DB::table('product_warehouse')
-                    ->select('warehouse_id', \DB::raw('COUNT(DISTINCT product_id) as sku_count'), \DB::raw('SUM(qty) as total_qty'))
+            // Prefer configured POS warehouse; if missing/empty stock, use warehouse with most SKUs.
+            $richestWarehouseId = \DB::table('product_warehouse')
+                ->select('warehouse_id', \DB::raw('COUNT(DISTINCT product_id) as sku_count'), \DB::raw('SUM(qty) as total_qty'))
+                ->where('qty', '>', 0)
+                ->groupBy('warehouse_id')
+                ->orderByDesc('sku_count')
+                ->orderByDesc('total_qty')
+                ->value('warehouse_id');
+            if (! $lims_pos_setting_data) {
+                $lims_pos_setting_data = new PosSetting();
+            }
+            $configuredWarehouseId = $lims_pos_setting_data->warehouse_id ?: null;
+            $configuredStock = $configuredWarehouseId
+                ? (int) \DB::table('product_warehouse')
+                    ->where('warehouse_id', $configuredWarehouseId)
                     ->where('qty', '>', 0)
-                    ->groupBy('warehouse_id')
-                    ->orderByDesc('sku_count')
-                    ->orderByDesc('total_qty')
-                    ->value('warehouse_id');
-                if (! $lims_pos_setting_data) {
-                    $lims_pos_setting_data = new PosSetting();
-                }
+                    ->selectRaw('COUNT(DISTINCT product_id) as c')
+                    ->value('c')
+                : 0;
+            if (! $configuredWarehouseId || $configuredStock < 1) {
                 if ($richestWarehouseId) {
                     $lims_pos_setting_data->warehouse_id = $richestWarehouseId;
                 } elseif ($lims_warehouse_list->count()) {
@@ -1962,8 +1970,67 @@ class SaleController extends Controller
         $product[] = $product_variant_id;
         $product[] = $lims_product_data->promotion;
         $product[] = $lims_product_data->is_batch;
-        return $product;
+        $product[] = $lims_product_data->type;
+        $warehouseId = (int) $request->get('warehouse_id', 0);
+        $stockQty = null;
+        if ($warehouseId > 0) {
+            $pwQuery = Product_Warehouse::where('product_id', $lims_product_data->id)
+                ->where('warehouse_id', $warehouseId);
+            if ($product_variant_id) {
+                $pwQuery->where('variant_id', $product_variant_id);
+            }
+            $stockQty = (float) $pwQuery->sum('qty');
+        }
+        if ($stockQty === null || ($stockQty <= 0 && $lims_product_data->type !== 'standard')) {
+            $stockQty = (float) ($lims_product_data->qty ?? 0);
+        }
+        $product[] = $stockQty;
 
+        return $product;
+    }
+
+    /**
+     * POS autocomplete suggestions (code/name) so search works even when warehouse cache is incomplete.
+     */
+    public function posProductSuggest(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+        if ($term === '') {
+            return response()->json([]);
+        }
+        $like = '%' . $term . '%';
+        $rows = Product::query()
+            ->where('is_active', true)
+            ->where(function ($q) use ($like) {
+                $q->where('code', 'like', $like)
+                    ->orWhere('name', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(25)
+            ->get(['code', 'name']);
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = $row->code . ' (' . $row->name . ')';
+        }
+
+        $variants = Product::join('product_variants', 'products.id', '=', 'product_variants.product_id')
+            ->where('products.is_active', true)
+            ->where(function ($q) use ($like) {
+                $q->where('product_variants.item_code', 'like', $like)
+                    ->orWhere('products.name', 'like', $like);
+            })
+            ->orderBy('products.name')
+            ->limit(15)
+            ->get(['product_variants.item_code as code', 'products.name']);
+        foreach ($variants as $row) {
+            $label = $row->code . ' (' . $row->name . ')';
+            if (! in_array($label, $out, true)) {
+                $out[] = $label;
+            }
+        }
+
+        return response()->json(array_values($out));
     }
 
     public function getGiftCard()

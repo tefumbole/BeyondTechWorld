@@ -2430,6 +2430,10 @@
         var product_id = [];
         var product_list = [];
         var qty_list = [];
+        var product_warehouse_price = [];
+        var batch_no = [];
+        var product_batch_id = [];
+        var product_expired_date = [];
 
         // array data with selection
         var product_price = [];
@@ -2744,18 +2748,17 @@
             isCashRegisterAvailable(warehouse_id);
         }
         else {
-            if(getSavedValue("warehouse_id")){
-                warehouse_id = getSavedValue("warehouse_id");
+            // Server POS default (richest/configured warehouse) must win over stale localStorage.
+            // localStorage had been forcing "Beyond" (1 SKU) while stock lives in E-COMMERCE.
+            var serverWh = $("input[name='warehouse_id_hidden']").val();
+            var serverBiller = $("input[name='biller_id_hidden']").val();
+            warehouse_id = serverWh || getSavedValue("warehouse_id") || warehouse_id;
+            biller_id = serverBiller || getSavedValue("biller_id") || biller_id;
+            if (serverWh) {
+                localStorage.setItem("warehouse_id", String(serverWh));
             }
-            else {
-                warehouse_id = $("input[name='warehouse_id_hidden']").val();
-            }
-
-            if(getSavedValue("biller_id")){
-                biller_id = getSavedValue("biller_id");
-            }
-            else {
-                biller_id = $("input[name='biller_id_hidden']").val();
+            if (serverBiller) {
+                localStorage.setItem("biller_id", String(serverBiller));
             }
             $('select[name=warehouse_id]').val(warehouse_id);
             $('select[name=biller_id]').val(biller_id);
@@ -2952,9 +2955,9 @@
                 $.each(data['name'], function(index) {
                     var product_info = data['code'][index]+' (' + data['name'][index] + ')';
                     if(index % 5 == 0 && index != 0)
-                        tableData += '</tr><tr><td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
+                        tableData += '</tr><tr><td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" onerror="this.onerror=null;this.src=\''+window.POS_PRODUCT_IMAGE_BASE+'zummXD2dvAtI.png\';" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
                     else
-                        tableData += '<td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
+                        tableData += '<td class="product-img sound-btn" title="'+data['name'][index]+'" data-product = "'+product_info+'"><img  src="'+window.POS_PRODUCT_IMAGE_BASE+data['image'][index]+'" width="100%" onerror="this.onerror=null;this.src=\''+window.POS_PRODUCT_IMAGE_BASE+'zummXD2dvAtI.png\';" /><p>'+data['name'][index]+'</p><span>'+data['code'][index]+'</span></td>';
                 });
 
                 if(data['name'].length % 5){
@@ -3061,9 +3064,25 @@
         lims_productcodeSearch.autocomplete({
             source: function(request, response) {
                 var matcher = new RegExp(".?" + $.ui.autocomplete.escapeRegex(request.term), "i");
-                response($.grep(lims_product_array, function(item) {
+                var local = $.grep(lims_product_array, function(item) {
                     return matcher.test(item);
-                }));
+                });
+                if (local.length >= 10 || !request.term || request.term.length < 2) {
+                    response(local.slice(0, 25));
+                    return;
+                }
+                $.getJSON('/sales/pos_product_suggest', {
+                    q: request.term,
+                    warehouse_id: $('#warehouse_id').val()
+                }).done(function(rows) {
+                    var merged = local.slice();
+                    $.each(rows || [], function(_, label) {
+                        if (merged.indexOf(label) === -1) merged.push(label);
+                    });
+                    response(merged.slice(0, 25));
+                }).fail(function() {
+                    response(local.slice(0, 25));
+                });
             },
             response: function(event, ui) {
                 if (ui.content.length == 1) {
@@ -3157,18 +3176,14 @@
             else if(!warehouse_id)
                 alert('Please select Warehouse!');
             else{
-                var data = $(this).data('product');
-                data = data.split(" ");
-                pos = product_code.indexOf(data[0]);
-                @if(in_array("zero_stock", $all_permission))
-                productSearch(data[0]);
-                @else
-                if(pos < 0)
-                    alert('Product is not avaialable in the selected warehouse');
-                else{
-                    productSearch(data[0]);
+                var raw = String($(this).data('product') || '');
+                var code = raw.indexOf(' (') >= 0 ? raw.split(' (')[0].trim() : raw.split(/\s+/)[0];
+                if (!code) {
+                    alert('Product code missing');
+                    return;
                 }
-                @endif
+                // Always add via search API — featured tiles are not limited to current warehouse cache.
+                productSearch(code);
             }
         });
         //Delete product
@@ -3595,6 +3610,34 @@
             });
         });
 
+        function ensureProductStockCache(data) {
+            if (!Array.isArray(product_warehouse_price)) product_warehouse_price = [];
+            if (!Array.isArray(batch_no)) batch_no = [];
+            if (!Array.isArray(product_batch_id)) product_batch_id = [];
+            if (!Array.isArray(product_expired_date)) product_expired_date = [];
+            var code = data[1];
+            var idx = product_code.indexOf(code);
+            if (idx >= 0) {
+                if (typeof data[14] !== 'undefined' && data[14] !== null) {
+                    product_qty[idx] = data[14];
+                }
+                return idx;
+            }
+            product_code.push(code);
+            product_name.push(data[0]);
+            product_qty.push(typeof data[14] !== 'undefined' && data[14] !== null ? data[14] : 0);
+            product_type.push(data[13] || 'standard');
+            product_id.push(data[9]);
+            product_list.push(null);
+            qty_list.push(null);
+            product_warehouse_price.push(null);
+            batch_no.push(null);
+            product_batch_id.push(null);
+            product_expired_date.push(null);
+            lims_product_array.push(code + ' (' + data[0] + ')');
+            return product_code.length - 1;
+        }
+
         function productSearch(data) {
             var customer_id = $('#customer_id').val();
             var warehouse_id = $('select[name="warehouse_id"]').val();
@@ -3606,17 +3649,26 @@
                 alert('Please select Warehouse!');
                 return;
             }
+            if (typeof customer_group_rate === 'undefined' || customer_group_rate === null) {
+                customer_group_rate = 0;
+            }
+            var payload = data;
+            if (typeof payload === 'string' && payload.indexOf(' (') >= 0) {
+                payload = payload; // limsProductSearch already splits on "("
+            }
             $.ajax({
                 type: 'GET',
                 url: '/sales/lims_product_search',
                 data: {
-                    data: data
+                    data: payload,
+                    warehouse_id: warehouse_id
                 },
                 success: function(data) {
                     if (!data || data.error || !data[1]) {
                         alert(data && data.error ? data.error : 'Product not found');
                         return;
                     }
+                    ensureProductStockCache(data);
                     var flag = 1;
                     $(".product-code").each(function(i) {
                         if ($(this).val() == data[1]) {
@@ -3638,8 +3690,12 @@
                         addNewProduct(data);
                     }
                 },
-                error: function() {
-                    alert('Product not found or not available.');
+                error: function(xhr) {
+                    var msg = 'Product not found or not available.';
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
+                        msg = xhr.responseJSON.error;
+                    }
+                    alert(msg);
                 }
             });
         }
