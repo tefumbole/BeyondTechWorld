@@ -50,9 +50,26 @@
         .btn-info { background: #6c757d; }
         .btn-primary { background: #6449e7; }
         .btn-danger { background: #c0392b; }
-        .sheet { position: relative; margin: 0 auto; padding: {{ $isBeyond ? '0 14px 12px' : '10px' }}; max-width: {{ $isBeyond ? '210mm' : '400px' }}; }
-        .letter-header { display: block; width: 100%; max-height: 95px; object-fit: contain; object-position: top; margin: 0 0 6px; }
-        .letter-footer { display: block; width: 100%; max-height: 72px; object-fit: contain; object-position: bottom; margin: 10px 0 0; }
+        .sheet { position: relative; margin: 0 auto; padding: {{ $isBeyond ? '0' : '10px' }}; max-width: {{ $isBeyond ? '210mm' : '400px' }}; }
+        .letter-header {
+            display: block;
+            width: 100%;
+            max-height: none;
+            height: auto;
+            object-fit: fill;
+            object-position: top;
+            margin: 0;
+        }
+        .letter-footer {
+            display: block;
+            width: 100%;
+            max-height: none;
+            height: auto;
+            object-fit: fill;
+            object-position: bottom;
+            margin: 0;
+        }
+        .content-pad { padding: {{ $isBeyond ? '8px 14px 12px' : '0' }}; }
         .watermark {
             position: absolute;
             top: 38%;
@@ -86,9 +103,10 @@
         .name { font-weight: bold; }
         table.items { width: 100%; border-collapse: collapse; }
         table.items th {
-            background: #eef0f7;
-            border-top: 1px solid #c9cfdf;
-            border-bottom: 1px solid #c9cfdf;
+            background: #d9ebe1;
+            color: #1f3d32;
+            border-top: 1px solid #b7d4c4;
+            border-bottom: 1px solid #b7d4c4;
             padding: 5px 6px;
             text-align: left;
             font-size: 10px;
@@ -96,9 +114,11 @@
         }
         table.items td {
             padding: 5px 6px;
-            border-bottom: 1px solid #eceef4;
+            border-bottom: 1px solid #e3efe8;
             vertical-align: top;
         }
+        table.items tr.alt td { background: #f2f8f4; }
+        table.items tr.total-row td { background: #e5f2eb; font-weight: bold; }
         .num, .qty { text-align: center; }
         .money { text-align: right; white-space: nowrap; }
         table.summary { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -130,25 +150,33 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        .codes { text-align: center; margin-top: 8px; }
-        .codes img { vertical-align: middle; }
+        .codes { margin-top: 8px; text-align: left; }
+        .codes .created-by { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+        .codes .code-media { text-align: center; }
+        .codes img { display: block; margin: 0 auto; }
         .thanks { text-align: center; color: #6b7386; margin: 6px 0; }
         .centered { text-align: center; }
         @media print {
             .hidden-print { display: none !important; }
-            @page { size: A4; margin: 8mm 10mm 10mm 10mm; }
-            body { font-size: 10.5px; }
-            .sheet { max-width: none; padding: 0; }
-            .letter-header { max-height: 88px; }
+            @page { size: A4; margin: 0; }
+            body { font-size: 10.5px; margin: 0; }
+            .sheet { max-width: none; width: 100%; padding: 0; }
+            .letter-header {
+                width: 100%;
+                max-height: none;
+                object-fit: fill;
+            }
             .letter-footer {
                 position: fixed;
                 left: 0;
                 right: 0;
                 bottom: 0;
-                max-height: 64px;
+                width: 100%;
+                max-height: none;
+                object-fit: fill;
                 margin: 0;
             }
-            .content { padding-bottom: 70px; }
+            .content-pad { padding: 8px 12mm 78px; }
             .watermark { opacity: 0.06; }
         }
     </style>
@@ -174,11 +202,11 @@
     @if($isBeyond && $headerFile)
         <img class="letter-header" src="{{ url('public/logo', $headerFile) }}" alt="">
     @endif
+
+    <div class="content content-pad" id="receipt-data">
     @if($isBeyond && $waterFile)
         <div class="watermark"><img src="{{ url('public/logo', $waterFile) }}" alt=""></div>
     @endif
-
-    <div class="content" id="receipt-data">
         @if(! $isBeyond)
             <div class="centered">
                 @if($general_setting->site_logo)
@@ -222,9 +250,7 @@
             <tr>
                 <th class="num">#</th>
                 <th>{{ trans('file.product') }}</th>
-                <th>{{ trans('file.Batch No') }}</th>
                 <th class="qty">{{ trans('file.Qty') }}</th>
-                <th>{{ trans('file.Unit') }}</th>
                 <th class="money">{{ trans('file.Unit Price') }}</th>
                 <th class="money">{{ trans('file.Tax') }}</th>
                 <th class="money">{{ trans('file.Discount') }}</th>
@@ -236,6 +262,7 @@
                 $total_product_tax = 0;
                 $total_product_discount = 0;
                 $total_product_subtotal = 0;
+                $invoiceQrUrl = \App\Support\SaleInvoiceQr::scanUrl($lims_sale_data);
             ?>
             @foreach($lims_product_sale_data as $key => $product_sale_data)
                 <?php
@@ -256,13 +283,6 @@
                 } else {
                     $product_name = $lims_product_data->name.($productCode ? ' ['.$productCode.']' : '');
                 }
-                $batchNo = 'N/A';
-                if ($product_sale_data->product_batch_id) {
-                    $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_sale_data->product_batch_id);
-                    $batchNo = @$product_batch_data->batch_no ?: 'N/A';
-                }
-                $unit_data = \App\Unit::find($product_sale_data->sale_unit_id);
-                $unitCode = $unit_data ? $unit_data->unit_code : '';
                 $lineTax = (float) ($product_sale_data->tax ?? 0);
                 $lineDiscount = (float) ($product_sale_data->discount ?? 0);
                 $lineTotal = (float) ($product_sale_data->total ?? 0);
@@ -272,20 +292,18 @@
                 $total_product_discount += $lineDiscount;
                 $total_product_subtotal += $lineTotal;
                 ?>
-                <tr>
+                <tr class="{{ $key % 2 === 1 ? 'alt' : '' }}">
                     <td class="num">{{ $key + 1 }}</td>
                     <td>{{ $product_name }}</td>
-                    <td>{{ $batchNo }}</td>
                     <td class="qty">{{ $product_sale_data->qty + 0 }}</td>
-                    <td>{{ $unitCode }}</td>
                     <td class="money">{{ number_format($unit_price, 2) }}</td>
                     <td class="money">{{ number_format($lineTax, 2) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
                     <td class="money">{{ number_format($lineDiscount, 2) }}</td>
                     <td class="money">{{ number_format($lineTotal, 2) }}</td>
                 </tr>
             @endforeach
-            <tr>
-                <td colspan="6" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
+            <tr class="total-row">
+                <td colspan="4" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
                 <td class="money">{{ number_format($total_product_tax, 2) }}</td>
                 <td class="money">{{ number_format($total_product_discount, 2) }}</td>
                 <td class="money">{{ number_format($total_product_subtotal, 2) }}</td>
@@ -392,15 +410,15 @@
         <div class="thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         <div class="codes">
             @if(@$lims_sale_data->user)
-                <div style="font-size:10px;line-height:1.4;margin-bottom:6px;">
+                <div class="created-by">
                     <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
                     @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
                 </div>
             @endif
-            <div style="margin:0 0 6px;">
-                <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="qrcode">'; ?>
+            <div class="code-media" style="margin:0 0 6px;">
+                <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceQrUrl, 'QRCODE').'" height="48" width="48" alt="qrcode">'; ?>
             </div>
-            <div>
+            <div class="code-media">
                 <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="28" width="160" alt="barcode">'; ?>
             </div>
         </div>

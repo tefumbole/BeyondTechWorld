@@ -68,63 +68,11 @@ class SaleController extends Controller
 
     public function genPDFInvoice($id)
     {
-        $role = Role::find(Auth::user()->role_id);
-        $permissions = Role::findByName($role->name)->permissions;
-
-        foreach ($permissions as $permission) {
-            $all_permission[] = $permission->name;
-        }
         $lims_sale_data = Sale::find($id);
-        $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
-        $lims_biller_data = Biller::find($lims_sale_data->biller_id);
-        $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
-        $lims_payment_data = Payment::where('sale_id', $id)->get();
-        $lims_payment_debit_data = Payment::where('debit_sale_id', $id)->get();
-        $lims_account_data = null;
-        $lims_account_data_debit = null;
-        $lims_account_data_cradit = null;
 
-        if(isset($lims_payment_data[0])) {
-            $lims_account_data_cradit = Account::with('departments')->where('id', $lims_payment_data[0]->account_id)->first();
-        }
-        if(isset($lims_payment_debit_data[0])) {
-            $lims_account_data_debit = Account::with('departments')->where('id', $lims_payment_debit_data[0]->account_id)->first();
-        }
-
-        $setting = GeneralSetting::first();
-        $header = $setting->email_header;
-        $footer = $setting->email_footer;
-        $water_mark = $setting->email_water_mark;
-
-        $numberToWords = new NumberToWords();
-        if(\App::getLocale() == 'ar' || \App::getLocale() == 'hi' || \App::getLocale() == 'vi' || \App::getLocale() == 'en-gb')
-            $numberTransformer = $numberToWords->getNumberTransformer('en');
-        else
-            $numberTransformer = $numberToWords->getNumberTransformer(\App::getLocale());
-        $numberInWords = $numberTransformer->toWords($lims_sale_data->grand_total);
-
-        $data = [
-            'header' => $header,
-            'footer' => $footer,
-            'water_mark' => $water_mark,
-            'all_permission' => $all_permission,
-            'lims_account_data_cradit' => $lims_account_data_cradit,
-            'lims_account_data_debit' => $lims_account_data_debit,
-            'lims_sale_data' => $lims_sale_data,
-            'lims_product_sale_data' => $lims_product_sale_data,
-            'lims_biller_data' => $lims_biller_data,
-            'lims_warehouse_data' => $lims_warehouse_data,
-            'lims_customer_data' => $lims_customer_data,
-            'lims_payment_data' => $lims_payment_data,
-            'numberInWords' => $numberInWords
-        ];
-
-        $pdf = PDF::loadView('pdf.sale_pdf', $data)->setPaper('A4', 'portrait');
-
-        $content = $pdf->download()->getOriginalContent();
-
-        Storage::put('public/sale/sale_invoice.pdf',$content);
+        $content = $this->buildSaleInvoicePdfBinary($id);
+        Storage::put('public/sale/sale_invoice.pdf', $content);
         $path = storage_path('app/public/sale/sale_invoice.pdf');
 
         $message = 'Sale notification sent successfully';
@@ -1297,10 +1245,22 @@ class SaleController extends Controller
                 $mail_data['total'][$key] = $product_sale_data->qty;
             }
 
+            $pdfBinary = null;
+            try {
+                $pdfBinary = $this->buildSaleInvoicePdfBinary($lims_sale_data->id);
+            } catch (\Exception $e) {
+                \Log::warning('Sale invoice PDF attach failed: '.$e->getMessage());
+            }
+
             try{
-                Mail::send( 'mail.sale_details', $mail_data, function( $message ) use ($mail_data)
+                Mail::send( 'mail.sale_details', $mail_data, function( $message ) use ($mail_data, $pdfBinary, $lims_sale_data)
                 {
-                    $message->to( $mail_data['email'] )->subject( 'Sale Details' );
+                    $message->to( $mail_data['email'] )->subject( 'Sales Invoice '.$mail_data['reference_no'] );
+                    if ($pdfBinary) {
+                        $message->attachData($pdfBinary, $lims_sale_data->reference_no.'.pdf', [
+                            'mime' => 'application/pdf',
+                        ]);
+                    }
                 });
                 $message = 'Mail sent successfully';
             }
@@ -1312,6 +1272,47 @@ class SaleController extends Controller
             $message = 'Customer doesnt have email!';
 
         return redirect()->back()->with('message', $message);
+    }
+
+    /**
+     * Shared A4 Beyond sales invoice PDF bytes (WhatsApp / email attachment).
+     */
+    protected function buildSaleInvoicePdfBinary($id)
+    {
+        $lims_sale_data = Sale::find($id);
+        if (! $lims_sale_data) {
+            throw new \RuntimeException('Sale not found');
+        }
+
+        $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
+        $lims_biller_data = Biller::find($lims_sale_data->biller_id);
+        $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
+        $lims_customer_data = Customer::find($lims_sale_data->customer_id);
+        $lims_payment_data = Payment::where('sale_id', $id)->get();
+        $setting = GeneralSetting::first();
+
+        $numberToWords = new NumberToWords();
+        if (\App::getLocale() == 'ar' || \App::getLocale() == 'hi' || \App::getLocale() == 'vi' || \App::getLocale() == 'en-gb') {
+            $numberTransformer = $numberToWords->getNumberTransformer('en');
+        } else {
+            $numberTransformer = $numberToWords->getNumberTransformer(\App::getLocale());
+        }
+        $numberInWords = $numberTransformer->toWords($lims_sale_data->grand_total);
+
+        $pdf = PDF::loadView('pdf.sale_pdf', [
+            'header' => $setting->email_header,
+            'footer' => $setting->email_footer,
+            'water_mark' => $setting->email_water_mark,
+            'lims_sale_data' => $lims_sale_data,
+            'lims_product_sale_data' => $lims_product_sale_data,
+            'lims_biller_data' => $lims_biller_data,
+            'lims_warehouse_data' => $lims_warehouse_data,
+            'lims_customer_data' => $lims_customer_data,
+            'lims_payment_data' => $lims_payment_data,
+            'numberInWords' => $numberInWords,
+        ])->setPaper('A4', 'portrait');
+
+        return $pdf->output();
     }
 
     public function paypalSuccess(Request $request)
@@ -2593,15 +2594,16 @@ class SaleController extends Controller
         return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
     }
 
-    public function qrcodePng($ref)
+    public function qrcodePng($id)
     {
-        $ref = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $ref);
-        if ($ref === '') {
+        $sale = Sale::find($id);
+        if (! $sale) {
             abort(404);
         }
-        $png = base64_decode(\DNS2D::getBarcodePNG($ref, 'QRCODE'));
+        $url = \App\Support\SaleInvoiceQr::scanUrl($sale);
+        $png = base64_decode(\DNS2D::getBarcodePNG($url, 'QRCODE'));
 
-        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
+        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=3600');
     }
 
     public function genInvoice($id)

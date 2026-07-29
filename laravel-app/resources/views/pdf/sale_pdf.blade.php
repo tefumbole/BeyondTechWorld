@@ -33,7 +33,10 @@
         table.inv-items tbody td { padding: 3px 4px; }
         table.inv-summary { margin-top: 6px; }
         .inv-box { padding: 5px 7px; margin-bottom: 5px; }
-        .inv-codes-block { text-align: center; margin-top: 8px; page-break-inside: avoid; }
+        .inv-codes-block { margin-top: 8px; page-break-inside: avoid; text-align: left; }
+        .inv-codes-block .inv-created { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+        .inv-codes-block .inv-qr,
+        .inv-codes-block .inv-barcode { text-align: center; }
         .inv-codes-block img { display: block; margin: 0 auto; }
     </style>
 </head>
@@ -55,6 +58,7 @@
     $totalProductTax = 0;
     $totalProductDiscount = 0;
     $totalProductSubtotal = 0;
+    $invoiceQrUrl = \App\Support\SaleInvoiceQr::scanUrl($lims_sale_data);
 @endphp
 
 <div class="inv-title">Sales Invoice</div>
@@ -83,13 +87,11 @@
 
 <table class="inv-items">
     <colgroup>
-        <col style="width:4%">
-        <col style="width:28%">
-        <col style="width:10%">
-        <col style="width:7%">
+        <col style="width:5%">
+        <col style="width:40%">
         <col style="width:8%">
-        <col style="width:11%">
-        <col style="width:10%">
+        <col style="width:13%">
+        <col style="width:12%">
         <col style="width:10%">
         <col style="width:12%">
     </colgroup>
@@ -97,9 +99,7 @@
     <tr>
         <th class="inv-num">#</th>
         <th>{{ trans('file.product') }}</th>
-        <th>{{ trans('file.Batch No') }}</th>
         <th class="inv-qty">{{ trans('file.Qty') }}</th>
-        <th>{{ trans('file.Unit') }}</th>
         <th class="inv-money">{{ trans('file.Unit Price') }}</th>
         <th class="inv-money">{{ trans('file.Tax') }}</th>
         <th class="inv-money">{{ trans('file.Discount') }}</th>
@@ -127,25 +127,6 @@
             $product_name = $lims_product_data->name.($productCode ? ' ['.$productCode.']' : '');
         }
 
-        $batchNo = 'N/A';
-        if ($product_sale_data->product_batch_id) {
-            $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_sale_data->product_batch_id);
-            $batchNo = @$product_batch_data->batch_no ?: 'N/A';
-        } elseif ($product_sale_data->multi_product_batch_id) {
-            $multi_product_batch_id = json_decode($product_sale_data->multi_product_batch_id);
-            $multi_product_batch_qty = json_decode($product_sale_data->multi_product_batch_qty);
-            $batches = [];
-            if (is_array($multi_product_batch_id)) {
-                foreach ($multi_product_batch_id as $i => $batch_id) {
-                    $product_batch_data = \App\ProductBatch::select('batch_no')->find($batch_id);
-                    $batches[] = @$product_batch_data->batch_no.' × '.($multi_product_batch_qty[$i] ?? '');
-                }
-            }
-            $batchNo = $batches ? implode(', ', $batches) : 'N/A';
-        }
-
-        $unit_data = \App\Unit::find($product_sale_data->sale_unit_id);
-        $unitCode = $unit_data ? $unit_data->unit_code : '';
         $lineTax = (float) ($product_sale_data->tax ?? 0);
         $lineDiscount = (float) ($product_sale_data->discount ?? 0);
         $lineTotal = (float) ($product_sale_data->total ?? 0);
@@ -154,21 +135,20 @@
         $totalProductTax += $lineTax;
         $totalProductDiscount += $lineDiscount;
         $totalProductSubtotal += $lineTotal;
+        $rowClass = ($key % 2 === 1) ? 'inv-alt' : '';
         ?>
-        <tr>
+        <tr class="{{ $rowClass }}">
             <td class="inv-num">{{ $key + 1 }}</td>
             <td>{{ $product_name }}</td>
-            <td>{{ $batchNo }}</td>
             <td class="inv-qty">{{ $product_sale_data->qty + 0 }}</td>
-            <td>{{ $unitCode }}</td>
             <td class="inv-money">{{ number_format($unitPrice, 2) }}</td>
             <td class="inv-money">{{ number_format($lineTax, 2) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
             <td class="inv-money">{{ number_format($lineDiscount, 2) }}</td>
             <td class="inv-money">{{ number_format($lineTotal, 2) }}</td>
         </tr>
     @endforeach
-    <tr>
-        <td colspan="6" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
+    <tr class="inv-total">
+        <td colspan="4" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
         <td class="inv-money">{{ number_format($totalProductTax, 2) }}</td>
         <td class="inv-money">{{ number_format($totalProductDiscount, 2) }}</td>
         <td class="inv-money">{{ number_format($totalProductSubtotal, 2) }}</td>
@@ -218,21 +198,6 @@
         </td>
         <td class="inv-summary-right">
             <table class="inv-totals">
-                @if($general_setting->invoice_format == 'gst' && $general_setting->state == 1)
-                    <tr>
-                        <th>IGST</th>
-                        <td>{{ number_format($totalProductTax, 2) }}</td>
-                    </tr>
-                @elseif($general_setting->invoice_format == 'gst' && $general_setting->state == 2)
-                    <tr>
-                        <th>SGST</th>
-                        <td>{{ number_format($totalProductTax / 2, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <th>CGST</th>
-                        <td>{{ number_format($totalProductTax / 2, 2) }}</td>
-                    </tr>
-                @endif
                 @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
@@ -292,15 +257,15 @@
 
 <div class="inv-codes-block">
     @if(@$lims_sale_data->user)
-        <div style="font-size:10px;line-height:1.4;margin-bottom:6px;">
+        <div class="inv-created">
             <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
             @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
         </div>
     @endif
-    <div style="margin:0 0 6px;">
-        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
+    <div class="inv-qr" style="margin:0 0 6px;">
+        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceQrUrl, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
     </div>
-    <div>
+    <div class="inv-barcode">
         <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="24" width="160" alt="barcode">'; ?>
     </div>
 </div>

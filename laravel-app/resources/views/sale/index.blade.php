@@ -123,11 +123,20 @@
                         <div id="sale-ref-line" class="text-muted" style="font-size:12px;"></div>
                     </div>
                     <div id="sale-content" class="modal-body p-0" style="position:relative;z-index:1;"></div>
+                    <style>
+                        table.product-sale-list thead th,
+                        table.product-sale-list tbody tr:first-child th {
+                            background: #d9ebe1 !important;
+                            color: #1f3d32;
+                        }
+                        table.product-sale-list tbody tr.sale-alt td { background: #f2f8f4; }
+                        table.product-sale-list tbody tr.sale-total td { background: #e5f2eb; font-weight: bold; }
+                    </style>
                     <table class="table table-sm table-bordered product-sale-list mb-2" style="position:relative;z-index:1;">
                         <tbody></tbody>
                     </table>
                     <div class="text-center text-muted mb-2" style="position:relative;z-index:1;">{{trans('file.Thank you for shopping with us. Please come again')}}</div>
-                    <div id="sale-footer" class="modal-body p-0 text-center mb-2" style="position:relative;z-index:1;"></div>
+                    <div id="sale-footer" class="modal-body p-0 text-left mb-2" style="position:relative;z-index:1;"></div>
                     <div class="text-center mb-2" style="position:relative;z-index:1;">
                         <div style="margin:0 0 6px;">
                             <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
@@ -973,7 +982,7 @@
 
             var refSafe = encodeURIComponent(String(sale[1] || '').replace(/[^A-Za-z0-9\-_]/g, ''));
             $('#sale-barcode').attr('src', '{{ url("sales/barcode") }}/' + refSafe);
-            $('#sale-qrcode').attr('src', '{{ url("sales/qrcode") }}/' + refSafe);
+            $('#sale-qrcode').attr('src', '{{ url("sales/qrcode") }}/' + sale[13]);
 
             var customerLines = [sale[9], sale[10], sale[11], sale[12]].filter(function(v){
                 return v && String(v).trim() !== '' && String(v).trim().toLowerCase() !== 'null';
@@ -1003,16 +1012,14 @@
                 var subtotal = data[6];
                 var batch_no = data[7];
                 var newBody = $("<tbody>");
-                var newHead = "<tr> <th>#</th> <th>{{trans('file.product')}}</th> <th>{{trans('file.Batch No')}}</th> <th>{{trans('file.Qty')}}</th> <th>{{trans('file.Unit')}}</th> <th>{{trans('file.Unit Price')}}</th> <th>{{trans('file.Tax')}}</th> <th>{{trans('file.Discount')}}</th> <th>{{trans('file.Subtotal')}}</th> </tr>";
+                var newHead = "<tr> <th>#</th> <th>{{trans('file.product')}}</th> <th>{{trans('file.Qty')}}</th> <th>{{trans('file.Unit Price')}}</th> <th>{{trans('file.Tax')}}</th> <th>{{trans('file.Discount')}}</th> <th>{{trans('file.Subtotal')}}</th> </tr>";
                 newBody.append(newHead);
                 $.each(name_code, function(index){
-                    var newRow = $("<tr>");
+                    var newRow = $("<tr class='" + (index % 2 === 1 ? 'sale-alt' : '') + "'>");
                     var cols = '';
                     cols += '<td><strong>' + (index+1) + '</strong></td>';
                     cols += '<td>' + name_code[index] + '</td>';
-                    cols += '<td>' + batch_no[index] + '</td>';
                     cols += '<td>' + qty[index] + '</td>';
-                    cols += '<td>' + unit_code[index] + '</td>';
                     cols += '<td>' + numberWithCommas(subtotal[index] / qty[index]) +'</td>';
                     cols += '<td>' + tax[index] + '(' + tax_rate[index] + '%)' + '</td>';
                     cols += '<td>' + discount[index] + '</td>';
@@ -1021,9 +1028,9 @@
                     newBody.append(newRow);
                 });
 
-                var newRow = $("<tr>");
+                var newRow = $("<tr class='sale-total'>");
                 var cols = '';
-                cols += '<td colspan=6><strong>{{trans("file.Total")}}:</strong></td>';
+                cols += '<td colspan=4 style="text-align:right;"><strong>{{trans("file.Total")}}:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[14]) + '</td>';
                 cols += '<td>' + numberWithCommas(sale[15]) + '</td>';
                 cols += '<td>' + numberWithCommas(sale[16]) + '</td>';
@@ -1032,7 +1039,7 @@
 
                 if (parseSaleAmt(sale[17]) > 0) {
                     newRow = $("<tr>");
-                    cols = '<td colspan=8><strong>{{trans("file.Order Tax")}}:</strong></td>';
+                    cols = '<td colspan=6><strong>{{trans("file.Order Tax")}}:</strong></td>';
                     cols += '<td>' + sale[17] + '(' + sale[18] + '%)' + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
@@ -1040,7 +1047,7 @@
 
                 if (parseSaleAmt(sale[19]) > 0) {
                     newRow = $("<tr>");
-                    cols = '<td colspan=8><strong>{{trans("file.Order Discount")}}:</strong></td>';
+                    cols = '<td colspan=6><strong>{{trans("file.Order Discount")}}:</strong></td>';
                     cols += '<td>' + sale[19] + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
@@ -1048,7 +1055,7 @@
 
                 if (sale[28] && parseSaleAmt(sale[29]) > 0) {
                     newRow = $("<tr>");
-                    cols = '<td colspan=8><strong>{{trans("file.Coupon Discount")}} ['+sale[28]+']:</strong></td>';
+                    cols = '<td colspan=6><strong>{{trans("file.Coupon Discount")}} ['+sale[28]+']:</strong></td>';
                     cols += '<td>' + sale[29] + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
@@ -1056,27 +1063,27 @@
 
                 if (parseSaleAmt(sale[20]) > 0) {
                     newRow = $("<tr>");
-                    cols = '<td colspan=8><strong>{{trans("file.Shipping Cost")}}:</strong></td>';
+                    cols = '<td colspan=6><strong>{{trans("file.Shipping Cost")}}:</strong></td>';
                     cols += '<td>' + sale[20] + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
                 }
 
                 newRow = $("<tr>");
-                cols = '<td colspan=8><strong>{{trans("file.grand total")}}:</strong></td>';
+                cols = '<td colspan=6><strong>{{trans("file.grand total")}}:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[21]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
                 newRow = $("<tr>");
-                cols = '<td colspan=8><strong>Amount Paid:</strong></td>';
+                cols = '<td colspan=6><strong>Amount Paid:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[22]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
                 var pendingAmt = Math.max(0, parseSaleAmt(sale[21]) - parseSaleAmt(sale[22]));
                 newRow = $("<tr>");
-                cols = '<td colspan=8><strong>Amount Pending:</strong></td>';
+                cols = '<td colspan=6><strong>Amount Pending:</strong></td>';
                 cols += '<td>' + numberWithCommas(pendingAmt) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
@@ -1093,7 +1100,7 @@
             if (staffNote && staffNote.toLowerCase() !== 'null') {
                 htmlfooter += '<p class="mb-1"><strong>{{trans("file.Staff Note")}}:</strong> ' + staffNote + '</p>';
             }
-            htmlfooter += '<p class="mb-0" style="font-size:12px;line-height:1.4;"><strong>{{trans("file.Created By")}}:</strong> ' + sale[25] + (sale[26] ? '<br>' + sale[26] : '') + '</p>';
+            htmlfooter += '<p class="mb-0 text-left" style="font-size:12px;line-height:1.4;text-align:left;"><strong>{{trans("file.Created By")}}:</strong> ' + sale[25] + (sale[26] ? '<br>' + sale[26] : '') + '</p>';
             $('#sale-content').html(htmltext);
             $('#sale-footer').html(htmlfooter);
             $('#sale-details').modal('show');

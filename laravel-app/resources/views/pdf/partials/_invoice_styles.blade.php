@@ -12,10 +12,12 @@
     $invoiceHasHeader = ! empty($invoiceLetterhead['has_header']) && ! empty($invoiceLetterhead['header_path']) && file_exists($invoiceLetterhead['header_path']);
     $invoiceHasFooter = ! empty($invoiceLetterhead['has_footer']) && ! empty($invoiceLetterhead['footer_path']) && file_exists($invoiceLetterhead['footer_path']);
 
-    // A4 at dompdf's 96dpi: 793.7px wide. Side margins are 20px each.
+    // A4 at dompdf's 96dpi. Side page margins are 0 so header/footer can bleed
+    // edge-to-edge; content is padded inward via body margin.
     $invoicePageWidth = 793.7;
-    $invoiceSideMargin = 20;
-    $invoiceBandWidth = $invoicePageWidth - (2 * $invoiceSideMargin);
+    $invoiceSideMargin = 0;
+    $invoiceContentPad = 18;
+    $invoiceBandWidth = $invoicePageWidth;
 
     $invoiceHeaderHeight = $invoiceHasHeader
         ? (int) ceil($invoiceBandWidth * \App\Support\Letterhead::ratio($invoiceLetterhead['header_path'], 0.157))
@@ -24,22 +26,22 @@
         ? (int) ceil($invoiceBandWidth * \App\Support\Letterhead::ratio($invoiceLetterhead['footer_path'], 0.093))
         : 0;
 
-    // Cap letterhead bands so a typical single-item Beyond invoice stays on one A4 page.
-    $invoiceHeaderHeight = $invoiceHeaderHeight ? min($invoiceHeaderHeight, 78) : 0;
-    $invoiceFooterHeight = $invoiceFooterHeight ? min($invoiceFooterHeight, 58) : 0;
+    // Keep bands readable on one A4 page while still spanning full page width.
+    $invoiceHeaderHeight = $invoiceHeaderHeight ? min($invoiceHeaderHeight, 105) : 0;
+    $invoiceFooterHeight = $invoiceFooterHeight ? min($invoiceFooterHeight, 78) : 0;
 
-    $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 10 : 22;
-    $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 8 : 22;
+    $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 6 : 22;
+    $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 6 : 22;
 
     // DejaVu is the only stack dompdf renders bold with (its built-in Helvetica
     // ignores font-weight), and it covers non-Latin scripts. Font subsetting is on
     // in config/dompdf.php so this costs a few KB rather than ~1.2 MB.
 @endphp
 <style type="text/css">
-    @page { margin: {{ $invoiceTopMargin }}px {{ $invoiceSideMargin }}px {{ $invoiceBottomMargin }}px {{ $invoiceSideMargin }}px; }
+    @page { margin: {{ $invoiceTopMargin }}px 0 {{ $invoiceBottomMargin }}px 0; }
 
     body {
-        margin: 0;
+        margin: 0 {{ $invoiceContentPad }}px;
         padding: 0;
         font-family: 'DejaVu Sans', sans-serif;
         font-size: 10.5px;
@@ -52,12 +54,17 @@
     .inv-footer-img {
         position: fixed;
         left: 0;
-        right: 0;
-        width: 100%;
+        width: {{ $invoicePageWidth }}px;
         display: block;
     }
-    .inv-header-img { top: -{{ $invoiceTopMargin - 4 }}px; }
-    .inv-footer-img { bottom: -{{ $invoiceBottomMargin - 6 }}px; }
+    .inv-header-img {
+        top: -{{ $invoiceTopMargin }}px;
+        height: {{ max(1, $invoiceHeaderHeight) }}px;
+    }
+    .inv-footer-img {
+        bottom: -{{ $invoiceBottomMargin }}px;
+        height: {{ max(1, $invoiceFooterHeight) }}px;
+    }
 
     .inv-watermark {
         position: fixed;
@@ -106,9 +113,10 @@
     /* Line items. Column widths come from a <colgroup> in each template. */
     table.inv-items { width: 100%; border-collapse: collapse; margin-bottom: 0; }
     table.inv-items thead th {
-        background: #eef0f7;
-        border-bottom: 1px solid #c9cfdf;
-        border-top: 1px solid #c9cfdf;
+        background: #d9ebe1;
+        color: #1f3d32;
+        border-bottom: 1px solid #b7d4c4;
+        border-top: 1px solid #b7d4c4;
         padding: 5px 6px;
         text-align: left;
         font-size: 9.5px;
@@ -118,10 +126,12 @@
     }
     table.inv-items tbody td {
         padding: 5px 6px;
-        border-bottom: 1px solid #eceef4;
+        border-bottom: 1px solid #e3efe8;
         vertical-align: top;
     }
     table.inv-items tbody tr { page-break-inside: avoid; }
+    table.inv-items tbody tr.inv-alt td { background: #f2f8f4; }
+    table.inv-items tbody tr.inv-total td { background: #e5f2eb; font-weight: bold; }
     .inv-num, .inv-qty { text-align: center; }
     .inv-money { text-align: right; }
     .inv-sub { display: block; font-size: 9px; color: #6b7386; }
