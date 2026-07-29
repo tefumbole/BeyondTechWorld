@@ -360,22 +360,24 @@
                             </td>
                         </tr>
                     </table>
-                    @if(@$lims_sale_data->user)
-                        <div style="margin-top:6px;font-size:10px;">
-                            <strong>{{ trans('file.Created By') }}:</strong>
-                            {{ $lims_sale_data->user->name }}
-                            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
-                        </div>
-                    @endif
                 </td>
             </tr>
         </table>
 
         <div class="thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         <div class="codes">
-            <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="28" width="160" alt="">'; ?>
-            &nbsp;
-            <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="">'; ?>
+            @if(@$lims_sale_data->user)
+                <div style="font-size:10px;line-height:1.4;margin-bottom:6px;">
+                    <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
+                    @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
+                </div>
+            @endif
+            <div style="margin:0 0 4px;">
+                <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="28" width="160" alt="">'; ?>
+            </div>
+            <div>
+                <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="">'; ?>
+            </div>
         </div>
     </div>
 

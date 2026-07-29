@@ -191,16 +191,7 @@
                     {!! $lims_sale_data->staff_note !!}
                 </div>
             @endif
-            <table class="inv-foot-row">
-                <tr>
-                    <td class="inv-thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</td>
-                    <td class="inv-codes">
-                        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="22" width="112" alt="">'; ?>
-                        &nbsp;
-                        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="38" width="38" alt="">'; ?>
-                    </td>
-                </tr>
-            </table>
+            <div class="inv-thanks" style="margin-top:6px;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         </td>
         <td class="inv-summary-right">
             <table class="inv-totals">
@@ -278,16 +269,24 @@
                     </td>
                 </tr>
             </table>
-            @if(@$lims_sale_data->user)
-                <div class="inv-notes">
-                    <strong>{{ trans('file.Created By') }}:</strong>
-                    {{ $lims_sale_data->user->name }}
-                    @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
-                </div>
-            @endif
         </td>
     </tr>
 </table>
+
+<div class="inv-codes-block" style="text-align:center;margin-top:8px;page-break-inside:avoid;">
+    @if(@$lims_sale_data->user)
+        <div style="font-size:10px;line-height:1.4;margin-bottom:6px;">
+            <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
+            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
+        </div>
+    @endif
+    <div style="margin:0 0 4px;">
+        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="22" width="140" alt="">'; ?>
+    </div>
+    <div>
+        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="">'; ?>
+    </div>
+</div>
 
 @include('pdf.partials._invoice_close')
 </body>

@@ -127,12 +127,15 @@
                         <tbody></tbody>
                     </table>
                     <div class="text-center text-muted mb-2" style="position:relative;z-index:1;">{{trans('file.Thank you for shopping with us. Please come again')}}</div>
+                    <div id="sale-footer" class="modal-body p-0 text-center mb-2" style="position:relative;z-index:1;"></div>
                     <div class="text-center mb-2" style="position:relative;z-index:1;">
-                        <img id="sale-barcode" src="" alt="barcode" height="28" style="max-width:220px;">
-                        &nbsp;
-                        <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
+                        <div style="margin:0 0 4px;">
+                            <img id="sale-barcode" src="" alt="barcode" height="28" style="max-width:220px;">
+                        </div>
+                        <div>
+                            <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
+                        </div>
                     </div>
-                    <div id="sale-footer" class="modal-body p-0" style="position:relative;z-index:1;"></div>
                     @if($general_setting->invoice_format == 'beyond_a4')
                         <img src="{{url('public/logo', $general_setting->email_footer)}}" alt="" class="sale-letter-footer" style="display:block;width:100%;max-height:70px;object-fit:contain;margin-top:8px;">
                     @endif
@@ -1089,7 +1092,7 @@
             if (staffNote && staffNote.toLowerCase() !== 'null') {
                 htmlfooter += '<p class="mb-1"><strong>{{trans("file.Staff Note")}}:</strong> ' + staffNote + '</p>';
             }
-            htmlfooter += '<p class="mb-0"><strong>{{trans("file.Created By")}}:</strong> ' + sale[25] + (sale[26] ? ', ' + sale[26] : '') + '</p>';
+            htmlfooter += '<p class="mb-0" style="font-size:12px;line-height:1.4;"><strong>{{trans("file.Created By")}}:</strong> ' + sale[25] + (sale[26] ? '<br>' + sale[26] : '') + '</p>';
             $('#sale-content').html(htmltext);
             $('#sale-footer').html(htmlfooter);
             $('#sale-details').modal('show');
