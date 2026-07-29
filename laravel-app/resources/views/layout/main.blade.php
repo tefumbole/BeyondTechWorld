@@ -129,34 +129,18 @@
 
             .sidebar-brand-block {
                 flex-shrink: 0;
-                padding: 16px 14px;
+                min-height: 63px;
+                padding: 14px 16px;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+                display: flex;
+                align-items: center;
             }
 
             .sidebar-brand-header {
                 display: flex;
-                align-items: flex-start;
-                gap: 12px;
-            }
-
-            .sidebar-brand-toggle {
-                flex-shrink: 0;
-                width: 40px;
-                height: 40px;
-                border: 1px solid rgba(255, 255, 255, 0.28);
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 0.06);
-                color: #fff;
-                cursor: pointer;
-                display: flex;
                 align-items: center;
-                justify-content: center;
-                font-size: 16px;
-                margin-top: 2px;
-            }
-
-            .sidebar-brand-toggle:hover {
-                background: rgba(255, 255, 255, 0.14);
+                width: 100%;
+                min-width: 0;
             }
 
             .sidebar-brand-text {
@@ -172,12 +156,17 @@
                 margin-bottom: 8px;
             }
 
-            .sidebar-brand-title {
-                color: var(--beyond-accent);
-                font-size: 22px;
+            .sidebar-brand-title,
+            a.sidebar-brand-title {
+                color: var(--beyond-accent) !important;
+                font-size: 18px;
                 font-weight: 800;
-                line-height: 1.15;
+                line-height: 1.2;
                 word-break: break-word;
+            }
+
+            a.sidebar-brand-title:hover {
+                color: #fff !important;
             }
 
             .sidebar-brand-subtitle {
@@ -489,6 +478,14 @@
                 background: var(--beyond-primary) !important;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08);
                 box-shadow: 0 2px 12px rgba(5, 28, 64, 0.18);
+                min-height: 63px;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+
+            .header .navbar .container-fluid,
+            .header .navbar-holder {
+                min-height: 63px;
             }
 
             .header .navbar,
@@ -497,6 +494,27 @@
             .header #toggle-btn,
             .header .menu-btn {
                 color: #ffffff !important;
+            }
+
+            .header #toggle-btn,
+            .header .menu-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                margin: 0;
+                padding: 0;
+                border: 1px solid rgba(255, 255, 255, 0.28);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.06);
+                line-height: 1;
+                text-decoration: none !important;
+            }
+
+            .header #toggle-btn:hover,
+            .header .menu-btn:hover {
+                background: rgba(255, 255, 255, 0.14) !important;
             }
 
             .header .brand-big {
@@ -986,11 +1004,8 @@
               @endphp
               <div class="sidebar-brand-block">
                   <div class="sidebar-brand-header">
-                      <button type="button" class="sidebar-brand-toggle" id="sidebar-toggle-btn" aria-label="Toggle navigation">
-                          <i class="fa fa-bars"></i>
-                      </button>
                       <div class="sidebar-brand-text">
-                          <div class="sidebar-brand-title">{{ $brandTitle }}</div>
+                          <a href="{{ url('/admin') }}" class="sidebar-brand-title" style="text-decoration:none; display:block;">{{ $brandTitle }}</a>
                       </div>
                   </div>
               </div>
@@ -3379,11 +3394,6 @@
 
               $('#side-main-menu > li > a[data-toggle="collapse"]').each(function () {
                   $(this).removeAttr('data-toggle').removeAttr('aria-expanded');
-              });
-
-              $('#sidebar-toggle-btn').on('click', function (e) {
-                  e.preventDefault();
-                  $('#toggle-btn').trigger('click');
               });
 
               $('#side-main-menu > li > a[href^="#"]').on('click', function (e) {
