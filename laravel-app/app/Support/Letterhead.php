@@ -64,21 +64,33 @@ class Letterhead
      * a single invoice ballooned past 1.8 MB — painful for WhatsApp recipients.
      * Downscaled copies are cached next to the original and reused.
      *
-     * Returns the original path if it is already small enough, or if anything
-     * goes wrong, so callers can use the result unconditionally.
+     * Set $opaque for full-width bands with nothing behind them: they are written
+     * as JPEG, which dompdf embeds as-is instead of expanding a palette image to
+     * 24-bit RGB (517 KB of header/footer becomes 122 KB). Keep it off for the
+     * watermark, which needs its alpha channel.
+     *
+     * Returns the original path if no work is needed, or if anything goes wrong,
+     * so callers can use the result unconditionally.
      *
      * @param  string|null  $path
      * @param  int  $maxWidth
+     * @param  bool  $opaque
      * @return string|null
      */
-    public static function pdfImage($path, $maxWidth = 1400)
+    public static function pdfImage($path, $maxWidth = 1400, $opaque = false)
     {
         if (! $path || ! is_file($path) || ! function_exists('imagecreatetruecolor')) {
             return $path;
         }
 
         $size = @getimagesize($path);
-        if (! $size || empty($size[0]) || empty($size[1]) || $size[0] <= $maxWidth) {
+        if (! $size || empty($size[0]) || empty($size[1])) {
+            return $path;
+        }
+
+        $needsResize = $size[0] > $maxWidth;
+        $needsReencode = $opaque && $size[2] !== IMAGETYPE_JPEG;
+        if (! $needsResize && ! $needsReencode) {
             return $path;
         }
 
@@ -87,7 +99,8 @@ class Letterhead
             return $path;
         }
 
-        $cached = $cacheDir.'/'.sha1($path.'|'.filemtime($path).'|'.filesize($path).'|'.$maxWidth).'.png';
+        $extension = $opaque ? 'jpg' : 'png';
+        $cached = $cacheDir.'/'.sha1($path.'|'.filemtime($path).'|'.filesize($path).'|'.$maxWidth.'|'.$extension).'.'.$extension;
         if (is_file($cached)) {
             return $cached;
         }
@@ -121,16 +134,22 @@ class Letterhead
                 return $path;
             }
 
-            $width = $maxWidth;
-            $height = max(1, (int) round($size[1] * ($maxWidth / $size[0])));
+            $width = min($size[0], $maxWidth);
+            $height = max(1, (int) round($size[1] * ($width / $size[0])));
 
             $dst = imagecreatetruecolor($width, $height);
-            imagealphablending($dst, false);
-            imagesavealpha($dst, true);
-            imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+            if ($opaque) {
+                imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+                // So transparent source pixels blend into the white page.
+                imagealphablending($dst, true);
+            } else {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+            }
             imagecopyresampled($dst, $src, 0, 0, 0, 0, $width, $height, $size[0], $size[1]);
 
-            $ok = @imagepng($dst, $cached, 8);
+            $ok = $opaque ? @imagejpeg($dst, $cached, 85) : @imagepng($dst, $cached, 8);
             imagedestroy($src);
             imagedestroy($dst);
 
