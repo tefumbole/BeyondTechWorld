@@ -6,8 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{$general_setting->site_title}}</title>
-    <link rel="icon" type="image/png" href="{{url('public/logo', $general_setting->site_logo)}}" />
-    <link rel="stylesheet" href="<?php echo asset('public/vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">
+    <link rel="icon" type="image/png" href="{{ asset('public/logo/'.($general_setting->site_logo ?: 'beyond-logo.png')) }}" />
+    <link rel="stylesheet" href="{{ asset('public/assets/css/vendors/bootstrap.min.css') }}" type="text/css">
     <style>
         body {
             margin: 0;
@@ -122,7 +122,7 @@
 @endphp
 <div class="otp-card">
     @if(!empty($general_setting->site_logo))
-        <img src="{{url('public/logo', $general_setting->site_logo)}}" alt="{{$appName}}" class="auth-logo">
+        <img src="{{ asset('public/logo/'.$general_setting->site_logo) }}" alt="{{$appName}}" class="auth-logo">
     @endif
     <h1 class="auth-title">{{$appName}}</h1>
 
@@ -137,6 +137,11 @@
     @endif
     @if(!empty($whatsapp_error))
         <div class="alert alert-danger">{{ $whatsapp_error }}</div>
+    @endif
+    @if(!empty($local_otp_code))
+        <div class="alert alert-info" style="background:#e8f1ff;color:#0b3f90;border:1px solid #b6d0f5;">
+            Local OTP (WhatsApp unavailable): <strong style="letter-spacing:4px;font-size:1.25rem;">{{ $local_otp_code }}</strong>
+        </div>
     @endif
 
     @if(Auth::user()->is_active)

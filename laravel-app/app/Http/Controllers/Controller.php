@@ -712,7 +712,7 @@ class Controller extends BaseController
     }
 
     public function wpPDFAnnouncement($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null){
-        // Announcement attachments always use Wasender (same policy as announcement text).
+        // Announcement attachments always use Wasender (documents are not Twilio Content Templates).
         if (! $this->whatsappMessagingEnabled()) {
             \Log::info('[whatsapp] messaging disabled — skip announcement document');
             return true;

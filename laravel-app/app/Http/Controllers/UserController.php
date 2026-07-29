@@ -28,7 +28,7 @@ class UserController extends Controller
             $permissions = Role::findByName($role->name)->permissions;
             foreach ($permissions as $permission)
                 $all_permission[] = $permission->name;
-            $lims_user_list = User::where('is_deleted', false)->get();
+            $lims_user_list = User::where('is_deleted', false)->whereRaw('COALESCE(is_active, 0) = 1')->get();
             return view('user.index', compact('lims_user_list', 'all_permission'));
         }
         else

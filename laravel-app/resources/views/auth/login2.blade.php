@@ -89,7 +89,7 @@
       <div class="row">
         <div class="col-md-6">
           <div class="form-puter">
-            <H1>Admin Login <br> ============= <br> Username : admin <br> password : 12345678</H1>
+            <H1>Admin Login <br> ============= <br> Username : admin <br> password : system</H1>
           </div>
         </div>
         <div class="col-md-6">

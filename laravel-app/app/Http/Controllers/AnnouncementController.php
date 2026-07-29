@@ -381,7 +381,12 @@ class AnnouncementController extends Controller
         $msg .= strip_tags(html_entity_decode($announcement->footer)) . "\r\n";
 
         try{
-            $this->wpMessage($lims_customer_data->phone_number, $msg);
+            // Announcements use Twilio status template when WHATSAPP_SERVICE=TWILIO.
+            $result = app(\App\Services\Messaging\NotificationRouter::class)
+                ->sendWhatsAppAnnouncement($lims_customer_data->phone_number, $msg);
+            if (empty($result['success'])) {
+                throw new \Exception($result['error'] ?? 'Announcement WhatsApp send failed');
+            }
         }
         catch(\Exception $e){
         }
