@@ -5,6 +5,7 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{!! session()->get('not_permitted') !!}</div> 
 @endif
+@include('announcement_manager.partials.tabs', ['anTab' => 'setting.createSms'])
 <section class="forms">
     <div class="container-fluid">
         <div class="row">
@@ -43,9 +44,9 @@
 </section>
 
 <script type="text/javascript">
-    $("ul#setting").siblings('a').attr('aria-expanded','true');
-    $("ul#setting").addClass("show");
-    $("ul#setting #create-sms-menu").addClass("active");
+    $("ul#announcements-module").siblings('a').attr('aria-expanded','true');
+    $("ul#announcements-module").addClass("show");
+    $("ul#announcements-module #create-sms-menu").addClass("active");
 
     <?php $customerArray = []; ?>
     var customer = [ @foreach($lims_customer_list as $customer)

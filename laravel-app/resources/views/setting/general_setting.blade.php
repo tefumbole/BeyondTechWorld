@@ -27,6 +27,11 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.System Logo')}} *</label>
+                                        @if($lims_general_setting_data && $lims_general_setting_data->site_logo)
+                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->site_logo)}}" alt="Current logo" style="max-height:60px; max-width:180px;">
+                                            </div>
+                                        @endif
                                         <input type="file" name="site_logo" class="form-control" value=""/>
                                     </div>
                                     @if($errors->has('site_logo'))
@@ -47,6 +52,11 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Email Header </label>
+                                        @if($lims_general_setting_data && $lims_general_setting_data->email_header)
+                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_header)}}" alt="Current email header" style="max-height:60px; max-width:180px;">
+                                            </div>
+                                        @endif
                                         <input type="file" name="email_header" class="form-control" value=""/>
                                     </div>
                                     @if($errors->has('email_header'))
@@ -58,6 +68,11 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Email Footer</label>
+                                        @if($lims_general_setting_data && $lims_general_setting_data->email_footer)
+                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_footer)}}" alt="Current email footer" style="max-height:60px; max-width:180px;">
+                                            </div>
+                                        @endif
                                         <input type="file" name="email_footer" class="form-control" value=""/>
                                     </div>
                                     @if($errors->has('email_footer'))
@@ -69,6 +84,11 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Email Water Mark</label>
+                                        @if($lims_general_setting_data && $lims_general_setting_data->email_water_mark)
+                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_water_mark)}}" alt="Current email water mark" style="max-height:60px; max-width:180px;">
+                                            </div>
+                                        @endif
                                         <input type="file" name="email_water_mark" class="form-control" value=""/>
                                     </div>
                                     @if($errors->has('email_water_mark'))
@@ -117,6 +137,30 @@
                                                 @endif
                                             @endforeach
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{trans('file.Default Warehouse')}}</label>
+                                        <select name="default_warehouse_id" class="form-control">
+                                            <option value="">No default (auto: warehouse with most items)</option>
+                                            @foreach($lims_warehouse_list as $warehouse)
+                                                <option value="{{$warehouse->id}}" @if($lims_general_setting_data && (int) $lims_general_setting_data->default_warehouse_id === (int) $warehouse->id) selected @endif>{{$warehouse->name}}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Used by POS and sales when no POS warehouse is configured.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{{trans('file.Default Biller')}}</label>
+                                        <select name="default_biller_id" class="form-control">
+                                            <option value="">No default (auto: first active biller)</option>
+                                            @foreach($lims_biller_list as $biller)
+                                                <option value="{{$biller->id}}" @if($lims_general_setting_data && (int) $lims_general_setting_data->default_biller_id === (int) $biller->id) selected @endif>{{$biller->name}}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">Used by POS and sales when no POS biller is configured.</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">

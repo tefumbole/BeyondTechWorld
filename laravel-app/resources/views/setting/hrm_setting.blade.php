@@ -43,9 +43,9 @@
 </section>
 
 <script type="text/javascript">
-    $("ul#setting").siblings('a').attr('aria-expanded','true');
-    $("ul#setting").addClass("show");
-    $("ul#setting #hrm-setting-menu").addClass("active");
+    $("ul#hrm").siblings('a').attr('aria-expanded','true');
+    $("ul#hrm").addClass("show");
+    $("ul#hrm #hrm-setting-menu").addClass("active");
 
     $('#checkin, #checkout').timepicker({
         'step': 15,

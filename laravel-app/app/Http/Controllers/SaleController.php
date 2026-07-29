@@ -1638,7 +1638,11 @@ class SaleController extends Controller
 
             $product_number = count($lims_product_list);
             $lims_pos_setting_data = PosSetting::latest()->first();
-            // Prefer configured POS warehouse; if missing/empty stock, use warehouse with most SKUs.
+            $general_setting_defaults = \App\GeneralSetting::latest()->first();
+            $default_warehouse_id = $general_setting_defaults->default_warehouse_id ?? null;
+            $default_biller_id = $general_setting_defaults->default_biller_id ?? null;
+            // Prefer configured POS warehouse; then the General Settings default;
+            // if missing/empty stock, use warehouse with most SKUs.
             $richestWarehouseId = \DB::table('product_warehouse')
                 ->select('warehouse_id', \DB::raw('COUNT(DISTINCT product_id) as sku_count'), \DB::raw('SUM(qty) as total_qty'))
                 ->where('qty', '>', 0)
@@ -1648,6 +1652,9 @@ class SaleController extends Controller
                 ->value('warehouse_id');
             if (! $lims_pos_setting_data) {
                 $lims_pos_setting_data = new PosSetting();
+            }
+            if (! $lims_pos_setting_data->warehouse_id && $default_warehouse_id) {
+                $lims_pos_setting_data->warehouse_id = $default_warehouse_id;
             }
             $configuredWarehouseId = $lims_pos_setting_data->warehouse_id ?: null;
             $configuredStock = $configuredWarehouseId
@@ -1663,6 +1670,9 @@ class SaleController extends Controller
                 } elseif ($lims_warehouse_list->count()) {
                     $lims_pos_setting_data->warehouse_id = $lims_warehouse_list->first()->id;
                 }
+            }
+            if (! $lims_pos_setting_data->biller_id && $default_biller_id) {
+                $lims_pos_setting_data->biller_id = $default_biller_id;
             }
             if (! $lims_pos_setting_data->biller_id && $lims_biller_list->count()) {
                 $lims_pos_setting_data->biller_id = $lims_biller_list->first()->id;

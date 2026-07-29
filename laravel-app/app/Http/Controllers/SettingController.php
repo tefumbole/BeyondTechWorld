@@ -45,6 +45,8 @@ class SettingController extends Controller
         $lims_unit_list = Unit::where('is_active', true)->get();
         $lims_category_list = Category::where('is_active', true)->get();
         $lims_currency_list = Currency::get();
+        $lims_warehouse_list = Warehouse::where('is_active', true)->get();
+        $lims_biller_list = Biller::where('is_active', true)->get();
         $zones_array = array();
         $timestamp = time();
         foreach(timezone_identifiers_list() as $key => $zone) {
@@ -52,7 +54,7 @@ class SettingController extends Controller
             $zones_array[$key]['zone'] = $zone;
             $zones_array[$key]['diff_from_GMT'] = 'UTC/GMT ' . date('P', $timestamp);
         }
-        return view('setting.general_setting', compact('lims_general_setting_data', 'lims_account_list', 'zones_array', 'lims_currency_list', 'lims_category_list', 'lims_unit_list'));
+        return view('setting.general_setting', compact('lims_general_setting_data', 'lims_account_list', 'zones_array', 'lims_currency_list', 'lims_category_list', 'lims_unit_list', 'lims_warehouse_list', 'lims_biller_list'));
     }
 
     public function envSetting()
@@ -139,6 +141,10 @@ class SettingController extends Controller
         $general_setting->profit_percentage = $data['profit_percentage'];
         $general_setting->letter_serial_no = $data['letter_serial_no'];
         $general_setting->commission = $data['commission'];
+        if (\Schema::hasColumn('general_settings', 'default_warehouse_id')) {
+            $general_setting->default_warehouse_id = $data['default_warehouse_id'] ?: null;
+            $general_setting->default_biller_id = $data['default_biller_id'] ?: null;
+        }
         $logoDir = base_path('public/logo');
         if (! is_dir($logoDir)) {
             if (! @mkdir($logoDir, 0775, true) && ! is_dir($logoDir)) {

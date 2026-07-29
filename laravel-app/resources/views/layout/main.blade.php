@@ -1620,6 +1620,18 @@
                                 $announcements_module_active = true;
                             }
                         @endphp
+                        @php
+                            $create_sms_permission = DB::table('permissions')->where('name', 'create_sms')->first();
+                            $create_sms_permission_active = $create_sms_permission ? DB::table('role_has_permissions')->where([
+                                ['permission_id', $create_sms_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                            $sms_setting_permission = DB::table('permissions')->where('name', 'sms_setting')->first();
+                            $sms_setting_permission_active = $sms_setting_permission ? DB::table('role_has_permissions')->where([
+                                ['permission_id', $sms_setting_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
                         @if($announcements_module_active)
                             <li><a href="#announcements-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-bullhorn"></i><span>Announcements</span></a>
                                 <ul id="announcements-module" class="collapse list-unstyled ">
@@ -1629,6 +1641,12 @@
                                     <li id="announcements-reminders-menu"><a href="{{ route('announcements.reminders') }}">Reminders</a></li>
                                     <li id="announcements-templates-menu"><a href="{{ route('announcements.templates') }}">Templates</a></li>
                                     <li id="announcements-categories-menu"><a href="{{ route('announcements.categories') }}">Categories</a></li>
+                                    @if($create_sms_permission_active)
+                                        <li id="create-sms-menu"><a href="{{route('setting.createSms')}}">{{trans('file.Create SMS')}}</a></li>
+                                    @endif
+                                    @if($sms_setting_permission_active)
+                                        <li id="sms-setting-menu"><a href="{{route('setting.messaging')}}">{{trans('file.SMS Setting')}}</a></li>
+                                    @endif
                                     <li id="announcements-settings-menu"><a href="{{ route('announcements.settings') }}">Settings</a></li>
                                     @if(in_array('announcement_index', $all_permission ?? []))
                                         <li id="announcement-legacy-menu"><a href="{{ route('announcement.index') }}">Legacy Letters</a></li>
@@ -1931,6 +1949,11 @@
                             ['permission_id', $hrm->id],
                             ['role_id', $role->id]
                         ])->first();
+                        $hrm_setting_permission = DB::table('permissions')->where('name', 'hrm_setting')->first();
+                        $hrm_setting_permission_active = $hrm_setting_permission ? DB::table('role_has_permissions')->where([
+                            ['permission_id', $hrm_setting_permission->id],
+                            ['role_id', $role->id]
+                        ])->first() : null;
                         ?>
                         @if($hrm_active)
                             @if(Auth::user()->role_id != 5)
@@ -1949,6 +1972,10 @@
                                             <li id="payroll-menu"><a href="{{route('payroll.index')}}">{{trans('file.Payroll')}}</a></li>
                                         @endif
                                         <li id="holiday-menu"><a href="{{route('holidays.index')}}">{{trans('file.Holiday')}}</a></li>
+                                        <li id="my-holiday-menu"><a href="{{url('holidays/my-holiday/'.date('Y').'/'.date('m'))}}">{{trans('file.My Holiday')}}</a></li>
+                                        @if($hrm_setting_permission_active)
+                                            <li id="hrm-setting-menu"><a href="{{route('setting.hrm')}}">{{trans('file.HRM Setting')}}</a></li>
+                                        @endif
                                     </ul>
                                 </li>
                             @endif
@@ -2337,27 +2364,9 @@
                                     ['role_id', $role->id]
                                 ])->first();
 
-                                $sms_setting_permission = DB::table('permissions')->where('name', 'sms_setting')->first();
-                                $sms_setting_permission_active = DB::table('role_has_permissions')->where([
-                                    ['permission_id', $sms_setting_permission->id],
-                                    ['role_id', $role->id]
-                                ])->first();
-
-                                $create_sms_permission = DB::table('permissions')->where('name', 'create_sms')->first();
-                                $create_sms_permission_active = DB::table('role_has_permissions')->where([
-                                    ['permission_id', $create_sms_permission->id],
-                                    ['role_id', $role->id]
-                                ])->first();
-
                                 $pos_setting_permission = DB::table('permissions')->where('name', 'pos_setting')->first();
                                 $pos_setting_permission_active = DB::table('role_has_permissions')->where([
                                     ['permission_id', $pos_setting_permission->id],
-                                    ['role_id', $role->id]
-                                ])->first();
-
-                                $hrm_setting_permission = DB::table('permissions')->where('name', 'hrm_setting')->first();
-                                $hrm_setting_permission_active = DB::table('role_has_permissions')->where([
-                                    ['permission_id', $hrm_setting_permission->id],
                                     ['role_id', $role->id]
                                 ])->first();
 
@@ -2386,9 +2395,6 @@
                                 @if($warehouse_permission_active)
                                     <li id="warehouse-menu"><a href="{{route('warehouse.index')}}">{{trans('file.Warehouse')}}</a></li>
                                 @endif
-                                @if($biller_index_permission_active)
-                                    <li id="biller-list-menu"><a href="{{route('biller.index')}}">{{trans('file.Biller List')}}</a></li>
-                                @endif
                                 @if($customer_group_permission_active)
                                     <li id="customer-group-menu"><a href="{{route('customer_group.index')}}">{{trans('file.Customer Group')}}</a></li>
                                 @endif
@@ -2406,12 +2412,6 @@
                                 @endif
                                 <li id="user-menu"><a href="{{route('user.profile', ['id' => Auth::id()])}}">{{trans('file.User Profile')}}</a></li>
                                 <li id="my-transactions-menu"><a href="{{url('my-transactions/'.date('Y').'/'.date('m'))}}">{{trans('file.My Transaction')}}</a></li>
-                                @if(Auth::user()->role_id != 5)
-                                    <li id="my-holiday-menu"><a href="{{url('holidays/my-holiday/'.date('Y').'/'.date('m'))}}">{{trans('file.My Holiday')}}</a></li>
-                                @endif
-                                @if($create_sms_permission_active)
-                                    <li id="create-sms-menu"><a href="{{route('setting.createSms')}}">{{trans('file.Create SMS')}}</a></li>
-                                @endif
                                 @if($backup_database_permission_active)
                                     <li id="backup-database-menu"><a href="{{route('setting.backup')}}">{{trans('file.Backup Database')}}</a></li>
                                 @endif
@@ -2434,17 +2434,8 @@
                                 @if($reward_point_setting_permission_active)
                                     <li id="reward-point-setting-menu"><a href="{{route('setting.rewardPoint')}}">{{trans('file.Reward Point Setting')}}</a></li>
                                 @endif
-                                @if($sms_setting_permission_active || $general_setting_permission_active)
-                                    <li id="messaging-setting-menu"><a href="{{route('setting.messaging')}}">Messaging Settings</a></li>
-                                @endif
-                                @if($sms_setting_permission_active)
-                                    <li id="sms-setting-menu"><a href="{{route('setting.messaging')}}">{{trans('file.SMS Setting')}}</a></li>
-                                @endif
                                 @if($pos_setting_permission_active)
                                     <li id="pos-setting-menu"><a href="{{route('setting.pos')}}">POS {{trans('file.settings')}}</a></li>
-                                @endif
-                                @if($hrm_setting_permission_active)
-                                    <li id="hrm-setting-menu"><a href="{{route('setting.hrm')}}"> {{trans('file.HRM Setting')}}</a></li>
                                 @endif
                             </ul>
                         </li>

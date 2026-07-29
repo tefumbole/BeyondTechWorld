@@ -57,9 +57,9 @@
 </section>
 
 <script type="text/javascript">
-    $("ul#setting").siblings('a').attr('aria-expanded','true');
-    $("ul#setting").addClass("show");
-    $("ul#setting #sms-setting-menu").addClass("active");
+    $("ul#announcements-module").siblings('a').attr('aria-expanded','true');
+    $("ul#announcements-module").addClass("show");
+    $("ul#announcements-module #sms-setting-menu").addClass("active");
 
     if( $('input[name="gateway_hidden"]').val() == 'twilio' ){
         $('select[name="gateway"]').val('twilio');

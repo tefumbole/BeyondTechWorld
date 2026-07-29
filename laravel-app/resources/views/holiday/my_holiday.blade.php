@@ -69,7 +69,8 @@
 </section>
 
 <script type="text/javascript">
-
-
+    $("ul#hrm").siblings('a').attr('aria-expanded','true');
+    $("ul#hrm").addClass("show");
+    $("ul#hrm #my-holiday-menu").addClass("active");
 </script>
 @endsection

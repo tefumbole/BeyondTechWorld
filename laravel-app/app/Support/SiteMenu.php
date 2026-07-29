@@ -109,7 +109,6 @@ class SiteMenu
             'role'               => 'Role Permission',
             'notification'       => 'Send Notification',
             'warehouse'          => 'Warehouse',
-            'biller-list'        => 'Biller List',
             'customer-group'     => 'Customer Group',
             'brand'              => 'Brand',
             'unit'               => 'Unit',
@@ -117,8 +116,6 @@ class SiteMenu
             'tax'                => 'Tax',
             'user'               => 'User Profile',
             'my-transactions'    => 'My Transactions',
-            'my-holiday'         => 'My Holiday',
-            'create-sms'         => 'Create SMS',
             'backup-database'    => 'Backup Database',
             'empty-database'     => 'Empty Database',
             'general-setting'    => 'General Setting',
@@ -126,10 +123,7 @@ class SiteMenu
             'env-setting'        => '.env Settings',
             'mail-setting'       => 'Mail Setting',
             'reward-point-setting' => 'Reward Point Setting',
-            'messaging-setting'  => 'Messaging Settings',
-            'sms-setting'        => 'SMS Setting',
             'pos-setting'        => 'POS Settings',
-            'hrm-setting'        => 'HRM Setting',
         ];
     }
 
@@ -145,7 +139,6 @@ class SiteMenu
             'role-menu'               => 'role',
             'notification-menu'         => 'notification',
             'warehouse-menu'          => 'warehouse',
-            'biller-list-menu'        => 'biller-list',
             'customer-group-menu'     => 'customer-group',
             'brand-menu'              => 'brand',
             'unit-menu'               => 'unit',
@@ -153,8 +146,6 @@ class SiteMenu
             'tax-menu'                => 'tax',
             'user-menu'               => 'user',
             'my-transactions-menu'    => 'my-transactions',
-            'my-holiday-menu'         => 'my-holiday',
-            'create-sms-menu'         => 'create-sms',
             'backup-database-menu'    => 'backup-database',
             'empty-database-menu'     => 'empty-database',
             'general-setting-menu'    => 'general-setting',
@@ -162,10 +153,7 @@ class SiteMenu
             'env-setting-menu'        => 'env-setting',
             'mail-setting-menu'       => 'mail-setting',
             'reward-point-setting-menu' => 'reward-point-setting',
-            'messaging-setting-menu'  => 'messaging-setting',
-            'sms-setting-menu'        => 'sms-setting',
             'pos-setting-menu'        => 'pos-setting',
-            'hrm-setting-menu'        => 'hrm-setting',
         ];
     }
 }
