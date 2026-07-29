@@ -1368,7 +1368,7 @@
                             ])->first() : null;
                         @endphp
                         @if($contracts_module_active)
-                            <li><a href="#contracts-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document-edit"></i><span>Contracts</span></a>
+                            <li><a href="#contracts-module" data-nav-key="contracts" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-document-edit"></i><span>Contracts</span></a>
                                 <ul id="contracts-module" class="collapse list-unstyled ">
                                     <li id="contracts-dashboard-menu"><a href="{{ route('contracts.dashboard') }}">Dashboard</a></li>
                                     <li id="contracts-list-menu"><a href="{{ route('contracts.index') }}">Contract List</a></li>
@@ -2451,13 +2451,18 @@
                         var ul = document.getElementById('side-main-menu');
                         if (!ul || !order || !order.length) return;
                         function keyOf(li) {
-                            var a = li.querySelector('a');
+                            var a = null;
+                            for (var i = 0; i < li.children.length; i++) {
+                                if (li.children[i].tagName === 'A') { a = li.children[i]; break; }
+                            }
+                            if (!a) a = li.querySelector('a');
                             if (!a) return null;
                             if (a.getAttribute('data-nav-key')) return a.getAttribute('data-nav-key');
                             var href = a.getAttribute('href') || '';
                             if (href.charAt(0) === '#') {
                                 var anchor = href.slice(1);
                                 // collapse target ids differ from Site Content reorder keys
+                                if (anchor === 'contracts-module') return 'contracts';
                                 if (anchor === 'events-module') return 'events';
                                 if (anchor === 'tasks-module') return 'tasks';
                                 if (anchor === 'jobs-module') return 'jobs';
@@ -2466,21 +2471,38 @@
                                 if (anchor === 'timesheets-module') return 'timesheets';
                                 if (anchor === 'timesheet-admin-module') return 'timesheet-admin';
                                 if (anchor === 'staff-permissions') return 'permissions';
+                                // Generic: #foo-module → foo (keeps future modules in sync)
+                                if (/-module$/.test(anchor)) return anchor.replace(/-module$/, '');
                                 return anchor;
                             }
                             if (/\/admin\/site-content/.test(href)) return 'site-content';
                             if (/\/admin\/leaders/.test(href)) return 'leaders';
                             if (/\/admin\/events/.test(href)) return 'events';
-                            if (/\/admin\/?$/.test(href)) return 'dashboard';
+                            if (/\/admin\/contracts/.test(href)) return 'contracts';
+                            if (/\/admin\/?$/.test(href) || /\/dashboard\/?$/.test(href)) return 'dashboard';
                             return null;
                         }
+                        var kids = Array.prototype.slice.call(ul.children).filter(function (li) {
+                            return li.tagName === 'LI';
+                        });
                         var map = {};
-                        Array.prototype.slice.call(ul.children).forEach(function (li) {
-                            if (li.tagName !== 'LI') return;
+                        kids.forEach(function (li) {
                             var k = keyOf(li);
                             if (k && !map[k]) map[k] = li;
                         });
-                        order.forEach(function (k) { if (map[k]) ul.appendChild(map[k]); });
+                        var used = {};
+                        // Apply saved order. Matched items move to the end in sequence.
+                        order.forEach(function (k) {
+                            if (map[k]) {
+                                ul.appendChild(map[k]);
+                                used[k] = true;
+                            }
+                        });
+                        // Unmatched LIs must NOT stay at the top (that floated Contracts above Dashboard).
+                        kids.forEach(function (li) {
+                            var k = keyOf(li);
+                            if (!k || !used[k]) ul.appendChild(li);
+                        });
                     })();
                     (function () {
                         var order = @json($__settingsMenuOrder);
