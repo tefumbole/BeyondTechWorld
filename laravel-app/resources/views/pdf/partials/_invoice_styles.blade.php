@@ -105,7 +105,7 @@
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        color: #6449e7;
+        color: #1f2a44;
         margin-bottom: 3px;
     }
     .inv-parties .inv-name { font-weight: bold; }
@@ -159,9 +159,10 @@
     table.inv-totals tr.inv-grand td {
         font-size: 12px;
         font-weight: bold;
-        background: #eef0f7;
-        border-top: 1px solid #c9cfdf;
-        border-bottom: 1px solid #c9cfdf;
+        color: #1f3d32;
+        background: #e5f2eb;
+        border-top: 1px solid #b7d4c4;
+        border-bottom: 1px solid #b7d4c4;
     }
 
     .inv-box {
@@ -175,7 +176,7 @@
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        color: #6449e7;
+        color: #1f2a44;
         margin-bottom: 2px;
     }
     .inv-words { font-style: italic; }

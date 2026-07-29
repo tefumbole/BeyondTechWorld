@@ -24,7 +24,7 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #6449e7;
+            color: #1f2a44;
             margin-bottom: 3px;
         }
         table.inv-meta .inv-name { font-weight: bold; }

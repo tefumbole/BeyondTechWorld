@@ -97,7 +97,7 @@
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #6449e7;
+            color: #1f2a44;
             margin-bottom: 3px;
         }
         .name { font-weight: bold; }
@@ -140,7 +140,8 @@
         table.totals tr.grand th, table.totals tr.grand td {
             font-weight: bold;
             font-size: 12px;
-            background: #eef0f7;
+            color: #1f3d32;
+            background: #e5f2eb;
         }
         .status {
             display: inline-block;
