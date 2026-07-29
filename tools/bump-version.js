@@ -42,9 +42,18 @@ function replaceVersionInFile(filePath, nextVersion) {
   fs.writeFileSync(filePath, content);
 }
 
+function readLaravelVersion() {
+  const file = path.join(ROOT, 'laravel-app/VERSION');
+  if (!fs.existsSync(file)) return null;
+  const raw = fs.readFileSync(file, 'utf8').trim();
+  return /^\d+\.\d+\.\d+$/.test(raw) ? `BCL_ERP_V${raw}` : null;
+}
+
 function main() {
   const current = readVersion(VERSION_FILES[0]);
-  const next = bumpVersionString(current);
+  // laravel-app/VERSION is the single source of truth (bumped by the
+  // pre-commit hook); mirror it so login/settings/frontends always agree.
+  const next = readLaravelVersion() || bumpVersionString(current);
 
   for (const filePath of VERSION_FILES) {
     replaceVersionInFile(filePath, next);
