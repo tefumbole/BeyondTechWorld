@@ -41,26 +41,27 @@
                     $verifyUrl = \App\Support\DeliveryVerifyQr::scanUrl($delivery);
                     $barcode = \DNS2D::getBarcodePNG($verifyUrl, 'QRCODE');
                     $linBarcode = \DNS1D::getBarcodePNG($delivery->reference_no, 'C128');
+                    $deliveryPayload = [
+                        date($general_setting->date_format, strtotime($delivery->created_at->toDateString())),
+                        $delivery->reference_no,
+                        optional($delivery->sale)->reference_no,
+                        $status,
+                        $delivery->id,
+                        optional($customer)->name,
+                        optional($customer)->phone_number,
+                        $delivery->address,
+                        optional($customer)->city,
+                        $delivery->note,
+                        optional($delivery->user)->name,
+                        $delivery->delivered_by,
+                        $delivery->recieved_by,
+                        optional($delivery->user)->email,
+                        $delivery->clientSignatureUrl(),
+                        $sigLabel,
+                        optional($delivery->client_signed_at)->format('d-m-Y H:i'),
+                    ];
                 ?>
-                <tr class="delivery-link" data-id="{{$delivery->id}}" data-signed="{{ $delivery->isSigned() ? 1 : 0 }}" data-barcode="{{$barcode}}" data-linbarcode="{{$linBarcode}}" data-delivery='@json([
-                    date($general_setting->date_format, strtotime($delivery->created_at->toDateString())),
-                    $delivery->reference_no,
-                    optional($delivery->sale)->reference_no,
-                    $status,
-                    $delivery->id,
-                    optional($customer)->name,
-                    optional($customer)->phone_number,
-                    $delivery->address,
-                    optional($customer)->city,
-                    $delivery->note,
-                    optional($delivery->user)->name,
-                    $delivery->delivered_by,
-                    $delivery->recieved_by,
-                    optional($delivery->user)->email,
-                    $delivery->clientSignatureUrl(),
-                    $sigLabel,
-                    optional($delivery->client_signed_at)->format('d-m-Y H:i')
-                ])'>
+                <tr class="delivery-link" data-id="{{$delivery->id}}" data-signed="{{ $delivery->isSigned() ? 1 : 0 }}" data-barcode="{{$barcode}}" data-linbarcode="{{$linBarcode}}" data-delivery='@json($deliveryPayload)'>
                     <td>{{$key}}</td>
                     <td>{{ $delivery->reference_no }}</td>
                     <td>{{ optional($delivery->sale)->reference_no }}</td>
