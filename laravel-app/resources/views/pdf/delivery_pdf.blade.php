@@ -37,7 +37,10 @@
 @endphp
 
 <div class="inv-title">{{ $delivery->isSigned() ? 'Signed Delivery' : 'Delivery Note' }}</div>
-<div class="inv-ref">{{ $delivery->reference_no }}</div>
+<div class="inv-ref">
+    <strong>{{ trans('file.reference') }}:</strong> {{ $delivery->reference_no }}<br>
+    <strong>{{ trans('file.Date') }}:</strong> {{ optional($delivery->created_at)->format('d-m-Y') }}
+</div>
 
 <table class="inv-meta">
     <tr>

@@ -136,13 +136,9 @@
             @if(!empty($letterhead['has_header']))
                 <img src="{{ $letterhead['header_url'] }}" alt="" style="display:block;width:100%;max-height:90px;object-fit:fill;margin:0 0 6px;">
             @endif
-            <div class="text-center mb-2">
-                <strong style="font-size:16px;" id="delivery-doc-title">Delivery Note</strong>
-                <div id="delivery-ref-line" class="text-muted" style="font-size:12px;"></div>
-            </div>
-            <div id="delivery-codes-top" class="text-center mb-2">
-                <div style="margin:0 0 6px;"><img id="delivery-qrcode" src="" alt="qrcode" height="56" width="56"></div>
-                <div><img id="delivery-barcode" src="" alt="barcode" height="28" style="max-width:220px;"></div>
+            <div class="mb-2">
+                <div class="text-center"><strong style="font-size:16px;" id="delivery-doc-title">Delivery Note</strong></div>
+                <div id="delivery-ref-line" style="font-size:12px;line-height:1.45;text-align:left;color:#1f2a44;"></div>
             </div>
             <table class="table table-sm table-bordered mb-2" id="delivery-content"><tbody></tbody></table>
             <style>
@@ -164,6 +160,10 @@
             </table>
             <div id="delivery-footer" class="mb-2" style="text-align:left;"></div>
             <div id="delivery-signature" class="mb-2"></div>
+            <div id="delivery-codes-bottom" class="text-center mb-2">
+                <div style="margin:0 0 6px;"><img id="delivery-qrcode" src="" alt="qrcode" height="56" width="56"></div>
+                <div><img id="delivery-barcode" src="" alt="barcode" height="28" style="max-width:220px;"></div>
+            </div>
             @if(!empty($letterhead['has_footer']))
                 <img src="{{ $letterhead['footer_url'] }}" alt="" style="display:block;width:100%;max-height:70px;object-fit:fill;margin-top:8px;">
             @endif
@@ -268,7 +268,10 @@
     function deliveryDetails(delivery, qr, barcode, signed) {
         $('input[name="delivery_id"]').val(delivery[4]);
         $('#wa-delivery-id').val(delivery[4]);
-        $('#delivery-ref-line').text(delivery[1] || '');
+        $('#delivery-ref-line').html(
+            '<strong>{{trans("file.reference")}}:</strong> ' + (delivery[1] || '') + '<br>' +
+            '<strong>{{trans("file.Date")}}:</strong> ' + (delivery[0] || '')
+        );
         $('#delivery-doc-title').text(signed == 1 || signed === true ? 'Signed Delivery' : 'Delivery Note');
         $('#whatsapp-wrap').toggle(signed == 1 || signed === true);
         $('#delivery-qrcode').attr('src', 'data:image/png;base64,' + qr);
