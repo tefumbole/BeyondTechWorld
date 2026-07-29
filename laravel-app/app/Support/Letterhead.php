@@ -57,6 +57,122 @@ class Letterhead
     }
 
     /**
+     * A print-resolution copy of a letterhead image for embedding in PDFs.
+     *
+     * Uploaded branding is often far larger than a PDF needs (the watermark has
+     * been seen at 6501px wide), and dompdf embeds images at full resolution, so
+     * a single invoice ballooned past 1.8 MB — painful for WhatsApp recipients.
+     * Downscaled copies are cached next to the original and reused.
+     *
+     * Returns the original path if it is already small enough, or if anything
+     * goes wrong, so callers can use the result unconditionally.
+     *
+     * @param  string|null  $path
+     * @param  int  $maxWidth
+     * @return string|null
+     */
+    public static function pdfImage($path, $maxWidth = 1400)
+    {
+        if (! $path || ! is_file($path) || ! function_exists('imagecreatetruecolor')) {
+            return $path;
+        }
+
+        $size = @getimagesize($path);
+        if (! $size || empty($size[0]) || empty($size[1]) || $size[0] <= $maxWidth) {
+            return $path;
+        }
+
+        $cacheDir = storage_path('app/letterhead-cache');
+        if (! is_dir($cacheDir) && ! @mkdir($cacheDir, 0775, true) && ! is_dir($cacheDir)) {
+            return $path;
+        }
+
+        $cached = $cacheDir.'/'.sha1($path.'|'.filemtime($path).'|'.filesize($path).'|'.$maxWidth).'.png';
+        if (is_file($cached)) {
+            return $cached;
+        }
+
+        // GD decodes the whole bitmap, so a 6501px image needs ~170 MB while
+        // php-fpm allows 128 MB. Raise the ceiling just for this one-off resize
+        // (the result is cached) and bail out rather than risk a fatal OOM.
+        $needed = (int) (($size[0] * $size[1] * 4) + ($maxWidth * $maxWidth * 4) + (16 * 1024 * 1024));
+        $originalLimit = ini_get('memory_limit');
+        $limitBytes = self::bytesFromIni($originalLimit);
+        $restoreLimit = false;
+
+        if ($limitBytes > 0 && $limitBytes < $needed) {
+            if ($needed > 640 * 1024 * 1024) {
+                return $path;
+            }
+            if (@ini_set('memory_limit', (int) ceil($needed / (1024 * 1024)).'M') === false) {
+                return $path;
+            }
+            $restoreLimit = true;
+        }
+
+        try {
+            switch ($size[2]) {
+                case IMAGETYPE_PNG:  $src = @imagecreatefrompng($path); break;
+                case IMAGETYPE_GIF:  $src = @imagecreatefromgif($path); break;
+                case IMAGETYPE_JPEG: $src = @imagecreatefromjpeg($path); break;
+                default: return $path;
+            }
+            if (! $src) {
+                return $path;
+            }
+
+            $width = $maxWidth;
+            $height = max(1, (int) round($size[1] * ($maxWidth / $size[0])));
+
+            $dst = imagecreatetruecolor($width, $height);
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $width, $height, $size[0], $size[1]);
+
+            $ok = @imagepng($dst, $cached, 8);
+            imagedestroy($src);
+            imagedestroy($dst);
+
+            if ($ok && is_file($cached)) {
+                @chmod($cached, 0664);
+
+                return $cached;
+            }
+        } catch (\Throwable $e) {
+            // fall through to the original
+        } finally {
+            if ($restoreLimit) {
+                @ini_set('memory_limit', $originalLimit);
+            }
+        }
+
+        return $path;
+    }
+
+    /**
+     * @param  string  $value
+     * @return int  Bytes, or -1 when unlimited.
+     */
+    protected static function bytesFromIni($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (int) $value;
+
+        switch ($unit) {
+            case 'g': return $number * 1024 * 1024 * 1024;
+            case 'm': return $number * 1024 * 1024;
+            case 'k': return $number * 1024;
+            default: return $number;
+        }
+    }
+
+    /**
      * @param  object|null  $settings
      * @return array
      */
