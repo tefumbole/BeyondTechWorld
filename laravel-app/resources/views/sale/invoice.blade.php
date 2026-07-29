@@ -131,6 +131,7 @@
                         <tr>
                             <td><a href="{{$url}}" class="btn btn-info"><i class="fa fa-arrow-left"></i> {{trans('file.Back')}}</a> </td>
                             <td><button onclick="window.print();" class="btn btn-primary"><i class="dripicons-print"></i> {{trans('file.Print')}}</button></td>
+                            <td><a href="{{ route('sale.pos') }}" class="btn btn-danger"><i class="dripicons-cross"></i> Close</a></td>
                         </tr>
                     </table>
                     <br>
