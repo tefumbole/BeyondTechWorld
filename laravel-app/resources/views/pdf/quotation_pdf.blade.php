@@ -10,27 +10,39 @@
 <body>
 @include('pdf.partials._invoice_open')
 
+@php
+    $orderTax = (float) ($lims_sale_data->order_tax ?? 0);
+    $orderDiscount = (float) ($lims_sale_data->order_discount ?? 0);
+    $shippingCost = (float) ($lims_sale_data->shipping_cost ?? 0);
+    $quotationStatus = method_exists($lims_sale_data, 'getStatusLabelAttribute')
+        ? $lims_sale_data->status_label
+        : \App\Quotation::statusLabel($lims_sale_data->quotation_status ?? null);
+    $currencyCode = is_object($currency ?? null) ? ($currency->code ?? '') : (string) ($currency ?? '');
+@endphp
+
 <div class="inv-title">{{ trans('file.Quotation') }}</div>
 <div class="inv-ref">
-    {{ $lims_sale_data->reference_no }}
-    &nbsp;&middot;&nbsp; {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
+    <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+    <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}
 </div>
 
-<table class="inv-parties">
+<table class="inv-meta">
     <tr>
         <td>
-            <span class="inv-label">{{ trans('file.From') }}</span>
-            <span class="inv-name">{{ @$lims_sale_data->biller->company_name ?: @$lims_sale_data->biller->name }}</span><br>
-            @if(@$lims_sale_data->biller->address){{ $lims_sale_data->biller->address }}<br>@endif
-            @if(@$lims_sale_data->biller->email){{ $lims_sale_data->biller->email }}<br>@endif
-            {{ @$lims_sale_data->biller->phone_number }}
+            <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
+            @if(@$lims_warehouse_data->name)
+                <strong>{{ trans('file.Warehouse') }}:</strong> {{ $lims_warehouse_data->name }}<br>
+            @endif
+            <strong>{{ trans('file.Quotation Status') }}:</strong> {{ $quotationStatus }}
         </td>
         <td>
-            <span class="inv-label">{{ trans('file.customer') }}</span>
+            <span class="inv-label">{{ trans('file.To') }}</span>
             <span class="inv-name">{{ @$lims_customer_data->name }}</span><br>
             @if(@$lims_customer_data->phone_number){{ $lims_customer_data->phone_number }}<br>@endif
             @if(@$lims_customer_data->email){{ $lims_customer_data->email }}<br>@endif
-            {{ @$lims_customer_data->address }}
+            @if(@$lims_customer_data->address){{ $lims_customer_data->address }}@endif
+            @if(@$lims_customer_data->city){{ @$lims_customer_data->address ? ', ' : '' }}{{ $lims_customer_data->city }}@endif
         </td>
     </tr>
 </table>
@@ -87,8 +99,9 @@
         if ($product_sale_data->tax) {
             $total_product_tax += $product_sale_data->tax;
         }
+        $rowClass = ($key % 2 === 1) ? 'inv-alt' : '';
         ?>
-        <tr>
+        <tr class="{{ $rowClass }}">
             <td class="inv-num">{{ $key + 1 }}</td>
             <td>{{ $product_name }}</td>
             <td>{{ $product_batch_name }}</td>
@@ -114,9 +127,9 @@
                 <span class="inv-label">{{ trans('file.In Words') }}</span>
                 <span class="inv-words">
                     @if($general_setting->currency_position == 'prefix')
-                        {{ $currency->code }} {{ str_replace('-', ' ', $numberInWords) }}
+                        {{ $currencyCode }} {{ str_replace('-', ' ', $numberInWords) }}
                     @else
-                        {{ str_replace('-', ' ', $numberInWords) }} {{ $currency->code }}
+                        {{ str_replace('-', ' ', $numberInWords) }} {{ $currencyCode }}
                     @endif
                 </span>
             </div>
@@ -126,11 +139,7 @@
                     {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
                 </div>
             @endif
-            <div class="inv-box">
-                <span class="inv-label">{{ trans('file.Created By') }}</span>
-                {{ @$lims_sale_data->user->name }}
-                @if(@$lims_sale_data->user->phone) &middot; {{ $lims_sale_data->user->phone }} @endif
-            </div>
+            <div class="inv-thanks" style="margin-top:6px;width:100%;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         </td>
         <td class="inv-summary-right">
             <table class="inv-totals">
@@ -153,22 +162,22 @@
                         <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->order_tax)
+                @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_tax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->order_discount)
+                @if($orderDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Order Discount') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_discount, 2) }}</td>
+                        <td>{{ number_format($orderDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->shipping_cost)
+                @if($shippingCost > 0)
                     <tr>
                         <th>{{ trans('file.Shipping Cost') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->shipping_cost, 2) }}</td>
+                        <td>{{ number_format($shippingCost, 2) }}</td>
                     </tr>
                 @endif
                 <tr class="inv-grand">
@@ -179,6 +188,21 @@
         </td>
     </tr>
 </table>
+
+<div class="inv-codes-block">
+    @if(@$lims_sale_data->user)
+        <div class="inv-created">
+            <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
+            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
+        </div>
+    @endif
+    <div class="inv-qr" style="margin:0 0 6px;">
+        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
+    </div>
+    <div class="inv-barcode">
+        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="24" width="160" alt="barcode">'; ?>
+    </div>
+</div>
 
 @include('pdf.partials._invoice_close')
 </body>

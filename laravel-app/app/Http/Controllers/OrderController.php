@@ -12,6 +12,7 @@ use App\paymentRequest;
 use App\Product;
 use App\Product_Warehouse;
 use App\User;
+use App\Warehouse;
 use Doctrine\DBAL\Schema\AbstractAsset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -460,9 +461,10 @@ class OrderController extends Controller
             abort(403, 'You are not authorized to download this invoice.');
         }
 
-        $lims_sale_data = Booking::findOrFail($id);
+        $lims_sale_data = Booking::with('user', 'warehouse')->findOrFail($id);
         $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
-        $lims_customer_data = User::find($lims_sale_data->user_id);
+        $lims_customer_data = Customer::find($lims_sale_data->customer_id) ?: User::find($lims_sale_data->user_id);
+        $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_account_data = null;
         $lims_account_data_debit = null;
         $lims_account_data_cradit = null;
@@ -489,6 +491,7 @@ class OrderController extends Controller
             'lims_sale_data' => $lims_sale_data,
             'lims_product_sale_data' => $lims_product_sale_data,
             'lims_customer_data' => $lims_customer_data,
+            'lims_warehouse_data' => $lims_warehouse_data,
             'numberInWords' => $numberInWords
         ];
 

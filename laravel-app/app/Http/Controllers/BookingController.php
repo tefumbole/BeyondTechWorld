@@ -2324,10 +2324,32 @@ class BookingController extends Controller
             $product_sale[4][$key] = $product_sale_data->tax_rate;
             $product_sale[5][$key] = $product_sale_data->discount;
             $product_sale[6][$key] = $product_sale_data->total;
-            $product_sale[7][$key] = $product_sale_data->start;
-            $product_sale[8][$key] = $product_sale_data->end;
+            $product_sale[8][$key] = $product_sale_data->start;
+            $product_sale[9][$key] = $product_sale_data->end;
         }
         return $product_sale;
+    }
+
+    public function barcodePng($ref)
+    {
+        $ref = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $ref);
+        if ($ref === '') {
+            abort(404);
+        }
+        $png = base64_decode(\DNS1D::getBarcodePNG($ref, 'C128'));
+
+        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
+    }
+
+    public function qrcodePng($ref)
+    {
+        $ref = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $ref);
+        if ($ref === '') {
+            abort(404);
+        }
+        $png = base64_decode(\DNS2D::getBarcodePNG($ref, 'QRCODE'));
+
+        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
     }
 
     public function getProductPriceByDuration(Request $request)

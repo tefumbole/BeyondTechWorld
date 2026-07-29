@@ -82,7 +82,7 @@
         .watermark img { width: 100%; }
         .content { position: relative; z-index: 1; }
         .title { text-align: center; font-size: 16px; font-weight: bold; margin: 0 0 4px; }
-        .ref-line { text-align: center; font-size: 10px; color: #5b6478; margin: 0 0 8px; }
+        .ref-line { text-align: left; font-size: 11px; color: #1f2a44; margin: 0 0 8px; line-height: 1.45; }
         table.meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
         table.meta td {
             width: 50%;
@@ -219,17 +219,15 @@
 
         <div class="title">Sales Invoice</div>
         <div class="ref-line">
-            {{ $lims_sale_data->reference_no }}
-            &nbsp;&middot;&nbsp;
-            {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
+            <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}
         </div>
 
         <table class="meta">
             <tr>
                 <td>
-                    <span class="label">{{ trans('file.reference') }}</span>
-                    <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
                     <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+                    <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
                     @if(@$lims_warehouse_data->name)
                         <strong>{{ trans('file.Warehouse') }}:</strong> {{ $lims_warehouse_data->name }}<br>
                     @endif

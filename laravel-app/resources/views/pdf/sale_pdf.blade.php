@@ -62,13 +62,16 @@
 @endphp
 
 <div class="inv-title">Sales Invoice</div>
-<div class="inv-ref">{{ $lims_sale_data->reference_no }}</div>
+<div class="inv-ref">
+    <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+    <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}
+</div>
 
 <table class="inv-meta">
     <tr>
         <td>
-            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
             <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
             @if(@$lims_warehouse_data->name)
                 <strong>{{ trans('file.Warehouse') }}:</strong> {{ $lims_warehouse_data->name }}<br>
             @endif

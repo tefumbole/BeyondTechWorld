@@ -9,41 +9,88 @@
 <body>
 @include('pdf.partials._invoice_open')
 
+@php
+    $orderTax = (float) ($lims_sale_data->order_tax ?? 0);
+    $orderDiscount = (float) ($lims_sale_data->order_discount ?? 0);
+    $couponDiscount = (float) ($lims_sale_data->coupon_discount ?? 0);
+    $shippingCost = (float) ($lims_sale_data->shipping_cost ?? 0);
+    $paidAmount = (float) ($lims_sale_data->paid_amount ?? 0);
+    $dueAmount = max(0, (float) $lims_sale_data->grand_total - $paidAmount);
+    $bookingStatus = 'Draft';
+    if ((int) $lims_sale_data->booking_status === 1) {
+        $bookingStatus = 'Complete';
+    } elseif ((int) $lims_sale_data->booking_status === 2) {
+        $bookingStatus = trans('file.Pending');
+    } elseif ((int) $lims_sale_data->booking_status === 3) {
+        $bookingStatus = 'Return';
+    } elseif ((int) $lims_sale_data->booking_status === 4) {
+        $bookingStatus = 'Partial Return';
+    }
+    $earliestStart = null;
+    $latestEnd = null;
+    foreach ($lims_product_sale_data as $row) {
+        if (! empty($row->start)) {
+            $ts = strtotime($row->start);
+            if ($ts && ($earliestStart === null || $ts < $earliestStart)) {
+                $earliestStart = $ts;
+            }
+        }
+        if (! empty($row->end)) {
+            $ts = strtotime($row->end);
+            if ($ts && ($latestEnd === null || $ts > $latestEnd)) {
+                $latestEnd = $ts;
+            }
+        }
+    }
+@endphp
+
 <div class="inv-title">Booking Invoice</div>
 <div class="inv-ref">
-    {{ $lims_sale_data->reference_no }}
-    &nbsp;&middot;&nbsp; {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
+    <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+    <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}
 </div>
 
-<table class="inv-parties">
+<table class="inv-meta">
     <tr>
         <td>
-            <span class="inv-label">{{ trans('file.From') }}</span>
-            <span class="inv-name">{{ @$lims_biller_data->company_name ?: @$lims_biller_data->name }}</span><br>
-            @if(@$lims_warehouse_data->address){{ $lims_warehouse_data->address }}<br>@endif
-            @if(@$lims_biller_data->email){{ $lims_biller_data->email }}<br>@endif
-            {{ @$lims_warehouse_data->phone ?: @$lims_biller_data->phone_number }}
+            <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
+            @if(@$lims_warehouse_data->name)
+                <strong>{{ trans('file.Warehouse') }}:</strong> {{ $lims_warehouse_data->name }}<br>
+            @endif
+            <strong>Booking Status:</strong> {{ $bookingStatus }}
         </td>
         <td>
-            <span class="inv-label">{{ trans('file.customer') }}</span>
+            <span class="inv-label">{{ trans('file.To') }}</span>
             <span class="inv-name">{{ @$lims_customer_data->name }}</span><br>
             @if(@$lims_customer_data->phone_number){{ $lims_customer_data->phone_number }}<br>@endif
             @if(@$lims_customer_data->email){{ $lims_customer_data->email }}<br>@endif
-            {{ @$lims_customer_data->address }}
+            @if(@$lims_customer_data->address){{ $lims_customer_data->address }}@endif
+            @if(@$lims_customer_data->city){{ @$lims_customer_data->address ? ', ' : '' }}{{ $lims_customer_data->city }}@endif
         </td>
     </tr>
 </table>
 
+@if($earliestStart || $latestEnd)
+    <div class="inv-schedule">
+        <strong>Booking Date:</strong>
+        {{ $earliestStart ? date('d-m-Y H:i', $earliestStart) : '—' }}
+        <br>
+        <strong>Expected Return Date:</strong>
+        {{ $latestEnd ? date('d-m-Y H:i', $latestEnd) : '—' }}
+    </div>
+@endif
+
 <table class="inv-items">
     <colgroup>
-        <col style="width:4%"><col style="width:32%"><col style="width:24%">
-        <col style="width:7%"><col style="width:15%"><col style="width:18%">
+        <col style="width:4%"><col style="width:30%"><col style="width:28%">
+        <col style="width:7%"><col style="width:14%"><col style="width:17%">
     </colgroup>
     <thead>
     <tr>
         <th class="inv-num">#</th>
         <th>{{ trans('file.product') }}</th>
-        <th>Period</th>
+        <th>Booking / Return</th>
         <th class="inv-qty">{{ trans('file.qty') }}</th>
         <th class="inv-money">{{ trans('file.Unit Price') }}</th>
         <th class="inv-money">Sub Total</th>
@@ -84,8 +131,9 @@
             $total_product_tax += $product_sale_data->tax;
         }
         $unit_price = $product_sale_data->qty ? $product_sale_data->total / $product_sale_data->qty : 0;
+        $rowClass = ($key % 2 === 1) ? 'inv-alt' : '';
         ?>
-        <tr>
+        <tr class="{{ $rowClass }}">
             <td class="inv-num">{{ $key + 1 }}</td>
             <td>
                 {{ $product_name }}
@@ -95,8 +143,8 @@
                 @endif
             </td>
             <td>
-                {{ date('d M Y, H:i', strtotime($product_sale_data->start)) }}
-                <span class="inv-sub">to {{ date('d M Y, H:i', strtotime($product_sale_data->end)) }}</span>
+                <strong>Booking:</strong> {{ $product_sale_data->start ? date('d-m-Y H:i', strtotime($product_sale_data->start)) : '—' }}
+                <span class="inv-sub"><strong>Return:</strong> {{ $product_sale_data->end ? date('d-m-Y H:i', strtotime($product_sale_data->end)) : '—' }}</span>
             </td>
             <td class="inv-qty">{{ $product_sale_data->qty + 0 }}</td>
             <td class="inv-money">{{ number_format((float) $unit_price, 2) }}</td>
@@ -132,13 +180,6 @@
                     @endforeach
                 </div>
             @endif
-            @if(!empty($lims_payment_data->toarray()) && $lims_payment_data[0] && $lims_payment_data[0]->paying_method == 'JE Method' && in_array('JE-method', $all_permission))
-                <div class="inv-box">
-                    <span class="inv-label">{{ trans('file.Account') }}</span>
-                    {{ trans('file.Credit Account') }}: {{ @$lims_account_data_cradit->name }} / {{ @$lims_account_data_cradit->account_no }} - {{ @$lims_account_data_cradit->departments->code }}<br>
-                    {{ trans('file.Debit Account') }}: {{ @$lims_account_data_debit->name }} / {{ @$lims_account_data_debit->account_no }} - {{ @$lims_account_data_debit->departments->code }}
-                </div>
-            @endif
             @if($lims_sale_data->booking_note)
                 <div class="inv-box inv-note">
                     <span class="inv-label">Booking Note</span>
@@ -151,16 +192,7 @@
                     {!! $lims_sale_data->staff_note !!}
                 </div>
             @endif
-            <table class="inv-foot-row">
-                <tr>
-                    <td class="inv-thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</td>
-                    <td class="inv-codes">
-                        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="22" width="112" alt="">'; ?>
-                        &nbsp;
-                        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="38" width="38" alt="">'; ?>
-                    </td>
-                </tr>
-            </table>
+            <div class="inv-thanks" style="margin-top:6px;width:100%;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         </td>
         <td class="inv-summary-right">
             <table class="inv-totals">
@@ -168,48 +200,41 @@
                     <th>{{ trans('file.Total') }}</th>
                     <td>{{ number_format((float) $lims_sale_data->total_price, 2) }}</td>
                 </tr>
-                @if($general_setting->invoice_format == 'gst' && $general_setting->state == 1)
-                    <tr>
-                        <th>IGST</th>
-                        <td>{{ number_format((float) $total_product_tax, 2) }}</td>
-                    </tr>
-                @elseif($general_setting->invoice_format == 'gst' && $general_setting->state == 2)
-                    <tr>
-                        <th>SGST</th>
-                        <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
-                    </tr>
-                    <tr>
-                        <th>CGST</th>
-                        <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
-                    </tr>
-                @endif
-                @if($lims_sale_data->order_tax)
+                @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_tax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->order_discount)
+                @if($orderDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Order Discount') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_discount, 2) }}</td>
+                        <td>{{ number_format($orderDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->coupon_discount)
+                @if($couponDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Coupon Discount') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->coupon_discount, 2) }}</td>
+                        <td>{{ number_format($couponDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->shipping_cost)
+                @if($shippingCost > 0)
                     <tr>
                         <th>{{ trans('file.Shipping Cost') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->shipping_cost, 2) }}</td>
+                        <td>{{ number_format($shippingCost, 2) }}</td>
                     </tr>
                 @endif
                 <tr class="inv-grand">
                     <th>{{ trans('file.grand total') }}</th>
                     <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
+                </tr>
+                <tr>
+                    <th>Amount Paid</th>
+                    <td>{{ number_format($paidAmount, 2) }}</td>
+                </tr>
+                <tr>
+                    <th>Amount Pending</th>
+                    <td>{{ number_format($dueAmount, 2) }}</td>
                 </tr>
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>
@@ -229,27 +254,27 @@
                 </tr>
                 <tr>
                     <th>Booking Status</th>
-                    <td>
-                        <span class="inv-status">
-                            @if($lims_sale_data->booking_status == 1)
-                                Complete
-                            @elseif($lims_sale_data->booking_status == 2)
-                                {{ trans('file.Pending') }}
-                            @elseif($lims_sale_data->booking_status == 3)
-                                Return
-                            @elseif($lims_sale_data->booking_status == 4)
-                                Partial Return
-                            @else
-                                Draft
-                            @endif
-                        </span>
-                    </td>
+                    <td><span class="inv-status">{{ $bookingStatus }}</span></td>
                 </tr>
             </table>
         </td>
     </tr>
 </table>
 
+<div class="inv-codes-block">
+    @if(@$lims_sale_data->user)
+        <div class="inv-created">
+            <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
+            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
+        </div>
+    @endif
+    <div class="inv-qr" style="margin:0 0 6px;">
+        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
+    </div>
+    <div class="inv-barcode">
+        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="24" width="160" alt="barcode">'; ?>
+    </div>
+</div>
 
 @include('pdf.partials._invoice_close')
 </body>

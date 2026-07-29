@@ -118,9 +118,9 @@
                     @else
                         <h3 class="modal-title text-center">{{$general_setting->site_title}}</h3>
                     @endif
-                    <div class="text-center mb-2" style="position:relative;z-index:1;">
-                        <strong style="font-size:16px;">Sales Invoice</strong>
-                        <div id="sale-ref-line" class="text-muted" style="font-size:12px;"></div>
+                    <div class="mb-2" style="position:relative;z-index:1;">
+                        <div class="text-center"><strong style="font-size:16px;">Sales Invoice</strong></div>
+                        <div id="sale-ref-line" style="font-size:12px;line-height:1.45;text-align:left;color:#1f2a44;"></div>
                     </div>
                     <div id="sale-content" class="modal-body p-0" style="position:relative;z-index:1;"></div>
                     <style>
@@ -1001,7 +1001,10 @@
 
         function saleDetails(sale){
             $("#sale-details input[name='sale_id']").val(sale[13]);
-            $('#sale-ref-line').text(sale[1] || '');
+            $('#sale-ref-line').html(
+                '<strong>{{trans("file.reference")}}:</strong> ' + (sale[1] || '') + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + (sale[0] || '')
+            );
 
             var refSafe = encodeURIComponent(String(sale[1] || '').replace(/[^A-Za-z0-9\-_]/g, ''));
             $('#sale-barcode').attr('src', '{{ url("sales/barcode") }}/' + refSafe);
@@ -1014,8 +1017,8 @@
             var htmltext = '<table class="table table-sm table-bordered mb-2" style="font-size:12px;">' +
                 '<tr>' +
                 '<td style="width:50%;vertical-align:top;background:#f8f9fc;">' +
-                '<strong>{{trans("file.Date")}}:</strong> ' + sale[0] + '<br>' +
                 '<strong>{{trans("file.reference")}}:</strong> ' + sale[1] + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + sale[0] + '<br>' +
                 '<strong>{{trans("file.Warehouse")}}:</strong> ' + sale[27] + '<br>' +
                 '<strong>{{trans("file.Sale Status")}}:</strong> ' + sale[2] +
                 '</td>' +

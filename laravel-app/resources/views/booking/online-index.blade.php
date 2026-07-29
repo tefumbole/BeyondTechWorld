@@ -590,7 +590,10 @@
         function saleDetails(sale){
             $("#sale-details input[name='booking_id']").val(sale[13]);
 
-            var htmltext = '<strong>{{trans("file.Date")}}: </strong>'+sale[0]+'<br><strong>{{trans("file.reference")}}: </strong>'+sale[1]+'<br><strong>{{trans("file.Warehouse")}}: </strong>'+sale[27]+'<br><strong>Booking Status: </strong>'+sale[2]+'<br><br><div class="row"><div class="col-md-6"><strong>{{trans("file.From")}}:</strong><br>'+sale[3]+'<br>'+sale[4]+'<br>'+sale[5]+'<br>'+sale[6]+'<br>'+sale[7]+'<br>'+sale[8]+'</div><div class="col-md-6"><div class="float-right"><strong>{{trans("file.To")}}:</strong><br>'+sale[9]+'<br>'+sale[10]+'<br>'+sale[11]+'<br>'+sale[12]+'</div></div></div>';
+            var customerLines = [sale[9], sale[10], sale[11], sale[12]].filter(function(v){
+                return v && String(v).trim() !== '' && String(v).trim().toLowerCase() !== 'null';
+            }).join('<br>');
+            var htmltext = '<strong>{{trans("file.reference")}}: </strong>'+sale[1]+'<br><strong>{{trans("file.Date")}}: </strong>'+sale[0]+'<br><strong>{{trans("file.Warehouse")}}: </strong>'+sale[27]+'<br><strong>Booking Status: </strong>'+sale[2]+'<br><br><table class="table table-sm table-bordered"><tr><td><strong>{{trans("file.To")}}:</strong><br>'+customerLines+'</td></tr></table>';
             $.get('/bookings/product_sale/' + sale[13], function(data){
                 $(".product-sale-list tbody").remove();
                 var name_code = data[0];

@@ -392,7 +392,24 @@
 
         function quotationDetails(quotation){
             $('input[name="quotation_id"]').val(quotation[13]);
-            var htmltext = '<strong>{{trans("file.Date")}}: </strong>'+quotation[0]+'<br><strong>{{trans("file.reference")}}: </strong>'+quotation[1]+'<br><strong>{{trans("file.Status")}}: </strong>'+quotation[2]+'<br><br><table class="table"><tr><th><strong>{{trans("file.From")}}:</strong><br>'+quotation[3]+'<br>'+quotation[4]+'<br>'+quotation[5]+'<br>'+quotation[6]+'<br>'+quotation[7]+'<br>'+quotation[8]+'</th><th><div class="float-right"><strong>{{trans("file.To")}}:</strong><br>'+quotation[9]+'<br>'+quotation[10]+'<br>'+quotation[11]+'<br>'+quotation[12]+'</div></th></tr></table>';
+            var customerLines = [quotation[9], quotation[10], quotation[11], quotation[12]].filter(function(v){
+                return v && String(v).trim() !== '' && String(v).trim().toLowerCase() !== 'null';
+            }).join('<br>');
+            var htmltext = '<div style="font-size:12px;line-height:1.45;margin-bottom:8px;">' +
+                '<strong>{{trans("file.reference")}}:</strong> ' + quotation[1] + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + quotation[0] +
+                '</div>' +
+                '<table class="table table-sm table-bordered mb-2" style="font-size:12px;">' +
+                '<tr>' +
+                '<td style="width:50%;vertical-align:top;background:#f8f9fc;">' +
+                '<strong>{{trans("file.reference")}}:</strong> ' + quotation[1] + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + quotation[0] + '<br>' +
+                '<strong>{{trans("file.Status")}}:</strong> ' + quotation[2] +
+                '</td>' +
+                '<td style="width:50%;vertical-align:top;background:#f8f9fc;">' +
+                '<strong>{{trans("file.To")}}</strong><br>' + customerLines +
+                '</td>' +
+                '</tr></table>';
             $.get('quotations/product_quotation/' + quotation[13], function(data){
                 $(".product-quotation-list tbody").remove();
                 var name_code = data[0];
@@ -461,9 +478,19 @@
                 $("table.product-quotation-list").append(newBody);
             });
             var noteHtml = quotation[22] || '';
-            var htmlfooter = '<div class="quotation-note"><strong>{{trans("file.Note")}}:</strong><div class="quotation-note-body">'
-                + noteHtml
-                + '</div></div><strong>{{trans("file.Created By")}}:</strong><br>'+quotation[23]+'<br>'+quotation[24];
+            var refSafe = encodeURIComponent(String(quotation[1] || '').replace(/[^A-Za-z0-9\-_]/g, ''));
+            var htmlfooter = '';
+            if (noteHtml && String(noteHtml).trim() !== '') {
+                htmlfooter += '<div class="quotation-note"><strong>{{trans("file.Note")}}:</strong><div class="quotation-note-body">'
+                    + noteHtml
+                    + '</div></div>';
+            }
+            htmlfooter += '<p class="mb-2 text-left" style="font-size:12px;line-height:1.4;text-align:left;"><strong>{{trans("file.Created By")}}:</strong> '
+                + quotation[23] + (quotation[24] ? '<br>' + quotation[24] : '') + '</p>';
+            htmlfooter += '<div class="text-center mb-2">' +
+                '<div style="margin:0 0 6px;"><img src="{{ url("bookings/qrcode") }}/' + refSafe + '" alt="qrcode" height="56" width="56"></div>' +
+                '<div><img src="{{ url("sales/barcode") }}/' + refSafe + '" alt="barcode" height="28" style="max-width:220px;"></div>' +
+                '</div>';
             $('#quotation-content').html(htmltext);
             $('#quotation-footer').html(htmlfooter);
             $('#quotation-details').modal('show');

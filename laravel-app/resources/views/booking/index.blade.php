@@ -91,69 +91,65 @@
     </section>
 
     <div id="sale-details" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
-        <div role="document" class="modal-dialog">
-            <div class="modal-content">
-                <div class="container mt-3 pb-2 border-bottom">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <button id="print-btn" type="button" class="btn btn-default btn-sm d-print-none"><i class="dripicons-print"></i></button>
-
-                            {{ Form::open(['route' => 'booking.sendmail', 'method' => 'post', 'class' => 'sendmail-form'] ) }}
+        <div role="document" class="modal-dialog modal-lg">
+            <div class="modal-content" id="booking-invoice-print">
+                <div class="container mt-2 pb-2 border-bottom d-print-none">
+                    <div class="row align-items-center">
+                        <div class="col-md-9">
+                            <button id="print-btn" type="button" class="btn btn-default btn-sm"><i class="dripicons-print"></i></button>
+                            {{ Form::open(['route' => 'booking.sendmail', 'method' => 'post', 'class' => 'sendmail-form d-inline'] ) }}
                             <input type="hidden" name="booking_id">
-                            <button class="btn btn-default btn-sm d-print-none"><i class="dripicons-mail"></i></button>
+                            <button class="btn btn-default btn-sm"><i class="dripicons-mail"></i></button>
                             {{ Form::close() }}
-                            {{ Form::open(['route' => 'booking.sendwhatsapp', 'method' => 'post', 'class' => 'sendmail-form'] ) }}
+                            {{ Form::open(['route' => 'booking.sendwhatsapp', 'method' => 'post', 'class' => 'sendmail-form d-inline'] ) }}
                             <input type="hidden" name="booking_id">
-                            <button class="btn btn-default btn-sm d-print-none"><i class="fa fa-whatsapp"></i></button>
+                            <button class="btn btn-default btn-sm"><i class="fa fa-whatsapp"></i></button>
                             {{ Form::close() }}
                         </div>
-                        @if($general_setting->invoice_format != 'beyond_a4')
-                            <div class="col-md-6">
-                                <h3 id="exampleModalLabel" class="modal-title text-center container-fluid">{{$general_setting->site_title}}</h3>
-                            </div>
-                            <div class="col-md-3">
-                                <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                            </div>
-                            <div class="col-md-12 text-center">
-                                <i style="font-size: 15px;">Booking Details</i>
-                            </div>
-                        @else
-                            <div class="col-md-6">
-                            </div>
-                            <div class="col-md-3">
-                                <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close d-print-none"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                            </div>
-                            <div class="col-md-12">
-                                <img src="{{url('public/logo', $general_setting->email_header)}}" style=" width: 100%;">
-                                <img src="{{url('public/logo', $general_setting->email_water_mark)}}" style="width: 20%; position: absolute; top: 330%; right: 330px; opacity: 0.3;">
-                            </div>
-                            <div class="col-md-12 text-center">
-                                <i style="font-size: 15px;">Booking Details</i>
-                            </div>
-                        @endif
+                        <div class="col-md-3 text-right">
+                            <button type="button" id="close-btn" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+                        </div>
                     </div>
                 </div>
-                <div id="sale-content" class="modal-body">
-                </div>
-                <br>
-                <table class=" table-bordered product-sale-list">
-
-                    <tbody>
-                    </tbody>
-
-                </table>
-                <div style="margin-top:10px">
-                    <div  style="text-align: center;"><h3>{{trans('file.Thank you for shopping with us. Please come again')}}</h3></div>
-                    <div style="text-align: center;">
-                        <?php echo '<img style="margin-top:10px;" src="data:image/png;base64,' . DNS1D::getBarcodePNG('posr-20221129-055423', 'C128') . '" width="300" alt="barcode"   />';?>
-                        <br>
-                        <?php echo '<img style="margin-top:10px;" src="data:image/png;base64,' . DNS2D::getBarcodePNG('posr-20221129-055423', 'QRCODE') . '" alt="barcode"   />';?>
+                <div class="sale-invoice-body px-3 pb-3">
+                    @if($general_setting->invoice_format == 'beyond_a4')
+                        <img src="{{url('public/logo', $general_setting->email_header)}}" alt="" class="sale-letter-header" style="display:block;width:100%;max-height:90px;object-fit:contain;margin:0 0 6px;">
+                        <img src="{{url('public/logo', $general_setting->email_water_mark)}}" alt="" class="sale-watermark" style="width:42%;position:absolute;left:29%;top:34%;opacity:0.07;pointer-events:none;z-index:0;">
+                    @else
+                        <h3 class="modal-title text-center">{{$general_setting->site_title}}</h3>
+                    @endif
+                    <div class="mb-2" style="position:relative;z-index:1;">
+                        <div class="text-center"><strong style="font-size:16px;">Booking Invoice</strong></div>
+                        <div id="sale-ref-line" style="font-size:12px;line-height:1.45;text-align:left;color:#1f2a44;"></div>
                     </div>
+                    <div id="sale-content" class="modal-body p-0" style="position:relative;z-index:1;"></div>
+                    <div id="booking-schedule" class="mb-2" style="display:none;border:1px solid #b7d4c4;background:#f2f8f4;padding:8px 10px;font-size:12px;line-height:1.5;position:relative;z-index:1;"></div>
+                    <style>
+                        table.product-sale-list thead th,
+                        table.product-sale-list tbody tr:first-child th {
+                            background: #d9ebe1 !important;
+                            color: #1f3d32;
+                        }
+                        table.product-sale-list tbody tr.sale-alt td { background: #f2f8f4; }
+                        table.product-sale-list tbody tr.sale-total td { background: #e5f2eb; font-weight: bold; }
+                    </style>
+                    <table class="table table-sm table-bordered product-sale-list mb-2" style="position:relative;z-index:1;">
+                        <tbody></tbody>
+                    </table>
+                    <div class="text-center text-muted mb-2" style="position:relative;z-index:1;">{{trans('file.Thank you for shopping with us. Please come again')}}</div>
+                    <div id="sale-footer" class="modal-body p-0 text-left mb-2" style="position:relative;z-index:1;"></div>
+                    <div class="text-center mb-2" style="position:relative;z-index:1;">
+                        <div style="margin:0 0 6px;">
+                            <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
+                        </div>
+                        <div>
+                            <img id="sale-barcode" src="" alt="barcode" height="28" style="max-width:220px;">
+                        </div>
+                    </div>
+                    @if($general_setting->invoice_format == 'beyond_a4')
+                        <img src="{{url('public/logo', $general_setting->email_footer)}}" alt="" class="sale-letter-footer" style="display:block;width:100%;max-height:70px;object-fit:contain;margin-top:8px;">
+                    @endif
                 </div>
-                <div id="sale-footer" class="modal-body"></div>
-                @if($general_setting->invoice_format == 'beyond_a4')
-                    <img src="{{url('public/logo', $general_setting->email_footer)}}" style=" width: 100%;">
-                @endif
             </div>
         </div>
     </div>
@@ -541,12 +537,33 @@
         });
 
         $("#print-btn").on("click", function(){
-            var divToPrint=document.getElementById('sale-details');
-            var newWin=window.open('','Print-Window');
+            var printRoot = document.getElementById('booking-invoice-print');
+            if (!printRoot) return;
+            var newWin = window.open('', 'Print-Window', 'width=900,height=720');
+            if (!newWin) {
+                alert('Please allow pop-ups to print the invoice.');
+                return;
+            }
+            var css = '<link rel="stylesheet" href="<?php echo asset('public/vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">' +
+                '<style type="text/css">' +
+                '@page{size:A4;margin:10mm}' +
+                'body{margin:10px;background:#fff;font-size:12px;color:#1f2a44}' +
+                '.d-print-none{display:none!important}' +
+                '.modal-content{border:0;box-shadow:none}' +
+                '.sale-letter-header{max-height:90px!important;object-fit:contain}' +
+                '.sale-letter-footer{max-height:70px!important;object-fit:contain}' +
+                '.sale-watermark{opacity:0.07!important}' +
+                'table.product-sale-list{font-size:11px}' +
+                'table.product-sale-list th,table.product-sale-list td{padding:4px 6px}' +
+                '</style>';
             newWin.document.open();
-            newWin.document.write('<link rel="stylesheet" href="<?php echo asset('public/vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css"><style type="text/css">@media print {.modal-dialog { max-width: 1000px;} }</style><body onload="window.print()">'+divToPrint.innerHTML+'</body>');
+            newWin.document.write('<!DOCTYPE html><html><head><title>Booking Invoice</title>' + css + '</head><body>' + printRoot.innerHTML + '</body></html>');
             newWin.document.close();
-            setTimeout(function(){newWin.close();},30);
+            setTimeout(function(){
+                newWin.focus();
+                newWin.print();
+                setTimeout(function(){ try { newWin.close(); } catch (e) {} }, 400);
+            }, 450);
         });
 
         $(document).on("click", "table.sale-list tbody .schedule-reminder", function() {
@@ -1016,8 +1033,33 @@
 
         function saleDetails(sale){
             $("#sale-details input[name='booking_id']").val(sale[13]);
+            $('#sale-ref-line').html(
+                '<strong>{{trans("file.reference")}}:</strong> ' + (sale[1] || '') + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + (sale[0] || '')
+            );
 
-            var htmltext = '<strong>{{trans("file.Date")}}: </strong>'+sale[0]+'<br><strong>{{trans("file.reference")}}: </strong>'+sale[1]+'<br><strong>{{trans("file.Warehouse")}}: </strong>'+sale[27]+'<br><strong>Booking Status: </strong>'+sale[2]+'<br><br><div class="row"><div class="col-md-6"><strong>{{trans("file.From")}}:</strong><br>'+sale[3]+'<br>'+sale[4]+'<br>'+sale[5]+'<br>'+sale[6]+'<br>'+sale[7]+'<br>'+sale[8]+'</div><div class="col-md-6"><div class="float-right"><strong>{{trans("file.To")}}:</strong><br>'+sale[9]+'<br>'+sale[10]+'<br>'+sale[11]+'<br>'+sale[12]+'</div></div></div>';
+            var refSafe = encodeURIComponent(String(sale[1] || '').replace(/[^A-Za-z0-9\-_]/g, ''));
+            $('#sale-barcode').attr('src', '{{ url("bookings/barcode") }}/' + refSafe);
+            $('#sale-qrcode').attr('src', '{{ url("bookings/qrcode") }}/' + refSafe);
+
+            var customerLines = [sale[9], sale[10], sale[11], sale[12]].filter(function(v){
+                return v && String(v).trim() !== '' && String(v).trim().toLowerCase() !== 'null';
+            }).join('<br>');
+
+            var htmltext = '<table class="table table-sm table-bordered mb-2" style="font-size:12px;">' +
+                '<tr>' +
+                '<td style="width:50%;vertical-align:top;background:#f8f9fc;">' +
+                '<strong>{{trans("file.reference")}}:</strong> ' + sale[1] + '<br>' +
+                '<strong>{{trans("file.Date")}}:</strong> ' + sale[0] + '<br>' +
+                '<strong>{{trans("file.Warehouse")}}:</strong> ' + sale[27] + '<br>' +
+                '<strong>Booking Status:</strong> ' + sale[2] +
+                '</td>' +
+                '<td style="width:50%;vertical-align:top;background:#f8f9fc;">' +
+                '<strong>{{trans("file.To")}}</strong><br>' + customerLines +
+                '</td>' +
+                '</tr></table>';
+
+            $('#booking-schedule').hide().empty();
             $.get('/bookings/product_sale/' + sale[13], function(data){
                 $(".product-sale-list tbody").remove();
                 var name_code = data[0];
@@ -1028,22 +1070,30 @@
                 var discount = data[5];
                 var subtotal = data[6];
                 var batch_no = data[7];
-                var start = data[7];
-                var end = data[8];
+                var start = data[8];
+                var end = data[9];
+                var earliestStart = null;
+                var latestEnd = null;
                 var newBody = $("<tbody>");
-                var newHead = "<tr> <th>#</th> <th>{{trans('file.product')}}</th> <th>{{trans('file.Batch No')}}</th> <th>{{trans('file.Qty')}}</th> <th>{{trans('file.Unit')}}</th> <th>{{trans('file.Unit Price')}}</th>  <th>Book</th> <th>Return</th> <th>{{trans('file.Tax')}}</th> <th>{{trans('file.Discount')}}</th><th>{{trans('file.Subtotal')}}</th> </tr>";
+                var newHead = "<tr> <th>#</th> <th>{{trans('file.product')}}</th> <th>{{trans('file.Qty')}}</th> <th>{{trans('file.Unit Price')}}</th> <th>Booking Date</th> <th>Expected Return</th> <th>{{trans('file.Tax')}}</th> <th>{{trans('file.Discount')}}</th><th>{{trans('file.Subtotal')}}</th> </tr>";
                 newBody.append(newHead);
                 $.each(name_code, function(index){
-                    var newRow = $("<tr>");
+                    var startVal = start && start[index] ? start[index] : '—';
+                    var endVal = end && end[index] ? end[index] : '—';
+                    if (startVal && startVal !== '—' && (!earliestStart || String(startVal) < String(earliestStart))) {
+                        earliestStart = startVal;
+                    }
+                    if (endVal && endVal !== '—' && (!latestEnd || String(endVal) > String(latestEnd))) {
+                        latestEnd = endVal;
+                    }
+                    var newRow = $("<tr class='" + (index % 2 === 1 ? 'sale-alt' : '') + "'>");
                     var cols = '';
                     cols += '<td><strong>' + (index+1) + '</strong></td>';
-                    cols += '<td>' + name_code[index] + '</td>';
-                    cols += '<td>' + batch_no[index] + '</td>';
+                    cols += '<td>' + name_code[index] + (batch_no && batch_no[index] ? '<br><small class="text-muted">{{trans("file.Batch No")}}: ' + batch_no[index] + '</small>' : '') + '</td>';
                     cols += '<td>' + qty[index] + '</td>';
-                    cols += '<td>' + unit_code[index] + '</td>';
                     cols += '<td>' + numberWithCommas(subtotal[index] / qty[index]) + '</td>';
-                    cols += '<td>' + start[index] + '</td>';
-                    cols += '<td>' + end[index] + '</td>';
+                    cols += '<td>' + startVal + '</td>';
+                    cols += '<td>' + endVal + '</td>';
                     cols += '<td>' + tax[index] + '(' + tax_rate[index] + '%)' + '</td>';
                     cols += '<td>' + discount[index] + '</td>';
                     cols += '<td>' + numberWithCommas(subtotal[index]) + '</td>';
@@ -1051,70 +1101,83 @@
                     newBody.append(newRow);
                 });
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=8><strong>{{trans("file.Total")}}:</strong></td>';
+                if (earliestStart || latestEnd) {
+                    $('#booking-schedule').html(
+                        '<strong>Booking Date:</strong> ' + (earliestStart || '—') + '<br>' +
+                        '<strong>Expected Return Date:</strong> ' + (latestEnd || '—')
+                    ).show();
+                }
+
+                var newRow = $("<tr class='sale-total'>");
+                var cols = '';
+                cols += '<td colspan=6 style="text-align:right;"><strong>{{trans("file.Total")}}:</strong></td>';
                 cols += '<td>' + sale[14] + '</td>';
                 cols += '<td>' + sale[15] + '</td>';
-                // cols = '<td></td>';
-                // cols = '<td></td>';
                 cols += '<td>' + numberWithCommas(sale[16]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.Order Tax")}}:</strong></td>';
-                cols += '<td>' + sale[17] + '(' + sale[18] + '%)' + '</td>';
-                newRow.append(cols);
-                newBody.append(newRow);
+                if (parseFloat(sale[17]) > 0) {
+                    newRow = $("<tr>");
+                    cols = '<td colspan=8><strong>{{trans("file.Order Tax")}}:</strong></td>';
+                    cols += '<td>' + sale[17] + '(' + sale[18] + '%)' + '</td>';
+                    newRow.append(cols);
+                    newBody.append(newRow);
+                }
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.Order Discount")}}:</strong></td>';
-                cols += '<td>' + sale[19] + '</td>';
-                newRow.append(cols);
-                newBody.append(newRow);
-                if(sale[28]) {
-                    var newRow = $("<tr>");
-                    cols = '';
-                    cols += '<td colspan=10><strong>{{trans("file.Coupon Discount")}} ['+sale[28]+']:</strong></td>';
+                if (parseFloat(sale[19]) > 0) {
+                    newRow = $("<tr>");
+                    cols = '<td colspan=8><strong>{{trans("file.Order Discount")}}:</strong></td>';
+                    cols += '<td>' + sale[19] + '</td>';
+                    newRow.append(cols);
+                    newBody.append(newRow);
+                }
+                if(sale[28] && parseFloat(sale[29]) > 0) {
+                    newRow = $("<tr>");
+                    cols = '<td colspan=8><strong>{{trans("file.Coupon Discount")}} ['+sale[28]+']:</strong></td>';
                     cols += '<td>' + sale[29] + '</td>';
                     newRow.append(cols);
                     newBody.append(newRow);
                 }
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.Shipping Cost")}}:</strong></td>';
-                cols += '<td>' + sale[20] + '</td>';
-                newRow.append(cols);
-                newBody.append(newRow);
+                if (parseFloat(sale[20]) > 0) {
+                    newRow = $("<tr>");
+                    cols = '<td colspan=8><strong>{{trans("file.Shipping Cost")}}:</strong></td>';
+                    cols += '<td>' + sale[20] + '</td>';
+                    newRow.append(cols);
+                    newBody.append(newRow);
+                }
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.grand total")}}:</strong></td>';
+                newRow = $("<tr>");
+                cols = '<td colspan=8><strong>{{trans("file.grand total")}}:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[21]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.Paid Amount")}}:</strong></td>';
+                newRow = $("<tr>");
+                cols = '<td colspan=8><strong>Amount Paid:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[22]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
-                var newRow = $("<tr>");
-                cols = '';
-                cols += '<td colspan=10><strong>{{trans("file.Due")}}:</strong></td>';
-                cols += '<td>' + numberWithCommas(sale[21] - sale[22]) + '</td>';
+                newRow = $("<tr>");
+                cols = '<td colspan=8><strong>Amount Pending:</strong></td>';
+                cols += '<td>' + numberWithCommas(Math.max(0, sale[21] - sale[22])) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
                 $("table.product-sale-list").append(newBody);
             });
-            var htmlfooter = '<p><strong>{{trans("file.Sale Note")}}:</strong> '+sale[23]+'</p><p><strong>{{trans("file.Staff Note")}}:</strong> '+sale[24]+'</p><strong>{{trans("file.Created By")}}:</strong><br>'+sale[25]+'<br>'+sale[26];
+            var saleNote = String(sale[23] || '').replace(/^<br>|<br>$/g, '').trim();
+            var staffNote = String(sale[24] || '').replace(/^<br>|<br>$/g, '').trim();
+            var htmlfooter = '';
+            if (saleNote && saleNote.toLowerCase() !== 'null') {
+                htmlfooter += '<p class="mb-1"><strong>{{trans("file.Sale Note")}}:</strong> ' + saleNote + '</p>';
+            }
+            if (staffNote && staffNote.toLowerCase() !== 'null') {
+                htmlfooter += '<p class="mb-1"><strong>{{trans("file.Staff Note")}}:</strong> ' + staffNote + '</p>';
+            }
+            htmlfooter += '<p class="mb-0 text-left" style="font-size:12px;line-height:1.4;text-align:left;"><strong>{{trans("file.Created By")}}:</strong> ' + sale[25] + (sale[26] ? '<br>' + sale[26] : '') + '</p>';
             $('#sale-content').html(htmltext);
             $('#sale-footer').html(htmlfooter);
             $('#sale-details').modal('show');

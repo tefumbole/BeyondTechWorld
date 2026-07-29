@@ -934,6 +934,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('bookings/sale-data-online', 'BookingController@saleDataOnline');
     Route::post('bookings/sendmail', 'BookingController@sendMail')->name('booking.sendmail');
     Route::get('bookings/product_sale/{id}','BookingController@productSaleData');
+    Route::get('bookings/barcode/{ref}', 'BookingController@barcodePng')->name('booking.barcode');
+    Route::get('bookings/qrcode/{ref}', 'BookingController@qrcodePng')->name('booking.qrcode');
     Route::get('bookings/lims_sale_search', 'BookingController@limsSaleSearch')->name('sale.search');
     Route::get('bookings/lims_product_search', 'BookingController@limsProductSearch')->name('product_sale.search');
     Route::get('bookings/getcustomergroup/{id}', 'BookingController@getCustomerGroup')->name('sale.getcustomergroup');

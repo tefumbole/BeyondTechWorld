@@ -84,11 +84,48 @@
         margin: 0 0 8px;
     }
     .inv-ref {
-        text-align: center;
-        font-size: 10px;
-        color: #5b6478;
-        margin: 0 0 10px;
+        text-align: left;
+        font-size: 11px;
+        color: #1f2a44;
+        margin: 0 0 8px;
+        line-height: 1.45;
     }
+    .inv-ref strong { font-weight: bold; }
+    table.inv-meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    table.inv-meta td {
+        width: 50%;
+        vertical-align: top;
+        padding: 6px 8px;
+        border: 1px solid #dfe3ec;
+        background: #f8f9fc;
+        font-size: 10px;
+        line-height: 1.4;
+    }
+    table.inv-meta .inv-label {
+        display: block;
+        font-size: 9px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #1f2a44;
+        margin-bottom: 3px;
+    }
+    table.inv-meta .inv-name { font-weight: bold; }
+    .inv-schedule {
+        border: 1px solid #b7d4c4;
+        background: #f2f8f4;
+        padding: 7px 9px;
+        margin: 0 0 8px;
+        font-size: 10.5px;
+        line-height: 1.5;
+        page-break-inside: avoid;
+    }
+    .inv-schedule strong { color: #1f3d32; }
+    .inv-codes-block { margin-top: 8px; page-break-inside: avoid; text-align: left; }
+    .inv-codes-block .inv-created { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+    .inv-codes-block .inv-qr,
+    .inv-codes-block .inv-barcode { text-align: center; }
+    .inv-codes-block img { display: block; margin: 0 auto; }
 
     /* Two-column meta strip: issuer on the left, recipient on the right. */
     table.inv-parties { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
@@ -108,6 +145,7 @@
         color: #1f2a44;
         margin-bottom: 3px;
     }
+    /* Alias: same meta strip used by sales / booking / rental / quotation */
     .inv-parties .inv-name { font-weight: bold; }
 
     /* Line items. Column widths come from a <colgroup> in each template. */
