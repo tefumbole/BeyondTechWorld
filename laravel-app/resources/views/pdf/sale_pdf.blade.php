@@ -5,9 +5,53 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>{{ $general_setting->site_title }}</title>
     @include('pdf.partials._invoice_styles')
+    <style type="text/css">
+        .inv-title { margin-bottom: 6px; }
+        .inv-ref { margin-bottom: 6px; }
+        table.inv-meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        table.inv-meta td {
+            width: 50%;
+            vertical-align: top;
+            padding: 6px 8px;
+            border: 1px solid #dfe3ec;
+            background: #f8f9fc;
+            font-size: 10px;
+            line-height: 1.35;
+        }
+        table.inv-meta .inv-label {
+            display: block;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6449e7;
+            margin-bottom: 3px;
+        }
+        table.inv-meta .inv-name { font-weight: bold; }
+        table.inv-items thead th,
+        table.inv-items tbody td { padding: 4px 5px; }
+        table.inv-summary { margin-top: 6px; }
+        .inv-box { padding: 5px 7px; margin-bottom: 5px; }
+        .inv-notes { margin-top: 6px; font-size: 10px; page-break-inside: avoid; }
+        .inv-notes p { margin: 0 0 3px; }
+    </style>
 </head>
 <body>
 @include('pdf.partials._invoice_open')
+
+@php
+    $saleStatus = $lims_sale_data->sale_status == 1
+        ? trans('file.Completed')
+        : ($lims_sale_data->sale_status == 2 ? trans('file.Pending') : trans('file.Draft'));
+    $orderTax = (float) ($lims_sale_data->order_tax ?? 0);
+    $orderDiscount = (float) ($lims_sale_data->order_discount ?? 0);
+    $couponDiscount = (float) ($lims_sale_data->coupon_discount ?? 0);
+    $shippingCost = (float) ($lims_sale_data->shipping_cost ?? 0);
+    $paidAmount = (float) ($lims_sale_data->paid_amount ?? 0);
+    $dueAmount = (float) $lims_sale_data->grand_total - $paidAmount;
+    $saleNote = trim(strip_tags((string) ($lims_sale_data->sale_note ?? '')));
+    $staffNote = trim(strip_tags((string) ($lims_sale_data->staff_note ?? '')));
+@endphp
 
 <div class="inv-title">{{ trans('file.Sale') }} {{ trans('file.Invoice') }}</div>
 <div class="inv-ref">
@@ -15,21 +59,23 @@
     &nbsp;&middot;&nbsp; {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
 </div>
 
-<table class="inv-parties">
+<table class="inv-meta">
     <tr>
         <td>
-            <span class="inv-label">{{ trans('file.From') }}</span>
-            <span class="inv-name">{{ @$lims_biller_data->company_name ?: @$lims_biller_data->name }}</span><br>
-            @if(@$lims_warehouse_data->address){{ $lims_warehouse_data->address }}<br>@endif
-            @if(@$lims_biller_data->email){{ $lims_biller_data->email }}<br>@endif
-            {{ @$lims_warehouse_data->phone ?: @$lims_biller_data->phone_number }}
+            <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}<br>
+            <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
+            @if(@$lims_warehouse_data->name)
+                <strong>{{ trans('file.Warehouse') }}:</strong> {{ $lims_warehouse_data->name }}<br>
+            @endif
+            <strong>{{ trans('file.Sale Status') }}:</strong> {{ $saleStatus }}
         </td>
         <td>
-            <span class="inv-label">{{ trans('file.customer') }}</span>
+            <span class="inv-label">{{ trans('file.To') }}</span>
             <span class="inv-name">{{ @$lims_customer_data->name }}</span><br>
             @if(@$lims_customer_data->phone_number){{ $lims_customer_data->phone_number }}<br>@endif
             @if(@$lims_customer_data->email){{ $lims_customer_data->email }}<br>@endif
-            {{ @$lims_customer_data->address }}
+            @if(@$lims_customer_data->address){{ $lims_customer_data->address }}@endif
+            @if(@$lims_customer_data->city){{ @$lims_customer_data->address ? ', ' : '' }}{{ $lims_customer_data->city }}@endif
         </td>
     </tr>
 </table>
@@ -133,11 +179,16 @@
                     @endforeach
                 </div>
             @endif
-            @if(!empty($lims_payment_data->toarray()) && $lims_payment_data[0] && $lims_payment_data[0]->paying_method == 'JE Method' && in_array('JE-method', $all_permission))
-                <div class="inv-box">
-                    <span class="inv-label">{{ trans('file.Account') }}</span>
-                    {{ trans('file.Credit Account') }}: {{ @$lims_account_data_cradit->name }} / {{ @$lims_account_data_cradit->account_no }} - {{ @$lims_account_data_cradit->departments->code }}<br>
-                    {{ trans('file.Debit Account') }}: {{ @$lims_account_data_debit->name }} / {{ @$lims_account_data_debit->account_no }} - {{ @$lims_account_data_debit->departments->code }}
+            @if($saleNote !== '')
+                <div class="inv-box inv-note">
+                    <span class="inv-label">{{ trans('file.Sale Note') }}</span>
+                    {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->sale_note) !!}
+                </div>
+            @endif
+            @if($staffNote !== '')
+                <div class="inv-box inv-note">
+                    <span class="inv-label">{{ trans('file.Staff Note') }}</span>
+                    {!! $lims_sale_data->staff_note !!}
                 </div>
             @endif
             <table class="inv-foot-row">
@@ -172,34 +223,44 @@
                         <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->order_tax)
+                @if($orderTax > 0)
                     <tr>
                         <th>{{ trans('file.Order Tax') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_tax, 2) }}</td>
+                        <td>{{ number_format($orderTax, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->order_discount)
+                @if($orderDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Order Discount') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->order_discount, 2) }}</td>
+                        <td>{{ number_format($orderDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->coupon_discount)
+                @if($couponDiscount > 0)
                     <tr>
                         <th>{{ trans('file.Coupon Discount') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->coupon_discount, 2) }}</td>
+                        <td>{{ number_format($couponDiscount, 2) }}</td>
                     </tr>
                 @endif
-                @if($lims_sale_data->shipping_cost)
+                @if($shippingCost > 0)
                     <tr>
                         <th>{{ trans('file.Shipping Cost') }}</th>
-                        <td>{{ number_format((float) $lims_sale_data->shipping_cost, 2) }}</td>
+                        <td>{{ number_format($shippingCost, 2) }}</td>
                     </tr>
                 @endif
                 <tr class="inv-grand">
                     <th>{{ trans('file.grand total') }}</th>
                     <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
                 </tr>
+                <tr>
+                    <th>{{ trans('file.Paid Amount') }}</th>
+                    <td>{{ number_format($paidAmount, 2) }}</td>
+                </tr>
+                @if($dueAmount > 0.0001)
+                    <tr>
+                        <th>{{ trans('file.Due') }}</th>
+                        <td>{{ number_format($dueAmount, 2) }}</td>
+                    </tr>
+                @endif
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>
                     <td>
@@ -217,10 +278,16 @@
                     </td>
                 </tr>
             </table>
+            @if(@$lims_sale_data->user)
+                <div class="inv-notes">
+                    <strong>{{ trans('file.Created By') }}:</strong>
+                    {{ $lims_sale_data->user->name }}
+                    @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
+                </div>
+            @endif
         </td>
     </tr>
 </table>
-
 
 @include('pdf.partials._invoice_close')
 </body>

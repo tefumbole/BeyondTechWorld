@@ -2582,6 +2582,28 @@ class SaleController extends Controller
         return redirect()->route('sale.invoice', $sale->id);
     }
 
+    public function barcodePng($ref)
+    {
+        $ref = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $ref);
+        if ($ref === '') {
+            abort(404);
+        }
+        $png = base64_decode(\DNS1D::getBarcodePNG($ref, 'C128'));
+
+        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
+    }
+
+    public function qrcodePng($ref)
+    {
+        $ref = preg_replace('/[^A-Za-z0-9\-_]/', '', (string) $ref);
+        if ($ref === '') {
+            abort(404);
+        }
+        $png = base64_decode(\DNS2D::getBarcodePNG($ref, 'QRCODE'));
+
+        return response($png, 200)->header('Content-Type', 'image/png')->header('Cache-Control', 'public, max-age=86400');
+    }
+
     public function genInvoice($id)
     {
         $role = Role::find(Auth::user()->role_id);

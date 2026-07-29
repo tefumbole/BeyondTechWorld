@@ -24,8 +24,12 @@
         ? (int) ceil($invoiceBandWidth * \App\Support\Letterhead::ratio($invoiceLetterhead['footer_path'], 0.093))
         : 0;
 
-    $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 14 : 26;
-    $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 12 : 26;
+    // Cap letterhead bands so a typical single-item Beyond invoice stays on one A4 page.
+    $invoiceHeaderHeight = $invoiceHeaderHeight ? min($invoiceHeaderHeight, 78) : 0;
+    $invoiceFooterHeight = $invoiceFooterHeight ? min($invoiceFooterHeight, 58) : 0;
+
+    $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 10 : 22;
+    $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 8 : 22;
 
     // DejaVu is the only stack dompdf renders bold with (its built-in Helvetica
     // ignores font-weight), and it covers non-Latin scripts. Font subsetting is on
