@@ -129,11 +129,11 @@
                     <div class="text-center text-muted mb-2" style="position:relative;z-index:1;">{{trans('file.Thank you for shopping with us. Please come again')}}</div>
                     <div id="sale-footer" class="modal-body p-0 text-center mb-2" style="position:relative;z-index:1;"></div>
                     <div class="text-center mb-2" style="position:relative;z-index:1;">
-                        <div style="margin:0 0 4px;">
-                            <img id="sale-barcode" src="" alt="barcode" height="28" style="max-width:220px;">
+                        <div style="margin:0 0 6px;">
+                            <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
                         </div>
                         <div>
-                            <img id="sale-qrcode" src="" alt="qrcode" height="56" width="56">
+                            <img id="sale-barcode" src="" alt="barcode" height="28" style="max-width:220px;">
                         </div>
                     </div>
                     @if($general_setting->invoice_format == 'beyond_a4')

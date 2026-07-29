@@ -222,43 +222,74 @@
             <tr>
                 <th class="num">#</th>
                 <th>{{ trans('file.product') }}</th>
-                <th class="qty">{{ trans('file.qty') }}</th>
+                <th>{{ trans('file.Batch No') }}</th>
+                <th class="qty">{{ trans('file.Qty') }}</th>
+                <th>{{ trans('file.Unit') }}</th>
                 <th class="money">{{ trans('file.Unit Price') }}</th>
                 <th class="money">{{ trans('file.Tax') }}</th>
-                <th class="money">Sub Total</th>
+                <th class="money">{{ trans('file.Discount') }}</th>
+                <th class="money">{{ trans('file.Subtotal') }}</th>
             </tr>
             </thead>
             <tbody>
-            <?php $total_product_tax = 0; ?>
+            <?php
+                $total_product_tax = 0;
+                $total_product_discount = 0;
+                $total_product_subtotal = 0;
+            ?>
             @foreach($lims_product_sale_data as $key => $product_sale_data)
                 <?php
                 $lims_product_data = \App\Product::find($product_sale_data->product_id);
+                $productCode = $lims_product_data->code ?? '';
                 if ($product_sale_data->variant_id) {
                     $variant_data = \App\Variant::find($product_sale_data->variant_id);
+                    $lims_product_variant_data = \App\ProductVariant::select('item_code')
+                        ->FindExactProduct($product_sale_data->product_id, $product_sale_data->variant_id)
+                        ->first();
+                    if ($lims_product_variant_data) {
+                        $productCode = $lims_product_variant_data->item_code;
+                    }
                     $product_name = $lims_product_data->name.' ['.@$variant_data->name.']';
+                    if ($productCode) {
+                        $product_name .= ' ['.$productCode.']';
+                    }
                 } else {
-                    $product_name = $lims_product_data->name;
+                    $product_name = $lims_product_data->name.($productCode ? ' ['.$productCode.']' : '');
                 }
-                if ($product_sale_data->tax_rate) {
-                    $total_product_tax += $product_sale_data->tax;
+                $batchNo = 'N/A';
+                if ($product_sale_data->product_batch_id) {
+                    $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_sale_data->product_batch_id);
+                    $batchNo = @$product_batch_data->batch_no ?: 'N/A';
                 }
-                $unit_price = $product_sale_data->qty ? $product_sale_data->total / $product_sale_data->qty : 0;
+                $unit_data = \App\Unit::find($product_sale_data->sale_unit_id);
+                $unitCode = $unit_data ? $unit_data->unit_code : '';
+                $lineTax = (float) ($product_sale_data->tax ?? 0);
+                $lineDiscount = (float) ($product_sale_data->discount ?? 0);
+                $lineTotal = (float) ($product_sale_data->total ?? 0);
+                $qty = (float) ($product_sale_data->qty ?: 0);
+                $unit_price = $qty ? ($lineTotal / $qty) : 0;
+                $total_product_tax += $lineTax;
+                $total_product_discount += $lineDiscount;
+                $total_product_subtotal += $lineTotal;
                 ?>
                 <tr>
                     <td class="num">{{ $key + 1 }}</td>
                     <td>{{ $product_name }}</td>
+                    <td>{{ $batchNo }}</td>
                     <td class="qty">{{ $product_sale_data->qty + 0 }}</td>
-                    <td class="money">{{ number_format((float) $unit_price, 2) }}</td>
-                    <td class="money">
-                        @if($product_sale_data->tax_rate)
-                            {{ number_format((float) $product_sale_data->tax, 2) }}
-                        @else
-                            —
-                        @endif
-                    </td>
-                    <td class="money">{{ number_format((float) $product_sale_data->total, 2) }}</td>
+                    <td>{{ $unitCode }}</td>
+                    <td class="money">{{ number_format($unit_price, 2) }}</td>
+                    <td class="money">{{ number_format($lineTax, 2) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
+                    <td class="money">{{ number_format($lineDiscount, 2) }}</td>
+                    <td class="money">{{ number_format($lineTotal, 2) }}</td>
                 </tr>
             @endforeach
+            <tr>
+                <td colspan="6" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
+                <td class="money">{{ number_format($total_product_tax, 2) }}</td>
+                <td class="money">{{ number_format($total_product_discount, 2) }}</td>
+                <td class="money">{{ number_format($total_product_subtotal, 2) }}</td>
+            </tr>
             </tbody>
         </table>
 
@@ -301,10 +332,6 @@
                 </td>
                 <td class="summary-right">
                     <table class="totals">
-                        <tr>
-                            <th>{{ trans('file.Total') }}</th>
-                            <td>{{ number_format((float) $lims_sale_data->total_price, 2) }}</td>
-                        </tr>
                         @if($orderTax > 0)
                             <tr>
                                 <th>{{ trans('file.Order Tax') }}</th>
@@ -370,11 +397,11 @@
                     @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
                 </div>
             @endif
-            <div style="margin:0 0 4px;">
-                <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="28" width="160" alt="">'; ?>
+            <div style="margin:0 0 6px;">
+                <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="qrcode">'; ?>
             </div>
             <div>
-                <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="">'; ?>
+                <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="28" width="160" alt="barcode">'; ?>
             </div>
         </div>
     </div>

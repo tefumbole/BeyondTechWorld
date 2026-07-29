@@ -6,7 +6,7 @@
     <title>{{ $general_setting->site_title }}</title>
     @include('pdf.partials._invoice_styles')
     <style type="text/css">
-        .inv-title { margin-bottom: 6px; }
+        .inv-title { margin-bottom: 4px; }
         .inv-ref { margin-bottom: 6px; }
         table.inv-meta { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
         table.inv-meta td {
@@ -28,12 +28,13 @@
             margin-bottom: 3px;
         }
         table.inv-meta .inv-name { font-weight: bold; }
+        table.inv-items { font-size: 9.5px; }
         table.inv-items thead th,
-        table.inv-items tbody td { padding: 4px 5px; }
+        table.inv-items tbody td { padding: 3px 4px; }
         table.inv-summary { margin-top: 6px; }
         .inv-box { padding: 5px 7px; margin-bottom: 5px; }
-        .inv-notes { margin-top: 6px; font-size: 10px; page-break-inside: avoid; }
-        .inv-notes p { margin: 0 0 3px; }
+        .inv-codes-block { text-align: center; margin-top: 8px; page-break-inside: avoid; }
+        .inv-codes-block img { display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -48,16 +49,16 @@
     $couponDiscount = (float) ($lims_sale_data->coupon_discount ?? 0);
     $shippingCost = (float) ($lims_sale_data->shipping_cost ?? 0);
     $paidAmount = (float) ($lims_sale_data->paid_amount ?? 0);
-    $dueAmount = (float) $lims_sale_data->grand_total - $paidAmount;
+    $dueAmount = max(0, (float) $lims_sale_data->grand_total - $paidAmount);
     $saleNote = trim(strip_tags((string) ($lims_sale_data->sale_note ?? '')));
     $staffNote = trim(strip_tags((string) ($lims_sale_data->staff_note ?? '')));
+    $totalProductTax = 0;
+    $totalProductDiscount = 0;
+    $totalProductSubtotal = 0;
 @endphp
 
 <div class="inv-title">Sales Invoice</div>
-<div class="inv-ref">
-    {{ $lims_sale_data->reference_no }}
-    &nbsp;&middot;&nbsp; {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
-</div>
+<div class="inv-ref">{{ $lims_sale_data->reference_no }}</div>
 
 <table class="inv-meta">
     <tr>
@@ -82,74 +83,96 @@
 
 <table class="inv-items">
     <colgroup>
-        <col style="width:4%"><col style="width:42%"><col style="width:8%">
-        <col style="width:15%"><col style="width:12%"><col style="width:19%">
+        <col style="width:4%">
+        <col style="width:28%">
+        <col style="width:10%">
+        <col style="width:7%">
+        <col style="width:8%">
+        <col style="width:11%">
+        <col style="width:10%">
+        <col style="width:10%">
+        <col style="width:12%">
     </colgroup>
     <thead>
     <tr>
         <th class="inv-num">#</th>
         <th>{{ trans('file.product') }}</th>
-        <th class="inv-qty">{{ trans('file.qty') }}</th>
+        <th>{{ trans('file.Batch No') }}</th>
+        <th class="inv-qty">{{ trans('file.Qty') }}</th>
+        <th>{{ trans('file.Unit') }}</th>
         <th class="inv-money">{{ trans('file.Unit Price') }}</th>
         <th class="inv-money">{{ trans('file.Tax') }}</th>
-        <th class="inv-money">Sub Total</th>
+        <th class="inv-money">{{ trans('file.Discount') }}</th>
+        <th class="inv-money">{{ trans('file.Subtotal') }}</th>
     </tr>
     </thead>
     <tbody>
-    <?php $total_product_tax = 0; ?>
     @foreach($lims_product_sale_data as $key => $product_sale_data)
         <?php
-        $multi_product_batch_id = null;
-        $multi_product_batch_qty = null;
-        if ($product_sale_data->multi_product_batch_id != null) {
-            $multi_product_batch_id = json_decode($product_sale_data->multi_product_batch_id);
-            $multi_product_batch_qty = json_decode($product_sale_data->multi_product_batch_qty);
-        }
         $lims_product_data = \App\Product::find($product_sale_data->product_id);
-        $batch_note = null;
+        $productCode = $lims_product_data->code ?? '';
         if ($product_sale_data->variant_id) {
             $variant_data = \App\Variant::find($product_sale_data->variant_id);
+            $lims_product_variant_data = \App\ProductVariant::select('item_code')
+                ->FindExactProduct($product_sale_data->product_id, $product_sale_data->variant_id)
+                ->first();
+            if ($lims_product_variant_data) {
+                $productCode = $lims_product_variant_data->item_code;
+            }
             $product_name = $lims_product_data->name.' ['.@$variant_data->name.']';
-        } elseif ($product_sale_data->product_batch_id) {
-            $product_name = $lims_product_data->name;
-            if (! $multi_product_batch_id) {
-                $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_sale_data->product_batch_id);
-                $batch_note = trans('file.Batch No').': '.@$product_batch_data->batch_no;
-            } else {
-                $batches = [];
-                foreach ($multi_product_batch_id as $i => $batch_id) {
-                    $product_batch_data = \App\ProductBatch::select('batch_no')->find($batch_id);
-                    $batches[] = @$product_batch_data->batch_no.' × '.$multi_product_batch_qty[$i];
-                }
-                $batch_note = trans('file.Batch No').': '.implode(', ', $batches);
+            if ($productCode) {
+                $product_name .= ' ['.$productCode.']';
             }
         } else {
-            $product_name = $lims_product_data->name;
+            $product_name = $lims_product_data->name.($productCode ? ' ['.$productCode.']' : '');
         }
-        if ($product_sale_data->tax_rate) {
-            $total_product_tax += $product_sale_data->tax;
+
+        $batchNo = 'N/A';
+        if ($product_sale_data->product_batch_id) {
+            $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_sale_data->product_batch_id);
+            $batchNo = @$product_batch_data->batch_no ?: 'N/A';
+        } elseif ($product_sale_data->multi_product_batch_id) {
+            $multi_product_batch_id = json_decode($product_sale_data->multi_product_batch_id);
+            $multi_product_batch_qty = json_decode($product_sale_data->multi_product_batch_qty);
+            $batches = [];
+            if (is_array($multi_product_batch_id)) {
+                foreach ($multi_product_batch_id as $i => $batch_id) {
+                    $product_batch_data = \App\ProductBatch::select('batch_no')->find($batch_id);
+                    $batches[] = @$product_batch_data->batch_no.' × '.($multi_product_batch_qty[$i] ?? '');
+                }
+            }
+            $batchNo = $batches ? implode(', ', $batches) : 'N/A';
         }
-        $unit_price = $product_sale_data->qty ? $product_sale_data->total / $product_sale_data->qty : 0;
+
+        $unit_data = \App\Unit::find($product_sale_data->sale_unit_id);
+        $unitCode = $unit_data ? $unit_data->unit_code : '';
+        $lineTax = (float) ($product_sale_data->tax ?? 0);
+        $lineDiscount = (float) ($product_sale_data->discount ?? 0);
+        $lineTotal = (float) ($product_sale_data->total ?? 0);
+        $qty = (float) ($product_sale_data->qty ?: 0);
+        $unitPrice = $qty ? ($lineTotal / $qty) : 0;
+        $totalProductTax += $lineTax;
+        $totalProductDiscount += $lineDiscount;
+        $totalProductSubtotal += $lineTotal;
         ?>
         <tr>
             <td class="inv-num">{{ $key + 1 }}</td>
-            <td>
-                {{ $product_name }}
-                @if($batch_note)<span class="inv-sub">{{ $batch_note }}</span>@endif
-            </td>
+            <td>{{ $product_name }}</td>
+            <td>{{ $batchNo }}</td>
             <td class="inv-qty">{{ $product_sale_data->qty + 0 }}</td>
-            <td class="inv-money">{{ number_format((float) $unit_price, 2) }}</td>
-            <td class="inv-money">
-                @if($product_sale_data->tax_rate)
-                    {{ number_format((float) $product_sale_data->tax, 2) }}
-                    <span class="inv-sub">{{ $product_sale_data->tax_rate }}%</span>
-                @else
-                    &mdash;
-                @endif
-            </td>
-            <td class="inv-money">{{ number_format((float) $product_sale_data->total, 2) }}</td>
+            <td>{{ $unitCode }}</td>
+            <td class="inv-money">{{ number_format($unitPrice, 2) }}</td>
+            <td class="inv-money">{{ number_format($lineTax, 2) }}({{ $product_sale_data->tax_rate + 0 }}%)</td>
+            <td class="inv-money">{{ number_format($lineDiscount, 2) }}</td>
+            <td class="inv-money">{{ number_format($lineTotal, 2) }}</td>
         </tr>
     @endforeach
+    <tr>
+        <td colspan="6" style="text-align:right;"><strong>{{ trans('file.Total') }}:</strong></td>
+        <td class="inv-money">{{ number_format($totalProductTax, 2) }}</td>
+        <td class="inv-money">{{ number_format($totalProductDiscount, 2) }}</td>
+        <td class="inv-money">{{ number_format($totalProductSubtotal, 2) }}</td>
+    </tr>
     </tbody>
 </table>
 
@@ -191,27 +214,23 @@
                     {!! $lims_sale_data->staff_note !!}
                 </div>
             @endif
-            <div class="inv-thanks" style="margin-top:6px;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
+            <div class="inv-thanks" style="margin-top:6px;width:100%;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         </td>
         <td class="inv-summary-right">
             <table class="inv-totals">
-                <tr>
-                    <th>{{ trans('file.Total') }}</th>
-                    <td>{{ number_format((float) $lims_sale_data->total_price, 2) }}</td>
-                </tr>
                 @if($general_setting->invoice_format == 'gst' && $general_setting->state == 1)
                     <tr>
                         <th>IGST</th>
-                        <td>{{ number_format((float) $total_product_tax, 2) }}</td>
+                        <td>{{ number_format($totalProductTax, 2) }}</td>
                     </tr>
                 @elseif($general_setting->invoice_format == 'gst' && $general_setting->state == 2)
                     <tr>
                         <th>SGST</th>
-                        <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
+                        <td>{{ number_format($totalProductTax / 2, 2) }}</td>
                     </tr>
                     <tr>
                         <th>CGST</th>
-                        <td>{{ number_format((float) ($total_product_tax / 2), 2) }}</td>
+                        <td>{{ number_format($totalProductTax / 2, 2) }}</td>
                     </tr>
                 @endif
                 @if($orderTax > 0)
@@ -248,7 +267,7 @@
                 </tr>
                 <tr>
                     <th>Amount Pending</th>
-                    <td>{{ number_format(max(0, $dueAmount), 2) }}</td>
+                    <td>{{ number_format($dueAmount, 2) }}</td>
                 </tr>
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>
@@ -271,18 +290,18 @@
     </tr>
 </table>
 
-<div class="inv-codes-block" style="text-align:center;margin-top:8px;page-break-inside:avoid;">
+<div class="inv-codes-block">
     @if(@$lims_sale_data->user)
         <div style="font-size:10px;line-height:1.4;margin-bottom:6px;">
             <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
             @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
         </div>
     @endif
-    <div style="margin:0 0 4px;">
-        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="22" width="140" alt="">'; ?>
+    <div style="margin:0 0 6px;">
+        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
     </div>
     <div>
-        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="48" width="48" alt="">'; ?>
+        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="24" width="160" alt="barcode">'; ?>
     </div>
 </div>
 
