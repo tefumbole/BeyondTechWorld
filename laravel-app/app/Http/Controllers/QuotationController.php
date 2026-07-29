@@ -466,7 +466,7 @@ class QuotationController extends Controller
                 });
                 $message = 'Mail sent successfully';
                 $lims_quotation_data->quotation_status = Quotation::STATUS_AWAITING;
-                $lims_quotation_data->ensureApprovalToken();
+                $lims_quotation_data->rotateApprovalToken();
                 $lims_quotation_data->save();
             }
             catch(\Exception $e){
