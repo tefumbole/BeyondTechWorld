@@ -6,7 +6,7 @@ const PermissionContext = createContext({});
 
 export const usePermission = () => useContext(PermissionContext);
 
-const FULL_ACCESS_ROLES = new Set(['admin', 'super_admin', 'director', 'manager']);
+const FULL_ACCESS_ROLES = new Set(['admin', 'administrator', 'super_admin', 'director', 'manager']);
 
 function normalizeRole(role) {
   return String(role || '').trim().toLowerCase().replace(/\s+/g, '_');

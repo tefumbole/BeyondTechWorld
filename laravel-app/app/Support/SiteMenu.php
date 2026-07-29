@@ -41,6 +41,7 @@ class SiteMenu
             'sale'         => 'Sale',
             'booking'      => 'Rental Module',
             'events'       => 'Events',
+            'invitations'  => 'Digital Invitations',
             'tasks'        => 'Task Manager',
             'jobs'         => 'Job Board',
             'contracts'    => 'Contracts',

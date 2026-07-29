@@ -1729,6 +1729,44 @@
                                     <th colspan="5">Events Module End</th>
                                 </tr>
 
+                                {{-- Digital Invitations Module --}}
+                                <tr class="permission-section-header">
+                                    <th colspan="5">
+                                        <div class="checkbox">
+                                            <input type="checkbox" class="section-select-all" id="section-invitations-module">
+                                            <label for="section-invitations-module">Digital Invitations Module</label>
+                                        </div>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td>Digital Invitations</td>
+                                    <td class="report-permissions" colspan="5">
+                                        @foreach([
+                                            'invitations_module' => 'Invitations Module',
+                                            'invitations.view' => 'View',
+                                            'invitations.create' => 'Create',
+                                            'invitations.edit' => 'Edit',
+                                            'invitations.delete' => 'Delete',
+                                            'invitations.check_in' => 'Check-in',
+                                        ] as $perm => $label)
+                                        @php $pid = str_replace('.', '_', $perm); @endphp
+                                        <span>
+                                            <div class="checkbox">
+                                                @if(in_array($perm, $all_permission))
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}" checked>
+                                                @else
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}">
+                                                @endif
+                                                <label for="{{ $pid }}" class="padding05">{{ $label }}</label>
+                                            </div>
+                                        </span>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                                <tr class="permission-section-end">
+                                    <th colspan="5">Digital Invitations Module End</th>
+                                </tr>
+
                                 {{--                                Booking Module--}}
                                 <tr class="permission-section-header">
                                     <th colspan="5">

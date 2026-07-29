@@ -23,7 +23,16 @@ export const MENU_PERMISSIONS = {
 
 export function itemVisible(hasPermission, permission) {
   if (!permission) return true;
-  return hasPermission(permission);
+  if (hasPermission(permission)) return true;
+  // Legacy role keys still used by some Beyond roles
+  if (permission === MENU_PERMISSIONS.invitations) {
+    return (
+      hasPermission('invitations.view')
+      || hasPermission('invitations.create')
+      || hasPermission('manage_events')
+    );
+  }
+  return false;
 }
 
 const ADMIN_ROUTE_RULES = [

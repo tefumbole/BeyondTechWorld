@@ -1951,6 +1951,24 @@ class RoleController extends Controller
             }
         }
 
+        foreach ([
+            'invitations_module',
+            'invitations.view',
+            'invitations.create',
+            'invitations.edit',
+            'invitations.delete',
+            'invitations.check_in',
+        ] as $invPerm) {
+            if ($request->has($invPerm)) {
+                $permission = Permission::firstOrCreate(['name' => $invPerm]);
+                if (! $role->hasPermissionTo($invPerm)) {
+                    $role->givePermissionTo($permission);
+                }
+            } else {
+                $role->revokePermissionTo($invPerm);
+            }
+        }
+
         return redirect('role')->with('message', 'Permission updated successfully');
     }
 

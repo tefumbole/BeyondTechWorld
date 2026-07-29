@@ -1332,6 +1332,31 @@
                             </li>
                         @endif
                         <?php
+                        $invitations_module_permission = DB::table('permissions')->where('name', 'invitations_module')->first();
+                        $invitations_module_active = $invitations_module_permission ? DB::table('role_has_permissions')->where([
+                            ['permission_id', $invitations_module_permission->id],
+                            ['role_id', $role->id]
+                        ])->first() : null;
+                        if (! $invitations_module_active && in_array('invitations.view', $all_permission ?? [])) {
+                            $invitations_module_active = true;
+                        }
+                        ?>
+                        @if($invitations_module_active)
+                            <li><a href="#invitations-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-ticket"></i><span>Digital Invitations</span></a>
+                                <ul id="invitations-module" class="collapse list-unstyled ">
+                                    @if(in_array('invitations.view', $all_permission))
+                                        <li id="invitations-list-menu"><a href="{{ route('invitations.index') }}">All Invitations</a></li>
+                                    @endif
+                                    @if(in_array('invitations.create', $all_permission))
+                                        <li id="invitations-create-menu"><a href="{{ route('invitations.create') }}">Create Invitation</a></li>
+                                    @endif
+                                    @if(in_array('invitations.check_in', $all_permission) || in_array('invitations.edit', $all_permission))
+                                        <li id="invitations-checkin-menu"><a href="{{ route('invitations.check_in') }}">Check-in</a></li>
+                                    @endif
+                                </ul>
+                            </li>
+                        @endif
+                        <?php
                         $tasks_module_permission = DB::table('permissions')->where('name', 'tasks_module')->first();
                         $tasks_module_active = $tasks_module_permission ? DB::table('role_has_permissions')->where([
                             ['permission_id', $tasks_module_permission->id],
@@ -2481,6 +2506,7 @@
                                 // collapse target ids differ from Site Content reorder keys
                                 if (anchor === 'contracts-module') return 'contracts';
                                 if (anchor === 'events-module') return 'events';
+                                if (anchor === 'invitations-module') return 'invitations';
                                 if (anchor === 'tasks-module') return 'tasks';
                                 if (anchor === 'jobs-module') return 'jobs';
                                 if (anchor === 'announcements-module') return 'announcements';

@@ -438,6 +438,14 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/timesheet-admin/categories/{id}/delete', 'TimesheetAdminController@destroyCategory')->name('timesheet.admin.categories.destroy');
 
     // Events module (Phase 1)
+    Route::get('/admin/invitations', 'DigitalInvitationController@index')->name('invitations.index');
+    Route::get('/admin/invitations/create', 'DigitalInvitationController@create')->name('invitations.create');
+    Route::post('/admin/invitations', 'DigitalInvitationController@store')->name('invitations.store');
+    Route::get('/admin/invitations/check-in', 'DigitalInvitationController@checkInForm')->name('invitations.check_in');
+    Route::post('/admin/invitations/check-in', 'DigitalInvitationController@checkIn')->name('invitations.check_in.store');
+    Route::get('/admin/invitations/{id}', 'DigitalInvitationController@show')->name('invitations.show');
+    Route::post('/admin/invitations/{id}/delete', 'DigitalInvitationController@destroy')->name('invitations.destroy');
+
     Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');
     Route::get('/admin/events/create', 'EventController@create')->name('events.create');
