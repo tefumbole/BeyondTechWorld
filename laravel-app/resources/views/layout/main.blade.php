@@ -1165,6 +1165,8 @@
                                     @endif
                                     @if($delivery_permission_active)
                                         <li id="delivery-menu"><a href="{{route('delivery.index')}}">{{trans('file.Delivery List')}}</a></li>
+                                        <li id="delivery-pending-menu"><a href="{{route('delivery.index', ['filter' => 'pending'])}}">Delivery Sign.. Pending</a></li>
+                                        <li id="delivery-signed-menu"><a href="{{route('delivery.index', ['filter' => 'signed'])}}">Signed Delivery</a></li>
                                     @endif
                                 </ul>
                             </li>

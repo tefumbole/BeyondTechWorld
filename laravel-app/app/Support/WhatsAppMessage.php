@@ -150,6 +150,32 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function deliverySignatureRequest($customerName, $deliveryRef, $saleRef, $signUrl)
+    {
+        $msg = self::statusBlock('📦', 'Confirm Delivery Receipt');
+        $msg .= self::greeting($customerName);
+        $msg .= "Please confirm that you have received your goods from *".self::companyName()."*.\n\n";
+        $msg .= self::bullet('Delivery Ref', $deliveryRef);
+        $msg .= self::bullet('Sale Ref', $saleRef);
+        $msg .= "\nOpen the link, review the items, and sign digitally. The link expires after you sign.\n";
+        $msg .= self::actionLink('Sign delivery receipt', $signUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function deliverySignedDocument($customerName, $deliveryRef, $saleRef)
+    {
+        $msg = self::statusBlock('✅', 'Signed Delivery');
+        $msg .= self::greeting($customerName);
+        $msg .= "Please find your signed delivery note from *".self::companyName()."*.\n\n";
+        $msg .= self::bullet('Delivery Ref', $deliveryRef);
+        $msg .= self::bullet('Sale Ref', $saleRef);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     /**
      * Notify quotation creator / CC on send, approve, or reject.
      *

@@ -28,6 +28,10 @@ Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->n
 Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
 Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');
 
+Route::get('/delivery-sign/{token}', 'DeliverySignatureController@show')->name('delivery.client.show');
+Route::post('/delivery-sign/{token}/sign', 'DeliverySignatureController@sign')->name('delivery.client.sign');
+Route::get('/verify/delivery/{id}/{token}', 'DeliveryVerifyController@show')->name('delivery.verify');
+
 Route::get('/rental-agreement/{token}', 'RentalContractController@show')->name('rental.agreement');
 Route::post('/rental-agreement/{token}/sign', 'RentalContractController@sign')->name('rental.agreement.sign');
 Route::get('/rental-portal/{token}', 'RentalContractController@portal')->name('rental.portal');
@@ -616,6 +620,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('delivery/create/{id}', 'DeliveryController@create');
 	Route::post('delivery/store', 'DeliveryController@store')->name('delivery.store');
 	Route::post('delivery/sendmail', 'DeliveryController@sendMail')->name('delivery.sendMail');
+	Route::post('delivery/sendwhatsapp', 'DeliveryController@sendWhatsapp')->name('delivery.sendWhatsapp');
+	Route::post('delivery/{id}/resend-signature', 'DeliveryController@resendSignature')->name('delivery.resend_signature');
 	Route::get('delivery/{id}/edit', 'DeliveryController@edit');
 	Route::post('delivery/update', 'DeliveryController@update')->name('delivery.update');
 	Route::post('delivery/deletebyselection', 'DeliveryController@deleteBySelection');

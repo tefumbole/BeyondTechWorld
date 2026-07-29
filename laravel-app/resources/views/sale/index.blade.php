@@ -392,11 +392,24 @@
                         </div>
                         <div class="col-md-6 mt-2 form-group">
                             <label>{{trans('file.Delivered By')}}</label>
-                            <input type="text" name="delivered_by" class="form-control">
+                            <select name="delivered_by_customer_id" class="form-control selectpicker" data-live-search="true" title="Select customer">
+                                <option value="">—</option>
+                                @foreach(($lims_customer_list ?? []) as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }} @if($c->phone_number)({{ $c->phone_number }})@endif</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="delivered_by" value="">
                         </div>
                         <div class="col-md-6 mt-2 form-group">
-                            <label>{{trans('file.Recieved By')}} </label>
-                            <input type="text" name="recieved_by" class="form-control">
+                            <label>{{trans('file.Recieved By')}}</label>
+                            <select name="received_by_customer_id" class="form-control selectpicker" data-live-search="true" title="Select customer" required>
+                                <option value="">—</option>
+                                @foreach(($lims_customer_list ?? []) as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }} @if($c->phone_number)({{ $c->phone_number }})@endif</option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="recieved_by" value="">
+                            <small class="text-muted">A WhatsApp signature link will be sent to this customer.</small>
                         </div>
                         <div class="col-md-6 form-group">
                             <label>{{trans('file.customer')}} *</label>
@@ -777,10 +790,12 @@
                 $('#dr').text(data[0]);
                 $('#sr').text(data[1]);
 
-                $('select[name="status"]').val(data[2]);
+                $('select[name="status"]').val(data[2] || 1);
+                $('select[name="delivered_by_customer_id"]').val(data[8] || '');
+                $('select[name="received_by_customer_id"]').val(data[9] || '');
+                $('input[name="delivered_by"]').val(data[3] || '');
+                $('input[name="recieved_by"]').val(data[4] || '');
                 $('.selectpicker').selectpicker('refresh');
-                $('input[name="delivered_by"]').val(data[3]);
-                $('input[name="recieved_by"]').val(data[4]);
                 $('#customer').text(data[5]);
                 $('textarea[name="address"]').val(data[6]);
                 $('textarea[name="note"]').val(data[7]);
@@ -788,6 +803,14 @@
                 $('input[name="sale_id"]').val(id);
                 $('#add-delivery').modal('show');
             });
+        });
+        $('#add-delivery').on('changed.bs.select', 'select[name="delivered_by_customer_id"]', function () {
+            var t = $(this).find('option:selected').text().replace(/\s*\(.*$/,'').trim();
+            $('#add-delivery input[name="delivered_by"]').val(t);
+        });
+        $('#add-delivery').on('changed.bs.select', 'select[name="received_by_customer_id"]', function () {
+            var t = $(this).find('option:selected').text().replace(/\s*\(.*$/,'').trim();
+            $('#add-delivery input[name="recieved_by"]').val(t);
         });
 
         function pointCalculation(amount) {

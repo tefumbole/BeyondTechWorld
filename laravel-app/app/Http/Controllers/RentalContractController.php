@@ -48,8 +48,10 @@ class RentalContractController extends Controller
         $contract = $this->findContract($token);
 
         if ($contract->signed_at) {
-            return redirect()->route('rental.portal', $token)
-                ->with('message', 'This agreement has already been signed.');
+            // Signing link is closed after the first successful signature.
+            return response()->view('quotation.client_link_expired', [
+                'general_setting' => \App\GeneralSetting::first(),
+            ], 410);
         }
 
         $request->validate([

@@ -215,6 +215,13 @@ class BookingGoodsReceiptController extends Controller
         $receipt->signed_pdf_path = $this->buildSignedReceiptPdf($receipt->fresh());
         $receipt->save();
 
+        // Expire the public signature link once both parties have signed.
+        $fresh = $receipt->fresh();
+        if ($fresh->signed_at && $fresh->delivered_signed_at) {
+            $fresh->signature_token = null;
+            $fresh->save();
+        }
+
         $booking = $receipt->booking;
         $customer = $booking->customer;
 
