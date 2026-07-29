@@ -181,9 +181,14 @@
        pushed onto an otherwise blank final page. */
     table.inv-foot-row { width: 100%; border-collapse: collapse; margin-top: 4px; }
     table.inv-foot-row td { vertical-align: middle; padding: 0; }
-    .inv-codes { text-align: right; }
+    .inv-codes {
+        width: 42%;
+        text-align: right;
+        white-space: nowrap;
+    }
     .inv-codes img { vertical-align: middle; }
     .inv-thanks {
+        width: 58%;
         font-size: 9.5px;
         color: #6b7386;
     }

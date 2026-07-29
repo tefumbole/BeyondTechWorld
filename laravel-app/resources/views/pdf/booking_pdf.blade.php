@@ -155,9 +155,9 @@
                 <tr>
                     <td class="inv-thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</td>
                     <td class="inv-codes">
-                        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="26" width="150" alt="">'; ?>
+                        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="22" width="112" alt="">'; ?>
                         &nbsp;
-                        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="46" width="46" alt="">'; ?>
+                        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="38" width="38" alt="">'; ?>
                     </td>
                 </tr>
             </table>

@@ -92,7 +92,7 @@
                     <td class="inv-thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</td>
                     <td class="inv-codes">
                         @if($invoiceReference)
-                            <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceReference, 'QRCODE').'" height="46" width="46" alt="">'; ?>
+                            <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceReference, 'QRCODE').'" height="38" width="38" alt="">'; ?>
                         @endif
                     </td>
                 </tr>
