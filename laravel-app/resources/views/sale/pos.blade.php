@@ -1776,9 +1776,9 @@
                                                 @foreach($lims_category_list as $category)
                                                     <div class="col-md-3 category-img text-center" data-category="{{$category->id}}">
                                                         @if($category->image)
-                                                            <img  src="{{ asset('images/category/'.$category->image) }}" />
+                                                            <img  src="{{ asset('public/images/category/'.$category->image) }}" />
                                                         @else
-                                                            <img  src="{{ asset('images/product/zummXD2dvAtI.png') }}" />
+                                                            <img  src="{{ asset('public/images/product/zummXD2dvAtI.png') }}" />
                                                         @endif
                                                         <p class="text-center">{{$category->name}}</p>
                                                     </div>
@@ -1798,12 +1798,12 @@
                                 @foreach($lims_brand_list as $brand)
                                     @if($brand->image)
                                         <div class="col-md-3 brand-img text-center" data-brand="{{$brand->id}}">
-                                            <img  src="{{asset('images/brand/'.$brand->image)}}" />
+                                            <img  src="{{asset('public/images/brand/'.$brand->image)}}" />
                                             <p class="text-center">{{$brand->title}}</p>
                                         </div>
                                     @else
                                         <div class="col-md-3 brand-img" data-brand="{{$brand->id}}">
-                                            <img  src="{{asset('images/product/zummXD2dvAtI.png')}}" />
+                                            <img  src="{{asset('public/images/product/zummXD2dvAtI.png')}}" />
                                             <p class="text-center">{{$brand->title}}</p>
                                         </div>
                                     @endif
@@ -1835,12 +1835,12 @@
                                 <tbody>
                                 @for ($i=0; $i < ceil($product_number/5); $i++)
                                     <tr>
-                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[0+$i*5]->base_image)}}" width="100%" />
+                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[0+$i*5]->base_image)}}" width="100%" />
                                             <p>{{$lims_product_list[0+$i*5]->name}}</p>
                                             <span>{{$lims_product_list[0+$i*5]->code}}</span>
                                         </td>
                                         @if(!empty($lims_product_list[1+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[1+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[1+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[1+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[1+$i*5]->code}}</span>
                                             </td>
@@ -1848,7 +1848,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[2+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[2+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[2+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[2+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[2+$i*5]->code}}</span>
                                             </td>
@@ -1856,7 +1856,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[3+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[3+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[3+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[3+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[3+$i*5]->code}}</span>
                                             </td>
@@ -1864,7 +1864,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[4+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{asset('images/product/'.$lims_product_list[4+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[4+$i*5]->base_image)}}" width="100%" />
                                                 <p>{{$lims_product_list[4+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[4+$i*5]->code}}</span>
                                             </td>
@@ -2468,7 +2468,7 @@
         var biller_id = <?php echo json_encode(\Auth::user()->biller_id) ?>;
         var coupon_list = <?php echo json_encode($lims_coupon_list) ?>;
         var currency = <?php echo json_encode($currency) ?>;
-        window.POS_PRODUCT_IMAGE_BASE = @json(rtrim(asset('images/product'), '/') . '/');
+        window.POS_PRODUCT_IMAGE_BASE = @json(rtrim(asset('public/images/product'), '/') . '/');
         var newCustomerId = @json(session('new_customer_id'));
         var posMinSearchChars = {{ (int) (env('MINIMUM_SEARCH_CHAR') ?: 1) }};
 
@@ -3071,69 +3071,104 @@
             isCashRegisterAvailable(warehouse_id);
         });
 
-        @if(in_array("search_on_click", $all_permission))
-        $("#search_btn").on("click", function (e){
-            e.preventDefault();
-            var search_product = $('#click_productcodeSearch').val();
-            var search = new RegExp(search_product , 'i');
-            let result = lims_product_array.filter(item => search.test(item));
+        // Labels look like "CODE (Product name)"; the code may be alphanumeric.
+        function posCodeFromLabel(label) {
+            var raw = String(label == null ? '' : label).trim();
+            if (!raw) return '';
+            var idx = raw.indexOf(' (');
+            return idx >= 0 ? raw.slice(0, idx).trim() : raw.split(/\s+/)[0];
+        }
 
-            if(result && result[0]) {
-                var numberPattern = /\d+/; // Regular expression to match one or more digits
-                var matches = result[0].match(numberPattern); // This will return an array of matches
-
-                if (matches && matches.length > 0) {
-                    var number = matches[0]; // Extract the first match which is the number
-                    productSearch(number)
-                } else {
-                    $('#click_productcodeSearch').val('');
-                    alert("Product not find");
-                }
-            } else {
-                $('#click_productcodeSearch').val('');
-                alert("Product not find");
+        function posEscapeRegex(term) {
+            if ($.ui && $.ui.autocomplete && $.ui.autocomplete.escapeRegex) {
+                return $.ui.autocomplete.escapeRegex(term);
             }
-        });
-        @endif
+            return String(term).replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&');
+        }
 
-        var lims_productcodeSearch = $('#lims_productcodeSearch');
-
-        lims_productcodeSearch.autocomplete({
-            source: function(request, response) {
-                var matcher = new RegExp(".?" + $.ui.autocomplete.escapeRegex(request.term), "i");
-                var local = $.grep(lims_product_array, function(item) {
-                    return matcher.test(item);
+        // Search the warehouse cache first, then fall back to the server so
+        // products outside the current warehouse cache are still findable.
+        function posSuggest(term, done) {
+            term = $.trim(String(term == null ? '' : term));
+            var matcher = new RegExp('.?' + posEscapeRegex(term), 'i');
+            var local = $.grep(lims_product_array || [], function (item) {
+                return matcher.test(item);
+            });
+            if (!term || term.length < 2 || local.length >= 10) {
+                done(local.slice(0, 25));
+                return;
+            }
+            $.getJSON('/sales/pos_product_suggest', {
+                q: term,
+                warehouse_id: posWarehouseId()
+            }).done(function (rows) {
+                var merged = local.slice();
+                $.each(rows || [], function (_, label) {
+                    if (merged.indexOf(label) === -1) merged.push(label);
                 });
-                if (local.length >= 10 || !request.term || request.term.length < 2) {
-                    response(local.slice(0, 25));
-                    return;
+                done(merged.slice(0, 25));
+            }).fail(function () {
+                done(local.slice(0, 25));
+            });
+        }
+
+        // Exact code match wins over a partial name match.
+        function posBestMatch(results, term) {
+            if (!results || !results.length) return '';
+            var wanted = $.trim(String(term || '')).toLowerCase();
+            for (var i = 0; i < results.length; i++) {
+                if (posCodeFromLabel(results[i]).toLowerCase() === wanted) {
+                    return results[i];
                 }
-                $.getJSON('/sales/pos_product_suggest', {
-                    q: request.term,
-                    warehouse_id: posWarehouseId()
-                }).done(function(rows) {
-                    var merged = local.slice();
-                    $.each(rows || [], function(_, label) {
-                        if (merged.indexOf(label) === -1) merged.push(label);
-                    });
-                    response(merged.slice(0, 25));
-                }).fail(function() {
-                    response(local.slice(0, 25));
-                });
+            }
+            return results[0];
+        }
+
+        // Both variants of the search box must behave the same: the
+        // search_on_click permission renders #click_productcodeSearch instead.
+        $('#lims_productcodeSearch, #click_productcodeSearch').autocomplete({
+            source: function(request, response) {
+                posSuggest(request.term, response);
             },
             response: function(event, ui) {
                 if (ui.content.length == 1) {
                     var data = ui.content[0].value;
                     $(this).autocomplete( "close" );
-                    productSearch(data);
+                    productSearch(posCodeFromLabel(data));
                 };
             },
             select: function(event, ui) {
-                var data = ui.item.value;
-                productSearch(data);
+                event.preventDefault();
+                $(this).val('');
+                productSearch(posCodeFromLabel(ui.item.value));
             },
             minLength: posMinSearchChars
         });
+
+        @if(in_array("search_on_click", $all_permission))
+        $("#search_btn").on("click", function (e){
+            e.preventDefault();
+            var term = $.trim($('#click_productcodeSearch').val());
+            if (!term) {
+                return;
+            }
+            posSuggest(term, function (results) {
+                var match = posBestMatch(results, term);
+                if (!match) {
+                    alert('Product not found');
+                    return;
+                }
+                productSearch(posCodeFromLabel(match));
+            });
+        });
+
+        $('#click_productcodeSearch').on('keydown', function (e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                $('#search_btn').trigger('click');
+            }
+        });
+        @endif
 
         $('#myTable').keyboard({
             accepted : function(event, keyboard, el) {
