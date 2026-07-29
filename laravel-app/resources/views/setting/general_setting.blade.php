@@ -26,13 +26,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>{{trans('file.System Logo')}} *</label>
+                                        <label>{{trans('file.System Logo')}}</label>
                                         @if($lims_general_setting_data && $lims_general_setting_data->site_logo)
-                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
-                                                <img src="{{url('public/logo', $lims_general_setting_data->site_logo)}}" alt="Current logo" style="max-height:60px; max-width:180px;">
+                                            <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-center" style="width:200px;height:80px;overflow:hidden;">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->site_logo)}}" alt="Current logo" style="max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;">
                                             </div>
                                         @endif
-                                        <input type="file" name="site_logo" class="form-control" value=""/>
+                                        <input type="file" name="site_logo" class="form-control" accept="image/png,image/jpeg,image/gif"/>
+                                        <small class="text-muted">PNG/JPG recommended. Auto-resized to fit (max 400×400). Transparent PNG works best.</small>
                                     </div>
                                     @if($errors->has('site_logo'))
                                    <span>
@@ -51,13 +52,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Email Header </label>
+                                        <label>Email / Invoice Header</label>
                                         @if($lims_general_setting_data && $lims_general_setting_data->email_header)
-                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
-                                                <img src="{{url('public/logo', $lims_general_setting_data->email_header)}}" alt="Current email header" style="max-height:60px; max-width:180px;">
+                                            <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-center" style="width:100%;max-width:420px;height:72px;overflow:hidden;">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_header)}}" alt="Current email header" style="max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;">
                                             </div>
                                         @endif
-                                        <input type="file" name="email_header" class="form-control" value=""/>
+                                        <input type="file" name="email_header" class="form-control" accept="image/png,image/jpeg,image/gif"/>
+                                        <small class="text-muted">Wide letterhead band. Auto-resized to max 1400×240 so it fits on A4 invoices.</small>
                                     </div>
                                     @if($errors->has('email_header'))
                                         <span>
@@ -67,13 +69,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Email Footer</label>
+                                        <label>Email / Invoice Footer</label>
                                         @if($lims_general_setting_data && $lims_general_setting_data->email_footer)
-                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
-                                                <img src="{{url('public/logo', $lims_general_setting_data->email_footer)}}" alt="Current email footer" style="max-height:60px; max-width:180px;">
+                                            <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-center" style="width:100%;max-width:420px;height:72px;overflow:hidden;">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_footer)}}" alt="Current email footer" style="max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;">
                                             </div>
                                         @endif
-                                        <input type="file" name="email_footer" class="form-control" value=""/>
+                                        <input type="file" name="email_footer" class="form-control" accept="image/png,image/jpeg,image/gif"/>
+                                        <small class="text-muted">Wide footer band. Auto-resized to max 1400×200.</small>
                                     </div>
                                     @if($errors->has('email_footer'))
                                         <span>
@@ -83,13 +86,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>Email Water Mark</label>
+                                        <label>Email / Invoice Watermark</label>
                                         @if($lims_general_setting_data && $lims_general_setting_data->email_water_mark)
-                                            <div class="mb-2 p-2 border rounded d-inline-block bg-light">
-                                                <img src="{{url('public/logo', $lims_general_setting_data->email_water_mark)}}" alt="Current email water mark" style="max-height:60px; max-width:180px;">
+                                            <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-center" style="width:120px;height:120px;overflow:hidden;">
+                                                <img src="{{url('public/logo', $lims_general_setting_data->email_water_mark)}}" alt="Current email water mark" style="max-height:100%;max-width:100%;width:auto;height:auto;object-fit:contain;">
                                             </div>
                                         @endif
-                                        <input type="file" name="email_water_mark" class="form-control" value=""/>
+                                        <input type="file" name="email_water_mark" class="form-control" accept="image/png,image/jpeg,image/gif"/>
+                                        <small class="text-muted">Square logo works best. Auto-resized to max 800×800 (keeps PDFs small on WhatsApp).</small>
                                     </div>
                                     @if($errors->has('email_water_mark'))
                                         <span>

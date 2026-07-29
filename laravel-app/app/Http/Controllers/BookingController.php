@@ -1567,20 +1567,20 @@ class BookingController extends Controller
             return $message;
         }
 
-        $path = public_path('public/images/bookings/qr/');
-        if (!File::exists($path)) {
-            File::makeDirectory($path, 0755, true);
-        }
-        $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
-        $url = url("bookings/scan/$lims_sale_data->reference_no");
-        QrCode::format('png')->size(300)->generate($url, $path . $filename);
         try {
-            $this->wpAttachMessage($path.$filename, $lims_customer_data->phone_number, $filename);
-        } catch (\Exception $e) {
-        }
-        // Delete the QR code file after sending
-        if (file_exists($path.$filename)) {
-            unlink($path.$filename);
+            $path = public_path('images/bookings/qr');
+            if (! File::exists($path)) {
+                File::makeDirectory($path, 0775, true);
+            }
+            $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
+            $url = url("bookings/scan/$lims_sale_data->reference_no");
+            QrCode::format('png')->size(300)->generate($url, $path . DIRECTORY_SEPARATOR . $filename);
+            $this->wpAttachMessage($path . DIRECTORY_SEPARATOR . $filename, $lims_customer_data->phone_number, $filename);
+            if (file_exists($path . DIRECTORY_SEPARATOR . $filename)) {
+                @unlink($path . DIRECTORY_SEPARATOR . $filename);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Booking QR WhatsApp attach failed: '.$e->getMessage());
         }
 
         return $message;

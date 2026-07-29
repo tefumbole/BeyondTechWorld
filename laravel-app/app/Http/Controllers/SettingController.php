@@ -20,6 +20,7 @@ use ZipArchive;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Artisan;
 use App\Support\EnvFile;
+use App\Support\BrandingImage;
 use App\Services\Messaging\NotificationRouter;
 
 class SettingController extends Controller
@@ -109,10 +110,11 @@ class SettingController extends Controller
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
 
         $this->validate($request, [
-            'site_logo' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
-            'email_header' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
-            'email_footer' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
-            'email_water_mark' => 'image|mimes:jpg,jpeg,png,gif|max:100000',
+            // 8 MB cap — images are auto-resized to fit letterhead / logo slots on save.
+            'site_logo' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
+            'email_header' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
+            'email_footer' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
+            'email_water_mark' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
         ]);
 
         $data = $request->except('site_logo');
@@ -155,33 +157,25 @@ class SettingController extends Controller
             @chmod($logoDir, 0775);
         }
 
-        $logo = $request->site_logo;
-        $email_header = $request->email_header;
-        $email_footer = $request->email_footer;
-        $email_water_mark = $request->email_water_mark;
-        if ($logo) {
-            $ext = pathinfo($logo->getClientOriginalName(), PATHINFO_EXTENSION);
-            $logoName = date('Ymdhis').'.'.$ext;
-            $logo->move($logoDir, $logoName);
-            $general_setting->site_logo = $logoName;
+        if ($request->hasFile('site_logo')) {
+            $general_setting->site_logo = BrandingImage::storeFitted(
+                $request->file('site_logo'), $logoDir, 'site_logo', date('YmdHis').'_logo'
+            );
         }
-        if ($email_header) {
-            $ext = pathinfo($email_header->getClientOriginalName(), PATHINFO_EXTENSION);
-            $headerName = date('Ymdhi').'.'.$ext;
-            $email_header->move($logoDir, $headerName);
-            $general_setting->email_header = $headerName;
+        if ($request->hasFile('email_header')) {
+            $general_setting->email_header = BrandingImage::storeFitted(
+                $request->file('email_header'), $logoDir, 'email_header', date('YmdHis').'_header'
+            );
         }
-        if ($email_footer) {
-            $ext = pathinfo($email_footer->getClientOriginalName(), PATHINFO_EXTENSION);
-            $footerName = date('Ymdis').'.'.$ext;
-            $email_footer->move($logoDir, $footerName);
-            $general_setting->email_footer = $footerName;
+        if ($request->hasFile('email_footer')) {
+            $general_setting->email_footer = BrandingImage::storeFitted(
+                $request->file('email_footer'), $logoDir, 'email_footer', date('YmdHis').'_footer'
+            );
         }
-        if ($email_water_mark) {
-            $ext = pathinfo($email_water_mark->getClientOriginalName(), PATHINFO_EXTENSION);
-            $waterMarkName = date('Ymdhs').'.'.$ext;
-            $email_water_mark->move($logoDir, $waterMarkName);
-            $general_setting->email_water_mark = $waterMarkName;
+        if ($request->hasFile('email_water_mark')) {
+            $general_setting->email_water_mark = BrandingImage::storeFitted(
+                $request->file('email_water_mark'), $logoDir, 'email_water_mark', date('YmdHis').'_watermark'
+            );
         }
         $general_setting->save();
         return redirect()->back()->with('message', 'Data updated successfully');

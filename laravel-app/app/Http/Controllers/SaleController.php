@@ -1227,21 +1227,21 @@ class SaleController extends Controller
             $message = 'Sale created successfully. Please setup your whatsapp setting.';
         }
 
-        // send QR code
-        $path = public_path('public/images/sales/qr/');
-        if (!File::exists($path)) {
-            File::makeDirectory($path, 0755, true);
-        }
-        $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
-        $url = url("sale/scan/$lims_sale_data->reference_no");
-        QrCode::format('png')->size(300)->generate($url, $path . $filename);
+        // send QR code (must not break the sale if the filesystem / WhatsApp fails)
         try {
-            $this->wpAttachMessage($path.$filename, $lims_customer_data->phone_number, $filename);
-        } catch (\Exception $e) {
-        }
-        // Delete the QR code file after sending
-        if (file_exists($path.$filename)) {
-            unlink($path.$filename);
+            $path = public_path('images/sales/qr');
+            if (! File::exists($path)) {
+                File::makeDirectory($path, 0775, true);
+            }
+            $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
+            $url = url("sale/scan/$lims_sale_data->reference_no");
+            QrCode::format('png')->size(300)->generate($url, $path . DIRECTORY_SEPARATOR . $filename);
+            $this->wpAttachMessage($path . DIRECTORY_SEPARATOR . $filename, $lims_customer_data->phone_number, $filename);
+            if (file_exists($path . DIRECTORY_SEPARATOR . $filename)) {
+                @unlink($path . DIRECTORY_SEPARATOR . $filename);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Sale QR WhatsApp attach failed: '.$e->getMessage());
         }
 
         return $message;
