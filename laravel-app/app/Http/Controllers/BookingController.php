@@ -122,7 +122,7 @@ class BookingController extends Controller
             'numberInWords' => $numberInWords
         ];
 //        return view('pdf.booking_pdf', $data);
-        $pdf = PDF::loadView('pdf.booking_pdf', $data);
+        $pdf = PDF::loadView('pdf.booking_pdf', $data)->setPaper('A4', 'portrait');
 
         $content = $pdf->download()->getOriginalContent();
 
@@ -1523,7 +1523,7 @@ class BookingController extends Controller
         }
 
         $relativePath = 'booking_receipts/booking_invoice_' . $lims_sale_data->reference_no . '.pdf';
-        $pdf = PDF::loadView('pdf.booking_pdf', $data);
+        $pdf = PDF::loadView('pdf.booking_pdf', $data)->setPaper('A4', 'portrait');
         $pdf->save(public_path($relativePath));
 
         return public_path($relativePath);

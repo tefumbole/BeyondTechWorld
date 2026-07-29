@@ -494,7 +494,7 @@ class OrderController extends Controller
 
 //        return View('pdf.rent_pdf', $data);
 
-        $pdf = PDF::loadView('pdf.rent_pdf', $data);
+        $pdf = PDF::loadView('pdf.rent_pdf', $data)->setPaper('A4', 'portrait');
         return $pdf->download('booking-invoice.pdf');
     }
 

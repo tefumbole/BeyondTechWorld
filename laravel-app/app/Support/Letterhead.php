@@ -35,6 +35,28 @@ class Letterhead
     }
 
     /**
+     * Height / width of a letterhead band, so PDF page margins can reserve the
+     * exact space a full-width header or footer image will occupy.
+     *
+     * @param  string|null  $path
+     * @param  float  $fallback
+     * @return float
+     */
+    public static function ratio($path, $fallback = 0.15)
+    {
+        if (! $path || ! is_file($path)) {
+            return $fallback;
+        }
+
+        $size = @getimagesize($path);
+        if (! $size || empty($size[0]) || empty($size[1])) {
+            return $fallback;
+        }
+
+        return $size[1] / $size[0];
+    }
+
+    /**
      * @param  object|null  $settings
      * @return array
      */

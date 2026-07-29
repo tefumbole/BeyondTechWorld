@@ -120,7 +120,7 @@ class SaleController extends Controller
             'numberInWords' => $numberInWords
         ];
 
-        $pdf = PDF::loadView('pdf.sale_pdf', $data);
+        $pdf = PDF::loadView('pdf.sale_pdf', $data)->setPaper('A4', 'portrait');
 
         $content = $pdf->download()->getOriginalContent();
 
