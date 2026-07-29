@@ -1189,35 +1189,41 @@ class SaleController extends Controller
     }
 
     public function sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, $paying_method, $net_unit_price){
-        $general_setting = GeneralSetting::first();
-
-        $msg = '*Subject:* Sales Confirmation for '. $lims_customer_data->name . '\n\n';
-        $msg .= 'Dear '. $lims_customer_data->name . '\n\n';
-        $msg .= 'Thank you for choosing '.$general_setting->site_title.' as your preferred supplier. We are pleased to confirm the availability of the products requested.\n\n\n';
-
-        $msg .= '*Order Details:*\n';
-        $msg .= 'Order Number: '.$lims_sale_data->reference_no.'\n';
-        $msg .=  'Order Date: '.$lims_sale_data->created_at.'\n\n';
-
-        $msg .= '*Product Detail:*\n';
+        $lines = [];
         foreach ($mail_data['products'] as $key => $product) {
-            $msg .= $key+1 .') ['. $product . '] [' . $mail_data['qty'][$key] . '] x [ '. number_format($net_unit_price[$key], 2) .'] = ['. number_format($mail_data['total'][$key], 2) .']\n';
+            $lines[] = [
+                'name' => $product,
+                'qty' => $mail_data['qty'][$key] ?? '',
+                'unit_price' => $net_unit_price[$key] ?? 0,
+                'total' => $mail_data['total'][$key] ?? 0,
+            ];
         }
 
-        $msg .= 'Total Amount: ' . number_format($mail_data['grand_total'], 2) . '\n\n';
+        $currencyCode = '';
+        try {
+            $currency = \App\Currency::find(optional(GeneralSetting::first())->currency);
+            $currencyCode = $currency->code ?? '';
+        } catch (\Throwable $e) {
+            $currencyCode = '';
+        }
 
-        $msg .= '*Payment Information:*\n';
-        $msg .= 'Payment Method: ' . $paying_method . '\n';
-        $msg .= 'Billing Address: ' . @$biller->address . '\n';
-        $msg .= 'Delivery Information: ' . $lims_customer_data->address . '\n';
-        $msg .= 'Estimated Delivery Date: ' . $lims_sale_data->created_at . '\n\n';
+        $orderDate = $lims_sale_data->created_at;
+        if ($orderDate instanceof \DateTimeInterface) {
+            $orderDate = $orderDate->format('D, M d, Y H:i');
+        }
 
-        $msg .= 'Once again, we appreciate your business and trust in '. $general_setting->site_title .'. We strive to provide exceptional products and services, and we are confident that you will be satisfied with our products.\n';
-        $msg .= 'Thank you for choosing ' . $general_setting->site_title . '.\n\n';
-
-        $msg .= 'Best regards,\n';
-        $msg .= @$biller->name. '\n';
-        $msg .= $general_setting->site_title;
+        $msg = \App\Support\WhatsAppMessage::saleConfirmation(
+            $lims_customer_data->name,
+            $lims_sale_data->reference_no,
+            (string) $orderDate,
+            $lines,
+            $mail_data['grand_total'] ?? $lims_sale_data->grand_total,
+            $paying_method,
+            @$biller->name ?: @$biller->company_name,
+            @$biller->address,
+            @$lims_customer_data->address,
+            $currencyCode
+        );
 
         $message = 'Sale created successfully';
         try{

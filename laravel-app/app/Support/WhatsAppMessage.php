@@ -296,6 +296,78 @@ class WhatsAppMessage
         return $msg;
     }
 
+    /**
+     * Client-facing sale confirmation (POS / sales). Same visual language as OTP:
+     * heading block, bold labels, short bullets — real newlines (not literal \n).
+     *
+     * @param  array  $lines  [['name'=>,'qty'=>,'unit_price'=>,'total'=>], ...]
+     */
+    public static function saleConfirmation(
+        $customerName,
+        $referenceNo,
+        $orderDate,
+        array $lines,
+        $grandTotal,
+        $payingMethod,
+        $billerName = '',
+        $billingAddress = '',
+        $deliveryAddress = '',
+        $currencyCode = ''
+    ) {
+        $company = self::companyName();
+        $money = function ($amount) use ($currencyCode) {
+            $formatted = is_numeric($amount)
+                ? number_format((float) $amount, 2)
+                : (string) $amount;
+            return $currencyCode !== '' ? trim($currencyCode.' '.$formatted) : $formatted;
+        };
+
+        $msg = self::statusBlock('🧾', 'Sale Confirmed');
+        $msg .= self::greeting($customerName);
+        $msg .= "Thank you for shopping with *{$company}*. Your order is confirmed.\n\n";
+        $msg .= self::bullet('Order Number', $referenceNo);
+        $msg .= self::bullet('Order Date', $orderDate);
+
+        if (! empty($lines)) {
+            $msg .= "\n*Items:*\n";
+            foreach ($lines as $index => $line) {
+                $name = $line['name'] ?? 'Item';
+                $qty = $line['qty'] ?? '';
+                $unit = isset($line['unit_price']) ? $money($line['unit_price']) : null;
+                $total = isset($line['total']) ? $money($line['total']) : '';
+                $msg .= ($index + 1).") *{$name}*";
+                if ($qty !== '' && $qty !== null) {
+                    $msg .= " × {$qty}";
+                }
+                if ($unit !== null) {
+                    $msg .= " @ {$unit}";
+                }
+                if ($total !== '') {
+                    $msg .= " = *{$total}*";
+                }
+                $msg .= "\n";
+            }
+        }
+
+        $msg .= "\n━━━━━━━━━━━━━━━━\n";
+        $msg .= self::bullet('Total', $money($grandTotal));
+        $msg .= self::bullet('Payment', $payingMethod ?: '—');
+        if (trim((string) $billingAddress) !== '') {
+            $msg .= self::bullet('Billing', $billingAddress);
+        }
+        if (trim((string) $deliveryAddress) !== '') {
+            $msg .= self::bullet('Delivery', $deliveryAddress);
+        }
+        if (trim((string) $billerName) !== '') {
+            $msg .= self::bullet('Served by', $billerName);
+        }
+
+        $msg .= "\nThank you for choosing *{$company}*.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function lateReturnNotice($customerName, $company, $productName, $returnAt, $bookingRef, $dailyRate)
     {
         $msg = self::statusBlock('⚠️', 'Late Equipment Return');
