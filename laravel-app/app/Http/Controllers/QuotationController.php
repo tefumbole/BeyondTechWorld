@@ -328,7 +328,7 @@ class QuotationController extends Controller
         $mail_data = [];
         $lims_customer_data = Customer::find($data['customer_id']);
         if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING){
-            $lims_quotation_data->ensureApprovalToken();
+            $lims_quotation_data->rotateApprovalToken();
             //collecting mail data
             $mail_data['email'] = $lims_customer_data ? $lims_customer_data->email : null;
             $mail_data['reference_no'] = $lims_quotation_data->reference_no;
@@ -1058,7 +1058,8 @@ class QuotationController extends Controller
         $mail_data = [];
         $lims_customer_data = Customer::find($data['customer_id']);
         if($lims_quotation_data->quotation_status == Quotation::STATUS_AWAITING){
-            $lims_quotation_data->ensureApprovalToken();
+            // New token on each send so any previous approval link expires.
+            $lims_quotation_data->rotateApprovalToken();
             //collecting mail data
             $mail_data['email'] = $lims_customer_data ? $lims_customer_data->email : null;
             $mail_data['reference_no'] = $lims_quotation_data->reference_no;
@@ -1205,7 +1206,8 @@ class QuotationController extends Controller
         $quotation->client_signed_at = null;
         $quotation->client_signature_path = null;
         $quotation->client_responded_at = null;
-        $quotation->ensureApprovalToken();
+        // Rotate so any previously shared approval URL can no longer be used.
+        $quotation->rotateApprovalToken();
         $quotation->approval_sent_at = now();
         $quotation->save();
 

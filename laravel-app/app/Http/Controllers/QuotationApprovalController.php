@@ -17,24 +17,9 @@ class QuotationApprovalController extends Controller
 {
     public function show($token)
     {
-        $quotation = $this->findByToken($token);
+        $quotation = $this->findOpenByToken($token);
         if (! $quotation) {
-            abort(404, 'Quotation link is invalid or has expired.');
-        }
-
-        if (in_array((int) $quotation->quotation_status, [Quotation::STATUS_APPROVED, Quotation::STATUS_REJECTED], true)) {
-            return view('quotation.client_responded', [
-                'quotation' => $quotation,
-                'general_setting' => GeneralSetting::first(),
-            ]);
-        }
-
-        // Only awaiting quotations are signable
-        if ((int) $quotation->quotation_status !== Quotation::STATUS_AWAITING) {
-            return view('quotation.client_responded', [
-                'quotation' => $quotation,
-                'general_setting' => GeneralSetting::first(),
-            ]);
+            return $this->expiredResponse();
         }
 
         $lines = $this->lineItems($quotation);
@@ -45,14 +30,9 @@ class QuotationApprovalController extends Controller
 
     public function approve(Request $request, $token)
     {
-        $quotation = $this->findByToken($token);
+        $quotation = $this->findOpenByToken($token);
         if (! $quotation) {
-            abort(404);
-        }
-
-        if ((int) $quotation->quotation_status !== Quotation::STATUS_AWAITING) {
-            return redirect()->route('quotation.client.show', $token)
-                ->with('message', 'This quotation has already been responded to.');
+            return $this->expiredResponse();
         }
 
         $data = $request->validate([
@@ -71,6 +51,7 @@ class QuotationApprovalController extends Controller
         $quotation->client_signed_at = now();
         $quotation->client_comment = $data['client_comment'] ?? null;
         $quotation->client_responded_at = now();
+        $quotation->client_approval_token = null;
         $quotation->save();
 
         $this->notifyStakeholders($quotation->fresh(), 'approved');
@@ -83,14 +64,9 @@ class QuotationApprovalController extends Controller
 
     public function reject(Request $request, $token)
     {
-        $quotation = $this->findByToken($token);
+        $quotation = $this->findOpenByToken($token);
         if (! $quotation) {
-            abort(404);
-        }
-
-        if ((int) $quotation->quotation_status !== Quotation::STATUS_AWAITING) {
-            return redirect()->route('quotation.client.show', $token)
-                ->with('message', 'This quotation has already been responded to.');
+            return $this->expiredResponse();
         }
 
         $data = $request->validate([
@@ -100,6 +76,7 @@ class QuotationApprovalController extends Controller
         $quotation->quotation_status = Quotation::STATUS_REJECTED;
         $quotation->client_comment = $data['client_comment'];
         $quotation->client_responded_at = now();
+        $quotation->client_approval_token = null;
         $quotation->save();
 
         $this->notifyStakeholders($quotation->fresh(), 'rejected');
@@ -129,6 +106,27 @@ class QuotationApprovalController extends Controller
         return Quotation::with(['customer', 'biller', 'warehouse', 'supplier'])
             ->where('client_approval_token', $token)
             ->first();
+    }
+
+    /**
+     * Only return a quotation that is still open for client signature.
+     * Used / expired / already-responded links resolve to null.
+     */
+    protected function findOpenByToken($token)
+    {
+        $quotation = $this->findByToken($token);
+        if (! $quotation || ! $quotation->isOpenForClientApproval()) {
+            return null;
+        }
+
+        return $quotation;
+    }
+
+    protected function expiredResponse()
+    {
+        return response()->view('quotation.client_link_expired', [
+            'general_setting' => GeneralSetting::first(),
+        ], 410);
     }
 
     protected function lineItems(Quotation $quotation)

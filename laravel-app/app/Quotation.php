@@ -68,11 +68,39 @@ class Quotation extends Model
     public function ensureApprovalToken()
     {
         if (empty($this->client_approval_token)) {
-            $this->client_approval_token = Str::random(48);
-            $this->save();
+            return $this->rotateApprovalToken();
         }
 
         return $this->client_approval_token;
+    }
+
+    /**
+     * Always issue a fresh approval token so any previously sent link stops working.
+     */
+    public function rotateApprovalToken()
+    {
+        $this->client_approval_token = Str::random(48);
+        $this->save();
+
+        return $this->client_approval_token;
+    }
+
+    /**
+     * Burn the public approval link after the client has responded.
+     */
+    public function invalidateApprovalToken()
+    {
+        $this->client_approval_token = null;
+        $this->save();
+
+        return $this;
+    }
+
+    public function isOpenForClientApproval()
+    {
+        return (int) $this->quotation_status === self::STATUS_AWAITING
+            && ! empty($this->client_approval_token)
+            && empty($this->client_responded_at);
     }
 
     public function approvalUrl()
