@@ -53,7 +53,7 @@
     $staffNote = trim(strip_tags((string) ($lims_sale_data->staff_note ?? '')));
 @endphp
 
-<div class="inv-title">{{ trans('file.Sale') }} {{ trans('file.Invoice') }}</div>
+<div class="inv-title">Sales Invoice</div>
 <div class="inv-ref">
     {{ $lims_sale_data->reference_no }}
     &nbsp;&middot;&nbsp; {{ $lims_sale_data->created_at->format('D, M d, Y H:i') }}
@@ -243,15 +243,13 @@
                     <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
                 </tr>
                 <tr>
-                    <th>{{ trans('file.Paid Amount') }}</th>
+                    <th>Amount Paid</th>
                     <td>{{ number_format($paidAmount, 2) }}</td>
                 </tr>
-                @if($dueAmount > 0.0001)
-                    <tr>
-                        <th>{{ trans('file.Due') }}</th>
-                        <td>{{ number_format($dueAmount, 2) }}</td>
-                    </tr>
-                @endif
+                <tr>
+                    <th>Amount Pending</th>
+                    <td>{{ number_format(max(0, $dueAmount), 2) }}</td>
+                </tr>
                 <tr>
                     <th>{{ trans('file.Payment Status') }}</th>
                     <td>

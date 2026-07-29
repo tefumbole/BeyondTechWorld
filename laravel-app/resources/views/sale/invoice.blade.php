@@ -188,7 +188,7 @@
             </div>
         @endif
 
-        <div class="title">{{ trans('file.Sale') }} {{ trans('file.Invoice') }}</div>
+        <div class="title">Sales Invoice</div>
         <div class="ref-line">
             {{ $lims_sale_data->reference_no }}
             &nbsp;&middot;&nbsp;
@@ -334,15 +334,13 @@
                             <td>{{ number_format((float) $lims_sale_data->grand_total, 2) }}</td>
                         </tr>
                         <tr>
-                            <th>{{ trans('file.Paid Amount') }}</th>
+                            <th>Amount Paid</th>
                             <td>{{ number_format($paidAmount, 2) }}</td>
                         </tr>
-                        @if($dueAmount > 0.0001)
-                            <tr>
-                                <th>{{ trans('file.Due') }}</th>
-                                <td>{{ number_format($dueAmount, 2) }}</td>
-                            </tr>
-                        @endif
+                        <tr>
+                            <th>Amount Pending</th>
+                            <td>{{ number_format(max(0, $dueAmount), 2) }}</td>
+                        </tr>
                         <tr>
                             <th>{{ trans('file.Payment Status') }}</th>
                             <td>

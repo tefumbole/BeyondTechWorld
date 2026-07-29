@@ -119,7 +119,7 @@
                         <h3 class="modal-title text-center">{{$general_setting->site_title}}</h3>
                     @endif
                     <div class="text-center mb-2" style="position:relative;z-index:1;">
-                        <strong style="font-size:16px;">{{trans('file.Sale Details')}}</strong>
+                        <strong style="font-size:16px;">Sales Invoice</strong>
                         <div id="sale-ref-line" class="text-muted" style="font-size:12px;"></div>
                     </div>
                     <div id="sale-content" class="modal-body p-0" style="position:relative;z-index:1;"></div>
@@ -1069,14 +1069,15 @@
                 newBody.append(newRow);
 
                 newRow = $("<tr>");
-                cols = '<td colspan=8><strong>{{trans("file.Paid Amount")}}:</strong></td>';
+                cols = '<td colspan=8><strong>Amount Paid:</strong></td>';
                 cols += '<td>' + numberWithCommas(sale[22]) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
+                var pendingAmt = Math.max(0, parseSaleAmt(sale[21]) - parseSaleAmt(sale[22]));
                 newRow = $("<tr>");
-                cols = '<td colspan=8><strong>{{trans("file.Due")}}:</strong></td>';
-                cols += '<td>' + numberWithCommas(parseSaleAmt(sale[21]) - parseSaleAmt(sale[22])) + '</td>';
+                cols = '<td colspan=8><strong>Amount Pending:</strong></td>';
+                cols += '<td>' + numberWithCommas(pendingAmt) + '</td>';
                 newRow.append(cols);
                 newBody.append(newRow);
 
