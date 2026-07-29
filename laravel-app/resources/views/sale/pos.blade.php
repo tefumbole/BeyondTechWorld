@@ -1,4 +1,9 @@
 @extends('layout.main') @section('content')
+    {{-- Loaded here (not in @section('scripts')) so $.fn.keyboard exists for the
+         inline POS script further down this section. --}}
+    <link rel="stylesheet" href="<?php echo asset('public/vendor/keyboard/css/keyboard.css') ?>" type="text/css">
+    <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.js') ?>"></script>
+    <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.extension-autocomplete.js') ?>"></script>
     @if($errors->has('phone_number'))
         <div class="alert alert-danger alert-dismissible text-center">
             <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ $errors->first('phone_number') }}</div>
@@ -1835,12 +1840,12 @@
                                 <tbody>
                                 @for ($i=0; $i < ceil($product_number/5); $i++)
                                     <tr>
-                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[0+$i*5]->base_image)}}" width="100%" />
+                                        <td class="product-img sound-btn" title="{{$lims_product_list[0+$i*5]->name}}" data-product ="{{$lims_product_list[0+$i*5]->code . ' (' . $lims_product_list[0+$i*5]->name . ')'}}"><img  src="{{ $lims_product_list[0+$i*5]->base_image ? asset('public/images/product/'.$lims_product_list[0+$i*5]->base_image) : asset('public/images/product/zummXD2dvAtI.png') }}" width="100%" onerror="this.onerror=null;this.src='{{ asset('public/images/product/zummXD2dvAtI.png') }}';" />
                                             <p>{{$lims_product_list[0+$i*5]->name}}</p>
                                             <span>{{$lims_product_list[0+$i*5]->code}}</span>
                                         </td>
                                         @if(!empty($lims_product_list[1+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[1+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[1+$i*5]->name}}" data-product ="{{$lims_product_list[1+$i*5]->code . ' (' . $lims_product_list[1+$i*5]->name . ')'}}"><img  src="{{ $lims_product_list[1+$i*5]->base_image ? asset('public/images/product/'.$lims_product_list[1+$i*5]->base_image) : asset('public/images/product/zummXD2dvAtI.png') }}" width="100%" onerror="this.onerror=null;this.src='{{ asset('public/images/product/zummXD2dvAtI.png') }}';" />
                                                 <p>{{$lims_product_list[1+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[1+$i*5]->code}}</span>
                                             </td>
@@ -1848,7 +1853,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[2+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[2+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[2+$i*5]->name}}" data-product ="{{$lims_product_list[2+$i*5]->code . ' (' . $lims_product_list[2+$i*5]->name . ')'}}"><img  src="{{ $lims_product_list[2+$i*5]->base_image ? asset('public/images/product/'.$lims_product_list[2+$i*5]->base_image) : asset('public/images/product/zummXD2dvAtI.png') }}" width="100%" onerror="this.onerror=null;this.src='{{ asset('public/images/product/zummXD2dvAtI.png') }}';" />
                                                 <p>{{$lims_product_list[2+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[2+$i*5]->code}}</span>
                                             </td>
@@ -1856,7 +1861,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[3+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[3+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[3+$i*5]->name}}" data-product ="{{$lims_product_list[3+$i*5]->code . ' (' . $lims_product_list[3+$i*5]->name . ')'}}"><img  src="{{ $lims_product_list[3+$i*5]->base_image ? asset('public/images/product/'.$lims_product_list[3+$i*5]->base_image) : asset('public/images/product/zummXD2dvAtI.png') }}" width="100%" onerror="this.onerror=null;this.src='{{ asset('public/images/product/zummXD2dvAtI.png') }}';" />
                                                 <p>{{$lims_product_list[3+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[3+$i*5]->code}}</span>
                                             </td>
@@ -1864,7 +1869,7 @@
                                             <td style="border:none;"></td>
                                         @endif
                                         @if(!empty($lims_product_list[4+$i*5]))
-                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{asset('public/images/product/'.$lims_product_list[4+$i*5]->base_image)}}" width="100%" />
+                                            <td class="product-img sound-btn" title="{{$lims_product_list[4+$i*5]->name}}" data-product ="{{$lims_product_list[4+$i*5]->code . ' (' . $lims_product_list[4+$i*5]->name . ')'}}"><img  src="{{ $lims_product_list[4+$i*5]->base_image ? asset('public/images/product/'.$lims_product_list[4+$i*5]->base_image) : asset('public/images/product/zummXD2dvAtI.png') }}" width="100%" onerror="this.onerror=null;this.src='{{ asset('public/images/product/zummXD2dvAtI.png') }}';" />
                                                 <p>{{$lims_product_list[4+$i*5]->name}}</p>
                                                 <span>{{$lims_product_list[4+$i*5]->code}}</span>
                                             </td>
@@ -3170,11 +3175,15 @@
         });
         @endif
 
-        $('#myTable').keyboard({
-            accepted : function(event, keyboard, el) {
-                checkQuantity(el.value, true);
-            }
-        });
+        // Calling .keyboard() unguarded threw when the plugin was missing, which
+        // stopped every handler below from binding (tile click, row delete, +/- qty).
+        if (keyboard_active == 1 && $.fn.keyboard) {
+            $('#myTable').keyboard({
+                accepted : function(event, keyboard, el) {
+                    checkQuantity(el.value, true);
+                }
+            });
+        }
 
         $("#myTable").on('click', '.plus', function() {
             rowindex = $(this).closest('tr').index();
@@ -4328,9 +4337,6 @@
     </script>
 @endsection
 @section('scripts')
-    <link rel="stylesheet" href="<?php echo asset('public/vendor/keyboard/css/keyboard.css') ?>" type="text/css">
-    <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.js') ?>"></script>
-    <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.extension-autocomplete.js') ?>"></script>
     <script type="text/javascript" src="https://js.stripe.com/v3/"></script>
     <script type="text/javascript">
         $(function () {
