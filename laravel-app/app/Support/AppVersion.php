@@ -22,11 +22,12 @@ class AppVersion
             return self::normalizeSemver($configured);
         }
 
-        return '2.2.0';
+        return '2.3.0';
     }
 
     /**
-     * Canonical ERP display: BCL_ERP_V2.2.47
+     * Canonical ERP display: BCL_ERP_V2.3.0
+     * Bump scheme: patch 0–9 → next minor; minor 0–9 → next major (2.9.9 → 3.0.0).
      */
     public static function erp()
     {
@@ -96,6 +97,6 @@ class AppVersion
         $value = preg_replace('/^BCL\s*V\.?\s*/i', '', $value);
         $value = ltrim($value, 'vV');
 
-        return $value !== '' ? $value : '2.2.0';
+        return $value !== '' ? $value : '2.3.0';
     }
 }

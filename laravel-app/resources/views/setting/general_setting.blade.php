@@ -46,8 +46,8 @@
                                         <label>Application Version</label>
                                         <input type="text" name="app_version" class="form-control" readonly
                                                value="{{ \App\Support\AppVersion::erp() }}"
-                                               placeholder="e.g. BCL_ERP_V2.2.47">
-                                        <small class="text-muted">Auto-updates as <code>BCL_ERP_V…</code> from <code>VERSION</code> on every commit/push and deploy. Not editable.</small>
+                                               placeholder="e.g. BCL_ERP_V2.3.0">
+                                        <small class="text-muted">Auto-updates as <code>BCL_ERP_V…</code> from <code>VERSION</code> on every commit/push and deploy (patch 0–9 → next minor; after 2.9 → 3.0.0). Not editable.</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
