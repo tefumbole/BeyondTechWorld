@@ -14,13 +14,57 @@
     var openSigBtn = document.getElementById('open-signature-modal');
     var submitBtn = document.getElementById('submit-agreement');
     var idInput = document.getElementById('id_card_file');
-    var cameraInput = document.getElementById('id_card_camera');
+    var idFront = document.getElementById('id_card_front');
+    var idBack = document.getElementById('id_card_back');
+    var snapBtn = document.getElementById('snap-id-card-btn');
     var idName = document.getElementById('id-file-name');
     var sigField = document.getElementById('signature_image');
     var agreementBox = document.getElementById('agreement-content');
+    var idMode = null; // 'attach' | 'snap'
+    var frontReady = false;
+    var backReady = false;
+    var snapStep = 'front';
 
     if (!form || !submitBtn) {
         return;
+    }
+
+    function clearFileInput(input) {
+        if (!input) return;
+        try { input.value = ''; } catch (e) {}
+    }
+
+    function refreshIdStatus() {
+        if (!idName) return;
+        if (idMode === 'attach' && idInput && idInput.files && idInput.files.length) {
+            idSet = true;
+            idName.textContent = 'Attached: ' + idInput.files[0].name;
+            return;
+        }
+        if (idMode === 'snap') {
+            var parts = [];
+            if (frontReady) parts.push('Front ✓');
+            else parts.push('Front pending');
+            if (backReady) parts.push('Back ✓');
+            else parts.push('Back pending');
+            idSet = !!(frontReady && backReady);
+            idName.textContent = 'Snapped ID — ' + parts.join(' · ');
+            return;
+        }
+        idSet = false;
+        idName.textContent = '';
+    }
+
+    function hasIdReady() {
+        if (idMode === 'attach') {
+            return !!(idInput && idInput.files && idInput.files.length);
+        }
+        if (idMode === 'snap') {
+            return !!(frontReady && backReady
+                && idFront && idFront.files && idFront.files.length
+                && idBack && idBack.files && idBack.files.length);
+        }
+        return false;
     }
 
     function markAgreementRead() {
@@ -80,40 +124,111 @@
         });
     }
 
-    function bindIdInput(input) {
-        if (!input) {
-            return;
-        }
+    function compressInto(input, onReady) {
+        if (!input) return;
         if (typeof window.bindCompressedIdCardInput === 'function') {
-            window.bindCompressedIdCardInput(input, idInput, function (name) {
-                idSet = true;
-                if (idName) {
-                    idName.textContent = 'Selected: ' + name;
+            window.bindCompressedIdCardInput(input, input, function (name, ok) {
+                if (ok === false) {
+                    clearFileInput(input);
+                    refreshIdStatus();
+                    updateSubmitState();
+                    return;
                 }
-                updateSubmitState();
+                onReady(name);
             });
             return;
         }
         input.addEventListener('change', function () {
             if (input.files && input.files[0]) {
-                try {
-                    var dt = new DataTransfer();
-                    dt.items.add(input.files[0]);
-                    idInput.files = dt.files;
-                } catch (e) {
-                    // Some WebViews lack DataTransfer; keep the native file input.
-                }
-                idSet = true;
-                if (idName) {
-                    idName.textContent = 'Selected: ' + input.files[0].name;
-                }
-                updateSubmitState();
+                onReady(input.files[0].name);
             }
         });
     }
-    bindIdInput(idInput);
-    if (cameraInput && cameraInput !== idInput) {
-        bindIdInput(cameraInput);
+
+    if (idInput) {
+        compressInto(idInput, function (name) {
+            idMode = 'attach';
+            frontReady = false;
+            backReady = false;
+            clearFileInput(idFront);
+            clearFileInput(idBack);
+            // Keep only attach field named for server
+            if (idFront) idFront.removeAttribute('name');
+            if (idBack) idBack.removeAttribute('name');
+            idInput.setAttribute('name', 'id_card');
+            refreshIdStatus();
+            updateSubmitState();
+        });
+    }
+
+    function prepareSnapNames() {
+        if (idInput) {
+            idInput.removeAttribute('name');
+            clearFileInput(idInput);
+        }
+        if (idFront) idFront.setAttribute('name', 'id_card_front');
+        if (idBack) idBack.setAttribute('name', 'id_card_back');
+    }
+
+    if (idFront) {
+        compressInto(idFront, function () {
+            idMode = 'snap';
+            prepareSnapNames();
+            frontReady = !!(idFront.files && idFront.files.length);
+            refreshIdStatus();
+            updateSubmitState();
+            if (frontReady && !backReady) {
+                snapStep = 'back';
+                setTimeout(function () {
+                    alert('Front captured. Now snap the BACK of the ID card.');
+                    if (idBack) idBack.click();
+                }, 250);
+            }
+        });
+    }
+
+    if (idBack) {
+        compressInto(idBack, function () {
+            idMode = 'snap';
+            prepareSnapNames();
+            backReady = !!(idBack.files && idBack.files.length);
+            refreshIdStatus();
+            updateSubmitState();
+            if (backReady && !frontReady) {
+                snapStep = 'front';
+                setTimeout(function () {
+                    alert('Back captured. Now snap the FRONT of the ID card.');
+                    if (idFront) idFront.click();
+                }, 250);
+            }
+        });
+    }
+
+    if (snapBtn) {
+        snapBtn.addEventListener('click', function () {
+            idMode = 'snap';
+            prepareSnapNames();
+            frontReady = !!(idFront && idFront.files && idFront.files.length);
+            backReady = !!(idBack && idBack.files && idBack.files.length);
+            refreshIdStatus();
+            if (!frontReady) {
+                snapStep = 'front';
+                alert('Step 1 of 2: Snap the FRONT of the ID card.');
+                if (idFront) idFront.click();
+            } else if (!backReady) {
+                snapStep = 'back';
+                alert('Step 2 of 2: Snap the BACK of the ID card.');
+                if (idBack) idBack.click();
+            } else if (confirm('Front and back are already captured. Retake from the front?')) {
+                frontReady = false;
+                backReady = false;
+                clearFileInput(idFront);
+                clearFileInput(idBack);
+                refreshIdStatus();
+                snapStep = 'front';
+                if (idFront) idFront.click();
+            }
+        });
     }
 
     var modal = document.getElementById('signature-modal');
@@ -242,8 +357,13 @@
         if (!signatureSet || !sigField || !sigField.value) {
             missing.push('add your signature');
         }
-        if (!idSet || !idInput || !idInput.files || !idInput.files.length) {
-            missing.push('attach or snap your ID card');
+        if (!hasIdReady()) {
+            if (idMode === 'snap') {
+                if (!frontReady) missing.push('snap the FRONT of your ID card');
+                if (!backReady) missing.push('snap the BACK of your ID card');
+            } else {
+                missing.push('attach one ID file, or snap front + back');
+            }
         }
         return missing;
     }

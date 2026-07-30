@@ -202,13 +202,7 @@
             <button type="button" class="btn btn-outline" id="open-signature-modal" disabled>Add Signature</button>
             <img id="signature-preview" class="preview-signature" alt="Signature preview">
 
-            <div class="id-options">
-                <label class="btn btn-outline" for="id_card_file">Attach ID Card</label>
-                <label class="btn btn-outline" for="id_card_camera">Snap ID Card</label>
-                <input class="hidden-input" type="file" name="id_card" id="id_card_file" accept="image/*" required>
-                <input class="hidden-input" type="file" id="id_card_camera" accept="image/*" capture="environment">
-            </div>
-            <div id="id-file-name" style="margin-top:8px;font-size:13px;"></div>
+            @include('booking.partials.agreement_id_card_fields')
         </div>
 
         <div class="checkbox-row">

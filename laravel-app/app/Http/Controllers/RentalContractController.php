@@ -58,7 +58,9 @@ class RentalContractController extends Controller
             'agreement_accepted' => 'required|accepted',
             // Mobile retina PNG/JPEG data-URLs can exceed 500KB; client now prefers JPEG.
             'signature_image' => 'required|string|max:2500000',
-            'id_card' => 'required|file|mimes:jpeg,jpg,png|max:10240',
+            'id_card' => 'nullable|file|mimes:jpeg,jpg,png,webp,pdf|max:15360',
+            'id_card_front' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:15360',
+            'id_card_back' => 'nullable|file|mimes:jpeg,jpg,png,webp|max:15360',
         ]);
 
         $booking = $contract->booking;
@@ -69,13 +71,36 @@ class RentalContractController extends Controller
             return back()->withErrors(['agreement' => 'Please read the full rental agreement before signing.'])->withInput();
         }
 
+        $hasSingle = $request->hasFile('id_card');
+        $hasFront = $request->hasFile('id_card_front');
+        $hasBack = $request->hasFile('id_card_back');
+        if (!$hasSingle && !($hasFront && $hasBack)) {
+            return back()->withErrors([
+                'id_card' => 'Please attach one ID file, or snap both the front and back of the ID card.',
+            ])->withInput();
+        }
+        if (($hasFront && !$hasBack) || (!$hasFront && $hasBack)) {
+            return back()->withErrors([
+                'id_card' => 'Camera capture needs both the front and the back of the ID card.',
+            ])->withInput();
+        }
+
         $idPath = null;
-        if ($request->hasFile('id_card')) {
-            try {
-                $idPath = $this->storeCompressedIdCard($request->file('id_card'), $contract->id);
-            } catch (\Exception $e) {
-                return back()->withErrors(['id_card' => 'Could not process ID image. Please upload a JPG or PNG under 5MB.'])->withInput();
+        try {
+            if ($hasFront && $hasBack) {
+                $idPath = $this->storeFrontAndBackIdCards(
+                    $request->file('id_card_front'),
+                    $request->file('id_card_back'),
+                    $contract->id
+                );
+            } else {
+                $idPath = $this->storeIdCardUpload($request->file('id_card'), $contract->id);
             }
+        } catch (\Throwable $e) {
+            Log::warning('ID card upload failed for contract '.$contract->id.': '.$e->getMessage());
+            return back()->withErrors([
+                'id_card' => 'Could not save the ID file. Please attach a JPG, PNG, or PDF (max 15MB), or snap front and back with the camera.',
+            ])->withInput();
         }
 
         $user = $this->ensureClientUser($customer, $phone);
@@ -241,6 +266,37 @@ class RentalContractController extends Controller
 
         if (!$contract->id_card_path) {
             abort(404);
+        }
+
+        $parts = array_values(array_filter(array_map('trim', explode('||', $contract->id_card_path))));
+        if (count($parts) > 1) {
+            $files = [];
+            foreach ($parts as $relative) {
+                $full = public_path($relative);
+                if (is_file($full)) {
+                    $files[] = [
+                        'label' => strpos($relative, '_back') !== false ? 'Back' : (strpos($relative, '_front') !== false ? 'Front' : 'ID'),
+                        'url' => asset($relative),
+                        'path' => $full,
+                    ];
+                }
+            }
+            if (empty($files)) {
+                abort(404);
+            }
+
+            return response(
+                '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'
+                .'<title>ID Card</title><style>body{font-family:sans-serif;margin:16px;background:#111;color:#fff}'
+                .'img{max-width:100%;height:auto;margin:12px 0;border:1px solid #444;border-radius:8px}h2{font-size:16px}</style></head><body>'
+                .'<h1>Uploaded ID</h1>'
+                .collect($files)->map(function ($f) {
+                    return '<h2>'.e($f['label']).'</h2><img src="'.e($f['url']).'" alt="'.e($f['label']).'">';
+                })->implode('')
+                .'</body></html>',
+                200,
+                ['Content-Type' => 'text/html; charset=UTF-8']
+            );
         }
 
         $path = public_path($contract->id_card_path);
@@ -771,26 +827,117 @@ class RentalContractController extends Controller
         return $relativePath;
     }
 
-    private function storeCompressedIdCard($uploadedFile, $contractId)
+    private function ensureIdCardDirectory()
     {
         $directory = public_path('booking_contracts/id_cards');
-        if (!File::exists($directory)) {
-            File::makeDirectory($directory, 0755, true);
+        if (!File::isDirectory($directory)) {
+            File::makeDirectory($directory, 0775, true);
+        }
+        if (!is_writable($directory)) {
+            @chmod($directory, 0775);
+        }
+        if (!is_writable($directory)) {
+            throw new \RuntimeException('ID card storage directory is not writable: '.$directory);
         }
 
-        $filename = 'id_' . $contractId . '_' . time() . '.jpg';
-        $fullPath = $directory . DIRECTORY_SEPARATOR . $filename;
+        return $directory;
+    }
 
-        Image::make($uploadedFile)
-            ->orientate()
-            ->resize(1200, 1200, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            })
-            ->encode('jpg', 72)
-            ->save($fullPath);
+    private function storeIdCardUpload($uploadedFile, $contractId, $suffix = '')
+    {
+        $mime = strtolower((string) $uploadedFile->getMimeType());
+        $ext = strtolower((string) ($uploadedFile->getClientOriginalExtension() ?: ''));
+        if ($ext === 'pdf' || $mime === 'application/pdf') {
+            return $this->storeRawIdCard($uploadedFile, $contractId, $suffix ?: 'doc', 'pdf');
+        }
 
-        return 'booking_contracts/id_cards/' . $filename;
+        return $this->storeCompressedIdCard($uploadedFile, $contractId, $suffix);
+    }
+
+    private function storeFrontAndBackIdCards($frontFile, $backFile, $contractId)
+    {
+        $directory = $this->ensureIdCardDirectory();
+
+        try {
+            $front = Image::make($frontFile->getRealPath() ?: $frontFile->getPathname())
+                ->orientate()
+                ->resize(1200, 1200, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                });
+            $back = Image::make($backFile->getRealPath() ?: $backFile->getPathname())
+                ->orientate()
+                ->resize(1200, 1200, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                });
+
+            $width = max($front->width(), $back->width());
+            $gap = 24;
+            $canvas = Image::canvas($width, $front->height() + $back->height() + $gap, '#ffffff');
+            $canvas->insert($front, 'top-left', (int) (($width - $front->width()) / 2), 0);
+            $canvas->insert($back, 'top-left', (int) (($width - $back->width()) / 2), $front->height() + $gap);
+
+            $filename = 'id_'.$contractId.'_frontback_'.time().'.jpg';
+            $fullPath = $directory.DIRECTORY_SEPARATOR.$filename;
+            $canvas->encode('jpg', 72)->save($fullPath);
+
+            return 'booking_contracts/id_cards/'.$filename;
+        } catch (\Throwable $e) {
+            Log::warning('Could not stitch ID front/back for contract '.$contractId.': '.$e->getMessage());
+            $frontPath = $this->storeIdCardUpload($frontFile, $contractId, 'front');
+            $backPath = $this->storeIdCardUpload($backFile, $contractId, 'back');
+
+            return $frontPath.'||'.$backPath;
+        }
+    }
+
+    private function storeCompressedIdCard($uploadedFile, $contractId, $suffix = '')
+    {
+        $directory = $this->ensureIdCardDirectory();
+        $sourcePath = $uploadedFile->getRealPath() ?: $uploadedFile->getPathname();
+        $filename = 'id_'.$contractId.($suffix !== '' ? '_'.$suffix : '').'_'.time().'.jpg';
+        $fullPath = $directory.DIRECTORY_SEPARATOR.$filename;
+
+        try {
+            Image::make($sourcePath)
+                ->orientate()
+                ->resize(1400, 1400, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->encode('jpg', 72)
+                ->save($fullPath);
+
+            return 'booking_contracts/id_cards/'.$filename;
+        } catch (\Throwable $e) {
+            Log::warning('ID compress failed for contract '.$contractId.': '.$e->getMessage());
+            $ext = strtolower((string) ($uploadedFile->getClientOriginalExtension() ?: 'jpg'));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                $ext = 'jpg';
+            }
+
+            return $this->storeRawIdCard($uploadedFile, $contractId, $suffix, $ext);
+        }
+    }
+
+    private function storeRawIdCard($uploadedFile, $contractId, $suffix, $ext)
+    {
+        $directory = $this->ensureIdCardDirectory();
+        $filename = 'id_'.$contractId.($suffix !== '' ? '_'.$suffix : '').'_'.time().'.'.$ext;
+        $fullPath = $directory.DIRECTORY_SEPARATOR.$filename;
+
+        try {
+            $uploadedFile->move($directory, $filename);
+        } catch (\Throwable $e) {
+            $sourcePath = $uploadedFile->getRealPath() ?: $uploadedFile->getPathname();
+            $bytes = @file_get_contents($sourcePath);
+            if ($bytes === false || @file_put_contents($fullPath, $bytes) === false) {
+                throw new \RuntimeException('Unable to store ID upload: '.$e->getMessage(), 0, $e);
+            }
+        }
+
+        return 'booking_contracts/id_cards/'.$filename;
     }
 
     private function authorizeBookingAccess()

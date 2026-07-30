@@ -1,8 +1,31 @@
 <script>
 (function () {
+    function isLikelyHeic(file) {
+        if (!file) return false;
+        var name = (file.name || '').toLowerCase();
+        var type = (file.type || '').toLowerCase();
+        return type.indexOf('heic') !== -1
+            || type.indexOf('heif') !== -1
+            || /\.heic$/.test(name)
+            || /\.heif$/.test(name);
+    }
+
     function compressImageFile(file, maxWidth, quality, callback) {
-        if (!file || !file.type || file.type.indexOf('image/') !== 0) {
-            callback(file);
+        if (!file) {
+            callback(null, false);
+            return;
+        }
+
+        // PDF and non-images: keep as-is
+        if (!file.type || file.type.indexOf('image/') !== 0) {
+            callback(file, true);
+            return;
+        }
+
+        if (isLikelyHeic(file)) {
+            // Many phones cannot decode HEIC in-browser; ask for camera JPEG or convert.
+            alert('This phone photo format (HEIC) is not supported. Please use “Snap ID” (camera) or attach a JPG/PNG/PDF.');
+            callback(null, false);
             return;
         }
 
@@ -10,8 +33,8 @@
         reader.onload = function (event) {
             var img = new Image();
             img.onload = function () {
-                var width = img.width;
-                var height = img.height;
+                var width = img.width || 1;
+                var height = img.height || 1;
                 if (width > maxWidth) {
                     height = Math.round(height * (maxWidth / width));
                     width = maxWidth;
@@ -21,24 +44,28 @@
                 canvas.width = width;
                 canvas.height = height;
                 var ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
 
                 canvas.toBlob(function (blob) {
                     if (!blob) {
-                        callback(file);
+                        callback(file, true);
                         return;
                     }
                     var compressed = new File([blob], 'id_card.jpg', { type: 'image/jpeg' });
-                    callback(compressed);
+                    callback(compressed, true);
                 }, 'image/jpeg', quality);
             };
             img.onerror = function () {
-                callback(file);
+                alert('Could not read that image. Please use “Snap ID” (camera) or attach a JPG/PNG/PDF.');
+                callback(null, false);
             };
             img.src = event.target.result;
         };
         reader.onerror = function () {
-            callback(file);
+            alert('Could not read that file. Please try again with a JPG, PNG, or PDF.');
+            callback(null, false);
         };
         reader.readAsDataURL(file);
     }
@@ -49,31 +76,43 @@
                 return;
             }
 
-            compressImageFile(input.files[0], 1200, 0.72, function (compressed) {
-                var assigned = false;
-                try {
-                    if (typeof DataTransfer !== 'undefined') {
-                        var dt = new DataTransfer();
-                        dt.items.add(compressed);
-                        targetInput.files = dt.files;
-                        assigned = !!(targetInput.files && targetInput.files.length);
+            compressImageFile(input.files[0], 1400, 0.7, function (compressed, ok) {
+                if (!ok || !compressed) {
+                    try { input.value = ''; } catch (e) {}
+                    if (typeof onReady === 'function') {
+                        onReady('', false);
                     }
-                } catch (e) {
-                    assigned = false;
+                    return;
                 }
-                // If WebView cannot assign files programmatically, keep the original input file.
+
+                var assigned = false;
+                if (input === targetInput && compressed === input.files[0]) {
+                    assigned = true;
+                } else {
+                    try {
+                        if (typeof DataTransfer !== 'undefined') {
+                            var dt = new DataTransfer();
+                            dt.items.add(compressed);
+                            targetInput.files = dt.files;
+                            assigned = !!(targetInput.files && targetInput.files.length);
+                        }
+                    } catch (e) {
+                        assigned = false;
+                    }
+                }
+
                 if (!assigned && input === targetInput && input.files && input.files.length) {
                     assigned = true;
                 } else if (!assigned && input !== targetInput && input.files && input.files.length) {
-                    // Camera path without DataTransfer: point required field at the camera input via name swap.
                     try {
                         targetInput.removeAttribute('name');
-                        input.setAttribute('name', 'id_card');
+                        input.setAttribute('name', targetInput.getAttribute('name') || input.getAttribute('name') || 'id_card');
                         assigned = true;
                     } catch (e2) {}
                 }
+
                 if (typeof onReady === 'function') {
-                    onReady((compressed && compressed.name) || (input.files[0] && input.files[0].name) || 'id_card.jpg');
+                    onReady((compressed && compressed.name) || (input.files[0] && input.files[0].name) || 'id_card.jpg', true);
                 }
             });
         });
