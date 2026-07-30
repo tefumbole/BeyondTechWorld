@@ -50,11 +50,30 @@
             }
 
             compressImageFile(input.files[0], 1200, 0.72, function (compressed) {
-                var dt = new DataTransfer();
-                dt.items.add(compressed);
-                targetInput.files = dt.files;
+                var assigned = false;
+                try {
+                    if (typeof DataTransfer !== 'undefined') {
+                        var dt = new DataTransfer();
+                        dt.items.add(compressed);
+                        targetInput.files = dt.files;
+                        assigned = !!(targetInput.files && targetInput.files.length);
+                    }
+                } catch (e) {
+                    assigned = false;
+                }
+                // If WebView cannot assign files programmatically, keep the original input file.
+                if (!assigned && input === targetInput && input.files && input.files.length) {
+                    assigned = true;
+                } else if (!assigned && input !== targetInput && input.files && input.files.length) {
+                    // Camera path without DataTransfer: point required field at the camera input via name swap.
+                    try {
+                        targetInput.removeAttribute('name');
+                        input.setAttribute('name', 'id_card');
+                        assigned = true;
+                    } catch (e2) {}
+                }
                 if (typeof onReady === 'function') {
-                    onReady(compressed.name || 'id_card.jpg');
+                    onReady((compressed && compressed.name) || (input.files[0] && input.files[0].name) || 'id_card.jpg');
                 }
             });
         });

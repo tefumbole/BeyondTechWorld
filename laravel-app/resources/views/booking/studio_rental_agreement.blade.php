@@ -215,6 +215,10 @@
             <input type="checkbox" name="agreement_accepted" id="agreement_accepted" value="1" disabled>
             <label for="agreement_accepted">I have read and agree to the Studio Rental Agreement and confirm that all information provided is accurate.</label>
         </div>
+        <p style="font-size:13px;margin:8px 0 0;color:#c9d4e8;">Tick the box above, then tap <strong>Submit Agreement</strong> at the bottom.</p>
+        <noscript>
+            <button type="submit" class="btn btn-accent" style="margin-top:12px;">✓ Submit Agreement</button>
+        </noscript>
     </form>
 </div>
 
@@ -223,7 +227,7 @@
         <div>Do you accept the terms of this studio rental agreement?</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <a href="{{ route('login') }}" class="btn btn-danger-outline">I Disagree</a>
-            <button type="submit" form="sign-form" class="btn btn-accent" id="submit-agreement" disabled>✓ Submit Agreement</button>
+            <button type="button" class="btn btn-accent" id="submit-agreement">✓ Submit Agreement</button>
         </div>
     </div>
 </div>
@@ -245,130 +249,7 @@
     </div>
 </div>
 
-@include('booking.partials.id_card_compress_script')
+@include('booking.partials.agreement_sign_script')
 
-<script>
-(function () {
-    var agreementRead = false;
-    var signatureSet = false;
-    var idSet = false;
-    var readField = document.getElementById('agreement_read_confirmed');
-    var acceptBox = document.getElementById('agreement_accepted');
-    var openSigBtn = document.getElementById('open-signature-modal');
-    var submitBtn = document.getElementById('submit-agreement');
-    var idInput = document.getElementById('id_card_file');
-    var cameraInput = document.getElementById('id_card_camera');
-    var idName = document.getElementById('id-file-name');
-
-    function checkAgreementRead() {
-        var scrolledToBottom = window.scrollY + window.innerHeight >= document.body.scrollHeight - 40;
-        if (scrolledToBottom) {
-            agreementRead = true;
-            readField.value = '1';
-            acceptBox.disabled = false;
-            openSigBtn.disabled = false;
-        }
-    }
-    window.addEventListener('scroll', checkAgreementRead);
-    checkAgreementRead();
-
-    acceptBox.addEventListener('change', updateSubmitState);
-
-    function bindIdInput(input) {
-        if (typeof window.bindCompressedIdCardInput === 'function') {
-            window.bindCompressedIdCardInput(input, idInput, function (name) {
-                idSet = true;
-                idName.textContent = 'Selected: ' + name;
-                updateSubmitState();
-            });
-            return;
-        }
-        input.addEventListener('change', function () {
-            if (input.files && input.files[0]) {
-                var dt = new DataTransfer();
-                dt.items.add(input.files[0]);
-                idInput.files = dt.files;
-                idSet = true;
-                idName.textContent = 'Selected: ' + input.files[0].name;
-                updateSubmitState();
-            }
-        });
-    }
-    bindIdInput(idInput);
-    bindIdInput(cameraInput);
-
-    var modal = document.getElementById('signature-modal');
-    var canvas = document.getElementById('signature-pad');
-    var ctx = canvas.getContext('2d');
-    var drawing = false;
-    var hasDrawn = false;
-
-    function resizeCanvas() {
-        var ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        ctx.scale(ratio, ratio);
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#10213d';
-    }
-
-    function getPos(e) {
-        var rect = canvas.getBoundingClientRect();
-        var clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        var clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        return { x: clientX - rect.left, y: clientY - rect.top };
-    }
-
-    function startDraw(e) { drawing = true; hasDrawn = true; ctx.beginPath(); var p = getPos(e); ctx.moveTo(p.x, p.y); e.preventDefault(); }
-    function draw(e) {
-        if (!drawing) return;
-        var p = getPos(e);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-        e.preventDefault();
-    }
-    function endDraw() { drawing = false; }
-
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', endDraw);
-    canvas.addEventListener('mouseleave', endDraw);
-    canvas.addEventListener('touchstart', startDraw, { passive: false });
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    canvas.addEventListener('touchend', endDraw);
-
-    document.getElementById('open-signature-modal').addEventListener('click', function () {
-        modal.classList.add('open');
-        setTimeout(resizeCanvas, 50);
-    });
-    document.getElementById('close-signature-modal').addEventListener('click', function () {
-        modal.classList.remove('open');
-    });
-    document.getElementById('clear-signature').addEventListener('click', function () {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        resizeCanvas();
-        hasDrawn = false;
-    });
-    document.getElementById('confirm-signature').addEventListener('click', function () {
-        if (!hasDrawn) {
-            alert('Please draw your signature first.');
-            return;
-        }
-        var dataUrl = canvas.toDataURL('image/png');
-        document.getElementById('signature_image').value = dataUrl;
-        var preview = document.getElementById('signature-preview');
-        preview.src = dataUrl;
-        preview.style.display = 'block';
-        signatureSet = true;
-        modal.classList.remove('open');
-        updateSubmitState();
-    });
-
-    function updateSubmitState() {
-        submitBtn.disabled = !(agreementRead && acceptBox.checked && signatureSet && idSet);
-    }
-})();
-</script>
 </body>
 </html>

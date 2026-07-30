@@ -56,8 +56,9 @@ class RentalContractController extends Controller
 
         $request->validate([
             'agreement_accepted' => 'required|accepted',
-            'signature_image' => 'required|string|max:500000',
-            'id_card' => 'required|file|mimes:jpeg,jpg,png|max:5120',
+            // Mobile retina PNG/JPEG data-URLs can exceed 500KB; client now prefers JPEG.
+            'signature_image' => 'required|string|max:2500000',
+            'id_card' => 'required|file|mimes:jpeg,jpg,png|max:10240',
         ]);
 
         $booking = $contract->booking;
