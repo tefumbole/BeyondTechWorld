@@ -52,6 +52,9 @@ class WhatsAppMessage
         } elseif ($contractType === 'software_license') {
             $heading = 'Software License Subscription';
             $body = "Please review and sign your software license / subscription agreement with *{$company}*.\n\n";
+        } elseif ($contractType === 'studio_rental') {
+            $heading = 'Studio Rental Agreement';
+            $body = "Please review and sign your studio rental agreement with *{$company}*.\n\n";
         } else {
             $heading = 'Rental Agreement';
             $body = "Please review and sign your equipment rental agreement with *{$company}*.\n\n";

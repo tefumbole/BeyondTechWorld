@@ -185,6 +185,9 @@ class ContractController extends Controller
         if ($type === 'software_license') {
             return 'SFT-LICENSE';
         }
+        if ($type === 'studio_rental') {
+            return 'RNT-STUDIO';
+        }
 
         return 'RNT-EQUIPMENT';
     }

@@ -53,7 +53,7 @@
     @endif
 
     <div class="portal-card">
-        <h4>{{ ($contract->contract_type ?? '') === 'software_license' ? 'Your Subscriptions' : 'Your Rentals' }}</h4>
+        <h4>{{ ($contract->contract_type ?? '') === 'software_license' ? 'Your Subscriptions' : (($contract->contract_type ?? '') === 'studio_rental' ? 'Your Studio Sessions' : 'Your Rentals') }}</h4>
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>

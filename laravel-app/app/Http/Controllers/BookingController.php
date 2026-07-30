@@ -1057,10 +1057,10 @@ class BookingController extends Controller
 
         if (!empty($data['send_for_signature'])) {
             $contractType = $request->input('contract_type');
-            if (!in_array($contractType, ['equipment', 'accommodation', 'software_license'], true)) {
+            if (!in_array($contractType, ['equipment', 'accommodation', 'software_license', 'studio_rental'], true)) {
                 return redirect()->back()->withInput()->with(
                     'not_permitted',
-                    'Please select Equipment Rental, Accommodation, or Licenses Software Subscription before sending for signature.'
+                    'Please select Equipment Rental, Accommodation, Licenses Software Subscription, or Studio Rental before sending for signature.'
                 );
             }
             $customer = Customer::find($data['customer_id'] ?? null);
@@ -1515,6 +1515,8 @@ class BookingController extends Controller
                 $contractLabel = 'Accommodation agreement';
             } elseif ($contractType === 'software_license') {
                 $contractLabel = 'Software license subscription agreement';
+            } elseif ($contractType === 'studio_rental') {
+                $contractLabel = 'Studio rental agreement';
             } else {
                 $contractLabel = 'Equipment rental agreement';
             }

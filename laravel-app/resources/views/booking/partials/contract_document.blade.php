@@ -4,6 +4,8 @@
         $agreementTitle = 'Student Accommodation Agreement';
     } elseif ($type === 'software_license') {
         $agreementTitle = 'Software License Subscription Agreement';
+    } elseif ($type === 'studio_rental') {
+        $agreementTitle = 'Studio Rental Agreement';
     } else {
         $agreementTitle = 'Equipment Rental Agreement';
     }
@@ -35,7 +37,58 @@
         @endif
     </div>
 
-    @if($type === 'software_license')
+    @if($type === 'studio_rental')
+        <div class="contract-section mb-3">
+            <h5 style="color:#0b3f90;">1. Studio Session Summary</h5>
+            <p>Studio rentals may be booked Hourly, Daily, or Monthly. Sessions below show method, duration, and schedule.</p>
+        </div>
+        <div class="contract-section mb-3">
+            <h5 style="color:#0b3f90;">2. Settling-In Time &amp; Extensions</h5>
+            <p>Allow enough time for settling in and wrap-up. When booked time ends, adding another hour is subject to approval and availability.</p>
+        </div>
+        <div class="contract-section mb-3">
+            <h5 style="color:#0b3f90;">3. Overtime Charges</h5>
+            <p>Overtime is billed at <strong>12,000 XAF for 0–60 minutes</strong> (or any part thereof), unless a longer extension is separately approved and priced.</p>
+        </div>
+        <div class="contract-section mb-3">
+            <h5 style="color:#0b3f90;">4. Non-Refundable &amp; Generator Fuel</h5>
+            <p>Studio rentals are <strong>not refundable</strong>. Generator fuel is <strong>3,200 XAF per hour</strong> and must be requested by the client. If fuel is not requested and there is an outage, the session is lost with no refund.</p>
+        </div>
+        <div class="contract-section mb-4">
+            <h5 style="color:#0b3f90;">5. Session List &amp; Pricing</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Studio / Service</th>
+                            <th>Code</th>
+                            <th>Method</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Subtotal</th>
+                            <th>From</th>
+                            <th>To</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($items as $item)
+                            <tr>
+                                <td>{{ $item['name'] }}</td>
+                                <td>{{ $item['code'] }}</td>
+                                <td>{{ $item['booking_method'] ?? 'Hourly' }}@if(!empty($item['number_duration'])) × {{ $item['number_duration'] }}@endif</td>
+                                <td>{{ $item['qty'] }}</td>
+                                <td>{{ number_format($item['unit_price'], 2) }}</td>
+                                <td>{{ number_format($item['total'], 2) }}</td>
+                                <td>{{ $item['start'] ? date('d M Y, H:i', strtotime($item['start'])) : 'As agreed' }}</td>
+                                <td>{{ $item['end'] ? date('d M Y, H:i', strtotime($item['end'])) : 'As agreed' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>Grand Total: {{ number_format($booking->grand_total, 2) }}</strong></p>
+        </div>
+    @elseif($type === 'software_license')
         <div class="contract-section mb-3">
             <h5 style="color:#0b3f90;">1. Subscription Summary</h5>
             <p>The client has subscribed for the product(s) / service(s) below. The subscription runs from the start date through the expiry date shown for each item.</p>

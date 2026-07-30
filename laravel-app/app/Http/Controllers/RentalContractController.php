@@ -403,7 +403,7 @@ class RentalContractController extends Controller
 
     public static function createForBooking(Booking $booking, $contractType = null)
     {
-        $type = in_array($contractType, ['equipment', 'accommodation', 'software_license'], true)
+        $type = in_array($contractType, ['equipment', 'accommodation', 'software_license', 'studio_rental'], true)
             ? $contractType
             : BookingCategoryHelper::contractTypeForBooking($booking);
 
@@ -663,6 +663,9 @@ class RentalContractController extends Controller
         if ($type === 'software_license') {
             return 'booking.software_license_agreement';
         }
+        if ($type === 'studio_rental') {
+            return 'booking.studio_rental_agreement';
+        }
 
         return 'booking.rental_agreement';
     }
@@ -676,6 +679,9 @@ class RentalContractController extends Controller
         }
         if ($type === 'software_license') {
             return 'pdf.signed_software_license_contract';
+        }
+        if ($type === 'studio_rental') {
+            return 'pdf.signed_studio_rental_contract';
         }
 
         return 'pdf.signed_rental_contract';
@@ -807,6 +813,8 @@ class RentalContractController extends Controller
 
         foreach ($booking->bookingProduct as $line) {
             $product = $line->product;
+            $method = (int) $line->booking_method;
+            $methodLabel = $method === 1 ? 'Daily' : ($method === 2 ? 'Monthly' : 'Hourly');
             $items[] = [
                 'name' => $product ? $product->name : 'Equipment',
                 'code' => $product ? $product->code : '',
@@ -815,6 +823,8 @@ class RentalContractController extends Controller
                 'total' => $line->total,
                 'start' => $line->start,
                 'end' => $line->end,
+                'booking_method' => $methodLabel,
+                'number_duration' => $line->number_duration,
             ];
         }
 

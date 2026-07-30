@@ -751,6 +751,10 @@
                                         <input type="radio" class="custom-control-input" id="contract_type_software_license" name="contract_type" value="software_license">
                                         <label class="custom-control-label" for="contract_type_software_license"><strong>Licenses Software Subscription</strong> (IPTV, antivirus, software licenses)</label>
                                     </div>
+                                    <div class="custom-control custom-radio mb-2">
+                                        <input type="radio" class="custom-control-input" id="contract_type_studio_rental" name="contract_type" value="studio_rental">
+                                        <label class="custom-control-label" for="contract_type_studio_rental"><strong>Studio Rental Agreement</strong> (hourly / daily / monthly sessions)</label>
+                                    </div>
                                     <p class="text-muted mb-0">When a contract type is selected, use <strong>Save &amp; Send for Signature</strong> to WhatsApp the agreement link to the client. The booking receipt is generated only after the client signs. Signature is allowed only once.</p>
                                     <input type="hidden" name="send_for_signature" id="send_for_signature" value="0">
                                 </div>
@@ -1141,7 +1145,7 @@
     }
 
     function isSignatureContractType(type) {
-        return type === 'equipment' || type === 'accommodation' || type === 'software_license';
+        return type === 'equipment' || type === 'accommodation' || type === 'software_license' || type === 'studio_rental';
     }
 
     function toggleContractSendButton() {
@@ -1161,7 +1165,7 @@
         var type = selectedContractType();
         if (!isSignatureContractType(type)) {
             e.preventDefault();
-            alert('Please select Equipment Rental, Accommodation, or Licenses Software Subscription.');
+            alert('Please select Equipment Rental, Accommodation, Licenses Software Subscription, or Studio Rental.');
             return false;
         }
         $('#send_for_signature').val('1');
