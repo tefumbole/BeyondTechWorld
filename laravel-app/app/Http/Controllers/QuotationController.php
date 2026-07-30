@@ -423,9 +423,12 @@ class QuotationController extends Controller
         $setting = GeneralSetting::first();
         $data = $request->all();
         $lims_quotation_data = Quotation::find($data['quotation_id']);
+        if (!$lims_quotation_data) {
+            return redirect()->back()->with('not_permitted', 'Quotation not found.');
+        }
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $data['quotation_id'])->get();
         $lims_customer_data = Customer::find($lims_quotation_data->customer_id);
-        if($lims_customer_data->email) {
+        if($lims_customer_data && $lims_customer_data->email) {
             //collecting male data
             $mail_data['email'] = $lims_customer_data->email;
             $mail_data['reference_no'] = $lims_quotation_data->reference_no;
@@ -888,6 +891,9 @@ class QuotationController extends Controller
                 ->select('products.*', 'product_variants.id as product_variant_id', 'product_variants.item_code', 'product_variants.additional_price')
                 ->where('product_variants.item_code', $product_code[0])
                 ->first();
+            if (!$lims_product_data) {
+                return response()->json([], 200);
+            }
             $product_variant_id = $lims_product_data->product_variant_id;
             $lims_product_data->code = $lims_product_data->item_code;
             $lims_product_data->price += $lims_product_data->additional_price;
@@ -951,6 +957,9 @@ class QuotationController extends Controller
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
         foreach ($lims_product_quotation_data as $key => $product_quotation_data) {
             $product = Product::find($product_quotation_data->product_id);
+            if (!$product) {
+                continue;
+            }
             if($product_quotation_data->variant_id) {
                 $lims_product_variant_data = ProductVariant::select('item_code')->FindExactProduct($product_quotation_data->product_id, $product_quotation_data->variant_id)->first();
                 $product->code = $lims_product_variant_data->item_code;
@@ -979,6 +988,16 @@ class QuotationController extends Controller
         return $product_quotation;
     }
 
+    /**
+     * The quotation list uses a modal for viewing; a direct GET /quotations/{id}
+     * (resource show) should land on the list instead of 500ing on a missing
+     * controller method.
+     */
+    public function show($id)
+    {
+        return redirect()->route('quotations.index');
+    }
+
     public function edit($id)
     {
         $role = Role::find(Auth::user()->role_id);
@@ -986,6 +1005,9 @@ class QuotationController extends Controller
             extract($this->activeMasters());
             extract($this->formExtras());
             $lims_quotation_data = Quotation::find($id);
+            if (!$lims_quotation_data) {
+                return redirect()->route('quotations.index')->with('not_permitted', 'Quotation not found.');
+            }
             // Keep currently selected inactive records visible so edit doesn't break
             if ($lims_quotation_data) {
                 if ($lims_quotation_data->customer_id && ! $lims_customer_list->contains('id', $lims_quotation_data->customer_id)) {
@@ -1303,6 +1325,6 @@ class QuotationController extends Controller
             $product_quotation_data->delete();
         }
         $lims_quotation_data->delete();
-        return redirect('quotations')->with('not_permitted', 'Quotation deleted successfully');
+        return redirect('quotations')->with('message', 'Quotation deleted successfully');
     }
 }

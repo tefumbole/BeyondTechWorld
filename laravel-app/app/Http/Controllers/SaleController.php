@@ -69,6 +69,9 @@ class SaleController extends Controller
     public function genPDFInvoice($id)
     {
         $lims_sale_data = Sale::find($id);
+        if (!$lims_sale_data) {
+            return back()->with('not_permitted', 'Sale not found.');
+        }
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
 
         $content = $this->buildSaleInvoicePdfBinary($id);
@@ -416,10 +419,7 @@ class SaleController extends Controller
                 $data['reference_no'] = 'posr-' . date("Ymd") . '-'. date("his");
 
             $balance = $data['grand_total'] - $data['paid_amount'];
-            if($balance > 0 || $balance < 0)
-                $data['payment_status'] = 2;
-            else
-                $data['payment_status'] = 4;
+            $data['payment_status'] = $this->paymentStatusForBalance($data['paid_amount'], $balance);
 
             if($data['paid_by_id'] == 8 || $data['paid_by_id'] == 9) {
                 $data['payment_status'] = 1;
@@ -1002,7 +1002,7 @@ class SaleController extends Controller
         $balance = $lims_sale_data->grand_total - $lims_sale_data->paid_amount;
         if ($balance > 0 || $balance < 0) {
 
-            $lims_sale_data->payment_status = 2;
+            $lims_sale_data->payment_status = $this->paymentStatusForBalance($lims_sale_data->paid_amount, $balance);
         } elseif ($balance == 0) {
             $lims_sale_data->payment_status = 4;
             if ($lims_sale_data->products->count() > 0) {
@@ -1085,11 +1085,7 @@ class SaleController extends Controller
 
         $lims_sale_data->paid_amount += $data['amount'];
         $balance = $lims_sale_data->grand_total - $lims_sale_data->paid_amount;
-        if ($balance > 0 || $balance < 0) {
-            $lims_sale_data->payment_status = 2;
-        } elseif ($balance == 0) {
-            $lims_sale_data->payment_status = 4;
-        }
+        $lims_sale_data->payment_status = $this->paymentStatusForBalance($lims_sale_data->paid_amount, $balance);
         $paying_method = 'Momo/Orange';
 
         $cash_register_data = CashRegister::where([
@@ -1902,7 +1898,7 @@ class SaleController extends Controller
             return $product;
 
         } else {
-            return back()->with('not_permitted', 'Product created successfully');
+            return back()->with('message', 'Product created successfully');
         }
     }
 
@@ -2334,10 +2330,7 @@ class SaleController extends Controller
             $data['document'] = $documentName;
         }
         $balance = $data['grand_total'] - $data['paid_amount'];
-        if($balance < 0 || $balance > 0)
-            $data['payment_status'] = 2;
-        else
-            $data['payment_status'] = 4;
+        $data['payment_status'] = $this->paymentStatusForBalance($data['paid_amount'], $balance);
         $lims_sale_data = Sale::find($id);
         $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
         $product_id = $data['product_id'];
@@ -2582,7 +2575,33 @@ class SaleController extends Controller
     public function printLastReciept()
     {
         $sale = Sale::where('sale_status', 1)->latest()->first();
+        if (!$sale) {
+            return redirect()->route('sales.index')->with('not_permitted', 'No completed sale found to print.');
+        }
         return redirect()->route('sale.invoice', $sale->id);
+    }
+
+    /**
+     * The sales list uses a modal for viewing; a direct GET /sales/{id} hit
+     * (resource show) should land on the printable invoice instead of 500ing
+     * on a missing controller method.
+     */
+    public function show($id)
+    {
+        return redirect()->route('sale.invoice', $id);
+    }
+
+    /**
+     * Resolve a sale payment_status from the paid amount and remaining balance.
+     * 4 = Paid (fully paid or overpaid), 3 = Partial (some paid, balance remains),
+     * 2 = Due (nothing paid yet).
+     */
+    private function paymentStatusForBalance($paidAmount, $balance)
+    {
+        if ($balance <= 0) {
+            return 4;
+        }
+        return $paidAmount > 0 ? 3 : 2;
     }
 
     public function barcodePng($ref)
@@ -2617,6 +2636,9 @@ class SaleController extends Controller
             $all_permission[] = $permission->name;
         }
         $lims_sale_data = Sale::find($id);
+        if (!$lims_sale_data) {
+            return redirect()->route('sales.index')->with('not_permitted', 'Sale not found.');
+        }
         $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
         $lims_biller_data = Biller::find($lims_sale_data->biller_id);
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
@@ -2659,10 +2681,7 @@ class SaleController extends Controller
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
         $lims_sale_data->paid_amount += $data['amount'];
         $balance = $lims_sale_data->grand_total - $lims_sale_data->paid_amount;
-        if ($balance > 0 || $balance < 0)
-            $lims_sale_data->payment_status = 2;
-        elseif ($balance == 0)
-            $lims_sale_data->payment_status = 4;
+        $lims_sale_data->payment_status = $this->paymentStatusForBalance($lims_sale_data->paid_amount, $balance);
 
         if ($data['paid_by_id'] == 1)
             $paying_method = 'Cash';
@@ -2889,10 +2908,7 @@ class SaleController extends Controller
         $amount_dif = $lims_payment_data->amount - $data['edit_amount'];
         $lims_sale_data->paid_amount = $lims_sale_data->paid_amount - $amount_dif;
         $balance = $lims_sale_data->grand_total - $lims_sale_data->paid_amount;
-        if($balance > 0 || $balance < 0)
-            $lims_sale_data->payment_status = 2;
-        elseif ($balance == 0)
-            $lims_sale_data->payment_status = 4;
+        $lims_sale_data->payment_status = $this->paymentStatusForBalance($lims_sale_data->paid_amount, $balance);
         $lims_sale_data->save();
 
         if($lims_payment_data->paying_method == 'Deposit') {
@@ -3071,10 +3087,7 @@ class SaleController extends Controller
         $lims_sale_data = Sale::where('id', $lims_payment_data->sale_id)->first();
         $lims_sale_data->paid_amount -= $lims_payment_data->amount;
         $balance = $lims_sale_data->grand_total - $lims_sale_data->paid_amount;
-        if($balance > 0 || $balance < 0)
-            $lims_sale_data->payment_status = 2;
-        elseif ($balance == 0)
-            $lims_sale_data->payment_status = 4;
+        $lims_sale_data->payment_status = $this->paymentStatusForBalance($lims_sale_data->paid_amount, $balance);
         $lims_sale_data->save();
 
         if ($lims_payment_data->paying_method == 'Gift Card') {
@@ -3117,7 +3130,7 @@ class SaleController extends Controller
             $lims_customer_data->save();
         }
         $lims_payment_data->delete();
-        return redirect('sales')->with('not_permitted', 'Payment deleted successfully');
+        return redirect('sales')->with('message', 'Payment deleted successfully');
     }
 
     public function todaySale()

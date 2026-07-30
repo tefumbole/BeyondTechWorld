@@ -41,7 +41,7 @@
 		<tr>
 			<td colspan="4" style="border: 1px solid #000; padding: 5px"><strong>Shipping Cost</strong> </td>
 			<td style="border: 1px solid #000; padding: 5px">
-				@if($order_discount){{$shipping_cost}}
+				@if($shipping_cost){{$shipping_cost}}
 				@else 0 @endif
 			</td>
 		</tr>
