@@ -3269,7 +3269,7 @@ class SaleController extends Controller
                             ['warehouse_id', $lims_sale_data->warehouse_id]
                         ])->first();
 
-                        $lims_product_batch_data->qty -= $product_sale->qty;
+                        $lims_product_batch_data->qty += $product_sale->qty;
                         if ($lims_product_batch_data->qty < 0) {
                             $lims_product_batch_data->qty = 0;
                         }
@@ -3380,7 +3380,7 @@ class SaleController extends Controller
                         ['warehouse_id', $lims_sale_data->warehouse_id]
                     ])->first();
 
-                    $lims_product_batch_data->qty -= $product_sale->qty;
+                    $lims_product_batch_data->qty += $product_sale->qty;
                     if ($lims_product_batch_data->qty < 0) {
                         $lims_product_batch_data->qty = 0;
                     }

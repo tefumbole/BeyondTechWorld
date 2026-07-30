@@ -465,9 +465,13 @@ class QuotationController extends Controller
                     $message->to( $mail_data['email'] )->subject( 'Quotation Details' );
                 });
                 $message = 'Mail sent successfully';
-                $lims_quotation_data->quotation_status = Quotation::STATUS_AWAITING;
-                $lims_quotation_data->rotateApprovalToken();
-                $lims_quotation_data->save();
+                // Never downgrade a quotation the client already approved or rejected;
+                // only (re)open the approval window for pending/awaiting quotations.
+                if (!in_array($lims_quotation_data->quotation_status, [Quotation::STATUS_APPROVED, Quotation::STATUS_REJECTED], true)) {
+                    $lims_quotation_data->quotation_status = Quotation::STATUS_AWAITING;
+                    $lims_quotation_data->rotateApprovalToken();
+                    $lims_quotation_data->save();
+                }
             }
             catch(\Exception $e){
                 $message = 'Please setup your <a href="setting/mail_setting">mail setting</a> to send mail.';
