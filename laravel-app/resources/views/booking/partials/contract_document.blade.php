@@ -238,7 +238,31 @@
             @endif
         </div>
         @if(!empty($contract->id_card_path))
-            <p class="mt-3"><strong>ID Verification:</strong> <a href="{{ route('booking.contract.id-card', $contract->id) }}" target="_blank" rel="noopener">View uploaded ID</a></p>
+            <div class="mt-3">
+                <p class="mb-2"><strong>ID Verification</strong> &mdash;
+                    <a href="{{ route('booking.contract.id-card', $contract->id) }}" target="_blank" rel="noopener">open full size</a>
+                </p>
+                @if(!empty($idCardImages))
+                    <div class="row">
+                        @foreach($idCardImages as $idImg)
+                            <div class="col-md-6 mb-3">
+                                <p class="mb-1 text-muted small">{{ $idImg['label'] }}</p>
+                                @if($idImg['is_pdf'])
+                                    <a href="{{ $idImg['url'] }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-file-pdf-o"></i> View ID PDF
+                                    </a>
+                                @else
+                                    <a href="{{ $idImg['url'] }}" target="_blank" rel="noopener">
+                                        <img src="{{ $idImg['url'] }}" alt="{{ $idImg['label'] }}" style="max-width:100%;max-height:260px;border:1px solid #d7e0ef;border-radius:8px;padding:4px;">
+                                    </a>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <a href="{{ route('booking.contract.id-card', $contract->id) }}" target="_blank" rel="noopener">View uploaded ID</a>
+                @endif
+            </div>
         @endif
     </div>
 

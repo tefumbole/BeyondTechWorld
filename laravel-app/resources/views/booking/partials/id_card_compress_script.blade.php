@@ -76,7 +76,7 @@
                 return;
             }
 
-            compressImageFile(input.files[0], 1400, 0.7, function (compressed, ok) {
+            compressImageFile(input.files[0], 1000, 0.6, function (compressed, ok) {
                 if (!ok || !compressed) {
                     try { input.value = ''; } catch (e) {}
                     if (typeof onReady === 'function') {

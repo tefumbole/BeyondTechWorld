@@ -7,7 +7,7 @@
                 <h4 class="mb-0">Signed Contract — {{ $booking->reference_no }}</h4>
                 <div>
                     @if($contract->signed_pdf_path)
-                        <a href="{{ url($contract->signed_pdf_path) }}" target="_blank" class="btn btn-sm btn-primary"><i class="dripicons-download"></i> Download PDF</a>
+                        <a href="{{ url('public/' . ltrim($contract->signed_pdf_path, '/')) }}" target="_blank" class="btn btn-sm btn-primary"><i class="dripicons-download"></i> Download PDF</a>
                     @endif
                     @if($contract->isPendingReview())
                         <a href="{{ route('booking.contract.review', $contract->id) }}" class="btn btn-sm btn-warning"><i class="dripicons-pencil"></i> Review & Sign</a>

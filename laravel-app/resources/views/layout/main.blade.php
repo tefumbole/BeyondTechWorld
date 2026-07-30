@@ -1250,9 +1250,6 @@
                                     @if(in_array('booking_signed_contracts', $all_permission))
                                         <li id="booking-signed-menu"><a href="{{route('booking.signed-contracts')}}">Signed Contracts</a></li>
                                     @endif
-                                    @if(in_array('booking_goods_received', $all_permission))
-                                        <li id="booking-goods-received-menu"><a href="{{route('booking.goods-received')}}">Goods Received</a></li>
-                                    @endif
                                     @if($booking_report_active)
                                         <li id="booking-report-menu">
                                             <a href="{{url('report/daily_booking/'.date('Y').'/'.date('m'))}}">Booking Calender</a>

@@ -127,8 +127,15 @@ class RentalContractController extends Controller
 
         $this->notifyPendingReview($contract->fresh());
 
+        // Client receives a full booking/quotation copy (products, schedule, totals) — without the agreement.
+        try {
+            app(BookingController::class)->deliverPostSignatureReceipt($booking->id);
+        } catch (\Throwable $e) {
+            Log::warning('Post-sign booking copy to client failed for booking ' . $booking->reference_no . ': ' . $e->getMessage());
+        }
+
         return redirect()->route('rental.portal', $token)
-            ->with('message', 'Agreement signed successfully. Our team will review and countersign shortly. You will receive the final PDF and QR code via WhatsApp once approved.');
+            ->with('message', 'Agreement signed successfully. A copy of your booking details has been sent to you on WhatsApp. Our team will review and countersign shortly; you will receive the final PDF and QR code once approved.');
     }
 
     public function portal($token)
@@ -245,6 +252,7 @@ class RentalContractController extends Controller
         $footer = ($general_setting->invoice_format ?? '') === 'beyond_a4' ? url('public/logo/' . $general_setting->email_footer) : null;
         $clientSignatureSrc = $this->signatureDisplaySrc($contract, 'client');
         $adminSignatureSrc = $this->signatureDisplaySrc($contract, 'admin');
+        $idCardImages = $this->idCardImageData($contract);
 
         return view('booking.contract_view', compact(
             'contract',
@@ -254,7 +262,8 @@ class RentalContractController extends Controller
             'header',
             'footer',
             'clientSignatureSrc',
-            'adminSignatureSrc'
+            'adminSignatureSrc',
+            'idCardImages'
         ));
     }
 
@@ -325,6 +334,7 @@ class RentalContractController extends Controller
         $header = ($general_setting->invoice_format ?? '') === 'beyond_a4' ? url('public/logo/' . $general_setting->email_header) : null;
         $footer = ($general_setting->invoice_format ?? '') === 'beyond_a4' ? url('public/logo/' . $general_setting->email_footer) : null;
         $clientSignatureSrc = $this->signatureDisplaySrc($contract, 'client');
+        $idCardImages = $this->idCardImageData($contract);
 
         return view('booking.contract_review', compact(
             'contract',
@@ -333,7 +343,8 @@ class RentalContractController extends Controller
             'items',
             'header',
             'footer',
-            'clientSignatureSrc'
+            'clientSignatureSrc',
+            'idCardImages'
         ));
     }
 
@@ -560,7 +571,7 @@ class RentalContractController extends Controller
         $signedPdfRelative = $this->generateSignedContractPdf($contract, $booking, $general_setting, $items);
         $contract->update(['signed_pdf_path' => $signedPdfRelative]);
         $signedPdfPath = public_path($signedPdfRelative);
-        $signedPdfUrl = url($signedPdfRelative);
+        $signedPdfUrl = $this->publicAssetUrl($signedPdfRelative);
 
         if ($customer && !empty(trim((string) $customer->phone_number))) {
             try {
@@ -655,8 +666,8 @@ class RentalContractController extends Controller
         $qrRelative = $this->generateRentalQrImage($contract);
         $signedPdfPath = public_path($signedPdfRelative);
         $qrPath = public_path($qrRelative);
-        $signedPdfUrl = url($signedPdfRelative);
-        $qrUrl = url($qrRelative);
+        $signedPdfUrl = $this->publicAssetUrl($signedPdfRelative);
+        $qrUrl = $this->publicAssetUrl($qrRelative);
         $scanUrl = url('rental/scan/' . $contract->qr_token);
         $portalUrl = url('rental-portal/' . $contract->signature_token);
 
@@ -684,8 +695,6 @@ class RentalContractController extends Controller
             $this->sendWhatsAppDocumentToPhone($creator->phone, $signedPdfPath, 'signed_rental_agreement.pdf', $signedPdfUrl);
             $this->sendWhatsAppDocumentToPhone($creator->phone, $qrPath, 'rental_qr.png', $qrUrl);
         }
-
-        app(BookingController::class)->deliverPostSignatureReceipt($booking->id);
     }
 
     private function generateSignedContractPdf(BookingContract $contract, Booking $booking, $general_setting, array $items)
@@ -800,8 +809,8 @@ class RentalContractController extends Controller
     {
         $data = $type === 'admin' ? $contract->admin_signature_image : $contract->signature_image;
         if (empty($data)) {
-            $path = public_path('booking_contracts/signatures/' . $type . '_' . $contract->id . '.png');
-            return file_exists($path) ? url('booking_contracts/signatures/' . $type . '_' . $contract->id . '.png') : null;
+            $relative = 'booking_contracts/signatures/' . $type . '_' . $contract->id . '.png';
+            return file_exists(public_path($relative)) ? $this->publicAssetUrl($relative) : null;
         }
 
         if (strpos($data, 'data:image') === 0) {
@@ -809,6 +818,38 @@ class RentalContractController extends Controller
         }
 
         return 'data:image/png;base64,' . $data;
+    }
+
+    /**
+     * The site document root is the Laravel app root, so public/ files are served
+     * from beyondtechworld.com/public/... . public_path() reads them from disk.
+     */
+    private function publicAssetUrl($relativePath)
+    {
+        return url('public/' . ltrim((string) $relativePath, '/'));
+    }
+
+    private function idCardImageData(BookingContract $contract)
+    {
+        if (empty($contract->id_card_path)) {
+            return [];
+        }
+
+        $parts = array_values(array_filter(array_map('trim', explode('||', $contract->id_card_path))));
+        $out = [];
+        foreach ($parts as $relative) {
+            $ext = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+            $label = strpos($relative, '_back') !== false
+                ? 'Back'
+                : (strpos($relative, '_front') !== false ? 'Front' : 'ID Card');
+            $out[] = [
+                'label' => $label,
+                'url' => $this->publicAssetUrl($relative),
+                'is_pdf' => $ext === 'pdf',
+            ];
+        }
+
+        return $out;
     }
 
     private function generateRentalQrImage(BookingContract $contract)
@@ -861,13 +902,13 @@ class RentalContractController extends Controller
         try {
             $front = Image::make($frontFile->getRealPath() ?: $frontFile->getPathname())
                 ->orientate()
-                ->resize(1200, 1200, function ($constraint) {
+                ->resize(1000, 1000, function ($constraint) {
                     $constraint->aspectRatio();
                     $constraint->upsize();
                 });
             $back = Image::make($backFile->getRealPath() ?: $backFile->getPathname())
                 ->orientate()
-                ->resize(1200, 1200, function ($constraint) {
+                ->resize(1000, 1000, function ($constraint) {
                     $constraint->aspectRatio();
                     $constraint->upsize();
                 });
@@ -880,7 +921,7 @@ class RentalContractController extends Controller
 
             $filename = 'id_'.$contractId.'_frontback_'.time().'.jpg';
             $fullPath = $directory.DIRECTORY_SEPARATOR.$filename;
-            $canvas->encode('jpg', 72)->save($fullPath);
+            $canvas->encode('jpg', 60)->save($fullPath);
 
             return 'booking_contracts/id_cards/'.$filename;
         } catch (\Throwable $e) {
@@ -902,11 +943,11 @@ class RentalContractController extends Controller
         try {
             Image::make($sourcePath)
                 ->orientate()
-                ->resize(1400, 1400, function ($constraint) {
+                ->resize(1000, 1000, function ($constraint) {
                     $constraint->aspectRatio();
                     $constraint->upsize();
                 })
-                ->encode('jpg', 72)
+                ->encode('jpg', 60)
                 ->save($fullPath);
 
             return 'booking_contracts/id_cards/'.$filename;

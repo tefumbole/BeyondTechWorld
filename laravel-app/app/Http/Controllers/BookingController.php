@@ -1589,7 +1589,7 @@ class BookingController extends Controller
         try {
             $pdfPath = $this->buildBookingPdfFile($bookingId);
             $relative = 'booking_receipts/booking_invoice_' . $lims_sale_data->reference_no . '.pdf';
-            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_receipt.pdf', url($relative));
+            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_receipt.pdf', url('public/' . ltrim($relative, '/')));
         } catch (\Exception $e) {
             // WhatsApp receipt optional if settings missing.
         }

@@ -38,7 +38,7 @@
                                     <td>
                                         <a href="{{ route('booking.contract.view', $contract->id) }}" class="btn btn-sm btn-info"><i class="dripicons-preview"></i> View Contract</a>
                                         @if($contract->signed_pdf_path)
-                                            <a href="{{ url($contract->signed_pdf_path) }}" target="_blank" class="btn btn-sm btn-primary"><i class="dripicons-download"></i> PDF</a>
+                                            <a href="{{ url('public/' . ltrim($contract->signed_pdf_path, '/')) }}" target="_blank" class="btn btn-sm btn-primary"><i class="dripicons-download"></i> PDF</a>
                                         @endif
                                         @if($booking)
                                             <a href="{{ url('bookings/gen_invoice/' . $booking->id) }}" class="btn btn-sm btn-secondary"><i class="dripicons-document"></i> Receipt</a>

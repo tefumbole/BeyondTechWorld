@@ -324,8 +324,21 @@
                 return;
             }
             markAgreementRead();
-            // JPEG is much smaller than PNG — avoids silent validation failures on mobile.
-            var dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+            // Composite onto a white background: JPEG has no transparency, so exporting the
+            // transparent signature pad directly turns the whole image into a black box.
+            var dataUrl;
+            try {
+                var flat = document.createElement('canvas');
+                flat.width = canvas.width;
+                flat.height = canvas.height;
+                var fctx = flat.getContext('2d');
+                fctx.fillStyle = '#ffffff';
+                fctx.fillRect(0, 0, flat.width, flat.height);
+                fctx.drawImage(canvas, 0, 0);
+                dataUrl = flat.toDataURL('image/jpeg', 0.8);
+            } catch (err) {
+                dataUrl = canvas.toDataURL('image/png');
+            }
             if (sigField) {
                 sigField.value = dataUrl;
             }

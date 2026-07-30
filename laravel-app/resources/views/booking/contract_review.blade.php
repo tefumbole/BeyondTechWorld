@@ -24,6 +24,7 @@
                     'footer' => $footer,
                     'clientSignatureSrc' => $clientSignatureSrc,
                     'adminSignatureSrc' => null,
+                    'idCardImages' => $idCardImages ?? [],
                 ])
 
                 <hr>

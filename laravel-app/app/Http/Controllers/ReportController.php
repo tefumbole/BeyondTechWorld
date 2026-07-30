@@ -229,10 +229,21 @@ class ReportController extends Controller
         $calendar = $this->buildBookingCalendarData($year, $month, $warehouse_id, $product_ids);
         $lims_warehouse_list = Warehouse::where('is_active', true)->get();
         $excludedCategoryIds = BookingCategoryHelper::calendarExcludedCategoryIds();
-        $lims_product_list = Product::where('is_active', true)
-            ->whereNotIn('type', ['standard'])
-            ->when(!empty($excludedCategoryIds), function ($query) use ($excludedCategoryIds) {
-                $query->whereNotIn('category_id', $excludedCategoryIds);
+        // List every product that has ever been booked, plus all active products, so the
+        // filter always includes items the user actually booked (regardless of product type).
+        $bookedProductIds = BookingProduct::query()
+            ->distinct()
+            ->pluck('product_id')
+            ->filter()
+            ->all();
+        $lims_product_list = Product::where(function ($query) use ($bookedProductIds, $excludedCategoryIds) {
+                $query->where('is_active', true)
+                    ->when(!empty($excludedCategoryIds), function ($q) use ($excludedCategoryIds) {
+                        $q->whereNotIn('category_id', $excludedCategoryIds);
+                    });
+                if (!empty($bookedProductIds)) {
+                    $query->orWhereIn('id', $bookedProductIds);
+                }
             })
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
