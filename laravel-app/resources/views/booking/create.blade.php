@@ -1,165 +1,270 @@
 @extends('layout.main') @section('content')
+@php
+    $selectedWarehouseId = ! empty($cloneBooking)
+        ? (int) $cloneBooking->warehouse_id
+        : (int) ($default_warehouse_id ?? 0);
+    $selectedBillerId = ! empty($cloneBooking)
+        ? (int) $cloneBooking->biller_id
+        : (int) ($default_biller_id ?? 0);
+@endphp
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
 <style>
+    /* Compact create-booking to fit more of the form (esp. order table) on screen */
+    body:has(.booking-create-page) .beyond-module-tabs {
+        margin-bottom: 8px;
+    }
+    body:has(.booking-create-page) .beyond-module-tabs-label {
+        padding: 6px 12px 0;
+        font-size: 10px;
+    }
+    body:has(.booking-create-page) .beyond-module-tabs-nav {
+        padding: 6px 8px 8px;
+        gap: 4px;
+    }
+    body:has(.booking-create-page) .beyond-module-tab {
+        padding: 5px 9px;
+        font-size: 11px;
+        border-radius: 8px;
+        border-width: 1px;
+        gap: 5px;
+    }
+    body:has(.booking-create-page) .beyond-module-tab .beyond-attention-badge {
+        min-width: 16px;
+        height: 16px;
+        font-size: 9px;
+        top: -6px;
+        left: -6px;
+    }
+    body:has(.booking-create-page) section.forms {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    body:has(.booking-create-page) .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
     .booking-create-page .card {
         border: 0;
-        border-radius: 18px;
-        box-shadow: 0 12px 30px rgba(11, 63, 144, 0.08);
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(11, 63, 144, 0.07);
         overflow: hidden;
     }
     .booking-create-page .card-header {
         background: linear-gradient(135deg, #0b3f90 0%, #1456b8 100%);
         color: #fff;
         border: 0;
-        padding: 22px 28px;
+        padding: 10px 16px;
     }
     .booking-create-page .card-header h4 {
         margin: 0;
         font-weight: 800;
-        font-size: 28px;
+        font-size: 18px;
+        line-height: 1.2;
+    }
+    .booking-create-page .card-header .booking-header-sub {
+        margin: 2px 0 0;
+        font-size: 11px;
+        opacity: 0.8;
+        font-style: italic;
     }
     .booking-create-page .card-body {
-        padding: 28px;
+        padding: 12px 14px 14px;
         background: #f8fbff;
     }
+    .booking-create-page .card-body > p.italic { display: none; }
     .booking-section {
         background: #fff;
         border: 1px solid #e3e9f4;
-        border-radius: 14px;
-        padding: 20px;
-        margin-bottom: 18px;
+        border-radius: 10px;
+        padding: 10px 12px 6px;
+        margin-bottom: 8px;
     }
     .booking-section-title {
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 800;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: #0b3f90;
-        margin-bottom: 14px;
+        margin-bottom: 6px;
     }
     .booking-create-page label {
         font-weight: 700;
         color: #1f2a44;
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+    .booking-create-page .form-group {
+        margin-bottom: 0.45rem;
     }
     .booking-create-page .form-control,
     .booking-create-page .bootstrap-select > .dropdown-toggle {
-        min-height: 46px;
-        border-radius: 10px !important;
+        min-height: 34px !important;
+        height: 34px;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+        font-size: 13px;
+        border-radius: 8px !important;
         border-color: #d7e0ef !important;
         box-shadow: none !important;
     }
+    .booking-create-page .bootstrap-select .dropdown-toggle .filter-option-inner-inner {
+        font-size: 13px;
+        line-height: 24px;
+    }
     .booking-create-page .form-control:focus {
         border-color: #c6ab47 !important;
-        box-shadow: 0 0 0 0.15rem rgba(198, 171, 71, 0.18) !important;
+        box-shadow: 0 0 0 0.12rem rgba(198, 171, 71, 0.16) !important;
+    }
+    .booking-create-page textarea.form-control {
+        height: auto;
+        min-height: 56px;
     }
     .booking-create-page .search-box .btn-secondary {
         background: #0b3f90;
         border-color: #0b3f90;
-        border-radius: 10px 0 0 10px;
+        border-radius: 8px 0 0 8px;
+        padding: 4px 10px;
+    }
+    .booking-create-page .search-box .btn-lg {
+        padding: 4px 10px;
+        font-size: 14px;
     }
     .booking-create-page .search-box .form-control {
-        border-radius: 0 10px 10px 0;
+        border-radius: 0 8px 8px 0;
     }
     .booking-create-page .input-with-action .btn-default {
-        border-radius: 10px;
+        border-radius: 8px;
         border-color: #c6ab47;
         color: #0b3f90;
-        min-width: 46px;
+        min-width: 34px;
+        padding: 4px 8px;
+    }
+    .booking-create-page small.text-muted {
+        font-size: 11px;
+        line-height: 1.25;
+    }
+    .booking-create-page #global-dates-section > p.text-muted {
+        margin-bottom: 6px !important;
+        font-size: 11px;
     }
     #myTable {
         background: #fff;
-        border-radius: 14px;
+        border-radius: 10px;
         overflow: hidden;
+        margin-bottom: 0;
+        font-size: 12px;
     }
     #myTable thead th {
         background: #0b3f90;
         color: #fff;
         border: 0;
         white-space: nowrap;
-        font-size: 13px;
+        font-size: 11px;
         vertical-align: middle;
+        padding: 6px 8px;
     }
-    #myTable tbody td {
+    #myTable tbody td,
+    #myTable tfoot th {
         vertical-align: middle;
         border-color: #edf2f9;
+        padding: 4px 6px;
     }
     #myTable th:nth-child(3),
     #myTable td:nth-child(3) {
-        min-width: 120px;
-        width: 120px;
+        min-width: 72px;
+        width: 72px;
     }
     #myTable th:nth-child(6),
     #myTable td:nth-child(6) {
-        min-width: 130px;
-        width: 130px;
+        min-width: 78px;
+        width: 78px;
     }
     #myTable .number-duration {
-        min-width: 110px;
+        min-width: 64px;
         width: 100%;
-        padding: 10px 12px;
-        font-size: 18px;
-        font-weight: 800;
-        text-align: center;
-        border-radius: 10px;
-    }
-    #myTable .booking-qty-input {
-        min-width: 100px;
-        width: 100%;
-        padding: 10px 12px;
-        font-size: 16px;
+        padding: 4px 6px;
+        font-size: 13px;
         font-weight: 700;
-        border-radius: 10px;
+        text-align: center;
+        border-radius: 6px;
+        min-height: 30px !important;
+        height: 30px;
+    }
+    #myTable .booking-qty-input,
+    #myTable .qty {
+        min-width: 64px;
+        width: 100%;
+        padding: 4px 6px;
+        font-size: 13px;
+        font-weight: 700;
+        border-radius: 6px;
+        min-height: 30px !important;
+        height: 30px;
+    }
+    #myTable .product_price_change {
+        min-height: 30px !important;
+        height: 30px;
+        padding: 4px 6px;
+        font-size: 13px;
     }
     #myTable .start,
     #myTable .end,
-    .rental-datetime {
-        min-width: 190px;
-        border-radius: 10px;
-        padding: 10px 12px;
+    .booking-create-page .rental-datetime {
+        min-width: 148px;
+        border-radius: 6px;
+        padding: 4px 8px;
         border: 1px solid #d7e0ef;
         background: #fff;
+        min-height: 30px !important;
+        height: 30px;
+        font-size: 12px;
     }
-    .input-with-action { display: flex; gap: 8px; align-items: stretch; }
+    .input-with-action { display: flex; gap: 6px; align-items: stretch; }
     .input-with-action .bootstrap-select { flex: 1; }
     .contract-panel {
         border: 1px solid #eadfa0;
-        border-radius: 14px;
-        padding: 18px;
+        border-radius: 10px;
+        padding: 10px 12px;
         background: linear-gradient(180deg, #fffdf3 0%, #fff8dc 100%);
-        margin-top: 16px;
+        margin-top: 8px;
+        font-size: 12px;
     }
+    .contract-panel .custom-control { margin-bottom: 0.25rem !important; }
     .booking-summary-bar {
         background: #fff;
         border: 1px solid #e3e9f4;
-        border-radius: 14px;
-        padding: 16px 20px;
-        margin-top: 18px;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-top: 8px;
     }
     .booking-summary-bar .summary-item {
-        font-size: 14px;
+        font-size: 12px;
         color: #5f6776;
     }
     .booking-summary-bar .summary-item strong {
         display: block;
         color: #0b3f90;
-        font-size: 18px;
+        font-size: 15px;
     }
     .btn-booking-primary {
         background: #0b3f90;
         border-color: #0b3f90;
         color: #fff;
-        border-radius: 10px;
-        padding: 12px 24px;
+        border-radius: 8px;
+        padding: 8px 16px;
         font-weight: 700;
+        font-size: 13px;
     }
     .btn-booking-accent {
         background: #c6ab47;
         border-color: #c6ab47;
         color: #10213d;
-        border-radius: 10px;
-        padding: 12px 24px;
+        border-radius: 8px;
+        padding: 8px 16px;
         font-weight: 700;
+        font-size: 13px;
     }
     .flatpickr-calendar {
         border-radius: 12px;
@@ -184,55 +289,94 @@
         appearance: none;
         -webkit-appearance: none;
         -moz-appearance: none;
-        min-height: 42px;
-        padding: 10px 36px 10px 12px;
-        border-radius: 10px;
+        min-height: 30px !important;
+        height: 30px;
+        padding: 2px 28px 2px 8px;
+        border-radius: 6px;
         border: 1px solid #d7e0ef;
-        background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230b3f90' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E") no-repeat right 12px center;
-        background-size: 12px;
+        background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230b3f90' d='M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E") no-repeat right 8px center;
+        background-size: 10px;
         color: #0b3f90;
         font-weight: 600;
+        font-size: 12px;
         cursor: pointer;
     }
     #myTable select.booking_method:focus {
         border-color: #c6ab47;
-        box-shadow: 0 0 0 0.15rem rgba(198, 171, 71, 0.18);
+        box-shadow: 0 0 0 0.12rem rgba(198, 171, 71, 0.16);
         outline: none;
     }
     #myTable .ibtnDup {
         background: #c6ab47;
         border-color: #c6ab47;
         color: #fff;
-        margin-right: 6px;
+        margin-right: 4px;
+        padding: 3px 8px;
+        font-size: 12px;
     }
     #myTable .ibtnDup:hover {
         background: #b3983a;
         border-color: #b3983a;
         color: #fff;
     }
+    #myTable .ibtnDel {
+        padding: 3px 8px;
+        font-size: 12px;
+    }
     #myTable .booking-line-actions {
         white-space: nowrap;
+    }
+    #myTable tr.booking-extra-period td.booking-extra-blank {
+        background: #f7f9fc;
+        color: #9aa6b8;
+        font-size: 11px;
     }
     #myTable td.duration {
         position: relative;
         z-index: 2;
-        min-width: 210px;
+        min-width: 160px;
     }
     #myTable td.duration .rental-datetime,
     #myTable td.duration .flatpickr-input {
         display: block;
         width: 100%;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
         pointer-events: auto;
     }
     #myTable td.duration .end,
     #myTable td.duration input.end {
         margin-bottom: 0;
     }
+    .booking-create-page .booking-order-wrap {
+        position: relative;
+        z-index: 2;
+        margin-bottom: 6px;
+        max-height: min(38vh, 360px);
+        overflow: auto;
+        border: 1px solid #e3e9f4;
+        border-radius: 10px;
+        background: #fff;
+    }
+    .booking-create-page .booking-order-wrap thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+    }
     .booking-create-page .table-responsive {
         position: relative;
         z-index: 2;
-        margin-bottom: 12px;
+        margin-bottom: 0;
+    }
+    @media (max-height: 780px) {
+        .booking-create-page .booking-order-wrap {
+            max-height: min(32vh, 280px);
+        }
+        body:has(.booking-create-page) .beyond-module-tabs-nav {
+            max-height: 56px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+        }
     }
 </style>
 @if(session()->has('not_permitted'))
@@ -243,14 +387,14 @@
         <div class="row">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header d-flex align-items-center">
+                    <div class="card-header">
                         <h4>{{ !empty($cloneBooking) ? 'Clone Equipment Rental Booking' : 'Create Equipment Rental Booking' }}</h4>
+                        <p class="booking-header-sub">{{trans('file.The field labels marked with * are required input fields')}}.</p>
                     </div>
                     <div class="card-body">
                         @if(!empty($cloneBooking))
-                            <div class="alert alert-info">Cloning booking <strong>{{ $cloneBooking->reference_no }}</strong>. You can change the client, dates, products, and send for signature when ready.</div>
+                            <div class="alert alert-info py-2 mb-2">Cloning booking <strong>{{ $cloneBooking->reference_no }}</strong>. You can change the client, dates, products, and send for signature when ready.</div>
                         @endif
-                        <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                         {!! Form::open(['route' => 'booking.store', 'method' => 'post', 'files' => true, 'class' => 'payment-form']) !!}
                         <div class="booking-section">
                             <div class="booking-section-title">Client & Location</div>
@@ -301,7 +445,7 @@
                                             <label>{{trans('file.Warehouse')}} *</label>
                                             <select required name="warehouse_id" id="warehouse_id" class="selectpicker form-control" data-live-search="true"   title="Select warehouse...">
                                                 @foreach($lims_warehouse_list as $warehouse)
-                                                <option value="{{$warehouse->id}}" @if(!empty($cloneBooking) && $cloneBooking->warehouse_id == $warehouse->id) selected @endif>{{$warehouse->name}}</option>
+                                                <option value="{{$warehouse->id}}" @if($selectedWarehouseId && (int)$warehouse->id === $selectedWarehouseId) selected @endif>{{$warehouse->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -311,7 +455,7 @@
                                             <label>{{trans('file.Biller')}} *</label>
                                             <select required name="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}" @if(!empty($cloneBooking) && $cloneBooking->biller_id == $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if($selectedBillerId && (int)$biller->id === $selectedBillerId) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -335,7 +479,7 @@
                         </div>
                         <div class="booking-section" id="global-dates-section">
                             <div class="booking-section-title">Default Rental Period</div>
-                            <p class="text-muted small mb-3">Set From and To dates here once — every new item added to the order will use these dates automatically. Use &ldquo;Apply to All Items&rdquo; to update existing rows.</p>
+                            <p class="text-muted small mb-1">New items inherit these dates. Use &ldquo;Apply to All Items&rdquo; to update existing rows.</p>
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
@@ -351,14 +495,14 @@
                                 </div>
                                 <div class="col-md-4 d-flex align-items-end">
                                     <div class="form-group w-100">
-                                        <button type="button" id="apply-global-dates" class="btn btn-primary btn-block">Apply to All Items</button>
+                                        <button type="button" id="apply-global-dates" class="btn btn-primary btn-sm btn-block">Apply to All Items</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="booking-section">
                             <div class="booking-section-title">Equipment Selection</div>
-                                <div class="row mt-1">
+                                <div class="row">
                                     <div class="col-md-12">
                                         <label>{{trans('file.Select Product')}}</label>
                                         <div class="input-with-action">
@@ -370,11 +514,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-4">
+                                <div class="row mt-2">
                                     <div class="col-md-12">
                                         <div class="booking-section-title">Order Table</div>
-                                        <div class="table-responsive mt-3">
-                                            <table id="myTable" class="table table-hover order-list">
+                                        <div class="booking-order-wrap">
+                                        <div class="table-responsive">
+                                            <table id="myTable" class="table table-hover order-list mb-0">
                                                 <thead>
                                                     <tr>
                                                         <th>{{trans('file.name')}}</th>
@@ -407,6 +552,7 @@
                                                     <th><i class="dripicons-trash"></i></th>
                                                 </tfoot>
                                             </table>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
@@ -571,17 +717,17 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-2">
+                                <div class="row mt-1">
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label>Booking Note</label>
-                                            <textarea rows="5" class="form-control booking-note-editor" id="booking_note" name="booking_note"></textarea>
+                                            <textarea rows="3" class="form-control booking-note-editor" id="booking_note" name="booking_note"></textarea>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label>{{trans('file.Staff Note')}}</label>
-                                            <textarea rows="5" class="form-control" name="staff_note"></textarea>
+                                            <textarea rows="3" class="form-control" name="staff_note"></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -826,6 +972,40 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="text/javascript">
 
+    function pad2(n) {
+        return (n < 10 ? '0' : '') + n;
+    }
+
+    function formatLocalDateTime(date) {
+        return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate())
+            + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+    }
+
+    function roundToQuarterHour(date) {
+        var d = new Date(date.getTime());
+        var mins = d.getMinutes();
+        var rounded = Math.ceil(mins / 15) * 15;
+        if (rounded === 60) {
+            d.setHours(d.getHours() + 1);
+            d.setMinutes(0);
+        } else {
+            d.setMinutes(rounded);
+        }
+        d.setSeconds(0);
+        d.setMilliseconds(0);
+        return d;
+    }
+
+    function defaultRentalStartDate() {
+        return formatLocalDateTime(roundToQuarterHour(new Date()));
+    }
+
+    function defaultRentalEndDate() {
+        var d = roundToQuarterHour(new Date());
+        d.setHours(d.getHours() + 2);
+        return formatLocalDateTime(d);
+    }
+
     function initRentalDatePickers(context) {
         if (typeof flatpickr === 'undefined') {
             return;
@@ -846,7 +1026,13 @@
                 minuteIncrement: 15,
                 allowInput: true,
                 clickOpens: true,
-                appendTo: document.body
+                appendTo: document.body,
+                defaultDate: node.value ? node.value : new Date(),
+                onOpen: function (selectedDates, dateStr, instance) {
+                    if (!instance.input.value) {
+                        instance.setDate(new Date(), false);
+                    }
+                }
             });
         });
     }
@@ -878,15 +1064,21 @@
         }
     }
 
+    function ensureDefaultGlobalDates() {
+        if (!getGlobalStartDate()) {
+            setFlatpickrValue(document.getElementById('global_start_date'), defaultRentalStartDate());
+        }
+        if (!getGlobalEndDate()) {
+            setFlatpickrValue(document.getElementById('global_end_date'), defaultRentalEndDate());
+        }
+    }
+
     function applyGlobalDatesToRow($row) {
-        var start = getGlobalStartDate();
-        var end = getGlobalEndDate();
-        if (start) {
-            setFlatpickrValue($row.find('.start')[0], start);
-        }
-        if (end) {
-            setFlatpickrValue($row.find('.end')[0], end);
-        }
+        ensureDefaultGlobalDates();
+        var start = getGlobalStartDate() || defaultRentalStartDate();
+        var end = getGlobalEndDate() || defaultRentalEndDate();
+        setFlatpickrValue($row.find('.start')[0], start);
+        setFlatpickrValue($row.find('.end')[0], end);
     }
 
     function applyLineOptionsToRow($row, opts) {
@@ -921,6 +1113,7 @@
     }
 
     initRentalDatePickers(document.getElementById('global-dates-section'));
+    ensureDefaultGlobalDates();
 
     $('#apply-global-dates').on('click', function () {
         $('table.order-list tbody tr').each(function () {
@@ -1163,6 +1356,11 @@ $('select[name="warehouse_id"]').on('change', function() {
     isCashRegisterAvailable(id);
 });
 
+// Load products for the default/selected warehouse on open
+if ($('#warehouse_id').val()) {
+    $('#warehouse_id').trigger('change');
+}
+
 $('#lims_productcodeSearch').on('input', function(){
     var customer_id = $('#customer_id').val();
     var warehouse_id = $('#warehouse_id').val();
@@ -1260,7 +1458,7 @@ function durationChange(selectObject, id, flag = true, price_change = false){
     var number_duration = row_index.find('.number-duration').val();
     var method = row_index.find('.booking_method').val();
 
-    var row_product_code = row_index.find('td:nth-child(2)').text();
+    var row_product_code = row_index.find('.product-code').val() || row_index.find('td:nth-child(2)').text();
     var pos = product_code.indexOf(row_product_code);
 
     var qty = row_index.find('.qty').val();
@@ -1431,14 +1629,23 @@ function productSearch(searchTerm, lineOpts, callback) {
                 var cols = '';
                 pos = product_code.indexOf(data[1]);
                 temp_unit_name = (data[6]).split(',');
-                cols += '<td>' + data[0] + '<br><small>Qty : '+ data[16] +'</small></td>';
-                cols += '<td>' + data[1] + '</td>';
-                cols += '<td><input type="number" onchange="durationChange(this, '+ data[9] +')" class="form-control qty booking-qty-input" name="qty[]" value="1" step="any" min="0" required/></td>';
-                if(data[12]) {
-                    cols += '<td><input type="text" class="form-control batch-no" value="'+batch_no[pos]+'" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
-                }
-                else {
-                    cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
+                if (forceNew) {
+                    newRow.addClass('booking-extra-period');
+                    // Extra period line: hide Name / Code / Qty / Batch (same product via hidden fields)
+                    cols += '<td class="booking-extra-blank"></td>';
+                    cols += '<td class="booking-extra-blank"></td>';
+                    cols += '<td class="booking-extra-blank"><input type="hidden" class="qty booking-qty-input" name="qty[]" value="1" /></td>';
+                    cols += '<td class="booking-extra-blank"><input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+(data[12] ? (product_batch_id[pos] || '') : '')+'" /></td>';
+                } else {
+                    cols += '<td>' + data[0] + '<br><small>Qty : '+ data[16] +'</small></td>';
+                    cols += '<td>' + data[1] + '</td>';
+                    cols += '<td><input type="number" onchange="durationChange(this, '+ data[9] +')" class="form-control qty booking-qty-input" name="qty[]" value="1" step="any" min="0" required/></td>';
+                    if(data[12]) {
+                        cols += '<td><input type="text" class="form-control batch-no" value="'+batch_no[pos]+'" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
+                    }
+                    else {
+                        cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
+                    }
                 }
 
                 cols += '<td><select class="form-control booking_method" name="booking_method[]" onchange="durationChange(this, '+ data[9] +', true, `price_change`)"  required><option value="">--choose--</option><option value="0">Hourly</option><option value="1">Daily</option><option value="2">Monthly</option></select></td>';
@@ -1483,9 +1690,11 @@ function productSearch(searchTerm, lineOpts, callback) {
                 unit_name.splice(rowindex, 0, data[6]);
                 unit_operator.splice(rowindex, 0, data[7]);
                 unit_operation_value.splice(rowindex, 0, data[8]);
-                // forceNew: leave method/dates empty so user sets a different period
+                // forceNew: leave method empty; still default dates to today (editable)
                 if (!forceNew) {
                     applyLineOptionsToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'), lineOpts);
+                } else {
+                    applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));
                 }
                 checkQuantity(1, true, rowindex);
             }
@@ -1535,7 +1744,8 @@ function edit()
 }
 
 function checkQuantity(sale_qty, flag, rowindex = false) {
-    var row_product_code = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text();
+    var $row = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')');
+    var row_product_code = $row.find('.product-code').val() || $row.find('td:nth-child(2)').text();
     pos = product_code.indexOf(row_product_code);
     if(product_type[pos] == 'standard'){
         var operator = unit_operator[rowindex].split(',');

@@ -782,8 +782,10 @@ class BookingController extends Controller
             $lims_category_list = Category::where('is_active', true)->get();
             $cloneBooking = null;
             $cloneLines = [];
+            $default_warehouse_id = $this->resolveDefaultWarehouseId($lims_warehouse_list, $lims_pos_setting_data);
+            $default_biller_id = $this->resolveDefaultBillerId($lims_biller_list, $lims_pos_setting_data);
 
-            return view('booking.create',compact('all_permission', 'lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_tax_list', 'lims_reward_point_setting_data', 'lims_customer_group_all', 'lims_category_list', 'cloneBooking', 'cloneLines'));
+            return view('booking.create',compact('all_permission', 'lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_tax_list', 'lims_reward_point_setting_data', 'lims_customer_group_all', 'lims_category_list', 'cloneBooking', 'cloneLines', 'default_warehouse_id', 'default_biller_id'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -851,6 +853,8 @@ class BookingController extends Controller
         $lims_reward_point_setting_data = RewardPointSetting::latest()->first();
         $lims_customer_group_all = CustomerGroup::where('is_active', true)->get();
         $lims_category_list = Category::where('is_active', true)->get();
+        $default_warehouse_id = $this->resolveDefaultWarehouseId($lims_warehouse_list, $lims_pos_setting_data);
+        $default_biller_id = $this->resolveDefaultBillerId($lims_biller_list, $lims_pos_setting_data);
 
         return view('booking.create', compact(
             'all_permission',
@@ -863,8 +867,49 @@ class BookingController extends Controller
             'lims_customer_group_all',
             'lims_category_list',
             'cloneBooking',
-            'cloneLines'
+            'cloneLines',
+            'default_warehouse_id',
+            'default_biller_id'
         ));
+    }
+
+    /**
+     * Prefer General Settings → POS settings → first warehouse in the allowed list.
+     */
+    protected function resolveDefaultWarehouseId($warehouseList, $posSetting = null)
+    {
+        $gs = GeneralSetting::first();
+        $candidate = optional($gs)->default_warehouse_id
+            ?: optional($posSetting)->warehouse_id
+            ?: optional(Auth::user())->warehouse_id;
+
+        $allowedIds = collect($warehouseList)->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
+
+        if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
+            return (int) $candidate;
+        }
+
+        return ! empty($allowedIds) ? (int) $allowedIds[0] : null;
+    }
+
+    protected function resolveDefaultBillerId($billerList, $posSetting = null)
+    {
+        $gs = GeneralSetting::first();
+        $candidate = optional($gs)->default_biller_id
+            ?: optional($posSetting)->biller_id
+            ?: optional(Auth::user())->biller_id;
+
+        $allowedIds = collect($billerList)->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
+
+        if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
+            return (int) $candidate;
+        }
+
+        return ! empty($allowedIds) ? (int) $allowedIds[0] : null;
     }
 
     public function bookedproducts(){

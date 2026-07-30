@@ -538,6 +538,40 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script type="text/javascript">
 
+    function pad2(n) {
+        return (n < 10 ? '0' : '') + n;
+    }
+
+    function formatLocalDateTime(date) {
+        return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate())
+            + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+    }
+
+    function roundToQuarterHour(date) {
+        var d = new Date(date.getTime());
+        var mins = d.getMinutes();
+        var rounded = Math.ceil(mins / 15) * 15;
+        if (rounded === 60) {
+            d.setHours(d.getHours() + 1);
+            d.setMinutes(0);
+        } else {
+            d.setMinutes(rounded);
+        }
+        d.setSeconds(0);
+        d.setMilliseconds(0);
+        return d;
+    }
+
+    function defaultRentalStartDate() {
+        return formatLocalDateTime(roundToQuarterHour(new Date()));
+    }
+
+    function defaultRentalEndDate() {
+        var d = roundToQuarterHour(new Date());
+        d.setHours(d.getHours() + 2);
+        return formatLocalDateTime(d);
+    }
+
     function initRentalDatePickers(context) {
         if (typeof flatpickr === 'undefined') {
             return;
@@ -558,7 +592,13 @@
                 minuteIncrement: 15,
                 allowInput: true,
                 clickOpens: true,
-                appendTo: document.body
+                appendTo: document.body,
+                defaultDate: node.value ? node.value : new Date(),
+                onOpen: function (selectedDates, dateStr, instance) {
+                    if (!instance.input.value) {
+                        instance.setDate(new Date(), false);
+                    }
+                }
             });
         });
     }
@@ -590,19 +630,26 @@
         }
     }
 
+    function ensureDefaultGlobalDates() {
+        if (!getGlobalStartDate()) {
+            setFlatpickrValue(document.getElementById('global_start_date'), defaultRentalStartDate());
+        }
+        if (!getGlobalEndDate()) {
+            setFlatpickrValue(document.getElementById('global_end_date'), defaultRentalEndDate());
+        }
+    }
+
     function applyGlobalDatesToRow($row) {
-        var start = getGlobalStartDate();
-        var end = getGlobalEndDate();
-        if (start) {
-            setFlatpickrValue($row.find('.start')[0], start);
-        }
-        if (end) {
-            setFlatpickrValue($row.find('.end')[0], end);
-        }
+        ensureDefaultGlobalDates();
+        var start = getGlobalStartDate() || defaultRentalStartDate();
+        var end = getGlobalEndDate() || defaultRentalEndDate();
+        setFlatpickrValue($row.find('.start')[0], start);
+        setFlatpickrValue($row.find('.end')[0], end);
     }
 
     initRentalDatePickers(document.getElementById('global-dates-section'));
     initRentalDatePickers(document.getElementById('myTable'));
+    ensureDefaultGlobalDates();
 
     $('#apply-global-dates').on('click', function () {
         $('table.order-list tbody tr').each(function () {
@@ -677,7 +724,7 @@ var rownumber = $('table.order-list tbody tr:last').index();
         var number_duration = row_index.find('.number-duration').val();
         var method = row_index.find('.booking_method').val();
 
-        var row_product_code = row_index.find('td:nth-child(2)').text();
+        var row_product_code = row_index.find('.product-code').val() || row_index.find('td:nth-child(2)').text();
         var pos = product_code.indexOf(row_product_code);
 
         var qty = row_index.find('.qty').val();
@@ -730,7 +777,7 @@ var rownumber = $('table.order-list tbody tr:last').index();
 for(rowindex  =0; rowindex <= rownumber; rowindex++){
     product_price.push(parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product-price').val()));
     product_duration.push(parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.number-duration').val()) || 1);
-    exist_code.push($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text());
+    exist_code.push($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product-code').val() || $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text());
     exist_type.push($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.product-type').val());
     var total_discount = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.discount').text());
     var quantity = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.qty').val());
@@ -1013,14 +1060,22 @@ function productSearch(data, forceNew){
                 var cols = '';
                 pos = product_code.indexOf(data[1]);
                 temp_unit_name = (data[6]).split(',');
-                cols += '<td>' + data[0] + '<br><small>Qty : '+ data[16] +'</small></td>';
-                cols += '<td>' + data[1] + '</td>';
-                cols += '<td><input type="number" class="form-control qty" name="qty[]" value="1" step="any" required/></td>';
-                if(data[12]) {
-                    cols += '<td><input type="text" class="form-control batch-no" value="'+batch_no[pos]+'" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
-                }
-                else {
-                    cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
+                if (forceNew) {
+                    newRow.addClass('booking-extra-period');
+                    cols += '<td class="booking-extra-blank"></td>';
+                    cols += '<td class="booking-extra-blank"></td>';
+                    cols += '<td class="booking-extra-blank"><input type="hidden" class="qty" name="qty[]" value="1" /></td>';
+                    cols += '<td class="booking-extra-blank"><input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+(data[12] ? (product_batch_id[pos] || '') : '')+'" /></td>';
+                } else {
+                    cols += '<td>' + data[0] + '<br><small>Qty : '+ data[16] +'</small></td>';
+                    cols += '<td>' + data[1] + '</td>';
+                    cols += '<td><input type="number" class="form-control qty" name="qty[]" value="1" step="any" required/></td>';
+                    if(data[12]) {
+                        cols += '<td><input type="text" class="form-control batch-no" value="'+batch_no[pos]+'" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
+                    }
+                    else {
+                        cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
+                    }
                 }
 
                 cols += '<td><select class="form-control booking_method" name="booking_method[]" onchange="durationChange(this, '+ data[9] +', true, `price_change`)" required><option value="">--choose--</option><option value="0">Hourly</option><option value="1">Daily</option><option value="2">Monthly</option></select></td>';
@@ -1047,9 +1102,7 @@ function productSearch(data, forceNew){
                 $("table.order-list tbody").prepend(newRow);
                 rowindex = newRow.index();
                 initRentalDatePickers(newRow[0]);
-                if (!forceNew) {
-                    applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));
-                }
+                applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));
                 pos = product_code.indexOf(data[1]);
                 if(!data[11] && product_warehouse_price[pos]) {
                     product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
@@ -1110,7 +1163,8 @@ function edit(){
 }
 
 function checkQuantity(sale_qty, flag, rowindex = false) {
-    var row_product_code = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text();
+    var $row = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')');
+    var row_product_code = $row.find('.product-code').val() || $row.find('td:nth-child(2)').text();
     pos = product_code.indexOf(row_product_code);
     if(product_type[pos] == 'standard'){
         var operator = unit_operator[rowindex].split(',');
