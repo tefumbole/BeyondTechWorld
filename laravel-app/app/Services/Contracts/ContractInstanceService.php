@@ -515,6 +515,9 @@ class ContractInstanceService
                     } elseif (($legacy->contract_type ?? '') === 'software_license') {
                         $kind = 'software';
                         $kindLabel = 'Software License Subscription';
+                    } elseif (($legacy->contract_type ?? '') === 'studio_rental') {
+                        $kind = 'studio';
+                        $kindLabel = 'Studio Rental';
                     }
                 }
                 // Prefer schedule layout matching the selected contract template
@@ -523,6 +526,9 @@ class ContractInstanceService
                     $kind = 'accommodation';
                 } elseif ($tplCode === 'SFT-LICENSE') {
                     $kind = 'software';
+                } elseif ($tplCode === 'RNT-STUDIO') {
+                    $kind = 'studio';
+                    $kindLabel = 'Studio Rental';
                 } elseif ($tplCode === 'RNT-EQUIPMENT') {
                     $kind = 'equipment';
                 }
@@ -634,9 +640,13 @@ class ContractInstanceService
             $headers = ['Room / Unit', 'Code', 'Qty', 'Monthly Rent', 'Subtotal', 'Occupancy Until'];
         } elseif ($mode === 'software') {
             $headers = ['Product / Service', 'Code', 'Qty', 'Price', 'Subtotal', 'From', 'To (Expires)'];
+        } elseif ($mode === 'studio') {
+            $headers = ['Studio / Service', 'Code', 'Method', 'Qty', 'Price', 'Subtotal', 'From', 'To'];
         } else {
             $headers = ['Equipment', 'Code', 'Qty', 'Unit Price', 'Subtotal', 'Return By'];
         }
+
+        $methodLabels = [0 => 'Hourly', 1 => 'Daily', 2 => 'Monthly'];
 
         $th = '';
         foreach ($headers as $h) {
@@ -650,19 +660,32 @@ class ContractInstanceService
             $name = $product ? $product->name : ('Item #'.$line->product_id);
             $code = $product ? $product->code : '';
             $start = $line->start ? date('d M Y', strtotime($line->start)) : 'As agreed';
+            $startFull = $line->start ? date('d M Y, H:i', strtotime($line->start)) : 'As agreed';
             $endFull = $line->end ? date('d M Y, H:i', strtotime($line->end)) : 'As scheduled';
             $endDay = $line->end ? date('d M Y', strtotime($line->end)) : 'As scheduled';
+            $method = $methodLabels[(int) ($line->booking_method ?? 0)] ?? 'Hourly';
+            if (!empty($line->number_duration)) {
+                $method .= ' × '.$line->number_duration;
+            }
 
             $html .= '<tr>'
                 .'<td style="padding:6px;border:1px solid #d7e0ef;">'.e($name).'</td>'
-                .'<td style="padding:6px;border:1px solid #d7e0ef;">'.e($code).'</td>'
-                .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:center;">'.e((string) $line->qty).'</td>'
+                .'<td style="padding:6px;border:1px solid #d7e0ef;">'.e($code).'</td>';
+
+            if ($mode === 'studio') {
+                $html .= '<td style="padding:6px;border:1px solid #d7e0ef;">'.e($method).'</td>';
+            }
+
+            $html .= '<td style="padding:6px;border:1px solid #d7e0ef;text-align:center;">'.e((string) $line->qty).'</td>'
                 .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->net_unit_price, 2).'</td>'
                 .'<td style="padding:6px;border:1px solid #d7e0ef;text-align:right;">'.number_format((float) $line->total, 2).'</td>';
 
             if ($mode === 'software') {
                 $html .= '<td style="padding:6px;border:1px solid #d7e0ef;">'.e($start).'</td>'
                     .'<td style="padding:6px;border:1px solid #d7e0ef;">'.e($endDay).'</td>';
+            } elseif ($mode === 'studio') {
+                $html .= '<td style="padding:6px;border:1px solid #d7e0ef;">'.e($startFull).'</td>'
+                    .'<td style="padding:6px;border:1px solid #d7e0ef;">'.e($endFull).'</td>';
             } elseif ($mode === 'accommodation') {
                 $html .= '<td style="padding:6px;border:1px solid #d7e0ef;">'.e($endDay).'</td>';
             } else {

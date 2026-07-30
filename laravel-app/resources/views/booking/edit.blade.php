@@ -16,7 +16,19 @@
     #myTable select.booking_method {
         min-width: 110px;
     }
+    .contract-panel {
+        margin-top: 12px;
+        padding: 14px 16px;
+        border: 1px solid #f0d9a8;
+        border-radius: 10px;
+        background: #fffaf0;
+    }
+    .contract-panel .custom-control { margin-bottom: 0.25rem !important; }
 </style>
+@php
+    $currentContractType = optional($lims_sale_data->contract)->contract_type;
+    $contractAlreadySigned = optional($lims_sale_data->contract)->signed_at ? true : false;
+@endphp
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
@@ -420,8 +432,51 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group">
+                                <div class="contract-panel">
+                                    <p class="mb-2"><strong>Contract type</strong></p>
+                                    @if($contractAlreadySigned)
+                                        <p class="mb-2 text-success small">
+                                            Current signed contract:
+                                            <strong>
+                                                @if($currentContractType === 'accommodation') Accommodation
+                                                @elseif($currentContractType === 'software_license') Software License
+                                                @elseif($currentContractType === 'studio_rental') Studio Rental
+                                                @elseif($currentContractType === 'equipment') Equipment Rental
+                                                @else {{ $currentContractType ?: '—' }}
+                                                @endif
+                                            </strong>
+                                            — type cannot be changed after the client has signed.
+                                        </p>
+                                    @else
+                                        <div class="custom-control custom-radio mb-2">
+                                            <input type="radio" class="custom-control-input" id="contract_type_none" name="contract_type" value="none" {{ empty($currentContractType) ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="contract_type_none">No contract — standard booking receipt</label>
+                                        </div>
+                                        <div class="custom-control custom-radio mb-2">
+                                            <input type="radio" class="custom-control-input" id="contract_type_equipment" name="contract_type" value="equipment" {{ $currentContractType === 'equipment' ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="contract_type_equipment"><strong>Equipment Rental Contract</strong></label>
+                                        </div>
+                                        <div class="custom-control custom-radio mb-2">
+                                            <input type="radio" class="custom-control-input" id="contract_type_accommodation" name="contract_type" value="accommodation" {{ $currentContractType === 'accommodation' ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="contract_type_accommodation"><strong>Accommodation Contract</strong> (student housing / rooms)</label>
+                                        </div>
+                                        <div class="custom-control custom-radio mb-2">
+                                            <input type="radio" class="custom-control-input" id="contract_type_software_license" name="contract_type" value="software_license" {{ $currentContractType === 'software_license' ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="contract_type_software_license"><strong>Licenses Software Subscription</strong> (IPTV, antivirus, software licenses)</label>
+                                        </div>
+                                        <div class="custom-control custom-radio mb-2">
+                                            <input type="radio" class="custom-control-input" id="contract_type_studio_rental" name="contract_type" value="studio_rental" {{ $currentContractType === 'studio_rental' ? 'checked' : '' }}>
+                                            <label class="custom-control-label" for="contract_type_studio_rental"><strong>Studio Rental Agreement</strong> (hourly / daily / monthly sessions)</label>
+                                        </div>
+                                        <p class="text-muted mb-0">Select a contract type, then use <strong>Save &amp; Send for Signature</strong> to WhatsApp the agreement link. You can change the type before the client signs.</p>
+                                        <input type="hidden" name="send_for_signature" id="send_for_signature" value="0">
+                                    @endif
+                                </div>
+                                <div class="form-group mt-3">
                                     <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary" id="submit-button">
+                                    @unless($contractAlreadySigned)
+                                        <button type="submit" class="btn btn-warning" id="send-contract-button" style="display:none;">Save &amp; Send for Signature</button>
+                                    @endunless
                                 </div>
                             </div>
                         </div>
@@ -1400,6 +1455,46 @@ $(window).keydown(function(e){
             });
             return false;
         }
+    }
+});
+
+function selectedContractType() {
+    return $('input[name="contract_type"]:checked').val() || 'none';
+}
+
+function isSignatureContractType(type) {
+    return type === 'equipment' || type === 'accommodation' || type === 'software_license' || type === 'studio_rental';
+}
+
+function toggleContractSendButton() {
+    var type = selectedContractType();
+    if (isSignatureContractType(type)) {
+        $('#send-contract-button').show();
+    } else {
+        $('#send-contract-button').hide();
+        $('#send_for_signature').val('0');
+    }
+}
+
+$('input[name="contract_type"]').on('change', toggleContractSendButton);
+toggleContractSendButton();
+
+$('#send-contract-button').on('click', function (e) {
+    var type = selectedContractType();
+    if (!isSignatureContractType(type)) {
+        e.preventDefault();
+        alert('Please select Equipment Rental, Accommodation, Licenses Software Subscription, or Studio Rental.');
+        return false;
+    }
+    $('#send_for_signature').val('1');
+    if ($('select[name="booking_status"]').length) {
+        $('select[name="booking_status"]').val('2');
+    }
+});
+
+$('#submit-button').on('click', function () {
+    if (selectedContractType() === 'none') {
+        $('#send_for_signature').val('0');
     }
 });
 

@@ -566,6 +566,7 @@ class ContractController extends Controller
                 'RNT-ACCOMMODATION' => 'Student Accommodation Agreement — ',
                 'SFT-LICENSE' => 'Software License Subscription — ',
                 'RNT-EQUIPMENT' => 'Equipment Rental Agreement — ',
+                'RNT-STUDIO' => 'Studio Rental Agreement — ',
             ];
             $meta['title'] = ($titles[$meta['preferred_template_code']] ?? 'Rental Agreement — ').$b->reference_no;
             $range = BookingProduct::where('booking_id', $b->id)

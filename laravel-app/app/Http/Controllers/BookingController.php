@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Booking;
+use App\BookingContract;
 use App\BookingProduct;
 use App\StockDuration;
 use Illuminate\Http\Request;
@@ -2726,7 +2727,7 @@ class BookingController extends Controller
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
             $lims_biller_list = Biller::where('is_active', true)->get();
             $lims_tax_list = Tax::where('is_active', true)->get();
-            $lims_sale_data = Booking::find($id);
+            $lims_sale_data = Booking::with('contract')->find($id);
             $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
             return view('booking.edit',compact('lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_tax_list', 'lims_sale_data','lims_product_sale_data'));
         }
@@ -2752,6 +2753,33 @@ class BookingController extends Controller
         $ccCustomerIds = $request->input('cc_customer', []);
         $data['cc_customer_ids'] = !empty($ccCustomerIds) ? implode(',', array_unique((array) $ccCustomerIds)) : null;
         unset($data['cc_customer']);
+
+        $sendForSignature = !empty($data['send_for_signature']);
+        $contractType = $request->input('contract_type');
+        unset($data['send_for_signature'], $data['contract_type']);
+
+        if ($sendForSignature) {
+            if (!in_array($contractType, ['equipment', 'accommodation', 'software_license', 'studio_rental'], true)) {
+                return redirect()->back()->withInput()->with(
+                    'not_permitted',
+                    'Please select Equipment Rental, Accommodation, Licenses Software Subscription, or Studio Rental before sending for signature.'
+                );
+            }
+            $customer = Customer::find($data['customer_id'] ?? null);
+            if (!$customer || empty(trim((string) $customer->phone_number))) {
+                return redirect()->back()->withInput()->with(
+                    'not_permitted',
+                    'Customer phone number is required before sending the rental agreement for signature.'
+                );
+            }
+            $existingContract = BookingContract::where('booking_id', $id)->orderByDesc('id')->first();
+            if ($existingContract && $existingContract->signed_at) {
+                return redirect()->back()->withInput()->with(
+                    'not_permitted',
+                    'This booking already has a signed contract. Contract type cannot be changed after the client has signed.'
+                );
+            }
+        }
 
         $balance = $data['grand_total'] - $data['paid_amount'];
         if($balance < 0 || $balance > 0)
@@ -2994,6 +3022,28 @@ class BookingController extends Controller
                 $lims_customer_data->name ?? ''
             );
         } catch (\Exception $e) {
+        }
+
+        if ($sendForSignature) {
+            $lims_sale_data->load('customer');
+            try {
+                $contract = RentalContractController::createForBooking($lims_sale_data, $contractType);
+                if ($contractType === 'accommodation') {
+                    $contractLabel = 'Accommodation agreement';
+                } elseif ($contractType === 'software_license') {
+                    $contractLabel = 'Software license subscription agreement';
+                } elseif ($contractType === 'studio_rental') {
+                    $contractLabel = 'Studio rental agreement';
+                } else {
+                    $contractLabel = 'Equipment rental agreement';
+                }
+                RentalContractController::sendSignatureLink($lims_sale_data, $contract);
+                $message = 'Booking updated. ' . $contractLabel . ' sent for signature via WhatsApp. Receipt will be generated after the client signs.';
+            } catch (\Exception $e) {
+                $message = 'Booking updated, but the signature link could not be sent: ' . $e->getMessage();
+            }
+
+            return redirect()->route('booking.awaiting-signature')->with('message', $message);
         }
 
         if ($lims_sale_data->is_frontend == 1) {

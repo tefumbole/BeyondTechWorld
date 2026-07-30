@@ -26,7 +26,7 @@
         </div>
 
         @if($linkType === 'booking')
-            <p class="text-muted small mb-2">Select the matching agreement from Contracts: <strong>Equipment Rental</strong>, <strong>Student Accommodation</strong>, or <strong>Software License</strong> — wording matches the existing Rental module exactly.</p>
+            <p class="text-muted small mb-2">Select the matching agreement from Contracts: <strong>Equipment Rental</strong>, <strong>Student Accommodation</strong>, <strong>Software License</strong>, or <strong>Studio Rental</strong> — wording matches the existing Rental module exactly.</p>
         @elseif($linkType === 'shareholder')
             <p class="text-muted small mb-2">Uses the <strong>Shareholder Agreement</strong> template (exact Shareholders portal wording).</p>
         @endif

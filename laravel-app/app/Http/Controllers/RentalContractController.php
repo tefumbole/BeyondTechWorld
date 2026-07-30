@@ -407,6 +407,24 @@ class RentalContractController extends Controller
             ? $contractType
             : BookingCategoryHelper::contractTypeForBooking($booking);
 
+        $existing = BookingContract::where('booking_id', $booking->id)->orderByDesc('id')->first();
+        if ($existing) {
+            if ($existing->signed_at) {
+                throw new \Exception('This booking already has a signed contract. Create a new booking if you need a different agreement.');
+            }
+            $existing->contract_type = $type;
+            $existing->review_status = BookingContract::STATUS_PENDING_CLIENT;
+            if (empty($existing->signature_token)) {
+                $existing->signature_token = Str::random(48);
+            }
+            if (empty($existing->qr_token)) {
+                $existing->qr_token = Str::random(48);
+            }
+            $existing->save();
+
+            return $existing;
+        }
+
         return BookingContract::create([
             'booking_id' => $booking->id,
             'contract_type' => $type,
