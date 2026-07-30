@@ -878,17 +878,29 @@ class BookingController extends Controller
      */
     protected function resolveDefaultWarehouseId($warehouseList, $posSetting = null)
     {
-        $gs = GeneralSetting::first();
-        $candidate = optional($gs)->default_warehouse_id
-            ?: optional($posSetting)->warehouse_id
-            ?: optional(Auth::user())->warehouse_id;
+        $fromSettings = null;
+        try {
+            if (\Schema::hasColumn('general_settings', 'default_warehouse_id')) {
+                $fromSettings = optional(GeneralSetting::first())->default_warehouse_id;
+            }
+        } catch (\Throwable $e) {
+            $fromSettings = null;
+        }
+
+        $candidates = [
+            $fromSettings,
+            optional($posSetting)->warehouse_id,
+            optional(Auth::user())->warehouse_id,
+        ];
 
         $allowedIds = collect($warehouseList)->pluck('id')->map(function ($id) {
             return (int) $id;
         })->all();
 
-        if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
-            return (int) $candidate;
+        foreach ($candidates as $candidate) {
+            if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
+                return (int) $candidate;
+            }
         }
 
         return ! empty($allowedIds) ? (int) $allowedIds[0] : null;
@@ -896,17 +908,29 @@ class BookingController extends Controller
 
     protected function resolveDefaultBillerId($billerList, $posSetting = null)
     {
-        $gs = GeneralSetting::first();
-        $candidate = optional($gs)->default_biller_id
-            ?: optional($posSetting)->biller_id
-            ?: optional(Auth::user())->biller_id;
+        $fromSettings = null;
+        try {
+            if (\Schema::hasColumn('general_settings', 'default_biller_id')) {
+                $fromSettings = optional(GeneralSetting::first())->default_biller_id;
+            }
+        } catch (\Throwable $e) {
+            $fromSettings = null;
+        }
+
+        $candidates = [
+            $fromSettings,
+            optional($posSetting)->biller_id,
+            optional(Auth::user())->biller_id,
+        ];
 
         $allowedIds = collect($billerList)->pluck('id')->map(function ($id) {
             return (int) $id;
         })->all();
 
-        if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
-            return (int) $candidate;
+        foreach ($candidates as $candidate) {
+            if ($candidate && in_array((int) $candidate, $allowedIds, true)) {
+                return (int) $candidate;
+            }
         }
 
         return ! empty($allowedIds) ? (int) $allowedIds[0] : null;

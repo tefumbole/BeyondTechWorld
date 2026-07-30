@@ -453,11 +453,13 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Biller')}} *</label>
-                                            <select required name="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
+                                            <select required name="biller_id" id="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
                                                 <option value="{{$biller->id}}" @if($selectedBillerId && (int)$biller->id === $selectedBillerId) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
+                                            <input type="hidden" id="default_warehouse_id" value="{{ $selectedWarehouseId ?: '' }}">
+                                            <input type="hidden" id="default_biller_id" value="{{ $selectedBillerId ?: '' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -1327,6 +1329,24 @@ $('.selectpicker').selectpicker({
 
 $('[data-toggle="tooltip"]').tooltip();
 
+// Force-select defaults after bootstrap-select init (HTML selected is often ignored with title=)
+(function applyBookingDefaults() {
+    var wh = String($('#default_warehouse_id').val() || '');
+    var bl = String($('#default_biller_id').val() || '');
+    if (wh) {
+        $('#warehouse_id').val(wh);
+        try { $('#warehouse_id').selectpicker('val', wh); } catch (e) {}
+    }
+    if (bl) {
+        $('#biller_id').val(bl);
+        try { $('#biller_id').selectpicker('val', bl); } catch (e) {}
+    }
+    try {
+        $('#warehouse_id').selectpicker('refresh');
+        $('#biller_id').selectpicker('refresh');
+    } catch (e) {}
+})();
+
 $('select[name="customer_id"]').on('change', function() {
     var id = $(this).val();
     $.get('getcustomergroup/' + id, function(data) {
@@ -1334,8 +1354,11 @@ $('select[name="customer_id"]').on('change', function() {
     });
 });
 
-$('select[name="warehouse_id"]').on('change', function() {
+$('#warehouse_id').on('change', function() {
     var id = $(this).val();
+    if (!id) {
+        return;
+    }
     $.get('getproduct/' + id, function(data) {
         lims_product_array = [];
         product_code = data[0];
