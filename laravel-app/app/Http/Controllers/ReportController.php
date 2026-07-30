@@ -190,34 +190,68 @@ class ReportController extends Controller
     }
 
 
-    public function dailyBooking($year, $month)
+    public function dailyBooking(Request $request, $year, $month)
     {
         $role = Role::find(Auth::user()->role_id);
-        if($role->hasPermissionTo('booking_report')){
-            return $this->renderBookingCalendar($year, $month, 0);
+        if ($role->hasPermissionTo('booking_report')) {
+            return $this->renderBookingCalendar(
+                $year,
+                $month,
+                (int) $request->input('warehouse_id', 0),
+                $this->normalizeBookingCalendarProductIds($request->input('product_ids', []))
+            );
         }
-        else
-            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+
+        return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
     }
 
-    public function dailyBookingByWarehouse(Request $request,$year,$month)
+    public function dailyBookingByWarehouse(Request $request, $year, $month)
     {
-        $warehouse_id = (int) $request->input('warehouse_id', 0);
-        return $this->renderBookingCalendar($year, $month, $warehouse_id);
+        return $this->renderBookingCalendar(
+            $year,
+            $month,
+            (int) $request->input('warehouse_id', 0),
+            $this->normalizeBookingCalendarProductIds($request->input('product_ids', []))
+        );
     }
 
-    protected function renderBookingCalendar($year, $month, $warehouse_id = 0)
+    protected function normalizeBookingCalendarProductIds($productIds)
     {
-        $calendar = $this->buildBookingCalendarData($year, $month, $warehouse_id);
+        if (!is_array($productIds)) {
+            $productIds = $productIds === null || $productIds === '' ? [] : [$productIds];
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $productIds))));
+    }
+
+    protected function renderBookingCalendar($year, $month, $warehouse_id = 0, array $product_ids = [])
+    {
+        $calendar = $this->buildBookingCalendarData($year, $month, $warehouse_id, $product_ids);
         $lims_warehouse_list = Warehouse::where('is_active', true)->get();
+        $excludedCategoryIds = BookingCategoryHelper::calendarExcludedCategoryIds();
+        $lims_product_list = Product::where('is_active', true)
+            ->whereNotIn('type', ['standard'])
+            ->when(!empty($excludedCategoryIds), function ($query) use ($excludedCategoryIds) {
+                $query->whereNotIn('category_id', $excludedCategoryIds);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $filter_query = http_build_query(array_filter([
+            'warehouse_id' => $warehouse_id > 0 ? $warehouse_id : null,
+            'product_ids' => !empty($product_ids) ? $product_ids : null,
+        ]));
 
         return view('booking.daily_booking', array_merge($calendar, [
             'lims_warehouse_list' => $lims_warehouse_list,
+            'lims_product_list' => $lims_product_list,
             'warehouse_id' => $warehouse_id,
+            'product_ids' => $product_ids,
+            'filter_query' => $filter_query,
         ]));
     }
 
-    protected function buildBookingCalendarData($year, $month, $warehouse_id = 0)
+    protected function buildBookingCalendarData($year, $month, $warehouse_id = 0, array $product_ids = [])
     {
         $number_of_day = (int) date('t', mktime(0, 0, 0, (int) $month, 1, (int) $year));
         $calendar_days = [];
@@ -241,14 +275,31 @@ class ReportController extends Controller
                 $query->where('warehouse_id', $warehouse_id);
             }
 
-            $items = $query->get();
+            if (!empty($product_ids)) {
+                $query->whereIn('product_id', $product_ids);
+            }
+
+            $items = $query->orderBy('start')->get();
             $booked = $items->count() > 0;
+
+            $summaries = $items->map(function ($line) {
+                $customer = optional(optional($line->booking)->customer)->name ?: 'Client';
+                $product = optional($line->product)->name ?: 'Product';
+
+                return [
+                    'customer' => $customer,
+                    'product' => $product,
+                    'label' => $product.' — '.$customer,
+                ];
+            })->unique('label')->values();
 
             $calendar_days[$day] = [
                 'date' => $date,
                 'booked' => $booked,
                 'count' => $items->count(),
                 'is_today' => $date === date('Y-m-d'),
+                'summaries' => $summaries->take(4)->all(),
+                'more_count' => max(0, $summaries->count() - 4),
             ];
 
             if ($booked) {
@@ -257,6 +308,7 @@ class ReportController extends Controller
                         'reference' => optional($line->booking)->reference_no,
                         'customer' => optional(optional($line->booking)->customer)->name,
                         'product' => optional($line->product)->name,
+                        'product_id' => $line->product_id,
                         'qty' => $line->qty,
                         'start' => $line->start,
                         'end' => $line->end,

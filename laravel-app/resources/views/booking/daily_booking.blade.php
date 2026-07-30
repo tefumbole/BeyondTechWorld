@@ -26,6 +26,18 @@
             font-weight: 700;
             text-decoration: none;
         }
+        .calendar-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+        .calendar-filters .bootstrap-select {
+            min-width: 200px;
+        }
+        .calendar-filters .bootstrap-select.product-filter {
+            min-width: 260px;
+        }
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -42,7 +54,7 @@
         }
         .calendar-day,
         .calendar-empty {
-            min-height: 110px;
+            min-height: 120px;
             border-radius: 14px;
             border: 1px solid #e3e9f4;
             background: #fff;
@@ -73,16 +85,17 @@
             font-size: 18px;
             font-weight: 800;
             color: #0b3f90;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         .calendar-day-status {
             display: inline-block;
-            padding: 6px 10px;
+            padding: 4px 8px;
             border-radius: 999px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
             letter-spacing: 0.04em;
             text-transform: uppercase;
+            margin-bottom: 6px;
         }
         .calendar-day-status.booked {
             background: #0b3f90;
@@ -91,6 +104,32 @@
         .calendar-day-status.free {
             background: #edf2f9;
             color: #6f7b91;
+        }
+        .calendar-day-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .calendar-day-line {
+            font-size: 11px;
+            line-height: 1.25;
+            color: #1f2a44;
+            background: rgba(11, 63, 144, 0.06);
+            border-radius: 6px;
+            padding: 3px 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .calendar-day-line strong {
+            color: #0b3f90;
+            font-weight: 700;
+        }
+        .calendar-day-more {
+            font-size: 10px;
+            font-weight: 700;
+            color: #6f7b91;
+            margin-top: 2px;
         }
         .calendar-legend {
             display: flex;
@@ -110,16 +149,30 @@
             border-radius: 4px;
             display: inline-block;
         }
+        .calendar-filter-hint {
+            font-size: 12px;
+            color: #6f7b91;
+            margin-top: 4px;
+        }
+        @media (max-width: 992px) {
+            .calendar-grid { grid-template-columns: repeat(2, 1fr); }
+            .calendar-weekday { display: none; }
+        }
         @media print {
             .no-print, .side-navbar, .header, .beyond-module-tabs, .calendar-toolbar form, .calendar-toolbar button { display: none !important; }
             .calendar-day, .calendar-empty { min-height: 72px; box-shadow: none !important; transform: none !important; }
-            .calendar-day.is-booked .calendar-day-status.booked::after { content: 'Booked'; }
-            .calendar-day.is-booked .calendar-day-status.booked { font-size: 14px; background: #0b3f90; color: #fff; }
+            .calendar-day.is-booked .calendar-day-status.booked { font-size: 12px; background: #0b3f90; color: #fff; }
             .calendar-day.is-free .calendar-day-status { visibility: hidden; }
             .calendar-day-number { font-size: 16px; }
+            .calendar-day-line { white-space: normal; }
             body, .page-content { background: #fff !important; }
         }
     </style>
+
+    @php
+        $selectedProductIds = isset($product_ids) ? $product_ids : [];
+        $filterSuffix = !empty($filter_query) ? '?'.$filter_query : '';
+    @endphp
 
     <div class="container-fluid">
         <div class="card">
@@ -128,20 +181,31 @@
                     <div>
                         <h4>Booking Calendar</h4>
                         <div class="calendar-nav mt-2">
-                            <a href="{{ url('report/daily_booking/'.$prev_year.'/'.$prev_month) }}">&larr; Previous</a>
+                            <a href="{{ url('report/daily_booking/'.$prev_year.'/'.$prev_month).$filterSuffix }}">&larr; Previous</a>
                             <strong>{{ date('F Y', strtotime($year.'-'.$month.'-01')) }}</strong>
-                            <a href="{{ url('report/daily_booking/'.$next_year.'/'.$next_month) }}">Next &rarr;</a>
+                            <a href="{{ url('report/daily_booking/'.$next_year.'/'.$next_month).$filterSuffix }}">Next &rarr;</a>
                         </div>
+                        @if(!empty($selectedProductIds))
+                            <div class="calendar-filter-hint">Showing selected product(s) only — client names appear on booked days.</div>
+                        @endif
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        {{ Form::open(['route' => ['report.dailyBookingByWarehouse', $year, $month], 'method' => 'post', 'id' => 'report-form', 'class' => 'd-flex align-items-center gap-2 mb-0']) }}
+                    <div class="calendar-filters">
+                        {{ Form::open(['route' => ['report.dailyBookingByWarehouse', $year, $month], 'method' => 'post', 'id' => 'report-form', 'class' => 'd-flex flex-wrap align-items-center gap-2 mb-0']) }}
                             <input type="hidden" name="warehouse_id_hidden" value="{{ $warehouse_id }}">
-                            <select class="selectpicker form-control" id="warehouse_id" name="warehouse_id" style="min-width: 220px;">
+                            <select class="selectpicker form-control" id="warehouse_id" name="warehouse_id" data-live-search="true" title="{{ trans('file.All Warehouse') }}" style="min-width: 200px;">
                                 <option value="0">{{ trans('file.All Warehouse') }}</option>
                                 @foreach($lims_warehouse_list as $warehouse)
-                                    <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                    <option value="{{ $warehouse->id }}" {{ (int)$warehouse_id === (int)$warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                 @endforeach
                             </select>
+                            <select class="selectpicker form-control product-filter" id="product_ids" name="product_ids[]" multiple data-live-search="true" data-actions-box="true" data-selected-text-format="count > 2" title="All products" style="min-width: 260px;">
+                                @foreach($lims_product_list as $product)
+                                    <option value="{{ $product->id }}" {{ in_array((int)$product->id, array_map('intval', $selectedProductIds), true) ? 'selected' : '' }}>
+                                        {{ $product->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="btn btn-outline-primary">Apply</button>
                         {{ Form::close() }}
                         <button type="button" class="btn btn-primary" onclick="printCalendar()"><i class="fa fa-print"></i> Print</button>
                     </div>
@@ -174,6 +238,18 @@
                                     <span class="calendar-day-status {{ $info['booked'] ? 'booked' : 'free' }}">
                                         {{ $info['booked'] ? 'Booked' : 'Free' }}
                                     </span>
+                                    @if(!empty($info['summaries']))
+                                        <div class="calendar-day-lines">
+                                            @foreach($info['summaries'] as $summary)
+                                                <div class="calendar-day-line" title="{{ $summary['label'] }}">
+                                                    <strong>{{ $summary['product'] }}</strong> — {{ $summary['customer'] }}
+                                                </div>
+                                            @endforeach
+                                            @if(!empty($info['more_count']))
+                                                <div class="calendar-day-more">+{{ $info['more_count'] }} more</div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 @php $day++; @endphp
                             @else
@@ -184,7 +260,7 @@
                 </div>
 
                 <div class="calendar-legend no-print">
-                    <span><i style="background:#0b3f90;"></i> Booked day — click for details</span>
+                    <span><i style="background:#0b3f90;"></i> Booked day — click for full details</span>
                     <span><i style="background:#edf2f9;border:1px solid #e3e9f4;"></i> Free day</span>
                 </div>
             </div>
@@ -246,7 +322,12 @@
 
     $('#warehouse_id').val($('input[name="warehouse_id_hidden"]').val());
     $('.selectpicker').selectpicker('refresh');
-    $('#warehouse_id').on('change', function () {
+
+    $('#warehouse_id').on('changed.bs.select', function () {
+        $('#report-form').submit();
+    });
+    // Apply product multi-select when the dropdown closes (allows picking several first)
+    $('#product_ids').on('hidden.bs.select', function () {
         $('#report-form').submit();
     });
 </script>
