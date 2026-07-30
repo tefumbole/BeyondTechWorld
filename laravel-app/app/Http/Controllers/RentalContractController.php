@@ -683,6 +683,13 @@ class RentalContractController extends Controller
         $this->sendWhatsAppDocumentToCustomer($customer, $signedPdfPath, 'signed_rental_agreement.pdf', $signedPdfUrl);
         $this->sendWhatsAppDocumentToCustomer($customer, $qrPath, 'rental_qr.png', $qrUrl);
 
+        // Deliver the final booking invoice to the client AND CC contacts once approved.
+        try {
+            app(BookingController::class)->deliverApprovedBookingInvoice($booking->id);
+        } catch (\Throwable $e) {
+            Log::warning('Approved booking invoice delivery failed for booking ' . $booking->reference_no . ': ' . $e->getMessage());
+        }
+
         $creator = User::find($booking->user_id);
         if ($creator && !empty($creator->phone)) {
             $staffMsg = WhatsAppMessage::contractApprovedStaff(

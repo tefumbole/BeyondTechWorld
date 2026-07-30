@@ -1708,7 +1708,7 @@ class BookingController extends Controller
         return $message;
     }
 
-    public function sendBookingCcNotifications(Booking $booking, array $mail_data, $bookingNote, $customerName)
+    public function sendBookingCcNotifications(Booking $booking, array $mail_data, $bookingNote, $customerName, $documentPath = null, $documentUrl = null)
     {
         if (empty($booking->cc_customer_ids)) {
             return;
@@ -1746,6 +1746,100 @@ class BookingController extends Controller
                 $this->sendWhatsAppToCustomer($ccCustomer, $msg);
             } catch (\Exception $e) {
             }
+
+            if ($documentPath && file_exists($documentPath)) {
+                try {
+                    $this->sendWhatsAppDocumentToCustomer($ccCustomer, $documentPath, 'booking_invoice.pdf', $documentUrl);
+                } catch (\Exception $e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Deliver the final booking invoice (PDF) to the client AND all CC contacts.
+     * Called after the admin countersigns/approves a signed rental contract.
+     */
+    public function deliverApprovedBookingInvoice($bookingId)
+    {
+        $lims_sale_data = Booking::with(['bookingProduct.product', 'customer', 'biller'])->findOrFail($bookingId);
+        $lims_customer_data = $lims_sale_data->customer;
+        $biller = $lims_sale_data->biller;
+
+        $mail_data = [
+            'email' => optional($lims_customer_data)->email,
+            'reference_no' => $lims_sale_data->reference_no,
+            'grand_total' => $lims_sale_data->grand_total,
+            'products' => [],
+            'qty' => [],
+            'total' => [],
+            'start' => [],
+            'end' => [],
+        ];
+
+        $net_unit_price = [];
+        foreach ($lims_sale_data->bookingProduct as $index => $line) {
+            $productName = $line->product ? $line->product->name : 'Product';
+            $mail_data['products'][$index] = $productName;
+            $mail_data['qty'][$index] = $line->qty;
+            $mail_data['total'][$index] = $line->total;
+            $mail_data['start'][$index] = $line->start;
+            $mail_data['end'][$index] = $line->end;
+            $net_unit_price[$index] = $line->net_unit_price;
+        }
+
+        // Build the invoice PDF once and reuse for both client and CC contacts.
+        $pdfPath = null;
+        $docUrl = null;
+        try {
+            $pdfPath = $this->buildBookingPdfFile($bookingId);
+            $relative = 'booking_receipts/booking_invoice_' . $lims_sale_data->reference_no . '.pdf';
+            $docUrl = url('public/' . ltrim($relative, '/'));
+        } catch (\Throwable $e) {
+            \Log::warning('Approved booking invoice PDF build failed for ' . $lims_sale_data->reference_no . ': ' . $e->getMessage());
+        }
+
+        // Client copy.
+        if ($lims_customer_data && trim((string) $lims_customer_data->phone_number) !== '') {
+            $payment = Payment::where('booking_id', $lims_sale_data->id)->latest()->first();
+            $paying_method = $payment ? $payment->paying_method : 'Pending';
+
+            try {
+                $this->sendWhatsappMsg(
+                    $lims_customer_data,
+                    $lims_sale_data,
+                    $mail_data,
+                    $biller,
+                    $paying_method,
+                    $lims_sale_data->booking_note,
+                    $net_unit_price,
+                    false
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('Approved invoice message to client failed for ' . $lims_sale_data->reference_no . ': ' . $e->getMessage());
+            }
+
+            if ($pdfPath) {
+                try {
+                    $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_invoice.pdf', $docUrl);
+                } catch (\Throwable $e) {
+                    \Log::warning('Approved invoice PDF to client failed for ' . $lims_sale_data->reference_no . ': ' . $e->getMessage());
+                }
+            }
+        }
+
+        // CC contacts (quotation text + invoice PDF).
+        try {
+            $this->sendBookingCcNotifications(
+                $lims_sale_data,
+                $mail_data,
+                $lims_sale_data->booking_note ?? '',
+                optional($lims_customer_data)->name ?? '',
+                $pdfPath,
+                $docUrl
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('Approved invoice CC delivery failed for ' . $lims_sale_data->reference_no . ': ' . $e->getMessage());
         }
     }
 
