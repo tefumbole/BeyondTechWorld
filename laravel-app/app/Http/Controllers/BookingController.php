@@ -77,7 +77,10 @@ class BookingController extends Controller
             $all_permission[] = $permission->name;
         }
         $lims_sale_data = Booking::find($id);
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)
+            ->orderBy('start', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
         $lims_biller_data = Biller::find($lims_sale_data->biller_id);
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
@@ -936,6 +939,47 @@ class BookingController extends Controller
         return ! empty($allowedIds) ? (int) $allowedIds[0] : null;
     }
 
+    /**
+     * Reorder booking line arrays so earlier start dates come first.
+     */
+    protected function sortBookingLineArraysByStart(array &$data)
+    {
+        if (empty($data['product_id']) || ! is_array($data['product_id']) || count($data['product_id']) < 2) {
+            return;
+        }
+
+        $starts = $data['start'] ?? [];
+        $indices = range(0, count($data['product_id']) - 1);
+        usort($indices, function ($a, $b) use ($starts) {
+            $ta = ! empty($starts[$a]) ? strtotime($starts[$a]) : false;
+            $tb = ! empty($starts[$b]) ? strtotime($starts[$b]) : false;
+            $ta = ($ta === false) ? PHP_INT_MAX : $ta;
+            $tb = ($tb === false) ? PHP_INT_MAX : $tb;
+            if ($ta === $tb) {
+                return $a <=> $b;
+            }
+
+            return $ta <=> $tb;
+        });
+
+        $fields = [
+            'product_id', 'product_batch_id', 'product_code', 'product_variant_id',
+            'qty', 'sale_unit', 'net_unit_price', 'discount', 'tax_rate', 'tax', 'subtotal',
+            'number', 'start', 'end', 'booking_method',
+        ];
+
+        foreach ($fields as $field) {
+            if (! isset($data[$field]) || ! is_array($data[$field])) {
+                continue;
+            }
+            $sorted = [];
+            foreach ($indices as $i) {
+                $sorted[] = $data[$field][$i] ?? null;
+            }
+            $data[$field] = $sorted;
+        }
+    }
+
     public function bookedproducts(){
         $bookings = DB::select("SELECT booking_id, product_id, is_notified, DATE_FORMAT(end, '%Y-%m-%d') as end FROM booking_products WHERE is_return = false AND is_notified = false AND DATE_FORMAT(end, '%Y-%m-%d') = ?", [Date('Y-m-d')]);
 
@@ -949,7 +993,7 @@ class BookingController extends Controller
         $warehouse_id = 0;
         $lims_products_list = Product::where('is_active', true)->get();
         $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-        $products = BookingProduct::with('product', 'booking')->where('is_return', false)->orderByDesc('id')->get();
+        $products = BookingProduct::with('product', 'booking')->where('is_return', false)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
         return view('booking.products', compact('products', 'start_date', 'end_date', 'warehouse_id', 'lims_warehouse_list', 'lims_products_list'));
     }
 
@@ -986,7 +1030,7 @@ class BookingController extends Controller
                 $data = $data->where('is_return', $status);
             }
 
-            $products = $data->orderByDesc('id')->get();
+            $products = $data->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
             return view('booking.products', compact('status', 'products', 'start_date', 'end_date', 'warehouse_id', 'lims_warehouse_list', 'lims_products_list', 'products_id'));
         }
         return redirect()->back();
@@ -1000,6 +1044,12 @@ class BookingController extends Controller
         }
 
         $data = $request->all();
+        $this->sortBookingLineArraysByStart($data);
+        $request->merge(array_intersect_key($data, array_flip([
+            'product_id', 'product_batch_id', 'product_code', 'product_variant_id',
+            'qty', 'sale_unit', 'net_unit_price', 'discount', 'tax_rate', 'tax', 'subtotal',
+            'number', 'start', 'end', 'booking_method',
+        ])));
 
         $ccCustomerIds = $request->input('cc_customer', []);
         $data['cc_customer_ids'] = !empty($ccCustomerIds) ? implode(',', array_unique((array) $ccCustomerIds)) : null;
@@ -1545,7 +1595,7 @@ class BookingController extends Controller
     public function buildBookingPdfFile($id)
     {
         $lims_sale_data = Booking::findOrFail($id);
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
         $lims_biller_data = Biller::find($lims_sale_data->biller_id);
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
@@ -2367,7 +2417,7 @@ class BookingController extends Controller
 
     public function productSaleData($id)
     {
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
         foreach ($lims_product_sale_data as $key => $product_sale_data) {
             $product = Product::find($product_sale_data->product_id);
             if($product_sale_data->variant_id) {
@@ -2481,7 +2531,7 @@ class BookingController extends Controller
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
             $lims_tax_list = Tax::where('is_active', true)->get();
             $lims_sale_data = Booking::find($id);
-            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
             $lims_product_list = Product::where([
                 ['featured', 1],
                 ['is_active', true]
@@ -2511,7 +2561,7 @@ class BookingController extends Controller
             $lims_biller_list = Biller::where('is_active', true)->get();
             $lims_tax_list = Tax::where('is_active', true)->get();
             $lims_sale_data = Booking::with('biller', 'customer', 'warehouse', 'user', 'contract')->find($id);
-            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
             return view('booking.return',compact('lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_tax_list', 'lims_sale_data','lims_product_sale_data'));
         }
         else
@@ -2675,7 +2725,7 @@ class BookingController extends Controller
             $lims_biller_list = Biller::where('is_active', true)->get();
             $lims_tax_list = Tax::where('is_active', true)->get();
             $lims_sale_data = Booking::find($id);
-            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+            $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
             return view('booking.edit',compact('lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_tax_list', 'lims_sale_data','lims_product_sale_data'));
         }
         else
@@ -2690,6 +2740,12 @@ class BookingController extends Controller
         }
 
         $data = $request->except('document');
+        $this->sortBookingLineArraysByStart($data);
+        $request->merge(array_intersect_key($data, array_flip([
+            'product_id', 'product_batch_id', 'product_code', 'product_variant_id',
+            'qty', 'sale_unit', 'net_unit_price', 'discount', 'tax_rate', 'tax', 'subtotal',
+            'number', 'start', 'end', 'booking_method',
+        ])));
 
         $ccCustomerIds = $request->input('cc_customer', []);
         $data['cc_customer_ids'] = !empty($ccCustomerIds) ? implode(',', array_unique((array) $ccCustomerIds)) : null;
@@ -2701,7 +2757,10 @@ class BookingController extends Controller
         else
             $data['payment_status'] = 4;
         $lims_sale_data = Booking::find($id);
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)
+            ->orderBy('start', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
         $product_id = $data['product_id'];
         $product_batch_id = $data['product_batch_id'];
         $product_code = $data['product_code'];
@@ -2974,7 +3033,7 @@ class BookingController extends Controller
             }
         }
 
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
         $lims_biller_data = Biller::find($lims_sale_data->biller_id);
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
@@ -3461,7 +3520,7 @@ class BookingController extends Controller
 
         $url = url()->previous();
         $lims_sale_data = Booking::find($id);
-        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->get();
+        $lims_product_sale_data = BookingProduct::where('booking_id', $id)->orderBy('start', 'asc')->orderBy('id', 'asc')->get();
 //        $lims_delivery_data = Delivery::where('booking_id',$id)->first();
         if($lims_sale_data->booking_status == 3)
             $message = 'Draft deleted successfully';

@@ -1099,7 +1099,11 @@ function productSearch(data, forceNew){
                 cols += '<input type="hidden" class="subtotal-value" name="subtotal[]" />';
 
                 newRow.append(cols);
-                $("table.order-list tbody").prepend(newRow);
+                if (forceNew) {
+                    $("table.order-list tbody").append(newRow);
+                } else {
+                    $("table.order-list tbody").prepend(newRow);
+                }
                 rowindex = newRow.index();
                 initRentalDatePickers(newRow[0]);
                 applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));

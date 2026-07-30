@@ -37,7 +37,9 @@ class Booking extends Model
 
     public function bookingProduct()
     {
-        return $this->hasMany('App\BookingProduct', 'booking_id', 'id');
+        return $this->hasMany('App\BookingProduct', 'booking_id', 'id')
+            ->orderBy('start', 'asc')
+            ->orderBy('id', 'asc');
     }
 
     public function contract()
