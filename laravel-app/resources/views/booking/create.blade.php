@@ -199,6 +199,20 @@
         box-shadow: 0 0 0 0.15rem rgba(198, 171, 71, 0.18);
         outline: none;
     }
+    #myTable .ibtnDup {
+        background: #c6ab47;
+        border-color: #c6ab47;
+        color: #fff;
+        margin-right: 6px;
+    }
+    #myTable .ibtnDup:hover {
+        background: #b3983a;
+        border-color: #b3983a;
+        color: #fff;
+    }
+    #myTable .booking-line-actions {
+        white-space: nowrap;
+    }
     #myTable td.duration {
         position: relative;
         z-index: 2;
@@ -1212,6 +1226,15 @@ $("table.order-list tbody").on("click", ".ibtnDel", function(event) {
     calculateTotal();
 });
 
+// Duplicate product line for another booking period (same item, new method/dates/price)
+$("table.order-list tbody").on("click", ".ibtnDup", function(event) {
+    var code = $(this).closest('tr').find('.product-code').val();
+    if (!code) {
+        return;
+    }
+    productSearch(code, { forceNew: true });
+});
+
 //Edit product
 $("table.order-list").on("click", ".edit-product", function() {
     rowindex = $(this).closest('tr').index();
@@ -1390,15 +1413,18 @@ function productSearch(searchTerm, lineOpts, callback) {
         },
         success: function(data) {
             var flag = 1;
-            $(".product-code").each(function(i) {
-                if ($(this).val() == data[1]) {
-                    rowindex = i;
-                    var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
-                    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
-                    checkQuantity(String(qty), true, rowindex);
-                    flag = 0;
-                }
-            });
+            var forceNew = !!(lineOpts && lineOpts.forceNew);
+            if (!forceNew) {
+                $(".product-code").each(function(i) {
+                    if ($(this).val() == data[1]) {
+                        rowindex = i;
+                        var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
+                        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
+                        checkQuantity(String(qty), true, rowindex);
+                        flag = 0;
+                    }
+                });
+            }
             $("input[name='product_code_name']").val('');
             if(flag){
                 var newRow = $("<tr>");
@@ -1424,18 +1450,12 @@ function productSearch(searchTerm, lineOpts, callback) {
                 @else
                     cols += '<td class="net_unit_cost"></td>';
                 @endif
-                if(!data[11] && product_warehouse_price[pos]) {
-                    product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
-                }
-                else {
-                    product_price.splice(rowindex, 0, parseFloat(data[13] * currency['exchange_rate']) + parseFloat(data[13] * currency['exchange_rate'] * customer_group_rate));
-                }
 
                 cols += '<td class="duration"><input type="text" name="start[]" class="start form-control rental-datetime" placeholder="Start date & time" onchange="durationChange(this, '+ data[9] +', false)" required><input type="text" name="end[]" class="end form-control rental-datetime" placeholder="Return date & time" onchange="durationChange(this, '+ data[9] +', false)" required></td>';
                 cols += '<td class="discount">0.00</td>';
                 cols += '<td class="tax"></td>';
                 cols += '<td class="sub-total"></td>';
-                cols += '<td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
+                cols += '<td class="booking-line-actions"><button type="button" class="ibtnDup btn btn-md" title="Add another period for this product"><i class="dripicons-plus"></i></button><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
                 cols += '<input type="hidden" class="product-code" name="product_code[]" value="' + data[1] + '"/>';
                 cols += '<input type="hidden" class="product-id" name="product_id[]" value="' + data[9] + '"/>';
                 cols += '<input type="hidden" class="sale-unit" name="sale_unit[]" value="' + temp_unit_name[0] + '"/>';
@@ -1450,6 +1470,12 @@ function productSearch(searchTerm, lineOpts, callback) {
                 rowindex = newRow.index();
                 initRentalDatePickers(newRow[0]);
 
+                if(!data[11] && product_warehouse_price[pos]) {
+                    product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
+                }
+                else {
+                    product_price.splice(rowindex, 0, parseFloat(data[13] * currency['exchange_rate']) + parseFloat(data[13] * currency['exchange_rate'] * customer_group_rate));
+                }
                 product_discount.splice(rowindex, 0, '0.00');
                 tax_rate.splice(rowindex, 0, parseFloat(data[3]));
                 tax_name.splice(rowindex, 0, data[4]);
@@ -1457,7 +1483,10 @@ function productSearch(searchTerm, lineOpts, callback) {
                 unit_name.splice(rowindex, 0, data[6]);
                 unit_operator.splice(rowindex, 0, data[7]);
                 unit_operation_value.splice(rowindex, 0, data[8]);
-                applyLineOptionsToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'), lineOpts);
+                // forceNew: leave method/dates empty so user sets a different period
+                if (!forceNew) {
+                    applyLineOptionsToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'), lineOpts);
+                }
                 checkQuantity(1, true, rowindex);
             }
             if (callback) {

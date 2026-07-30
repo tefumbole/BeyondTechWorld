@@ -248,7 +248,10 @@
                                                         <td class="discount">{{ number_format((float)$product_sale->discount, 2, '.', '') }}</td>
                                                         <td class="tax">{{ number_format((float)$product_sale->tax, 2, '.', '') }}</td>
                                                         <td class="sub-total">{{ number_format((float)$product_sale->total, 2, '.', '') }}</td>
-                                                        <td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>
+                                                        <td class="booking-line-actions">
+                                                            <button type="button" class="ibtnDup btn btn-md btn-warning" title="Add another period for this product"><i class="dripicons-plus"></i></button>
+                                                            <button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button>
+                                                        </td>
                                                         <input type="hidden" class="product-code" name="product_code[]" value="{{$product_data->code}}"/>
                                                         <input type="hidden" class="product-id" name="product_id[]" value="{{$product_data->id}}"/>
                                                         <input type="hidden" name="product_variant_id[]" value="{{$product_variant_id}}"/>
@@ -881,6 +884,15 @@ $("table.order-list tbody").on("click", ".ibtnDel", function(event) {
     calculateTotal();
 });
 
+// Duplicate product line for another booking period (same item, new method/dates/price)
+$("table.order-list tbody").on("click", ".ibtnDup", function(event) {
+    var code = $(this).closest('tr').find('.product-code').val();
+    if (!code) {
+        return;
+    }
+    productSearch(code, true);
+});
+
 //Edit product
 $("table.order-list").on("click", ".edit-product", function() {
     rowindex = $(this).closest('tr').index();
@@ -974,7 +986,8 @@ function isCashRegisterAvailable(warehouse_id) {
     });
 }
 
-function productSearch(data){
+function productSearch(data, forceNew){
+    forceNew = !!forceNew;
     $.ajax({
         type: 'GET',
         url: '../lims_product_search',
@@ -983,15 +996,17 @@ function productSearch(data){
         },
         success: function(data) {
             var flag = 1;
-            $(".product-code").each(function(i) {
-                if ($(this).val() == data[1]) {
-                    rowindex = i;
-                    var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
-                    $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
-                    checkQuantity(String(qty), true, rowindex);
-                    flag = 0;
-                }
-            });
+            if (!forceNew) {
+                $(".product-code").each(function(i) {
+                    if ($(this).val() == data[1]) {
+                        rowindex = i;
+                        var qty = parseFloat($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val()) + 1;
+                        $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ') .qty').val(qty);
+                        checkQuantity(String(qty), true, rowindex);
+                        flag = 0;
+                    }
+                });
+            }
             $("input[name='product_code_name']").val('');
             if (flag) {
                 var newRow = $("<tr>");
@@ -1017,7 +1032,7 @@ function productSearch(data){
                 cols += '<td class="discount">0.00</td>';
                 cols += '<td class="tax"></td>';
                 cols += '<td class="sub-total"></td>';
-                cols += '<td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
+                cols += '<td class="booking-line-actions"><button type="button" class="ibtnDup btn btn-md btn-warning" title="Add another period for this product"><i class="dripicons-plus"></i></button><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
                 cols += '<input type="hidden" class="product-code" name="product_code[]" value="' + data[1] + '"/>';
                 cols += '<input type="hidden" class="product-id" name="product_id[]" value="' + data[9] + '"/>';
                 cols += '<input type="hidden" name="product_variant_id[]" value="' + data[10] + '"/>';
@@ -1032,7 +1047,9 @@ function productSearch(data){
                 $("table.order-list tbody").prepend(newRow);
                 rowindex = newRow.index();
                 initRentalDatePickers(newRow[0]);
-                applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));
+                if (!forceNew) {
+                    applyGlobalDatesToRow($('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')'));
+                }
                 pos = product_code.indexOf(data[1]);
                 if(!data[11] && product_warehouse_price[pos]) {
                     product_price.splice(rowindex, 0, parseFloat(product_warehouse_price[pos] * currency['exchange_rate']) + parseFloat(product_warehouse_price[pos] * currency['exchange_rate'] * customer_group_rate));
