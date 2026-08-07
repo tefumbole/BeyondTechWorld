@@ -29,7 +29,7 @@
             <strong id="lt-count" style="color:#0b3f90;font-size:1.15rem;margin-left:6px;">0</strong>
         </div>
     </div>
-    <p class="text-muted small mb-2">Choose customers, system users, hired applicants, or mix them — same as Announcements.</p>
+    <p class="text-muted small mb-2">Choose customers, system users, applicants, or mix them — same as Announcements. Deleted applications are not listed.</p>
     <div class="mb-2">
         <button type="button" class="lt-pill active lt-rf" data-role="customers">Customers</button>
         <button type="button" class="lt-pill lt-rf" data-role="staff">System Users</button>

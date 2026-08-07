@@ -31,7 +31,7 @@ class PeopleDirectoryService
                 ->when($filter === 'staff', function ($q) {
                     $q->whereIn('role', ['staff', 'admin', 'super_admin', 'task_assignee']);
                 })
-                // Applicants appear only via hired applications (Applicants filter), not as portal leftovers.
+                // Applicants appear only via application rows (Applicants filter), not portal leftovers.
                 ->when($filter === 'all', function ($q) {
                     $q->where(function ($w) {
                         $w->whereNull('role')->orWhere('role', '!=', 'applicant');
@@ -90,9 +90,8 @@ class PeopleDirectoryService
         }
 
         if ($filter === 'all' || $filter === 'applicants') {
-            // Letters / announcements: only hired applicants (deleted apps disappear; no portal leftovers).
-            $hiredApps = Application::query()
-                ->where('status', Application::STATUS_HIRED)
+            // All existing applications (any status). Deleted apps disappear; one row per person.
+            $apps = Application::query()
                 ->when($term !== '', function ($q) use ($like) {
                     $q->where(function ($w) use ($like) {
                         $w->where('full_name', 'like', $like)
@@ -106,7 +105,7 @@ class PeopleDirectoryService
                 ->get(['id', 'full_name', 'email', 'phone', 'whatsapp_number', 'user_id']);
 
             $seen = [];
-            foreach ($hiredApps as $a) {
+            foreach ($apps as $a) {
                 $emailKey = strtolower(trim((string) $a->email));
                 $phoneKey = preg_replace('/\D+/', '', (string) ($a->whatsapp_number ?: $a->phone));
                 $dedupeKey = $emailKey !== '' ? 'e:'.$emailKey : ($phoneKey !== '' ? 'p:'.$phoneKey : 'id:'.$a->id);
