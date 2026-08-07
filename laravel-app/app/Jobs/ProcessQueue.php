@@ -66,26 +66,54 @@ class ProcessQueue implements ShouldQueue
             fclose($file);
         } elseif ($letter->people_type === 'directory') {
             LetterRecipients::eachDirectoryRecipient($letter->recipients_json, function ($recipient, $ref) use ($letterController, $letter) {
-                $key = $recipient->email ?: ($recipient->phone_number ?: $ref);
-                $letterController->sendPDF($letter, $recipient, $key);
-                $letterController->sendMail($letter, $recipient, $key);
+                try {
+                    $key = $recipient->email ?: ($recipient->phone_number ?: $ref);
+                    $letterController->sendPDF($letter, $recipient, $key);
+                    $letterController->sendMail($letter, $recipient, $key);
+                } catch (\Throwable $e) {
+                    \Log::warning('Letter directory To send failed: '.$e->getMessage(), [
+                        'letter_id' => $letter->id ?? null,
+                        'ref' => $ref,
+                    ]);
+                }
             });
 
             LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($recipient, $ref) use ($letterController, $letter) {
-                $letterController->sendPDFToCC($letter, $recipient, $ref ?: $letter->to);
+                try {
+                    $letterController->sendPDFToCC($letter, $recipient, $ref ?: $letter->to);
+                } catch (\Throwable $e) {
+                    \Log::warning('Letter directory CC send failed: '.$e->getMessage(), [
+                        'letter_id' => $letter->id ?? null,
+                        'ref' => $ref,
+                    ]);
+                }
             });
         } else {
             LetterRecipients::eachRecipient($letter->people_type, $letter->to, function ($recipient, $model, $to) use ($letterController, $letter) {
-                $letterController->sendPDF($letter, $recipient, $to);
-                $letterController->sendMail($letter, $recipient, $to);
+                try {
+                    $letterController->sendPDF($letter, $recipient, $to);
+                    $letterController->sendMail($letter, $recipient, $to);
+                } catch (\Throwable $e) {
+                    \Log::warning('Letter recipient send failed: '.$e->getMessage(), [
+                        'letter_id' => $letter->id ?? null,
+                        'to' => $to,
+                    ]);
+                }
             });
 
-            if ($letter->cc != null) {
+            if ($letter->cc != null && $this->customer) {
                 $model = $this->customer;
                 foreach (array_filter(explode(',', $letter->cc)) as $cc) {
-                    $lims_customer_data = $model::find($cc);
-                    if ($lims_customer_data) {
-                        $letterController->sendPDFToCC($letter, $lims_customer_data, $letter->to);
+                    try {
+                        $lims_customer_data = $model::find($cc);
+                        if ($lims_customer_data) {
+                            $letterController->sendPDFToCC($letter, $lims_customer_data, $letter->to);
+                        }
+                    } catch (\Throwable $e) {
+                        \Log::warning('Letter CC send failed: '.$e->getMessage(), [
+                            'letter_id' => $letter->id ?? null,
+                            'cc' => $cc,
+                        ]);
                     }
                 }
             }

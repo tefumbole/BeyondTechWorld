@@ -975,26 +975,35 @@ class LetterController extends Controller
     public function sendMail($letter, $lims_customer_data, $to) {
         $cc_emails = [];
         $attachments = [];
-        if($letter->people_type == 'customer') {
-            $customer = Customer::class;
-        } elseif ($letter->people_type == 'all') {
-            $customer = Customer::class;
-        } else {
-            $customer = Employee::class;
-        }
-        if ($letter->cc != null) {
-            foreach (explode(",", $letter->cc) as $cc) {
-                $lims_customer_data_cc = $customer::find($cc);
-                if($lims_customer_data_cc->email) {
-                    $cc_emails []= $lims_customer_data_cc->email;
+        $attachment_path = public_path('letter/attachment/');
+
+        // Directory letters store CC as prefixed IDs + cc_json snapshots — never Employee/Customer::find().
+        if (($letter->people_type ?? '') === 'directory') {
+            foreach (LetterRecipients::decodePeopleJson($letter->cc_json) as $person) {
+                $email = trim((string) ($person['email'] ?? ''));
+                if ($email !== '') {
+                    $cc_emails[] = $email;
+                }
+            }
+        } elseif ($letter->cc != null) {
+            if ($letter->people_type == 'customer' || $letter->people_type == 'all') {
+                $customer = Customer::class;
+            } else {
+                $customer = Employee::class;
+            }
+            foreach (explode(',', $letter->cc) as $cc) {
+                $lims_customer_data_cc = $customer::find(trim($cc));
+                if ($lims_customer_data_cc && ! empty($lims_customer_data_cc->email)) {
+                    $cc_emails[] = $lims_customer_data_cc->email;
                 }
             }
         }
-        if($letter->attachment) {
-            $attachment_path = public_path('letter/attachment/');
+        $cc_emails = array_values(array_unique($cc_emails));
+
+        if ($letter->attachment) {
             $attachments[] = $attachment_path.$letter->attachment;
         }
-        if(isset($letter->attachmentlib[0])) {
+        if (isset($letter->attachmentlib[0])) {
             foreach ($letter->attachmentlib as $key => $attachment) {
                 if ($key == 0) {
                     continue;
@@ -1005,10 +1014,14 @@ class LetterController extends Controller
         if ($lims_customer_data == null) {
             return true;
         }
+        $mailTo = trim((string) ($lims_customer_data->email ?? ''));
+        if ($mailTo === '') {
+            return true;
+        }
         $data = [
             'to' => $to,
             'data' => $letter,
-            'mail' => $lims_customer_data->email,
+            'mail' => $mailTo,
             'subject' => $letter->subject,
             'cc_emails' => $cc_emails,
             'attachments' => $attachments
@@ -1018,7 +1031,10 @@ class LetterController extends Controller
         try{
             Mail::send( 'mail.letter_details', $data, function( $message ) use ($data)
             {
-                $message->to($data['mail'])->subject($data['subject'])->cc($data['cc_emails']);
+                $message->to($data['mail'])->subject($data['subject']);
+                if (! empty($data['cc_emails'])) {
+                    $message->cc($data['cc_emails']);
+                }
 
                 foreach ($data['attachments'] as $attachment) {
                     $message->attach($attachment);
@@ -1243,31 +1259,26 @@ class LetterController extends Controller
         $letter = $letter->find($id);
 
         if ($this->checkOtp($request, $letter) == true) {
-            $letter->find($id)->update(['is_sign'=>true, 'signed_by'=>Auth::user()->id, 'otp' => null]);
+            $letter->update(['is_sign'=>true, 'signed_by'=>Auth::user()->id, 'otp' => null]);
+            $letter = $letter->fresh();
 
-            if($letter->people_type == 'customer' || $letter->people_type == 'all') {
-                $customer = Customer::class;
-            } else {
-                $customer = Employee::class;
+            $customer = LetterRecipients::recipientModel($letter->people_type ?? '');
+            if (($letter->people_type ?? '') === 'directory' || ($letter->people_type ?? '') === 'csv') {
+                $customer = null;
             }
-//            foreach (explode(",", $letter->to) as $to) {
-//                $lims_customer_data = $customer::find($to);
-//                $message = $this->sendPDF($letter, $lims_customer_data, $to);
-//                $message = $this->sendMail($letter, $lims_customer_data, $to);
-//            }
-//            if ($letter->cc != null) {
-//                foreach (explode(",", $letter->cc) as $cc) {
-//                    $lims_customer_data = $customer::find($cc);
-//                    $this->sendPDFToCC($letter, $lims_customer_data, $letter->to);
-//                }
-//            }
-            ProcessQueue::dispatch($letter, $id, $customer);
 
-            $letter->find($id)->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
+            try {
+                ProcessQueue::dispatch($letter, $id, $customer);
+            } catch (\Throwable $e) {
+                \Log::error('Letter signSend ProcessQueue failed: '.$e->getMessage());
+                return redirect()->back()->with('not_permitted', 'Letter was signed but sending failed. Please try Send again from the letter list.');
+            }
+
+            $letter->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
             return redirect()->back()->with('message', 'Letter Signed & Sent Successfully');
         }
 
-        $letter->find($id)->update(['otp' => null]);
+        $letter->update(['otp' => null]);
         return back()->with('not_permitted', 'OTP is wrong or Expired');
     }
 
