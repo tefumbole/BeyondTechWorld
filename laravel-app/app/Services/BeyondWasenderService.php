@@ -117,7 +117,12 @@ class BeyondWasenderService
                 ]);
             }
 
-            return ['success' => true, 'http' => $http];
+            return [
+                'success' => true,
+                'http' => $http,
+                'msg_id' => is_array($decoded) ? ($decoded['data']['msgId'] ?? null) : null,
+                'status' => is_array($decoded) ? ($decoded['data']['status'] ?? null) : null,
+            ];
         } catch (\Throwable $e) {
             \Log::warning('[beyond-whatsapp] exception', ['error' => $e->getMessage()]);
 

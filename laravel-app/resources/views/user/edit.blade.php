@@ -149,6 +149,7 @@
                                         @endif
 
                                         @unless($lims_user_data->role_id == 12)
+                                        {{-- Buttons only (no nested forms — nested forms were submitting Update User instead of WhatsApp) --}}
                                         <div class="user-sign-actions">
                                             <button type="button" class="btn btn-info btn-sm" id="btn-add-signature">
                                                 <i class="dripicons-pencil"></i> Add Signature
@@ -156,21 +157,21 @@
                                             <button type="button" class="btn btn-outline-info btn-sm" id="btn-sign-pad" style="display:none;">
                                                 Sign on this device
                                             </button>
-                                            <form method="POST" action="{{ route('user.signature.request', $lims_user_data->id) }}" class="d-inline" id="form-sign-request" style="display:none;">
-                                                @csrf
-                                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Send a WhatsApp signature link to {{ \App\Support\WhatsAppPhone::display($lims_user_data->phone ?: $lims_user_data->additional_phone) ?: 'this user' }}?');">
-                                                    <i class="fa fa-whatsapp"></i> Request link (WhatsApp)
-                                                </button>
-                                            </form>
-                                            @if(!empty($lims_user_data->sign_request_token) && $lims_user_data->sign_request_expires_at && $lims_user_data->sign_request_expires_at->isFuture())
-                                                <div class="alert alert-light border mt-2 mb-0 p-2 small">
-                                                    Pending request link:
-                                                    <a href="{{ url('/user-sign/'.$lims_user_data->sign_request_token) }}" target="_blank" rel="noopener">
-                                                        {{ url('/user-sign/'.$lims_user_data->sign_request_token) }}
-                                                    </a>
-                                                </div>
-                                            @endif
+                                            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-sign-whatsapp" style="display:none;"
+                                                    data-phone="{{ \App\Support\WhatsAppPhone::display($lims_user_data->phone ?: $lims_user_data->additional_phone) }}"
+                                                    data-url="{{ route('user.signature.request', $lims_user_data->id) }}">
+                                                <i class="fa fa-whatsapp"></i> Request link (WhatsApp)
+                                            </button>
                                         </div>
+                                        <div id="signature-request-result" class="mt-2" style="display:none;"></div>
+                                        @if(!empty($lims_user_data->sign_request_token) && $lims_user_data->sign_request_expires_at && $lims_user_data->sign_request_expires_at->isFuture())
+                                            <div class="alert alert-light border mt-2 mb-0 p-2 small" id="pending-signature-link">
+                                                Pending request link:
+                                                <a href="{{ url('/user-sign/'.$lims_user_data->sign_request_token) }}" target="_blank" rel="noopener">
+                                                    {{ url('/user-sign/'.$lims_user_data->sign_request_token) }}
+                                                </a>
+                                            </div>
+                                        @endif
                                         <p class="text-muted small mb-0" id="add-signature-hint" style="display:none;">
                                             Choose how to add the signature: draw it here, or WhatsApp a link so the user can sign on their phone.
                                         </p>
@@ -178,12 +179,12 @@
                                         <div class="user-sign-pad-wrap" id="user-sign-pad-wrap">
                                             <p class="small text-muted mb-2">Draw the signature below, then click Save signature.</p>
                                             <canvas id="user-sign-pad" width="500" height="140"></canvas>
-                                            <form method="POST" action="{{ route('user.signature.pad', $lims_user_data->id) }}" id="user-sign-pad-form" class="mt-2">
-                                                @csrf
-                                                <input type="hidden" name="signature_image" id="user_signature_image">
+                                            <div class="mt-2">
                                                 <button type="button" class="btn btn-secondary btn-sm" id="clear-user-sign-pad">Clear</button>
-                                                <button type="submit" class="btn btn-primary btn-sm">Save signature</button>
-                                            </form>
+                                                <button type="button" class="btn btn-primary btn-sm" id="btn-save-sign-pad"
+                                                        data-url="{{ route('user.signature.pad', $lims_user_data->id) }}">Save signature</button>
+                                            </div>
+                                            <div id="sign-pad-status" class="small mt-2"></div>
                                         </div>
                                         @endunless
                                     </div>
@@ -271,18 +272,55 @@
       });
     });
 
-    // Add Signature → reveal pad + WhatsApp request options
+    // Add Signature → reveal pad + WhatsApp request options (AJAX — not nested forms)
     $('#btn-add-signature').on('click', function () {
-        $('#btn-sign-pad, #form-sign-request, #add-signature-hint').show();
+        $('#btn-sign-pad, #btn-sign-whatsapp, #add-signature-hint').show();
         $('#user-sign-pad-wrap').addClass('open');
-        if (window.__userSignPad) {
-            // keep pad ready
-        }
     });
     $('#btn-sign-pad').on('click', function () {
         $('#user-sign-pad-wrap').addClass('open');
         var canvas = document.getElementById('user-sign-pad');
         if (canvas) canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    function csrfToken() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : '';
+    }
+
+    $('#btn-sign-whatsapp').on('click', function () {
+        var btn = $(this);
+        var phone = btn.data('phone') || 'this user';
+        var url = btn.data('url');
+        if (!confirm('Send a WhatsApp signature link to ' + phone + '?')) return;
+        btn.prop('disabled', true).text('Sending…');
+        $.ajax({
+            method: 'POST',
+            url: url,
+            data: { _token: csrfToken() },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).done(function (res) {
+            var link = (res && res.link) ? res.link : '';
+            var msg = (res && res.message) ? res.message : 'Request processed.';
+            var html = '<div class="alert ' + (res && res.success ? 'alert-success' : 'alert-warning') + ' mb-0">'
+                + '<div>' + msg + '</div>';
+            if (link) {
+                html += '<div class="mt-2 d-flex flex-wrap align-items-center" style="gap:8px;">'
+                    + '<input type="text" class="form-control form-control-sm" readonly value="' + link + '" style="max-width:420px;" id="ajax-sign-link">'
+                    + '<a class="btn btn-sm btn-primary" href="' + link + '" target="_blank" rel="noopener">Open link</a>'
+                    + '</div>';
+            }
+            html += '</div>';
+            $('#signature-request-result').html(html).show();
+            if (link) {
+                $('#pending-signature-link').html('Pending request link: <a href="'+link+'" target="_blank" rel="noopener">'+link+'</a>').show();
+            }
+        }).fail(function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Could not send WhatsApp request.';
+            $('#signature-request-result').html('<div class="alert alert-danger mb-0">'+msg+'</div>').show();
+        }).always(function () {
+            btn.prop('disabled', false).html('<i class="fa fa-whatsapp"></i> Request link (WhatsApp)');
+        });
     });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -297,17 +335,35 @@
     window.__userSignPad = pad;
     var clearBtn = document.getElementById('clear-user-sign-pad');
     if (clearBtn) clearBtn.addEventListener('click', function () { pad.clear(); });
-    var form = document.getElementById('user-sign-pad-form');
-    if (form) {
-        form.addEventListener('submit', function (e) {
-            if (pad.isEmpty()) {
-                e.preventDefault();
-                alert('Please draw a signature first.');
-                return false;
-            }
-            document.getElementById('user_signature_image').value = pad.toDataURL('image/png');
-        });
-    }
+
+    var saveBtn = document.getElementById('btn-save-sign-pad');
+    if (!saveBtn) return;
+    saveBtn.addEventListener('click', function () {
+        if (pad.isEmpty()) {
+            alert('Please draw a signature first.');
+            return;
+        }
+        var status = document.getElementById('sign-pad-status');
+        saveBtn.disabled = true;
+        if (status) status.textContent = 'Saving…';
+        var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        var body = new FormData();
+        body.append('_token', tokenMeta ? tokenMeta.getAttribute('content') : '');
+        body.append('signature_image', pad.toDataURL('image/png'));
+        fetch(saveBtn.getAttribute('data-url'), {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            body: body,
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            if (status) status.textContent = (res.j && res.j.message) ? res.j.message : (res.ok ? 'Signature saved.' : 'Save failed.');
+            status.style.color = res.ok ? '#157347' : '#b02a37';
+            if (res.ok) setTimeout(function () { window.location.reload(); }, 700);
+        }).catch(function () {
+            if (status) { status.textContent = 'Save failed. Please try again.'; status.style.color = '#b02a37'; }
+        }).finally(function () { saveBtn.disabled = false; });
+    });
 })();
 </script>
 @endsection

@@ -51,10 +51,10 @@ class UserSignatureController extends Controller
         $user = User::findOrFail($id);
         $filename = $this->persistUserSign($user, $request->signature_image);
         if (! $filename) {
-            return back()->with('not_permitted', 'Could not save signature. Please try again.');
+            return $this->signatureResponse($request, false, 'Could not save signature. Please try again.', 422);
         }
 
-        return back()->with('message2', 'Signature saved successfully.');
+        return $this->signatureResponse($request, true, 'Signature saved successfully.');
     }
 
     /**
@@ -69,7 +69,7 @@ class UserSignatureController extends Controller
         $user = User::findOrFail($id);
         $phone = trim((string) ($user->phone ?: $user->additional_phone));
         if ($phone === '') {
-            return back()->with('not_permitted', 'This user has no phone number for WhatsApp.');
+            return $this->signatureResponse($request, false, 'This user has no phone number for WhatsApp.', 422);
         }
 
         $token = Str::random(48);
@@ -82,7 +82,7 @@ class UserSignatureController extends Controller
         $msg = "{$company}: Please add your signature using this secure link:\n{$link}\n\nThis link expires in 3 days.";
 
         // Brief pause helps Wasender account-protection (1 msg / 5s).
-        usleep(550000);
+        usleep(1200000);
 
         $result = app(BeyondWasenderService::class)->sendText($phone, $msg);
         \Log::info('[user-signature] WhatsApp request result', [
@@ -92,18 +92,47 @@ class UserSignatureController extends Controller
             'result' => $result,
         ]);
 
-        // Always expose the link — WhatsApp delivery can lag/fail even when API says OK.
-        $flashLink = $link;
-
         if (empty($result['success']) || ! empty($result['skipped'])) {
-            return back()
-                ->with('not_permitted', 'WhatsApp did not deliver: '.($result['error'] ?? 'messaging skipped or failed').'. Use the link below.')
-                ->with('signature_request_link', $flashLink);
+            return $this->signatureResponse(
+                $request,
+                false,
+                'WhatsApp did not deliver: '.($result['error'] ?? 'messaging skipped or failed').'. Use the link below.',
+                422,
+                $link
+            );
         }
 
-        return back()
-            ->with('message2', 'Signature request queued to WhatsApp ('.$phone.'). If it does not arrive within a minute, open or copy the link below.')
-            ->with('signature_request_link', $flashLink);
+        $displayPhone = \App\Support\WhatsAppPhone::display($phone);
+
+        return $this->signatureResponse(
+            $request,
+            true,
+            'Signature request sent to WhatsApp ('.$displayPhone.'). If it does not arrive, use Open link below.',
+            200,
+            $link
+        );
+    }
+
+    protected function signatureResponse(Request $request, bool $success, string $message, int $status = 200, $link = null)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => $success,
+                'message' => $message,
+                'link' => $link,
+            ], $status);
+        }
+
+        if ($success) {
+            $redirect = back()->with('message2', $message);
+        } else {
+            $redirect = back()->with('not_permitted', $message);
+        }
+        if ($link) {
+            $redirect->with('signature_request_link', $link);
+        }
+
+        return $redirect;
     }
 
     /**
