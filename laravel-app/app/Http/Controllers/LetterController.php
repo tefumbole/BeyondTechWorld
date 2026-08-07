@@ -445,25 +445,22 @@ class LetterController extends Controller
                 }
             });
 
-            if($is_template == true) {
-                if(!isset($data['footer'])) {
-                    $data['footer'] = $data['name'];
+            if ($is_template == true) {
+                // letter_templates only has a small column set — do not pass letter workflow fields.
+                try {
+                    LetterTemplate::create([
+                        'category_id' => $data['category_id'] ?? null,
+                        'name' => $data['name'],
+                        'header' => $data['header'] ?? null,
+                        'subject' => $data['subject'],
+                        'body' => $data['body'] ?? null,
+                        'footer' => $data['footer'] ?? ($data['name'] ?? null),
+                        'is_active' => isset($data['is_active']) ? (int) $data['is_active'] : 1,
+                        'created_by' => $data['created_by'],
+                    ]);
+                } catch (\Throwable $templateError) {
+                    \Log::warning('Letter saved but template copy failed: '.$templateError->getMessage());
                 }
-                unset($data['people_type']);
-                unset($data['attachment']);
-                unset($data['template_id']);
-                unset($data['reference']);
-                unset($data['is_approve']);
-                unset($data['is_rejected']);
-                unset($data['reject_by']);
-                unset($data['is_edit']);
-                unset($data['edit_by']);
-                unset($data['approved_by']);
-                unset($data['is_sign']);
-                unset($data['to']);
-                unset($data['cc']);
-                unset($data['comment']);
-                LetterTemplate::create($data);
             }
 
             $attachments = isset($data_multiple['attachments']) ? $data_multiple['attachments'] : [];
@@ -483,7 +480,15 @@ class LetterController extends Controller
         } catch (\Throwable $e) {
             \Log::error('Letter store failed: ' . $e->getMessage());
 
-            return $this->letterStoreResponse($request, false, 'Failed to save letter. Please check all fields and try again.', 500);
+            $hint = 'Failed to save letter. Please check all fields and try again.';
+            $err = $e->getMessage();
+            if (strpos($err, 'Unknown column') !== false) {
+                $hint = 'Failed to save letter due to a database schema mismatch. Please contact support.';
+            } elseif (strpos($err, 'SQLSTATE') !== false) {
+                $hint = 'Failed to save letter (database error). Please try again or contact support.';
+            }
+
+            return $this->letterStoreResponse($request, false, $hint, 500);
         }
     }
 
