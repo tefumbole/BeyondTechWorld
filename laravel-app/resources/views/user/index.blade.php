@@ -13,11 +13,15 @@
 @endif
 
 <section>
-    @if(in_array("users-add", $all_permission))
-        <div class="container-fluid">
-            <a href="{{route('user.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{trans('file.Add User')}}</a>
+    <div class="container-fluid mb-3">
+        <div class="d-flex flex-wrap align-items-center" style="gap:10px;">
+            <a href="{{ route('user.index') }}" class="btn {{ ($category ?? 'all') !== 'applicants' ? 'btn-info' : 'btn-outline-info' }}">All Users</a>
+            <a href="{{ route('user.index', ['category' => 'applicants']) }}" class="btn {{ ($category ?? '') === 'applicants' ? 'btn-info' : 'btn-outline-info' }}">Applicants</a>
+            @if(in_array("users-add", $all_permission))
+                <a href="{{route('user.create')}}" class="btn btn-default"><i class="dripicons-plus"></i> {{trans('file.Add User')}}</a>
+            @endif
         </div>
-    @endif
+    </div>
     <div class="table-responsive">
         <table id="user-table" class="table">
             <thead>

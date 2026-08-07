@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Application;
 use App\BeyondUser;
 use App\Customer;
 use App\CustomerGroup;
@@ -82,6 +83,57 @@ class PeopleDirectoryService
                 });
         }
 
+        if ($filter === 'all' || $filter === 'applicants') {
+            BeyondUser::query()
+                ->where('role', 'applicant')
+                ->when($term !== '', function ($q) use ($like) {
+                    $q->where(function ($w) use ($like) {
+                        $w->where('name', 'like', $like)
+                            ->orWhere('email', 'like', $like)
+                            ->orWhere('phone', 'like', $like);
+                    });
+                })
+                ->orderBy('name')
+                ->limit(200)
+                ->get(['id', 'name', 'email', 'phone', 'address', 'role'])
+                ->each(function ($u) use ($out) {
+                    $out->push([
+                        'id' => 'beyond:' . $u->id,
+                        'name' => $u->name ?: 'Untitled',
+                        'email' => $u->email,
+                        'phone' => $u->phone,
+                        'address' => $u->address,
+                        'role' => 'applicant',
+                        'source' => 'Applicant',
+                    ]);
+                });
+
+            Application::query()
+                ->when($term !== '', function ($q) use ($like) {
+                    $q->where(function ($w) use ($like) {
+                        $w->where('full_name', 'like', $like)
+                            ->orWhere('email', 'like', $like)
+                            ->orWhere('phone', 'like', $like)
+                            ->orWhere('whatsapp_number', 'like', $like);
+                    });
+                })
+                ->orderByDesc('submitted_at')
+                ->limit(300)
+                ->get(['id', 'full_name', 'email', 'phone', 'whatsapp_number', 'user_id'])
+                ->each(function ($a) use ($out) {
+                    $phone = $a->whatsapp_number ?: $a->phone;
+                    $out->push([
+                        'id' => 'applicant:' . $a->id,
+                        'name' => $a->full_name ?: 'Untitled',
+                        'email' => $a->email,
+                        'phone' => $phone,
+                        'address' => '',
+                        'role' => 'applicant',
+                        'source' => 'Applicant',
+                    ]);
+                });
+        }
+
         if ($filter === 'all' || $filter === 'customers') {
             // Newest customers first so POS-created contacts are not truncated off the list.
             $customerLimit = $term !== '' ? 200 : ($filter === 'customers' ? 500 : 250);
@@ -150,9 +202,120 @@ class PeopleDirectoryService
 
             return $this->ensureBeyondFromCustomer($customer)->id;
         }
+        if (Str::startsWith($ref, 'applicant:')) {
+            $application = Application::find(substr($ref, 10));
+            if (! $application) {
+                return null;
+            }
+            if (! empty($application->user_id) && BeyondUser::find($application->user_id)) {
+                return $application->user_id;
+            }
+
+            return $this->ensureBeyondFromApplicant($application)->id;
+        }
 
         // Legacy plain UUID
         return $ref;
+    }
+
+    public function ensureBeyondFromApplicant(Application $application)
+    {
+        $email = trim((string) $application->email);
+        if ($email === '') {
+            $email = 'a' . substr((string) $application->id, 0, 8) . '@applicants.beyondtechworld.com';
+        }
+
+        $existing = BeyondUser::where('email', $email)->first();
+        $phone = $application->whatsapp_number ?: $application->phone;
+        if (! $existing && ! empty($phone)) {
+            $existing = BeyondUser::where('phone', $phone)->first();
+        }
+        if ($existing) {
+            if (($existing->role ?? '') === '' || $existing->role === 'staff') {
+                // Don't demote admins; only tag plain staff/empty as applicant when from apply flow.
+            }
+            return $existing;
+        }
+
+        $user = BeyondUser::create([
+            'id' => (string) Str::uuid(),
+            'email' => $email,
+            'username' => explode('@', $email)[0] . '_a' . substr((string) $application->id, 0, 6),
+            'password_hash' => Hash::make(Str::random(16)),
+            'name' => $application->full_name ?: ('Applicant ' . substr((string) $application->id, 0, 8)),
+            'role' => 'applicant',
+            'status' => 'active',
+            'phone' => $phone,
+            'address' => null,
+            'must_change_credentials' => true,
+        ]);
+
+        if (empty($application->user_id)) {
+            $application->user_id = $user->id;
+            $application->save();
+        }
+
+        return $user;
+    }
+
+    /**
+     * Resolve prefixed directory IDs into full person snapshots (for letters / messaging).
+     */
+    public function resolveDirectoryPeople(array $ids)
+    {
+        $ids = array_values(array_unique(array_filter(array_map('strval', $ids))));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($this->eligibleForTasks('all', '') as $u) {
+            $map[$u['id']] = $u;
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            if (isset($map[$id])) {
+                $out[] = $map[$id];
+                continue;
+            }
+            if (Str::startsWith($id, 'applicant:')) {
+                $application = Application::find(substr($id, 10));
+                if ($application) {
+                    $out[] = [
+                        'id' => $id,
+                        'name' => $application->full_name ?: 'Untitled',
+                        'email' => $application->email,
+                        'phone' => $application->whatsapp_number ?: $application->phone,
+                        'address' => '',
+                        'role' => 'applicant',
+                        'source' => 'Applicant',
+                    ];
+                }
+                continue;
+            }
+            try {
+                $beyondId = $this->resolveToBeyondUserId($id);
+                if ($beyondId) {
+                    $user = BeyondUser::find($beyondId);
+                    if ($user) {
+                        $out[] = [
+                            'id' => $id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'phone' => $user->phone,
+                            'address' => $user->address ?? '',
+                            'role' => $user->role ?? '',
+                            'source' => 'Resolved',
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // skip
+            }
+        }
+
+        return $out;
     }
 
     public function ensureBeyondFromCustomer(Customer $customer)

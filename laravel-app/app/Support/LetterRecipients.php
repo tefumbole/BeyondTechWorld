@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Customer;
 use App\CustomerGroup;
 use App\Employee;
+use App\Services\PeopleDirectoryService;
 use App\User;
 use Illuminate\Support\Collection;
 
@@ -43,6 +44,10 @@ class LetterRecipients
 
     public static function eachRecipient(string $peopleType, string $to, callable $callback): void
     {
+        if ($peopleType === 'directory') {
+            return;
+        }
+
         if ($peopleType === 'all') {
             if (preg_match('/c:([^|]*)/', $to, $customerMatch)) {
                 foreach (array_filter(explode(',', $customerMatch[1])) as $id) {
@@ -73,6 +78,49 @@ class LetterRecipients
                 $callback($recipient, $model, $id);
             }
         }
+    }
+
+    /**
+     * Iterate directory-style recipients stored as JSON snapshots.
+     */
+    public static function eachDirectoryRecipient($json, callable $callback): void
+    {
+        $people = self::decodePeopleJson($json);
+        foreach ($people as $person) {
+            $callback(self::toSendObject($person), $person['id'] ?? null);
+        }
+    }
+
+    public static function decodePeopleJson($json): array
+    {
+        if (is_array($json)) {
+            return $json;
+        }
+        if ($json === null || $json === '') {
+            return [];
+        }
+        $decoded = json_decode((string) $json, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    public static function resolveDirectoryIds(array $ids): array
+    {
+        return app(PeopleDirectoryService::class)->resolveDirectoryPeople($ids);
+    }
+
+    public static function toSendObject(array $person)
+    {
+        $r = (object) [];
+        $r->name = $person['name'] ?? '';
+        $r->phone_number = $person['phone'] ?? ($person['phone_number'] ?? '');
+        $r->email = $person['email'] ?? '';
+        $r->address = $person['address'] ?? '';
+        $r->directory_id = $person['id'] ?? null;
+        $r->role = $person['role'] ?? '';
+        $r->source = $person['source'] ?? '';
+
+        return $r;
     }
 
     public static function recipientModel(string $peopleType): string

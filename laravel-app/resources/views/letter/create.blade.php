@@ -30,29 +30,20 @@
                         <div class="card-body">
                             @php
                                 $isClone = !empty($clone);
-                                $clonePeopleType = $clonePeopleType ?? '';
+                                $clonePeopleType = $clonePeopleType ?? 'directory';
+                                if ($clonePeopleType === '' || in_array($clonePeopleType, ['user', 'customer', 'all'], true)) {
+                                    $clonePeopleType = 'directory';
+                                }
                             @endphp
                             <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                             <form id="product-form" enctype="multipart/form-data">
                                 <div class="row">
                                     <div class="col-md-3">
                                         <div class="form-group">
-                                            <label>Select People Type</label>
+                                            <label>Recipient Mode</label>
                                             <select class="form-control" name="people_type" required>
-                                                <option value="">--Choose--</option>
-                                                <option value="user" @if($clonePeopleType === 'user') selected @endif>--Employee--</option>
-                                                <option value="customer" @if($clonePeopleType === 'customer') selected @endif>--Customer--</option>
-                                                <option value="all" @if($clonePeopleType === 'all') selected @endif>-- Select All (Everyone) --</option>
-                                                <option value="csv" @if($clonePeopleType === 'csv') selected @endif>--CSV--</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 customers customers-cc" @if(!$isClone || $clonePeopleType !== 'customer') style="display:none" @endif>
-                                        <div class="form-group">
-                                            <label>Select Customer Type</label>
-                                            <select class="form-control" name="customer_type">
-                                                <option value="customer">-- Customer --</option>
-                                                <option value="customer_group">-- Customer Group --</option>
+                                                <option value="directory" @if($clonePeopleType !== 'csv') selected @endif>People directory (Users / Customers / Applicants)</option>
+                                                <option value="csv" @if($clonePeopleType === 'csv') selected @endif>CSV upload</option>
                                             </select>
                                         </div>
                                     </div>
@@ -78,10 +69,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-12 all-recipients letter-recipient-panel" @if(!$isClone || $clonePeopleType !== 'all') style="display:none" @endif>
-                                        <p class="mb-0"><strong>Everyone</strong> — this letter will be sent to all active customers and employees in the system.</p>
-                                        <input type="hidden" name="people_type_mode" value="">
-                                    </div>
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label>{{trans('file.Author Name')}} <strong>*</strong> </label>
@@ -91,74 +78,23 @@
                                             <input type="hidden" name="is_approve" value="0">
                                             <input type="hidden" name="is_sign" value="0">
                                             <input type="hidden" name="is_sent" value="0">
+                                            <input type="hidden" name="people_type_mode" value="">
                                         </div>
                                     </div>
-                                    <div class="col-md-12 users" @if($isClone && $clonePeopleType !== 'user') style="display:none" @endif>
+                                    <div class="col-md-12 directory-recipients" @if($clonePeopleType === 'csv') style="display:none" @endif>
+                                        @include('letter.partials.directory_recipient_picker')
+                                    </div>
+                                    <div class="col-md-6 csv" @if($clonePeopleType !== 'csv') style="display:none" @endif>
                                         <div class="form-group">
                                             <label>{{trans('file.To')}} <strong>*</strong></label>
-                                            <select name="to[]" @if(!$isClone || $clonePeopleType === 'user') required @endif class="selectpicker form-control to-user" data-select="false" data-live-search="true" multiple>
-                                                <option value="">-- Select All --</option>
-                                                @foreach($user as $u)
-                                                    <option value="{{$u->id}}" @if($clonePeopleType === 'user' && in_array((string) $u->id, $cloneToIds, true)) selected @endif>{{$u->name}}</option>
-                                                @endforeach
-                                            </select>
+                                            <input type="file" name="to_csv" class="form-control to-csv" accept=".csv" @if($clonePeopleType === 'csv') required @endif>
+                                            <small style="color:#6c757d;display:block;margin-top:6px;">CSV columns (in order): name, phone_number, email, address, column1…column10.</small>
                                         </div>
                                     </div>
-                                    <div class="col-md-12 customers" @if(!$isClone || $clonePeopleType !== 'customer') style="display:none" @endif>
+                                    <div class="col-md-6 csv" @if($clonePeopleType !== 'csv') style="display:none" @endif>
                                         <div class="form-group">
-                                            <label>{{trans('file.To')}} <strong>*</strong></label>
-                                            <select name="to_customer[]" @if($clonePeopleType === 'customer') required @endif class="selectpicker form-control to-customer" data-select="false" data-live-search="true" multiple>
-                                                <option value="">-- Select All --</option>
-                                                @foreach($customer as $u)
-                                                    <option value="{{$u->id}}" @if($clonePeopleType === 'customer' && in_array((string) $u->id, $cloneToIds, true)) selected @endif>{{$u->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 csv" @if(!$isClone || $clonePeopleType !== 'csv') style="display:none" @endif>
-                                        <div class="form-group">
-                                            <label>{{trans('file.To')}} <strong>*</strong></label>
-                                            <input type="file" name="to_csv" required class="form-control to-csv" accept=".csv">
-                                            <small style="color:#6c757d;display:block;margin-top:6px;">CSV columns (in order): name, phone_number, email, address, column1, column2, column3, column4, column5, column6, column7, column8, column9, column10.</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 csv" @if(!$isClone || $clonePeopleType !== 'csv') style="display:none" @endif>
-                                        <div class="form-group">
-                                            <label>Sample file <strong>*</strong></label>
-                                            <a target=_blank"" href="{{ asset('public/sample_file/letter_csv_sample.csv') }}"><span class="fa fa-download"></span> Download CSV Sample</a>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12 customers-group" style="display:none">
-                                        <div class="form-group">
-                                            <label>{{trans('file.To')}} <strong>*</strong></label>
-                                            <select name="to_customer_group[]" class="selectpicker form-control to-customer-group" data-select="false" data-live-search="true" multiple>
-                                                <option value="">-- Select All --</option>
-                                                @foreach($customerGroups as $u)
-                                                    <option value="{{$u->id}}">{{$u->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12 users" @if($isClone && $clonePeopleType !== 'user') style="display:none" @endif>
-                                        <div class="form-group">
-                                            <label>{{trans('file.CC')}}</label>
-                                            <select name="cc[]" class="selectpicker form-control" data-select="false" data-live-search="true" multiple>
-                                                <option value="">-- Select All --</option>
-                                                @foreach($user as $u)
-                                                    <option value="{{$u->id}}" @if($clonePeopleType === 'user' && in_array((string) $u->id, $cloneCcIds, true)) selected @endif>{{$u->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12 customers customers-cc" @if(!$isClone || $clonePeopleType !== 'customer') style="display:none" @endif>
-                                        <div class="form-group">
-                                            <label>{{trans('file.CC')}} </label>
-                                            <select name="cc_customer[]" class="selectpicker form-control" data-select="false" data-live-search="true" multiple>
-                                                <option value="">-- Select All --</option>
-                                                @foreach($customer as $u)
-                                                    <option value="{{$u->id}}" @if($clonePeopleType === 'customer' && in_array((string) $u->id, $cloneCcIds, true)) selected @endif>{{$u->name}}</option>
-                                                @endforeach
-                                            </select>
+                                            <label>Sample file</label>
+                                            <a target="_blank" href="{{ asset('public/sample_file/letter_csv_sample.csv') }}"><span class="fa fa-download"></span> Download CSV Sample</a>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -387,48 +323,15 @@
         })
 
 
-        @if(empty($clone))
-        $(".customers").hide();
-        $(".customers-group").hide();
-        $(".csv").hide();
-        $(".all-recipients").hide();
-        @endif
         $('select[name="people_type"]').on('change', function() {
-
-            $('.to-customer').prop('required',false);
-            $('.to-user').prop('required',false);
-            $('.to-csv').prop('required',false);
-            $(".customers").hide(300);
-            $(".users").hide(300);
+            $('.to-csv').prop('required', false);
             $(".csv").hide(300);
-            $(".all-recipients").hide(300);
-            $('input[name="people_type_mode"]').val('');
-            if ($(this).val() == "user") {
-                $('.to-user').prop('required',true);
-                $(".users").show(300);
-            }else if ($(this).val() == "customer") {
-                $('.to-customer').prop('required',true);
-                $(".customers").show(300);
-            }else if ($(this).val() == "all") {
-                $(".all-recipients").show(300);
-            }else if ($(this).val() == "csv") {
-                $('.to-csv').prop('required',true);
+            $(".directory-recipients").hide(300);
+            if ($(this).val() === "csv") {
+                $('.to-csv').prop('required', true);
                 $(".csv").show(300);
-            }
-        });
-
-        $('select[name="customer_type"]').on('change', function() {
-            if ($(this).val() == "customer_group") {
-                $('.to-customer').prop('required',false);
-                $(".customers").hide(300);
-                $(".customers-cc").show(300);
-                $('.to-customer-group').prop('required',true);
-                $(".customers-group").show(300);
-            }else{
-                $('.to-customer').prop('required',true);
-                $(".customers").show(300);
-                $('.to-customer-group').prop('required',false);
-                $(".customers-group").hide(300);
+            } else {
+                $(".directory-recipients").show(300);
             }
         });
         $("ul#letter").siblings('a').attr('aria-expanded','true');
@@ -500,40 +403,6 @@
         }
 
         initLetterEditors();
-
-        $("select").on("change", function(){
-            if ($(this).find(":selected").val() == "") {
-                if ($(this).attr("data-select") == "false") {
-                    $(this).selectpicker('selectAll');
-                    var firstOption = $(this).find('option:first');
-                    firstOption.prop('selected', false);
-                    $(this).selectpicker('refresh');
-                    $(this).attr("data-select", "true");
-                    if ($(this).hasClass('to-user')) {
-                        $('input[name="people_type_mode"]').val('all_employees');
-                    }
-                    if ($(this).hasClass('to-customer')) {
-                        $('input[name="people_type_mode"]').val('all_customers');
-                    }
-                } else {
-                    $(this).selectpicker('deselectAll');
-                    $(this).attr("data-select", "false");
-                    if ($(this).hasClass('to-user') || $(this).hasClass('to-customer')) {
-                        $('input[name="people_type_mode"]').val('');
-                    }
-                }
-            }
-        });
-
-        @if(!empty($clone))
-        $(function() {
-            var clonePeopleType = @json($clonePeopleType);
-            if (clonePeopleType) {
-                $('select[name="people_type"]').val(clonePeopleType).trigger('change');
-            }
-            $('.selectpicker').selectpicker('refresh');
-        });
-        @endif
 
         //dropzone portion
         Dropzone.autoDiscover = false;

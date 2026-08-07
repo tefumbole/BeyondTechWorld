@@ -161,6 +161,7 @@
                         <div class="mb-2">
                             <button type="button" class="an-pill active an-rf" data-role="customers">Customers</button>
                             <button type="button" class="an-pill an-rf" data-role="staff">System Users</button>
+                            <button type="button" class="an-pill an-rf" data-role="applicants">Applicants</button>
                             <button type="button" class="an-pill an-rf" data-role="all">All</button>
                         </div>
                         <div class="d-flex mb-2" style="gap:8px;">
@@ -178,6 +179,7 @@
                             <button type="button" class="an-pill active an-cf" data-role="all">All</button>
                             <button type="button" class="an-pill an-cf" data-role="staff">Staff</button>
                             <button type="button" class="an-pill an-cf" data-role="customers">Customers</button>
+                            <button type="button" class="an-pill an-cf" data-role="applicants">Applicants</button>
                         </div>
                         <input type="search" class="an-field an-csearch mb-2" placeholder="Search CC…">
                         <div class="an-user-list an-clist" style="max-height:140px;"></div>
@@ -221,8 +223,9 @@ window.AN_PRESELECT = @json([
         return (window.AN_USERS || []).filter(function (u) {
             var role = (u.role || '').toLowerCase();
             var source = (u.source || '').toLowerCase();
-            if (roleFilter === 'staff' && (source === 'customer' || role === 'customer' || role === 'client')) return false;
+            if (roleFilter === 'staff' && (source === 'customer' || source === 'applicant' || role === 'customer' || role === 'client' || role === 'applicant')) return false;
             if (roleFilter === 'customers' && source !== 'customer' && role !== 'customer' && role !== 'client') return false;
+            if (roleFilter === 'applicants' && source !== 'applicant' && role !== 'applicant') return false;
             if (!q) return true;
             return (u.name||'').toLowerCase().indexOf(q) !== -1
                 || (u.email||'').toLowerCase().indexOf(q) !== -1
@@ -236,7 +239,9 @@ window.AN_PRESELECT = @json([
             done(filterUsersLocal(query, roleFilter));
             return;
         }
-        var filter = roleFilter === 'staff' ? 'staff' : (roleFilter === 'customers' ? 'customers' : 'all');
+        var filter = roleFilter === 'staff' ? 'staff'
+            : (roleFilter === 'customers' ? 'customers'
+            : (roleFilter === 'applicants' ? 'applicants' : 'all'));
         fetch(window.AN_USERS_SEARCH + '?q=' + encodeURIComponent(q) + '&filter=' + encodeURIComponent(filter), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin'

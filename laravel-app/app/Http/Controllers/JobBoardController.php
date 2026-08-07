@@ -156,6 +156,20 @@ class JobBoardController extends Controller
         ]);
     }
 
+    public function applicants(Request $request)
+    {
+        $this->authorizeJobs();
+        $q = $request->get('q');
+        $people = $this->applications->applicantDirectory($q);
+
+        return view('job_board.applicants', [
+            'people' => $people,
+            'q' => $q,
+            'jbTab' => 'jobs.applicants',
+            'pageTitle' => 'Applicants',
+        ]);
+    }
+
     public function awaiting(Request $request)
     {
         $request->merge(['status' => Application::STATUS_AWAITING, 'tab' => 'jobs.awaiting']);

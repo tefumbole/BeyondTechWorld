@@ -2053,6 +2053,7 @@
 
                                     @if($user_index_permission_active)
                                         <li id="user-list-menu"><a href="{{route('user.index')}}">{{trans('file.User List')}}</a></li>
+                                        <li id="user-applicants-menu"><a href="{{route('user.index', ['category' => 'applicants'])}}">Applicants</a></li>
                                             <?php $user_add_permission_active = DB::table('permissions')
                                             ->join('role_has_permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
                                             ->where([

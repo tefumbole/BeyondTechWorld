@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Application;
+use App\BeyondUser;
 use App\User;
 use App\Roles;
 use App\Biller;
 use App\Warehouse;
 use App\CustomerGroup;
 use App\Customer;
+use App\Services\ApplicationService;
 use Hash;
 use Illuminate\Support\Facades\Auth;
 use Keygen;
@@ -21,18 +24,49 @@ use Illuminate\Support\Facades\Mail;
 class UserController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);
         if($role->hasPermissionTo('users-index')){
             $permissions = Role::findByName($role->name)->permissions;
             foreach ($permissions as $permission)
                 $all_permission[] = $permission->name;
+            $category = $request->get('category', 'all');
+            if ($category === 'applicants') {
+                return $this->applicantsIndex($request, $all_permission);
+            }
             $lims_user_list = User::where('is_deleted', false)->whereRaw('COALESCE(is_active, 0) = 1')->get();
-            return view('user.index', compact('lims_user_list', 'all_permission'));
+            return view('user.index', compact('lims_user_list', 'all_permission', 'category'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+    }
+
+    /**
+     * People → Users → Applicants: portal applicants + application contacts.
+     */
+    protected function applicantsIndex(Request $request, array $all_permission)
+    {
+        $q = $request->get('q');
+        $portalApplicants = BeyondUser::query()
+            ->where('role', 'applicant')
+            ->when($q, function ($query) use ($q) {
+                $like = '%'.$q.'%';
+                $query->where(function ($w) use ($like) {
+                    $w->where('name', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('phone', 'like', $like);
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
+        $directory = app(ApplicationService::class)->applicantDirectory($q);
+        $category = 'applicants';
+
+        return view('user.applicants', compact(
+            'portalApplicants', 'directory', 'all_permission', 'category', 'q'
+        ));
     }
 
     public function create()

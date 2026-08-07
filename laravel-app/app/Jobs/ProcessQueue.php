@@ -64,6 +64,16 @@ class ProcessQueue implements ShouldQueue
                 }
             }
             fclose($file);
+        } elseif ($letter->people_type === 'directory') {
+            LetterRecipients::eachDirectoryRecipient($letter->recipients_json, function ($recipient, $ref) use ($letterController, $letter) {
+                $key = $recipient->email ?: ($recipient->phone_number ?: $ref);
+                $letterController->sendPDF($letter, $recipient, $key);
+                $letterController->sendMail($letter, $recipient, $key);
+            });
+
+            LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($recipient, $ref) use ($letterController, $letter) {
+                $letterController->sendPDFToCC($letter, $recipient, $ref ?: $letter->to);
+            });
         } else {
             LetterRecipients::eachRecipient($letter->people_type, $letter->to, function ($recipient, $model, $to) use ($letterController, $letter) {
                 $letterController->sendPDF($letter, $recipient, $to);

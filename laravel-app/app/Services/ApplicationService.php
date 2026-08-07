@@ -94,9 +94,84 @@ class ApplicationService
 
         $application = Application::create($payload);
         $this->jobs->incrementApplicants($job);
+        $this->tagApplicantUser($application, $userId);
         $this->notifier->underReview($application, $job);
 
         return $application;
+    }
+
+    /**
+     * Ensure portal accounts that apply are tagged as applicants
+     * (so People / Letters / Users can filter them separately).
+     */
+    protected function tagApplicantUser(Application $application, $userId = null)
+    {
+        try {
+            $beyondId = $userId ?: $application->user_id;
+            if ($beyondId) {
+                $user = \App\BeyondUser::find($beyondId);
+                if ($user && ! in_array((string) $user->role, ['admin', 'super_admin', 'staff', 'task_assignee'], true)) {
+                    $user->role = 'applicant';
+                    $user->save();
+                }
+            } else {
+                app(\App\Services\PeopleDirectoryService::class)->ensureBeyondFromApplicant($application);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Could not tag applicant user: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Unique applicant people directory (one row per email/phone).
+     */
+    public function applicantDirectory($search = null)
+    {
+        $q = Application::query()->orderByDesc('submitted_at');
+        if ($search) {
+            $q->where(function ($w) use ($search) {
+                $w->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('whatsapp_number', 'like', "%{$search}%");
+            });
+        }
+
+        $rows = $q->get([
+            'id', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number',
+            'country', 'status', 'submitted_at', 'job_id',
+        ]);
+
+        $seen = [];
+        $people = [];
+        foreach ($rows as $app) {
+            $key = strtolower(trim((string) $app->email));
+            if ($key === '') {
+                $key = preg_replace('/\D+/', '', (string) ($app->whatsapp_number ?: $app->phone));
+            }
+            if ($key === '' || isset($seen[$key])) {
+                if (isset($seen[$key])) {
+                    $people[$seen[$key]]['applications_count']++;
+                    $people[$seen[$key]]['latest_status'] = $app->status;
+                }
+                continue;
+            }
+            $seen[$key] = count($people);
+            $people[] = [
+                'key' => $key,
+                'full_name' => $app->full_name,
+                'email' => $app->email,
+                'phone' => $app->whatsapp_number ?: $app->phone,
+                'country' => $app->country,
+                'user_id' => $app->user_id,
+                'latest_application_id' => $app->id,
+                'latest_status' => $app->status,
+                'submitted_at' => $app->submitted_at,
+                'applications_count' => 1,
+            ];
+        }
+
+        return collect($people);
     }
 
     public function ensureAgreementToken(Application $application)

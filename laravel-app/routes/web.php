@@ -363,6 +363,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/jobs/create-internship', 'JobBoardController@createInternship')->name('jobs.createInternship');
     Route::post('/admin/jobs', 'JobBoardController@store')->name('jobs.store');
     Route::get('/admin/jobs/applications', 'JobBoardController@applications')->name('jobs.applications');
+    Route::get('/admin/jobs/applicants', 'JobBoardController@applicants')->name('jobs.applicants');
     Route::get('/admin/jobs/awaiting-approval', 'JobBoardController@awaiting')->name('jobs.awaiting');
     Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
@@ -963,6 +964,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/letters/next/{id}', 'LetterController@next')->name('letter.next');
     Route::get('/letters/prev/{id}', 'LetterController@prev')->name('letter.prev');
     Route::get('/letters/create', 'LetterController@create')->name('letter.create');
+    Route::get('/letters/people/search', 'LetterController@searchPeople')->name('letter.people.search');
     Route::get('/letters/clone/{id}', 'LetterController@cloneLetter')->name('letter.clone');
     Route::get('/letters/index', 'LetterController@index')->name('letter.index');
     Route::get('/letters/all', 'LetterController@all')->name('letter.all');

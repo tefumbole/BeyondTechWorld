@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Letter;
 use App\LetterCategory;
 use App\LetterTemplate;
+use App\Services\PeopleDirectoryService;
 use App\Support\LetterRecipients;
 use App\Support\LetterSignature;
 use App\User;
@@ -216,9 +217,17 @@ class LetterController extends Controller
         $clone = null;
         $cloneToIds = [];
         $cloneCcIds = [];
-        $clonePeopleType = '';
+        $clonePeopleType = 'directory';
+        $cloneDirectoryToIds = [];
+        $cloneDirectoryCcIds = [];
+        $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
+        $directorySearchUrl = route('letter.people.search');
 
-        return view('letter.create', compact('category', 'template', 'user', 'customer', 'customerGroups', 'departments', 'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType'));
+        return view('letter.create', compact(
+            'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
+            'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
+            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl'
+        ));
     }
 
     public function cloneLetter($id)
@@ -234,8 +243,26 @@ class LetterController extends Controller
         $clonePeopleType = $resolved['peopleType'];
         $cloneToIds = $resolved['toIds'];
         $cloneCcIds = $resolved['ccIds'];
+        $cloneDirectoryToIds = $resolved['directoryToIds'] ?? [];
+        $cloneDirectoryCcIds = $resolved['directoryCcIds'] ?? [];
+        $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
+        $directorySearchUrl = route('letter.people.search');
 
-        return view('letter.create', compact('category', 'template', 'user', 'customer', 'customerGroups', 'departments', 'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType'));
+        return view('letter.create', compact(
+            'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
+            'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
+            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl'
+        ));
+    }
+
+    public function searchPeople(Request $request)
+    {
+        $filter = $request->get('filter', 'all');
+        $q = $request->get('q', '');
+
+        return response()->json(
+            app(PeopleDirectoryService::class)->eligibleForTasks($filter, $q)
+        );
     }
 
     /**
@@ -250,11 +277,23 @@ class LetterController extends Controller
             $data = $request->all();
 
             if (empty($data['people_type'])) {
-                return $this->letterStoreResponse($request, false, 'Please select a people type.', 422);
+                $data['people_type'] = 'directory';
             }
 
-            if($data['people_type'] == "customer") {
-                if ($data['customer_type'] == "customer_group") {
+            if ($data['people_type'] === 'directory') {
+                $recipientIds = array_values(array_unique(array_filter((array) ($data['recipient_ids'] ?? []))));
+                $ccIds = array_values(array_unique(array_filter((array) ($data['cc_ids'] ?? []))));
+                if (empty($recipientIds)) {
+                    return $this->letterStoreResponse($request, false, 'Please select at least one recipient.', 422);
+                }
+                $recipients = LetterRecipients::resolveDirectoryIds($recipientIds);
+                $ccs = LetterRecipients::resolveDirectoryIds($ccIds);
+                $data['recipients_json'] = json_encode($recipients);
+                $data['cc_json'] = json_encode($ccs);
+                $data['to'] = implode(',', $recipientIds);
+                $data['cc'] = ! empty($ccIds) ? implode(',', $ccIds) : null;
+            } elseif ($data['people_type'] == "customer") {
+                if (($data['customer_type'] ?? '') == "customer_group") {
                     $customer_group = Customer::whereIn('customer_group_id', $data['to_customer_group'] ?? [])->where('is_active', 1)->pluck('id')->toArray();
                     $data['to'] = implode(",", $customer_group);
                 } elseif (!empty($data['people_type_mode']) && $data['people_type_mode'] === 'all_customers') {
@@ -302,7 +341,7 @@ class LetterController extends Controller
                 }
             }
 
-            if (empty($data['to'])) {
+            if (empty($data['to']) && empty($data['recipients_json'])) {
                 return $this->letterStoreResponse($request, false, 'Please choose who should receive this letter.', 422);
             }
 
@@ -382,6 +421,8 @@ class LetterController extends Controller
             unset($data['to_customer']);
             unset($data['cc_customer']);
             unset($data['to_csv']);
+            unset($data['recipient_ids']);
+            unset($data['cc_ids']);
             if(isset($data['attachments'])) {
                 $data_multiple['attachments'] = $data['attachments'];
             }
@@ -1535,6 +1576,29 @@ class LetterController extends Controller
         $peopleType = trim((string) ($clone->people_type ?? ''));
         $toIds = [];
         $ccIds = [];
+        $directoryToIds = [];
+        $directoryCcIds = [];
+
+        if ($peopleType === 'directory' || ! empty($clone->recipients_json)) {
+            $recipients = LetterRecipients::decodePeopleJson($clone->recipients_json);
+            $ccs = LetterRecipients::decodePeopleJson($clone->cc_json);
+            $directoryToIds = array_values(array_filter(array_column($recipients, 'id')));
+            $directoryCcIds = array_values(array_filter(array_column($ccs, 'id')));
+            if (empty($directoryToIds) && ! empty($clone->to)) {
+                $directoryToIds = array_values(array_filter(explode(',', (string) $clone->to)));
+            }
+            if (empty($directoryCcIds) && ! empty($clone->cc)) {
+                $directoryCcIds = array_values(array_filter(explode(',', (string) $clone->cc)));
+            }
+
+            return [
+                'peopleType' => 'directory',
+                'toIds' => $toIds,
+                'ccIds' => $ccIds,
+                'directoryToIds' => $directoryToIds,
+                'directoryCcIds' => $directoryCcIds,
+            ];
+        }
 
         if (in_array($peopleType, ['customer', 'user', 'all', 'csv'], true)) {
             if (in_array($peopleType, ['customer', 'user'], true)) {
@@ -1542,35 +1606,51 @@ class LetterController extends Controller
                 $ccIds = $clone->cc
                     ? array_values(array_filter(explode(',', (string) $clone->cc)))
                     : [];
+                // Map legacy IDs into directory preselect where possible.
+                $prefix = $peopleType === 'customer' ? 'customer:' : 'user:';
+                // Employees are not user: — leave empty for directory; clone as directory with empty and let user re-pick, OR convert customers.
+                if ($peopleType === 'customer') {
+                    $directoryToIds = array_map(function ($id) { return 'customer:' . $id; }, $toIds);
+                    $directoryCcIds = array_map(function ($id) { return 'customer:' . $id; }, $ccIds);
+                }
             }
 
             return [
-                'peopleType' => $peopleType,
+                'peopleType' => in_array($peopleType, ['user', 'customer', 'all'], true) ? 'directory' : $peopleType,
                 'toIds' => $toIds,
                 'ccIds' => $ccIds,
+                'directoryToIds' => $directoryToIds,
+                'directoryCcIds' => $directoryCcIds,
             ];
         }
 
         $to = (string) ($clone->to ?? '');
 
         if (strpos($to, 'c:') !== false || strpos($to, 'e:') !== false) {
-            $peopleType = 'all';
+            $peopleType = 'directory';
         } elseif (preg_match('/\.csv$/i', $to)) {
             $peopleType = 'csv';
         } elseif ($to !== '') {
             $customerIds = array_values(array_filter(explode(',', $to)));
             $hasCustomer = Customer::whereIn('id', $customerIds)->exists();
-            $peopleType = $hasCustomer ? 'customer' : 'user';
-            $toIds = $customerIds;
+            $peopleType = 'directory';
+            if ($hasCustomer) {
+                $directoryToIds = array_map(function ($id) { return 'customer:' . $id; }, $customerIds);
+            }
             $ccIds = $clone->cc
                 ? array_values(array_filter(explode(',', (string) $clone->cc)))
                 : [];
+            if ($hasCustomer && $ccIds) {
+                $directoryCcIds = array_map(function ($id) { return 'customer:' . $id; }, $ccIds);
+            }
         }
 
         return [
-            'peopleType' => $peopleType,
+            'peopleType' => $peopleType ?: 'directory',
             'toIds' => $toIds,
             'ccIds' => $ccIds,
+            'directoryToIds' => $directoryToIds,
+            'directoryCcIds' => $directoryCcIds,
         ];
     }
 
