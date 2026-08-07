@@ -40,4 +40,26 @@
         border-radius: 12px;
         padding: 14px;
     }
+    #product-form .is-invalid,
+    #product-form .form-control.is-invalid,
+    #product-form select.is-invalid,
+    #product-form .bootstrap-select > .dropdown-toggle.is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.2);
+    }
+    #product-form .letter-panel-invalid {
+        border: 2px solid #dc3545 !important;
+        background: #fff5f5 !important;
+        box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.12);
+    }
+    #product-form .letter-field-error-msg {
+        color: #dc3545;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 6px;
+    }
+    #product-form label.letter-label-invalid,
+    #product-form .section-label.letter-label-invalid {
+        color: #dc3545 !important;
+    }
 </style>

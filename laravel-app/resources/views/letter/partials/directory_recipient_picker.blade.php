@@ -239,6 +239,23 @@ window.LT_PRESELECT = @json([
             var peopleType = (document.querySelector('select[name="people_type"]') || {}).value;
             if (peopleType === 'directory' && !recipients.length) {
                 e.preventDefault();
+                var panel = document.querySelector('.letter-recipient-panel');
+                if (panel) {
+                    panel.classList.add('letter-panel-invalid');
+                    var h5 = panel.querySelector('h5');
+                    if (h5) h5.classList.add('letter-label-invalid');
+                    if (!panel.querySelector('.letter-field-error-msg')) {
+                        var msg = document.createElement('div');
+                        msg.className = 'letter-field-error-msg';
+                        msg.textContent = 'Please select at least one recipient (To).';
+                        if (panel.firstChild) {
+                            panel.insertBefore(msg, panel.children[1] || null);
+                        } else {
+                            panel.appendChild(msg);
+                        }
+                    }
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
                 alert('Select at least one recipient (To).');
             }
         });

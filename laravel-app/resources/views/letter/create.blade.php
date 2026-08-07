@@ -497,17 +497,119 @@
                     }
                 }
 
+                function clearLetterFieldErrors() {
+                    var $form = $('#product-form');
+                    $form.find('.is-invalid').removeClass('is-invalid');
+                    $form.find('.letter-label-invalid').removeClass('letter-label-invalid');
+                    $form.find('.letter-field-error-msg').remove();
+                    $form.find('.letter-panel-invalid').removeClass('letter-panel-invalid');
+                }
+
+                function markLetterFieldInvalid($el, message) {
+                    $el.addClass('is-invalid');
+                    $el.closest('.form-group').find('label').first().addClass('letter-label-invalid');
+                    var $bs = $el.next('.bootstrap-select');
+                    if ($bs.length) {
+                        $bs.find('> .dropdown-toggle').addClass('is-invalid');
+                    }
+                    var $group = $el.closest('.form-group');
+                    if ($group.length && !$group.find('.letter-field-error-msg').length) {
+                        $group.append('<div class="letter-field-error-msg">' + (message || 'This field is required') + '</div>');
+                    }
+                }
+
+                function letterFieldIsEmpty($el) {
+                    if ($el.is(':file')) {
+                        return !$el[0].files || !$el[0].files.length;
+                    }
+                    var v = $el.val();
+                    if (v === null || v === undefined) {
+                        return true;
+                    }
+                    if ($.isArray(v)) {
+                        return !v.length;
+                    }
+                    return String(v).trim() === '';
+                }
+
+                function letterFieldShouldValidate($el) {
+                    if ($el.closest('.modal').length) {
+                        return false;
+                    }
+                    if ($el.closest('.csv').length && $el.closest('.csv').is(':hidden')) {
+                        return false;
+                    }
+                    if ($el.closest('.directory-recipients').length && $el.closest('.directory-recipients').is(':hidden')) {
+                        return false;
+                    }
+                    // bootstrap-select hides the native <select>
+                    if ($el.is('select') && ($el.next('.bootstrap-select').length || $el.parent().hasClass('bootstrap-select'))) {
+                        return true;
+                    }
+                    return $el.is(':visible');
+                }
+
                 function validateLetterForm() {
+                    clearLetterFieldErrors();
                     var isValid = true;
-                    $('#product-form').find('[required]:visible').each(function() {
-                        if ($(this).val() === '' || $(this).val() === null) {
-                            alert('Please fill all required fields');
+                    var $first = null;
+
+                    $('#product-form').find('[required]').each(function () {
+                        var $el = $(this);
+                        if (!letterFieldShouldValidate($el)) {
+                            return;
+                        }
+                        if (letterFieldIsEmpty($el)) {
                             isValid = false;
-                            return false;
+                            markLetterFieldInvalid($el);
+                            if (!$first) {
+                                $first = $el;
+                            }
                         }
                     });
+
+                    if ($('select[name="people_type"]').val() === 'directory' && $('.directory-recipients').is(':visible')) {
+                        var toCount = $('.lt-rhiddens input[name="recipient_ids[]"]').length;
+                        if (toCount < 1) {
+                            isValid = false;
+                            var $panel = $('.letter-recipient-panel');
+                            $panel.addClass('letter-panel-invalid');
+                            $panel.find('h5').first().addClass('letter-label-invalid');
+                            if (!$panel.find('.letter-field-error-msg').length) {
+                                $panel.children().first().after('<div class="letter-field-error-msg">Please select at least one recipient (To).</div>');
+                            }
+                            if (!$first) {
+                                $first = $panel;
+                            }
+                        }
+                    }
+
+                    if (!isValid) {
+                        alert('Please fill all required fields');
+                        if ($first && $first.length && $first.offset()) {
+                            $('html, body').animate({ scrollTop: Math.max(0, $first.offset().top - 120) }, 250);
+                            try {
+                                if ($first.is('input, select, textarea')) {
+                                    $first.trigger('focus');
+                                }
+                            } catch (err) {}
+                        }
+                    }
                     return isValid;
                 }
+
+                $('#product-form').on('input change', 'input, select, textarea', function () {
+                    var $el = $(this);
+                    $el.removeClass('is-invalid');
+                    $el.closest('.form-group').find('label').removeClass('letter-label-invalid');
+                    $el.closest('.form-group').find('.letter-field-error-msg').remove();
+                    $el.next('.bootstrap-select').find('> .dropdown-toggle').removeClass('is-invalid');
+                });
+                $(document).on('click', '.lt-user-item, .lt-chip button, .lt-rselect-all', function () {
+                    $('.letter-recipient-panel').removeClass('letter-panel-invalid');
+                    $('.letter-recipient-panel .letter-label-invalid').removeClass('letter-label-invalid');
+                    $('.letter-recipient-panel > .letter-field-error-msg').remove();
+                });
 
                 $('#submit-btn').on("click", function (e) {
                     e.preventDefault();
