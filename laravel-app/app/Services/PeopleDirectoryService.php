@@ -31,6 +31,12 @@ class PeopleDirectoryService
                 ->when($filter === 'staff', function ($q) {
                     $q->whereIn('role', ['staff', 'admin', 'super_admin', 'task_assignee']);
                 })
+                // Applicants appear only via hired applications (Applicants filter), not as portal leftovers.
+                ->when($filter === 'all', function ($q) {
+                    $q->where(function ($w) {
+                        $w->whereNull('role')->orWhere('role', '!=', 'applicant');
+                    });
+                })
                 ->when($term !== '', function ($q) use ($like) {
                     $q->where(function ($w) use ($like) {
                         $w->where('name', 'like', $like)
@@ -84,31 +90,9 @@ class PeopleDirectoryService
         }
 
         if ($filter === 'all' || $filter === 'applicants') {
-            BeyondUser::query()
-                ->where('role', 'applicant')
-                ->when($term !== '', function ($q) use ($like) {
-                    $q->where(function ($w) use ($like) {
-                        $w->where('name', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('phone', 'like', $like);
-                    });
-                })
-                ->orderBy('name')
-                ->limit(200)
-                ->get(['id', 'name', 'email', 'phone', 'address', 'role'])
-                ->each(function ($u) use ($out) {
-                    $out->push([
-                        'id' => 'beyond:' . $u->id,
-                        'name' => $u->name ?: 'Untitled',
-                        'email' => $u->email,
-                        'phone' => $u->phone,
-                        'address' => $u->address,
-                        'role' => 'applicant',
-                        'source' => 'Applicant',
-                    ]);
-                });
-
-            Application::query()
+            // Letters / announcements: only hired applicants (deleted apps disappear; no portal leftovers).
+            $hiredApps = Application::query()
+                ->where('status', Application::STATUS_HIRED)
                 ->when($term !== '', function ($q) use ($like) {
                     $q->where(function ($w) use ($like) {
                         $w->where('full_name', 'like', $like)
@@ -118,20 +102,29 @@ class PeopleDirectoryService
                     });
                 })
                 ->orderByDesc('submitted_at')
-                ->limit(300)
-                ->get(['id', 'full_name', 'email', 'phone', 'whatsapp_number', 'user_id'])
-                ->each(function ($a) use ($out) {
-                    $phone = $a->whatsapp_number ?: $a->phone;
-                    $out->push([
-                        'id' => 'applicant:' . $a->id,
-                        'name' => $a->full_name ?: 'Untitled',
-                        'email' => $a->email,
-                        'phone' => $phone,
-                        'address' => '',
-                        'role' => 'applicant',
-                        'source' => 'Applicant',
-                    ]);
-                });
+                ->limit(500)
+                ->get(['id', 'full_name', 'email', 'phone', 'whatsapp_number', 'user_id']);
+
+            $seen = [];
+            foreach ($hiredApps as $a) {
+                $emailKey = strtolower(trim((string) $a->email));
+                $phoneKey = preg_replace('/\D+/', '', (string) ($a->whatsapp_number ?: $a->phone));
+                $dedupeKey = $emailKey !== '' ? 'e:'.$emailKey : ($phoneKey !== '' ? 'p:'.$phoneKey : 'id:'.$a->id);
+                if (isset($seen[$dedupeKey])) {
+                    continue;
+                }
+                $seen[$dedupeKey] = true;
+                $phone = $a->whatsapp_number ?: $a->phone;
+                $out->push([
+                    'id' => 'applicant:' . $a->id,
+                    'name' => $a->full_name ?: 'Untitled',
+                    'email' => $a->email,
+                    'phone' => $phone,
+                    'address' => '',
+                    'role' => 'applicant',
+                    'source' => 'Applicant',
+                ]);
+            }
         }
 
         if ($filter === 'all' || $filter === 'customers') {
