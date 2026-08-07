@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Application;
 use App\JobPosting;
+use App\Support\WhatsAppPhone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\Facades\Image;
 
 class ApplicationService
@@ -95,7 +98,13 @@ class ApplicationService
         $application = Application::create($payload);
         $this->jobs->incrementApplicants($job);
         $this->tagApplicantUser($application, $userId);
-        $this->notifier->underReview($application, $job);
+        try {
+            $this->notifier->underReview($application, $job);
+        } catch (\Throwable $e) {
+            Log::warning('Application under-review notify failed: '.$e->getMessage(), [
+                'application_id' => $application->id,
+            ]);
+        }
 
         return $application;
     }
@@ -291,7 +300,21 @@ class ApplicationService
 
     public function combinePhone($code, $number)
     {
-        return \App\Support\WhatsAppPhone::combine($code, $number);
+        try {
+            $combined = WhatsAppPhone::combine($code, $number);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'whatsapp_number' => $e->getMessage(),
+            ]);
+        }
+
+        if ($combined === '') {
+            throw ValidationException::withMessages([
+                'whatsapp_number' => 'Enter a valid WhatsApp number (e.g. 675321739).',
+            ]);
+        }
+
+        return $combined;
     }
 
     public function applicationsForUser($user)

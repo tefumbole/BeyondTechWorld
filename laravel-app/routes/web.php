@@ -371,6 +371,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/jobs/awaiting-approval', 'JobBoardController@awaiting')->name('jobs.awaiting');
     Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
+    Route::post('/admin/jobs/applications/delete', 'JobBoardController@deleteApplications')->name('jobs.applications.delete');
     Route::get('/admin/jobs/applications/{id}', 'JobBoardController@showApplication')->name('jobs.applications.show');
     Route::get('/admin/jobs/applications/{id}/document/{type}', 'JobBoardController@document')->name('jobs.applications.document')
         ->where('type', 'cv|student_id|student_id_back|letter|selfie');
@@ -383,6 +384,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     // WhatsApp Announcements Manager (AlphaBridge-style)
     Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');
     Route::get('/admin/announcements/users/search', 'AnnouncementManagerController@searchUsers')->name('announcements.users.search');
+    Route::post('/admin/announcements/quick-recipient', 'AnnouncementManagerController@quickRecipient')->name('announcements.quick_recipient');
     Route::post('/admin/announcements', 'AnnouncementManagerController@store')->name('announcements.store');
     Route::get('/admin/announcements/list', 'AnnouncementManagerController@index')->name('announcements.index');
     Route::get('/admin/announcements/scheduled', 'AnnouncementManagerController@scheduled')->name('announcements.scheduled');
@@ -1021,6 +1023,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::POST('/letters/multiple/send/store', 'LetterController@multipleSendStore')->name('letter.multiple.send.store');
     Route::POST('/letters/multiple/download/store', 'LetterController@multipleDownloadStore')->name('letter.multiple.download.store');
     Route::POST('/letters/multiple/print/store', 'LetterController@multiplePrintStore')->name('letter.multiple.print.store');
+    Route::POST('/letters/multiple/delete', 'LetterController@multipleDelete')->name('letter.multiple.delete');
 
 
     Route::get('/letters/category/create', 'LetterCategoryController@create')->name('letter.category.create');

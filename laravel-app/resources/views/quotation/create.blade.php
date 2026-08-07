@@ -198,10 +198,15 @@
                                 		<div class="form-group">
                                 			<label>{{trans('file.Status')}}</label>
                                 			<select class="form-control" name="quotation_status">
-                                				<option value="2" selected>Send for client approval (WhatsApp)</option>
+                                				<option value="2" selected>Send for Signature</option>
                                 				<option value="1">Save as draft</option>
+                                				<option value="5">No Signature required</option>
                                 			</select>
-                                			<small class="text-muted">Client will receive a WhatsApp link to review the quotation and notes, then approve (with signature) or reject (with comment).</small>
+                                			<small class="text-muted">
+                                				<strong>Send for Signature:</strong> client gets a WhatsApp link to review and sign (PDF is sent only after they sign).
+                                				<strong>Save as draft:</strong> no WhatsApp.
+                                				<strong>No Signature required:</strong> finalize immediately and send the PDF to the client.
+                                			</small>
                                 		</div>
                                 	</div>
                                 	<div class="col-md-4">

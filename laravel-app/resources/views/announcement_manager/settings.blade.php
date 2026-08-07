@@ -26,29 +26,20 @@
                     <label>Default Message Header</label>
                     <input type="text" name="default_header" class="form-control" value="{{ $settings->default_header }}">
                 </div>
-                <div class="row">
-                    <div class="col-md-6 form-group">
-                        <label>Serial Prefix</label>
-                        <input type="text" name="serial_prefix" class="form-control" value="{{ $settings->serial_prefix }}">
-                    </div>
-                    <div class="col-md-6 form-group">
-                        <label>Next Serial Number</label>
-                        <input type="number" name="next_serial" class="form-control" value="{{ $settings->next_serial }}" min="1">
-                    </div>
+                <div class="alert alert-info py-2">
+                    Announcement references now use the same series as Letters
+                    (<strong>({{ \App\Support\LetterReference::prefix() }}/{{ \App\Support\LetterReference::yearToken() }}/#######)</strong>,
+                    configured under General Settings → Letter Serial No.
                 </div>
                 <div class="row">
-                    <div class="col-md-6 form-group">
-                        <label>Serial Padding (digits)</label>
-                        <input type="number" name="serial_padding" class="form-control" value="{{ $settings->serial_padding }}" min="1" max="8">
-                    </div>
                     <div class="col-md-6 form-group">
                         <label>Timezone Offset</label>
                         <input type="text" name="timezone_offset" class="form-control" value="{{ $settings->timezone_offset }}">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Timezone</label>
-                    <input type="text" name="timezone" class="form-control" value="{{ $settings->timezone }}">
+                    <div class="col-md-6 form-group">
+                        <label>Timezone</label>
+                        <input type="text" name="timezone" class="form-control" value="{{ $settings->timezone }}">
+                    </div>
                 </div>
                 <button class="an-btn-primary"><i class="dripicons-checkmark"></i> Save Settings</button>
             </form>

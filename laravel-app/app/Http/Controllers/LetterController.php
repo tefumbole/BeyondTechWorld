@@ -365,13 +365,7 @@ class LetterController extends Controller
             $data['reject_by'] = null;
             $data['sent_by'] = null;
 
-            $letter_id = Letter::count('id');
-            if(!$letter_id) {
-                $letter_id = 0;
-            }
-            $zero = substr('0000000', strlen($letter_id));
-            $letter_id++;
-            $data['reference'] = GeneralSetting::first()->letter_serial_no . '/' . date('y') . '/' . $zero . $letter_id;
+            $data['reference'] = \App\Support\LetterReference::next();
 
             if(isset($data['is_template'])) {
                 $is_template = true;
@@ -1310,6 +1304,35 @@ class LetterController extends Controller
         return back()->with('not_permitted','Data deleted successfully');
     }
 
+    /**
+     * Soft-delete multiple letters from list checkboxes (same as single destroy).
+     */
+    public function multipleDelete(Request $request)
+    {
+        $ids = $request->ids;
+        if ($ids == null) {
+            return redirect()->back()->with('not_permitted', 'No letter is selected');
+        }
+
+        $count = 0;
+        foreach ($ids as $key => $option) {
+            $letter = Letter::find($key);
+            if ($letter) {
+                $letter->is_active = false;
+                $letter->save();
+                $count++;
+            }
+        }
+
+        if ($count < 1) {
+            return redirect()->back()->with('not_permitted', 'No letters were deleted.');
+        }
+
+        return redirect()->back()->with('message', $count === 1
+            ? '1 letter deleted.'
+            : $count.' letters deleted.');
+    }
+
     public function templateInfo ($id) {
         return LetterTemplate::find($id);
     }
@@ -1502,17 +1525,35 @@ class LetterController extends Controller
 
     protected function saveSignatureFromRequest(Request $request, string $prefix)
     {
+        $dataUrl = trim((string) $request->input('signature_image', ''));
+        $useAccount = $request->boolean('use_account_signature')
+            || $request->input('use_account_signature') === '1'
+            || $request->input('use_account_signature') === 1;
+
+        // New pad drawing takes priority.
+        if ($dataUrl !== '' && preg_match('/^data:image\/png;base64,/', $dataUrl)) {
+            $filename = LetterSignature::storeFromDataUrl($dataUrl, $prefix);
+            if ($filename) {
+                $this->replaceAccountSignature($prefix, $filename);
+            }
+
+            return $filename;
+        }
+
+        // Default: reuse the signature already saved on the user account.
+        if ($useAccount || $dataUrl === '') {
+            $column = LetterSignature::accountColumnForPrefix($prefix);
+            $accountFile = $column ? (Auth::user()->{$column} ?? null) : null;
+            if ($accountFile) {
+                return LetterSignature::storeFromAccountFile($accountFile, $prefix);
+            }
+        }
+
         $request->validate([
             'signature_image' => 'required|string',
         ]);
 
-        $filename = LetterSignature::storeFromDataUrl($request->signature_image, $prefix);
-
-        if ($filename) {
-            $this->replaceAccountSignature($prefix, $filename);
-        }
-
-        return $filename;
+        return null;
     }
 
     private function replaceAccountSignature(string $prefix, string $filename)

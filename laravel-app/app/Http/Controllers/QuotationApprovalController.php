@@ -54,10 +54,18 @@ class QuotationApprovalController extends Controller
         $quotation->client_approval_token = null;
         $quotation->save();
 
-        $this->notifyStakeholders($quotation->fresh(), 'approved');
+        $quotation = $quotation->fresh(['customer', 'biller']);
+        $this->notifyStakeholders($quotation, 'approved');
+
+        // Official PDF is delivered only after the client signs.
+        try {
+            app(QuotationController::class)->deliverQuotationPdfToClient($quotation, $quotation->customer, 'signed');
+        } catch (\Throwable $e) {
+            Log::warning('Post-signature quotation PDF delivery failed for '.$quotation->reference_no.': '.$e->getMessage());
+        }
 
         return view('quotation.client_responded', [
-            'quotation' => $quotation->fresh(['customer', 'biller']),
+            'quotation' => $quotation,
             'general_setting' => GeneralSetting::first(),
         ]);
     }

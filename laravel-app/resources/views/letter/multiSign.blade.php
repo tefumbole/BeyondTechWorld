@@ -32,6 +32,7 @@
                                         'padId' => 'multi-sign-signature-pad',
                                         'clearId' => 'clear-multi-sign-signature',
                                         'hiddenId' => 'multi_sign_signature_image',
+                                        'signatureKind' => 'sign',
                                     ])
                                 </form>
                             </div>

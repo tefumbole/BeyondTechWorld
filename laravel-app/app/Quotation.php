@@ -11,6 +11,8 @@ class Quotation extends Model
     const STATUS_AWAITING = 2;
     const STATUS_APPROVED = 3;
     const STATUS_REJECTED = 4;
+    /** Finalized without client signature (no approval link). */
+    const STATUS_NO_SIGNATURE = 5;
 
     protected $fillable = [
         'reference_no',
@@ -52,12 +54,24 @@ class Quotation extends Model
     {
         $map = [
             self::STATUS_PENDING => 'Draft',
-            self::STATUS_AWAITING => 'Awaiting Client Approval',
+            self::STATUS_AWAITING => 'Awaiting Client Signature',
             self::STATUS_APPROVED => 'Approved',
             self::STATUS_REJECTED => 'Rejected',
+            self::STATUS_NO_SIGNATURE => 'No Signature Required',
         ];
 
         return $map[(int) $status] ?? 'Unknown';
+    }
+
+    /** Statuses that can be converted to a sale. */
+    public static function saleReadyStatuses()
+    {
+        return [self::STATUS_APPROVED, self::STATUS_NO_SIGNATURE];
+    }
+
+    public function isSaleReady()
+    {
+        return in_array((int) $this->quotation_status, self::saleReadyStatuses(), true);
     }
 
     public function statusLabelText()

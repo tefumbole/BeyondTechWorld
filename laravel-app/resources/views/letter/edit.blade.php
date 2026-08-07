@@ -180,6 +180,7 @@
                                         'padId' => 'edit-letter-signature-pad',
                                         'clearId' => 'clear-edit-letter-signature',
                                         'hiddenId' => 'edit_letter_signature_image',
+                                        'signatureKind' => 'edit',
                                     ])
                                 </div>
                             </div>

@@ -39,7 +39,7 @@
             </thead>
             <tbody>
                 @foreach($lims_user_list as $key=>$user)
-                <tr data-id="{{$user->id}}">
+                <tr data-id="{{$user->id}}" @if(in_array("users-edit", $all_permission)) data-edit-url="{{ route('user.edit', $user->id) }}" style="cursor:pointer;" @endif>
                     <td>{{$key}}</td>
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->email}}</td>
@@ -206,5 +206,15 @@
 
     if(all_permission.indexOf("users-delete") == -1)
         $('.buttons-delete').addClass('d-none');
+
+    $('#user-table tbody').on('click', 'tr', function (e) {
+        if ($(e.target).closest('td:first-child, .btn-group, a, button, input, label, .dropdown-menu, .checkbox').length) {
+            return;
+        }
+        var url = $(this).data('edit-url');
+        if (url) {
+            window.location = url;
+        }
+    });
 </script>
 @endsection

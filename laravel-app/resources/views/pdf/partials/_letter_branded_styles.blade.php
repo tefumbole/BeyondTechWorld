@@ -85,9 +85,41 @@
         z-index: 1;
     }
 @endif
-    .letter-meta { margin: 12px 0 14px; font-size: 13px; }
-    .letter-to-block { margin: 0 0 12px; line-height: 1.4; }
-    .letter-dear { margin: 0 0 14px; font-weight: 600; }
+    .letter-top-right {
+        text-align: right;
+        margin: 0 0 6px;
+        min-height: 8px;
+    }
+    .letter-corner-header {
+        text-align: right;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 4px;
+        color: #1f2a44;
+    }
+    .letter-corner-header p,
+    .letter-corner-header div {
+        margin: 0;
+        padding: 0;
+        text-align: right;
+    }
+    .letter-corner-stamp {
+        display: inline-block;
+        text-align: center;
+        margin: 0 0 0 8px;
+        vertical-align: top;
+    }
+    .letter-corner-stamp img {
+        max-height: 28px;
+        width: auto;
+        display: block;
+        margin-left: auto;
+        background: transparent;
+    }
+    .letter-meta { margin: 8px 0 12px; font-size: 13px; clear: both; }
+    .letter-to-block { margin: 0 0 10px; line-height: 1.35; }
+    .letter-dear { margin: 0 0 12px; font-weight: 600; }
     .letter-content-header { margin: 0 0 10px; font-size: 12px; }
     .letter-body {
         position: relative;
@@ -95,43 +127,77 @@
     }
     .letter-body h2 {
         font-size: 15px;
-        margin: 12px 0;
+        margin: 10px 0;
     }
     .letter-signature-row {
         position: relative;
-        margin-top: 28px;
-        min-height: 150px;
+        margin-top: 18px;
+        min-height: 120px;
     }
     .letter-signature-left {
         position: relative;
         z-index: 2;
-        width: 45%;
+        width: 48%;
+    }
+    .letter-sincerely {
+        margin: 0 0 2px;
+        padding: 0;
+    }
+    .letter-sign-img {
+        display: block;
+        max-height: 52px;
+        width: auto;
+        margin: 0 0 2px;
+        background: transparent;
+    }
+    .letter-closing {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+        font-size: 13px;
+    }
+    .letter-closing p,
+    .letter-closing div,
+    .letter-closing h1,
+    .letter-closing h2,
+    .letter-closing h3,
+    .letter-closing h4,
+    .letter-closing h5,
+    .letter-closing h6 {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+        font-size: 13px;
+        font-weight: normal;
+    }
+    .letter-cc {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+        font-size: 13px;
     }
     .letter-codes-back {
         position: absolute;
         left: 0;
         right: 0;
-        top: 10px;
+        top: 8px;
         z-index: 0;
         text-align: center;
     }
-    .letter-codes-back img {
-        display: inline-block;
+    .letter-codes-back .letter-qr {
+        display: block;
+        margin: 0 auto 4px;
+    }
+    .letter-codes-back .letter-barcode {
+        display: block;
         margin: 0 auto;
     }
     .letter-footer-text {
         position: relative;
         z-index: 2;
-        margin-top: 24px;
+        margin-top: 8px;
         clear: both;
+        line-height: 1.15;
     }
     .header-letter { text-align: right; font-size: 10px; }
-    .edit, .approve {
-        position: absolute;
-        margin-top: -20px;
-        z-index: 0;
-        opacity: 0.5;
-    }
-    .edit { margin-left: 75px; }
-    .approve { margin-left: 30px; }
 </style>

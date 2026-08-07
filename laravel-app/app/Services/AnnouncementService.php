@@ -57,22 +57,13 @@ class AnnouncementService
         return $row;
     }
 
+    /**
+     * Same reference scheme as Letters: {letter_serial_no}/{yy}/{NNNNNNN}
+     * e.g. BCL/L-/26/0000005 — shared sequence with the letters table.
+     */
     public function allocateSerial()
     {
-        return DB::transaction(function () {
-            $row = WaAnnouncementSetting::query()->lockForUpdate()->first();
-            if (! $row) {
-                $row = $this->settings();
-                $row = WaAnnouncementSetting::query()->lockForUpdate()->find($row->id);
-            }
-            $n = (int) $row->next_serial;
-            $pad = max(1, (int) $row->serial_padding);
-            $ref = rtrim((string) $row->serial_prefix, '-') . str_pad((string) $n, $pad, '0', STR_PAD_LEFT);
-            $row->next_serial = $n + 1;
-            $row->save();
-
-            return $ref;
-        });
+        return \App\Support\LetterReference::next();
     }
 
     public function eligibleUsers($filter = 'all', $search = '')

@@ -115,19 +115,38 @@ class ApplyController extends Controller
             }
         }
 
-        $user = Auth::guard('beyond')->user();
-        $application = $this->applications->apply(
-            $job,
-            $validated,
-            $request->file('cv'),
-            $user ? $user->id : null,
-            [
-                'student_id' => $request->file('student_id'),
-                'student_id_back' => $request->file('student_id_back'),
-                'internship_letter' => $request->file('internship_letter'),
-                'selfie' => $request->file('selfie'),
-            ]
+        // Fail with a form error (not a 500) when the WhatsApp number is invalid.
+        $this->applications->combinePhone(
+            $validated['country_code'],
+            $validated['whatsapp_number']
         );
+
+        $user = Auth::guard('beyond')->user();
+        try {
+            $application = $this->applications->apply(
+                $job,
+                $validated,
+                $request->file('cv'),
+                $user ? $user->id : null,
+                [
+                    'student_id' => $request->file('student_id'),
+                    'student_id_back' => $request->file('student_id_back'),
+                    'internship_letter' => $request->file('internship_letter'),
+                    'selfie' => $request->file('selfie'),
+                ]
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            \Log::error('Internship/job apply failed: '.$e->getMessage(), [
+                'job_id' => $job->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->withErrors(['job' => 'Could not submit your application. Please check your details and try again.']);
+        }
 
         return redirect()->route('apply.confirmation', $application->reference_number);
     }

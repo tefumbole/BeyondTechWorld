@@ -29,6 +29,7 @@
                                         'padId' => 'sign-send-signature-pad',
                                         'clearId' => 'clear-sign-send-signature',
                                         'hiddenId' => 'sign_send_signature_image',
+                                        'signatureKind' => 'sign',
                                     ])
                                     @if(Auth::user()->otp_verify == 0)
                                         <div class="form-group mt-3" style="max-width:320px;">

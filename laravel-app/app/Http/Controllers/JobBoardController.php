@@ -252,6 +252,37 @@ class JobBoardController extends Controller
         return back()->with('message', 'Application updated. Candidate notified via WhatsApp when applicable.');
     }
 
+    /**
+     * Delete one or many applications from Job Board lists (Awaiting / Selected / etc.).
+     */
+    public function deleteApplications(Request $request)
+    {
+        $this->authorizeJobs();
+
+        $ids = $request->input('application_ids', []);
+        if (! is_array($ids)) {
+            $ids = array_filter(explode(',', (string) $ids));
+        }
+        $flat = [];
+        foreach ($ids as $raw) {
+            foreach (preg_split('/\s*,\s*/', (string) $raw) as $id) {
+                $id = trim($id);
+                if ($id !== '') {
+                    $flat[] = $id;
+                }
+            }
+        }
+
+        $deleted = $this->applications->deleteApplications($flat);
+        if ($deleted < 1) {
+            return back()->with('not_permitted', 'No applications were selected or found to delete.');
+        }
+
+        return back()->with('message', $deleted === 1
+            ? '1 application deleted.'
+            : $deleted.' applications deleted.');
+    }
+
     protected function applicationsTitle($status)
     {
         if ($status === Application::STATUS_AWAITING) {

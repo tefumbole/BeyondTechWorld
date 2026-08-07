@@ -42,8 +42,8 @@
     $qtTab = $tab ?? 'awaiting';
     $counts = $tabCounts ?? ['awaiting' => 0, 'approved' => 0, 'rejected' => 0, 'draft' => 0];
     $qtTabs = [
-        ['awaiting', 'Awaiting Client Approval', 'dripicons-clock', 'tone-orange'],
-        ['approved', 'Approved', 'dripicons-checkmark', 'tone-green'],
+        ['awaiting', 'Awaiting Signature', 'dripicons-clock', 'tone-orange'],
+        ['approved', 'Approved / Final', 'dripicons-checkmark', 'tone-green'],
         ['rejected', 'Rejected', 'dripicons-wrong', 'tone-red'],
         ['draft', 'Drafts', 'dripicons-document', 'tone-blue'],
     ];

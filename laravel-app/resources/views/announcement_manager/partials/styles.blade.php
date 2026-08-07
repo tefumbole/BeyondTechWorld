@@ -104,4 +104,10 @@
     .an-badge.scheduled { background: #eff6ff; color: #1d4ed8; }
     .an-badge.partial { background: #fff7ed; color: #c2410c; }
     .an-badge.draft { background: #f8fafc; color: #64748b; }
+    .an-add-recipient-panel {
+        border: 1px dashed #0b3f90;
+        border-radius: 12px;
+        background: #f8fbff;
+        padding: 12px 14px;
+    }
 </style>

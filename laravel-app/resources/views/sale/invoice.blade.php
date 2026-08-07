@@ -153,8 +153,12 @@
         }
         .codes { margin-top: 8px; text-align: left; }
         .codes .created-by { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+        .codes .inv-admin-sign img,
+        .codes .inv-user-sign img { display: block; margin: 2px 0 0; height: 42px; width: auto; max-width: 180px; }
+        .codes .inv-sign-date { font-size: 7px; line-height: 1.1; color: #444; }
+        .codes .inv-created-email { margin-top: 1px; }
         .codes .code-media { text-align: center; }
-        .codes img { display: block; margin: 0 auto; }
+        .codes .code-media img { display: block; margin: 0 auto; }
         .thanks { text-align: center; color: #6b7386; margin: 6px 0; }
         .centered { text-align: center; }
         @media print {
@@ -408,12 +412,11 @@
 
         <div class="thanks">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         <div class="codes">
-            @if(@$lims_sale_data->user)
-                <div class="created-by">
-                    <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
-                    @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
-                </div>
-            @endif
+            @include('pdf.partials._created_by_signature', [
+                'createdUser' => $lims_sale_data->user ?? null,
+                'stampDate' => $lims_sale_data->created_at ?? null,
+                'createdClass' => 'created-by',
+            ])
             <div class="code-media" style="margin:0 0 6px;">
                 <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceQrUrl, 'QRCODE').'" height="48" width="48" alt="qrcode">'; ?>
             </div>

@@ -29,6 +29,7 @@
                                         'padId' => 'approve-signature-pad',
                                         'clearId' => 'clear-approve-signature',
                                         'hiddenId' => 'approve_signature_image',
+                                        'signatureKind' => 'approve',
                                     ])
                                 </form>
                             </div>

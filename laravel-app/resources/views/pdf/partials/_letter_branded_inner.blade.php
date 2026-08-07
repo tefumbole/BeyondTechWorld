@@ -15,12 +15,10 @@
         $user_to = null;
     }
 
-    // Classic customer/employee IDs
     if (! $user_to && ! empty($to) && in_array($peopleType, ['customer', 'user'], true)) {
         $user_to = $user_class::find($to);
     }
 
-    // Directory letters: resolve from recipients_json / passed recipient object / prefixed id
     if (! $user_to && $peopleType === 'directory') {
         if (is_object($to) && (isset($to->name) || isset($to->email))) {
             $user_to = $to;
@@ -78,24 +76,49 @@
     $editPath = LetterSignature::path($data->edit_signature)
         ?: ($editUser && $editUser->stemp && is_file(public_path('images/user/'.$editUser->stemp))
             ? public_path('images/user/'.$editUser->stemp) : null);
+    $editDate = $data->edit_signed_at ?? ($data->updated_at ?? now());
+    $editSrc = $editPath ? (LetterSignature::stampedDataUriFromPath($editPath, $editDate) ?: $editPath) : null;
 
     $approveUser = $data->approved_by ? \App\User::find($data->approved_by) : null;
     $approvePath = LetterSignature::path($data->approve_signature)
         ?: ($approveUser && $approveUser->approve && is_file(public_path('images/user/'.$approveUser->approve))
             ? public_path('images/user/'.$approveUser->approve) : null);
+    $approveDate = $data->approve_signed_at ?? ($data->updated_at ?? now());
+    $approveSrc = $approvePath ? (LetterSignature::stampedDataUriFromPath($approvePath, $approveDate) ?: $approvePath) : null;
 
     $signUser = $data->signed_by ? \App\User::find($data->signed_by) : null;
     $signPath = LetterSignature::path($data->sign_signature)
         ?: ($signUser && $signUser->sign && is_file(public_path('images/user/'.$signUser->sign))
             ? public_path('images/user/'.$signUser->sign) : null);
+    // Prefer letter PNG signature (transparent ink). Fall back to account file path for DomPDF.
+    $signSrc = $signPath;
 
     $recipientName = trim((string) (optional($user_to)->name ?? ''));
     $recipientAddress = trim((string) (optional($user_to)->address ?? ''));
     $recipientPhone = trim((string) (optional($user_to)->phone_number ?? ''));
-    $recipientEmail = trim((string) (optional($user_to)->email ?? ''));
+    // Email intentionally omitted from the printed letter.
+
+    $closingName = trim(strip_tags((string) ($data->name ?? '')));
+    $hasFooterHtml = $data->footer != null && trim(strip_tags($rendered_footer)) !== '';
 @endphp
 
-{{-- Normal letter order: letterhead (in open) → Ref → To → Dear → Subject → body → signature → footer --}}
+{{-- Top-right: letter header (e.g. BCL) + tiny comment/approve stamps with dates --}}
+<div class="letter-top-right">
+    @if(trim(strip_tags($rendered_header)) !== '')
+        <div class="letter-corner-header">{!! $rendered_header !!}</div>
+    @endif
+    @if($data->is_edit == 1 && $editSrc)
+        <div class="letter-corner-stamp">
+            <img src="{{ $editSrc }}" alt="Comment">
+        </div>
+    @endif
+    @if($data->is_approve == 1 && $approveSrc)
+        <div class="letter-corner-stamp">
+            <img src="{{ $approveSrc }}" alt="Approve">
+        </div>
+    @endif
+</div>
+
 <div class="letter-meta">
     Ref: {{ $data->reference }}<br>
     {{ date('M d, Y') }}
@@ -104,7 +127,7 @@
     @endif
 </div>
 
-@if($recipientName !== '' || $recipientAddress !== '' || $recipientPhone !== '' || $recipientEmail !== '')
+@if($recipientName !== '' || $recipientAddress !== '' || $recipientPhone !== '')
     <div class="letter-to-block">
         @if($recipientName !== '')
             <strong>{{ $recipientName }}</strong><br>
@@ -113,10 +136,7 @@
             {{ $recipientAddress }}<br>
         @endif
         @if($recipientPhone !== '')
-            {{ $recipientPhone }}<br>
-        @endif
-        @if($recipientEmail !== '')
-            {{ $recipientEmail }}
+            {{ $recipientPhone }}
         @endif
     </div>
 @endif
@@ -125,10 +145,6 @@
     Dear{{ $recipientName !== '' ? ' '.$recipientName : '' }},
 </div>
 
-@if(trim(strip_tags($rendered_header)) !== '')
-    <div class="letter-content-header">{!! $rendered_header !!}</div>
-@endif
-
 <div class="letter-body">
     <h2>Subject: <span style="text-decoration: underline;">{{ $data->subject }}</span></h2>
     {!! $rendered_body !!}
@@ -136,46 +152,39 @@
 
 <div class="letter-signature-row">
     <div class="letter-codes-back">
-        <img src="data:image/png;base64,{{ DNS1D::getBarcodePNG($data->reference, 'C128') }}" width="280" alt="barcode"><br>
-        <img src="data:image/png;base64,{{ DNS2D::getBarcodePNG(\App\Support\LetterQr::scanUrl($data), 'QRCODE') }}" width="90" alt="qr">
+        <img class="letter-qr" src="data:image/png;base64,{{ DNS2D::getBarcodePNG(\App\Support\LetterQr::scanUrl($data), 'QRCODE') }}" width="90" alt="qr"><br>
+        <img class="letter-barcode" src="data:image/png;base64,{{ DNS1D::getBarcodePNG($data->reference, 'C128') }}" width="280" alt="barcode">
     </div>
     <div class="letter-signature-left">
-        <p>Sincerely,</p>
-        @if($data->is_edit == 1 && $editPath)
-            <img class="edit" src="{{ $editPath }}" style="max-height:18px;width:auto;" alt="">
+        <p class="letter-sincerely">Sincerely,</p>
+        @if($data->is_sign == 1 && $signSrc)
+            <img class="letter-sign-img" src="{{ $signSrc }}" alt="Signature">
         @endif
-        @if($data->is_approve == 1 && $approvePath)
-            <img class="approve" src="{{ $approvePath }}" style="max-height:18px;width:auto;" alt="">
-        @endif
-        @if($data->is_sign == 1 && $signPath)
-            <img src="{{ $signPath }}" style="max-height:56px;width:auto;" alt="Signature">
-        @endif
+        <div class="letter-closing">
+            @if($hasFooterHtml)
+                {!! $rendered_footer !!}
+            @elseif($closingName !== '')
+                {{ $closingName }}
+            @endif
+            @if($peopleType === 'directory')
+                @php $ccPeople = LetterRecipients::decodePeopleJson($data->cc_json); @endphp
+                @if(count($ccPeople))
+                    <div class="letter-cc">CC:
+                        @foreach($ccPeople as $ccPerson)
+                            {{ ($ccPerson['name'] ?? '') }}{{ ! $loop->last ? ', ' : '' }}
+                        @endforeach
+                    </div>
+                @endif
+            @elseif($data->cc)
+                <div class="letter-cc">CC:
+                    @foreach(explode(',', $data->cc) as $cc)
+                        {{ $user_class::find(trim($cc)) ? $user_class::find(trim($cc))->name . ', ' : '' }}
+                    @endforeach
+                </div>
+            @endif
+            @if($data->attachment)
+                <div class="letter-cc">Files: {{ (isset($data->attachmentLib) && count($data->attachmentLib) > 0) ? count($data->attachmentLib) : 1 }}</div>
+            @endif
+        </div>
     </div>
-</div>
-
-<div class="letter-footer-text">
-    @if($data->footer != null && trim(strip_tags($rendered_footer)) !== '')
-        {!! $rendered_footer !!}
-    @else
-        {{ $data->name }}
-    @endif
-    @if($peopleType === 'directory')
-        @php $ccPeople = LetterRecipients::decodePeopleJson($data->cc_json); @endphp
-        @if(count($ccPeople))
-            <h5>CC:
-                @foreach($ccPeople as $ccPerson)
-                    {{ ($ccPerson['name'] ?? '') }}{{ ! $loop->last ? ', ' : '' }}
-                @endforeach
-            </h5>
-        @endif
-    @elseif($data->cc)
-        <h5>CC:
-            @foreach(explode(',', $data->cc) as $cc)
-                {{ $user_class::find(trim($cc)) ? $user_class::find(trim($cc))->name . ', ' : '' }}
-            @endforeach
-        </h5>
-    @endif
-    @if($data->attachment)
-        <h5>Files: {{ (isset($data->attachmentLib) && count($data->attachmentLib) > 0) ? count($data->attachmentLib) : 1 }}</h5>
-    @endif
 </div>

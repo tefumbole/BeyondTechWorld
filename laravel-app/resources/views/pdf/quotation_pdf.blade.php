@@ -4,7 +4,10 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>{{ $general_setting->site_title }}</title>
-    @php $invoiceLetterhead = $letterhead ?? \App\Support\Letterhead::ensureSynced(); @endphp
+    @php
+        $invoiceLetterhead = $letterhead ?? \App\Support\Letterhead::ensureSynced();
+        $invoiceLetterheadOnce = true; // header at start, footer at end only
+    @endphp
     @include('pdf.partials._invoice_styles')
 </head>
 <body>
@@ -75,7 +78,9 @@
             $multi_product_batch_qty = json_decode($product_sale_data->multi_product_batch_qty);
         }
         $lims_product_data = \App\Product::find($product_sale_data->product_id);
-        if ($product_sale_data->variant_id) {
+        if (! $lims_product_data) {
+            $product_name = 'Product';
+        } elseif ($product_sale_data->variant_id) {
             $variant_data = \App\Variant::find($product_sale_data->variant_id);
             $product_name = $lims_product_data->name.' ['.@$variant_data->name.']';
         } elseif ($product_sale_data->product_batch_id) {
@@ -190,12 +195,10 @@
 </table>
 
 <div class="inv-codes-block">
-    @if(@$lims_sale_data->user)
-        <div class="inv-created">
-            <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
-            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
-        </div>
-    @endif
+    @include('pdf.partials._created_by_signature', [
+        'createdUser' => $lims_sale_data->user ?? null,
+        'stampDate' => $lims_sale_data->created_at ?? null,
+    ])
     <div class="inv-qr" style="margin:0 0 6px;">
         <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
     </div>

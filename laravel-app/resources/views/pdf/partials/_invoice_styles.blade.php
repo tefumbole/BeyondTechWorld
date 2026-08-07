@@ -1,14 +1,17 @@
 @php
     /**
      * Shared compact A4 layout for quotations, sale invoices and booking/rental
-     * invoices. Keeps the delivered (WhatsApp/email) PDF on one page where the
-     * data allows, and repeats the branded header/footer on any overflow page.
+     * invoices.
      *
-     * The header/footer images are position:fixed so dompdf paints them on every
-     * page; @page margins below reserve exactly enough room for them, derived
-     * from each image's real aspect ratio rather than guessed values.
+     * Modes:
+     * - every-page (default): header/footer are position:fixed so dompdf paints
+     *   them on every page; @page margins reserve room for the bands.
+     * - once (quotations): header flows at the start of the document and footer
+     *   only at the end, so multi-page quotes fill A4 without half-empty pages
+     *   or repeating letterhead bands.
      */
     $invoiceLetterhead = $invoiceLetterhead ?? \App\Support\Letterhead::ensureSynced();
+    $invoiceLetterheadOnce = ! empty($invoiceLetterheadOnce);
     $invoiceHasHeader = ! empty($invoiceLetterhead['has_header']) && ! empty($invoiceLetterhead['header_path']) && file_exists($invoiceLetterhead['header_path']);
     $invoiceHasFooter = ! empty($invoiceLetterhead['has_footer']) && ! empty($invoiceLetterhead['footer_path']) && file_exists($invoiceLetterhead['footer_path']);
 
@@ -30,15 +33,21 @@
     $invoiceHeaderHeight = $invoiceHeaderHeight ? min($invoiceHeaderHeight, 105) : 0;
     $invoiceFooterHeight = $invoiceFooterHeight ? min($invoiceFooterHeight, 78) : 0;
 
-    $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 6 : 22;
-    $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 6 : 22;
+    if ($invoiceLetterheadOnce) {
+        // Document-flow letterhead: only small page margins; bands are in the body.
+        $invoiceTopMargin = 16;
+        $invoiceBottomMargin = 16;
+    } else {
+        $invoiceTopMargin = $invoiceHeaderHeight ? $invoiceHeaderHeight + 6 : 22;
+        $invoiceBottomMargin = $invoiceFooterHeight ? $invoiceFooterHeight + 6 : 22;
+    }
 
     // DejaVu is the only stack dompdf renders bold with (its built-in Helvetica
     // ignores font-weight), and it covers non-Latin scripts. Font subsetting is on
     // in config/dompdf.php so this costs a few KB rather than ~1.2 MB.
 @endphp
 <style type="text/css">
-    @page { margin: {{ $invoiceTopMargin }}px 0 {{ $invoiceBottomMargin }}px 0; }
+    @page { margin: {{ $invoiceTopMargin }}px 0 {{ $invoiceBottomMargin }}px 0; size: A4 portrait; }
 
     body {
         margin: 0 {{ $invoiceContentPad }}px;
@@ -50,6 +59,25 @@
     }
     p { margin: 0 0 5px; }
 
+    @if($invoiceLetterheadOnce)
+    .inv-header-img,
+    .inv-footer-img {
+        position: relative;
+        left: -{{ $invoiceContentPad }}px;
+        width: {{ $invoicePageWidth }}px;
+        display: block;
+        page-break-inside: avoid;
+    }
+    .inv-header-img {
+        height: {{ max(1, $invoiceHeaderHeight) }}px;
+        margin: 0 0 8px 0;
+    }
+    .inv-footer-img {
+        height: {{ max(1, $invoiceFooterHeight) }}px;
+        margin: 10px 0 0 0;
+        page-break-before: avoid;
+    }
+    @else
     .inv-header-img,
     .inv-footer-img {
         position: fixed;
@@ -65,6 +93,7 @@
         bottom: -{{ $invoiceBottomMargin }}px;
         height: {{ max(1, $invoiceFooterHeight) }}px;
     }
+    @endif
 
     .inv-watermark {
         position: fixed;
@@ -123,9 +152,14 @@
     .inv-schedule strong { color: #1f3d32; }
     .inv-codes-block { margin-top: 8px; page-break-inside: avoid; text-align: left; }
     .inv-codes-block .inv-created { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+    .inv-codes-block .inv-admin-sign img,
+    .inv-codes-block .inv-user-sign img { display: block; margin: 2px 0 0; height: 42px; width: auto; max-width: 180px; }
+    .inv-codes-block .inv-sign-date { font-size: 7px; line-height: 1.1; color: #444; }
+    .inv-codes-block .inv-created-email { margin-top: 1px; }
     .inv-codes-block .inv-qr,
     .inv-codes-block .inv-barcode { text-align: center; }
-    .inv-codes-block img { display: block; margin: 0 auto; }
+    .inv-codes-block .inv-qr img,
+    .inv-codes-block .inv-barcode img { display: block; margin: 0 auto; }
 
     /* Two-column meta strip: issuer on the left, recipient on the right. */
     table.inv-parties { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
@@ -174,8 +208,15 @@
     .inv-money { text-align: right; }
     .inv-sub { display: block; font-size: 9px; color: #6b7386; }
 
-    /* Totals sit in a right-hand column so the page width is actually used. */
-    table.inv-summary { width: 100%; border-collapse: collapse; margin-top: 8px; page-break-inside: avoid; }
+    /* Totals sit in a right-hand column so the page width is actually used.
+       In once-mode (quotations), allow the summary to stay with trailing rows
+       when space remains, but do not force a blank half-page when it won't fit. */
+    table.inv-summary {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        page-break-inside: {{ $invoiceLetterheadOnce ? 'auto' : 'avoid' }};
+    }
     table.inv-summary > tbody > td { vertical-align: top; }
     .inv-summary-left { width: 56%; vertical-align: top; padding-right: 12px; }
     .inv-summary-right { width: 44%; vertical-align: top; }

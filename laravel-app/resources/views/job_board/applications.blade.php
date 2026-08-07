@@ -5,9 +5,18 @@
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
-        <div class="mb-4">
-            <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
-            <p class="jb-subtitle">Click anywhere on a row (except Actions / Docs) to open the full application — including education, documents, signatures, and status history. Status changes notify candidates on WhatsApp.</p>
+        <div class="mb-4 d-flex justify-content-between align-items-start flex-wrap" style="gap:12px;">
+            <div>
+                <h1 class="jb-title">{{ $pageTitle ?? 'Applications' }}</h1>
+                <p class="jb-subtitle mb-0">Click anywhere on a row (except checkbox / Actions / Docs) to open the full application. Status changes notify candidates on WhatsApp.</p>
+            </div>
+            <div class="d-flex flex-wrap" style="gap:8px;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="jb-app-select-all">Select all</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="jb-app-clear-all">Clear</button>
+                <button type="submit" form="jb-apps-delete-form" class="btn btn-danger btn-sm" id="jb-app-delete-btn" disabled>
+                    <i class="dripicons-trash"></i> Delete selected
+                </button>
+            </div>
         </div>
 
         @if(session('message'))
@@ -56,11 +65,19 @@
             </div>
         </form>
 
+        {{-- Outside the table so status forms are not nested --}}
+        <form id="jb-apps-delete-form" method="POST" action="{{ route('jobs.applications.delete') }}" class="d-none">
+            @csrf
+        </form>
+
         <div class="jb-card jb-apps-card">
             <div class="table-responsive jb-apps-table-wrap">
                 <table class="table mb-0 jb-apps-table">
                     <thead>
                         <tr>
+                            <th style="width:36px;" class="jb-no-nav">
+                                <input type="checkbox" id="jb-app-check-all" title="Select all">
+                            </th>
                             <th>Student Name</th>
                             <th>Contact</th>
                             <th>Education</th>
@@ -76,6 +93,9 @@
                         @forelse($items as $app)
                             @php $showUrl = route('jobs.applications.show', $app->id); @endphp
                             <tr class="jb-row-click" data-href="{{ $showUrl }}">
+                                <td class="jb-no-nav jb-check-cell">
+                                    <input type="checkbox" class="jb-app-row-check" form="jb-apps-delete-form" name="application_ids[]" value="{{ $app->id }}">
+                                </td>
                                 <td class="jb-nav-cell">
                                     <strong>{{ $app->full_name }}</strong>
                                 </td>
@@ -139,10 +159,11 @@
                                         <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}">
                                         <button type="submit" class="btn btn-sm btn-primary">Save &amp; Notify</button>
                                     </form>
+                                    <button type="button" class="btn btn-sm btn-link text-danger jb-app-delete-one mt-1" data-id="{{ $app->id }}">Delete</button>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="9" class="text-center text-muted py-4">No applications found.</td></tr>
+                            <tr><td colspan="10" class="text-center text-muted py-4">No applications found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -159,7 +180,8 @@
     .jb-apps-table { position: relative; }
     tr.jb-row-click td.jb-nav-cell { cursor: pointer; }
     tr.jb-row-click:hover td.jb-nav-cell { background: #f8fafc; }
-    td.jb-no-nav, td.jb-actions-cell { cursor: default; position: relative; z-index: 20; }
+    td.jb-no-nav, td.jb-actions-cell, td.jb-check-cell { cursor: default; position: relative; z-index: 20; }
+    td.jb-check-cell { vertical-align: middle; }
     .jb-native-select {
         display: block;
         width: 100%;
@@ -215,7 +237,7 @@
         });
     }
 
-    $(document).on('mousedown click touchstart change', '.jb-actions-cell, .jb-status-form, .jb-native-select, .jb-reason-input', function (e) {
+    $(document).on('mousedown click touchstart change', '.jb-actions-cell, .jb-status-form, .jb-native-select, .jb-reason-input, .jb-check-cell, .jb-app-row-check', function (e) {
         e.stopPropagation();
     });
 
@@ -227,6 +249,81 @@
     $(document).on('click', 'tr.jb-row-click td.jb-nav-cell', function () {
         var href = $(this).closest('tr').data('href');
         if (href) window.location.href = href;
+    });
+
+    var deleteForm = document.getElementById('jb-apps-delete-form');
+    var checkAll = document.getElementById('jb-app-check-all');
+    var deleteBtn = document.getElementById('jb-app-delete-btn');
+
+    function rowChecks() {
+        return Array.prototype.slice.call(document.querySelectorAll('.jb-app-row-check'));
+    }
+
+    function syncDeleteBtn() {
+        if (!deleteBtn) return;
+        var checks = rowChecks();
+        var any = checks.some(function (c) { return c.checked; });
+        deleteBtn.disabled = !any;
+        if (checkAll) {
+            checkAll.checked = checks.length > 0 && checks.every(function (c) { return c.checked; });
+            checkAll.indeterminate = any && !checkAll.checked;
+        }
+    }
+
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            rowChecks().forEach(function (c) { c.checked = checkAll.checked; });
+            syncDeleteBtn();
+        });
+    }
+    var selectAllBtn = document.getElementById('jb-app-select-all');
+    var clearAllBtn = document.getElementById('jb-app-clear-all');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function () {
+            rowChecks().forEach(function (c) { c.checked = true; });
+            syncDeleteBtn();
+        });
+    }
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function () {
+            rowChecks().forEach(function (c) { c.checked = false; });
+            syncDeleteBtn();
+        });
+    }
+    rowChecks().forEach(function (c) {
+        c.addEventListener('change', syncDeleteBtn);
+    });
+
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function (e) {
+            var n = rowChecks().filter(function (c) { return c.checked; }).length;
+            if (!n) {
+                e.preventDefault();
+                alert('Select at least one application to delete.');
+                return;
+            }
+            if (!confirm('Delete ' + n + ' selected application' + (n === 1 ? '' : 's') + '? This cannot be undone.')) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    $(document).on('click', '.jb-app-delete-one', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = String($(this).data('id') || '');
+        if (!id || !deleteForm) return;
+        if (!confirm('Delete this application? This cannot be undone.')) return;
+        rowChecks().forEach(function (c) { c.checked = false; });
+        var existing = deleteForm.querySelector('input[name="application_ids[]"][data-single="1"]');
+        if (existing) existing.remove();
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'application_ids[]';
+        hidden.value = id;
+        hidden.setAttribute('data-single', '1');
+        deleteForm.appendChild(hidden);
+        deleteForm.submit();
     });
 })();
 </script>

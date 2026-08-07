@@ -71,16 +71,16 @@ class QuotationController extends Controller
                 $tab = 'awaiting';
             }
 
-            $statusMap = [
-                'draft' => Quotation::STATUS_PENDING,
-                'awaiting' => Quotation::STATUS_AWAITING,
-                'approved' => Quotation::STATUS_APPROVED,
-                'rejected' => Quotation::STATUS_REJECTED,
-            ];
-
-            $query = Quotation::with('biller', 'customer', 'supplier', 'user')
-                ->where('quotation_status', $statusMap[$tab])
-                ->orderBy('id', 'desc');
+            $query = Quotation::with('biller', 'customer', 'supplier', 'user')->orderBy('id', 'desc');
+            if ($tab === 'approved') {
+                $query->whereIn('quotation_status', Quotation::saleReadyStatuses());
+            } elseif ($tab === 'draft') {
+                $query->where('quotation_status', Quotation::STATUS_PENDING);
+            } elseif ($tab === 'rejected') {
+                $query->where('quotation_status', Quotation::STATUS_REJECTED);
+            } else {
+                $query->where('quotation_status', Quotation::STATUS_AWAITING);
+            }
 
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
                 $query->where('user_id', Auth::id());
@@ -94,7 +94,7 @@ class QuotationController extends Controller
             }
             $tabCounts = [
                 'awaiting' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_AWAITING)->count(),
-                'approved' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_APPROVED)->count(),
+                'approved' => (clone $baseCounts)->whereIn('quotation_status', Quotation::saleReadyStatuses())->count(),
                 'rejected' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_REJECTED)->count(),
                 'draft' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_PENDING)->count(),
             ];
@@ -319,9 +319,13 @@ class QuotationController extends Controller
             $data['document'] = $documentName;
         }
         $data['reference_no'] = 'qr-' . date("Ymd") . '-'. date("his");
-        // Only draft (1) or send for approval (2) from create form
+        // Draft (1), send for signature (2), or no signature required (5)
         $data['quotation_status'] = (int) ($data['quotation_status'] ?? Quotation::STATUS_AWAITING);
-        if (! in_array($data['quotation_status'], [Quotation::STATUS_PENDING, Quotation::STATUS_AWAITING], true)) {
+        if (! in_array($data['quotation_status'], [
+            Quotation::STATUS_PENDING,
+            Quotation::STATUS_AWAITING,
+            Quotation::STATUS_NO_SIGNATURE,
+        ], true)) {
             $data['quotation_status'] = Quotation::STATUS_AWAITING;
         }
         $lims_quotation_data = Quotation::create($data);
@@ -408,9 +412,18 @@ class QuotationController extends Controller
                 $lims_quotation_data->save();
             } catch (\Throwable $e) {
                 \Log::error('Quotation WhatsApp notify failed: '.$e->getMessage());
-                $message = 'Quotation created. Approval link could not be sent automatically — use “Send for approval” from the list.';
+                $message = 'Quotation created. Signature link could not be sent automatically — use “Resend for approval” from the list.';
             }
             return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
+        }
+        if ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_NO_SIGNATURE) {
+            try {
+                $message = $this->deliverQuotationPdfToClient($lims_quotation_data, $lims_customer_data, 'no_signature');
+            } catch (\Throwable $e) {
+                \Log::warning('No-signature quotation PDF send failed: '.$e->getMessage());
+                $message = 'Quotation saved (no signature required). PDF could not be sent automatically.';
+            }
+            return redirect()->route('quotations.index', ['tab' => 'approved'])->with('message', $message);
         }
         if ($lims_quotation_data->quotation_status == Quotation::STATUS_PENDING) {
             return redirect()->route('quotations.index', ['tab' => 'draft'])->with('message', $message);
@@ -568,24 +581,18 @@ class QuotationController extends Controller
             array_merge($pricing, ['products' => $products])
         );
 
-        $message = 'Quotation sent for client approval via WhatsApp.';
+        $message = 'Quotation sent for client signature via WhatsApp. PDF will be delivered after the client signs.';
         try{
             $this->wpMessage($lims_customer_data->phone_number, $msg);
         }
         catch(\Exception $e){
-            $message = 'Quotation saved, but WhatsApp approval link could not be sent: '.$e->getMessage();
+            $message = 'Quotation saved, but WhatsApp signature link could not be sent: '.$e->getMessage();
         }
 
-        // Branded quotation PDF (header / footer / watermark) — same as preview WhatsApp button
-        try {
-            $pdfPath = $this->buildQuotationPdf($lims_quotation_data->id);
-            $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_quotation_data->reference_no).'.pdf';
-            $this->wpPDFMessage($pdfPath, $lims_customer_data, $pdfName);
-        } catch (\Throwable $e) {
-            \Log::warning('Quotation branded PDF WhatsApp attach skipped: '.$e->getMessage());
-        }
+        // Do NOT attach the quotation PDF before signature — clients who refuse
+        // after already receiving the PDF make the signature flow pointless.
 
-        // Optional QR attachment — must never fail the quotation save
+        // Optional QR attachment (approval link) — must never fail the quotation save
         try {
             $path = public_path('images/quotations/qr');
             if (! File::isDirectory($path)) {
@@ -610,6 +617,46 @@ class QuotationController extends Controller
         $this->notifyQuotationStakeholders($lims_quotation_data, 'sent', $mail_data);
 
         return $message;
+    }
+
+    /**
+     * Deliver the branded quotation PDF to the client (after signature, or when
+     * "No Signature required" is chosen).
+     *
+     * @param  string  $context  signed|no_signature
+     */
+    public function deliverQuotationPdfToClient($quotation, $customer = null, $context = 'signed')
+    {
+        $quotation = $quotation instanceof Quotation
+            ? $quotation->loadMissing('customer')
+            : Quotation::with('customer')->findOrFail($quotation);
+        $customer = $customer ?: $quotation->customer;
+        if (! $customer || empty(trim((string) $customer->phone_number))) {
+            return 'Quotation saved, but customer phone is missing so the PDF was not sent.';
+        }
+
+        $text = $context === 'no_signature'
+            ? WhatsAppMessage::quotationNoSignaturePdf($customer->name, $quotation->reference_no, $quotation->grand_total)
+            : WhatsAppMessage::quotationSignedPdf($customer->name, $quotation->reference_no, $quotation->grand_total);
+
+        try {
+            $this->wpMessage($customer->phone_number, $text);
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation PDF text WhatsApp failed for '.$quotation->reference_no.': '.$e->getMessage());
+        }
+
+        try {
+            $pdfPath = $this->buildQuotationPdf($quotation->id);
+            $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $quotation->reference_no).'.pdf';
+            $this->wpPDFMessage($pdfPath, $customer, $pdfName);
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation PDF WhatsApp attach failed for '.$quotation->reference_no.': '.$e->getMessage());
+            return 'Quotation signed, but the PDF could not be sent: '.$e->getMessage();
+        }
+
+        return $context === 'no_signature'
+            ? 'Quotation saved (no signature required) and PDF sent to the client via WhatsApp.'
+            : 'Signed quotation PDF sent to the client via WhatsApp.';
     }
 
     /**
@@ -1199,13 +1246,25 @@ class QuotationController extends Controller
                 $lims_quotation_data->save();
             } catch (\Throwable $e) {
                 \Log::error('Quotation WhatsApp notify (update) failed: '.$e->getMessage());
-                $message = 'Quotation updated. Approval link could not be sent automatically — use “Send for approval” from the list.';
+                $message = 'Quotation updated. Signature link could not be sent automatically — use “Resend for approval” from the list.';
             }
             return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
         }
 
+        if ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_NO_SIGNATURE) {
+            $lims_quotation_data->client_approval_token = null;
+            $lims_quotation_data->save();
+            try {
+                $message = $this->deliverQuotationPdfToClient($lims_quotation_data, $lims_customer_data, 'no_signature');
+            } catch (\Throwable $e) {
+                \Log::warning('No-signature quotation PDF send (update) failed: '.$e->getMessage());
+                $message = 'Quotation updated (no signature required). PDF could not be sent automatically.';
+            }
+            return redirect()->route('quotations.index', ['tab' => 'approved'])->with('message', $message);
+        }
+
         $tab = 'awaiting';
-        if ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_APPROVED) {
+        if (in_array((int) $lims_quotation_data->quotation_status, Quotation::saleReadyStatuses(), true)) {
             $tab = 'approved';
         } elseif ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_REJECTED) {
             $tab = 'rejected';
@@ -1223,8 +1282,9 @@ class QuotationController extends Controller
             Quotation::STATUS_REJECTED,
             Quotation::STATUS_PENDING,
             Quotation::STATUS_APPROVED,
+            Quotation::STATUS_NO_SIGNATURE,
         ], true)) {
-            return back()->with('not_permitted', 'This quotation cannot be sent for approval.');
+            return back()->with('not_permitted', 'This quotation cannot be sent for signature.');
         }
 
         $quotation->quotation_status = Quotation::STATUS_AWAITING;
@@ -1266,9 +1326,9 @@ class QuotationController extends Controller
     public function createSale($id)
     {
         $lims_quotation_data = Quotation::find($id);
-        if (! $lims_quotation_data || (int) $lims_quotation_data->quotation_status !== Quotation::STATUS_APPROVED) {
+        if (! $lims_quotation_data || ! $lims_quotation_data->isSaleReady()) {
             return redirect()->route('quotations.index', ['tab' => 'approved'])
-                ->with('not_permitted', 'Create Sale is only available for client-approved quotations.');
+                ->with('not_permitted', 'Create Sale is only available for approved or no-signature quotations.');
         }
         extract($this->activeMasters());
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();

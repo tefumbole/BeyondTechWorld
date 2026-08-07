@@ -21,7 +21,7 @@
         @if((int)$quotation->quotation_status === \App\Quotation::STATUS_APPROVED)
             <div class="badge ok">Approved</div>
             <h1>Thank you</h1>
-            <p>You approved quotation <strong>{{ $quotation->reference_no }}</strong>. Our team will follow up. This was a quotation (not a receipt); suppliers are arranged upon cleared payment.</p>
+            <p>You approved quotation <strong>{{ $quotation->reference_no }}</strong>. Our team will follow up. The official PDF quotation has been sent to your WhatsApp.</p>
             @if($quotation->clientSignatureUrl())
                 <p style="margin-top:18px;"><strong>Your signature</strong></p>
                 <img src="{{ $quotation->clientSignatureUrl() }}" alt="Signature" style="max-width:100%;background:#fff;border-radius:10px;padding:8px;">

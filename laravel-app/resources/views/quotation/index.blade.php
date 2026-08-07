@@ -51,6 +51,8 @@
                         <td>
                             @if($st === \App\Quotation::STATUS_APPROVED)
                                 <div class="badge badge-success">{{$status}}</div>
+                            @elseif($st === \App\Quotation::STATUS_NO_SIGNATURE)
+                                <div class="badge badge-info">{{$status}}</div>
                             @elseif($st === \App\Quotation::STATUS_REJECTED)
                                 <div class="badge badge-danger">{{$status}}</div>
                             @elseif($st === \App\Quotation::STATUS_AWAITING)
@@ -81,7 +83,7 @@
                                     <li>
                                         <button type="button" class="btn btn-link view"><i class="fa fa-eye"></i>  {{trans('file.View')}}</button>
                                     </li>
-                                    @if(in_array("quotes-edit", $all_permission) && in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED], true))
+                                    @if(in_array("quotes-edit", $all_permission) && in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE], true))
                                         <li>
                                             <a class="btn btn-link" href="{{ route('quotations.edit', $quotation->id) }}"><i class="dripicons-document-edit"></i> {{trans('file.edit')}} / resend</a>
                                         </li>
@@ -91,14 +93,14 @@
                                             <a class="btn btn-link" href="{{ route('quotation.clone', $quotation->id) }}"><i class="dripicons-copy"></i> Clone</a>
                                         </li>
                                     @endif
-                                    @if(in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED], true))
+                                    @if(in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE], true))
                                         <li>
                                             {{ Form::open(['route' => ['quotation.resend_approval', $quotation->id], 'method' => 'POST', 'style' => 'display:inline'] ) }}
-                                            <button type="submit" class="btn btn-link" onclick="return confirm('Send / resend approval link to the client via WhatsApp?');"><i class="fa fa-whatsapp"></i> Resend for approval</button>
+                                            <button type="submit" class="btn btn-link" onclick="return confirm('Send / resend signature link to the client via WhatsApp? PDF is sent only after they sign.');"><i class="fa fa-whatsapp"></i> Send for Signature</button>
                                             {{ Form::close() }}
                                         </li>
                                     @endif
-                                    @if($st === \App\Quotation::STATUS_APPROVED)
+                                    @if(in_array($st, \App\Quotation::saleReadyStatuses(), true))
                                         <li>
                                             <a class="btn btn-link" href="{{ route('quotation.create_sale', ['id' => $quotation->id]) }}"><i class="fa fa-shopping-cart"></i> {{trans('file.Create Sale')}}</a>
                                         </li>

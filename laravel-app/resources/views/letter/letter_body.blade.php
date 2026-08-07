@@ -8,47 +8,59 @@
         width: 60vw;
         margin-left: 15%;
     }
-    .pull-left {
-        float: left;
-        margin-left: 200px;
+    .letter-preview-top-right {
+        text-align: right;
+        margin: 0 0 8px;
     }
-    .pull-right-no-margin{
-        float: right;
+    .letter-preview-corner-header {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 4px;
     }
-    .pull-right {
-        float: right;
-        margin-right: 200px;
+    .letter-preview-stamp {
+        display: inline-block;
+        margin-left: 8px;
+        vertical-align: top;
     }
-    .waterm-mark {
-        width: 20%;
-        position: absolute;
-        top: 40%;
-        right: 330px;
-        opacity: 0.3;
+    .letter-preview-stamp img {
+        max-height: 28px;
+        width: auto;
+        display: block;
+        background: transparent;
     }
-    table {width: 100%;}
-    tfoot tr th:first-child {text-align: left;}
-
-    .centered {
+    .letter-preview-sign {
+        display: block;
+        max-height: 56px;
+        width: auto;
+        margin: 0 0 2px;
+        background: transparent;
+    }
+    .letter-preview-closing {
+        line-height: 1.15;
+        margin: 0;
+        font-size: 14px;
+    }
+    .letter-preview-closing p,
+    .letter-preview-closing div,
+    .letter-preview-closing h1,
+    .letter-preview-closing h2,
+    .letter-preview-closing h3,
+    .letter-preview-closing h4,
+    .letter-preview-closing h5 {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+        font-size: 14px;
+        font-weight: normal;
+    }
+    .letter-preview-codes {
         text-align: center;
-        align-content: center;
+        margin: 12px 0;
     }
-    .edit{
-        position: absolute;
-        margin-top: 0px;
-        margin-left: 115px;
-        z-index: 0;
-        opacity: 0.5;
-    }
-    .approve{
-        position: absolute;
-        margin-top: 0px;
-        margin-left: 50px;
-        z-index: 0;
-        opacity: 0.5;
-    }
-    .header-letter{
-        margin-top: 40px;
+    .letter-preview-codes img {
+        display: block;
+        margin: 0 auto 4px;
     }
 </style>
 @if($data->attachment)
@@ -75,6 +87,7 @@
 {{--@endif--}}
 
 @php
+    use App\Support\LetterSignature;
     if ($data->people_type == "customer") {
         $user = \App\Customer::class;
     } elseif ($data->people_type == "all") {
@@ -114,7 +127,26 @@
             }
         }
     }
+
+    $editUser = $data->edit_by ? \App\User::find($data->edit_by) : null;
+    $approveUser = $data->approved_by ? \App\User::find($data->approved_by) : null;
+    $signUser = $data->signed_by ? \App\User::find($data->signed_by) : null;
+    $editSrc = LetterSignature::resolveEditSrc($data, $editUser);
+    $approveSrc = LetterSignature::resolveApproveSrc($data, $approveUser);
+    $signSrc = LetterSignature::resolveSignSrc($data, $signUser);
 @endphp
+
+<div class="letter-preview-top-right">
+    @if(trim(strip_tags((string) $data->header)) !== '')
+        <div class="letter-preview-corner-header">{!! $data->header !!}</div>
+    @endif
+    @if($data->is_edit == 1 && $editSrc)
+        <div class="letter-preview-stamp"><img src="{{ $editSrc }}" alt="Comment"></div>
+    @endif
+    @if($data->is_approve == 1 && $approveSrc)
+        <div class="letter-preview-stamp"><img src="{{ $approveSrc }}" alt="Approve"></div>
+    @endif
+</div>
 
 <div>Ref: {{ $data->reference }} <br>
     {{ date('M d, Y') }}
@@ -129,7 +161,6 @@
             <strong>{{ $person['name'] ?? '' }}</strong>
             @if(!empty($person['address']))<br>{{ $person['address'] }}@endif
             @if(!empty($person['phone']))<br>{{ $person['phone'] }}@endif
-            @if(!empty($person['email']))<br>{{ $person['email'] }}@endif
         </div>
         <br>
     @endforeach
@@ -139,58 +170,41 @@
         <a href="{{url('public/letter/csv',$data->to)}}" target="_blank"><span class="fa fa-eye"></span> CSV File</a><br>
     @endif
 </div>
-@if(trim(strip_tags((string) $data->header)) !== '')
-    <div class="mt-2 mb-2">{!! $data->header !!}</div>
-@endif
-<br><br>
-<div  style="text-transform: uppercase">
+<br>
+<div style="text-transform: uppercase">
     <h2>Subject: <span style="text-decoration: underline;">{{ $data->subject }}</span></h2>
 </div>
 {!! $data->body !!}
 <br>
-<p>Sincerely, </p>
-<div class="row">
-    <div class="col-md-6">
-        @if($data->is_sign == 1)
-            @php
-                $signUser = \App\User::find($data->signed_by);
-                $signSrc = \App\Support\LetterSignature::resolveSignSrc($data, $signUser);
-            @endphp
-            @if($signSrc)
-                <img class="letter-signature-img sign" src="{{ $signSrc }}" alt="Signer signature">
-            @endif
-        @endif
-    </div>
-</div>
-<br>
+<p style="margin-bottom:2px;">Sincerely,</p>
+@if($data->is_sign == 1 && $signSrc)
+    <img class="letter-preview-sign" src="{{ $signSrc }}" alt="Signer signature">
+@endif
+<div class="letter-preview-closing">
 @if($data->footer != null)
     {!! $data->footer !!}
 @else
     {{ $data->name }}
 @endif
-@if($data->comment)
-    <h1 style="background: yellow">Comment:
-        {{ $data->comment }}
-    </h1>
-@endif
 @if($data->people_type === 'directory')
     @php $ccPeople = \App\Support\LetterRecipients::decodePeopleJson($data->cc_json); @endphp
     @if(count($ccPeople))
-        <br><br>
-        <h2>CC:
+        <div>CC:
             @foreach($ccPeople as $ccPerson)
                 {{ $ccPerson['name'] ?? '' }}{{ ! $loop->last ? ', ' : '' }}
             @endforeach
-        </h2>
+        </div>
     @endif
 @elseif($data->cc)
-    <br><br>
-    <h2>CC:
+    <div>CC:
         @php
             foreach (explode(",", $data->cc) as $cc) {
                 echo $user::find($cc) ? $user::find($cc)->name .  ', ' : '';
             }
         @endphp
-    </h2>
+    </div>
 @endif
-
+</div>
+@if($data->comment)
+    <p class="small text-muted mt-2">Internal comment: {{ $data->comment }}</p>
+@endif

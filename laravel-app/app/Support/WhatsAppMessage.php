@@ -140,14 +140,39 @@ class WhatsAppMessage
      */
     public static function quotationApprovalRequest($customerName, $referenceNo, $grandTotal, $approvalUrl, array $options = [])
     {
-        $msg = self::statusBlock('📋', 'Quotation for Approval');
+        $msg = self::statusBlock('📋', 'Quotation for Signature');
         $msg .= self::greeting($customerName);
-        $msg .= "Please review your quotation from *".self::companyName()."*.\n\n";
+        $msg .= "Please review and sign your quotation from *".self::companyName()."*.\n\n";
         $msg .= self::bullet('Reference', $referenceNo);
         $msg .= self::quotationProductsBlock($options['products'] ?? []);
         $msg .= self::quotationPricingBlock($grandTotal, $options);
-        $msg .= "\nThis is a *quotation* (not a receipt). Review the agreement, then approve or reject with a comment.\n";
-        $msg .= self::actionLink('Review & respond', $approvalUrl);
+        $msg .= "\nThis is a *quotation* (not a receipt). Open the link, review the agreement, then approve with your signature or reject with a comment.\n";
+        $msg .= "*The official PDF quotation will be sent to you only after you sign.*\n";
+        $msg .= self::actionLink('Review & sign', $approvalUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function quotationSignedPdf($customerName, $referenceNo, $grandTotal)
+    {
+        $msg = self::statusBlock('✅', 'Signed Quotation');
+        $msg .= self::greeting($customerName);
+        $msg .= "Thank you for signing. Please find your official quotation PDF from *".self::companyName()."*.\n\n";
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Total', number_format((float) $grandTotal, 2));
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function quotationNoSignaturePdf($customerName, $referenceNo, $grandTotal)
+    {
+        $msg = self::statusBlock('📄', 'Quotation');
+        $msg .= self::greeting($customerName);
+        $msg .= "Please find your quotation PDF from *".self::companyName()."*.\n\n";
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Total', number_format((float) $grandTotal, 2));
         $msg .= self::footer();
 
         return $msg;

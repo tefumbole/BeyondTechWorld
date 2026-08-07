@@ -19,13 +19,14 @@
                 <a href="{{route('letter.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{trans('file.Add Letter')}} </a>
             @endif
             <input type="submit" class="btn btn-success approve-btn" value="Send Multiple" style="display: none">
+            @include('letter.partials.delete_multiple_controls')
 {{--                <button class="btn btn-primary approve-btn" style="display: none">Download PDF Multiple</button>--}}
         </div>
     <div class="table-responsive">
         <table id="role-table" class="table">
             <thead>
             <tr>
-                <th>Select</th>
+                <th>Select <input type="checkbox" class="letter-check-all" title="Select all"></th>
                 <th>{{trans('file.name')}}</th>
                 <th>{{trans('file.Reference')}}</th>
                 <th>{{trans('file.category')}}</th>

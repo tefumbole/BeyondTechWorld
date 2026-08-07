@@ -56,6 +56,12 @@ class AnnouncementPersonalization
 
         if (! empty($announcement->reference)) {
             $lines[] = "Ref: *" . $announcement->reference . "*";
+            $when = $announcement->created_at ?? $announcement->scheduled_at ?? now();
+            try {
+                $lines[] = \Carbon\Carbon::parse($when)->format('M d, Y');
+            } catch (\Throwable $e) {
+                $lines[] = date('M d, Y');
+            }
         }
         if ($header !== '') {
             $lines[] = "*" . $header . "*";

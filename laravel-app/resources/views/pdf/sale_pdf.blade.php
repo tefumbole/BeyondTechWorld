@@ -35,9 +35,14 @@
         .inv-box { padding: 5px 7px; margin-bottom: 5px; }
         .inv-codes-block { margin-top: 8px; page-break-inside: avoid; text-align: left; }
         .inv-codes-block .inv-created { font-size: 10px; line-height: 1.4; margin-bottom: 6px; text-align: left; }
+        .inv-codes-block .inv-admin-sign img,
+        .inv-codes-block .inv-user-sign img { display: block; margin: 2px 0 0; height: 42px; width: auto; max-width: 180px; }
+        .inv-codes-block .inv-sign-date { font-size: 7px; line-height: 1.1; color: #444; }
+        .inv-codes-block .inv-created-email { margin-top: 1px; }
         .inv-codes-block .inv-qr,
         .inv-codes-block .inv-barcode { text-align: center; }
-        .inv-codes-block img { display: block; margin: 0 auto; }
+        .inv-codes-block .inv-qr img,
+        .inv-codes-block .inv-barcode img { display: block; margin: 0 auto; }
     </style>
 </head>
 <body>
@@ -259,12 +264,10 @@
 </table>
 
 <div class="inv-codes-block">
-    @if(@$lims_sale_data->user)
-        <div class="inv-created">
-            <strong>{{ trans('file.Created By') }}:</strong> {{ $lims_sale_data->user->name }}
-            @if(@$lims_sale_data->user->email)<br>{{ $lims_sale_data->user->email }}@endif
-        </div>
-    @endif
+    @include('pdf.partials._created_by_signature', [
+        'createdUser' => $lims_sale_data->user ?? null,
+        'stampDate' => $lims_sale_data->created_at ?? ($lims_sale_data->sale_date ?? null),
+    ])
     <div class="inv-qr" style="margin:0 0 6px;">
         <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($invoiceQrUrl, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
     </div>

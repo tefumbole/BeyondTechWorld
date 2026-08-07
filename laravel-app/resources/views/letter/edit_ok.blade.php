@@ -29,6 +29,7 @@
                                         'padId' => 'edit-ok-signature-pad',
                                         'clearId' => 'clear-edit-ok-signature',
                                         'hiddenId' => 'edit_ok_signature_image',
+                                        'signatureKind' => 'edit',
                                     ])
                                 </form>
                             </div>

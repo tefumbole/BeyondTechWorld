@@ -58,6 +58,9 @@
     .an-drop {
         border:1px dashed #94a3b8; border-radius:10px; padding:16px; text-align:center; color:#64748b; font-size:13px;
     }
+    .an-add-recipient-panel {
+        border:1px dashed #0b3f90; border-radius:12px; background:#f8fbff; padding:12px 14px;
+    }
 </style>
 
         <form method="POST" action="{{ route('announcements.store') }}" enctype="multipart/form-data" id="an-form">
@@ -157,7 +160,38 @@
                     </div>
 
                     <div class="an-page-card">
-                        <h5 style="color:#0b3f90;font-weight:700;">Select Recipients *</h5>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
+                            <h5 class="mb-0" style="color:#0b3f90;font-weight:700;">Select Recipients *</h5>
+                            <button type="button" class="an-btn-outline" id="an-add-recipient-btn" style="white-space:nowrap;">
+                                <i class="dripicons-plus"></i> Add new recipient
+                            </button>
+                        </div>
+                        <div id="an-add-recipient-panel" class="an-add-recipient-panel mb-3" style="display:none;">
+                            <p class="text-muted small mb-2">Add someone who is not in the list yet. They are saved as a customer and selected automatically.</p>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Name *</label>
+                                    <input type="text" class="an-field" id="an-new-name" placeholder="Full name">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">WhatsApp / Phone *</label>
+                                    <input type="tel" class="an-field" id="an-new-phone" placeholder="675321739 or +237…">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Email (optional)</label>
+                                    <input type="email" class="an-field" id="an-new-email" placeholder="email@example.com">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Address (optional)</label>
+                                    <input type="text" class="an-field" id="an-new-address" placeholder="City / address">
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap" style="gap:8px;">
+                                <button type="button" class="an-btn-primary" id="an-new-save"><i class="dripicons-checkmark"></i> Save &amp; select</button>
+                                <button type="button" class="an-btn-outline" id="an-new-cancel">Cancel</button>
+                                <span class="small text-muted align-self-center" id="an-new-status"></span>
+                            </div>
+                        </div>
                         <div class="mb-2">
                             <button type="button" class="an-pill active an-rf" data-role="customers">Customers</button>
                             <button type="button" class="an-pill an-rf" data-role="staff">System Users</button>
@@ -195,6 +229,7 @@
 <script>
 window.AN_USERS = @json($users);
 window.AN_USERS_SEARCH = @json(route('announcements.users.search'));
+window.AN_QUICK_RECIPIENT = @json(route('announcements.quick_recipient'));
 window.AN_PRESELECT = @json([
     'recipients' => $clone['recipient_ids'] ?? [],
     'cc' => $clone['cc_ids'] ?? [],
@@ -204,6 +239,9 @@ window.AN_PRESELECT = @json([
     var ccs = (window.AN_PRESELECT.cc || []).slice();
     var rRole = 'customers', cRole = 'all';
     var searchTimers = {};
+    var csrf = document.querySelector('meta[name="csrf-token"]')
+        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        : (document.querySelector('#an-form input[name="_token"]') || {}).value;
 
     function esc(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -355,6 +393,85 @@ window.AN_PRESELECT = @json([
         });
         refreshRecipients();
     });
+
+    var addPanel = document.getElementById('an-add-recipient-panel');
+    var addBtn = document.getElementById('an-add-recipient-btn');
+    var addStatus = document.getElementById('an-new-status');
+    if (addBtn && addPanel) {
+        addBtn.addEventListener('click', function () {
+            if (addPanel.style.display === 'none') {
+                addPanel.style.display = 'block';
+                document.getElementById('an-new-name').focus();
+            } else {
+                addPanel.style.display = 'none';
+            }
+        });
+        document.getElementById('an-new-cancel').addEventListener('click', function () {
+            addPanel.style.display = 'none';
+            if (addStatus) addStatus.textContent = '';
+        });
+        document.getElementById('an-new-save').addEventListener('click', function () {
+            var name = (document.getElementById('an-new-name').value || '').trim();
+            var phone = (document.getElementById('an-new-phone').value || '').trim();
+            var email = (document.getElementById('an-new-email').value || '').trim();
+            var address = (document.getElementById('an-new-address').value || '').trim();
+            if (!name || !phone) {
+                alert('Name and WhatsApp / phone are required.');
+                return;
+            }
+            var btn = document.getElementById('an-new-save');
+            btn.disabled = true;
+            if (addStatus) addStatus.textContent = 'Saving…';
+            fetch(window.AN_QUICK_RECIPIENT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrf || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ name: name, phone: phone, email: email, address: address })
+            }).then(function (r) {
+                return r.json().then(function (body) {
+                    if (!r.ok) {
+                        var msg = (body && body.message) ? body.message : 'Could not save recipient.';
+                        if (body && body.errors) {
+                            var first = Object.keys(body.errors)[0];
+                            if (first && body.errors[first] && body.errors[first][0]) {
+                                msg = body.errors[first][0];
+                            }
+                        }
+                        throw new Error(msg);
+                    }
+                    return body;
+                });
+            }).then(function (body) {
+                var u = body.user;
+                if (!u || !u.id) throw new Error('Invalid response.');
+                mergeUsers([u]);
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+                rRole = 'customers';
+                document.querySelectorAll('.an-rf').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-role') === 'customers');
+                });
+                document.getElementById('an-new-name').value = '';
+                document.getElementById('an-new-phone').value = '';
+                document.getElementById('an-new-email').value = '';
+                document.getElementById('an-new-address').value = '';
+                addPanel.style.display = 'none';
+                if (addStatus) {
+                    addStatus.textContent = body.created ? 'Recipient added.' : 'Existing customer selected.';
+                }
+                refreshRecipients();
+            }).catch(function (err) {
+                alert(err.message || 'Could not save recipient.');
+                if (addStatus) addStatus.textContent = '';
+            }).finally(function () {
+                btn.disabled = false;
+            });
+        });
+    }
 
     document.querySelectorAll('.an-ph').forEach(function (ph) {
         ph.addEventListener('click', function () {

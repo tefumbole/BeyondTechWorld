@@ -337,13 +337,14 @@
                                             <label>{{trans('file.Status')}} *</label>
                                             <input type="hidden" name="quotation_status_hidden" value="{{$lims_quotation_data->quotation_status}}">
                                             <select name="quotation_status" class="form-control">
-                                                <option value="2">Save &amp; send / resend for client approval (WhatsApp)</option>
-                                                <option value="1">Save as draft (no WhatsApp)</option>
+                                                <option value="2">Send for Signature</option>
+                                                <option value="1">Save as draft</option>
+                                                <option value="5">No Signature required</option>
                                                 @if(in_array((int)$lims_quotation_data->quotation_status, [3, 4], true))
-                                                    <option value="{{ $lims_quotation_data->quotation_status }}">Keep as {{ \App\Quotation::statusLabel($lims_quotation_data->quotation_status) }} (no WhatsApp)</option>
+                                                    <option value="{{ $lims_quotation_data->quotation_status }}">Keep as {{ \App\Quotation::statusLabel($lims_quotation_data->quotation_status) }}</option>
                                                 @endif
                                             </select>
-                                            <small class="text-muted">After editing, choose “Save &amp; send / resend…” to WhatsApp the updated quotation. That clears a previous approve/reject response.</small>
+                                            <small class="text-muted">Send for Signature sends the WhatsApp link only (PDF after the client signs). No Signature required finalizes and sends the PDF now.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -363,10 +364,10 @@
                             </div>
                         </div>
                         {!! Form::close() !!}
-                        @if(in_array((int)$lims_quotation_data->quotation_status, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED], true))
+                        @if(in_array((int)$lims_quotation_data->quotation_status, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE], true))
                             <div class="mt-2 mb-3">
                                 {{ Form::open(['route' => ['quotation.resend_approval', $lims_quotation_data->id], 'method' => 'POST', 'id' => 'quotation-resend-form']) }}
-                                <button type="submit" class="btn btn-success" onclick="return confirm('Resend the current quotation to the client via WhatsApp? Save any edits first if you changed amounts or notes.');">
+                                <button type="submit" class="btn btn-success" onclick="return confirm('Send signature link via WhatsApp? PDF is delivered only after the client signs. Save edits first if you changed amounts or notes.');">
                                     <i class="fa fa-whatsapp"></i> Resend approval WhatsApp
                                 </button>
                                 <small class="text-muted d-block mt-1">Uses the last saved quotation. Save first if you just edited.</small>
@@ -522,7 +523,7 @@ $('select[name="biller_id"]').val($('input[name="biller_id_hidden"]').val());
 $('select[name="order_tax_rate"]').val($('input[name="order_tax_rate_hidden"]').val());
 (function () {
     var st = parseInt($('input[name="quotation_status_hidden"]').val(), 10);
-    // Prefer “send/resend” after edit for awaiting / rejected / approved
+    // Prefer “Send for Signature” after edit for awaiting / rejected / approved
     if (st === 2 || st === 3 || st === 4) {
         $('select[name="quotation_status"]').val('2');
     } else {
