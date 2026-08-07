@@ -1,1 +1,1 @@
-export const APP_VERSION = 'BCL_ERP_V2.4.2';
+export const APP_VERSION = 'BCL_ERP_V2.4.3';
