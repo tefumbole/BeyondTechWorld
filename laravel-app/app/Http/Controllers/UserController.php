@@ -69,6 +69,43 @@ class UserController extends Controller
         ));
     }
 
+    /**
+     * Delete one or many applications from People → Applicants.
+     */
+    public function deleteApplicants(Request $request)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || (! $role->hasPermissionTo('users-delete') && ! $role->hasPermissionTo('users-index'))) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to delete applicants.');
+        }
+
+        $ids = $request->input('application_ids', []);
+        if (! is_array($ids)) {
+            $ids = array_filter(explode(',', (string) $ids));
+        }
+        // Flatten checkbox groups that may submit comma-joined ID lists per row.
+        $flat = [];
+        foreach ($ids as $raw) {
+            foreach (preg_split('/\s*,\s*/', (string) $raw) as $id) {
+                $id = trim($id);
+                if ($id !== '') {
+                    $flat[] = $id;
+                }
+            }
+        }
+
+        $deleted = app(ApplicationService::class)->deleteApplications($flat);
+        if ($deleted < 1) {
+            return redirect()->route('user.index', ['category' => 'applicants'])
+                ->with('not_permitted', 'No applications were selected or found to delete.');
+        }
+
+        return redirect()->route('user.index', ['category' => 'applicants'])
+            ->with('message', $deleted === 1
+                ? '1 application deleted.'
+                : $deleted.' applications deleted.');
+    }
+
     public function create()
     {
         $role = Role::find(Auth::user()->role_id);

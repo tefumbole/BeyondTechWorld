@@ -149,11 +149,14 @@ class ApplicationService
             if ($key === '') {
                 $key = preg_replace('/\D+/', '', (string) ($app->whatsapp_number ?: $app->phone));
             }
-            if ($key === '' || isset($seen[$key])) {
-                if (isset($seen[$key])) {
-                    $people[$seen[$key]]['applications_count']++;
-                    $people[$seen[$key]]['latest_status'] = $app->status;
-                }
+            if ($key === '') {
+                $key = 'id:'.$app->id;
+            }
+            if (isset($seen[$key])) {
+                $idx = $seen[$key];
+                $people[$idx]['applications_count']++;
+                $people[$idx]['application_ids'][] = $app->id;
+                // Keep the first (newest) row's status/submitted_at; only grow the ID list.
                 continue;
             }
             $seen[$key] = count($people);
@@ -165,6 +168,7 @@ class ApplicationService
                 'country' => $app->country,
                 'user_id' => $app->user_id,
                 'latest_application_id' => $app->id,
+                'application_ids' => [$app->id],
                 'latest_status' => $app->status,
                 'submitted_at' => $app->submitted_at,
                 'applications_count' => 1,
@@ -172,6 +176,37 @@ class ApplicationService
         }
 
         return collect($people);
+    }
+
+    /**
+     * Delete applications by ID. Returns how many were removed.
+     */
+    public function deleteApplications(array $ids)
+    {
+        $ids = array_values(array_unique(array_filter(array_map('strval', $ids))));
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $apps = Application::whereIn('id', $ids)->get();
+        $deleted = 0;
+        foreach ($apps as $app) {
+            $jobId = $app->job_id;
+            $app->delete();
+            $deleted++;
+            if ($jobId) {
+                try {
+                    $job = JobPosting::find($jobId);
+                    if ($job && (int) $job->current_applicants > 0) {
+                        $job->decrement('current_applicants');
+                    }
+                } catch (\Throwable $e) {
+                    // non-fatal
+                }
+            }
+        }
+
+        return $deleted;
     }
 
     public function ensureAgreementToken(Application $application)

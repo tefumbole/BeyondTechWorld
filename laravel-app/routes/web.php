@@ -728,6 +728,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::put('user/changepass/{id}', 'UserController@changePassword')->name('user.password');
 	Route::get('user/genpass', 'UserController@generatePassword');
 	Route::post('user/deletebyselection', 'UserController@deleteBySelection');
+	Route::post('user/applicants/delete', 'UserController@deleteApplicants')->name('user.applicants.delete');
 	Route::resource('user','UserController');
 
 	Route::get('setting/activity-logs', 'ActivityLogController@index')->name('activity-logs.index');
