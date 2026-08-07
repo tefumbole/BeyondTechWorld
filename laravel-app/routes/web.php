@@ -34,6 +34,10 @@ Route::get('/verify/delivery/{id}/{token}', 'DeliveryVerifyController@show')->na
 
 Route::get('/rental-agreement/{token}', 'RentalContractController@show')->name('rental.agreement');
 Route::post('/rental-agreement/{token}/sign', 'RentalContractController@sign')->name('rental.agreement.sign');
+
+// Public user signature request (WhatsApp link from People → Users → Edit)
+Route::get('/user-sign/{token}', 'UserSignatureController@publicShow')->name('user.public.sign');
+Route::post('/user-sign/{token}', 'UserSignatureController@publicStore')->name('user.public.sign.store');
 Route::get('/rental-portal/{token}', 'RentalContractController@portal')->name('rental.portal');
 Route::post('/rental-portal/{token}/credentials', 'RentalContractController@updateCredentials')->name('rental.portal.credentials');
 Route::get('/rental/scan/{token}', 'RentalContractController@rentalScan')->name('rental.scan');
@@ -729,6 +733,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('user/genpass', 'UserController@generatePassword');
 	Route::post('user/deletebyselection', 'UserController@deleteBySelection');
 	Route::post('user/applicants/delete', 'UserController@deleteApplicants')->name('user.applicants.delete');
+	Route::post('user/{id}/signature/pad', 'UserSignatureController@savePad')->name('user.signature.pad');
+	Route::post('user/{id}/signature/request', 'UserSignatureController@requestLink')->name('user.signature.request');
 	Route::resource('user','UserController');
 
 	Route::get('setting/activity-logs', 'ActivityLogController@index')->name('activity-logs.index');

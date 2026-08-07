@@ -272,29 +272,46 @@ class UserController extends Controller
         $sign = $request->sign;
         $stemp = $request->stemp;
         $approve = $request->approve;
+        $lims_user_data = User::find($id);
+
         if ($sign) {
             $ext = pathinfo($sign->getClientOriginalName(), PATHINFO_EXTENSION);
-            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['sign']);
-            $imageName = $imageName . '.' . $ext;
+            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', pathinfo($sign->getClientOriginalName(), PATHINFO_FILENAME));
+            $imageName = ($imageName ?: 'sign') . '_' . time() . '.' . $ext;
+            if ($lims_user_data->sign) {
+                $old = public_path('images/user/'.$lims_user_data->sign);
+                if (is_file($old)) {
+                    @unlink($old);
+                }
+            }
             $sign->move('public/images/user', $imageName);
-
             $input['sign'] = $imageName;
         }
         if ($stemp) {
             $ext = pathinfo($stemp->getClientOriginalName(), PATHINFO_EXTENSION);
-            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['stemp']);
-            $imageName = $imageName . '.' . $ext;
+            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', pathinfo($stemp->getClientOriginalName(), PATHINFO_FILENAME));
+            $imageName = ($imageName ?: 'stemp') . '_' . time() . '.' . $ext;
+            if ($lims_user_data->stemp) {
+                $old = public_path('images/user/'.$lims_user_data->stemp);
+                if (is_file($old)) {
+                    @unlink($old);
+                }
+            }
             $stemp->move('public/images/user', $imageName);
-
             $input['stemp'] = $imageName;
         }
 
         if ($approve) {
             $ext = pathinfo($approve->getClientOriginalName(), PATHINFO_EXTENSION);
-            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', $request['approve']);
-            $imageName = $imageName . '.' . $ext;
+            $imageName = preg_replace('/[^a-zA-Z0-9]/', '', pathinfo($approve->getClientOriginalName(), PATHINFO_FILENAME));
+            $imageName = ($imageName ?: 'approve') . '_' . time() . '.' . $ext;
+            if ($lims_user_data->approve) {
+                $old = public_path('images/user/'.$lims_user_data->approve);
+                if (is_file($old)) {
+                    @unlink($old);
+                }
+            }
             $approve->move('public/images/user', $imageName);
-
             $input['approve'] = $imageName;
         }
 
@@ -302,19 +319,6 @@ class UserController extends Controller
             $input['is_active'] = false;
         if(!empty($request['password']))
             $input['password'] = bcrypt($request['password']);
-        $lims_user_data = User::find($id);
-        if($lims_user_data->sign) {
-            $file = public_path('public/images/user/'.$lims_user_data->sign);
-            if(file_exists($file)){
-                unlink($file);
-            }
-        }
-        if($lims_user_data->stemp) {
-            $file = public_path('public/images/user/'.$lims_user_data->stemp);
-            if(file_exists($file)){
-                unlink($file);
-            }
-        }
         $lims_user_data->update($input);
         return redirect('user')->with('message2', 'Data updated successfullly');
     }

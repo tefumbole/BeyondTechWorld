@@ -3,10 +3,20 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
+@if(session()->has('message2'))
+  <div class="alert alert-success alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('message2') }}</div>
+@endif
 <style>
     img{
         float: right;
     }
+    .user-sign-actions { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 10px; }
+    .user-sign-pad-wrap {
+        display:none; margin-top:10px; border:2px dashed #0b3f90; border-radius:12px;
+        background:#f8fbff; padding:12px; max-width:520px;
+    }
+    .user-sign-pad-wrap.open { display:block; }
+    #user-sign-pad { width:100%; max-width:500px; height:140px; background:transparent; border-radius:8px; touch-action:none; }
 </style>
 <section class="forms">
     <div class="container-fluid">
@@ -102,12 +112,43 @@
                                     </div>
                                     <div class="form-group" id="sign">
                                         <label><strong>@if($lims_user_data->role_id == 12) Image @else {{trans('file.Sign')}} @endif  </strong></label>
-                                        <input type="file" class="form-control" name="sign">
+                                        <input type="file" class="form-control" name="sign" accept="image/*" @if($lims_user_data->sign) data-current="{{ url('public/images/user/'.$lims_user_data->sign) }}" @endif>
                                         @if($lims_user_data->sign)
-                                        <img src="{{url('public/images/user',$lims_user_data->sign)}}" height="50vw">
+                                            <img src="{{url('public/images/user',$lims_user_data->sign)}}" height="50vw" style="float:none;margin-top:8px;display:block;">
                                         @else
-                                            <span>No sign found</span>
+                                            <span class="text-muted d-block mt-1">No sign found</span>
                                         @endif
+
+                                        @unless($lims_user_data->role_id == 12)
+                                        <div class="user-sign-actions">
+                                            <button type="button" class="btn btn-info btn-sm" id="btn-add-signature">
+                                                <i class="dripicons-pencil"></i> Add Signature
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm" id="btn-sign-pad" style="display:none;">
+                                                Sign on this device
+                                            </button>
+                                            <form method="POST" action="{{ route('user.signature.request', $lims_user_data->id) }}" class="d-inline" id="form-sign-request" style="display:none;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Send a WhatsApp signature link to {{ $lims_user_data->phone ?: 'this user' }}?');">
+                                                    <i class="fa fa-whatsapp"></i> Request link (WhatsApp)
+                                                </button>
+                                            </form>
+                                        </div>
+                                        <p class="text-muted small mb-0" id="add-signature-hint" style="display:none;">
+                                            Choose how to add the signature: draw it here, or WhatsApp a link so the user can sign on their phone.
+                                        </p>
+
+                                        <div class="user-sign-pad-wrap" id="user-sign-pad-wrap">
+                                            <p class="small text-muted mb-2">Draw the signature below, then click Save signature.</p>
+                                            <canvas id="user-sign-pad" width="500" height="140"></canvas>
+                                            <form method="POST" action="{{ route('user.signature.pad', $lims_user_data->id) }}" id="user-sign-pad-form" class="mt-2">
+                                                @csrf
+                                                <input type="hidden" name="signature_image" id="user_signature_image">
+                                                <button type="button" class="btn btn-secondary btn-sm" id="clear-user-sign-pad">Clear</button>
+                                                <button type="submit" class="btn btn-primary btn-sm">Save signature</button>
+                                            </form>
+                                        </div>
+                                        @endunless
                                     </div>
                                     <div class="form-group" id="stemp">
                                         <label><strong>@if($lims_user_data->role_id == 12) Logo @else {{trans('file.Stemp')}}@endif </strong></label>
@@ -193,5 +234,43 @@
       });
     });
 
+    // Add Signature → reveal pad + WhatsApp request options
+    $('#btn-add-signature').on('click', function () {
+        $('#btn-sign-pad, #form-sign-request, #add-signature-hint').show();
+        $('#user-sign-pad-wrap').addClass('open');
+        if (window.__userSignPad) {
+            // keep pad ready
+        }
+    });
+    $('#btn-sign-pad').on('click', function () {
+        $('#user-sign-pad-wrap').addClass('open');
+        var canvas = document.getElementById('user-sign-pad');
+        if (canvas) canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+(function () {
+    var canvas = document.getElementById('user-sign-pad');
+    if (!canvas || typeof SignaturePad === 'undefined') return;
+    var pad = new SignaturePad(canvas, {
+        backgroundColor: 'rgba(0,0,0,0)',
+        penColor: 'rgb(11, 63, 144)'
+    });
+    window.__userSignPad = pad;
+    var clearBtn = document.getElementById('clear-user-sign-pad');
+    if (clearBtn) clearBtn.addEventListener('click', function () { pad.clear(); });
+    var form = document.getElementById('user-sign-pad-form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (pad.isEmpty()) {
+                e.preventDefault();
+                alert('Please draw a signature first.');
+                return false;
+            }
+            document.getElementById('user_signature_image').value = pad.toDataURL('image/png');
+        });
+    }
+})();
 </script>
 @endsection
