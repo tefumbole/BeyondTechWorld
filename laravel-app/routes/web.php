@@ -735,6 +735,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::post('user/applicants/delete', 'UserController@deleteApplicants')->name('user.applicants.delete');
 	Route::post('user/{id}/signature/pad', 'UserSignatureController@savePad')->name('user.signature.pad');
 	Route::post('user/{id}/signature/request', 'UserSignatureController@requestLink')->name('user.signature.request');
+	Route::post('user/{id}/signature/delete', 'UserSignatureController@destroy')->name('user.signature.delete');
 	Route::resource('user','UserController');
 
 	Route::get('setting/activity-logs', 'ActivityLogController@index')->name('activity-logs.index');

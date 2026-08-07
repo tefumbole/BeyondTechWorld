@@ -139,72 +139,52 @@
                                           @endforeach
                                         </select>
                                     </div>
-                                    <div class="form-group" id="sign">
-                                        <label><strong>@if($lims_user_data->role_id == 12) Image @else {{trans('file.Sign')}} @endif  </strong></label>
-                                        <input type="file" class="form-control" name="sign" accept="image/*" @if($lims_user_data->sign) data-current="{{ url('public/images/user/'.$lims_user_data->sign) }}" @endif>
-                                        @if($lims_user_data->sign)
-                                            <img src="{{url('public/images/user',$lims_user_data->sign)}}" height="50vw" style="float:none;margin-top:8px;display:block;">
-                                        @else
-                                            <span class="text-muted d-block mt-1">No sign found</span>
-                                        @endif
-
-                                        @unless($lims_user_data->role_id == 12)
-                                        {{-- Buttons only (no nested forms — nested forms were submitting Update User instead of WhatsApp) --}}
-                                        <div class="user-sign-actions">
-                                            <button type="button" class="btn btn-info btn-sm" id="btn-add-signature">
-                                                <i class="dripicons-pencil"></i> Add Signature
-                                            </button>
-                                            <button type="button" class="btn btn-outline-info btn-sm" id="btn-sign-pad" style="display:none;">
-                                                Sign on this device
-                                            </button>
-                                            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-sign-whatsapp" style="display:none;"
-                                                    data-phone="{{ \App\Support\WhatsAppPhone::display($lims_user_data->phone ?: $lims_user_data->additional_phone) }}"
-                                                    data-url="{{ route('user.signature.request', $lims_user_data->id) }}">
-                                                <i class="fa fa-whatsapp"></i> Request link (WhatsApp)
-                                            </button>
-                                        </div>
-                                        <div id="signature-request-result" class="mt-2" style="display:none;"></div>
-                                        @if(!empty($lims_user_data->sign_request_token) && $lims_user_data->sign_request_expires_at && $lims_user_data->sign_request_expires_at->isFuture())
-                                            <div class="alert alert-light border mt-2 mb-0 p-2 small" id="pending-signature-link">
-                                                Pending request link:
-                                                <a href="{{ url('/user-sign/'.$lims_user_data->sign_request_token) }}" target="_blank" rel="noopener">
-                                                    {{ url('/user-sign/'.$lims_user_data->sign_request_token) }}
-                                                </a>
+                                    <div id="sign">
+                                        @if($lims_user_data->role_id == 12)
+                                            <div class="form-group">
+                                                <label><strong>Image</strong></label>
+                                                <input type="file" class="form-control" name="sign" accept="image/*">
+                                                @if($lims_user_data->sign)
+                                                    <img src="{{url('public/images/user',$lims_user_data->sign)}}" height="50vw" style="float:none;margin-top:8px;display:block;">
+                                                @endif
                                             </div>
-                                        @endif
-                                        <p class="text-muted small mb-0" id="add-signature-hint" style="display:none;">
-                                            Choose how to add the signature: draw it here, or WhatsApp a link so the user can sign on their phone.
-                                        </p>
-
-                                        <div class="user-sign-pad-wrap" id="user-sign-pad-wrap">
-                                            <p class="small text-muted mb-2">Draw the signature below, then click Save signature.</p>
-                                            <canvas id="user-sign-pad" width="500" height="140"></canvas>
-                                            <div class="mt-2">
-                                                <button type="button" class="btn btn-secondary btn-sm" id="clear-user-sign-pad">Clear</button>
-                                                <button type="button" class="btn btn-primary btn-sm" id="btn-save-sign-pad"
-                                                        data-url="{{ route('user.signature.pad', $lims_user_data->id) }}">Save signature</button>
-                                            </div>
-                                            <div id="sign-pad-status" class="small mt-2"></div>
-                                        </div>
-                                        @endunless
-                                    </div>
-                                    <div class="form-group" id="stemp">
-                                        <label><strong>@if($lims_user_data->role_id == 12) Logo @else {{trans('file.Stemp')}}@endif </strong></label>
-                                        <input type="file" class="form-control" name="stemp">
-                                        @if($lims_user_data->stemp)
-                                            <img src="{{url('public/images/user',$lims_user_data->stemp)}}" height="50vw">
                                         @else
-                                            <span>No Comment found</span>
+                                            @include('user.partials.signature_field', [
+                                                'type' => 'sign',
+                                                'label' => trans('file.Sign'),
+                                                'user' => $lims_user_data,
+                                                'fileField' => $lims_user_data->sign,
+                                                'inputName' => 'sign',
+                                            ])
                                         @endif
                                     </div>
-                                    <div class="form-group" id="approve">
-                                        <label><strong>{{trans('file.Approve')}} </strong></label>
-                                        <input type="file" class="form-control" name="approve">
-                                        @if($lims_user_data->approve)
-                                            <img src="{{url('public/images/user',$lims_user_data->approve)}}" height="50vw">
+                                    <div id="stemp">
+                                        @if($lims_user_data->role_id == 12)
+                                            <div class="form-group">
+                                                <label><strong>Logo</strong></label>
+                                                <input type="file" class="form-control" name="stemp" accept="image/*">
+                                                @if($lims_user_data->stemp)
+                                                    <img src="{{url('public/images/user',$lims_user_data->stemp)}}" height="50vw" style="float:none;margin-top:8px;display:block;">
+                                                @endif
+                                            </div>
                                         @else
-                                            <span>No Approve found</span>
+                                            @include('user.partials.signature_field', [
+                                                'type' => 'stemp',
+                                                'label' => 'Comment',
+                                                'user' => $lims_user_data,
+                                                'fileField' => $lims_user_data->stemp,
+                                                'inputName' => 'stemp',
+                                            ])
                                         @endif
+                                    </div>
+                                    <div id="approve">
+                                        @include('user.partials.signature_field', [
+                                            'type' => 'approve',
+                                            'label' => trans('file.Approve'),
+                                            'user' => $lims_user_data,
+                                            'fileField' => $lims_user_data->approve,
+                                            'inputName' => 'approve',
+                                        ])
                                     </div>
                                 </div>
                             </div>
@@ -255,6 +235,7 @@
             $('#warehouseId').hide();
             $('#sign').show(300);
             $('#stemp').show(300);
+            $('#approve').show(300);
         }
         else{
             $('select[name="warehouse_id"]').prop('required',false);
@@ -263,6 +244,7 @@
             $('#warehouseId').hide();
             $('#sign').hide();
             $('#stemp').hide();
+            $('#approve').hide();
         }
     });
 
@@ -272,97 +254,135 @@
       });
     });
 
-    // Add Signature → reveal pad + WhatsApp request options (AJAX — not nested forms)
-    $('#btn-add-signature').on('click', function () {
-        $('#btn-sign-pad, #btn-sign-whatsapp, #add-signature-hint').show();
-        $('#user-sign-pad-wrap').addClass('open');
-    });
-    $('#btn-sign-pad').on('click', function () {
-        $('#user-sign-pad-wrap').addClass('open');
-        var canvas = document.getElementById('user-sign-pad');
-        if (canvas) canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-
     function csrfToken() {
         var m = document.querySelector('meta[name="csrf-token"]');
         return m ? m.getAttribute('content') : '';
     }
-
-    $('#btn-sign-whatsapp').on('click', function () {
-        var btn = $(this);
-        var phone = btn.data('phone') || 'this user';
-        var url = btn.data('url');
-        if (!confirm('Send a WhatsApp signature link to ' + phone + '?')) return;
-        btn.prop('disabled', true).text('Sending…');
-        $.ajax({
-            method: 'POST',
-            url: url,
-            data: { _token: csrfToken() },
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-        }).done(function (res) {
-            var link = (res && res.link) ? res.link : '';
-            var msg = (res && res.message) ? res.message : 'Request processed.';
-            var html = '<div class="alert ' + (res && res.success ? 'alert-success' : 'alert-warning') + ' mb-0">'
-                + '<div>' + msg + '</div>';
-            if (link) {
-                html += '<div class="mt-2 d-flex flex-wrap align-items-center" style="gap:8px;">'
-                    + '<input type="text" class="form-control form-control-sm" readonly value="' + link + '" style="max-width:420px;" id="ajax-sign-link">'
-                    + '<a class="btn btn-sm btn-primary" href="' + link + '" target="_blank" rel="noopener">Open link</a>'
-                    + '</div>';
-            }
-            html += '</div>';
-            $('#signature-request-result').html(html).show();
-            if (link) {
-                $('#pending-signature-link').html('Pending request link: <a href="'+link+'" target="_blank" rel="noopener">'+link+'</a>').show();
-            }
-        }).fail(function (xhr) {
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Could not send WhatsApp request.';
-            $('#signature-request-result').html('<div class="alert alert-danger mb-0">'+msg+'</div>').show();
-        }).always(function () {
-            btn.prop('disabled', false).html('<i class="fa fa-whatsapp"></i> Request link (WhatsApp)');
-        });
-    });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
 (function () {
-    var canvas = document.getElementById('user-sign-pad');
-    if (!canvas || typeof SignaturePad === 'undefined') return;
-    var pad = new SignaturePad(canvas, {
-        backgroundColor: 'rgba(0,0,0,0)',
-        penColor: 'rgb(11, 63, 144)'
-    });
-    window.__userSignPad = pad;
-    var clearBtn = document.getElementById('clear-user-sign-pad');
-    if (clearBtn) clearBtn.addEventListener('click', function () { pad.clear(); });
+    if (typeof SignaturePad === 'undefined') return;
+    var pads = {};
 
-    var saveBtn = document.getElementById('btn-save-sign-pad');
-    if (!saveBtn) return;
-    saveBtn.addEventListener('click', function () {
-        if (pad.isEmpty()) {
-            alert('Please draw a signature first.');
+    function getPad(type) {
+        if (pads[type]) return pads[type];
+        var canvas = document.querySelector('.sig-canvas[data-type="'+type+'"]');
+        if (!canvas) return null;
+        pads[type] = new SignaturePad(canvas, {
+            backgroundColor: 'rgba(0,0,0,0)',
+            penColor: 'rgb(11, 63, 144)'
+        });
+        return pads[type];
+    }
+
+    $(document).on('click', '.btn-sig-add', function () {
+        var type = $(this).data('type');
+        $('.btn-sig-pad[data-type="'+type+'"], .btn-sig-whatsapp[data-type="'+type+'"], .sig-hint[data-type="'+type+'"]').show();
+        $('.sig-pad-wrap[data-type="'+type+'"]').addClass('open');
+        getPad(type);
+    });
+
+    $(document).on('click', '.btn-sig-pad', function () {
+        var type = $(this).data('type');
+        var wrap = document.querySelector('.sig-pad-wrap[data-type="'+type+'"]');
+        if (wrap) {
+            $(wrap).addClass('open');
+            wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        getPad(type);
+    });
+
+    $(document).on('click', '.btn-sig-clear', function () {
+        var pad = getPad($(this).data('type'));
+        if (pad) pad.clear();
+    });
+
+    $(document).on('click', '.btn-sig-whatsapp', function () {
+        var btn = $(this);
+        var type = btn.data('type');
+        var phone = btn.data('phone') || 'this user';
+        var url = btn.data('url');
+        if (!confirm('Send a WhatsApp request link to ' + phone + '?')) return;
+        btn.prop('disabled', true).text('Sending…');
+        $.ajax({
+            method: 'POST',
+            url: url,
+            data: { _token: csrfToken(), type: type },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).done(function (res) {
+            var link = (res && res.link) ? res.link : '';
+            var msg = (res && res.message) ? res.message : 'Request processed.';
+            var html = '<div class="alert ' + (res && res.success ? 'alert-success' : 'alert-warning') + ' mb-0"><div>' + msg + '</div>';
+            if (link) {
+                html += '<div class="mt-2 d-flex flex-wrap align-items-center" style="gap:8px;">'
+                    + '<input type="text" class="form-control form-control-sm" readonly value="' + link + '" style="max-width:420px;">'
+                    + '<a class="btn btn-sm btn-primary" href="' + link + '" target="_blank" rel="noopener">Open link</a></div>';
+            }
+            html += '</div>';
+            $('.sig-request-result[data-type="'+type+'"]').html(html).show();
+        }).fail(function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Could not send WhatsApp request.';
+            var link = (xhr.responseJSON && xhr.responseJSON.link) ? xhr.responseJSON.link : '';
+            var html = '<div class="alert alert-danger mb-0"><div>'+msg+'</div>';
+            if (link) {
+                html += '<div class="mt-2"><a href="'+link+'" target="_blank" rel="noopener">'+link+'</a></div>';
+            }
+            html += '</div>';
+            $('.sig-request-result[data-type="'+type+'"]').html(html).show();
+        }).always(function () {
+            btn.prop('disabled', false).html('<i class="fa fa-whatsapp"></i> Request link (WhatsApp)');
+        });
+    });
+
+    $(document).on('click', '.btn-sig-delete', function () {
+        var btn = $(this);
+        var type = btn.data('type');
+        if (!confirm('Delete this image?')) return;
+        btn.prop('disabled', true);
+        $.ajax({
+            method: 'POST',
+            url: btn.data('url'),
+            data: { _token: csrfToken(), type: type },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).done(function () {
+            window.location.reload();
+        }).fail(function (xhr) {
+            alert((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Delete failed.');
+            btn.prop('disabled', false);
+        });
+    });
+
+    $(document).on('click', '.btn-sig-save', function () {
+        var btn = this;
+        var type = btn.getAttribute('data-type');
+        var pad = getPad(type);
+        var status = document.querySelector('.sig-pad-status[data-type="'+type+'"]');
+        if (!pad || pad.isEmpty()) {
+            alert('Please draw first.');
             return;
         }
-        var status = document.getElementById('sign-pad-status');
-        saveBtn.disabled = true;
-        if (status) status.textContent = 'Saving…';
-        var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        btn.disabled = true;
+        if (status) { status.textContent = 'Saving…'; status.style.color = '#334155'; }
         var body = new FormData();
-        body.append('_token', tokenMeta ? tokenMeta.getAttribute('content') : '');
+        body.append('_token', csrfToken());
+        body.append('type', type);
         body.append('signature_image', pad.toDataURL('image/png'));
-        fetch(saveBtn.getAttribute('data-url'), {
+        fetch(btn.getAttribute('data-url'), {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             body: body,
             credentials: 'same-origin'
         }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
         .then(function (res) {
-            if (status) status.textContent = (res.j && res.j.message) ? res.j.message : (res.ok ? 'Signature saved.' : 'Save failed.');
-            status.style.color = res.ok ? '#157347' : '#b02a37';
+            if (status) {
+                status.textContent = (res.j && res.j.message) ? res.j.message : (res.ok ? 'Saved.' : 'Save failed.');
+                status.style.color = res.ok ? '#157347' : '#b02a37';
+            }
             if (res.ok) setTimeout(function () { window.location.reload(); }, 700);
         }).catch(function () {
-            if (status) { status.textContent = 'Save failed. Please try again.'; status.style.color = '#b02a37'; }
-        }).finally(function () { saveBtn.disabled = false; });
+            if (status) { status.textContent = 'Save failed.'; status.style.color = '#b02a37'; }
+        }).finally(function () { btn.disabled = false; });
     });
 })();
 </script>

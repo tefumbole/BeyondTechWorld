@@ -13,8 +13,8 @@
 </head>
 <body>
 <div class="card">
-    <h1>Signature saved</h1>
-    <p>Thank you, {{ $user->name }}. Your signature is now attached to your account. You can close this page.</p>
+    <h1>{{ $label ?? 'Signature' }} saved</h1>
+    <p>Thank you, {{ $user->name }}. Your {{ strtolower($label ?? 'signature') }} is now attached to your account. You can close this page.</p>
 </div>
 </body>
 </html>

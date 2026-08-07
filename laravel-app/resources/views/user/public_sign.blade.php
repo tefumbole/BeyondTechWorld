@@ -24,8 +24,8 @@
 <body>
 <div class="wrap">
     <div class="card">
-        <h1>Add your signature</h1>
-        <p>Hi <span class="name">{{ $user->name }}</span> — please sign below. This signature will be saved to your Beyond account for letters and approvals.</p>
+        <h1>Add your {{ $label ?? 'signature' }}</h1>
+        <p>Hi <span class="name">{{ $user->name }}</span> — please draw your <strong>{{ strtolower($label ?? 'signature') }}</strong> below. It will be saved to your Beyond account.</p>
 
         @if(session('not_permitted'))
             <div class="alert">{{ session('not_permitted') }}</div>
@@ -40,7 +40,7 @@
             <input type="hidden" name="signature_image" id="signature_image">
             <div class="actions">
                 <button type="button" class="btn btn-secondary" id="clear-pad">Clear</button>
-                <button type="submit" class="btn btn-primary">Save signature</button>
+                <button type="submit" class="btn btn-primary">Save {{ $label ?? 'signature' }}</button>
             </div>
         </form>
     </div>
