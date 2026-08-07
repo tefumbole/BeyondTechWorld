@@ -81,12 +81,29 @@ class UserSignatureController extends Controller
         $company = optional(GeneralSetting::first())->site_title ?: 'Beyond Enterprise';
         $msg = "{$company}: Please add your signature using this secure link:\n{$link}\n\nThis link expires in 3 days.";
 
+        // Brief pause helps Wasender account-protection (1 msg / 5s).
+        usleep(550000);
+
         $result = app(BeyondWasenderService::class)->sendText($phone, $msg);
-        if (empty($result['success'])) {
-            return back()->with('not_permitted', 'Could not send WhatsApp: '.($result['error'] ?? 'unknown error'));
+        \Log::info('[user-signature] WhatsApp request result', [
+            'user_id' => $user->id,
+            'phone' => $phone,
+            'link' => $link,
+            'result' => $result,
+        ]);
+
+        // Always expose the link — WhatsApp delivery can lag/fail even when API says OK.
+        $flashLink = $link;
+
+        if (empty($result['success']) || ! empty($result['skipped'])) {
+            return back()
+                ->with('not_permitted', 'WhatsApp did not deliver: '.($result['error'] ?? 'messaging skipped or failed').'. Use the link below.')
+                ->with('signature_request_link', $flashLink);
         }
 
-        return back()->with('message2', 'Signature request link sent to '.$phone.' via WhatsApp.');
+        return back()
+            ->with('message2', 'Signature request queued to WhatsApp ('.$phone.'). If it does not arrive within a minute, open or copy the link below.')
+            ->with('signature_request_link', $flashLink);
     }
 
     /**

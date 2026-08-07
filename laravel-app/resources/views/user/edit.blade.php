@@ -6,6 +6,35 @@
 @if(session()->has('message2'))
   <div class="alert alert-success alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('message2') }}</div>
 @endif
+@if(session()->has('signature_request_link'))
+  <div class="alert alert-info alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    <strong>Signature link</strong> (valid 3 days):
+    <div class="mt-2 d-flex flex-wrap align-items-center" style="gap:8px;">
+      <input type="text" class="form-control" id="signature-request-link-input" readonly value="{{ session('signature_request_link') }}" style="max-width:520px;">
+      <button type="button" class="btn btn-sm btn-primary" id="copy-signature-link">Copy link</button>
+      <a class="btn btn-sm btn-outline-primary" href="{{ session('signature_request_link') }}" target="_blank" rel="noopener">Open link</a>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('copy-signature-link');
+      var input = document.getElementById('signature-request-link-input');
+      if (!btn || !input) return;
+      btn.addEventListener('click', function () {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(input.value);
+        } else {
+          document.execCommand('copy');
+        }
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy link'; }, 1500);
+      });
+    })();
+  </script>
+@endif
 <style>
     img{
         float: right;
@@ -129,10 +158,18 @@
                                             </button>
                                             <form method="POST" action="{{ route('user.signature.request', $lims_user_data->id) }}" class="d-inline" id="form-sign-request" style="display:none;">
                                                 @csrf
-                                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Send a WhatsApp signature link to {{ $lims_user_data->phone ?: 'this user' }}?');">
+                                                <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Send a WhatsApp signature link to {{ \App\Support\WhatsAppPhone::display($lims_user_data->phone ?: $lims_user_data->additional_phone) ?: 'this user' }}?');">
                                                     <i class="fa fa-whatsapp"></i> Request link (WhatsApp)
                                                 </button>
                                             </form>
+                                            @if(!empty($lims_user_data->sign_request_token) && $lims_user_data->sign_request_expires_at && $lims_user_data->sign_request_expires_at->isFuture())
+                                                <div class="alert alert-light border mt-2 mb-0 p-2 small">
+                                                    Pending request link:
+                                                    <a href="{{ url('/user-sign/'.$lims_user_data->sign_request_token) }}" target="_blank" rel="noopener">
+                                                        {{ url('/user-sign/'.$lims_user_data->sign_request_token) }}
+                                                    </a>
+                                                </div>
+                                            @endif
                                         </div>
                                         <p class="text-muted small mb-0" id="add-signature-hint" style="display:none;">
                                             Choose how to add the signature: draw it here, or WhatsApp a link so the user can sign on their phone.

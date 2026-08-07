@@ -86,17 +86,38 @@ class BeyondWasenderService
             }
 
             $decoded = json_decode($body, true);
-            if ($http >= 400 || (is_array($decoded) && isset($decoded['success']) && $decoded['success'] !== true)) {
-                $error = is_array($decoded)
-                    ? ($decoded['message'] ?? $decoded['error'] ?? 'Wasender rejected message')
-                    : ('HTTP '.$http);
+            $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
+            $apiMessage = is_array($decoded)
+                ? (string) ($decoded['message'] ?? $decoded['error'] ?? '')
+                : '';
+            $looksFailed = $http >= 400
+                || $apiSuccess === false
+                || ($apiSuccess !== true && $apiMessage !== '' && preg_match(
+                    '/not connected|rejected|does not exist|rate|protection|failed|invalid|unauthorized/i',
+                    $apiMessage
+                ));
 
-                \Log::warning('[beyond-whatsapp] send failed', ['error' => $error, 'to' => $to, 'http' => $http]);
+            if ($looksFailed) {
+                $error = $apiMessage !== '' ? $apiMessage : ('HTTP '.$http);
+                \Log::warning('[beyond-whatsapp] send failed', [
+                    'error' => $error,
+                    'to' => $to,
+                    'http' => $http,
+                    'body' => is_string($body) ? substr($body, 0, 500) : null,
+                ]);
 
                 return ['success' => false, 'error' => $error];
             }
 
-            return ['success' => true];
+            if ($apiSuccess !== true) {
+                \Log::warning('[beyond-whatsapp] ambiguous API response treated carefully', [
+                    'to' => $to,
+                    'http' => $http,
+                    'body' => is_string($body) ? substr($body, 0, 500) : null,
+                ]);
+            }
+
+            return ['success' => true, 'http' => $http];
         } catch (\Throwable $e) {
             \Log::warning('[beyond-whatsapp] exception', ['error' => $e->getMessage()]);
 
