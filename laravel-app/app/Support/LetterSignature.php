@@ -25,16 +25,65 @@ class LetterSignature
         $src = self::trimImage($src);
         $src = self::stampDate($src, date('M d, Y'));
 
-        $dir = public_path('letter/signatures');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        $dir = self::ensureWritableDir([
+            public_path('letter/signatures'),
+            storage_path('app/public/letter/signatures'),
+            storage_path('app/signatures'),
+        ]);
+        if (! $dir) {
+            imagedestroy($src);
+            \Log::error('LetterSignature: no writable signatures directory');
+
+            return null;
         }
 
         $filename = $prefix . '_' . date('YmdHis') . '_' . uniqid() . '.png';
-        imagepng($src, $dir . '/' . $filename);
+        $path = $dir . '/' . $filename;
+        $ok = @imagepng($src, $path);
         imagedestroy($src);
 
-        return $filename;
+        return $ok && is_file($path) ? $filename : null;
+    }
+
+    /**
+     * Resolve/create the first writable directory from candidates.
+     *
+     * @param  array  $candidates
+     * @return string|null
+     */
+    public static function ensureWritableDir(array $candidates)
+    {
+        foreach ($candidates as $dir) {
+            if (! is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            if (is_dir($dir) && is_writable($dir)) {
+                return $dir;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Absolute path for a stored signature filename (checks known dirs).
+     */
+    public static function absolutePath(?string $filename): ?string
+    {
+        if (! $filename) {
+            return null;
+        }
+        foreach ([
+            public_path('letter/signatures/'.$filename),
+            storage_path('app/public/letter/signatures/'.$filename),
+            storage_path('app/signatures/'.$filename),
+        ] as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     public static function url(?string $filename): ?string
@@ -48,13 +97,7 @@ class LetterSignature
 
     public static function path(?string $filename): ?string
     {
-        if (!$filename) {
-            return null;
-        }
-
-        $path = public_path('letter/signatures/' . $filename);
-
-        return is_file($path) ? $path : null;
+        return self::absolutePath($filename);
     }
 
     public static function resolveEditSrc($letter, $user = null): ?string

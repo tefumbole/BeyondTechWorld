@@ -164,7 +164,13 @@ class UserSignatureController extends Controller
             'signature_image' => 'required|string',
         ]);
 
-        $filename = $this->persistUserSign($user, $request->signature_image);
+        try {
+            $filename = $this->persistUserSign($user, $request->signature_image);
+        } catch (\Throwable $e) {
+            \Log::error('UserSignature publicStore failed: '.$e->getMessage());
+            $filename = null;
+        }
+
         if (! $filename) {
             return back()->with('not_permitted', 'Could not save signature. Please try again.');
         }
@@ -200,36 +206,57 @@ class UserSignatureController extends Controller
 
     protected function persistUserSign(User $user, $dataUrl)
     {
-        $stored = LetterSignature::storeFromDataUrl($dataUrl, 'user_sign');
-        if (! $stored) {
-            return null;
-        }
+        try {
+            $stored = LetterSignature::storeFromDataUrl($dataUrl, 'user_sign');
+            $source = $stored ? LetterSignature::absolutePath($stored) : null;
 
-        $source = public_path('letter/signatures/'.$stored);
-        if (! is_file($source)) {
-            return null;
-        }
+            $dir = LetterSignature::ensureWritableDir([
+                public_path('images/user'),
+                storage_path('app/public/images/user'),
+            ]);
+            if (! $dir) {
+                \Log::error('UserSignature: images/user is not writable');
 
-        $dir = public_path('images/user');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $accountFile = 'sign_'.$user->id.'_'.date('YmdHis').'_'.Str::random(4).'.png';
-        if (! @copy($source, $dir.'/'.$accountFile)) {
-            return null;
-        }
-
-        if ($user->sign) {
-            $old = public_path('images/user/'.$user->sign);
-            if (is_file($old)) {
-                @unlink($old);
+                return null;
             }
+
+            $accountFile = 'sign_'.$user->id.'_'.date('YmdHis').'_'.Str::random(4).'.png';
+            $dest = $dir.'/'.$accountFile;
+
+            if ($source && is_file($source)) {
+                if (! @copy($source, $dest)) {
+                    return null;
+                }
+            } else {
+                // Fallback: write data URL straight into images/user
+                if (! preg_match('/^data:image\/png;base64,/', (string) $dataUrl)) {
+                    return null;
+                }
+                $raw = base64_decode(substr($dataUrl, strpos($dataUrl, ',') + 1));
+                if ($raw === false || @file_put_contents($dest, $raw) === false) {
+                    return null;
+                }
+            }
+
+            if ($user->sign) {
+                foreach ([
+                    public_path('images/user/'.$user->sign),
+                    storage_path('app/public/images/user/'.$user->sign),
+                ] as $old) {
+                    if (is_file($old)) {
+                        @unlink($old);
+                    }
+                }
+            }
+
+            $user->sign = $accountFile;
+            $user->save();
+
+            return $accountFile;
+        } catch (\Throwable $e) {
+            \Log::error('UserSignature persist failed: '.$e->getMessage());
+
+            return null;
         }
-
-        $user->sign = $accountFile;
-        $user->save();
-
-        return $accountFile;
     }
 }
