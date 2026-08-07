@@ -10,15 +10,20 @@
 
 @if($watermarkPath && file_exists($watermarkPath))
     <div class="letter-watermark">
-        <img src="{{ $watermarkPath }}" alt="">
+        <img src="{{ \App\Support\Letterhead::pdfImage($watermarkPath, 500) }}" alt="">
     </div>
 @endif
 
-@if($hasLetterhead && ! empty($letterhead['header_path']) && ! $letterheadFlow)
-    <img src="{{ $letterhead['header_path'] }}" class="letter-header-img" alt="">
+@php
+    $headerPdf = ($hasLetterhead && ! empty($letterhead['header_path']))
+        ? \App\Support\Letterhead::pdfImage($letterhead['header_path'], 1400, true)
+        : null;
+@endphp
+@if($headerPdf && ! $letterheadFlow)
+    <img src="{{ $headerPdf }}" class="letter-header-img" alt="">
 @endif
 
 <div class="letter-page {{ $hasLetterhead ? 'has-letterhead' : '' }}">
-@if($hasLetterhead && ! empty($letterhead['header_path']) && $letterheadFlow)
-    <img src="{{ $letterhead['header_path'] }}" class="letter-header-img" alt="">
+@if($headerPdf && $letterheadFlow)
+    <img src="{{ $headerPdf }}" class="letter-header-img" alt="">
 @endif

@@ -6,10 +6,15 @@
         $useSystemLetterhead || (($general_setting->invoice_format ?? '') == 'beyond_a4')
     );
 @endphp
-@if($hasLetterFooter && ! empty($letterhead['footer_path']) && $letterheadFlow)
-    <img src="{{ $letterhead['footer_path'] }}" class="letter-footer-img" alt="">
+@php
+    $footerPdf = ($hasLetterFooter && ! empty($letterhead['footer_path']))
+        ? \App\Support\Letterhead::pdfImage($letterhead['footer_path'], 1400, true)
+        : null;
+@endphp
+@if($footerPdf && $letterheadFlow)
+    <img src="{{ $footerPdf }}" class="letter-footer-img" alt="">
 @endif
 </div>
-@if($hasLetterFooter && ! empty($letterhead['footer_path']) && ! $letterheadFlow)
-    <img src="{{ $letterhead['footer_path'] }}" class="letter-footer-img" alt="">
+@if($footerPdf && ! $letterheadFlow)
+    <img src="{{ $footerPdf }}" class="letter-footer-img" alt="">
 @endif

@@ -82,14 +82,39 @@
     } else {
         $user = \App\Employee::class;
     }
+    $dearNames = [];
+    if ($data->people_type === 'directory') {
+        foreach (\App\Support\LetterRecipients::decodePeopleJson($data->recipients_json) as $person) {
+            if (! empty($person['name'])) {
+                $dearNames[] = $person['name'];
+            }
+        }
+    } elseif ($data->people_type == 'all') {
+        if (preg_match('/c:([^|]*)/', $data->to, $customerMatch)) {
+            foreach (array_filter(explode(',', $customerMatch[1])) as $to) {
+                $person = \App\Customer::find($to);
+                if ($person) {
+                    $dearNames[] = $person->name;
+                }
+            }
+        }
+        if (preg_match('/e:([^|]*)/', $data->to, $employeeMatch)) {
+            foreach (array_filter(explode(',', $employeeMatch[1])) as $to) {
+                $person = \App\Employee::find($to);
+                if ($person) {
+                    $dearNames[] = $person->name;
+                }
+            }
+        }
+    } elseif ($data->people_type != 'csv') {
+        foreach (explode(',', (string) $data->to) as $to) {
+            $person = $user::find(trim($to));
+            if ($person) {
+                $dearNames[] = $person->name;
+            }
+        }
+    }
 @endphp
-
-<div class="pull-right-no-margin">
-    @include('letter.partials.signature_display')
-    <span class ="header-letter">{!! $data->header !!}</span>
-
-</div>
-<br><br><br><br>
 
 <div>Ref: {{ $data->reference }} <br>
     {{ date('M d, Y') }}
@@ -98,37 +123,25 @@
         Schedule: {{ \Carbon\Carbon::parse($data->date_time)->format('M d, Y h:i A') }}
     @endif
 </div><br>
-<div>Dear:
-    @if($data->people_type == 'all')
-        @php
-            $allNames = [];
-            if (preg_match('/c:([^|]*)/', $data->to, $customerMatch)) {
-                foreach (array_filter(explode(',', $customerMatch[1])) as $to) {
-                    $person = \App\Customer::find($to);
-                    if ($person) {
-                        $allNames[] = $person->name;
-                    }
-                }
-            }
-            if (preg_match('/e:([^|]*)/', $data->to, $employeeMatch)) {
-                foreach (array_filter(explode(',', $employeeMatch[1])) as $to) {
-                    $person = \App\Employee::find($to);
-                    if ($person) {
-                        $allNames[] = $person->name;
-                    }
-                }
-            }
-        @endphp
-        {{ implode(', ', $allNames) }}
-    @elseif($data->people_type != 'csv')
-        @foreach (explode(",", $data->to) as $to)
-            {{ $user::find($to) ? $user::find($to)->name .  ', ' : '' }}
-        @endforeach
-    @else
+@if($data->people_type === 'directory')
+    @foreach(\App\Support\LetterRecipients::decodePeopleJson($data->recipients_json) as $person)
+        <div>
+            <strong>{{ $person['name'] ?? '' }}</strong>
+            @if(!empty($person['address']))<br>{{ $person['address'] }}@endif
+            @if(!empty($person['phone']))<br>{{ $person['phone'] }}@endif
+            @if(!empty($person['email']))<br>{{ $person['email'] }}@endif
+        </div>
+        <br>
+    @endforeach
+@endif
+<div>Dear{{ count($dearNames) ? ' '.implode(', ', $dearNames) : '' }},
+    @if($data->people_type == 'csv')
         <a href="{{url('public/letter/csv',$data->to)}}" target="_blank"><span class="fa fa-eye"></span> CSV File</a><br>
     @endif
-
 </div>
+@if(trim(strip_tags((string) $data->header)) !== '')
+    <div class="mt-2 mb-2">{!! $data->header !!}</div>
+@endif
 <br><br>
 <div  style="text-transform: uppercase">
     <h2>Subject: <span style="text-decoration: underline;">{{ $data->subject }}</span></h2>
@@ -160,7 +173,17 @@
         {{ $data->comment }}
     </h1>
 @endif
-@if($data->cc)
+@if($data->people_type === 'directory')
+    @php $ccPeople = \App\Support\LetterRecipients::decodePeopleJson($data->cc_json); @endphp
+    @if(count($ccPeople))
+        <br><br>
+        <h2>CC:
+            @foreach($ccPeople as $ccPerson)
+                {{ $ccPerson['name'] ?? '' }}{{ ! $loop->last ? ', ' : '' }}
+            @endforeach
+        </h2>
+    @endif
+@elseif($data->cc)
     <br><br>
     <h2>CC:
         @php

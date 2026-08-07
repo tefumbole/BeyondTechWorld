@@ -1090,9 +1090,10 @@ class LetterController extends Controller
 
         $data = [
             'to' => $to,
-            'data' => $rendered
+            'data' => $rendered,
+            'user_to' => $lims_customer_data,
+            'letterhead_flow' => true,
         ];
-//         return view('pdf.letter_pdf', $data);
         $pdf = PDF::loadView('pdf.letter_pdf', $data)->setPaper('A4', 'portrait');
 
         $content = $pdf->download()->getOriginalContent();
@@ -1176,10 +1177,11 @@ class LetterController extends Controller
     public function sendPDFToCC($letter, $lims_customer_data, $to) {
         $data = [
             'to' => $to,
-            'data' => $letter
+            'data' => $letter,
+            'user_to' => $lims_customer_data,
+            'letterhead_flow' => true,
         ];
-        // return view('pdf.letter_pdf', $data);
-        $pdf = PDF::loadView('pdf.cc_letter_pdf', $data)->setPaper('A4', 'portrait');
+        $pdf = PDF::loadView('pdf.letter_pdf', $data)->setPaper('A4', 'portrait');
 
         $content = $pdf->download()->getOriginalContent();
 
@@ -1259,7 +1261,18 @@ class LetterController extends Controller
         $letter = $letter->find($id);
 
         if ($this->checkOtp($request, $letter) == true) {
-            $letter->update(['is_sign'=>true, 'signed_by'=>Auth::user()->id, 'otp' => null]);
+            $signature = $this->saveSignatureFromRequest($request, 'sign');
+            if (! $signature) {
+                return back()->with('not_permitted', 'Please provide your signature.');
+            }
+
+            $letter->update([
+                'is_sign' => true,
+                'signed_by' => Auth::user()->id,
+                'sign_signature' => $signature,
+                'sign_signed_at' => now(),
+                'otp' => null,
+            ]);
             $letter = $letter->fresh();
 
             $customer = LetterRecipients::recipientModel($letter->people_type ?? '');

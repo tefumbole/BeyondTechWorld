@@ -85,7 +85,10 @@
         z-index: 1;
     }
 @endif
-    .letter-meta { margin: 18px 0; }
+    .letter-meta { margin: 12px 0 14px; font-size: 13px; }
+    .letter-to-block { margin: 0 0 12px; line-height: 1.4; }
+    .letter-dear { margin: 0 0 14px; font-weight: 600; }
+    .letter-content-header { margin: 0 0 10px; font-size: 12px; }
     .letter-body {
         position: relative;
         z-index: 2;

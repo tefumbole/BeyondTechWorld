@@ -1,6 +1,6 @@
 @php
     use App\Support\LetterSignature;
-    use App\Support\LetterQr;
+    use App\Support\LetterRecipients;
 
     $peopleType = $data->people_type;
     if ($peopleType == 'customer' || $peopleType == 'all') {
@@ -11,11 +11,36 @@
         $user_class = \App\Customer::class;
     }
 
-    if (!isset($user_to)) {
+    if (! isset($user_to)) {
         $user_to = null;
     }
-    if (!$user_to && !empty($to) && in_array($peopleType, ['customer', 'user'], true)) {
+
+    // Classic customer/employee IDs
+    if (! $user_to && ! empty($to) && in_array($peopleType, ['customer', 'user'], true)) {
         $user_to = $user_class::find($to);
+    }
+
+    // Directory letters: resolve from recipients_json / passed recipient object / prefixed id
+    if (! $user_to && $peopleType === 'directory') {
+        if (is_object($to) && (isset($to->name) || isset($to->email))) {
+            $user_to = $to;
+        } else {
+            $matchId = is_string($to) ? $to : null;
+            foreach (LetterRecipients::decodePeopleJson($data->recipients_json) as $person) {
+                if ($matchId && (($person['id'] ?? null) === $matchId
+                    || ($person['email'] ?? null) === $matchId
+                    || ($person['phone'] ?? null) === $matchId)) {
+                    $user_to = LetterRecipients::toSendObject($person);
+                    break;
+                }
+            }
+            if (! $user_to) {
+                $people = LetterRecipients::decodePeopleJson($data->recipients_json);
+                if (count($people) === 1) {
+                    $user_to = LetterRecipients::toSendObject($people[0]);
+                }
+            }
+        }
     }
 
     $replacements = [
@@ -51,41 +76,57 @@
 
     $editUser = $data->edit_by ? \App\User::find($data->edit_by) : null;
     $editPath = LetterSignature::path($data->edit_signature)
-        ?: ($editUser && $editUser->stemp ? public_path('images/user/' . $editUser->stemp) : null);
+        ?: ($editUser && $editUser->stemp && is_file(public_path('images/user/'.$editUser->stemp))
+            ? public_path('images/user/'.$editUser->stemp) : null);
 
     $approveUser = $data->approved_by ? \App\User::find($data->approved_by) : null;
     $approvePath = LetterSignature::path($data->approve_signature)
-        ?: ($approveUser && $approveUser->approve ? public_path('images/user/' . $approveUser->approve) : null);
+        ?: ($approveUser && $approveUser->approve && is_file(public_path('images/user/'.$approveUser->approve))
+            ? public_path('images/user/'.$approveUser->approve) : null);
 
     $signUser = $data->signed_by ? \App\User::find($data->signed_by) : null;
     $signPath = LetterSignature::path($data->sign_signature)
-        ?: ($signUser && $signUser->sign ? public_path('images/user/' . $signUser->sign) : null);
+        ?: ($signUser && $signUser->sign && is_file(public_path('images/user/'.$signUser->sign))
+            ? public_path('images/user/'.$signUser->sign) : null);
+
+    $recipientName = trim((string) (optional($user_to)->name ?? ''));
+    $recipientAddress = trim((string) (optional($user_to)->address ?? ''));
+    $recipientPhone = trim((string) (optional($user_to)->phone_number ?? ''));
+    $recipientEmail = trim((string) (optional($user_to)->email ?? ''));
 @endphp
 
-@if($general_setting->invoice_format != 'beyond_a4' && !empty($general_setting->site_logo))
-    <div style="text-align:right;margin-bottom:10px;">
-        <img src="{{ public_path('logo/') . $general_setting->site_logo }}" height="80" alt="">
-    </div>
-@endif
-
-<div class="header" style="position:relative;">
-    @if($data->is_edit == 1 && $editPath)
-        <img class="edit" src="{{ $editPath }}" style="max-height:18px;width:auto;">
-    @endif
-    @if($data->is_approve == 1 && $approvePath)
-        <img class="approve" src="{{ $approvePath }}" style="max-height:18px;width:auto;">
-    @endif
-    <span class="header-letter">{!! $rendered_header !!}</span>
-</div>
-
+{{-- Normal letter order: letterhead (in open) → Ref → To → Dear → Subject → body → signature → footer --}}
 <div class="letter-meta">
     Ref: {{ $data->reference }}<br>
     {{ date('M d, Y') }}
+    @if(!empty($data->date_time))
+        <br>Schedule: {{ \Carbon\Carbon::parse($data->date_time)->format('M d, Y h:i A') }}
+    @endif
 </div>
 
-@if($user_to)
-    <div>{{ $user_to->name }}<br>{{ $user_to->address }}</div>
-    <div style="margin-top:10px;">Dear: {{ $user_to->name }},</div>
+@if($recipientName !== '' || $recipientAddress !== '' || $recipientPhone !== '' || $recipientEmail !== '')
+    <div class="letter-to-block">
+        @if($recipientName !== '')
+            <strong>{{ $recipientName }}</strong><br>
+        @endif
+        @if($recipientAddress !== '')
+            {{ $recipientAddress }}<br>
+        @endif
+        @if($recipientPhone !== '')
+            {{ $recipientPhone }}<br>
+        @endif
+        @if($recipientEmail !== '')
+            {{ $recipientEmail }}
+        @endif
+    </div>
+@endif
+
+<div class="letter-dear">
+    Dear{{ $recipientName !== '' ? ' '.$recipientName : '' }},
+</div>
+
+@if(trim(strip_tags($rendered_header)) !== '')
+    <div class="letter-content-header">{!! $rendered_header !!}</div>
 @endif
 
 <div class="letter-body">
@@ -100,22 +141,37 @@
     </div>
     <div class="letter-signature-left">
         <p>Sincerely,</p>
+        @if($data->is_edit == 1 && $editPath)
+            <img class="edit" src="{{ $editPath }}" style="max-height:18px;width:auto;" alt="">
+        @endif
+        @if($data->is_approve == 1 && $approvePath)
+            <img class="approve" src="{{ $approvePath }}" style="max-height:18px;width:auto;" alt="">
+        @endif
         @if($data->is_sign == 1 && $signPath)
-            <img src="{{ $signPath }}" style="max-height:36px;width:auto;">
+            <img src="{{ $signPath }}" style="max-height:56px;width:auto;" alt="Signature">
         @endif
     </div>
 </div>
 
 <div class="letter-footer-text">
-    @if($data->footer != null)
+    @if($data->footer != null && trim(strip_tags($rendered_footer)) !== '')
         {!! $rendered_footer !!}
     @else
         {{ $data->name }}
     @endif
-    @if($data->cc)
+    @if($peopleType === 'directory')
+        @php $ccPeople = LetterRecipients::decodePeopleJson($data->cc_json); @endphp
+        @if(count($ccPeople))
+            <h5>CC:
+                @foreach($ccPeople as $ccPerson)
+                    {{ ($ccPerson['name'] ?? '') }}{{ ! $loop->last ? ', ' : '' }}
+                @endforeach
+            </h5>
+        @endif
+    @elseif($data->cc)
         <h5>CC:
             @foreach(explode(',', $data->cc) as $cc)
-                {{ $user_class::find($cc) ? $user_class::find($cc)->name . ', ' : '' }}
+                {{ $user_class::find(trim($cc)) ? $user_class::find(trim($cc))->name . ', ' : '' }}
             @endforeach
         </h5>
     @endif

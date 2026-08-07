@@ -19,23 +19,24 @@
                 @endif
                 <div class="card">
                     <div class="card-header d-flex align-items-center">
-                        <div class="row">
+                        <div class="row w-100">
                             <div class="col-md-12">
-                                <form method="POST" action="{{ route('letter.sign.send.store', [$data->id]) }}">
+                                <form method="POST" action="{{ route('letter.sign.send.store', [$data->id]) }}" id="letter-sign-send-form">
                                     @csrf
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="form-group">
-                                                @if(Auth::user()->otp_verify == 0)
-                                                    <label>OTP <strong>*</strong> </label>
-                                                    <input type="number" placeholder="One Time Password" name="otp" required class="form-control">
-                                                @endif
-                                            </div>
+                                    @include('letter.partials.signature_pad', [
+                                        'submitLabel' => 'Sign & Send',
+                                        'formId' => 'letter-sign-send-form',
+                                        'padId' => 'sign-send-signature-pad',
+                                        'clearId' => 'clear-sign-send-signature',
+                                        'hiddenId' => 'sign_send_signature_image',
+                                    ])
+                                    @if(Auth::user()->otp_verify == 0)
+                                        <div class="form-group mt-3" style="max-width:320px;">
+                                            <label>OTP <strong>*</strong></label>
+                                            <input type="number" placeholder="One Time Password" name="otp" required class="form-control">
                                         </div>
-                                    </div>
-                                    <button class="btn btn-default"><i class="fa fa-send"></i> Sign & Send</button>
+                                    @endif
                                 </form>
-
                             </div>
                         </div>
                     </div>
@@ -49,11 +50,8 @@
 </section>
 
 <script type="text/javascript">
-
     $("ul#letter").siblings('a').attr('aria-expanded','true');
     $("ul#letter").addClass("show");
     $("ul#letter #letter-signed-menu").addClass("active");
-
-
 </script>
 @endsection
