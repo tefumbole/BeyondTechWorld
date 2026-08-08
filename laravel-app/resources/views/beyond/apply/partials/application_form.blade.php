@@ -98,13 +98,17 @@
                                 <div>
                                     <label class="text-sm font-bold text-brand-blue">WhatsApp number *</label>
                                     <p class="text-xs text-gray-500 mt-0.5">Your only contact number — used for all application status notifications.</p>
-                                    <div class="flex gap-2 mt-1">
-                                        <select name="country_code" class="apply-field w-28 sm:w-32 shrink-0 mt-0">
+                                    <div class="apply-phone-row">
+                                        <select name="country_code" class="apply-phone-cc" aria-label="Country code">
                                             @foreach ($countryCodes as $code => $label)
                                                 <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
                                             @endforeach
                                         </select>
-                                        <input required name="whatsapp_number" data-wa-phone="local" value="{{ old('whatsapp_number') }}" type="tel" placeholder="675321739" autocomplete="tel-national" class="apply-field mt-0 flex-1 @error('whatsapp_number') border-red-500 @enderror">
+                                        <input required name="whatsapp_number" data-wa-phone="local"
+                                               value="{{ old('whatsapp_number') }}"
+                                               type="tel" inputmode="tel" placeholder="675321739"
+                                               autocomplete="tel-national"
+                                               class="apply-phone-local @error('whatsapp_number') border-red-500 @enderror">
                                     </div>
                                     <p class="text-xs text-gray-500 mt-1">Use a full mobile number (e.g. 675321739).</p>
                                     @error('whatsapp_number')
