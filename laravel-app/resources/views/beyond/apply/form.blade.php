@@ -10,7 +10,7 @@
 
 @section('content')
 @include('beyond.apply.partials.apply_styles')
-<div class="min-h-screen apply-shell pb-28" x-cloak>
+<div class="min-h-screen apply-shell pb-28">
     <div class="relative overflow-hidden bg-brand-blue text-white">
         <div class="absolute inset-0 opacity-30" style="background:linear-gradient(120deg,rgba(198,171,71,.35),transparent 45%),radial-gradient(circle at 80% 20%,rgba(255,255,255,.12),transparent 40%);"></div>
         <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-12">
