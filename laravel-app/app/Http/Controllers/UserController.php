@@ -43,30 +43,224 @@ class UserController extends Controller
     }
 
     /**
-     * People → Users → Applicants: portal applicants + application contacts.
+     * People → Users → Applicants: Job Board / Internship applications only.
+     * Optional ?open={applicationId} opens that applicant as a sub-tab.
      */
     protected function applicantsIndex(Request $request, array $all_permission)
     {
         $q = $request->get('q');
-        $portalApplicants = BeyondUser::query()
-            ->where('role', 'applicant')
-            ->when($q, function ($query) use ($q) {
-                $like = '%'.$q.'%';
-                $query->where(function ($w) use ($like) {
-                    $w->where('name', 'like', $like)
-                        ->orWhere('email', 'like', $like)
-                        ->orWhere('phone', 'like', $like);
-                });
-            })
-            ->orderBy('name')
-            ->get();
-
         $directory = app(ApplicationService::class)->applicantDirectory($q);
         $category = 'applicants';
+        $openId = (string) $request->get('open', '');
+
+        $application = null;
+        $linkedUser = null;
+        $assignableRoles = collect();
+        $warehouses = collect();
+        $billers = collect();
+        $enrolment = null;
+
+        if ($openId !== '') {
+            $application = Application::with(['job', 'internshipProgram'])->find($openId);
+            if ($application) {
+                $detail = $this->applicantDetailPayload($application);
+                $linkedUser = $detail['linkedUser'];
+                $assignableRoles = $detail['assignableRoles'];
+                $warehouses = $detail['warehouses'];
+                $billers = $detail['billers'];
+                $enrolment = $detail['enrolment'];
+            } else {
+                $openId = '';
+            }
+        }
 
         return view('user.applicants', compact(
-            'portalApplicants', 'directory', 'all_permission', 'category', 'q'
+            'directory', 'all_permission', 'category', 'q', 'openId',
+            'application', 'linkedUser', 'assignableRoles', 'warehouses', 'billers', 'enrolment'
         ));
+    }
+
+    /**
+     * Edit applicant — opens Applicants sub-tab for this person.
+     */
+    public function editApplicant($applicationId)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || (! $role->hasPermissionTo('users-edit') && ! $role->hasPermissionTo('users-add'))) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to edit interns.');
+        }
+
+        Application::findOrFail($applicationId);
+
+        return redirect()->route('user.index', [
+            'category' => 'applicants',
+            'open' => $applicationId,
+        ]);
+    }
+
+    protected function applicantDetailPayload(Application $application)
+    {
+        $assignableRoles = Roles::where('is_active', true)
+            ->whereIn('name', ['Intern', 'staff', 'Internship Supervisor', 'Internship Administrator'])
+            ->orderBy('name')
+            ->get();
+        $linkedUser = null;
+        if ($application->user_id) {
+            $linkedUser = User::where('is_deleted', false)->find($application->user_id);
+        }
+        if (! $linkedUser && $application->email) {
+            $linkedUser = User::where('is_deleted', false)
+                ->whereRaw('LOWER(email) = ?', [strtolower(trim($application->email))])
+                ->first();
+        }
+        $enrolment = null;
+        if (class_exists(\App\InternshipEnrolment::class)) {
+            $enrolment = \App\InternshipEnrolment::with(['program', 'supervisor'])
+                ->where('application_id', $application->id)
+                ->orderByDesc('id')
+                ->first();
+            if (! $enrolment && $linkedUser) {
+                $enrolment = \App\InternshipEnrolment::with(['program', 'supervisor'])
+                    ->where('student_user_id', $linkedUser->id)
+                    ->whereIn('status', ['pending', 'active', 'paused'])
+                    ->orderByDesc('id')
+                    ->first();
+            }
+        }
+
+        return [
+            'assignableRoles' => $assignableRoles,
+            'linkedUser' => $linkedUser,
+            'warehouses' => Warehouse::where('is_active', true)->get(),
+            'billers' => Biller::where('is_active', true)->get(),
+            'enrolment' => $enrolment,
+        ];
+    }
+
+    public function updateApplicant(Request $request, $applicationId)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || (! $role->hasPermissionTo('users-edit') && ! $role->hasPermissionTo('users-add'))) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to edit interns.');
+        }
+
+        $application = Application::findOrFail($applicationId);
+        $data = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'role_id' => 'nullable|integer|exists:roles,id',
+            'warehouse_id' => 'nullable|integer',
+            'biller_id' => 'nullable|integer',
+            'password' => 'nullable|string|min:6|max:64',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        // Update all applications for this person (same email).
+        $emailKey = strtolower(trim((string) $application->email));
+        $relatedIds = $emailKey !== ''
+            ? Application::whereRaw('LOWER(email) = ?', [$emailKey])->pluck('id')->all()
+            : [$application->id];
+        if (empty($relatedIds)) {
+            $relatedIds = [$application->id];
+        }
+
+        Application::whereIn('id', $relatedIds)->update([
+            'full_name' => $data['full_name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'whatsapp_number' => $data['phone'] ?? null,
+        ]);
+
+        $message = 'Intern details updated.';
+        $plainPassword = null;
+
+        if (! empty($data['role_id'])) {
+            $assignable = Roles::where('is_active', true)
+                ->whereIn('name', ['Intern', 'staff', 'Internship Supervisor', 'Internship Administrator'])
+                ->where('id', $data['role_id'])
+                ->first();
+            if (! $assignable) {
+                return back()->withInput()->with('not_permitted', 'Selected role cannot be assigned from Interns.');
+            }
+
+            $user = null;
+            if ($application->user_id) {
+                $user = User::where('is_deleted', false)->find($application->user_id);
+            }
+            if (! $user) {
+                $user = User::where('is_deleted', false)
+                    ->whereRaw('LOWER(email) = ?', [strtolower(trim($data['email']))])
+                    ->first();
+            }
+
+            $warehouseId = $data['warehouse_id'] ?: optional(Warehouse::where('is_active', true)->first())->id;
+            $billerId = $data['biller_id'] ?: optional(Biller::where('is_active', true)->first())->id;
+
+            if ($user) {
+                $user->name = $data['full_name'];
+                $user->email = $data['email'];
+                $user->phone = $data['phone'] ?? $user->phone;
+                $user->role_id = $assignable->id;
+                $user->is_active = $request->has('is_active') ? 1 : (int) $user->is_active;
+                if ($warehouseId) {
+                    $user->warehouse_id = $warehouseId;
+                }
+                if ($billerId) {
+                    $user->biller_id = $billerId;
+                }
+                if (! empty($data['password'])) {
+                    $user->password = bcrypt($data['password']);
+                    $plainPassword = $data['password'];
+                }
+                $user->save();
+                $message = 'Intern updated and role set to '.$assignable->name.'.';
+            } else {
+                $plainPassword = $data['password'] ?: ('Bt@'.rand(100000, 999999));
+                $user = User::create([
+                    'name' => $data['full_name'],
+                    'email' => $data['email'],
+                    'phone' => $data['phone'] ?? null,
+                    'password' => bcrypt($plainPassword),
+                    'role_id' => $assignable->id,
+                    'warehouse_id' => $warehouseId,
+                    'biller_id' => $billerId,
+                    'is_active' => 1,
+                    'is_deleted' => 0,
+                ]);
+                $message = 'Intern updated. ERP user created as '.$assignable->name.'.';
+            }
+
+            Application::whereIn('id', $relatedIds)->update(['user_id' => $user->id]);
+
+            // Keep Beyond portal role in sync when present.
+            try {
+                $beyond = BeyondUser::whereRaw('LOWER(email) = ?', [strtolower(trim($data['email']))])->first();
+                if ($beyond) {
+                    $map = [
+                        'Intern' => 'student',
+                        'staff' => 'staff',
+                        'Internship Supervisor' => 'staff',
+                        'Internship Administrator' => 'staff',
+                    ];
+                    $beyond->role = $map[$assignable->name] ?? $beyond->role;
+                    $beyond->name = $data['full_name'];
+                    $beyond->phone = $data['phone'] ?? $beyond->phone;
+                    $beyond->save();
+                }
+            } catch (\Throwable $e) {
+                // non-fatal
+            }
+
+            if ($plainPassword) {
+                $message .= ' Temporary password: '.$plainPassword;
+            }
+        }
+
+        return redirect()->route('user.index', [
+            'category' => 'applicants',
+            'open' => $application->id,
+        ])->with('message', $message);
     }
 
     /**
@@ -76,7 +270,7 @@ class UserController extends Controller
     {
         $role = Role::find(Auth::user()->role_id);
         if (! $role || (! $role->hasPermissionTo('users-delete') && ! $role->hasPermissionTo('users-index'))) {
-            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to delete applicants.');
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to delete interns.');
         }
 
         $ids = $request->input('application_ids', []);

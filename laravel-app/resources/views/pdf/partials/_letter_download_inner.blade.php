@@ -9,35 +9,9 @@
         // CSV: $user_to is already an object from recipients
     }
 
-    $replacements = [
-        '[name]' => optional($user_to)->name ?? '',
-        '[phone_number]' => optional($user_to)->phone_number ?? '',
-        '[email]' => optional($user_to)->email ?? '',
-        '[address]' => optional($user_to)->address ?? '',
-        '[Column1]' => optional($user_to)->column1 ?? '',
-        '[Column2]' => optional($user_to)->column2 ?? '',
-        '[Column3]' => optional($user_to)->column3 ?? '',
-        '[Column4]' => optional($user_to)->column4 ?? '',
-        '[Column5]' => optional($user_to)->column5 ?? '',
-        '[Column6]' => optional($user_to)->column6 ?? '',
-        '[Column7]' => optional($user_to)->column7 ?? '',
-        '[Column8]' => optional($user_to)->column8 ?? '',
-        '[Column9]' => optional($user_to)->column9 ?? '',
-        '[Column10]' => optional($user_to)->column10 ?? '',
-        '[column1]' => optional($user_to)->column1 ?? '',
-        '[column2]' => optional($user_to)->column2 ?? '',
-        '[column3]' => optional($user_to)->column3 ?? '',
-        '[column4]' => optional($user_to)->column4 ?? '',
-        '[column5]' => optional($user_to)->column5 ?? '',
-        '[column6]' => optional($user_to)->column6 ?? '',
-        '[column7]' => optional($user_to)->column7 ?? '',
-        '[column8]' => optional($user_to)->column8 ?? '',
-        '[column9]' => optional($user_to)->column9 ?? '',
-        '[column10]' => optional($user_to)->column10 ?? '',
-    ];
-    $rendered_header = strtr($data->header, $replacements);
-    $rendered_body = strtr($data->body, $replacements);
-    $rendered_footer = strtr($data->footer, $replacements);
+    $rendered_header = \App\Support\LetterPlaceholders::replace($data->header, $user_to);
+    $rendered_body = \App\Support\LetterPlaceholders::replace($data->body, $user_to);
+    $rendered_footer = \App\Support\LetterPlaceholders::replace($data->footer, $user_to);
 @endphp
 
 @if($general_setting->invoice_format == 'beyond_a4')

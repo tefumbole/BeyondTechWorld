@@ -48,6 +48,11 @@
                                     <div class="form-group">
                                         <label>{{trans('file.Body')}} <strong>*</strong> </label>
                                         <textarea name="body" class="form-control" rows="4">{{ $data->body }}</textarea>
+                                        <small class="text-muted d-block mt-2">
+                                            Placeholders:
+                                            [name], [school], [system_name], [program], [supervisors], [start_date], [duration],
+                                            [phone_number], [email], [password], [username], [address], [column1]…[column10]
+                                        </small>
                                     </div>
                                 </div>
                                 <div class="col-md-12">

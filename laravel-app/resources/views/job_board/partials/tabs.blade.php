@@ -125,11 +125,11 @@
 @php
     $jbTab = $jbTab ?? '';
     $tabs = [
+        ['jobs.applicants', 'Interns', 'dripicons-user', 'tone-pink'],
         ['jobs.index', 'Job Postings', 'dripicons-briefcase', 'tone-blue'],
         ['jobs.create', 'Add Job', 'dripicons-plus', 'tone-gold'],
         ['jobs.createInternship', 'Add Internship', 'dripicons-user', 'tone-purple'],
         ['jobs.applications', 'All Applications', 'dripicons-user-group', 'tone-teal'],
-        ['jobs.applicants', 'Applicants', 'dripicons-user', 'tone-pink'],
         ['jobs.awaiting', 'Awaiting Approval', 'dripicons-clock', 'tone-orange'],
         ['jobs.selected', 'Selected', 'dripicons-checkmark', 'tone-green'],
         ['jobs.rejected', 'Rejected', 'dripicons-wrong', 'tone-red'],

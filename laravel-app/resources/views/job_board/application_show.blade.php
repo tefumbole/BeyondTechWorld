@@ -52,8 +52,14 @@
 
                 <div class="jb-card">
                     <h5 style="color:#0b3f90;font-weight:800;">Education</h5>
-                    @if($isInternship || $app->school || $app->level_of_study || $app->education_status || $app->is_academic_required !== null)
+                    @if($isInternship || $app->school || $app->level_of_study || $app->education_status || $app->is_academic_required !== null || $app->internship_program_id)
                         <table class="table table-sm mb-0 jb-detail-table">
+                            @if($app->internship_program_id)
+                                <tr><th>Internship program</th><td><strong>{{ optional($app->internshipProgram)->displayName() ?: ('#'.$app->internship_program_id) }}</strong></td></tr>
+                            @endif
+                            @if($app->internship_duration_days)
+                                <tr><th>Internship duration</th><td><strong>{{ $app->internshipDurationLabel() }}</strong></td></tr>
+                            @endif
                             <tr><th>School / Institution</th><td>{{ $app->school ?: '—' }}</td></tr>
                             <tr><th>Level of study</th><td>{{ $app->level_of_study ?: '—' }}</td></tr>
                             <tr><th>Student / Graduated</th><td>{{ $app->educationStatusLabel() }}</td></tr>

@@ -120,48 +120,9 @@
                         <textarea name="body" id="an-body" class="an-field" rows="8" required placeholder="Dear {name},">{{ old('body', $clone['body'] ?? "Dear {name},\n\n") }}</textarea>
                     </div>
 
-                    <div class="form-group">
-                        <label class="an-label">Footer (optional)</label>
-                        <input type="text" name="footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" placeholder="Beyond Enterprise">
-                    </div>
-
-                    <div class="an-drop">
-                        <div class="mb-2">Attachments (max 10MB)</div>
-                        <input type="file" name="attachment" accept=".pdf,image/*" class="an-field">
-                    </div>
-                </div>
-
-                <div>
-                    <div class="an-page-card">
-                        <h5 style="color:#0b3f90;font-weight:700;">Sending Options</h5>
-                        <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
-                            <input type="checkbox" checked disabled> Send via WhatsApp
-                        </label>
-                        <div class="an-info">Messages are sent one recipient every 6 seconds. No accept/reject action is required.</div>
-                        <div class="mt-3">
-                            <div class="an-send-opt active" data-mode="now">✈ Send immediately</div>
-                            <div class="an-send-opt" data-mode="schedule"><i class="dripicons-clock"></i> Schedule for later</div>
-                            <input type="datetime-local" name="schedule_at" id="an-schedule-at" class="an-field d-none mt-2">
-                        </div>
-                        <div class="mt-3">
-                            <label class="an-label">Reminders</label>
-                            <div id="an-reminders"></div>
-                            <button type="button" class="an-btn-outline mt-1" id="an-add-reminder">+ Add reminder</button>
-                        </div>
-                        <div class="mt-3">
-                            <label class="d-flex align-items-center" style="gap:8px;">
-                                <input type="checkbox" name="save_as_template" value="1"> Save as template
-                            </label>
-                            <input type="text" name="template_name" class="an-field mt-1" placeholder="Template name (optional)">
-                        </div>
-                        <div class="mt-3 d-flex flex-column" style="gap:8px;">
-                            <button type="submit" class="an-btn-primary" style="justify-content:center;padding:12px;"><i class="dripicons-rocket"></i> Send Now</button>
-                        </div>
-                    </div>
-
-                    <div class="an-page-card">
+                    <div class="form-group mb-0">
                         <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
-                            <h5 class="mb-0" style="color:#0b3f90;font-weight:700;">Select Recipients *</h5>
+                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Select Recipients *</label>
                             <button type="button" class="an-btn-outline" id="an-add-recipient-btn" style="white-space:nowrap;">
                                 <i class="dripicons-plus"></i> Add new recipient
                             </button>
@@ -219,6 +180,45 @@
                         <div class="an-user-list an-clist" style="max-height:140px;"></div>
                         <div class="an-cchips mt-2"></div>
                         <div class="an-chiddens"></div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="an-label">Footer (optional)</label>
+                        <input type="text" name="footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" placeholder="Beyond Enterprise">
+                    </div>
+
+                    <div class="an-drop">
+                        <div class="mb-2">Attachments (max 10MB)</div>
+                        <input type="file" name="attachment" accept=".pdf,image/*" class="an-field">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="an-page-card">
+                        <h5 style="color:#0b3f90;font-weight:700;">Sending Options</h5>
+                        <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
+                            <input type="checkbox" checked disabled> Send via WhatsApp
+                        </label>
+                        <div class="an-info">Messages are sent one recipient every 6 seconds. No accept/reject action is required.</div>
+                        <div class="mt-3">
+                            <div class="an-send-opt active" data-mode="now">✈ Send immediately</div>
+                            <div class="an-send-opt" data-mode="schedule"><i class="dripicons-clock"></i> Schedule for later</div>
+                            <input type="datetime-local" name="schedule_at" id="an-schedule-at" class="an-field d-none mt-2">
+                        </div>
+                        <div class="mt-3">
+                            <label class="an-label">Reminders</label>
+                            <div id="an-reminders"></div>
+                            <button type="button" class="an-btn-outline mt-1" id="an-add-reminder">+ Add reminder</button>
+                        </div>
+                        <div class="mt-3">
+                            <label class="d-flex align-items-center" style="gap:8px;">
+                                <input type="checkbox" name="save_as_template" value="1"> Save as template
+                            </label>
+                            <input type="text" name="template_name" class="an-field mt-1" placeholder="Template name (optional)">
+                        </div>
+                        <div class="mt-3 d-flex flex-column" style="gap:8px;">
+                            <button type="submit" class="an-btn-primary" style="justify-content:center;padding:12px;"><i class="dripicons-rocket"></i> Send Now</button>
+                        </div>
                     </div>
                 </div>
             </div>

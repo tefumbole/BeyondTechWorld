@@ -705,4 +705,32 @@ class WhatsAppMessage
 
         return $msg;
     }
+
+    /**
+     * Notify a supervisor they have been assigned intern(s).
+     *
+     * @param  string  $supervisorName
+     * @param  string|array  $internNames
+     * @param  string  $program
+     * @param  string  $startDate
+     * @param  string  $durationLabel
+     */
+    public static function internshipSupervisorAssigned($supervisorName, $internNames, $program, $startDate, $durationLabel)
+    {
+        $names = is_array($internNames) ? array_values(array_filter($internNames)) : [trim((string) $internNames)];
+        $names = array_values(array_filter(array_map('strval', $names)));
+        $internList = $names ? implode(', ', $names) : 'an intern';
+
+        $msg = self::statusBlock('🎓', 'Internship Supervision Assigned');
+        $msg .= self::greeting($supervisorName ?: 'Supervisor');
+        $msg .= "You have been assigned to supervise the following intern(s) under the *" . self::companyName() . "* Internship Programme.\n\n";
+        $msg .= self::bullet('Intern(s)', $internList);
+        $msg .= self::bullet('Program', $program ?: 'Internship Programme');
+        $msg .= self::bullet('Start date', $startDate ?: '—');
+        $msg .= self::bullet('Duration', $durationLabel ?: '—');
+        $msg .= "\nPlease log in to the ERP to review placements, release tasks, and support your intern(s).";
+        $msg .= self::footer();
+
+        return $msg;
+    }
 }

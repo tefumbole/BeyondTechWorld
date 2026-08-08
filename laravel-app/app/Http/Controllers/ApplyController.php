@@ -41,7 +41,7 @@ class ApplyController extends Controller
         return view('beyond.apply.index', compact('jobs', 'internships', 'stats', 'search', 'internshipsFirst'));
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $job = $this->jobs->find($id);
         if (! $job) {
@@ -52,11 +52,37 @@ class ApplyController extends Controller
             return redirect()->route('apply.index')->with('warning', 'That posting is currently closed.');
         }
 
+        if ($request->boolean('apply')) {
+            return redirect()->route('apply.form', $job->id);
+        }
+
         $stats = $this->jobs->stats($job);
         $availability = $this->jobs->availability($job);
+
+        return view('beyond.apply.show', compact('job', 'stats', 'availability'));
+    }
+
+    public function form($id)
+    {
+        $job = $this->jobs->find($id);
+        if (! $job) {
+            return redirect()->route('apply.index')->with('warning', 'That posting is no longer available.');
+        }
+
+        if (! in_array($job->status, ['active', 'open'], true)) {
+            return redirect()->route('apply.index')->with('warning', 'That posting is currently closed.');
+        }
+
+        $availability = $this->jobs->availability($job);
+        if (! $availability['available']) {
+            return redirect()->route('apply.show', $job->id)
+                ->with('warning', $availability['reason'] ?? 'Applications are closed for this posting.');
+        }
+
+        $stats = $this->jobs->stats($job);
         $countryCodes = $this->applications->countryCodes();
 
-        return view('beyond.apply.show', compact('job', 'stats', 'availability', 'countryCodes'));
+        return view('beyond.apply.form', compact('job', 'stats', 'availability', 'countryCodes'));
     }
 
     public function store(Request $request, $id)
@@ -68,7 +94,8 @@ class ApplyController extends Controller
 
         $availability = $this->jobs->availability($job);
         if (! $availability['available']) {
-            return back()->withErrors(['job' => $availability['reason']]);
+            return redirect()->route('apply.form', $job->id)
+                ->withErrors(['job' => $availability['reason']]);
         }
 
         $rules = [
@@ -82,6 +109,13 @@ class ApplyController extends Controller
         ];
 
         if ($job->isInternship()) {
+            $allowedProgramIds = $job->internshipPrograms()->pluck('id')->map(function ($id) {
+                return (int) $id;
+            })->all();
+            $rules['internship_program_id'] = empty($allowedProgramIds)
+                ? 'required|integer|exists:internship_programs,id'
+                : 'required|integer|in:'.implode(',', $allowedProgramIds);
+            $rules['internship_duration_days'] = \App\Application::internshipDurationRule(true);
             $rules['school'] = 'required|string|max:255';
             $rules['level_of_study'] = 'required|string|max:100';
             $rules['education_status'] = 'required|in:currently_studying,graduated';
@@ -143,7 +177,7 @@ class ApplyController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return back()
+            return redirect()->route('apply.form', $job->id)
                 ->withInput()
                 ->withErrors(['job' => 'Could not submit your application. Please check your details and try again.']);
         }

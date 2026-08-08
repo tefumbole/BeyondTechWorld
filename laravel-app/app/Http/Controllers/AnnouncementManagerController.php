@@ -3,10 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Customer;
-use App\CustomerGroup;
 use App\Services\AnnouncementService;
 use App\Services\PeopleDirectoryService;
-use App\Support\WhatsAppPhone;
 use App\WaAnnouncement;
 use App\WaAnnouncementReminder;
 use Illuminate\Http\Request;
@@ -78,61 +76,19 @@ class AnnouncementManagerController extends Controller
             'address' => 'nullable|string|max:500',
         ]);
 
-        $phone = WhatsAppPhone::sanitizeForStorage($data['phone']);
-        if ($phone === '') {
-            return response()->json(['message' => 'Enter a valid WhatsApp / phone number.'], 422);
-        }
-
-        $groupId = CustomerGroup::where('is_active', true)->value('id')
-            ?: CustomerGroup::value('id');
-        if (! $groupId) {
-            return response()->json(['message' => 'No customer group found. Create one under Customers first.'], 422);
-        }
-
-        $existing = Customer::where('is_active', true)
-            ->where(function ($q) use ($phone, $data) {
-                $q->where('phone_number', $phone)
-                    ->orWhere('phone_number', 'like', '%'.substr($phone, -9));
-                if (! empty($data['email'])) {
-                    $q->orWhere('email', $data['email']);
-                }
-            })
-            ->first();
-
-        if ($existing) {
-            $customer = $existing;
-        } else {
-            $customer = Customer::create([
-                'customer_group_id' => $groupId,
-                'name' => trim($data['name']),
-                'phone_number' => $phone,
-                'email' => $data['email'] ?? null,
-                'address' => $data['address'] ?: 'N/A',
-                'city' => 'N/A',
-                'is_active' => true,
-            ]);
-        }
-
         try {
-            app(PeopleDirectoryService::class)->ensureBeyondFromCustomer($customer);
+            $result = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick($data);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
-            // Non-fatal — customer id still works for announcements.
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        $person = [
-            'id' => 'customer:'.$customer->id,
-            'name' => $customer->name,
-            'email' => $customer->email ?: '',
-            'phone' => $customer->phone_number ?: $phone,
-            'address' => $customer->address ?: '',
-            'role' => 'customer',
-            'source' => 'customer',
-        ];
 
         return response()->json([
             'success' => true,
-            'created' => ! $existing,
-            'user' => $person,
+            'created' => $result['created'],
+            'customer_id' => $result['customer']->id,
+            'user' => $result['person'],
         ]);
     }
 

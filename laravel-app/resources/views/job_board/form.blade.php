@@ -5,21 +5,17 @@
     $editing = (bool) $job;
     $postingType = old('posting_type', $postingType ?? optional($job)->posting_type ?: 'job');
     $isInternship = $postingType === 'internship';
+    $internshipPrograms = $internshipPrograms ?? collect();
+    $selectedProgramIds = old('internship_program_ids', optional($job)->internshipProgramIds() ?: []);
 @endphp
 <section class="forms">
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
         <div class="mb-4">
-            <h1 class="jb-title">
-                @if($editing)
-                    Edit {{ $isInternship ? 'Internship' : 'Job' }}
-                @else
-                    Add {{ $isInternship ? 'Internship' : 'Job' }}
-                @endif
-            </h1>
+            <h1 class="jb-title">{{ $editing ? 'Edit posting' : 'Add Job / Internship' }}</h1>
             <p class="jb-subtitle">
-                {{ $editing ? 'Update this posting.' : ($isInternship ? 'Create a public internship advert (no salary).' : 'Create a public job posting with salary.') }}
+                Choose whether this is a regular job or an internship. Internships link to 180-day programs candidates pick when applying.
             </p>
         </div>
 
@@ -35,11 +31,17 @@
         <div class="jb-card">
             <form method="POST" action="{{ $editing ? route('jobs.update', $job->id) : route('jobs.store') }}" id="job-form">
                 @csrf
-                <input type="hidden" name="posting_type" value="{{ $postingType }}">
                 <div class="row">
                     <div class="col-md-8 mb-3">
                         <label class="jb-label">Title *</label>
                         <input type="text" name="title" class="jb-field" required value="{{ old('title', optional($job)->title) }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="jb-label">Posting type *</label>
+                        <select name="posting_type" id="jb-posting-type" class="jb-field" required>
+                            <option value="job" @if($postingType === 'job') selected @endif>Regular job</option>
+                            <option value="internship" @if($postingType === 'internship') selected @endif>Internship</option>
+                        </select>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Status *</label>
@@ -48,6 +50,26 @@
                                 <option value="{{ $st }}" @if(old('status', optional($job)->status ?: 'active')===$st) selected @endif>{{ ucfirst($st) }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="col-12 mb-3" id="jb-internship-programs" style="{{ $isInternship ? '' : 'display:none;' }}">
+                        <label class="jb-label">Internship programs candidates can choose *</label>
+                        <p class="text-muted small mb-2">Select one or more programs. Applicants pick a program and their duration in days when they apply; on acceptance they are enrolled for that period.</p>
+                        @if($internshipPrograms->isEmpty())
+                            <div class="alert alert-warning mb-0">No published internship programs found. Import curriculum under Internship Program → Import first.</div>
+                        @else
+                            <div class="row">
+                                @foreach($internshipPrograms as $prog)
+                                    <div class="col-md-6 mb-2">
+                                        <label class="d-flex align-items-start" style="gap:8px;font-weight:500;">
+                                            <input type="checkbox" name="internship_program_ids[]" value="{{ $prog->id }}"
+                                                   @if(in_array((int)$prog->id, array_map('intval', (array)$selectedProgramIds), true)) checked @endif
+                                                   style="margin-top:4px;">
+                                            <span>{{ $prog->displayName() }} <small class="text-muted">({{ $prog->code }})</small></span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Department</label>
@@ -63,19 +85,16 @@
                                placeholder="{{ $isInternship ? 'Internship' : 'Full-Time' }}"
                                value="{{ old('employment_type', optional($job)->employment_type ?: ($isInternship ? 'Internship' : 'Full-Time')) }}">
                     </div>
-                    @unless($isInternship)
-                        <div class="col-md-4 mb-3">
-                            <label class="jb-label">Salary *</label>
-                            <input type="text" name="salary" class="jb-field" placeholder="e.g. 600,000 RWF"
-                                   value="{{ old('salary', optional($job)->salary) }}">
-                        </div>
-                    @else
-                        <div class="col-md-4 mb-3">
-                            <label class="jb-label">Compensation</label>
-                            <input type="text" class="jb-field" value="Unpaid internship" disabled>
-                            <small class="text-muted">Internships do not include a salary field.</small>
-                        </div>
-                    @endunless
+                    <div class="col-md-4 mb-3" id="jb-salary-wrap" style="{{ $isInternship ? 'display:none;' : '' }}">
+                        <label class="jb-label">Salary</label>
+                        <input type="text" name="salary" id="jb-salary" class="jb-field" placeholder="e.g. 600,000 RWF"
+                               value="{{ old('salary', optional($job)->salary) }}">
+                    </div>
+                    <div class="col-md-4 mb-3" id="jb-unpaid-wrap" style="{{ $isInternship ? '' : 'display:none;' }}">
+                        <label class="jb-label">Compensation</label>
+                        <input type="text" class="jb-field" value="Unpaid internship" disabled>
+                        <small class="text-muted">Internships do not include a salary field.</small>
+                    </div>
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Deadline</label>
                         <input type="date" name="deadline" class="jb-field" value="{{ old('deadline', optional($job)->deadline ? \Carbon\Carbon::parse($job->deadline)->format('Y-m-d') : '') }}">
@@ -115,11 +134,30 @@
                     </div>
                 </div>
                 <div class="d-flex" style="gap:10px;">
-                    <button type="submit" class="jb-btn">{{ $editing ? 'Save Changes' : ('Create '.($isInternship ? 'Internship' : 'Job')) }}</button>
+                    <button type="submit" class="jb-btn" id="jb-submit-btn">{{ $editing ? 'Save Changes' : 'Create posting' }}</button>
                     <a href="{{ route('jobs.index') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
+<script>
+(function () {
+    var type = document.getElementById('jb-posting-type');
+    var programs = document.getElementById('jb-internship-programs');
+    var salary = document.getElementById('jb-salary-wrap');
+    var unpaid = document.getElementById('jb-unpaid-wrap');
+    var emp = document.querySelector('input[name="employment_type"]');
+    function sync() {
+        var intern = type && type.value === 'internship';
+        if (programs) programs.style.display = intern ? '' : 'none';
+        if (salary) salary.style.display = intern ? 'none' : '';
+        if (unpaid) unpaid.style.display = intern ? '' : 'none';
+        if (emp && intern && (!emp.value || emp.value === 'Full-Time')) emp.value = 'Internship';
+        if (emp && !intern && emp.value === 'Internship') emp.value = 'Full-Time';
+    }
+    if (type) type.addEventListener('change', sync);
+    sync();
+})();
+</script>
     </div>
 </section>
 @endsection

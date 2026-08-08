@@ -6,6 +6,7 @@ use App\Application;
 use App\BeyondUser;
 use App\Customer;
 use App\CustomerGroup;
+use App\Support\WhatsAppPhone;
 use App\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -308,6 +309,103 @@ class PeopleDirectoryService
         }
 
         return $out;
+    }
+
+    /**
+     * Create or reuse a real POS Customer row (People → Customers) from a quick-add form.
+     * Used by Announcements, Job Board supervisors, etc. so the contact is system-wide.
+     *
+     * @return array{customer:\App\Customer, created:bool, person:array}
+     */
+    public function findOrCreateCustomerQuick(array $data)
+    {
+        $name = trim((string) ($data['name'] ?? ''));
+        $phone = WhatsAppPhone::sanitizeForStorage($data['phone'] ?? '');
+        $email = trim((string) ($data['email'] ?? ''));
+        $address = trim((string) ($data['address'] ?? ''));
+
+        if ($name === '' || $phone === '') {
+            throw new \InvalidArgumentException('Name and a valid phone / WhatsApp number are required.');
+        }
+
+        $groupId = CustomerGroup::where('is_active', true)->value('id')
+            ?: CustomerGroup::value('id');
+        if (! $groupId) {
+            throw new \RuntimeException('No customer group found. Create one under Customers first.');
+        }
+
+        // Prefer exact phone match, then exact email — avoid loose matches creating surprises.
+        $existing = Customer::where('is_active', true)
+            ->where('phone_number', $phone)
+            ->first();
+        if (! $existing && $email !== '') {
+            $existing = Customer::where('is_active', true)
+                ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+                ->first();
+        }
+
+        $created = false;
+        if ($existing) {
+            $customer = $existing;
+            // Keep the record active and fill blank optional fields when provided.
+            $dirty = false;
+            if (! $customer->is_active) {
+                $customer->is_active = 1;
+                $dirty = true;
+            }
+            if ($email !== '' && trim((string) $customer->email) === '') {
+                $customer->email = $email;
+                $dirty = true;
+            }
+            if ($address !== '' && in_array(trim((string) $customer->address), ['', 'N/A', 'NAN'], true)) {
+                $customer->address = $address;
+                $dirty = true;
+            }
+            if ($dirty) {
+                $customer->save();
+            }
+        } else {
+            $customer = Customer::create([
+                'customer_group_id' => $groupId,
+                'user_id' => null,
+                'name' => $name,
+                'company_name' => null,
+                'email' => $email !== '' ? $email : null,
+                'phone_number' => $phone,
+                'tax_no' => null,
+                'address' => $address !== '' ? $address : 'N/A',
+                'city' => 'N/A',
+                'state' => null,
+                'postal_code' => null,
+                'country' => null,
+                'points' => 0,
+                'deposit' => 0,
+                'expense' => 0,
+                'credit_limit' => 0,
+                'is_active' => 1,
+            ]);
+            $created = true;
+        }
+
+        try {
+            $this->ensureBeyondFromCustomer($customer);
+        } catch (\Throwable $e) {
+            // Non-fatal for directory pickers.
+        }
+
+        return [
+            'customer' => $customer->fresh(),
+            'created' => $created,
+            'person' => [
+                'id' => 'customer:'.$customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email ?: '',
+                'phone' => $customer->phone_number ?: $phone,
+                'address' => $customer->address ?: '',
+                'role' => 'customer',
+                'source' => 'Customer',
+            ],
+        ];
     }
 
     public function ensureBeyondFromCustomer(Customer $customer)

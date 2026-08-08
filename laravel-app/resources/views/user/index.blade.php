@@ -16,7 +16,7 @@
     <div class="container-fluid mb-3">
         <div class="d-flex flex-wrap align-items-center" style="gap:10px;">
             <a href="{{ route('user.index') }}" class="btn {{ ($category ?? 'all') !== 'applicants' ? 'btn-info' : 'btn-outline-info' }}">All Users</a>
-            <a href="{{ route('user.index', ['category' => 'applicants']) }}" class="btn {{ ($category ?? '') === 'applicants' ? 'btn-info' : 'btn-outline-info' }}">Applicants</a>
+            <a href="{{ route('user.index', ['category' => 'applicants']) }}" class="btn {{ ($category ?? '') === 'applicants' ? 'btn-info' : 'btn-outline-info' }}">Interns</a>
             @if(in_array("users-add", $all_permission))
                 <a href="{{route('user.create')}}" class="btn btn-default"><i class="dripicons-plus"></i> {{trans('file.Add User')}}</a>
             @endif

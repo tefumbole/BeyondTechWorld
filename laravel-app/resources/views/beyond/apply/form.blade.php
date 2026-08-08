@@ -1,0 +1,99 @@
+@extends('beyond.layout')
+
+@php
+    $isInternship = $job->isInternship();
+    $offerPrograms = $isInternship ? $job->internshipPrograms() : collect();
+@endphp
+
+@section('title', 'Apply — '.$job->title)
+@section('meta_description', 'Submit your application for '.$job->title.' at Beyond Enterprise.')
+
+@section('content')
+@include('beyond.apply.partials.apply_styles')
+<div class="min-h-screen apply-shell pb-28" x-cloak>
+    <div class="relative overflow-hidden bg-brand-blue text-white">
+        <div class="absolute inset-0 opacity-30" style="background:linear-gradient(120deg,rgba(198,171,71,.35),transparent 45%),radial-gradient(circle at 80% 20%,rgba(255,255,255,.12),transparent 40%);"></div>
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-12">
+            <a href="{{ route('apply.show', $job->id) }}" class="inline-flex items-center gap-2 text-blue-100 hover:text-white text-sm mb-5 font-medium">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to posting
+            </a>
+            <p class="text-brand-gold text-xs font-bold uppercase tracking-wider m-0">Application</p>
+            <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight max-w-3xl mt-1">{{ $job->title }}</h1>
+            <p class="text-blue-100 text-sm mt-3 m-0">
+                @if($isInternship)
+                    Choose your program, complete your details, and submit your documents.
+                @else
+                    Enter your details and upload your CV to apply.
+                @endif
+            </p>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 relative z-10" id="apply-section">
+        @include('beyond.apply.partials.application_form')
+    </div>
+</div>
+@endsection
+
+@if ($isInternship)
+@push('scripts')
+@include('beyond.apply.partials.camera_capture')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+(function () {
+    if (window.lucide) lucide.createIcons();
+    document.addEventListener('alpine:initialized', function () {
+        if (window.lucide) lucide.createIcons();
+    });
+    var canvas = document.getElementById('apply-signature-pad');
+    if (!canvas || !window.SignaturePad) return;
+    var pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255,255,255)' });
+    function resize() {
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        var data = pad.toData();
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        pad.clear();
+        if (data.length) pad.fromData(data);
+    }
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 200);
+    document.getElementById('clear-signature').addEventListener('click', function () { pad.clear(); });
+    document.getElementById('apply-form').addEventListener('submit', function (e) {
+        var missing = [];
+        var requiredDocs = [
+            ['student_id', 'ID card front'],
+            ['student_id_back', 'ID card back'],
+            ['selfie', 'selfie']
+        ];
+        var formEl = document.getElementById('apply-form');
+        var eduStatus = formEl && formEl.__x && formEl.__x.$data
+            ? formEl.__x.$data.educationStatus
+            : (document.querySelector('select[name="education_status"]') || {}).value;
+        var academic = formEl && formEl.__x && formEl.__x.$data
+            ? formEl.__x.$data.academicRequired
+            : (document.querySelector('select[name="is_academic_required"]:not([disabled])') || {}).value;
+        if (eduStatus === 'currently_studying' && String(academic) === '1') {
+            requiredDocs.push(['internship_letter', 'internship letter']);
+        }
+        requiredDocs.forEach(function (pair) {
+            var input = document.querySelector('input[name="' + pair[0] + '"]');
+            if (!input || !input.files || !input.files.length) missing.push(pair[1]);
+        });
+        if (missing.length) {
+            e.preventDefault();
+            alert('Please snap or attach: ' + missing.join(', '));
+            return;
+        }
+        if (pad.isEmpty()) {
+            e.preventDefault();
+            alert('Please sign in the signature box.');
+            return;
+        }
+        document.getElementById('signature_image').value = pad.toDataURL('image/png');
+    });
+})();
+</script>
+@endpush
+@endif

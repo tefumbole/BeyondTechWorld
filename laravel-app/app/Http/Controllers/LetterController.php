@@ -1043,36 +1043,7 @@ class LetterController extends Controller
 
     private function replacePlaceholders($text, $recipient)
     {
-        if ($text === null) { return ''; }
-        $replacements = [
-            '[name]' => $recipient->name ?? '',
-            '[phone_number]' => $recipient->phone_number ?? '',
-            '[email]' => $recipient->email ?? '',
-            '[address]' => $recipient->address ?? '',
-            // Support both [Column1] and [column1]
-            '[Column1]' => $recipient->column1 ?? '',
-            '[Column2]' => $recipient->column2 ?? '',
-            '[Column3]' => $recipient->column3 ?? '',
-            '[Column4]' => $recipient->column4 ?? '',
-            '[Column5]' => $recipient->column5 ?? '',
-            '[Column6]' => $recipient->column6 ?? '',
-            '[Column7]' => $recipient->column7 ?? '',
-            '[Column8]' => $recipient->column8 ?? '',
-            '[Column9]' => $recipient->column9 ?? '',
-            '[Column10]' => $recipient->column10 ?? '',
-            '[column1]' => $recipient->column1 ?? '',
-            '[column2]' => $recipient->column2 ?? '',
-            '[column3]' => $recipient->column3 ?? '',
-            '[column4]' => $recipient->column4 ?? '',
-            '[column5]' => $recipient->column5 ?? '',
-            '[column6]' => $recipient->column6 ?? '',
-            '[column7]' => $recipient->column7 ?? '',
-            '[column8]' => $recipient->column8 ?? '',
-            '[column9]' => $recipient->column9 ?? '',
-            '[column10]' => $recipient->column10 ?? '',
-        ];
-
-        return strtr($text, $replacements);
+        return \App\Support\LetterPlaceholders::replace($text, $recipient);
     }
 
     public function sendPDF($letter, $lims_customer_data, $to) {

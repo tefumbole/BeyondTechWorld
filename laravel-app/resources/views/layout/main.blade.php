@@ -1400,6 +1400,44 @@
                             </li>
                         @endif
                         @php
+                            $internship_module_permission = \Spatie\Permission\Models\Permission::where('name', 'internship_module')->first();
+                            $internship_module_active = $role && $internship_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $internship_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                            $internship_student_perm = \Spatie\Permission\Models\Permission::where('name', 'internship.student')->first();
+                            $internship_student_active = $role && $internship_student_perm ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $internship_student_perm->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                            $internship_supervise_perm = \Spatie\Permission\Models\Permission::where('name', 'internship.supervise')->first();
+                            $internship_supervise_active = $role && $internship_supervise_perm ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $internship_supervise_perm->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($internship_module_active)
+                            <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internship Program</span></a>
+                                <ul id="internship-module" class="collapse list-unstyled ">
+                                    @if($internship_student_active || in_array($role->id, [1,2]))
+                                        <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Internship</a></li>
+                                    @endif
+                                    @if($internship_supervise_active || in_array($role->id, [1,2]) || in_array('internship.submissions.grade', $all_permission ?? []))
+                                        <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
+                                        <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Students / Place</a></li>
+                                    @endif
+                                    @if(in_array($role->id, [1,2]) || in_array('internship.dashboard.view', $all_permission ?? []) || in_array('internship.programs.view', $all_permission ?? []))
+                                        <li id="ip-admin-dash"><a href="{{ route('internship.dashboard') }}">Admin Dashboard</a></li>
+                                        <li id="ip-programs"><a href="{{ route('internship.programs') }}">Programs</a></li>
+                                        <li id="ip-enrol"><a href="{{ route('internship.enrolments') }}">Enrolments</a></li>
+                                        <li id="ip-import"><a href="{{ route('internship.import') }}">Import Curriculum</a></li>
+                                        <li id="ip-reports"><a href="{{ route('internship.reports') }}">Reports</a></li>
+                                    @endif
+                                    <li id="ip-working-week"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
+                                </ul>
+                            </li>
+                        @endif
+                        @php
                             $contracts_module_permission = \Spatie\Permission\Models\Permission::where('name', 'contracts_module')->first();
                             $contracts_module_active = $role && $contracts_module_permission ? \DB::table('role_has_permissions')->where([
                                 ['permission_id', $contracts_module_permission->id],
@@ -2053,7 +2091,7 @@
 
                                     @if($user_index_permission_active)
                                         <li id="user-list-menu"><a href="{{route('user.index')}}">{{trans('file.User List')}}</a></li>
-                                        <li id="user-applicants-menu"><a href="{{route('user.index', ['category' => 'applicants'])}}">Applicants</a></li>
+                                        <li id="user-applicants-menu"><a href="{{route('user.index', ['category' => 'applicants'])}}">Interns</a></li>
                                             <?php $user_add_permission_active = DB::table('permissions')
                                             ->join('role_has_permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
                                             ->where([

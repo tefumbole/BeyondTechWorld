@@ -139,4 +139,94 @@ class ApplicationNotifier
 
         return $result;
     }
+
+    /**
+     * WhatsApp supervisors that they have been assigned intern(s).
+     *
+     * @param  array  $supervisorRefs  e.g. user:12, customer:5
+     * @param  array  $internNames
+     * @param  string  $program
+     * @param  string  $startDate
+     * @param  string  $durationLabel
+     * @return array{sent:int,skipped:int,errors:string[]}
+     */
+    public function notifySupervisorsAssigned(array $supervisorRefs, array $internNames, $program, $startDate, $durationLabel)
+    {
+        $result = ['sent' => 0, 'skipped' => 0, 'errors' => []];
+        $contacts = $this->resolveSupervisorContacts($supervisorRefs);
+        if (empty($contacts)) {
+            $result['errors'][] = 'No supervisor phone numbers found.';
+
+            return $result;
+        }
+
+        foreach ($contacts as $contact) {
+            $phone = $contact['phone'] ?? '';
+            if ($phone === '') {
+                $result['skipped']++;
+                $result['errors'][] = ($contact['name'] ?? 'Supervisor').': no phone.';
+                continue;
+            }
+            $message = WhatsAppMessage::internshipSupervisorAssigned(
+                $contact['name'] ?? 'Supervisor',
+                $internNames,
+                $program,
+                $startDate,
+                $durationLabel
+            );
+            $send = $this->router->sendWhatsAppText($phone, $message, [
+                'title' => 'Internship supervision assigned',
+                'message' => 'You have been assigned to supervise intern(s).',
+                'details' => implode(', ', $internNames),
+            ]);
+            if (! empty($send['success'])) {
+                $result['sent']++;
+            } else {
+                $result['skipped']++;
+                $result['errors'][] = ($contact['name'] ?? $phone).': '.($send['error'] ?? 'send failed');
+                Log::warning('Supervisor assignment WhatsApp failed', [
+                    'phone' => $phone,
+                    'error' => $send['error'] ?? 'unknown',
+                ]);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array  $refs
+     * @return array<int, array{name:string,phone:string}>
+     */
+    protected function resolveSupervisorContacts(array $refs)
+    {
+        $out = [];
+        $seenPhones = [];
+        foreach ($refs as $ref) {
+            $ref = (string) $ref;
+            $name = '';
+            $phone = '';
+            if (strpos($ref, 'user:') === 0) {
+                $user = \App\User::where('is_deleted', false)->find((int) substr($ref, 5));
+                if ($user) {
+                    $name = $user->name ?: 'Supervisor';
+                    $phone = $user->phone ?: '';
+                }
+            } elseif (strpos($ref, 'customer:') === 0) {
+                $customer = \App\Customer::find((int) substr($ref, 9));
+                if ($customer) {
+                    $name = $customer->name ?: ($customer->company_name ?: 'Supervisor');
+                    $phone = $customer->phone_number ?: '';
+                }
+            }
+            $phoneKey = preg_replace('/\D/', '', (string) $phone);
+            if ($phoneKey === '' || isset($seenPhones[$phoneKey])) {
+                continue;
+            }
+            $seenPhones[$phoneKey] = true;
+            $out[] = ['name' => $name, 'phone' => $phone];
+        }
+
+        return $out;
+    }
 }

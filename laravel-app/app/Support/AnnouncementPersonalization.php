@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Carbon\Carbon;
+
 class AnnouncementPersonalization
 {
     public static function personalize($template, array $vars)
@@ -34,51 +36,65 @@ class AnnouncementPersonalization
         ];
     }
 
+    /**
+     * Wasender free-text announcement — same visual language as OTP
+     * (status block, greeting, Reference/Date bullets, footer).
+     */
     public static function buildMessage($announcement, array $person, $isCc = false)
     {
-        $settingsInstitution = $announcement->header ?: 'Beyond Enterprise';
-        $vars = self::recipientVars($person, $announcement->reference ?: '', $settingsInstitution);
-        $body = self::personalize($announcement->body ?: '', $vars);
-        $header = self::personalize($announcement->header ?: '', $vars);
-        $subject = self::personalize($announcement->subject ?: '', $vars);
-        $footer = self::personalize($announcement->footer ?: '', $vars);
+        $institution = trim((string) ($announcement->header ?: WhatsAppMessage::companyName()));
+        $reference = trim((string) ($announcement->reference ?? ''));
+        $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
 
-        $lines = [];
+        $body = trim(self::personalize($announcement->body ?: '', $vars));
+        $subject = trim(self::personalize($announcement->subject ?: '', $vars));
+        $footer = trim(self::personalize($announcement->footer ?: '', $vars));
+        $name = trim((string) ($person['name'] ?? '')) ?: 'Team';
+
+        $when = $announcement->created_at
+            ?? $announcement->scheduled_for
+            ?? $announcement->scheduled_at
+            ?? now();
+        try {
+            $dateStr = Carbon::parse($when)->format('d M Y');
+        } catch (\Throwable $e) {
+            $dateStr = date('d M Y');
+        }
+
+        // Compose default is "Dear {name}," — drop it so we don't double-greet.
+        $body = preg_replace('/^\s*Dear\s+[^,\n]+,\s*/iu', '', $body);
+        $body = trim($body);
+
+        $title = $isCc ? 'Announcement CC' : 'Announcement';
+        $emoji = $isCc ? '📨' : '📢';
+
+        $msg = WhatsAppMessage::statusBlock($emoji, $title);
+        $msg .= WhatsAppMessage::greeting($name);
         if ($isCc) {
-            $lines[] = "📨 *ANNOUNCEMENT CC*";
-            $lines[] = "━━━━━━━━━━━━━━━";
-            $lines[] = "";
-            $lines[] = "Hello *" . ($person['name'] ?: 'Team') . "*,";
-            $lines[] = "";
-            $lines[] = "You have been CC'd on this announcement:";
-            $lines[] = "";
+            $msg .= "You have been CC'd on this announcement.\n\n";
         }
-
-        if (! empty($announcement->reference)) {
-            $lines[] = "Ref: *" . $announcement->reference . "*";
-            $when = $announcement->created_at ?? $announcement->scheduled_at ?? now();
-            try {
-                $lines[] = \Carbon\Carbon::parse($when)->format('M d, Y');
-            } catch (\Throwable $e) {
-                $lines[] = date('M d, Y');
-            }
+        if ($institution !== '') {
+            $msg .= WhatsAppMessage::bullet('From', $institution);
         }
-        if ($header !== '') {
-            $lines[] = "*" . $header . "*";
+        if ($reference !== '') {
+            $msg .= WhatsAppMessage::bullet('Reference', $reference);
+        } elseif (! empty($announcement->id)) {
+            $msg .= WhatsAppMessage::bullet('Reference', 'ANN-'.$announcement->id);
         }
+        $msg .= WhatsAppMessage::bullet('Date', $dateStr);
         if ($subject !== '') {
-            $lines[] = "_" . $subject . "_";
+            $msg .= WhatsAppMessage::bullet('Subject', $subject);
         }
+        $msg .= "━━━━━━━━━━━━━━━━\n\n";
         if ($body !== '') {
-            $lines[] = "";
-            $lines[] = $body;
+            $msg .= $body."\n";
         }
         if ($footer !== '') {
-            $lines[] = "";
-            $lines[] = $footer;
+            $msg .= "\n".$footer;
         }
+        $msg .= WhatsAppMessage::footer();
 
-        return implode("\n", $lines);
+        return $msg;
     }
 
     /**

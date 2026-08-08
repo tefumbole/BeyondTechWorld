@@ -21,7 +21,7 @@ class Application extends Model
     const STATUS_HIRED = 'hired';
 
     protected $fillable = [
-        'id', 'job_id', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
+        'id', 'job_id', 'internship_program_id', 'internship_duration_days', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
         'school', 'level_of_study', 'education_status', 'is_academic_required',
         'cover_letter', 'expected_salary', 'availability', 'availability_days',
         'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path', 'selfie_path',
@@ -34,7 +34,54 @@ class Application extends Model
 
     protected $casts = [
         'is_academic_required' => 'boolean',
+        'internship_duration_days' => 'integer',
     ];
+
+    /** Suggested preset lengths (UI helpers only — any 1–180 days is allowed). */
+    public static function internshipDurationOptions()
+    {
+        return [30, 90, 180];
+    }
+
+    public static function internshipDurationMin()
+    {
+        return 1;
+    }
+
+    public static function internshipDurationMax()
+    {
+        return 180;
+    }
+
+    /** Validation rule fragment for free-form internship length (1–180 days). */
+    public static function internshipDurationRule($required = true)
+    {
+        $base = ($required ? 'required' : 'nullable').'|integer|min:'.self::internshipDurationMin().'|max:'.self::internshipDurationMax();
+
+        return $base;
+    }
+
+    public static function normalizeInternshipDurationDays($value, $default = 90)
+    {
+        $days = (int) $value;
+        if ($days < self::internshipDurationMin()) {
+            $days = (int) $default;
+        }
+
+        return max(self::internshipDurationMin(), min(self::internshipDurationMax(), $days));
+    }
+
+    public function internshipProgram()
+    {
+        return $this->belongsTo(InternshipProgram::class, 'internship_program_id');
+    }
+
+    public function internshipDurationLabel()
+    {
+        $days = (int) ($this->internship_duration_days ?: 0);
+
+        return $days > 0 ? $days.' days' : '—';
+    }
 
     public function educationStatusLabel()
     {

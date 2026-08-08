@@ -94,8 +94,9 @@ class AnnouncementNotificationService extends Controller
             $phone = $person['phone'] ?? '';
             $ok = false;
             if ($announcement->send_whatsapp) {
+                // Wasender sends the OTP-style formatted text; Twilio still uses template vars.
                 $vars = $this->twilioVars($announcement, $person, false);
-                $msg = $vars['message'];
+                $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
                 $ok = $this->sendPhone($phone, $msg, $vars);
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
@@ -117,7 +118,7 @@ class AnnouncementNotificationService extends Controller
             $ok = false;
             if ($announcement->send_whatsapp) {
                 $vars = $this->twilioVars($announcement, $person, true);
-                $msg = $vars['message'];
+                $msg = AnnouncementPersonalization::buildMessage($announcement, $person, true);
                 $ok = $this->sendPhone($phone, $msg, $vars);
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
@@ -165,16 +166,16 @@ class AnnouncementNotificationService extends Controller
             $when = $announcement->scheduled_for
                 ? $announcement->scheduled_for->format('d M Y H:i')
                 : 'soon';
-            $msg = "⏰ *ANNOUNCEMENT REMINDER*\n━━━━━━━━━━━━━━━\n\n";
-            $msg .= "Hello *" . ($person['name'] ?: 'Team') . "*,\n\n";
-            $msg .= "Reminder for announcement";
+            $name = $person['name'] ?: 'Team';
+            $msg = \App\Support\WhatsAppMessage::statusBlock('⏰', 'Announcement Reminder');
+            $msg .= \App\Support\WhatsAppMessage::greeting($name);
+            $msg .= "This is a reminder for the following announcement.\n\n";
             if ($announcement->reference) {
-                $msg .= " (*{$announcement->reference}*)";
+                $msg .= \App\Support\WhatsAppMessage::bullet('Reference', $announcement->reference);
             }
-            $msg .= ":\n\n";
-            $msg .= "▪️ *" . ($announcement->subject ?: 'Announcement') . "*\n";
-            $msg .= "▪️ Scheduled: {$when}\n\n";
-            $msg .= "_Beyond Enterprise_";
+            $msg .= \App\Support\WhatsAppMessage::bullet('Subject', $announcement->subject ?: 'Announcement');
+            $msg .= \App\Support\WhatsAppMessage::bullet('Scheduled', $when);
+            $msg .= \App\Support\WhatsAppMessage::footer();
             if ($this->sendPhone($phone, $msg)) {
                 $sent++;
             }

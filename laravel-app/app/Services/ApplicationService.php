@@ -52,6 +52,8 @@ class ApplicationService
             'phone' => $whatsapp,
             'whatsapp_number' => $whatsapp,
             'country' => $data['country'] ?? null,
+            'internship_program_id' => $job->isInternship() ? ($data['internship_program_id'] ?? null) : null,
+            'internship_duration_days' => $job->isInternship() ? ($data['internship_duration_days'] ?? null) : null,
             'school' => $job->isInternship() ? trim((string) ($data['school'] ?? '')) : null,
             'level_of_study' => $job->isInternship() ? trim((string) ($data['level_of_study'] ?? '')) : null,
             'education_status' => $job->isInternship() ? ($data['education_status'] ?? null) : null,
@@ -71,6 +73,21 @@ class ApplicationService
         ];
 
         if ($job->isInternship()) {
+            $allowed = $job->internshipProgramIds();
+            $chosen = (int) ($payload['internship_program_id'] ?? 0);
+            if (empty($allowed) || ! in_array($chosen, $allowed, true)) {
+                throw ValidationException::withMessages([
+                    'internship_program_id' => ['Please select one of the internship programs offered for this posting.'],
+                ]);
+            }
+            $payload['internship_program_id'] = $chosen;
+            $duration = (int) ($payload['internship_duration_days'] ?? 0);
+            if ($duration < Application::internshipDurationMin() || $duration > Application::internshipDurationMax()) {
+                throw ValidationException::withMessages([
+                    'internship_duration_days' => ['Please enter internship duration between '.Application::internshipDurationMin().' and '.Application::internshipDurationMax().' days.'],
+                ]);
+            }
+            $payload['internship_duration_days'] = $duration;
             if ($payload['school'] === '') {
                 $payload['school'] = null;
             }
@@ -181,7 +198,52 @@ class ApplicationService
                 'latest_status' => $app->status,
                 'submitted_at' => $app->submitted_at,
                 'applications_count' => 1,
+                'erp_user_id' => null,
+                'erp_role' => null,
             ];
+        }
+
+        // Attach linked ERP user / role (by application.user_id or email match).
+        $emails = collect($people)->pluck('email')->filter()->map(function ($e) {
+            return strtolower(trim($e));
+        })->unique()->values()->all();
+        $userIds = collect($people)->pluck('user_id')->filter()->unique()->values()->all();
+        $users = collect();
+        if (! empty($userIds) || ! empty($emails)) {
+            $users = \App\User::query()
+                ->where('is_deleted', false)
+                ->where(function ($q) use ($emails, $userIds) {
+                    if (! empty($userIds)) {
+                        $q->whereIn('id', $userIds);
+                    }
+                    foreach ($emails as $i => $em) {
+                        if ($i === 0 && empty($userIds)) {
+                            $q->whereRaw('LOWER(email) = ?', [$em]);
+                        } else {
+                            $q->orWhereRaw('LOWER(email) = ?', [$em]);
+                        }
+                    }
+                })
+                ->get(['id', 'email', 'role_id', 'name']);
+        }
+        $roles = \App\Roles::whereIn('id', $users->pluck('role_id')->filter()->unique())->pluck('name', 'id');
+        $byId = $users->keyBy('id');
+        $byEmail = $users->keyBy(function ($u) {
+            return strtolower(trim((string) $u->email));
+        });
+
+        foreach ($people as $i => $person) {
+            $user = null;
+            if (! empty($person['user_id']) && isset($byId[$person['user_id']])) {
+                $user = $byId[$person['user_id']];
+            } elseif (! empty($person['email'])) {
+                $em = strtolower(trim($person['email']));
+                $user = $byEmail[$em] ?? null;
+            }
+            if ($user) {
+                $people[$i]['erp_user_id'] = $user->id;
+                $people[$i]['erp_role'] = $roles[$user->role_id] ?? null;
+            }
         }
 
         return collect($people);
@@ -393,16 +455,411 @@ class ApplicationService
                 $application->agreement_sent_at = now();
                 $application->save();
                 $this->notifier->selected($application, $application->job, $url);
+                $this->enrolInInternshipProgram($application);
             } elseif ($status === Application::STATUS_REJECTED) {
                 $this->notifier->rejected($application, $application->job);
             } elseif ($status === Application::STATUS_HIRED) {
                 $this->notifier->hiredAdmission($application, $application->job);
+                $this->enrolInInternshipProgram($application);
             } elseif ($status === Application::STATUS_AWAITING && $previous !== Application::STATUS_AWAITING) {
                 $this->notifier->underReview($application, $application->job);
             }
         }
 
         return $application;
+    }
+
+    /**
+     * Bulk-assign applicants (by latest application id) to a program + supervisor + period.
+     *
+     * @return array{assigned:int, skipped:int, errors:string[]}
+     */
+    public function assignApplicantsToInternship(array $applicationIds, array $opts)
+    {
+        $programId = (int) ($opts['program_id'] ?? 0);
+        $duration = Application::normalizeInternshipDurationDays($opts['planned_duration_days'] ?? 90, 90);
+        $startDate = $opts['start_date'] ?? now()->toDateString();
+        $startDay = max(1, min(180, (int) ($opts['start_curriculum_day'] ?? 1)));
+        $markSelected = ! empty($opts['mark_selected']);
+        $supervisorBundle = $this->resolveSupervisorSelection(
+            $opts['supervisor_refs'] ?? [],
+            $opts['supervisor_id'] ?? null
+        );
+
+        $result = ['assigned' => 0, 'skipped' => 0, 'errors' => [], 'supervisors_notified' => 0];
+        $ids = array_values(array_unique(array_filter(array_map('strval', $applicationIds))));
+        if (empty($ids) || $programId < 1) {
+            $result['errors'][] = 'Select at least one applicant and an internship program.';
+
+            return $result;
+        }
+
+        $assignedNames = [];
+        foreach ($ids as $id) {
+            $application = Application::find($id);
+            if (! $application) {
+                $result['skipped']++;
+                $result['errors'][] = "Application {$id} not found.";
+                continue;
+            }
+            try {
+                $enrolment = $this->assignApplicationToInternship($application, [
+                    'program_id' => $programId,
+                    'supervisor_id' => $supervisorBundle['primary_user_id'],
+                    'supervisor_refs' => $supervisorBundle['refs'],
+                    'planned_duration_days' => $duration,
+                    'start_date' => $startDate,
+                    'start_curriculum_day' => $startDay,
+                    'mark_selected' => $markSelected,
+                ]);
+                if ($enrolment) {
+                    $result['assigned']++;
+                    $assignedNames[] = $application->full_name ?: ('Applicant '.$id);
+                } else {
+                    $result['skipped']++;
+                    $result['errors'][] = ($application->full_name ?: $id).': could not enrol (missing Intern role or program).';
+                }
+            } catch (\Throwable $e) {
+                $result['skipped']++;
+                $result['errors'][] = ($application->full_name ?: $id).': '.$e->getMessage();
+            }
+        }
+
+        if ($result['assigned'] > 0 && ! empty($supervisorBundle['refs'])) {
+            $program = \App\InternshipProgram::find($programId);
+            $programName = $program
+                ? (method_exists($program, 'displayName') ? $program->displayName() : $program->name)
+                : 'Internship Programme';
+            $durationLabel = $duration.' day'.($duration === 1 ? '' : 's');
+            $startLabel = \Carbon\Carbon::parse($startDate)->format('F j, Y');
+            try {
+                $notify = $this->notifier->notifySupervisorsAssigned(
+                    $supervisorBundle['refs'],
+                    $assignedNames,
+                    $programName,
+                    $startLabel,
+                    $durationLabel
+                );
+                $result['supervisors_notified'] = (int) ($notify['sent'] ?? 0);
+                foreach (($notify['errors'] ?? []) as $err) {
+                    $result['errors'][] = 'Supervisor notify: '.$err;
+                }
+            } catch (\Throwable $e) {
+                $result['errors'][] = 'Supervisor notify: '.$e->getMessage();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Resolve directory refs (user:… / customer:…) into ERP supervisor users.
+     *
+     * @return array{refs:string[], primary_user_id:?int, user_ids:int[]}
+     */
+    public function resolveSupervisorSelection(array $refs, $legacySupervisorId = null)
+    {
+        $refs = array_values(array_unique(array_filter(array_map('strval', $refs))));
+        $userIds = [];
+        $normalizedRefs = [];
+
+        foreach ($refs as $ref) {
+            $erpId = $this->ensureErpSupervisorFromDirectoryRef($ref);
+            if ($erpId) {
+                $userIds[] = $erpId;
+                $normalizedRefs[] = 'user:'.$erpId;
+                // Keep original customer/user ref too for display if different
+                if ($ref !== 'user:'.$erpId && ! in_array($ref, $normalizedRefs, true)) {
+                    $normalizedRefs[] = $ref;
+                }
+            }
+        }
+
+        if ($legacySupervisorId) {
+            $legacy = (int) $legacySupervisorId;
+            if ($legacy > 0) {
+                $userIds[] = $legacy;
+                if (! in_array('user:'.$legacy, $normalizedRefs, true)) {
+                    $normalizedRefs[] = 'user:'.$legacy;
+                }
+            }
+        }
+
+        $userIds = array_values(array_unique(array_filter($userIds)));
+        $normalizedRefs = array_values(array_unique(array_filter($normalizedRefs)));
+
+        return [
+            'refs' => $normalizedRefs,
+            'primary_user_id' => $userIds[0] ?? null,
+            'user_ids' => $userIds,
+        ];
+    }
+
+    /**
+     * Ensure a directory person (User or Customer) exists as an ERP user who can supervise.
+     */
+    protected function ensureErpSupervisorFromDirectoryRef($ref)
+    {
+        $ref = (string) $ref;
+        if (strpos($ref, 'user:') === 0) {
+            $id = (int) substr($ref, 5);
+            $user = \App\User::where('is_deleted', false)->find($id);
+
+            return $user ? (int) $user->id : null;
+        }
+
+        $name = null;
+        $email = null;
+        $phone = null;
+
+        if (strpos($ref, 'customer:') === 0) {
+            $customer = \App\Customer::find((int) substr($ref, 9));
+            if (! $customer) {
+                return null;
+            }
+            $name = $customer->name ?: $customer->company_name;
+            $email = trim((string) $customer->email);
+            $phone = $customer->phone_number;
+            if ($email === '') {
+                $email = 'c'.$customer->id.'@customers.beyondtechworld.com';
+            }
+        } elseif (strpos($ref, 'beyond:') === 0) {
+            $beyond = \App\BeyondUser::find(substr($ref, 7));
+            if (! $beyond) {
+                return null;
+            }
+            $name = $beyond->name;
+            $email = trim((string) $beyond->email);
+            $phone = $beyond->phone;
+            if ($email === '') {
+                return null;
+            }
+        } else {
+            return null;
+        }
+
+        $emailKey = strtolower($email);
+        $user = \App\User::where('is_deleted', false)
+            ->whereRaw('LOWER(email) = ?', [$emailKey])
+            ->first();
+
+        $supervisorRole = \App\Roles::where('is_active', true)->where('name', 'Internship Supervisor')->first()
+            ?: \Spatie\Permission\Models\Role::where('name', 'Internship Supervisor')->where('guard_name', 'web')->first();
+
+        $warehouseId = optional(\App\Warehouse::where('is_active', true)->first())->id;
+        $billerId = optional(\App\Biller::where('is_active', true)->first())->id;
+
+        if ($user) {
+            if ($supervisorRole && (int) $user->role_id !== (int) $supervisorRole->id && (int) $user->role_id >= 4) {
+                // Don't demote admins; only promote generic/high role_ids when appropriate.
+            }
+            $user->name = $name ?: $user->name;
+            $user->phone = $phone ?: $user->phone;
+            $user->is_active = 1;
+            $user->save();
+
+            return (int) $user->id;
+        }
+
+        if (! $supervisorRole) {
+            return null;
+        }
+
+        $password = 'Bt@'.random_int(100000, 999999);
+        $user = \App\User::create([
+            'name' => $name ?: 'Supervisor',
+            'email' => $email,
+            'phone' => $phone,
+            'password' => bcrypt($password),
+            'role_id' => $supervisorRole->id,
+            'warehouse_id' => $warehouseId,
+            'biller_id' => $billerId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ]);
+        Log::info('Created Internship Supervisor ERP user '.$user->id.' from '.$ref.' password '.$password);
+
+        return (int) $user->id;
+    }
+
+    /**
+     * Assign one application to an internship program (creates/updates enrolment).
+     */
+    public function assignApplicationToInternship(Application $application, array $opts)
+    {
+        if (! class_exists(\App\Services\Internship\InternshipProgramService::class)) {
+            return null;
+        }
+
+        $programId = (int) ($opts['program_id'] ?? $application->internship_program_id ?? 0);
+        $program = \App\InternshipProgram::where('id', $programId)
+            ->where('status', 'published')
+            ->where('is_active', true)
+            ->first();
+        if (! $program) {
+            throw new \RuntimeException('Internship program not found or not published.');
+        }
+
+        $duration = Application::normalizeInternshipDurationDays(
+            $opts['planned_duration_days'] ?? $application->internship_duration_days ?? 90,
+            90
+        );
+        $startDay = max(1, min(180, (int) ($opts['start_curriculum_day'] ?? 1)));
+        $startDate = $opts['start_date'] ?? now()->toDateString();
+        $supervisorBundle = $this->resolveSupervisorSelection(
+            $opts['supervisor_refs'] ?? [],
+            $opts['supervisor_id'] ?? null
+        );
+        $supervisorId = $supervisorBundle['primary_user_id'];
+        $supervisorRefs = $supervisorBundle['refs'];
+
+        $application->internship_program_id = $program->id;
+        $application->internship_duration_days = $duration;
+        if (! empty($opts['mark_selected'])
+            && in_array($application->status, [Application::STATUS_AWAITING, 'new', 'pending'], true)) {
+            $application->status = Application::STATUS_SELECTED;
+        }
+        $application->save();
+
+        $erpUser = $this->ensureErpInternUser($application);
+        if (! $erpUser) {
+            return null;
+        }
+
+        $existing = \App\InternshipEnrolment::where('student_user_id', $erpUser->id)
+            ->where('program_id', $program->id)
+            ->whereIn('status', ['pending', 'active', 'paused'])
+            ->first();
+
+        $service = app(\App\Services\Internship\InternshipProgramService::class);
+
+        if ($existing) {
+            $update = [
+                'start_date' => $startDate,
+                'supervisor_id' => $supervisorId,
+                'supervisor_refs' => $supervisorRefs,
+                'notes' => trim(($existing->notes ? $existing->notes."\n" : '').'Updated from Job Board assign '.$application->reference_number),
+            ];
+            if (! $existing->assignments()->exists()) {
+                $update['start_curriculum_day'] = $startDay;
+                $update['planned_duration_days'] = $duration;
+            }
+            if (! $existing->application_id) {
+                $existing->application_id = $application->id;
+                $existing->save();
+            }
+            $service->updatePlacement($existing, $update);
+            if ($existing->fresh()->status === 'active') {
+                $service->reconcileReleases($existing->id);
+            }
+
+            return $existing->fresh();
+        }
+
+        $enrolment = $service->enroll([
+            'student_user_id' => $erpUser->id,
+            'program_id' => $program->id,
+            'application_id' => $application->id,
+            'supervisor_id' => $supervisorId,
+            'supervisor_refs' => $supervisorRefs,
+            'start_date' => $startDate,
+            'planned_duration_days' => $duration,
+            'start_curriculum_day' => $startDay,
+            'notes' => 'Assigned from Job Board applicants · '.$application->reference_number.' ('.$duration.' days from day '.$startDay.')',
+        ]);
+        $service->reconcileReleases($enrolment->id);
+
+        return $enrolment;
+    }
+
+    /**
+     * When an internship applicant is accepted, enrol them in the program they chose.
+     */
+    public function enrolInInternshipProgram(Application $application)
+    {
+        if (! $application->internship_program_id) {
+            return null;
+        }
+
+        try {
+            return $this->assignApplicationToInternship($application, [
+                'program_id' => $application->internship_program_id,
+                'planned_duration_days' => $application->internship_duration_days ?: 180,
+                'start_date' => now()->toDateString(),
+                'start_curriculum_day' => 1,
+                'supervisor_id' => null,
+                'mark_selected' => false,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Internship auto-enrol failed for application '.$application->id.': '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    public function ensureErpInternUser(Application $application, $plainPassword = 'system')
+    {
+        $email = strtolower(trim((string) $application->email));
+        if ($email === '') {
+            return null;
+        }
+
+        $user = \App\User::where('is_deleted', false)
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        $internRole = \App\Roles::where('is_active', true)->where('name', 'Intern')->first()
+            ?: \Spatie\Permission\Models\Role::where('name', 'Intern')->where('guard_name', 'web')->first();
+
+        $warehouseId = optional(\App\Warehouse::where('is_active', true)->first())->id;
+        $billerId = optional(\App\Biller::where('is_active', true)->first())->id;
+
+        if ($user) {
+            if ($internRole && (int) $user->role_id !== (int) $internRole->id) {
+                // Only promote applicant/customer-style users; don't demote admins.
+                if ((int) $user->role_id >= 4 || ! $user->role_id) {
+                    $user->role_id = $internRole->id;
+                }
+            }
+            $user->name = $application->full_name ?: $user->name;
+            $user->phone = $application->whatsapp_number ?: $application->phone ?: $user->phone;
+            $user->is_active = 1;
+            if ($warehouseId && ! $user->warehouse_id) {
+                $user->warehouse_id = $warehouseId;
+            }
+            if ($billerId && ! $user->biller_id) {
+                $user->biller_id = $billerId;
+            }
+            $user->save();
+        } else {
+            if (! $internRole) {
+                return null;
+            }
+            $password = $plainPassword ?: 'system';
+            $user = \App\User::create([
+                'name' => $application->full_name,
+                'email' => $application->email,
+                'phone' => $application->whatsapp_number ?: $application->phone,
+                'password' => bcrypt($password),
+                'role_id' => $internRole->id,
+                'warehouse_id' => $warehouseId,
+                'biller_id' => $billerId,
+                'is_active' => 1,
+                'is_deleted' => 0,
+            ]);
+            Log::info('Created Intern ERP user for application '.$application->id.' password '.$password);
+        }
+
+        // Link numeric ERP user id on applications when column expects it (may already hold Beyond UUID).
+        try {
+            if (is_numeric($application->user_id) || empty($application->user_id)) {
+                $application->user_id = $user->id;
+                $application->save();
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $user;
     }
 
     public function markAgreementSigned(Application $application, $signatureImage)
@@ -417,6 +874,7 @@ class ApplicationService
             $this->notifier->agreementSigned($application, $application->job);
             $this->notifier->hiredAdmission($application, $application->job);
         }
+        $this->enrolInInternshipProgram($application);
 
         return $application;
     }

@@ -101,6 +101,7 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
 // Job board / Apply Now (public)
 Route::get('/apply-now', 'ApplyController@index')->name('apply.index');
 Route::get('/apply-now/{id}', 'ApplyController@show')->name('apply.show');
+Route::get('/apply-now/{id}/apply', 'ApplyController@form')->name('apply.form');
 Route::post('/apply-now/{id}', 'ApplyController@store')->name('apply.store');
 Route::get('/application-confirmation/{reference}', 'ApplyController@confirmation')->name('apply.confirmation');
 Route::get('/application-agreement/{token}', 'ApplicationAgreementController@show')->name('apply.agreement');
@@ -368,6 +369,12 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/jobs', 'JobBoardController@store')->name('jobs.store');
     Route::get('/admin/jobs/applications', 'JobBoardController@applications')->name('jobs.applications');
     Route::get('/admin/jobs/applicants', 'JobBoardController@applicants')->name('jobs.applicants');
+    Route::get('/admin/jobs/people/search', 'JobBoardController@searchPeople')->name('jobs.people.search');
+    Route::post('/admin/jobs/supervisors/quick', 'JobBoardController@quickSupervisor')->name('jobs.supervisors.quick');
+    Route::post('/admin/jobs/applicants/assign-internship', 'JobBoardController@assignInternship')->name('jobs.applicants.assign');
+    Route::post('/admin/jobs/applicants/notify', 'JobBoardController@notifyInterns')->name('jobs.applicants.notify');
+    Route::get('/admin/jobs/applicants/{id}/placement', 'JobBoardController@editApplicantPlacement')->name('jobs.applicants.placement.edit');
+    Route::post('/admin/jobs/applicants/{id}/placement', 'JobBoardController@updateApplicantPlacement')->name('jobs.applicants.placement.update');
     Route::get('/admin/jobs/awaiting-approval', 'JobBoardController@awaiting')->name('jobs.awaiting');
     Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
@@ -443,6 +450,34 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/timesheet-admin/categories', 'TimesheetAdminController@storeCategory')->name('timesheet.admin.categories.store');
     Route::post('/admin/timesheet-admin/categories/{id}', 'TimesheetAdminController@updateCategory')->name('timesheet.admin.categories.update');
     Route::post('/admin/timesheet-admin/categories/{id}/delete', 'TimesheetAdminController@destroyCategory')->name('timesheet.admin.categories.destroy');
+
+    // 180-day Internship Program (additive)
+    Route::get('/admin/internship', 'Internship\InternshipAdminController@dashboard')->name('internship.dashboard');
+    Route::get('/admin/internship/programs', 'Internship\InternshipAdminController@programs')->name('internship.programs');
+    Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
+    Route::get('/admin/internship/import', 'Internship\InternshipAdminController@importForm')->name('internship.import');
+    Route::post('/admin/internship/import', 'Internship\InternshipAdminController@importRun')->name('internship.import.run');
+    Route::get('/admin/internship/enrolments', 'Internship\InternshipAdminController@enrolments')->name('internship.enrolments');
+    Route::get('/admin/internship/enrolments/create', 'Internship\InternshipAdminController@enrolCreate')->name('internship.enrol.create');
+    Route::post('/admin/internship/enrolments', 'Internship\InternshipAdminController@enrolStore')->name('internship.enrol.store');
+    Route::get('/admin/internship/enrolments/{id}/edit', 'Internship\InternshipAdminController@enrolEdit')->name('internship.enrol.edit');
+    Route::post('/admin/internship/enrolments/{id}', 'Internship\InternshipAdminController@enrolUpdate')->name('internship.enrol.update');
+    Route::post('/admin/internship/enrolments/{id}/pause', 'Internship\InternshipAdminController@enrolPause')->name('internship.enrol.pause');
+    Route::post('/admin/internship/enrolments/{id}/resume', 'Internship\InternshipAdminController@enrolResume')->name('internship.enrol.resume');
+    Route::get('/admin/internship/reports', 'Internship\InternshipAdminController@reports')->name('internship.reports');
+    Route::get('/admin/internship/student', 'Internship\InternshipStudentController@dashboard')->name('internship.student.dashboard');
+    Route::get('/admin/internship/student/portfolio', 'Internship\InternshipStudentController@portfolio')->name('internship.student.portfolio');
+    Route::get('/admin/internship/student/task/{id}', 'Internship\InternshipStudentController@task')->name('internship.student.task');
+    Route::post('/admin/internship/student/task/{id}/start', 'Internship\InternshipStudentController@start')->name('internship.student.start');
+    Route::post('/admin/internship/student/task/{id}/submit', 'Internship\InternshipStudentController@submit')->name('internship.student.submit');
+    Route::get('/admin/internship/student/files/{fileId}', 'Internship\InternshipStudentController@downloadFile')->name('internship.student.file');
+    Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');
+    Route::get('/admin/internship/supervisor/students', 'Internship\InternshipSupervisorController@students')->name('internship.supervisor.students');
+    Route::get('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeEdit')->name('internship.supervisor.place');
+    Route::post('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeUpdate')->name('internship.supervisor.place.update');
+    Route::get('/admin/internship/supervisor/submissions/{id}', 'Internship\InternshipSupervisorController@show')->name('internship.supervisor.show');
+    Route::post('/admin/internship/supervisor/submissions/{id}/grade', 'Internship\InternshipSupervisorController@grade')->name('internship.supervisor.grade');
+    Route::get('/admin/internship/supervisor/files/{fileId}', 'Internship\InternshipSupervisorController@downloadFile')->name('internship.supervisor.file');
 
     // Events module (Phase 1)
     Route::get('/admin/invitations', 'DigitalInvitationController@index')->name('invitations.index');
@@ -735,6 +770,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
 	Route::get('user/genpass', 'UserController@generatePassword');
 	Route::post('user/deletebyselection', 'UserController@deleteBySelection');
 	Route::post('user/applicants/delete', 'UserController@deleteApplicants')->name('user.applicants.delete');
+	Route::get('user/applicants/{applicationId}/edit', 'UserController@editApplicant')->name('user.applicants.edit');
+	Route::post('user/applicants/{applicationId}', 'UserController@updateApplicant')->name('user.applicants.update');
 	Route::post('user/{id}/signature/pad', 'UserSignatureController@savePad')->name('user.signature.pad');
 	Route::post('user/{id}/signature/request', 'UserSignatureController@requestLink')->name('user.signature.request');
 	Route::post('user/{id}/signature/delete', 'UserSignatureController@destroy')->name('user.signature.delete');

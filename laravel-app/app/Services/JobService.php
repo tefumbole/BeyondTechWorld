@@ -13,6 +13,7 @@ class JobService
     {
         $query = JobPosting::whereIn('status', ['active', 'open'])
             ->where(function ($q) {
+                // Deadline is inclusive for the whole calendar day.
                 $q->whereNull('deadline')->orWhereDate('deadline', '>=', now()->toDateString());
             });
 
@@ -30,10 +31,9 @@ class JobService
             });
         }
 
+        // Only show openings that can still be applied to (hide closed / full).
         return $query->orderByDesc('created_at')->get()->filter(function ($job) {
-            $availability = $this->availability($job);
-
-            return ! empty($availability['available']);
+            return ! empty($this->availability($job)['available']);
         })->values();
     }
 
@@ -109,6 +109,15 @@ class JobService
         $type = $data['employment_type'] ?? $data['type'] ?? ($postingType === 'internship' ? 'Internship' : 'Full-Time');
         $salary = $postingType === 'internship' ? null : ($data['salary'] ?? null);
 
+        $programIds = [];
+        if ($postingType === 'internship') {
+            $raw = $data['internship_program_ids'] ?? [];
+            if (! is_array($raw)) {
+                $raw = array_filter(explode(',', (string) $raw));
+            }
+            $programIds = array_values(array_unique(array_filter(array_map('intval', $raw))));
+        }
+
         return [
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
@@ -117,6 +126,7 @@ class JobService
             'employment_type' => $type,
             'type' => $type,
             'posting_type' => $postingType,
+            'internship_program_ids' => $postingType === 'internship' ? json_encode($programIds) : null,
             'salary' => $salary,
             'requirements' => $data['requirements'] ?? null,
             'qualifications' => $data['qualifications'] ?? null,
@@ -151,7 +161,8 @@ class JobService
             return ['available' => false, 'reason' => 'This position is currently closed.'];
         }
 
-        if ($job->deadline && $job->deadline->isPast()) {
+        // Deadline is inclusive through end of that calendar day.
+        if ($job->deadline && $job->deadline->copy()->endOfDay()->isPast()) {
             return ['available' => false, 'reason' => 'The application deadline has passed.'];
         }
 
