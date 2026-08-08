@@ -1,25 +1,25 @@
 {{-- Live camera modal + helpers for internship document snaps --}}
-<div id="apply-camera-modal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black/70 p-4" aria-hidden="true">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div class="bg-brand-blue text-white px-4 py-3 flex items-center justify-between">
+<div id="apply-camera-modal" class="fixed inset-0 z-[80] hidden items-end sm:items-center justify-center bg-black/75 p-0 sm:p-4" aria-hidden="true">
+    <div class="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[95vh] flex flex-col">
+        <div class="bg-brand-blue text-white px-4 py-3.5 flex items-center justify-between shrink-0">
             <h3 class="font-bold text-sm" id="apply-camera-title">Take photo</h3>
-            <button type="button" id="apply-camera-close" class="text-white/90 hover:text-white text-sm font-semibold">Close</button>
+            <button type="button" id="apply-camera-close" class="text-white/90 hover:text-white text-sm font-semibold min-h-[2.5rem] px-2">Close</button>
         </div>
-        <div class="p-4 space-y-3">
-            <p class="text-xs text-gray-500" id="apply-camera-hint">Allow camera access, then tap Capture.</p>
-            <div class="relative bg-black rounded-lg overflow-hidden aspect-[4/3]">
+        <div class="p-3 sm:p-4 space-y-3 overflow-auto">
+            <p class="text-xs text-gray-500 mb-0" id="apply-camera-hint">Allow camera access, then tap Capture.</p>
+            <div class="relative bg-black rounded-xl overflow-hidden aspect-[3/4] sm:aspect-[4/3]">
                 <video id="apply-camera-video" class="w-full h-full object-cover" playsinline autoplay muted></video>
                 <canvas id="apply-camera-canvas" class="hidden"></canvas>
             </div>
-            <div class="flex gap-2">
-                <button type="button" id="apply-camera-capture" class="flex-1 bg-brand-gold text-brand-blue font-bold py-2.5 rounded-md">
+            <div class="flex gap-2 pb-[env(safe-area-inset-bottom,0px)]">
+                <button type="button" id="apply-camera-capture" class="flex-1 bg-brand-gold text-brand-blue font-extrabold py-3.5 rounded-xl min-h-[3rem]">
                     Capture photo
                 </button>
-                <button type="button" id="apply-camera-switch" class="px-3 py-2.5 rounded-md border border-gray-200 text-sm font-semibold text-gray-700">
+                <button type="button" id="apply-camera-switch" class="px-4 py-3.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 min-h-[3rem]">
                     Flip
                 </button>
             </div>
-            <p class="text-xs text-red-600 hidden" id="apply-camera-error"></p>
+            <p class="text-xs text-red-600 hidden mb-0" id="apply-camera-error"></p>
         </div>
     </div>
 </div>
@@ -100,7 +100,12 @@
         startStream();
     }
 
-    function setFileOnInput(input, file, previewImg, statusEl) {
+    function markDocReady(wrap, statusEl, msg) {
+        if (statusEl) statusEl.textContent = msg || 'Ready ✓';
+        if (wrap) wrap.classList.add('has-file');
+    }
+
+    function setFileOnInput(input, file, previewImg, statusEl, wrap) {
         try {
             var dt = new DataTransfer();
             dt.items.add(file);
@@ -109,7 +114,7 @@
             showError('Could not save the photo. Please try Attach file.');
             return;
         }
-        if (statusEl) statusEl.textContent = 'Photo captured ✓';
+        markDocReady(wrap || (input && input.closest('[data-apply-doc]')), statusEl, 'Photo captured ✓');
         if (previewImg) {
             previewImg.src = URL.createObjectURL(file);
             previewImg.classList.remove('hidden');
@@ -140,7 +145,7 @@
             }
             var name = (activeTarget.name || 'photo') + '_' + Date.now() + '.jpg';
             var file = new File([blob], name, { type: 'image/jpeg' });
-            setFileOnInput(activeTarget, file, activePreview, activeStatus);
+            setFileOnInput(activeTarget, file, activePreview, activeStatus, activeTarget.closest('[data-apply-doc]'));
             closeModal();
         }, 'image/jpeg', 0.85);
     });
@@ -172,13 +177,14 @@
                     // Fallback: clone via name if DataTransfer unsupported — rare
                     target.files = attach.files;
                 }
-                if (status) status.textContent = 'File attached ✓';
+                markDocReady(wrap, status, 'File attached ✓');
                 if (preview && file.type && file.type.indexOf('image/') === 0) {
                     preview.src = URL.createObjectURL(file);
                     preview.classList.remove('hidden');
                 } else if (preview) {
                     preview.classList.add('hidden');
                 }
+                target.dispatchEvent(new Event('change', { bubbles: true }));
             });
         }
 
