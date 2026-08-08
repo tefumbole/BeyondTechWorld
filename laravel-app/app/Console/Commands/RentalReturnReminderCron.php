@@ -53,16 +53,20 @@ class RentalReturnReminderCron extends Command
             }
         }
 
+        // Only recently overdue lines (last 36h). Older backlog must never spam clients.
+        $lateCutoff = $now->copy()->subHours(36);
         $lateLines = BookingProduct::with(['booking.customer', 'product'])
             ->where('is_return', false)
             ->whereNull('late_notice_sent_at')
             ->whereNotNull('end')
             ->where('end', '<', $now)
+            ->where('end', '>=', $lateCutoff)
             ->get();
 
         foreach ($lateLines as $line) {
             $customer = optional($line->booking)->customer;
             if (!$customer || empty($customer->phone_number)) {
+                $line->update(['late_notice_sent_at' => $now]);
                 continue;
             }
 
@@ -81,10 +85,21 @@ class RentalReturnReminderCron extends Command
 
             try {
                 $controller->wpMessage($customer->phone_number, $msg);
-                $line->update(['late_notice_sent_at' => $now]);
             } catch (\Exception $e) {
                 $this->error('Late notice failed for booking product #' . $line->id . ': ' . $e->getMessage());
             }
+            // Always stamp so a failed/undelivered send cannot retry forever.
+            $line->update(['late_notice_sent_at' => $now]);
+        }
+
+        // Suppress ancient overdue lines that would otherwise retry forever.
+        $suppressed = BookingProduct::where('is_return', false)
+            ->whereNull('late_notice_sent_at')
+            ->whereNotNull('end')
+            ->where('end', '<', $lateCutoff)
+            ->update(['late_notice_sent_at' => $now]);
+        if ($suppressed > 0) {
+            $this->info("Suppressed {$suppressed} stale late-notice candidate(s).");
         }
 
         $this->info('Rental return reminders processed.');
