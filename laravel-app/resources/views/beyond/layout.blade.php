@@ -38,6 +38,47 @@
         @keyframes floaty { 0%,100% { transform: translateY(0); opacity:.4 } 50% { transform: translateY(-20px); opacity:.9 } }
         .floaty { animation: floaty 4s ease-in-out infinite; }
         [x-cloak] { display:none !important; }
+
+        @keyframes navLogoSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes navLogoHue {
+            0%   { filter: hue-rotate(0deg) saturate(1.05) drop-shadow(0 0 6px rgba(212,175,55,.55)); }
+            25%  { filter: hue-rotate(70deg) saturate(1.25) drop-shadow(0 0 10px rgba(0,102,204,.55)); }
+            50%  { filter: hue-rotate(160deg) saturate(1.35) drop-shadow(0 0 12px rgba(168,85,247,.55)); }
+            75%  { filter: hue-rotate(260deg) saturate(1.2) drop-shadow(0 0 10px rgba(212,175,55,.6)); }
+            100% { filter: hue-rotate(360deg) saturate(1.05) drop-shadow(0 0 6px rgba(212,175,55,.55)); }
+        }
+        @keyframes navLogoRing {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(212,175,55,.55), 0 0 18px rgba(212,175,55,.35); }
+            33% { box-shadow: 0 0 0 2px rgba(0,102,204,.65), 0 0 22px rgba(0,102,204,.4); }
+            66% { box-shadow: 0 0 0 2px rgba(168,85,247,.65), 0 0 22px rgba(168,85,247,.4); }
+        }
+        .nav-logo-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-radius: 9999px;
+            padding: .2rem;
+            background: rgba(255,255,255,.08);
+            animation: navLogoRing 4s ease-in-out infinite;
+        }
+        .nav-logo-spin {
+            width: 3.35rem;
+            height: 3.35rem;
+            border-radius: 9999px;
+            object-fit: contain;
+            background: #fff;
+            animation: navLogoSpin 7s linear infinite, navLogoHue 8s linear infinite;
+        }
+        @media (min-width: 768px) {
+            .nav-logo-spin { width: 3.85rem; height: 3.85rem; }
+        }
+        @media (min-width: 1024px) {
+            .nav-logo-spin { width: 4.25rem; height: 4.25rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .nav-logo-spin, .nav-logo-link { animation: none; }
+        }
     </style>
     @stack('head')
 </head>
@@ -72,9 +113,8 @@
 <header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="userMenu = false">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-20">
-            <a href="{{ url('/') }}" class="flex items-center">
-                <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}"
-                     class="h-[40px] md:h-[50px] lg:h-[60px] w-auto object-contain hover:scale-105 transition-all duration-300">
+            <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
+                <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
             </a>
 
             <nav class="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center">
