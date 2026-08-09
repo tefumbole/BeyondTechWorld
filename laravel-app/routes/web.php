@@ -455,6 +455,8 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/internship', 'Internship\InternshipAdminController@dashboard')->name('internship.dashboard');
     Route::get('/admin/internship/programs', 'Internship\InternshipAdminController@programs')->name('internship.programs');
     Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
+    Route::post('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programUpdate')->name('internship.programs.update');
+    Route::post('/admin/internship/programs/{id}/tasks/{taskId}', 'Internship\InternshipAdminController@taskUpdate')->name('internship.programs.tasks.update');
     Route::get('/admin/internship/import', 'Internship\InternshipAdminController@importForm')->name('internship.import');
     Route::post('/admin/internship/import', 'Internship\InternshipAdminController@importRun')->name('internship.import.run');
     Route::get('/admin/internship/enrolments', 'Internship\InternshipAdminController@enrolments')->name('internship.enrolments');

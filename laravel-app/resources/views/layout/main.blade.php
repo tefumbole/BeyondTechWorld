@@ -1438,7 +1438,6 @@
                                     @if($internship_student_active || in_array($role->id, [1,2]))
                                         <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Placement (student)</a></li>
                                     @endif
-                                    <li id="ip-working-week"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
                                 </ul>
                             </li>
                         @endif
@@ -1500,6 +1499,7 @@
                                     <li id="ts-week-menu"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
                                 </ul>
                             </li>
+                            @if(in_array($role->id, [1, 2]) || in_array('timesheets.admin', $all_permission ?? []) || in_array('timesheets.manage', $all_permission ?? []))
                             <li><a href="#timesheet-admin-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-graph-bar"></i><span>TimeSheet Admin</span></a>
                                 <ul id="timesheet-admin-module" class="collapse list-unstyled ">
                                     <li id="tsa-report-menu"><a href="{{ route('timesheet.admin.report') }}">TimeSheet Report</a></li>
@@ -1508,6 +1508,7 @@
                                     <li id="tsa-cat-menu"><a href="{{ route('timesheet.admin.categories') }}">Categories</a></li>
                                 </ul>
                             </li>
+                            @endif
                         @endif
                         @if(in_array('shops-index', $all_permission))
                             <li>

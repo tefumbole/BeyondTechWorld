@@ -3,8 +3,8 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <h1 class="ip-title"><i class="dripicons-graduation"></i> Internship Dashboard</h1>
-        <p class="ip-meta mb-3">Pending task for today, progress, and working-week settings.</p>
+        <h1 class="ip-title"><i class="dripicons-graduation"></i> My Internship Placement</h1>
+        <p class="ip-meta mb-3">Your assigned program tasks and progress. Use <strong>TimeSheets (Employee)</strong> in the sidebar for Working Week and daily timesheets.</p>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
@@ -14,9 +14,9 @@
         @endif
 
         <div class="ip-nav">
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.working-week') }}"><i class="dripicons-calendar"></i> Working Week</a>
             <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.portfolio') }}"><i class="dripicons-folder"></i> Portfolio</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill') }}"><i class="dripicons-clock"></i> Timesheet</a>
+            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill') }}"><i class="dripicons-clock"></i> Open TimeSheets</a>
+            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.working-week') }}"><i class="dripicons-calendar"></i> Working Week</a>
         </div>
 
         @if(!$enrolment)
@@ -63,7 +63,7 @@
                 <div class="ip-card">
                     <h5 style="color:#0b3f90;font-weight:700;">No pending task right now</h5>
                     @if(!$isWorkingToday)
-                        <p class="mb-0 text-muted">Today is not one of your configured working days. Tasks are only released on working days (set under Working Week).</p>
+                        <p class="mb-0 text-muted">Today is not one of your configured working days. Set your week under <strong>TimeSheets → Working Week</strong>.</p>
                     @elseif($enrolment->status === 'completed')
                         <p class="mb-0 text-muted">Congratulations — your program is complete. View your portfolio.</p>
                     @else

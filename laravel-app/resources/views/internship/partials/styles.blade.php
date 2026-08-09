@@ -17,4 +17,40 @@
     .ip-table th { font-size:12px; text-transform:uppercase; color:#64748b; }
     .ip-ol { padding-left:1.2rem; }
     .ip-ol li { margin-bottom:6px; }
+    .ip-day {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        margin-bottom: .65rem;
+        background: #fff;
+        overflow: hidden;
+    }
+    .ip-day > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .65rem 1rem;
+        padding: .85rem 1rem;
+        font-weight: 600;
+        color: #0b3f90;
+        user-select: none;
+    }
+    .ip-day > summary::-webkit-details-marker { display: none; }
+    .ip-day[open] > summary { background: #eef4ff; border-bottom: 1px solid #dbe7ff; }
+    .ip-day-num {
+        flex-shrink: 0;
+        min-width: 4.5rem;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #fff;
+        background: #0b3f90;
+        border-radius: 999px;
+        padding: .25rem .65rem;
+        text-align: center;
+    }
+    .ip-day-title { flex: 1 1 220px; font-size: .95rem; }
+    .ip-day-body { padding: 1rem 1.1rem 1.15rem; background: #fafbfc; }
 </style>
