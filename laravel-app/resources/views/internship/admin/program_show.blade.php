@@ -84,6 +84,13 @@
                         <span class="ip-meta">{{ $t->estimated_hours }}h · pass {{ $t->pass_mark }}%</span>
                     </summary>
                     <div class="ip-day-body">
+                        @if(!empty($handbookDays[$t->day_number]))
+                            <p class="mb-3">
+                                <a class="ip-btn ip-btn-outline" href="{{ route('internship.programs.tasks.handbook', [$program->id, $t->id]) }}">
+                                    Download Day {{ $t->day_number }} Student Handbook (DOCX)
+                                </a>
+                            </p>
+                        @endif
                         @if($canEdit)
                             <form method="POST" action="{{ route('internship.programs.tasks.update', [$program->id, $t->id]) }}">
                                 @csrf
@@ -141,15 +148,19 @@
                             @if($t->objective)
                                 <p><strong>Objective:</strong> {{ $t->objective }}</p>
                             @endif
+                            <p class="mb-1"><strong>Study notes</strong></p>
                             @if($t->study_note)
-                                <p class="mb-1"><strong>Study notes</strong></p>
                                 <div class="ip-study-note mb-3">{{ $t->study_note }}</div>
+                            @else
+                                <p class="text-muted">No study notes loaded for this day.</p>
                             @endif
+                            <p class="mb-1"><strong>Instructions</strong></p>
                             @if(!empty($steps))
-                                <p class="mb-1"><strong>Instructions</strong></p>
                                 <ol class="ip-ol">
                                     @foreach($steps as $step)<li>{{ $step }}</li>@endforeach
                                 </ol>
+                            @else
+                                <p class="text-muted">No instructions loaded for this day.</p>
                             @endif
                             @if($t->submission_requirements)
                                 <p class="mb-0"><strong>Submit:</strong> {{ $t->submission_requirements }}</p>

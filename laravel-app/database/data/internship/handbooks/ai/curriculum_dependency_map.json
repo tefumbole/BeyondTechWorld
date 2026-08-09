@@ -1,0 +1,3440 @@
+{
+  "program": "ARTIFICIAL_INTELLIGENCE",
+  "schema_version": 1,
+  "generated": "2026-08-09",
+  "mode_cycle": [
+    "Orientation and setup",
+    "Guided practical",
+    "Independent build",
+    "Troubleshoot",
+    "Document and improve",
+    "Assessment and reflection"
+  ],
+  "phases": [
+    {
+      "name": "Phase 1 \u2014 Orientation & tooling",
+      "day_start": 1,
+      "day_end": 24,
+      "summary": "AI orientation, Python/VS Code/Jupyter, data structures, Git & reproducible notebooks"
+    },
+    {
+      "name": "Phase 2 \u2014 Classic AI foundations",
+      "day_start": 25,
+      "day_end": 48,
+      "summary": "Problem framing, search/optimization, knowledge representation, rule-based systems"
+    },
+    {
+      "name": "Phase 3 \u2014 Data & math for AI",
+      "day_start": 49,
+      "day_end": 66,
+      "summary": "Data preparation, statistics for AI, linear algebra intuition"
+    },
+    {
+      "name": "Phase 4 \u2014 Classical machine learning",
+      "day_start": 67,
+      "day_end": 102,
+      "summary": "ML overview through feature engineering and model evaluation"
+    },
+    {
+      "name": "Phase 5 \u2014 Deep learning & modalities",
+      "day_start": 103,
+      "day_end": 132,
+      "summary": "Neural nets, CV, NLP, speech/audio, recommendation systems"
+    },
+    {
+      "name": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "day_start": 133,
+      "day_end": 156,
+      "summary": "Generative AI, prompting, RAG, agents & tool use"
+    },
+    {
+      "name": "Phase 7 \u2014 Governance, deployment & capstone",
+      "day_start": 157,
+      "day_end": 180,
+      "summary": "Bias/privacy/safety, deployment/monitoring, local-business prototype, capstone"
+    }
+  ],
+  "topics": [
+    {
+      "index": 1,
+      "topic": "Ai Orientation And Responsible Use",
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "day_start": 1,
+      "day_end": 6,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "Day 1 installs the shared toolchain; Days 2\u20136 deepen the same topic without reinstalling by default."
+      ]
+    },
+    {
+      "index": 2,
+      "topic": "Python Environment Setup",
+      "days": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "day_start": 7,
+      "day_end": 12,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Ai Orientation And Responsible Use",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 3,
+      "topic": "Python Data Structures",
+      "days": [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "day_start": 13,
+      "day_end": 18,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Python Environment Setup",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 4,
+      "topic": "Git And Reproducible Notebooks",
+      "days": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "day_start": 19,
+      "day_end": 24,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Python Data Structures",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "Introduces Git; later days assume commits and reproducibility habits."
+      ]
+    },
+    {
+      "index": 5,
+      "topic": "Problem Framing",
+      "days": [
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "day_start": 25,
+      "day_end": 30,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Git And Reproducible Notebooks",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 6,
+      "topic": "Search And Optimization Concepts",
+      "days": [
+        31,
+        32,
+        33,
+        34,
+        35,
+        36
+      ],
+      "day_start": 31,
+      "day_end": 36,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Problem Framing",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 7,
+      "topic": "Knowledge Representation",
+      "days": [
+        37,
+        38,
+        39,
+        40,
+        41,
+        42
+      ],
+      "day_start": 37,
+      "day_end": 42,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Search And Optimization Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 8,
+      "topic": "Rule-Based Expert Systems",
+      "days": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ],
+      "day_start": 43,
+      "day_end": 48,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Knowledge Representation",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 9,
+      "topic": "Data Preparation",
+      "days": [
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+      ],
+      "day_start": 49,
+      "day_end": 54,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Rule-Based Expert Systems",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 10,
+      "topic": "Statistics For Ai",
+      "days": [
+        55,
+        56,
+        57,
+        58,
+        59,
+        60
+      ],
+      "day_start": 55,
+      "day_end": 60,
+      "difficulty": "foundation",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Data Preparation",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 11,
+      "topic": "Linear Algebra Intuition",
+      "days": [
+        61,
+        62,
+        63,
+        64,
+        65,
+        66
+      ],
+      "day_start": 61,
+      "day_end": 66,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Statistics For Ai",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 12,
+      "topic": "Machine Learning Overview",
+      "days": [
+        67,
+        68,
+        69,
+        70,
+        71,
+        72
+      ],
+      "day_start": 67,
+      "day_end": 72,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Linear Algebra Intuition",
+        "Ai Orientation And Responsible Use",
+        "Data Preparation",
+        "Statistics For Ai"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 13,
+      "topic": "Classification Concepts",
+      "days": [
+        73,
+        74,
+        75,
+        76,
+        77,
+        78
+      ],
+      "day_start": 73,
+      "day_end": 78,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Machine Learning Overview",
+        "Ai Orientation And Responsible Use",
+        "Data Preparation",
+        "Statistics For Ai"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 14,
+      "topic": "Regression Concepts",
+      "days": [
+        79,
+        80,
+        81,
+        82,
+        83,
+        84
+      ],
+      "day_start": 79,
+      "day_end": 84,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Classification Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 15,
+      "topic": "Clustering Concepts",
+      "days": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90
+      ],
+      "day_start": 85,
+      "day_end": 90,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Regression Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 16,
+      "topic": "Model Evaluation",
+      "days": [
+        91,
+        92,
+        93,
+        94,
+        95,
+        96
+      ],
+      "day_start": 91,
+      "day_end": 96,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Clustering Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 17,
+      "topic": "Feature Engineering",
+      "days": [
+        97,
+        98,
+        99,
+        100,
+        101,
+        102
+      ],
+      "day_start": 97,
+      "day_end": 102,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Model Evaluation",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 18,
+      "topic": "Neural Network Concepts",
+      "days": [
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
+      ],
+      "day_start": 103,
+      "day_end": 108,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Feature Engineering",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "May need more RAM/disk; local GPU optional \u2014 Instructor Review if required."
+      ]
+    },
+    {
+      "index": 19,
+      "topic": "Computer Vision Basics",
+      "days": [
+        109,
+        110,
+        111,
+        112,
+        113,
+        114
+      ],
+      "day_start": 109,
+      "day_end": 114,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Neural Network Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "May need more RAM/disk; local GPU optional \u2014 Instructor Review if required."
+      ]
+    },
+    {
+      "index": 20,
+      "topic": "Natural Language Processing Basics",
+      "days": [
+        115,
+        116,
+        117,
+        118,
+        119,
+        120
+      ],
+      "day_start": 115,
+      "day_end": 120,
+      "difficulty": "intermediate",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Computer Vision Basics",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 21,
+      "topic": "Speech And Audio Ai Basics",
+      "days": [
+        121,
+        122,
+        123,
+        124,
+        125,
+        126
+      ],
+      "day_start": 121,
+      "day_end": 126,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Natural Language Processing Basics",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 22,
+      "topic": "Recommendation Systems",
+      "days": [
+        127,
+        128,
+        129,
+        130,
+        131,
+        132
+      ],
+      "day_start": 127,
+      "day_end": 132,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Speech And Audio Ai Basics",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 23,
+      "topic": "Generative Ai Concepts",
+      "days": [
+        133,
+        134,
+        135,
+        136,
+        137,
+        138
+      ],
+      "day_start": 133,
+      "day_end": 138,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Recommendation Systems",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "External/public model APIs need supervisor approval; prefer local/open or approved lab keys."
+      ]
+    },
+    {
+      "index": 24,
+      "topic": "Prompt Engineering",
+      "days": [
+        139,
+        140,
+        141,
+        142,
+        143,
+        144
+      ],
+      "day_start": 139,
+      "day_end": 144,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Generative Ai Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "External/public model APIs need supervisor approval; prefer local/open or approved lab keys."
+      ]
+    },
+    {
+      "index": 25,
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "days": [
+        145,
+        146,
+        147,
+        148,
+        149,
+        150
+      ],
+      "day_start": 145,
+      "day_end": 150,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Prompt Engineering",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "External/public model APIs need supervisor approval; prefer local/open or approved lab keys."
+      ]
+    },
+    {
+      "index": 26,
+      "topic": "Ai Agents And Tool Use",
+      "days": [
+        151,
+        152,
+        153,
+        154,
+        155,
+        156
+      ],
+      "day_start": 151,
+      "day_end": 156,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Retrieval-Augmented Generation Concepts",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "External/public model APIs need supervisor approval; prefer local/open or approved lab keys."
+      ]
+    },
+    {
+      "index": 27,
+      "topic": "Bias Privacy And Safety",
+      "days": [
+        157,
+        158,
+        159,
+        160,
+        161,
+        162
+      ],
+      "day_start": 157,
+      "day_end": 162,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Ai Agents And Tool Use",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": []
+    },
+    {
+      "index": 28,
+      "topic": "Deployment And Monitoring",
+      "days": [
+        163,
+        164,
+        165,
+        166,
+        167,
+        168
+      ],
+      "day_start": 163,
+      "day_end": 168,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Bias Privacy And Safety",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "No production deploy without written supervisor approval."
+      ]
+    },
+    {
+      "index": 29,
+      "topic": "Local-Business Ai Prototype",
+      "days": [
+        169,
+        170,
+        171,
+        172,
+        173,
+        174
+      ],
+      "day_start": 169,
+      "day_end": 174,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Deployment And Monitoring",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "No production deploy without written supervisor approval."
+      ]
+    },
+    {
+      "index": 30,
+      "topic": "Capstone Demonstration",
+      "days": [
+        175,
+        176,
+        177,
+        178,
+        179,
+        180
+      ],
+      "day_start": 175,
+      "day_end": 180,
+      "difficulty": "advanced",
+      "tools": "Python, Jupyter, VS Code, local/open models where practical",
+      "depends_on_topics": [
+        "Local-Business Ai Prototype",
+        "Ai Orientation And Responsible Use"
+      ],
+      "carried_environment": "Python + venv + VS Code + Jupyter (from Day 1)",
+      "notes": [
+        "No production deploy without written supervisor approval."
+      ]
+    }
+  ],
+  "day_prerequisites": {
+    "1": {
+      "day": 1,
+      "mode": "Orientation and setup",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Fresh authorized workstation",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "2": {
+      "day": 2,
+      "mode": "Guided practical",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "3": {
+      "day": 3,
+      "mode": "Independent build",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        2
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "4": {
+      "day": 4,
+      "mode": "Troubleshoot",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        3
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "5": {
+      "day": 5,
+      "mode": "Document and improve",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        4
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "6": {
+      "day": 6,
+      "mode": "Assessment and reflection",
+      "topic": "Ai Orientation And Responsible Use",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        5
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "7": {
+      "day": 7,
+      "mode": "Orientation and setup",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        6
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "8": {
+      "day": 8,
+      "mode": "Guided practical",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        7
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "9": {
+      "day": 9,
+      "mode": "Independent build",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        8
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "10": {
+      "day": 10,
+      "mode": "Troubleshoot",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        9
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "11": {
+      "day": 11,
+      "mode": "Document and improve",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        10
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "12": {
+      "day": 12,
+      "mode": "Assessment and reflection",
+      "topic": "Python Environment Setup",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        11
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "13": {
+      "day": 13,
+      "mode": "Orientation and setup",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        12
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "14": {
+      "day": 14,
+      "mode": "Guided practical",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        13
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "15": {
+      "day": 15,
+      "mode": "Independent build",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        14
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "16": {
+      "day": 16,
+      "mode": "Troubleshoot",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        15
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "17": {
+      "day": 17,
+      "mode": "Document and improve",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        16
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "18": {
+      "day": 18,
+      "mode": "Assessment and reflection",
+      "topic": "Python Data Structures",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        17
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "19": {
+      "day": 19,
+      "mode": "Orientation and setup",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        18
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "20": {
+      "day": 20,
+      "mode": "Guided practical",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        19
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "21": {
+      "day": 21,
+      "mode": "Independent build",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        20
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "22": {
+      "day": 22,
+      "mode": "Troubleshoot",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        21
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "23": {
+      "day": 23,
+      "mode": "Document and improve",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        22
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "24": {
+      "day": 24,
+      "mode": "Assessment and reflection",
+      "topic": "Git And Reproducible Notebooks",
+      "phase": "Phase 1 \u2014 Orientation & tooling",
+      "prerequisite_days": [
+        1,
+        23
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "25": {
+      "day": 25,
+      "mode": "Orientation and setup",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        24
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "26": {
+      "day": 26,
+      "mode": "Guided practical",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        25
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "27": {
+      "day": 27,
+      "mode": "Independent build",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        26
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "28": {
+      "day": 28,
+      "mode": "Troubleshoot",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        27
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "29": {
+      "day": 29,
+      "mode": "Document and improve",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        28
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "30": {
+      "day": 30,
+      "mode": "Assessment and reflection",
+      "topic": "Problem Framing",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        29
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "31": {
+      "day": 31,
+      "mode": "Orientation and setup",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        30
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "32": {
+      "day": 32,
+      "mode": "Guided practical",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        31
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "33": {
+      "day": 33,
+      "mode": "Independent build",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        32
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "34": {
+      "day": 34,
+      "mode": "Troubleshoot",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        33
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "35": {
+      "day": 35,
+      "mode": "Document and improve",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        34
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "36": {
+      "day": 36,
+      "mode": "Assessment and reflection",
+      "topic": "Search And Optimization Concepts",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        35
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "37": {
+      "day": 37,
+      "mode": "Orientation and setup",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        36
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "38": {
+      "day": 38,
+      "mode": "Guided practical",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        37
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "39": {
+      "day": 39,
+      "mode": "Independent build",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        38
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "40": {
+      "day": 40,
+      "mode": "Troubleshoot",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        39
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "41": {
+      "day": 41,
+      "mode": "Document and improve",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        40
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "42": {
+      "day": 42,
+      "mode": "Assessment and reflection",
+      "topic": "Knowledge Representation",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        41
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "43": {
+      "day": 43,
+      "mode": "Orientation and setup",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        42
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "44": {
+      "day": 44,
+      "mode": "Guided practical",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        43
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "45": {
+      "day": 45,
+      "mode": "Independent build",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        44
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "46": {
+      "day": 46,
+      "mode": "Troubleshoot",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        45
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "47": {
+      "day": 47,
+      "mode": "Document and improve",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        46
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "48": {
+      "day": 48,
+      "mode": "Assessment and reflection",
+      "topic": "Rule-Based Expert Systems",
+      "phase": "Phase 2 \u2014 Classic AI foundations",
+      "prerequisite_days": [
+        1,
+        47
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "49": {
+      "day": 49,
+      "mode": "Orientation and setup",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        48
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "50": {
+      "day": 50,
+      "mode": "Guided practical",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        49
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "51": {
+      "day": 51,
+      "mode": "Independent build",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        50
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "52": {
+      "day": 52,
+      "mode": "Troubleshoot",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        51
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "53": {
+      "day": 53,
+      "mode": "Document and improve",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        52
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "54": {
+      "day": 54,
+      "mode": "Assessment and reflection",
+      "topic": "Data Preparation",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        53
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "55": {
+      "day": 55,
+      "mode": "Orientation and setup",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        54
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "56": {
+      "day": 56,
+      "mode": "Guided practical",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        55
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "57": {
+      "day": 57,
+      "mode": "Independent build",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        56
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "58": {
+      "day": 58,
+      "mode": "Troubleshoot",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        57
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "59": {
+      "day": 59,
+      "mode": "Document and improve",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        58
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "60": {
+      "day": 60,
+      "mode": "Assessment and reflection",
+      "topic": "Statistics For Ai",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        59
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "61": {
+      "day": 61,
+      "mode": "Orientation and setup",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        60
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "62": {
+      "day": 62,
+      "mode": "Guided practical",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        61
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "63": {
+      "day": 63,
+      "mode": "Independent build",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        62
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "64": {
+      "day": 64,
+      "mode": "Troubleshoot",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        63
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "65": {
+      "day": 65,
+      "mode": "Document and improve",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        64
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "66": {
+      "day": 66,
+      "mode": "Assessment and reflection",
+      "topic": "Linear Algebra Intuition",
+      "phase": "Phase 3 \u2014 Data & math for AI",
+      "prerequisite_days": [
+        1,
+        65
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "67": {
+      "day": 67,
+      "mode": "Orientation and setup",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        66
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "68": {
+      "day": 68,
+      "mode": "Guided practical",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        67
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "69": {
+      "day": 69,
+      "mode": "Independent build",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        68
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "70": {
+      "day": 70,
+      "mode": "Troubleshoot",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        69
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "71": {
+      "day": 71,
+      "mode": "Document and improve",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        70
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "72": {
+      "day": 72,
+      "mode": "Assessment and reflection",
+      "topic": "Machine Learning Overview",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        71
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "73": {
+      "day": 73,
+      "mode": "Orientation and setup",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        72
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "74": {
+      "day": 74,
+      "mode": "Guided practical",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        73
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "75": {
+      "day": 75,
+      "mode": "Independent build",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        74
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "76": {
+      "day": 76,
+      "mode": "Troubleshoot",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        75
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "77": {
+      "day": 77,
+      "mode": "Document and improve",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        76
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "78": {
+      "day": 78,
+      "mode": "Assessment and reflection",
+      "topic": "Classification Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        77
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "79": {
+      "day": 79,
+      "mode": "Orientation and setup",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        78
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "80": {
+      "day": 80,
+      "mode": "Guided practical",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        79
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "81": {
+      "day": 81,
+      "mode": "Independent build",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        80
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "82": {
+      "day": 82,
+      "mode": "Troubleshoot",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        81
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "83": {
+      "day": 83,
+      "mode": "Document and improve",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        82
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "84": {
+      "day": 84,
+      "mode": "Assessment and reflection",
+      "topic": "Regression Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        83
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "85": {
+      "day": 85,
+      "mode": "Orientation and setup",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        84
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "86": {
+      "day": 86,
+      "mode": "Guided practical",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        85
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "87": {
+      "day": 87,
+      "mode": "Independent build",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        86
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "88": {
+      "day": 88,
+      "mode": "Troubleshoot",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        87
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "89": {
+      "day": 89,
+      "mode": "Document and improve",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        88
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "90": {
+      "day": 90,
+      "mode": "Assessment and reflection",
+      "topic": "Clustering Concepts",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        89
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "91": {
+      "day": 91,
+      "mode": "Orientation and setup",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        90
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "92": {
+      "day": 92,
+      "mode": "Guided practical",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        91
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "93": {
+      "day": 93,
+      "mode": "Independent build",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        92
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "94": {
+      "day": 94,
+      "mode": "Troubleshoot",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        93
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "95": {
+      "day": 95,
+      "mode": "Document and improve",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        94
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "96": {
+      "day": 96,
+      "mode": "Assessment and reflection",
+      "topic": "Model Evaluation",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        95
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "97": {
+      "day": 97,
+      "mode": "Orientation and setup",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        96
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "98": {
+      "day": 98,
+      "mode": "Guided practical",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        97
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "99": {
+      "day": 99,
+      "mode": "Independent build",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        98
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "100": {
+      "day": 100,
+      "mode": "Troubleshoot",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        99
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "101": {
+      "day": 101,
+      "mode": "Document and improve",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        100
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "102": {
+      "day": 102,
+      "mode": "Assessment and reflection",
+      "topic": "Feature Engineering",
+      "phase": "Phase 4 \u2014 Classical machine learning",
+      "prerequisite_days": [
+        1,
+        101
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "103": {
+      "day": 103,
+      "mode": "Orientation and setup",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        102
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "104": {
+      "day": 104,
+      "mode": "Guided practical",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        103
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "105": {
+      "day": 105,
+      "mode": "Independent build",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        104
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "106": {
+      "day": 106,
+      "mode": "Troubleshoot",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        105
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "107": {
+      "day": 107,
+      "mode": "Document and improve",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        106
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "108": {
+      "day": 108,
+      "mode": "Assessment and reflection",
+      "topic": "Neural Network Concepts",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        107
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "109": {
+      "day": 109,
+      "mode": "Orientation and setup",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        108
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "110": {
+      "day": 110,
+      "mode": "Guided practical",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        109
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "111": {
+      "day": 111,
+      "mode": "Independent build",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        110
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "112": {
+      "day": 112,
+      "mode": "Troubleshoot",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        111
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "113": {
+      "day": 113,
+      "mode": "Document and improve",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        112
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "114": {
+      "day": 114,
+      "mode": "Assessment and reflection",
+      "topic": "Computer Vision Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        113
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "115": {
+      "day": 115,
+      "mode": "Orientation and setup",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        114
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "116": {
+      "day": 116,
+      "mode": "Guided practical",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        115
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "117": {
+      "day": 117,
+      "mode": "Independent build",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        116
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "118": {
+      "day": 118,
+      "mode": "Troubleshoot",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        117
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "119": {
+      "day": 119,
+      "mode": "Document and improve",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        118
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "120": {
+      "day": 120,
+      "mode": "Assessment and reflection",
+      "topic": "Natural Language Processing Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        119
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "121": {
+      "day": 121,
+      "mode": "Orientation and setup",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        120
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "122": {
+      "day": 122,
+      "mode": "Guided practical",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        121
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "123": {
+      "day": 123,
+      "mode": "Independent build",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        122
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "124": {
+      "day": 124,
+      "mode": "Troubleshoot",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        123
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "125": {
+      "day": 125,
+      "mode": "Document and improve",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        124
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "126": {
+      "day": 126,
+      "mode": "Assessment and reflection",
+      "topic": "Speech And Audio Ai Basics",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        125
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "127": {
+      "day": 127,
+      "mode": "Orientation and setup",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        126
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "128": {
+      "day": 128,
+      "mode": "Guided practical",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        127
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "129": {
+      "day": 129,
+      "mode": "Independent build",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        128
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "130": {
+      "day": 130,
+      "mode": "Troubleshoot",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        129
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "131": {
+      "day": 131,
+      "mode": "Document and improve",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        130
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "132": {
+      "day": 132,
+      "mode": "Assessment and reflection",
+      "topic": "Recommendation Systems",
+      "phase": "Phase 5 \u2014 Deep learning & modalities",
+      "prerequisite_days": [
+        1,
+        131
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "133": {
+      "day": 133,
+      "mode": "Orientation and setup",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        132
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "134": {
+      "day": 134,
+      "mode": "Guided practical",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        133
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "135": {
+      "day": 135,
+      "mode": "Independent build",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        134
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "136": {
+      "day": 136,
+      "mode": "Troubleshoot",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        135
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "137": {
+      "day": 137,
+      "mode": "Document and improve",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        136
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "138": {
+      "day": 138,
+      "mode": "Assessment and reflection",
+      "topic": "Generative Ai Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        137
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "139": {
+      "day": 139,
+      "mode": "Orientation and setup",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        138
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "140": {
+      "day": 140,
+      "mode": "Guided practical",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        139
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "141": {
+      "day": 141,
+      "mode": "Independent build",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        140
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "142": {
+      "day": 142,
+      "mode": "Troubleshoot",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        141
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "143": {
+      "day": 143,
+      "mode": "Document and improve",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        142
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "144": {
+      "day": 144,
+      "mode": "Assessment and reflection",
+      "topic": "Prompt Engineering",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        143
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "145": {
+      "day": 145,
+      "mode": "Orientation and setup",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        144
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "146": {
+      "day": 146,
+      "mode": "Guided practical",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        145
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "147": {
+      "day": 147,
+      "mode": "Independent build",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        146
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "148": {
+      "day": 148,
+      "mode": "Troubleshoot",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        147
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "149": {
+      "day": 149,
+      "mode": "Document and improve",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        148
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "150": {
+      "day": 150,
+      "mode": "Assessment and reflection",
+      "topic": "Retrieval-Augmented Generation Concepts",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        149
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "151": {
+      "day": 151,
+      "mode": "Orientation and setup",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        150
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "152": {
+      "day": 152,
+      "mode": "Guided practical",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        151
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "153": {
+      "day": 153,
+      "mode": "Independent build",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        152
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "154": {
+      "day": 154,
+      "mode": "Troubleshoot",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        153
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "155": {
+      "day": 155,
+      "mode": "Document and improve",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        154
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "156": {
+      "day": 156,
+      "mode": "Assessment and reflection",
+      "topic": "Ai Agents And Tool Use",
+      "phase": "Phase 6 \u2014 Generative AI, RAG & agents",
+      "prerequisite_days": [
+        1,
+        155
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "157": {
+      "day": 157,
+      "mode": "Orientation and setup",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        156
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "158": {
+      "day": 158,
+      "mode": "Guided practical",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        157
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "159": {
+      "day": 159,
+      "mode": "Independent build",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        158
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "160": {
+      "day": 160,
+      "mode": "Troubleshoot",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        159
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "161": {
+      "day": 161,
+      "mode": "Document and improve",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        160
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "162": {
+      "day": 162,
+      "mode": "Assessment and reflection",
+      "topic": "Bias Privacy And Safety",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        161
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "163": {
+      "day": 163,
+      "mode": "Orientation and setup",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        162
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "164": {
+      "day": 164,
+      "mode": "Guided practical",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        163
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "165": {
+      "day": 165,
+      "mode": "Independent build",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        164
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "166": {
+      "day": 166,
+      "mode": "Troubleshoot",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        165
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "167": {
+      "day": 167,
+      "mode": "Document and improve",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        166
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "168": {
+      "day": 168,
+      "mode": "Assessment and reflection",
+      "topic": "Deployment And Monitoring",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        167
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "169": {
+      "day": 169,
+      "mode": "Orientation and setup",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        168
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "170": {
+      "day": 170,
+      "mode": "Guided practical",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        169
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "171": {
+      "day": 171,
+      "mode": "Independent build",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        170
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "172": {
+      "day": 172,
+      "mode": "Troubleshoot",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        171
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "173": {
+      "day": 173,
+      "mode": "Document and improve",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        172
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "174": {
+      "day": 174,
+      "mode": "Assessment and reflection",
+      "topic": "Local-Business Ai Prototype",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        173
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "175": {
+      "day": 175,
+      "mode": "Orientation and setup",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        174
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "176": {
+      "day": 176,
+      "mode": "Guided practical",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        175
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "177": {
+      "day": 177,
+      "mode": "Independent build",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        176
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "178": {
+      "day": 178,
+      "mode": "Troubleshoot",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        177
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "179": {
+      "day": 179,
+      "mode": "Document and improve",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        178
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    },
+    "180": {
+      "day": 180,
+      "mode": "Assessment and reflection",
+      "topic": "Capstone Demonstration",
+      "phase": "Phase 7 \u2014 Governance, deployment & capstone",
+      "prerequisite_days": [
+        1,
+        179
+      ],
+      "assumes": [
+        "Authorized Beyond lab/workstation",
+        "Python + venv + VS Code + Jupyter (from Day 1)",
+        "Day 1 safety and evidence standards remain in force"
+      ]
+    }
+  }
+}

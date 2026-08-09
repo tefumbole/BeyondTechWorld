@@ -18,16 +18,35 @@
             <h5 style="font-weight:700;color:#0b3f90;">Objective</h5>
             <p>{{ $task->objective }}</p>
             <p class="ip-meta">Tools: {{ $task->tools ?: '—' }} · Est. {{ $task->estimated_hours }}h · Pass mark {{ $task->pass_mark }}/100</p>
-            @if($task->study_note)
-                <h5 style="font-weight:700;color:#0b3f90;">Study Notes</h5>
-                <div class="ip-study-note">{{ $task->study_note }}</div>
+
+            @if(!empty($hasHandbook))
+                <div class="mb-3">
+                    <a class="ip-btn" href="{{ route('internship.student.handbook', $assignment->id) }}">
+                        <i class="dripicons-download"></i> Download Day {{ $task->day_number }} Student Handbook (DOCX)
+                    </a>
+                    <p class="ip-meta mb-0 mt-2">Full step-by-step lab guide for this day (install/verify, practical steps, troubleshooting, evidence, and report template).</p>
+                </div>
             @endif
+
+            <h5 style="font-weight:700;color:#0b3f90;">Study Notes</h5>
+            @if($task->study_note)
+                <div class="ip-study-note">{{ $task->study_note }}</div>
+            @else
+                <p class="text-muted">Study notes are not loaded for this day. Download the Student Handbook above, or contact your supervisor.</p>
+            @endif
+
             <h5 style="font-weight:700;color:#0b3f90;">Instructions</h5>
-            <ol class="ip-ol">
-                @foreach($task->instructions() as $line)
-                    <li>{{ is_string($line) ? $line : json_encode($line) }}</li>
-                @endforeach
-            </ol>
+            @php $steps = $task->instructions(); @endphp
+            @if(!empty($steps))
+                <ol class="ip-ol">
+                    @foreach($steps as $line)
+                        <li>{{ is_string($line) ? $line : json_encode($line) }}</li>
+                    @endforeach
+                </ol>
+            @else
+                <p class="text-muted">No step instructions are loaded for this day. Use the Student Handbook procedure, then ask your supervisor.</p>
+            @endif
+
             @if($task->submission_requirements)
                 <h5 style="font-weight:700;color:#0b3f90;">Submission requirements</h5>
                 <p>{{ $task->submission_requirements }}</p>

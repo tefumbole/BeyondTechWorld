@@ -8,6 +8,7 @@ use App\InternshipEnrolment;
 use App\InternshipProgram;
 use App\InternshipProgramTask;
 use App\Services\Internship\InternshipProgramService;
+use App\Support\InternshipHandbook;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -89,8 +90,27 @@ class InternshipAdminController extends Controller
         $canEdit = in_array('internship.programs.update', $this->all_permission, true)
             || in_array('internship.tasks.update', $this->all_permission, true)
             || Auth::user()->role_id <= 2;
+        $handbookDays = [];
+        foreach ($program->tasks as $task) {
+            if (InternshipHandbook::absolutePath($program, $task)) {
+                $handbookDays[(int) $task->day_number] = true;
+            }
+        }
 
-        return view('internship.admin.program_show', compact('program', 'canEdit'));
+        return view('internship.admin.program_show', compact('program', 'canEdit', 'handbookDays'));
+    }
+
+    public function downloadTaskHandbook($id, $taskId)
+    {
+        $this->allow('internship.programs.view');
+        $program = InternshipProgram::findOrFail($id);
+        $task = InternshipProgramTask::where('program_id', $program->id)->where('id', $taskId)->firstOrFail();
+        $path = InternshipHandbook::absolutePath($program, $task);
+        if (! $path) {
+            abort(404, 'Handbook file not found for this day.');
+        }
+
+        return response()->download($path, InternshipHandbook::downloadName($program, $task));
     }
 
     public function programUpdate(Request $request, $id)

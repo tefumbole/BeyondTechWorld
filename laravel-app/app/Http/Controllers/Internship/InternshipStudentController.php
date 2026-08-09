@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Support\InternshipHandbook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -64,8 +65,33 @@ class InternshipStudentController extends Controller
         if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
             abort(403);
         }
+        $program = $assignment->enrolment->program;
+        $handbookPath = ($program && $assignment->task)
+            ? InternshipHandbook::absolutePath($program, $assignment->task)
+            : null;
+        $hasHandbook = (bool) $handbookPath;
 
-        return view('internship.student.task', compact('assignment'));
+        return view('internship.student.task', compact('assignment', 'hasHandbook'));
+    }
+
+    public function downloadHandbook($id)
+    {
+        $this->allowStudent();
+        $assignment = InternshipTaskAssignment::with(['task', 'enrolment.program'])->findOrFail($id);
+        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+        $program = $assignment->enrolment->program;
+        $task = $assignment->task;
+        if (! $program || ! $task) {
+            abort(404, 'Handbook not available.');
+        }
+        $path = InternshipHandbook::absolutePath($program, $task);
+        if (! $path) {
+            abort(404, 'Handbook file not found for this day.');
+        }
+
+        return response()->download($path, InternshipHandbook::downloadName($program, $task));
     }
 
     public function start($id)

@@ -1,0 +1,2882 @@
+[
+  {
+    "day": 1,
+    "mode": "Orientation and setup",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for AI orientation and responsible use.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 2,
+    "mode": "Guided practical",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for AI orientation and responsible use. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 3,
+    "mode": "Independent build",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the AI orientation and responsible use solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 4,
+    "mode": "Troubleshoot",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to AI orientation and responsible use. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 5,
+    "mode": "Document and improve",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for AI orientation and responsible use, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 6,
+    "mode": "Assessment and reflection",
+    "topic": "Ai Orientation And Responsible Use",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI orientation and responsible use safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for AI orientation and responsible use, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 7,
+    "mode": "Orientation and setup",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for Python environment setup.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 8,
+    "mode": "Guided practical",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for Python environment setup. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 9,
+    "mode": "Independent build",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the Python environment setup solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 10,
+    "mode": "Troubleshoot",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to Python environment setup. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 11,
+    "mode": "Document and improve",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for Python environment setup, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 12,
+    "mode": "Assessment and reflection",
+    "topic": "Python Environment Setup",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python environment setup safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for Python environment setup, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 13,
+    "mode": "Orientation and setup",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for Python data structures.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 14,
+    "mode": "Guided practical",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for Python data structures. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 15,
+    "mode": "Independent build",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the Python data structures solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 16,
+    "mode": "Troubleshoot",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to Python data structures. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 17,
+    "mode": "Document and improve",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for Python data structures, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 18,
+    "mode": "Assessment and reflection",
+    "topic": "Python Data Structures",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Python data structures safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for Python data structures, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 19,
+    "mode": "Orientation and setup",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for Git and reproducible notebooks.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 20,
+    "mode": "Guided practical",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for Git and reproducible notebooks. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 21,
+    "mode": "Independent build",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the Git and reproducible notebooks solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 22,
+    "mode": "Troubleshoot",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to Git and reproducible notebooks. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 23,
+    "mode": "Document and improve",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for Git and reproducible notebooks, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 24,
+    "mode": "Assessment and reflection",
+    "topic": "Git And Reproducible Notebooks",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply Git and reproducible notebooks safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for Git and reproducible notebooks, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 25,
+    "mode": "Orientation and setup",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for problem framing.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 26,
+    "mode": "Guided practical",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for problem framing. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 27,
+    "mode": "Independent build",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the problem framing solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 28,
+    "mode": "Troubleshoot",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to problem framing. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 29,
+    "mode": "Document and improve",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for problem framing, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 30,
+    "mode": "Assessment and reflection",
+    "topic": "Problem Framing",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply problem framing safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for problem framing, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 31,
+    "mode": "Orientation and setup",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for search and optimization concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 32,
+    "mode": "Guided practical",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for search and optimization concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 33,
+    "mode": "Independent build",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the search and optimization concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 34,
+    "mode": "Troubleshoot",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to search and optimization concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 35,
+    "mode": "Document and improve",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for search and optimization concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 36,
+    "mode": "Assessment and reflection",
+    "topic": "Search And Optimization Concepts",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply search and optimization concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for search and optimization concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 37,
+    "mode": "Orientation and setup",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for knowledge representation.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 38,
+    "mode": "Guided practical",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for knowledge representation. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 39,
+    "mode": "Independent build",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the knowledge representation solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 40,
+    "mode": "Troubleshoot",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to knowledge representation. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 41,
+    "mode": "Document and improve",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for knowledge representation, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 42,
+    "mode": "Assessment and reflection",
+    "topic": "Knowledge Representation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply knowledge representation safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for knowledge representation, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 43,
+    "mode": "Orientation and setup",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for rule-based expert systems.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 44,
+    "mode": "Guided practical",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for rule-based expert systems. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 45,
+    "mode": "Independent build",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the rule-based expert systems solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 46,
+    "mode": "Troubleshoot",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to rule-based expert systems. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 47,
+    "mode": "Document and improve",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for rule-based expert systems, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 48,
+    "mode": "Assessment and reflection",
+    "topic": "Rule-Based Expert Systems",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply rule-based expert systems safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for rule-based expert systems, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 49,
+    "mode": "Orientation and setup",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for data preparation.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 50,
+    "mode": "Guided practical",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for data preparation. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 51,
+    "mode": "Independent build",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the data preparation solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 52,
+    "mode": "Troubleshoot",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to data preparation. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 53,
+    "mode": "Document and improve",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for data preparation, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 54,
+    "mode": "Assessment and reflection",
+    "topic": "Data Preparation",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply data preparation safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for data preparation, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 55,
+    "mode": "Orientation and setup",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for statistics for AI.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 56,
+    "mode": "Guided practical",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for statistics for AI. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 57,
+    "mode": "Independent build",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the statistics for AI solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 58,
+    "mode": "Troubleshoot",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to statistics for AI. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 59,
+    "mode": "Document and improve",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for statistics for AI, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 60,
+    "mode": "Assessment and reflection",
+    "topic": "Statistics For Ai",
+    "difficulty": "foundation",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply statistics for AI safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for statistics for AI, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 61,
+    "mode": "Orientation and setup",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for linear algebra intuition.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 62,
+    "mode": "Guided practical",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for linear algebra intuition. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 63,
+    "mode": "Independent build",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the linear algebra intuition solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 64,
+    "mode": "Troubleshoot",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to linear algebra intuition. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 65,
+    "mode": "Document and improve",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for linear algebra intuition, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 66,
+    "mode": "Assessment and reflection",
+    "topic": "Linear Algebra Intuition",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply linear algebra intuition safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for linear algebra intuition, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 67,
+    "mode": "Orientation and setup",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for machine learning overview.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 68,
+    "mode": "Guided practical",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for machine learning overview. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 69,
+    "mode": "Independent build",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the machine learning overview solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 70,
+    "mode": "Troubleshoot",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to machine learning overview. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 71,
+    "mode": "Document and improve",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for machine learning overview, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 72,
+    "mode": "Assessment and reflection",
+    "topic": "Machine Learning Overview",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply machine learning overview safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for machine learning overview, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 73,
+    "mode": "Orientation and setup",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for classification concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 74,
+    "mode": "Guided practical",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for classification concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 75,
+    "mode": "Independent build",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the classification concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 76,
+    "mode": "Troubleshoot",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to classification concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 77,
+    "mode": "Document and improve",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for classification concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 78,
+    "mode": "Assessment and reflection",
+    "topic": "Classification Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply classification concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for classification concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 79,
+    "mode": "Orientation and setup",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for regression concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 80,
+    "mode": "Guided practical",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for regression concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 81,
+    "mode": "Independent build",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the regression concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 82,
+    "mode": "Troubleshoot",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to regression concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 83,
+    "mode": "Document and improve",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for regression concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 84,
+    "mode": "Assessment and reflection",
+    "topic": "Regression Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply regression concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for regression concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 85,
+    "mode": "Orientation and setup",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for clustering concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 86,
+    "mode": "Guided practical",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for clustering concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 87,
+    "mode": "Independent build",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the clustering concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 88,
+    "mode": "Troubleshoot",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to clustering concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 89,
+    "mode": "Document and improve",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for clustering concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 90,
+    "mode": "Assessment and reflection",
+    "topic": "Clustering Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply clustering concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for clustering concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 91,
+    "mode": "Orientation and setup",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for model evaluation.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 92,
+    "mode": "Guided practical",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for model evaluation. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 93,
+    "mode": "Independent build",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the model evaluation solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 94,
+    "mode": "Troubleshoot",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to model evaluation. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 95,
+    "mode": "Document and improve",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for model evaluation, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 96,
+    "mode": "Assessment and reflection",
+    "topic": "Model Evaluation",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply model evaluation safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for model evaluation, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 97,
+    "mode": "Orientation and setup",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for feature engineering.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 98,
+    "mode": "Guided practical",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for feature engineering. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 99,
+    "mode": "Independent build",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the feature engineering solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 100,
+    "mode": "Troubleshoot",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to feature engineering. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 101,
+    "mode": "Document and improve",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for feature engineering, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 102,
+    "mode": "Assessment and reflection",
+    "topic": "Feature Engineering",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply feature engineering safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for feature engineering, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 103,
+    "mode": "Orientation and setup",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for neural network concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 104,
+    "mode": "Guided practical",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for neural network concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 105,
+    "mode": "Independent build",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the neural network concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 106,
+    "mode": "Troubleshoot",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to neural network concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 107,
+    "mode": "Document and improve",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for neural network concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 108,
+    "mode": "Assessment and reflection",
+    "topic": "Neural Network Concepts",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply neural network concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for neural network concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 109,
+    "mode": "Orientation and setup",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for computer vision basics.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 110,
+    "mode": "Guided practical",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for computer vision basics. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 111,
+    "mode": "Independent build",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the computer vision basics solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 112,
+    "mode": "Troubleshoot",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to computer vision basics. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 113,
+    "mode": "Document and improve",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for computer vision basics, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 114,
+    "mode": "Assessment and reflection",
+    "topic": "Computer Vision Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply computer vision basics safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for computer vision basics, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 115,
+    "mode": "Orientation and setup",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for natural language processing basics.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 116,
+    "mode": "Guided practical",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for natural language processing basics. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 117,
+    "mode": "Independent build",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the natural language processing basics solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 118,
+    "mode": "Troubleshoot",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to natural language processing basics. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 119,
+    "mode": "Document and improve",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for natural language processing basics, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 120,
+    "mode": "Assessment and reflection",
+    "topic": "Natural Language Processing Basics",
+    "difficulty": "intermediate",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply natural language processing basics safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for natural language processing basics, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 121,
+    "mode": "Orientation and setup",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for speech and audio AI basics.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 122,
+    "mode": "Guided practical",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for speech and audio AI basics. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 123,
+    "mode": "Independent build",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the speech and audio AI basics solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 124,
+    "mode": "Troubleshoot",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to speech and audio AI basics. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 125,
+    "mode": "Document and improve",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for speech and audio AI basics, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 126,
+    "mode": "Assessment and reflection",
+    "topic": "Speech And Audio Ai Basics",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply speech and audio AI basics safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for speech and audio AI basics, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 127,
+    "mode": "Orientation and setup",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for recommendation systems.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 128,
+    "mode": "Guided practical",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for recommendation systems. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 129,
+    "mode": "Independent build",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the recommendation systems solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 130,
+    "mode": "Troubleshoot",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to recommendation systems. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 131,
+    "mode": "Document and improve",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for recommendation systems, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 132,
+    "mode": "Assessment and reflection",
+    "topic": "Recommendation Systems",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply recommendation systems safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for recommendation systems, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 133,
+    "mode": "Orientation and setup",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for generative AI concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 134,
+    "mode": "Guided practical",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for generative AI concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 135,
+    "mode": "Independent build",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the generative AI concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 136,
+    "mode": "Troubleshoot",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to generative AI concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 137,
+    "mode": "Document and improve",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for generative AI concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 138,
+    "mode": "Assessment and reflection",
+    "topic": "Generative Ai Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply generative AI concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for generative AI concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 139,
+    "mode": "Orientation and setup",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for prompt engineering.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 140,
+    "mode": "Guided practical",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for prompt engineering. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 141,
+    "mode": "Independent build",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the prompt engineering solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 142,
+    "mode": "Troubleshoot",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to prompt engineering. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 143,
+    "mode": "Document and improve",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for prompt engineering, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 144,
+    "mode": "Assessment and reflection",
+    "topic": "Prompt Engineering",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply prompt engineering safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for prompt engineering, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 145,
+    "mode": "Orientation and setup",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for retrieval-augmented generation concepts.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 146,
+    "mode": "Guided practical",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for retrieval-augmented generation concepts. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 147,
+    "mode": "Independent build",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the retrieval-augmented generation concepts solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 148,
+    "mode": "Troubleshoot",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to retrieval-augmented generation concepts. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 149,
+    "mode": "Document and improve",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for retrieval-augmented generation concepts, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 150,
+    "mode": "Assessment and reflection",
+    "topic": "Retrieval-Augmented Generation Concepts",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply retrieval-augmented generation concepts safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for retrieval-augmented generation concepts, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 151,
+    "mode": "Orientation and setup",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for AI agents and tool use.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 152,
+    "mode": "Guided practical",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for AI agents and tool use. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 153,
+    "mode": "Independent build",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the AI agents and tool use solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 154,
+    "mode": "Troubleshoot",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to AI agents and tool use. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 155,
+    "mode": "Document and improve",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for AI agents and tool use, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 156,
+    "mode": "Assessment and reflection",
+    "topic": "Ai Agents And Tool Use",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply AI agents and tool use safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for AI agents and tool use, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 157,
+    "mode": "Orientation and setup",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for bias privacy and safety.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 158,
+    "mode": "Guided practical",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for bias privacy and safety. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 159,
+    "mode": "Independent build",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the bias privacy and safety solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 160,
+    "mode": "Troubleshoot",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to bias privacy and safety. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 161,
+    "mode": "Document and improve",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for bias privacy and safety, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 162,
+    "mode": "Assessment and reflection",
+    "topic": "Bias Privacy And Safety",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply bias privacy and safety safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for bias privacy and safety, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 163,
+    "mode": "Orientation and setup",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for deployment and monitoring.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 164,
+    "mode": "Guided practical",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for deployment and monitoring. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 165,
+    "mode": "Independent build",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the deployment and monitoring solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 166,
+    "mode": "Troubleshoot",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to deployment and monitoring. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 167,
+    "mode": "Document and improve",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for deployment and monitoring, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 168,
+    "mode": "Assessment and reflection",
+    "topic": "Deployment And Monitoring",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply deployment and monitoring safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for deployment and monitoring, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 169,
+    "mode": "Orientation and setup",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for local-business AI prototype.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 170,
+    "mode": "Guided practical",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for local-business AI prototype. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 171,
+    "mode": "Independent build",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the local-business AI prototype solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 172,
+    "mode": "Troubleshoot",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to local-business AI prototype. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 173,
+    "mode": "Document and improve",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for local-business AI prototype, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 174,
+    "mode": "Assessment and reflection",
+    "topic": "Local-Business Ai Prototype",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply local-business AI prototype safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for local-business AI prototype, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 175,
+    "mode": "Orientation and setup",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "A setup screenshot, a short explanation of the key terms, and a safety/ethics check.",
+    "instructions": [
+      "Read the Study Notes on this page, then create or verify the lab needed for capstone demonstration.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 176,
+    "mode": "Guided practical",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "Screenshots/photos of the major steps, configuration or worksheet, and a concise result description.",
+    "instructions": [
+      "Follow the approved step-by-step lab for capstone demonstration. Record every important command, setting or connection.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 177,
+    "mode": "Independent build",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "Working result evidence, design/configuration files, and a list of assumptions.",
+    "instructions": [
+      "Recreate the capstone demonstration solution from a stated scenario without copying the guided answer. Use only approved equipment or an isolated VM lab.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 178,
+    "mode": "Troubleshoot",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "Fault table with symptom, test, cause and fix; before/after screenshots or photos; final verification.",
+    "instructions": [
+      "The supervisor will provide or enable faults related to capstone demonstration. Diagnose systematically, correct them, and preserve before/after evidence.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 179,
+    "mode": "Document and improve",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "One PDF procedure, supporting screenshots/diagrams, and one improvement recommendation.",
+    "instructions": [
+      "Write an operator-friendly procedure for capstone demonstration, including safety, security, rollback and rural/low-cost alternatives.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  },
+  {
+    "day": 180,
+    "mode": "Assessment and reflection",
+    "topic": "Capstone Demonstration",
+    "difficulty": "advanced",
+    "hours": 8,
+    "tools": "Python, Jupyter, VS Code, local/open models where practical",
+    "objective": "Apply capstone demonstration safely and explain the result in a professional technical report.",
+    "submission": "Final artifact, demonstration evidence, 150-300 word reflection, and self-score against the rubric.",
+    "instructions": [
+      "Complete the practical assessment for capstone demonstration, demonstrate the result, and explain decisions in your own words.",
+      "Work only in an authorized lab, VM or on equipment assigned by Beyond.",
+      "Keep time entries truthful and ask the supervisor before changing production equipment."
+    ],
+    "pass_mark": 60
+  }
+]

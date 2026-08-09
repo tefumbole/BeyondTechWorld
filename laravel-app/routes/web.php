@@ -457,6 +457,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
     Route::post('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programUpdate')->name('internship.programs.update');
     Route::post('/admin/internship/programs/{id}/tasks/{taskId}', 'Internship\InternshipAdminController@taskUpdate')->name('internship.programs.tasks.update');
+    Route::get('/admin/internship/programs/{id}/tasks/{taskId}/handbook', 'Internship\InternshipAdminController@downloadTaskHandbook')->name('internship.programs.tasks.handbook');
     Route::get('/admin/internship/import', 'Internship\InternshipAdminController@importForm')->name('internship.import');
     Route::post('/admin/internship/import', 'Internship\InternshipAdminController@importRun')->name('internship.import.run');
     Route::get('/admin/internship/enrolments', 'Internship\InternshipAdminController@enrolments')->name('internship.enrolments');
@@ -470,6 +471,7 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::get('/admin/internship/student', 'Internship\InternshipStudentController@dashboard')->name('internship.student.dashboard');
     Route::get('/admin/internship/student/portfolio', 'Internship\InternshipStudentController@portfolio')->name('internship.student.portfolio');
     Route::get('/admin/internship/student/task/{id}', 'Internship\InternshipStudentController@task')->name('internship.student.task');
+    Route::get('/admin/internship/student/task/{id}/handbook', 'Internship\InternshipStudentController@downloadHandbook')->name('internship.student.handbook');
     Route::post('/admin/internship/student/task/{id}/start', 'Internship\InternshipStudentController@start')->name('internship.student.start');
     Route::post('/admin/internship/student/task/{id}/submit', 'Internship\InternshipStudentController@submit')->name('internship.student.submit');
     Route::get('/admin/internship/student/files/{fileId}', 'Internship\InternshipStudentController@downloadFile')->name('internship.student.file');
