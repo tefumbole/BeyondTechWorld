@@ -649,6 +649,8 @@ class QuotationController extends Controller
             $pdfPath = $this->buildQuotationPdf($quotation->id);
             $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $quotation->reference_no).'.pdf';
             $this->wpPDFMessage($pdfPath, $customer, $pdfName);
+            // Staff who created the quotation gets a copy (not a broadcast to all admins).
+            $this->sendQuotationPdfCopyToCreator($quotation, $pdfPath, $pdfName, $customer);
         } catch (\Throwable $e) {
             \Log::warning('Quotation PDF WhatsApp attach failed for '.$quotation->reference_no.': '.$e->getMessage());
             return 'Quotation signed, but the PDF could not be sent: '.$e->getMessage();
@@ -657,6 +659,32 @@ class QuotationController extends Controller
         return $context === 'no_signature'
             ? 'Quotation saved (no signature required) and PDF sent to the client via WhatsApp.'
             : 'Signed quotation PDF sent to the client via WhatsApp.';
+    }
+
+    /**
+     * WhatsApp a quotation PDF copy to the staff user who created it.
+     */
+    protected function sendQuotationPdfCopyToCreator(Quotation $quotation, $pdfPath, $pdfName, $customer = null)
+    {
+        $creator = User::find($quotation->user_id);
+        if (! $creator || empty(trim((string) $creator->phone))) {
+            return;
+        }
+        $creatorDigits = preg_replace('/\D/', '', (string) $creator->phone);
+        $customerDigits = $customer ? preg_replace('/\D/', '', (string) $customer->phone_number) : '';
+        if ($creatorDigits === '' || ($customerDigits !== '' && $creatorDigits === $customerDigits)) {
+            return;
+        }
+        try {
+            $this->wpMessage(
+                $creator->phone,
+                'Copy of quotation '.$quotation->reference_no.' for '
+                .($customer ? $customer->name : 'client').'.'
+            );
+            $this->sendWhatsAppDocumentToPhone($creator->phone, $pdfPath, $pdfName);
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation PDF creator copy failed for '.$quotation->reference_no.': '.$e->getMessage());
+        }
     }
 
     /**

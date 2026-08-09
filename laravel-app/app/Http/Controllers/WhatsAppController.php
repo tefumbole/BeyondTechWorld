@@ -32,7 +32,7 @@ class WhatsAppController extends Controller
             abort(404);
         }
 
-        $to = "+923410060960";
+        $to = Auth::user()->phone ?: '+237675321739';
         $message = "test message";
         $response = $this->whatsappService->sendMessage($to, $message);
 

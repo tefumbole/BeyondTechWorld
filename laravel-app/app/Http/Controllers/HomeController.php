@@ -195,7 +195,7 @@ class HomeController extends Controller
         $twilio = new Client($sid, $token);
 
         $message = $twilio->messages->create(
-            'whatsapp:+923410060960', // +23775321739
+            'whatsapp:+237675321739',
             array(
                 'from' => getenv("TWILIO_FROM"),
                 'body' => 'hi twilio here'

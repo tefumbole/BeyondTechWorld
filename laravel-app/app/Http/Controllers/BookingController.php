@@ -1589,9 +1589,43 @@ class BookingController extends Controller
         try {
             $pdfPath = $this->buildBookingPdfFile($bookingId);
             $relative = 'booking_receipts/booking_invoice_' . $lims_sale_data->reference_no . '.pdf';
-            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_receipt.pdf', url('public/' . ltrim($relative, '/')));
+            $docUrl = url('public/' . ltrim($relative, '/'));
+            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_receipt.pdf', $docUrl);
+            $this->sendBookingPdfCopyToCreator($lims_sale_data, $pdfPath, 'booking_receipt.pdf', $docUrl);
         } catch (\Exception $e) {
             // WhatsApp receipt optional if settings missing.
+        }
+    }
+
+    /**
+     * WhatsApp a booking/quotation PDF copy to the staff user who created the booking.
+     * Admins are not mass-notified — only the creating user.
+     */
+    public function sendBookingPdfCopyToCreator(Booking $booking, $pdfPath, $fileName = 'booking_invoice.pdf', $docUrl = null)
+    {
+        if (! $pdfPath || ! file_exists($pdfPath)) {
+            return;
+        }
+        $creator = User::find($booking->user_id);
+        if (! $creator || empty(trim((string) $creator->phone))) {
+            return;
+        }
+        $creatorDigits = preg_replace('/\D/', '', (string) $creator->phone);
+        $customerDigits = $booking->customer
+            ? preg_replace('/\D/', '', (string) $booking->customer->phone_number)
+            : '';
+        if ($creatorDigits === '' || ($customerDigits !== '' && $creatorDigits === $customerDigits)) {
+            return;
+        }
+        try {
+            $this->sendWhatsAppToPhone(
+                $creator->phone,
+                'Copy of booking '.$booking->reference_no
+                .(optional($booking->customer)->name ? ' for '.$booking->customer->name : '').'.'
+            );
+            $this->sendWhatsAppDocumentToPhone($creator->phone, $pdfPath, $fileName, $docUrl);
+        } catch (\Throwable $e) {
+            \Log::warning('Booking PDF creator copy failed for '.$booking->reference_no.': '.$e->getMessage());
         }
     }
 
@@ -1826,6 +1860,11 @@ class BookingController extends Controller
                     \Log::warning('Approved invoice PDF to client failed for ' . $lims_sale_data->reference_no . ': ' . $e->getMessage());
                 }
             }
+        }
+
+        // Staff who created the booking gets a copy (not all admins).
+        if ($pdfPath) {
+            $this->sendBookingPdfCopyToCreator($lims_sale_data, $pdfPath, 'booking_invoice.pdf', $docUrl);
         }
 
         // CC contacts (quotation text + invoice PDF).

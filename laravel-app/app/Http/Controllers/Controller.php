@@ -975,20 +975,26 @@ class Controller extends BaseController
     }
 
     public function sendWhatsappMsgForPlacingOrderToAdminBooking($order){
+        // Notify the staff user who owns/created the booking — not a global admin number.
+        $creator = ! empty($order->user_id) ? User::find($order->user_id) : null;
+        if (! $creator || empty(trim((string) $creator->phone))) {
+            return true;
+        }
 
         $general_setting = GeneralSetting::first();
         $customer = Customer::where('id', $order->customer_id)->first();
+        $customerName = $customer ? $customer->name : 'Client';
 
-        $msg = '*Subject:* Order Confirmation for '. $customer->name . '\n\n';
-        $msg .= 'Dear Admin \n\n';
-        $msg .= 'You have received a booking order.\n\n\n';
+        $msg = '*Subject:* Booking copy for '. $customerName . '\n\n';
+        $msg .= 'Dear '. $creator->name . '\n\n';
+        $msg .= 'Here is a copy of the booking you recorded.\n\n\n';
 
         $msg .= '*Order Details:*\n';
         $msg .= 'Order Number: '.$order->id.'\n';
         $msg .=  'Order Date: '.$order->created_at.'\n\n';
 
         if ($order->payment_method == 'COD') {
-            $msg .= '*Note:* Your payment status is cash on delivery. Admin will approve order.\n\n';
+            $msg .= '*Note:* Payment status is cash on delivery.\n\n';
         }
 
         $msg .= '*Product Detail:*\n';
@@ -1004,16 +1010,13 @@ class Controller extends BaseController
         $msg .= 'Payment Method: ' . $order->payment_method . '\n';
         $msg .= 'Delivery Information: ' . $order->address . '\n';
 
-        $msg .= 'Once again, we appreciate your business and trust in '. $general_setting->site_title .'. We strive to provide exceptional products and services, and we are confident that you will be satisfied with our products.\n';
-        $msg .= 'Thank you for choosing ' . $general_setting->site_title . '.\n\n';
-
         $msg .= 'Best regards,\n';
         $msg .= @$general_setting->develoled_by. '\n';
         $msg .= $general_setting->site_title. '\n\n';
         $msg .= request()->getHost();
 
         try{
-            $this->wpMessage(getenv('ADMIN_NUMBER'), $msg);
+            $this->wpMessage($creator->phone, $msg);
         }
         catch(\Exception $e){
 

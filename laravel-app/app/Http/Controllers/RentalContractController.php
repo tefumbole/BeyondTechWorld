@@ -617,38 +617,17 @@ class RentalContractController extends Controller
             }
         }
 
+        // In-app notice for admins only — do NOT WhatsApp PDFs to admins.
+        // The document copy goes to the client and the staff user who created the booking.
         foreach (User::where('is_active', true)->whereIn('role_id', [1, 2])->get() as $admin) {
+            if ($creator && $admin->id === $creator->id) {
+                continue;
+            }
             $admin->notify(new ContractWorkflowNotification(
                 'Contract pending review: ' . $booking->reference_no,
                 $reviewUrl,
                 'pending_review'
             ));
-
-            if ($creator && $admin->id === $creator->id) {
-                continue;
-            }
-
-            if (!empty($admin->phone)) {
-                try {
-                    $this->sendWhatsAppToPhone(
-                        $admin->phone,
-                        WhatsAppMessage::pendingReviewNotice(
-                            $admin->name,
-                            $customerName,
-                            $booking->reference_no,
-                            $reviewUrl
-                        )
-                    );
-                    $this->sendWhatsAppDocumentToPhone(
-                        $admin->phone,
-                        $signedPdfPath,
-                        'signed_rental_agreement.pdf',
-                        $signedPdfUrl
-                    );
-                } catch (\Exception $e) {
-                    Log::warning('Pending review admin WhatsApp failed for booking ' . $booking->reference_no . ': ' . $e->getMessage());
-                }
-            }
         }
     }
 

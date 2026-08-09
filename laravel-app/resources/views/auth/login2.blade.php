@@ -99,7 +99,7 @@
         </div>
         <div class="col-md-12">
           <div class="form-putter">
-            <H1>Personal information <br> ============= <br>Whatsapp Number : 923410060960 <br> gmail : rehanfaby36@gmail.com</H1>
+            <H1>Sign in to continue</H1>
           </div>
         </div>
       </div>
