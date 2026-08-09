@@ -40,44 +40,44 @@
         [x-cloak] { display:none !important; }
 
         @keyframes navLogoSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes navLogoHue {
-            0%   { filter: hue-rotate(0deg) saturate(1.05) drop-shadow(0 0 6px rgba(212,175,55,.55)); }
-            25%  { filter: hue-rotate(70deg) saturate(1.25) drop-shadow(0 0 10px rgba(0,102,204,.55)); }
-            50%  { filter: hue-rotate(160deg) saturate(1.35) drop-shadow(0 0 12px rgba(168,85,247,.55)); }
-            75%  { filter: hue-rotate(260deg) saturate(1.2) drop-shadow(0 0 10px rgba(212,175,55,.6)); }
-            100% { filter: hue-rotate(360deg) saturate(1.05) drop-shadow(0 0 6px rgba(212,175,55,.55)); }
-        }
-        @keyframes navLogoRing {
-            0%, 100% { box-shadow: 0 0 0 2px rgba(212,175,55,.55), 0 0 18px rgba(212,175,55,.35); }
-            33% { box-shadow: 0 0 0 2px rgba(0,102,204,.65), 0 0 22px rgba(0,102,204,.4); }
-            66% { box-shadow: 0 0 0 2px rgba(168,85,247,.65), 0 0 22px rgba(168,85,247,.4); }
+        /* Gold ↔ Silver metallic shift (no white plate / circle) */
+        @keyframes navLogoMetal {
+            0%, 100% {
+                filter: sepia(1) saturate(4.2) hue-rotate(2deg) brightness(1.12) contrast(1.05)
+                    drop-shadow(0 0 8px rgba(212,175,55,.7));
+            }
+            50% {
+                filter: grayscale(1) brightness(1.45) contrast(1.15) saturate(0.2)
+                    drop-shadow(0 0 8px rgba(220,220,230,.65));
+            }
         }
         .nav-logo-link {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            border-radius: 9999px;
-            padding: .2rem;
-            background: rgba(255,255,255,.08);
-            animation: navLogoRing 4s ease-in-out infinite;
+            margin-right: .75rem;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            box-shadow: none;
         }
         .nav-logo-spin {
-            width: 3.35rem;
-            height: 3.35rem;
-            border-radius: 9999px;
+            width: 3.5rem;
+            height: 3.5rem;
             object-fit: contain;
-            background: #fff;
-            animation: navLogoSpin 7s linear infinite, navLogoHue 8s linear infinite;
+            background: transparent;
+            border-radius: 0;
+            animation: navLogoSpin 7s linear infinite, navLogoMetal 5s ease-in-out infinite;
         }
         @media (min-width: 768px) {
-            .nav-logo-spin { width: 3.85rem; height: 3.85rem; }
+            .nav-logo-spin { width: 4rem; height: 4rem; }
         }
         @media (min-width: 1024px) {
-            .nav-logo-spin { width: 4.25rem; height: 4.25rem; }
+            .nav-logo-spin { width: 4.5rem; height: 4.5rem; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .nav-logo-spin, .nav-logo-link { animation: none; }
+            .nav-logo-spin { animation: none; }
         }
     </style>
     @stack('head')
@@ -111,120 +111,118 @@
 @endphp
 
 <header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="userMenu = false">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20">
-            <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
-                <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
-            </a>
+    <div class="w-full flex items-center justify-between h-20 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
+        <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
+            <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
+        </a>
 
-            <nav class="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center">
-                @foreach ($navLinks as $link)
-                    @php $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/'); @endphp
-                    <a href="{{ $link['url'] }}"
-                       class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap
-                          @if($active) text-brand-gold border-b-2 border-brand-gold pb-1
-                          @elseif(!empty($link['special'])) text-brand-gold hover:text-white font-bold
-                          @else text-white hover:text-brand-gold @endif">
-                        {{ $link['label'] }}
-                    </a>
-                @endforeach
-            </nav>
-
-            <div class="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
-                <div class="flex items-center gap-1 text-xs font-semibold">
-                    <span class="bg-brand-gold text-brand-blue px-2 py-1 rounded">EN</span>
-                    <a href="#" class="text-white hover:text-brand-gold px-2 py-1 border border-white/20 rounded">FR</a>
-                </div>
-
-                <a href="tel:+237675321739" class="text-white hover:text-brand-gold transition-colors" title="Call Us">
-                    <i data-lucide="phone" class="w-5 h-5"></i>
+        <nav class="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center min-w-0">
+            @foreach ($navLinks as $link)
+                @php $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/'); @endphp
+                <a href="{{ $link['url'] }}"
+                   class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap
+                      @if($active) text-brand-gold border-b-2 border-brand-gold pb-1
+                      @elseif(!empty($link['special'])) text-brand-gold hover:text-white font-bold
+                      @else text-white hover:text-brand-gold @endif">
+                    {{ $link['label'] }}
                 </a>
-                <a href="https://mail.hostinger.com" target="_blank" rel="noopener" class="text-white hover:text-brand-gold transition-colors" title="Webmail">
-                    <i data-lucide="mail" class="w-5 h-5"></i>
-                </a>
+            @endforeach
+        </nav>
 
-                @if ($headerUser)
-                    <div class="relative" @click.outside="userMenu = false">
-                        <button type="button" @click="userMenu = !userMenu"
-                                class="flex items-center gap-2.5 pl-1 pr-1 py-1 rounded-md hover:bg-white/10 transition-colors text-left">
-                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-brand-gold bg-gradient-to-br from-brand-gold to-brand-dark text-brand-blue font-bold text-lg">
-                                {{ $headerInitial }}
-                            </span>
-                            <span class="hidden xl:flex flex-col leading-tight min-w-0">
-                                <span class="text-white font-semibold text-sm truncate max-w-[140px]">{{ $shortName }}</span>
-                                <span class="text-brand-gold text-[11px] font-bold tracking-wide uppercase">{{ $headerRole }}</span>
-                            </span>
-                            <i data-lucide="chevron-down" class="w-4 h-4 text-sky-200/90 shrink-0"></i>
-                        </button>
-                        <div x-show="userMenu" x-cloak x-transition
-                             class="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-xl border border-gray-100 py-1 z-50">
-                            <div class="px-4 py-2.5 text-sm font-bold text-gray-800">My Account</div>
-                            <div class="border-t border-gray-100"></div>
-                            @if ($isAdminSession)
-                                <a href="{{ url('/admin') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
-                                    <i data-lucide="layout-grid" class="w-4 h-4 text-gray-700"></i> Admin Dashboard
-                                </a>
-                                <a href="{{ url('/') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
-                                    <i data-lucide="home" class="w-4 h-4 text-gray-700"></i> Home Page
-                                </a>
-                            @else
-                                <a href="{{ url('/user/profile') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
-                                    <i data-lucide="user" class="w-4 h-4 text-gray-700"></i> My Profile
-                                </a>
-                            @endif
-                            <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
-                                @csrf
-                                <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
-                                    <i data-lucide="log-out" class="w-4 h-4"></i> Logout
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                @else
-                    <a href="{{ url('/login') }}" class="bg-brand-dark border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-blue font-medium transition-all rounded-md px-4 py-2 flex items-center gap-2">
-                        <i data-lucide="log-in" class="w-4 h-4"></i> Login
-                    </a>
-                @endif
+        <div class="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0">
+            <div class="flex items-center gap-1 text-xs font-semibold">
+                <span class="bg-brand-gold text-brand-blue px-2 py-1 rounded">EN</span>
+                <a href="#" class="text-white hover:text-brand-gold px-2 py-1 border border-white/20 rounded">FR</a>
             </div>
 
-            <button @click="open = !open" class="lg:hidden text-white hover:text-brand-gold transition-colors">
-                <i data-lucide="menu" class="w-6 h-6" x-show="!open"></i>
-                <i data-lucide="x" class="w-6 h-6" x-show="open" x-cloak></i>
-            </button>
-        </div>
+            <a href="tel:+237675321739" class="text-white hover:text-brand-gold transition-colors" title="Call Us">
+                <i data-lucide="phone" class="w-5 h-5"></i>
+            </a>
+            <a href="https://mail.hostinger.com" target="_blank" rel="noopener" class="text-white hover:text-brand-gold transition-colors" title="Webmail">
+                <i data-lucide="mail" class="w-5 h-5"></i>
+            </a>
 
-        <div x-show="open" x-cloak class="lg:hidden pb-4 bg-brand-blue border-t border-white/10">
-            <nav class="flex flex-col space-y-3 pt-4">
-                @foreach ($navLinks as $link)
-                    <a href="{{ $link['url'] }}" class="text-lg font-medium {{ !empty($link['special']) ? 'text-brand-gold' : 'text-white hover:text-brand-gold' }}">{{ $link['label'] }}</a>
-                @endforeach
-                <div class="pt-3 border-t border-white/10 space-y-2">
-                    @if ($headerUser)
-                        <div class="flex items-center gap-3 px-1 py-2">
-                            <span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-brand-gold bg-brand-gold text-brand-blue font-bold">{{ $headerInitial }}</span>
-                            <div>
-                                <div class="text-white font-semibold text-sm">{{ $headerName }}</div>
-                                <div class="text-brand-gold text-xs font-bold uppercase">{{ $headerRole }}</div>
-                            </div>
-                        </div>
+            @if ($headerUser)
+                <div class="relative" @click.outside="userMenu = false">
+                    <button type="button" @click="userMenu = !userMenu"
+                            class="flex items-center gap-2.5 pl-1 pr-1 py-1 rounded-md hover:bg-white/10 transition-colors text-left">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-brand-gold bg-gradient-to-br from-brand-gold to-brand-dark text-brand-blue font-bold text-lg">
+                            {{ $headerInitial }}
+                        </span>
+                        <span class="hidden xl:flex flex-col leading-tight min-w-0">
+                            <span class="text-white font-semibold text-sm truncate max-w-[140px]">{{ $shortName }}</span>
+                            <span class="text-brand-gold text-[11px] font-bold tracking-wide uppercase">{{ $headerRole }}</span>
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-sky-200/90 shrink-0"></i>
+                    </button>
+                    <div x-show="userMenu" x-cloak x-transition
+                         class="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-xl border border-gray-100 py-1 z-50">
+                        <div class="px-4 py-2.5 text-sm font-bold text-gray-800">My Account</div>
+                        <div class="border-t border-gray-100"></div>
                         @if ($isAdminSession)
-                            <a href="{{ url('/admin') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">Admin Dashboard</a>
-                            <a href="{{ url('/') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white">Home Page</a>
+                            <a href="{{ url('/admin') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                <i data-lucide="layout-grid" class="w-4 h-4 text-gray-700"></i> Admin Dashboard
+                            </a>
+                            <a href="{{ url('/') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                <i data-lucide="home" class="w-4 h-4 text-gray-700"></i> Home Page
+                            </a>
                         @else
-                            <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
+                            <a href="{{ url('/user/profile') }}" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50">
+                                <i data-lucide="user" class="w-4 h-4 text-gray-700"></i> My Profile
+                            </a>
                         @endif
                         <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
                             @csrf
-                            <button type="submit" class="w-full py-2 rounded border border-red-400/50 text-red-300">Logout</button>
+                            <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                                <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+                            </button>
                         </form>
-                    @else
-                        <a href="{{ url('/login') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-brand-gold text-brand-gold font-medium">
-                            <i data-lucide="log-in" class="w-5 h-5"></i> Login
-                        </a>
-                    @endif
+                    </div>
                 </div>
-            </nav>
+            @else
+                <a href="{{ url('/login') }}" class="bg-brand-dark border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-blue font-medium transition-all rounded-md px-4 py-2 flex items-center gap-2">
+                    <i data-lucide="log-in" class="w-4 h-4"></i> Login
+                </a>
+            @endif
         </div>
+
+        <button @click="open = !open" class="lg:hidden text-white hover:text-brand-gold transition-colors">
+            <i data-lucide="menu" class="w-6 h-6" x-show="!open"></i>
+            <i data-lucide="x" class="w-6 h-6" x-show="open" x-cloak></i>
+        </button>
+    </div>
+
+    <div x-show="open" x-cloak class="lg:hidden pb-4 px-4 bg-brand-blue border-t border-white/10">
+        <nav class="flex flex-col space-y-3 pt-4">
+            @foreach ($navLinks as $link)
+                <a href="{{ $link['url'] }}" class="text-lg font-medium {{ !empty($link['special']) ? 'text-brand-gold' : 'text-white hover:text-brand-gold' }}">{{ $link['label'] }}</a>
+            @endforeach
+            <div class="pt-3 border-t border-white/10 space-y-2">
+                @if ($headerUser)
+                    <div class="flex items-center gap-3 px-1 py-2">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-brand-gold bg-brand-gold text-brand-blue font-bold">{{ $headerInitial }}</span>
+                        <div>
+                            <div class="text-white font-semibold text-sm">{{ $headerName }}</div>
+                            <div class="text-brand-gold text-xs font-bold uppercase">{{ $headerRole }}</div>
+                        </div>
+                    </div>
+                    @if ($isAdminSession)
+                        <a href="{{ url('/admin') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">Admin Dashboard</a>
+                        <a href="{{ url('/') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white">Home Page</a>
+                    @else
+                        <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
+                    @endif
+                    <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
+                        @csrf
+                        <button type="submit" class="w-full py-2 rounded border border-red-400/50 text-red-300">Logout</button>
+                    </form>
+                @else
+                    <a href="{{ url('/login') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-brand-gold text-brand-gold font-medium">
+                        <i data-lucide="log-in" class="w-5 h-5"></i> Login
+                    </a>
+                @endif
+            </div>
+        </nav>
     </div>
 </header>
 
