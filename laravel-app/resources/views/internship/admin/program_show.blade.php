@@ -96,6 +96,10 @@
                                     <textarea class="form-control" name="objective" rows="2">{{ $t->objective }}</textarea>
                                 </div>
                                 <div class="form-group">
+                                    <label>Study notes (shown to students with this day)</label>
+                                    <textarea class="form-control" name="study_note" rows="12" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;">{{ $t->study_note }}</textarea>
+                                </div>
+                                <div class="form-group">
                                     <label>Instructions (one step per line)</label>
                                     <textarea class="form-control" name="instructions_text" rows="6">{{ implode("\n", $steps) }}</textarea>
                                 </div>
@@ -136,6 +140,10 @@
                         @else
                             @if($t->objective)
                                 <p><strong>Objective:</strong> {{ $t->objective }}</p>
+                            @endif
+                            @if($t->study_note)
+                                <p class="mb-1"><strong>Study notes</strong></p>
+                                <div class="ip-study-note mb-3">{{ $t->study_note }}</div>
                             @endif
                             @if(!empty($steps))
                                 <p class="mb-1"><strong>Instructions</strong></p>

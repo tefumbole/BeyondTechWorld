@@ -98,6 +98,7 @@ class InternshipProgramService
                         [
                             'title' => $task['title'] ?? "Task {$day}",
                             'objective' => $task['objective'] ?? null,
+                            'study_note' => $task['study_note'] ?? null,
                             'instructions_json' => json_encode($task['instructions'] ?? []),
                             'resources_json' => json_encode($task['resources'] ?? []),
                             'estimated_hours' => (float) ($task['estimated_hours'] ?? 8),

@@ -18,6 +18,10 @@
             <h5 style="font-weight:700;color:#0b3f90;">Objective</h5>
             <p>{{ $task->objective }}</p>
             <p class="ip-meta">Tools: {{ $task->tools ?: '—' }} · Est. {{ $task->estimated_hours }}h · Pass mark {{ $task->pass_mark }}/100</p>
+            @if($task->study_note)
+                <h5 style="font-weight:700;color:#0b3f90;">Study Notes</h5>
+                <div class="ip-study-note">{{ $task->study_note }}</div>
+            @endif
             <h5 style="font-weight:700;color:#0b3f90;">Instructions</h5>
             <ol class="ip-ol">
                 @foreach($task->instructions() as $line)

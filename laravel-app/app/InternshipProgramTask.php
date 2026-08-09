@@ -9,7 +9,7 @@ class InternshipProgramTask extends Model
     protected $table = 'internship_program_tasks';
 
     protected $fillable = [
-        'program_id', 'day_number', 'title', 'objective', 'instructions_json', 'resources_json',
+        'program_id', 'day_number', 'title', 'objective', 'study_note', 'instructions_json', 'resources_json',
         'estimated_hours', 'tools', 'difficulty', 'submission_requirements', 'rubric_json',
         'pass_mark', 'requires_supervisor_approval', 'is_active',
     ];

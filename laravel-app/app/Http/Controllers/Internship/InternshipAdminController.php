@@ -129,6 +129,7 @@ class InternshipAdminController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:500',
             'objective' => 'nullable|string|max:5000',
+            'study_note' => 'nullable|string|max:100000',
             'instructions_text' => 'nullable|string|max:20000',
             'estimated_hours' => 'nullable|numeric|min:0.5|max:24',
             'tools' => 'nullable|string|max:500',
@@ -147,6 +148,7 @@ class InternshipAdminController extends Controller
         $task->fill([
             'title' => $data['title'],
             'objective' => $data['objective'] ?? null,
+            'study_note' => $data['study_note'] ?? null,
             'instructions_json' => json_encode($instructions),
             'estimated_hours' => $data['estimated_hours'] ?? $task->estimated_hours,
             'tools' => $data['tools'] ?? null,

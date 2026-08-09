@@ -53,4 +53,17 @@
     }
     .ip-day-title { flex: 1 1 220px; font-size: .95rem; }
     .ip-day-body { padding: 1rem 1.1rem 1.15rem; background: #fafbfc; }
+    .ip-study-note {
+        white-space: pre-wrap;
+        line-height: 1.55;
+        font-size: 14px;
+        color: #1e293b;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: .9rem 1rem;
+        margin: 0 0 1rem;
+        max-height: 32rem;
+        overflow: auto;
+    }
 </style>
