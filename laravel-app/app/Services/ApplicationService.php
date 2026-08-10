@@ -599,6 +599,48 @@ class ApplicationService
     }
 
     /**
+     * Enrolment exists with at least one supervisor (primary or JSON refs).
+     * Used to decide if a selected intern still needs assignment.
+     */
+    public function applyHasSupervisedPlacement($query)
+    {
+        return $query->whereExists(function ($w) {
+            $w->select(DB::raw(1))
+                ->from('internship_enrolments as ie')
+                ->whereColumn('ie.application_id', 'applications.id')
+                ->whereIn('ie.status', ['active', 'paused', 'completed'])
+                ->where(function ($s) {
+                    $s->whereNotNull('ie.supervisor_id')
+                        ->orWhere(function ($j) {
+                            $j->whereNotNull('ie.supervisors_json')
+                                ->where('ie.supervisors_json', '!=', '')
+                                ->where('ie.supervisors_json', '!=', '[]')
+                                ->where('ie.supervisors_json', '!=', 'null');
+                        });
+                });
+        });
+    }
+
+    public function applyNeedsAssignment($query)
+    {
+        return $query->whereNotExists(function ($w) {
+            $w->select(DB::raw(1))
+                ->from('internship_enrolments as ie')
+                ->whereColumn('ie.application_id', 'applications.id')
+                ->whereIn('ie.status', ['active', 'paused', 'completed'])
+                ->where(function ($s) {
+                    $s->whereNotNull('ie.supervisor_id')
+                        ->orWhere(function ($j) {
+                            $j->whereNotNull('ie.supervisors_json')
+                                ->where('ie.supervisors_json', '!=', '')
+                                ->where('ie.supervisors_json', '!=', '[]')
+                                ->where('ie.supervisors_json', '!=', 'null');
+                        });
+                });
+        });
+    }
+
+    /**
      * Counts for Internships → Interns status tabs.
      *
      * @return array<string,int>
@@ -619,24 +661,15 @@ class ApplicationService
 
         $all = (clone $base)->count();
         $hired = (clone $base)->where('applications.status', Application::STATUS_HIRED)->count();
-        $placed = (clone $base)->whereExists(function ($w) {
-            $w->select(DB::raw(1))
-                ->from('internship_enrolments as ie')
-                ->whereColumn('ie.application_id', 'applications.id')
-                ->whereIn('ie.status', ['active', 'paused', 'completed']);
-        })->count();
+        $placed = $this->applyHasSupervisedPlacement(clone $base)->count();
         $selected = (clone $base)
             ->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
             ->count();
-        // Ready = selected/shortlisted and not yet assigned to a program.
-        $ready = (clone $base)
-            ->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
-            ->whereNotExists(function ($w) {
-                $w->select(DB::raw(1))
-                    ->from('internship_enrolments as ie')
-                    ->whereColumn('ie.application_id', 'applications.id')
-                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
-            })->count();
+        // Ready = selected/shortlisted still missing supervisor assignment
+        // (auto-enrol on select alone does not count as assigned).
+        $ready = $this->applyNeedsAssignment(
+            (clone $base)->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
+        )->count();
 
         return [
             'ready' => $ready,

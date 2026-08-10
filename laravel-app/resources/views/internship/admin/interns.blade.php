@@ -5,7 +5,7 @@
     <div class="container-fluid ip-shell" style="max-width:1200px;">
         <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
         <h1 class="ip-title">Interns</h1>
-        <p class="ip-meta mb-3">Accepted or hired internship applicants. Assign a program, supervisors, and start dates from here. Each placed intern must configure their own Working Week before daily tasks release.</p>
+        <p class="ip-meta mb-3">Accepted or hired internship applicants. <strong>Ready to assign</strong> lists selected interns who still need a supervisor (program alone is not enough). Each placed intern must configure their own Working Week before daily tasks release.</p>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif

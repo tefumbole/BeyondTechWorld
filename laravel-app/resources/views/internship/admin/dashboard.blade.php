@@ -32,7 +32,7 @@
                     <div class="ip-hub-icon"><i class="fa fa-users"></i></div>
                     <h3>Interns</h3>
                     <p>Accepted or hired applicants — assign programs and supervisors.</p>
-                    <strong class="ip-hub-stat">{{ $stats['interns_ready'] }} ready to assign</strong>
+                    <strong class="ip-hub-stat">{{ (int) ($stats['interns_ready'] ?? 0) }} ready to assign</strong>
                 </a>
             </div>
         </div>

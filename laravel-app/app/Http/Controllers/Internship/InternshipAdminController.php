@@ -74,14 +74,7 @@ class InternshipAdminController extends Controller
             'in_progress_tasks' => DB::table('internship_task_assignments')->where('status', 'in_progress')->count(),
             'available_tasks' => DB::table('internship_task_assignments')->where('status', 'available')->count(),
             'supervisors' => $this->supervisorDirectoryQuery()->count(),
-            'interns_ready' => $this->acceptedInternsQuery()
-                ->whereNotExists(function ($w) {
-                    $w->select(DB::raw(1))
-                        ->from('internship_enrolments as ie')
-                        ->whereColumn('ie.application_id', 'applications.id')
-                        ->whereIn('ie.status', ['active', 'paused', 'completed']);
-                })
-                ->count(),
+            'interns_ready' => (int) (app(\App\Services\ApplicationService::class)->internshipInternTabCounts()['ready'] ?? 0),
         ];
 
         $byProgram = InternshipEnrolment::query()
@@ -140,21 +133,13 @@ class InternshipAdminController extends Controller
         } elseif ($status === 'selected') {
             $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted']);
         } elseif ($status === 'placed') {
-            $q->whereExists(function ($w) {
-                $w->select(DB::raw(1))
-                    ->from('internship_enrolments as ie')
-                    ->whereColumn('ie.application_id', 'applications.id')
-                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
-            });
+            // Fully assigned: enrolment with at least one supervisor.
+            app(\App\Services\ApplicationService::class)->applyHasSupervisedPlacement($q);
         } elseif ($status === 'ready') {
-            // Selected / shortlisted and not yet assigned to a program.
-            $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
-                ->whereNotExists(function ($w) {
-                    $w->select(DB::raw(1))
-                        ->from('internship_enrolments as ie')
-                        ->whereColumn('ie.application_id', 'applications.id')
-                        ->whereIn('ie.status', ['active', 'paused', 'completed']);
-                });
+            // Selected / shortlisted still needing supervisor assignment
+            // (program-only auto-enrol does not count as assigned).
+            $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted']);
+            app(\App\Services\ApplicationService::class)->applyNeedsAssignment($q);
         }
 
         if ($request->filled('q')) {
