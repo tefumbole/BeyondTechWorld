@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Application;
+use App\InternshipEnrolment;
 use App\JobPosting;
 use App\Support\WhatsAppPhone;
 use Illuminate\Http\UploadedFile;
@@ -42,6 +43,11 @@ class ApplicationService
 
         // Single WhatsApp number is used for contact + notifications.
         $whatsapp = $this->combinePhone($data['country_code'] ?? '', $data['whatsapp_number'] ?? ($data['phone'] ?? ''));
+
+        // Internships: one open application per posting; re-apply only after reject or completed internship.
+        if ($job->isInternship()) {
+            $this->assertNoOpenInternshipDuplicate($job, $data['email'] ?? '', $whatsapp, $userId);
+        }
 
         $payload = [
             'id' => (string) Str::uuid(),
@@ -377,6 +383,127 @@ class ApplicationService
         }
 
         return $combined;
+    }
+
+    /**
+     * Statuses that mean the applicant still has an open application for a posting.
+     */
+    public static function openApplicationStatuses()
+    {
+        return [
+            Application::STATUS_AWAITING,
+            'new',
+            'reviewed',
+            'interview',
+            'pending',
+            Application::STATUS_SELECTED,
+            'shortlisted',
+            Application::STATUS_HIRED,
+        ];
+    }
+
+    /**
+     * Find an open application for this internship posting by email / WhatsApp / portal user.
+     * Hired applications only block while the linked enrolment is not completed.
+     *
+     * @return Application|null
+     */
+    public function findBlockingInternshipApplication(JobPosting $job, $email = null, $whatsapp = null, $userId = null)
+    {
+        if (! $job || ! $job->isInternship()) {
+            return null;
+        }
+
+        $email = strtolower(trim((string) $email));
+        $whatsapp = preg_replace('/\D+/', '', (string) $whatsapp);
+        $userId = $userId ? (string) $userId : '';
+
+        if ($email === '' && $whatsapp === '' && $userId === '') {
+            return null;
+        }
+
+        $candidates = Application::query()
+            ->where('job_id', $job->id)
+            ->whereIn('status', self::openApplicationStatuses())
+            ->where(function ($q) use ($email, $whatsapp, $userId) {
+                if ($email !== '') {
+                    $q->orWhereRaw('LOWER(email) = ?', [$email]);
+                }
+                if ($userId !== '') {
+                    $q->orWhere('user_id', $userId);
+                }
+                if ($whatsapp !== '') {
+                    // Broad SQL filter; exact digit match is confirmed below.
+                    $tail = strlen($whatsapp) > 9 ? substr($whatsapp, -9) : $whatsapp;
+                    $q->orWhere('whatsapp_number', 'like', '%'.$tail.'%')
+                        ->orWhere('phone', 'like', '%'.$tail.'%');
+                }
+            })
+            ->orderByDesc('submitted_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        foreach ($candidates as $application) {
+            if (! $this->internshipApplicationStillOpen($application)) {
+                continue;
+            }
+            $appEmail = strtolower(trim((string) $application->email));
+            $appPhone = preg_replace('/\D+/', '', (string) ($application->whatsapp_number ?: $application->phone));
+            $emailMatch = $email !== '' && $appEmail === $email;
+            $userMatch = $userId !== '' && (string) $application->user_id === $userId;
+            $phoneMatch = $whatsapp !== '' && $appPhone !== '' && (
+                $appPhone === $whatsapp
+                || (strlen($whatsapp) >= 9 && strlen($appPhone) >= 9 && substr($appPhone, -9) === substr($whatsapp, -9))
+            );
+            if ($emailMatch || $userMatch || $phoneMatch) {
+                return $application;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether an application still blocks a new apply for the same internship.
+     * Rejected/withdrawn never block. Hired blocks until enrolment is completed.
+     */
+    public function internshipApplicationStillOpen(Application $application)
+    {
+        $status = (string) $application->status;
+        if (in_array($status, [Application::STATUS_REJECTED, 'withdrawn'], true)) {
+            return false;
+        }
+
+        if ($status === Application::STATUS_HIRED) {
+            $enrolment = InternshipEnrolment::where('application_id', $application->id)
+                ->orderByDesc('updated_at')
+                ->first();
+            if ($enrolment && $enrolment->status === 'completed') {
+                return false;
+            }
+
+            return true;
+        }
+
+        return in_array($status, self::openApplicationStatuses(), true);
+    }
+
+    public function assertNoOpenInternshipDuplicate(JobPosting $job, $email, $whatsapp = null, $userId = null)
+    {
+        $blocking = $this->findBlockingInternshipApplication($job, $email, $whatsapp, $userId);
+        if (! $blocking) {
+            return;
+        }
+
+        $ref = $blocking->reference_number ?: 'your previous application';
+        $label = $blocking->statusLabel();
+
+        throw ValidationException::withMessages([
+            'email' => [
+                "You already have an open application ({$ref}, status: {$label}) for this internship. "
+                .'You can apply again only after that application is rejected, or after you complete the internship.',
+            ],
+        ]);
     }
 
     public function applicationsForUser($user)
