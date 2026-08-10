@@ -20,11 +20,15 @@
     }
     .letter-preview-stamp {
         display: inline-block;
-        margin-left: 8px;
+        margin-left: 4px;
         vertical-align: top;
+        max-width: 48px;
     }
     .letter-preview-stamp img {
-        max-height: 28px;
+        /* Comment / Approver — very small on letter preview */
+        height: 14px;
+        max-height: 14px;
+        max-width: 48px;
         width: auto;
         display: block;
         background: transparent;
@@ -141,10 +145,10 @@
         <div class="letter-preview-corner-header">{!! $data->header !!}</div>
     @endif
     @if($data->is_edit == 1 && $editSrc)
-        <div class="letter-preview-stamp"><img src="{{ $editSrc }}" alt="Comment"></div>
+        <div class="letter-preview-stamp"><img src="{{ $editSrc }}" alt="Comment" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;"></div>
     @endif
     @if($data->is_approve == 1 && $approveSrc)
-        <div class="letter-preview-stamp"><img src="{{ $approveSrc }}" alt="Approve"></div>
+        <div class="letter-preview-stamp"><img src="{{ $approveSrc }}" alt="Approve" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;"></div>
     @endif
 </div>
 

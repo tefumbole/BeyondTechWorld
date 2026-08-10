@@ -107,11 +107,15 @@
     .letter-corner-stamp {
         display: inline-block;
         text-align: center;
-        margin: 0 0 0 8px;
+        margin: 0 0 0 4px;
         vertical-align: top;
+        max-width: 48px;
     }
     .letter-corner-stamp img {
-        max-height: 28px;
+        /* Comment / Approver marks — keep very small on printed letters */
+        height: 14px;
+        max-height: 14px;
+        max-width: 48px;
         width: auto;
         display: block;
         margin-left: auto;

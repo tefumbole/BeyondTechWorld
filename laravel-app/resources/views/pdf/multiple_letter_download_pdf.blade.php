@@ -114,13 +114,13 @@
                                     @php
                                         $edit = \App\User::find($letter->edit_by);
                                     @endphp
-                                    <img class="edit" src="{{public_path('images/user/') . $edit->stemp}}" height="40vw">
+                                    <img class="edit" src="{{public_path('images/user/') . $edit->stemp}}" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
                                 @endif
                                 @if($letter->is_approve == 1)
                                     @php
                                         $approve = \App\User::find($letter->approved_by);
                                     @endphp
-                                    <img class="approve" src="{{public_path('images/user/') . $approve->approve}}" height="40vw">
+                                    <img class="approve" src="{{public_path('images/user/') . $approve->approve}}" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
                                 @endif
                                 <span class ="header-letter">{!! $letter->header !!}</span>
 

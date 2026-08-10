@@ -82,12 +82,12 @@
     @endif
     @if($data->is_edit == 1 && $editSrc)
         <div class="letter-corner-stamp">
-            <img src="{{ $editSrc }}" alt="Comment">
+            <img src="{{ $editSrc }}" alt="Comment" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
         </div>
     @endif
     @if($data->is_approve == 1 && $approveSrc)
         <div class="letter-corner-stamp">
-            <img src="{{ $approveSrc }}" alt="Approve">
+            <img src="{{ $approveSrc }}" alt="Approve" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
         </div>
     @endif
 </div>
