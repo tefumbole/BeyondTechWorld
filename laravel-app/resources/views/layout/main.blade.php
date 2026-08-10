@@ -2526,6 +2526,8 @@
                         $__sideMenuOrder = \App\Support\SiteMenu::sideOrder();
                         $__settingsMenuOrder = \App\Support\SiteMenu::settingsOrder();
                         $__settingsLiKeyMap = \App\Support\SiteMenu::settingsLiKeyMap();
+                        $__peopleMenuOrder = \App\Support\SiteMenu::peopleOrder();
+                        $__peopleLiKeyMap = \App\Support\SiteMenu::peopleLiKeyMap();
                     @endphp
                     <script>
                     (function () {
@@ -2591,6 +2593,21 @@
                         var order = @json($__settingsMenuOrder);
                         var liKeyMap = @json($__settingsLiKeyMap);
                         var ul = document.getElementById('setting');
+                        if (!ul || !order || !order.length) return;
+                        var map = {};
+                        Array.prototype.slice.call(ul.children).forEach(function (li) {
+                            if (li.tagName !== 'LI') return;
+                            var liId = li.getAttribute('id');
+                            if (!liId || !liKeyMap[liId]) return;
+                            var k = liKeyMap[liId];
+                            if (!map[k]) map[k] = li;
+                        });
+                        order.forEach(function (k) { if (map[k]) ul.appendChild(map[k]); });
+                    })();
+                    (function () {
+                        var order = @json($__peopleMenuOrder);
+                        var liKeyMap = @json($__peopleLiKeyMap);
+                        var ul = document.getElementById('people');
                         if (!ul || !order || !order.length) return;
                         var map = {};
                         Array.prototype.slice.call(ul.children).forEach(function (li) {

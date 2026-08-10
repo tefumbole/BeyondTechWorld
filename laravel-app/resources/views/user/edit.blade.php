@@ -151,7 +151,7 @@
                                         @else
                                             @include('user.partials.signature_field', [
                                                 'type' => 'sign',
-                                                'label' => trans('file.Sign'),
+                                                'label' => 'Signature',
                                                 'user' => $lims_user_data,
                                                 'fileField' => $lims_user_data->sign,
                                                 'inputName' => 'sign',
@@ -180,11 +180,18 @@
                                     <div id="approve">
                                         @include('user.partials.signature_field', [
                                             'type' => 'approve',
-                                            'label' => trans('file.Approve'),
+                                            'label' => 'Approver',
                                             'user' => $lims_user_data,
                                             'fileField' => $lims_user_data->approve,
                                             'inputName' => 'approve',
                                         ])
+                                    </div>
+                                    <div class="alert alert-light border mt-2">
+                                        <strong>Request via WhatsApp</strong>
+                                        <p class="small text-muted mb-2">Send a secure link so this user can draw Approver, Comment, or Signature on their phone.</p>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-request-from-edit" data-type="approve">Request Approver</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-request-from-edit" data-type="stemp">Request Comment</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-request-from-edit" data-type="sign">Request Signature</button>
                                     </div>
                                 </div>
                             </div>
@@ -209,43 +216,29 @@
         $('select[name=warehouse_id]').val($("input[name='warehouse_id_hidden']").val());
         $('#biller-id').show();
         $('select[name=biller_id]').val($("input[name='biller_id_hidden']").val());
-    } else if($('select[name=role_id]').val() > 9 || $('select[name=role_id]').val() > 1) {
+    } else {
         $('select[name="warehouse_id"]').prop('required',false);
         $('select[name="biller_id"]').prop('required',false);
         $('#biller-id').hide();
         $('#warehouseId').hide();
-        $('#sign').show();
-        $('#stemp').show();
     }
+    // Always show Signature / Comment / Approver on edit (invoices use Signature).
+    $('#sign, #stemp, #approve').show();
     $('.selectpicker').selectpicker('refresh');
 
     $('select[name="role_id"]').on('change', function() {
-        if($(this).val() > 2 && $('select[name=role_id]').val() < 8){
+        if($(this).val() > 2 && $(this).val() < 8){
             $('select[name="warehouse_id"]').prop('required',true);
             $('select[name="biller_id"]').prop('required',true);
             $('#biller-id').show();
             $('#warehouseId').show();
-            $('#sign').hide(300);
-            $('#stemp').hide(300);
-        }
-        else if($(this).val() > 8 || $(this).val() == 1) {
+        } else {
             $('select[name="warehouse_id"]').prop('required',false);
             $('select[name="biller_id"]').prop('required',false);
             $('#biller-id').hide();
             $('#warehouseId').hide();
-            $('#sign').show(300);
-            $('#stemp').show(300);
-            $('#approve').show(300);
         }
-        else{
-            $('select[name="warehouse_id"]').prop('required',false);
-            $('select[name="biller_id"]').prop('required',false);
-            $('#biller-id').hide();
-            $('#warehouseId').hide();
-            $('#sign').hide();
-            $('#stemp').hide();
-            $('#approve').hide();
-        }
+        $('#sign, #stemp, #approve').show();
     });
 
     $('#genbutton').on("click", function(){
@@ -298,13 +291,19 @@
         if (pad) pad.clear();
     });
 
-    $(document).on('click', '.btn-sig-whatsapp', function () {
-        var btn = $(this);
-        var type = btn.data('type');
-        var phone = btn.data('phone') || 'this user';
-        var url = btn.data('url');
-        if (!confirm('Send a WhatsApp request link to ' + phone + '?')) return;
-        btn.prop('disabled', true).text('Sending…');
+    function sendSignatureRequest(type, skipConfirm) {
+        var labels = { approve: 'Approver', stemp: 'Comment', sign: 'Signature' };
+        var target = $('.btn-sig-whatsapp[data-type="'+type+'"]');
+        if (!target.length) {
+            alert('Could not find request action for ' + (labels[type] || type));
+            return;
+        }
+        var phone = target.data('phone') || 'this user';
+        var url = target.data('url');
+        if (!skipConfirm && !confirm('Send a WhatsApp request link to ' + phone + ' for ' + (labels[type] || type) + '?')) {
+            return;
+        }
+        target.prop('disabled', true).text('Sending…');
         $.ajax({
             method: 'POST',
             url: url,
@@ -331,8 +330,21 @@
             html += '</div>';
             $('.sig-request-result[data-type="'+type+'"]').html(html).show();
         }).always(function () {
-            btn.prop('disabled', false).html('<i class="fa fa-whatsapp"></i> Request link (WhatsApp)');
+            target.prop('disabled', false).html('<i class="fa fa-whatsapp"></i> Request link (WhatsApp)');
         });
+    }
+
+    $(document).on('click', '.btn-request-from-edit', function () {
+        var type = $(this).data('type');
+        var labels = { approve: 'Approver', stemp: 'Comment', sign: 'Signature' };
+        if (!confirm('Send a WhatsApp link so this user can draw their ' + (labels[type] || type) + '?')) {
+            return;
+        }
+        sendSignatureRequest(type, true);
+    });
+
+    $(document).on('click', '.btn-sig-whatsapp', function () {
+        sendSignatureRequest($(this).data('type'), false);
     });
 
     $(document).on('click', '.btn-sig-delete', function () {

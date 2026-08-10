@@ -46,8 +46,7 @@
                     <td>{{ $user->company_name}}</td>
                     <td>{{ $user->phone}}</td>
                     <td>{{ $user->additional_phone}}</td>
-                    <?php $role = DB::table('roles')->find($user->role_id);?>
-                    <td>{{ $role->name }}</td>
+                    <td>{{ $rolesById[$user->role_id] ?? '—' }}</td>
                     @if($user->is_active)
                     <td><div class="badge badge-success">Active</div></td>
                     @else
@@ -64,9 +63,34 @@
                                 <li>
                                 	<a href="{{ route('user.edit', $user->id) }}" class="btn btn-link"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</a>
                                 </li>
-                                @endif
                                 <li class="divider"></li>
+                                <li>
+                                    <a href="javascript:void(0)" class="btn btn-link btn-request-sig"
+                                       data-url="{{ route('user.signature.request', $user->id) }}"
+                                       data-type="approve"
+                                       data-name="{{ $user->name }}">
+                                        <i class="dripicons-user"></i> Request Approver
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" class="btn btn-link btn-request-sig"
+                                       data-url="{{ route('user.signature.request', $user->id) }}"
+                                       data-type="stemp"
+                                       data-name="{{ $user->name }}">
+                                        <i class="dripicons-message"></i> Request Comment
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" class="btn btn-link btn-request-sig"
+                                       data-url="{{ route('user.signature.request', $user->id) }}"
+                                       data-type="sign"
+                                       data-name="{{ $user->name }}">
+                                        <i class="dripicons-pencil"></i> Request Signature
+                                    </a>
+                                </li>
+                                @endif
                                 @if(in_array("users-delete", $all_permission))
+                                <li class="divider"></li>
                                 {{ Form::open(['route' => ['user.destroy', $user->id], 'method' => 'DELETE'] ) }}
                                 <li>
                                     <button type="submit" class="btn btn-link" onclick="return confirmDelete()"><i class="dripicons-trash"></i> {{trans('file.delete')}}</button>
@@ -216,5 +240,48 @@
             window.location = url;
         }
     });
+
+    var requestLabels = { approve: 'Approver', stemp: 'Comment', sign: 'Signature' };
+    $(document).on('click', '.btn-request-sig', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $btn = $(this);
+        var type = $btn.data('type');
+        var label = requestLabels[type] || type;
+        var name = $btn.data('name') || 'this user';
+        if (!confirm('Send a WhatsApp link so ' + name + ' can draw their ' + label + '?')) {
+            return;
+        }
+        $btn.addClass('disabled').css('opacity', 0.6);
+        $.ajax({
+            type: 'POST',
+            url: $btn.data('url'),
+            data: { type: type },
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).done(function (res) {
+            var msg = (res && res.message) ? res.message : (label + ' request sent.');
+            if (res && res.link) {
+                var copy = prompt(msg + '\n\nLink (copy if WhatsApp failed):', res.link);
+                if (copy === null && res.link) {
+                    window.open(res.link, '_blank');
+                }
+            } else {
+                alert(msg);
+            }
+        }).fail(function (xhr) {
+            var res = xhr.responseJSON || {};
+            var msg = res.message || ('Could not send ' + label + ' request.');
+            if (res.link) {
+                prompt(msg + '\n\nOpen / copy this link:', res.link);
+            } else {
+                alert(msg);
+            }
+        }).always(function () {
+            $btn.removeClass('disabled').css('opacity', 1);
+        });
+    });
 </script>
+
+{{-- Result toast area --}}
+<div id="sig-request-toast" class="alert alert-info" style="display:none;position:fixed;bottom:20px;right:20px;z-index:9999;max-width:420px;"></div>
 @endsection

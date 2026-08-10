@@ -18,7 +18,7 @@ class UserSignatureController extends Controller
     const TYPES = [
         'sign' => 'Signature',
         'stemp' => 'Comment',
-        'approve' => 'Approve',
+        'approve' => 'Approver',
     ];
 
     public function __construct()

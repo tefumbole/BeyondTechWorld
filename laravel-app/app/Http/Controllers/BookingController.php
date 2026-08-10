@@ -3200,7 +3200,7 @@ class BookingController extends Controller
         foreach ($permissions as $permission) {
             $all_permission[] = $permission->name;
         }
-        $lims_sale_data = Booking::with('contract')->find($id);
+        $lims_sale_data = Booking::with(['contract', 'user'])->find($id);
 
         if ($lims_sale_data && $lims_sale_data->contract) {
             $contract = $lims_sale_data->contract;

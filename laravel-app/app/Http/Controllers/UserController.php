@@ -14,6 +14,7 @@ use App\Customer;
 use App\Services\ApplicationService;
 use Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Keygen;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
@@ -27,16 +28,30 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);
-        if($role->hasPermissionTo('users-index')){
-            $permissions = Role::findByName($role->name)->permissions;
-            foreach ($permissions as $permission)
-                $all_permission[] = $permission->name;
+        if($role && $role->hasPermissionTo('users-index')){
+            $all_permission = $role->permissions->pluck('name')->all();
             $category = $request->get('category', 'all');
             if ($category === 'applicants') {
                 return $this->applicantsIndex($request, $all_permission);
             }
-            $lims_user_list = User::where('is_deleted', false)->whereRaw('COALESCE(is_active, 0) = 1')->get();
-            return view('user.index', compact('lims_user_list', 'all_permission', 'category'));
+            // Lean query + role map (avoids N+1 and loading unused columns).
+            $lims_user_list = User::query()
+                ->select([
+                    'id', 'name', 'email', 'company_name', 'phone', 'additional_phone',
+                    'role_id', 'is_active', 'sign', 'stemp', 'approve',
+                    'sign_request_token', 'sign_request_type', 'sign_request_expires_at',
+                ])
+                ->where(function ($q) {
+                    $q->where('is_deleted', false)->orWhereNull('is_deleted');
+                })
+                ->whereRaw('COALESCE(is_active, 0) = 1')
+                ->orderBy('name')
+                ->get();
+            $rolesById = DB::table('roles')
+                ->whereIn('id', $lims_user_list->pluck('role_id')->filter()->unique()->values())
+                ->pluck('name', 'id');
+
+            return view('user.index', compact('lims_user_list', 'all_permission', 'category', 'rolesById'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');

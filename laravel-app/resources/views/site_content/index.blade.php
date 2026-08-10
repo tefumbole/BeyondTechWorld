@@ -53,8 +53,9 @@
                     $menuTabs = [
                         'landing-menu'  => ['label' => 'Landing Menu', 'tone' => 'tone-blue', 'icon' => 'dripicons-home'],
                         'side-menu'     => ['label' => 'Side Menu', 'tone' => 'tone-purple', 'icon' => 'dripicons-view-list'],
-                        'settings-menu' => ['label' => 'Settings Menu', 'tone' => 'tone-orange', 'icon' => 'dripicons-gear'],
-                        'content-tabs'  => ['label' => 'Settings', 'tone' => 'tone-teal', 'icon' => 'dripicons-toggles'],
+                        'people-menu'   => ['label' => 'People', 'tone' => 'tone-pink', 'icon' => 'dripicons-user'],
+                        'settings-menu' => ['label' => 'Settings', 'tone' => 'tone-orange', 'icon' => 'dripicons-gear'],
+                        'content-tabs'  => ['label' => 'Content Tabs', 'tone' => 'tone-teal', 'icon' => 'dripicons-toggles'],
                     ];
                     $pageTones = [
                         'home'     => 'tone-green',
@@ -84,7 +85,7 @@
                     @endforeach
                 </div>
 
-                @if(in_array($tab, ['landing-menu', 'side-menu', 'settings-menu', 'content-tabs'], true))
+                @if(in_array($tab, ['landing-menu', 'side-menu', 'people-menu', 'settings-menu', 'content-tabs'], true))
                     @php
                         if ($tab == 'side-menu') {
                             $items = $side;
@@ -92,17 +93,23 @@
                             $action = route('site-content.side-menu');
                             $heading = 'Side Menu — Order';
                             $hint = 'Drag items to reorder the admin sidebar (or use arrows). Click Save when done.';
+                        } elseif ($tab == 'people-menu') {
+                            $items = $people;
+                            $order = $peopleOrder;
+                            $action = route('site-content.people-menu');
+                            $heading = 'People — Order';
+                            $hint = 'Drag items to reorder the People submenu (User List, Customers, Billers, …). Click Save when done.';
                         } elseif ($tab == 'settings-menu') {
                             $items = $settings;
                             $order = $settingsOrder;
                             $action = route('site-content.settings-menu');
-                            $heading = 'Settings Menu — Order';
+                            $heading = 'Settings — Order';
                             $hint = 'Drag items to reorder Settings submenu items (or use arrows). Click Save when done.';
                         } elseif ($tab == 'content-tabs') {
                             $items = \App\Support\SiteContent::contentTabItems();
                             $order = \App\Support\SiteContent::contentTabOrder();
                             $action = route('site-content.content-tabs');
-                            $heading = 'Settings — Content Tab Order';
+                            $heading = 'Content Tabs — Order';
                             $hint = 'Drag items to reorder Site Content page tabs (or use arrows). Click Save when done.';
                         } else {
                             $items = $landing;

@@ -31,9 +31,11 @@ class SiteContentController extends Controller
             'landing'      => SiteMenu::landingItems(),
             'side'         => SiteMenu::sideItems(),
             'settings'     => SiteMenu::settingsItems(),
+            'people'       => SiteMenu::peopleItems(),
             'landingOrder' => SiteMenu::landingOrder(),
             'sideOrder'    => SiteMenu::sideOrder(),
             'settingsOrder' => SiteMenu::settingsOrder(),
+            'peopleOrder'  => SiteMenu::peopleOrder(),
             'schema'       => SiteContent::orderedSchema(),
             'pageSchema'   => SiteContent::pageSchema($tab),
             'galleryItems' => $tab === 'gallery' ? GalleryItem::ordered()->get() : collect(),
@@ -65,6 +67,14 @@ class SiteContentController extends Controller
         $this->saveOrder($request, 'settings_menu_order', SiteMenu::settingsItems());
 
         return redirect('/admin/site-content?tab=settings-menu')->with('message', 'Settings menu order saved.');
+    }
+
+    public function savePeopleMenu(Request $request)
+    {
+        $this->authorizeAdmin();
+        $this->saveOrder($request, 'people_menu_order', SiteMenu::peopleItems());
+
+        return redirect('/admin/site-content?tab=people-menu')->with('message', 'People menu order saved.');
     }
 
     public function saveContentTabs(Request $request)

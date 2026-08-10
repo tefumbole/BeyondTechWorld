@@ -133,6 +133,45 @@ class SiteMenu
         return self::ordered('settings_menu_order', self::settingsItems());
     }
 
+    /** People submenu items inside #people (key => label). */
+    public static function peopleItems()
+    {
+        return [
+            'user-list'       => 'User List',
+            'interns'         => 'Interns',
+            'add-user'        => 'Add User',
+            'customer-list'   => 'Customer List',
+            'add-customer'    => 'Add Customer',
+            'people-transfer' => 'Export / Import People',
+            'biller-list'     => 'Biller List',
+            'add-biller'      => 'Add Biller',
+            'supplier-list'   => 'Supplier List',
+            'add-supplier'    => 'Add Supplier',
+        ];
+    }
+
+    public static function peopleOrder()
+    {
+        return self::ordered('people_menu_order', self::peopleItems());
+    }
+
+    /** Map people submenu <li id="..."> to stable reorder keys. */
+    public static function peopleLiKeyMap()
+    {
+        return [
+            'user-list-menu'       => 'user-list',
+            'user-applicants-menu' => 'interns',
+            'user-create-menu'     => 'add-user',
+            'customer-list-menu'   => 'customer-list',
+            'customer-create-menu' => 'add-customer',
+            'people-transfer-menu' => 'people-transfer',
+            'biller-list-menu'     => 'biller-list',
+            'biller-create-menu'   => 'add-biller',
+            'supplier-list-menu'   => 'supplier-list',
+            'supplier-create-menu' => 'add-supplier',
+        ];
+    }
+
     /** Map settings submenu <li id="..."> to stable reorder keys. */
     public static function settingsLiKeyMap()
     {
