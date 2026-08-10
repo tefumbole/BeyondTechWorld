@@ -23,10 +23,17 @@
     $currencyCode = is_object($currency ?? null) ? ($currency->code ?? '') : (string) ($currency ?? '');
 @endphp
 
-<div class="inv-title">{{ trans('file.Quotation') }}</div>
+@php
+    $clientSignatureDataUri = $clientSignatureDataUri ?? $lims_sale_data->clientSignatureDataUri();
+    $isClientSigned = ! empty($lims_sale_data->client_signed_at) && ! empty($clientSignatureDataUri);
+@endphp
+<div class="inv-title">{{ $isClientSigned ? 'Signed Quotation' : trans('file.Quotation') }}</div>
 <div class="inv-ref">
     <strong>{{ trans('file.reference') }}:</strong> {{ $lims_sale_data->reference_no }}<br>
     <strong>{{ trans('file.Date') }}:</strong> {{ $lims_sale_data->created_at->format('d-m-Y') }}
+    @if($isClientSigned)
+        <br><strong>Client signed:</strong> {{ optional($lims_sale_data->client_signed_at)->format('d-m-Y H:i') }}
+    @endif
 </div>
 
 <table class="inv-meta">
@@ -195,10 +202,31 @@
 </table>
 
 <div class="inv-codes-block">
-    @include('pdf.partials._created_by_signature', [
-        'createdUser' => $lims_sale_data->user ?? null,
-        'stampDate' => $lims_sale_data->created_at ?? null,
-    ])
+    <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+        <tr>
+            <td style="width:50%;vertical-align:top;padding-right:10px;">
+                @include('pdf.partials._created_by_signature', [
+                    'createdUser' => $lims_sale_data->user ?? null,
+                    'stampDate' => $lims_sale_data->created_at ?? null,
+                ])
+            </td>
+            <td style="width:50%;vertical-align:top;padding-left:10px;">
+                @if(!empty($clientSignatureDataUri))
+                    <div class="inv-created">
+                        <strong>Client approved:</strong> {{ optional($lims_customer_data)->name }}
+                        <div class="inv-admin-sign inv-user-sign" style="margin:3px 0 2px;">
+                            <img src="{{ $clientSignatureDataUri }}" alt="Client signature" style="height:42px;width:auto;max-width:180px;display:block;">
+                            @if(!empty($lims_sale_data->client_signed_at))
+                                <span class="inv-sign-date" style="display:block;font-size:7px;line-height:1.1;color:#444;margin-top:1px;">
+                                    {{ optional($lims_sale_data->client_signed_at)->format('M d, Y') }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+            </td>
+        </tr>
+    </table>
     <div class="inv-qr" style="margin:0 0 6px;">
         <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
     </div>

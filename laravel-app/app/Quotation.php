@@ -125,6 +125,45 @@ class Quotation extends Model
     }
 
     /**
+     * Absolute filesystem path for the stored client signature image.
+     */
+    public function clientSignatureAbsolutePath()
+    {
+        if (empty($this->client_signature_path)) {
+            return null;
+        }
+
+        $path = ltrim(str_replace('\\', '/', $this->client_signature_path), '/');
+        if (strpos($path, 'public/') === 0) {
+            $path = substr($path, strlen('public/'));
+        }
+        $full = public_path($path);
+
+        return is_file($full) ? $full : null;
+    }
+
+    /**
+     * Data-URI for DomPDF embedding of the client signature.
+     */
+    public function clientSignatureDataUri()
+    {
+        $full = $this->clientSignatureAbsolutePath();
+        if (! $full) {
+            return null;
+        }
+        $raw = @file_get_contents($full);
+        if ($raw === false || $raw === '') {
+            return null;
+        }
+        $mime = 'image/png';
+        if (preg_match('/\.jpe?g$/i', $full)) {
+            $mime = 'image/jpeg';
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($raw);
+    }
+
+    /**
      * Public URL for the stored client signature (docroot is laravel-app/).
      */
     public function clientSignatureUrl()

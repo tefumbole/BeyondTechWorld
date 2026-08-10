@@ -54,10 +54,11 @@ class QuotationApprovalController extends Controller
         $quotation->client_approval_token = null;
         $quotation->save();
 
-        $quotation = $quotation->fresh(['customer', 'biller']);
+        $quotation = $quotation->fresh(['customer', 'biller', 'user']);
         $this->notifyStakeholders($quotation, 'approved');
 
-        // Official PDF is delivered only after the client signs.
+        // Official PDF (staff + client signatures) is delivered only after the client signs.
+        // Reject path never calls this — no PDF on rejection.
         try {
             app(QuotationController::class)->deliverQuotationPdfToClient($quotation, $quotation->customer, 'signed');
         } catch (\Throwable $e) {

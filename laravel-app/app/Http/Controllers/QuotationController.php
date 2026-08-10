@@ -512,7 +512,7 @@ class QuotationController extends Controller
      */
     public function buildQuotationPdf($id)
     {
-        $lims_sale_data = Quotation::findOrFail($id);
+        $lims_sale_data = Quotation::with('user')->findOrFail($id);
         $lims_product_sale_data = ProductQuotation::where('quotation_id', $id)->get();
         $lims_warehouse_data = Warehouse::find($lims_sale_data->warehouse_id);
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
@@ -540,14 +540,16 @@ class QuotationController extends Controller
             'lims_warehouse_data' => $lims_warehouse_data,
             'lims_customer_data' => $lims_customer_data,
             'numberInWords' => $numberInWords,
+            'clientSignatureDataUri' => $lims_sale_data->clientSignatureDataUri(),
         ];
 
         $pdf = PDF::loadView('pdf.quotation_pdf', $data)->setPaper('A4', 'portrait');
         $content = $pdf->download()->getOriginalContent();
 
-        Storage::put('public/quotation/quotation_invoice.pdf', $content);
+        $relative = 'public/quotation/quotation_'.$lims_sale_data->id.'_invoice.pdf';
+        Storage::put($relative, $content);
 
-        return storage_path('app/public/quotation/quotation_invoice.pdf');
+        return storage_path('app/'.$relative);
     }
 
     public function genPDFInvoice($id)
