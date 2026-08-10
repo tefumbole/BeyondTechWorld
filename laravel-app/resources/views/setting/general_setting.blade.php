@@ -190,12 +190,13 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.Time Zone')}}</label>
-                                        @if($lims_general_setting_data)
-                                        <input type="hidden" name="timezone_hidden" value="{{env('APP_TIMEZONE')}}">
-                                        @endif
-                                        <select name="timezone" class="selectpicker form-control" data-live-search="true" title="Select TimeZone...">
+                                        @php $selectedTimezone = $currentTimezone ?? (config('app.timezone') ?: env('APP_TIMEZONE')); @endphp
+                                        <input type="hidden" name="timezone_hidden" value="{{ $selectedTimezone }}">
+                                        <select name="timezone" class="selectpicker form-control" data-live-search="true" title="Select TimeZone..." required>
                                             @foreach($zones_array as $zone)
-                                            <option value="{{$zone['zone']}}">{{$zone['diff_from_GMT'] . ' - ' . $zone['zone']}}</option>
+                                                <option value="{{ $zone['zone'] }}" @if($selectedTimezone === $zone['zone']) selected @endif>
+                                                    {{ $zone['diff_from_GMT'] . ' - ' . $zone['zone'] }}
+                                                </option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -214,57 +215,53 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.Staff Access')}} *</label>
-                                        @if($lims_general_setting_data)
-                                        <input type="hidden" name="staff_access_hidden" value="{{$lims_general_setting_data->staff_access}}">
-                                        @endif
+                                        @php $staffAccess = $lims_general_setting_data->staff_access ?? 'all'; @endphp
+                                        <input type="hidden" name="staff_access_hidden" value="{{ $staffAccess }}">
                                         <select name="staff_access" class="selectpicker form-control">
-                                            <option value="all"> {{trans('file.All Records')}}</option>
-                                            <option value="own"> {{trans('file.Own Records')}}</option>
+                                            <option value="all" @if($staffAccess === 'all') selected @endif> {{trans('file.All Records')}}</option>
+                                            <option value="own" @if($staffAccess === 'own') selected @endif> {{trans('file.Own Records')}}</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.Invoice Format')}} *</label>
-                                        @if($lims_general_setting_data)
-                                        <input type="hidden" name="invoice_format_hidden" value="{{$lims_general_setting_data->invoice_format}}">
-                                        @endif
+                                        @php $invoiceFormat = $lims_general_setting_data->invoice_format ?? 'standard'; @endphp
+                                        <input type="hidden" name="invoice_format_hidden" value="{{ $invoiceFormat }}">
                                         <select name="invoice_format" class="selectpicker form-control" required>
-                                            <option value="standard">Standard</option>
-                                            <option value="gst">GST</option>
-                                            <option value="beyond_a4">Beyond A4</option>
-                                            <option value="mini">Beyond Mini Receipt</option>
+                                            <option value="standard" @if($invoiceFormat === 'standard') selected @endif>Standard</option>
+                                            <option value="gst" @if($invoiceFormat === 'gst') selected @endif>GST</option>
+                                            <option value="beyond_a4" @if($invoiceFormat === 'beyond_a4') selected @endif>Beyond A4</option>
+                                            <option value="mini" @if($invoiceFormat === 'mini') selected @endif>Beyond Mini Receipt</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div id="state" class="col-md-6 d-none">
+                                <div id="state" class="col-md-6 {{ ($invoiceFormat ?? '') === 'gst' ? '' : 'd-none' }}">
                                     <div class="form-group">
                                         <label>{{trans('file.State')}} *</label>
-                                        @if($lims_general_setting_data)
-                                        <input type="hidden" name="state_hidden" value="{{$lims_general_setting_data->state}}">
-                                        @endif
+                                        @php $stateVal = (string) ($lims_general_setting_data->state ?? '1'); @endphp
+                                        <input type="hidden" name="state_hidden" value="{{ $stateVal }}">
                                         <select name="state" class="selectpicker form-control">
-                                            <option value="1">Home State</option>
-                                            <option value="2">Buyer State</option>
+                                            <option value="1" @if($stateVal === '1') selected @endif>Home State</option>
+                                            <option value="2" @if($stateVal === '2') selected @endif>Buyer State</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.Date Format')}} *</label>
-                                        @if($lims_general_setting_data)
-                                        <input type="hidden" name="date_format_hidden" value="{{$lims_general_setting_data->date_format}}">
-                                        @endif
+                                        @php $dateFormat = $lims_general_setting_data->date_format ?? 'd-m-Y'; @endphp
+                                        <input type="hidden" name="date_format_hidden" value="{{ $dateFormat }}">
                                         <select name="date_format" class="selectpicker form-control">
-                                            <option value="d-m-Y"> dd-mm-yyy</option>
-                                            <option value="d/m/Y"> dd/mm/yyy</option>
-                                            <option value="d.m.Y"> dd.mm.yyy</option>
-                                            <option value="m-d-Y"> mm-dd-yyy</option>
-                                            <option value="m/d/Y"> mm/dd/yyy</option>
-                                            <option value="m.d.Y"> mm.dd.yyy</option>
-                                            <option value="Y-m-d"> yyy-mm-dd</option>
-                                            <option value="Y/m/d"> yyy/mm/dd</option>
-                                            <option value="Y.m.d"> yyy.mm.dd</option>
+                                            <option value="d-m-Y" @if($dateFormat === 'd-m-Y') selected @endif> dd-mm-yyy</option>
+                                            <option value="d/m/Y" @if($dateFormat === 'd/m/Y') selected @endif> dd/mm/yyy</option>
+                                            <option value="d.m.Y" @if($dateFormat === 'd.m.Y') selected @endif> dd.mm.yyy</option>
+                                            <option value="m-d-Y" @if($dateFormat === 'm-d-Y') selected @endif> mm-dd-yyy</option>
+                                            <option value="m/d/Y" @if($dateFormat === 'm/d/Y') selected @endif> mm/dd/yyy</option>
+                                            <option value="m.d.Y" @if($dateFormat === 'm.d.Y') selected @endif> mm.dd.yyy</option>
+                                            <option value="Y-m-d" @if($dateFormat === 'Y-m-d') selected @endif> yyy-mm-dd</option>
+                                            <option value="Y/m/d" @if($dateFormat === 'Y/m/d') selected @endif> yyy/mm/dd</option>
+                                            <option value="Y.m.d" @if($dateFormat === 'Y.m.d') selected @endif> yyy.mm.dd</option>
                                         </select>
                                     </div>
                                 </div>
@@ -313,27 +310,20 @@
     $("ul#setting").addClass("show");
     $("ul#setting #general-setting-menu").addClass("active");
 
-    $("select[name=invoice_format]").on("change", function (argument) {
-        if($(this).val() == 'standard') {
+    $("select[name=invoice_format]").on("change", function () {
+        if ($(this).val() == 'gst') {
+            $("#state").removeClass('d-none');
+            $("select[name=state]").prop("required", true);
+        } else {
             $("#state").addClass('d-none');
-            $("input[name=state]").prop("required", false);
+            $("select[name=state]").prop("required", false);
         }
-        else if($(this).val() == 'gst') {
-            $("#state").removeClass('d-none');
-            $("input[name=state]").prop("required", true);
-        }
-    })
-    if($("input[name='timezone_hidden']").val()){
-        $('select[name=timezone]').val($("input[name='timezone_hidden']").val());
-        $('select[name=staff_access]').val($("input[name='staff_access_hidden']").val());
-        $('select[name=date_format]').val($("input[name='date_format_hidden']").val());
-        $('select[name=invoice_format]').val($("input[name='invoice_format_hidden']").val());
-        if($("input[name='invoice_format_hidden']").val() == 'gst') {
-            $('select[name=state]').val($("input[name='state_hidden']").val());
-            $("#state").removeClass('d-none');
-        }
-        $('.selectpicker').selectpicker('refresh');
+    });
+    // Values are set via selected attributes; refresh bootstrap-select so they display.
+    if ($("input[name='invoice_format_hidden']").val() == 'gst') {
+        $("#state").removeClass('d-none');
     }
+    $('.selectpicker').selectpicker('refresh');
 
     $('.theme-option').on('click', function() {
         $.get('general_setting/change-theme/' + $(this).data('color'), function(data) {

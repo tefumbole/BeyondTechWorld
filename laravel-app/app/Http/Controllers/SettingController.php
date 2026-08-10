@@ -50,12 +50,27 @@ class SettingController extends Controller
         $lims_biller_list = Biller::where('is_active', true)->get();
         $zones_array = array();
         $timestamp = time();
-        foreach(timezone_identifiers_list() as $key => $zone) {
+        $appTimezone = config('app.timezone') ?: (EnvFile::get('APP_TIMEZONE') ?: 'UTC');
+        foreach (timezone_identifiers_list() as $key => $zone) {
             date_default_timezone_set($zone);
             $zones_array[$key]['zone'] = $zone;
-            $zones_array[$key]['diff_from_GMT'] = 'UTC/GMT ' . date('P', $timestamp);
+            $zones_array[$key]['diff_from_GMT'] = 'UTC/GMT '.date('P', $timestamp);
         }
-        return view('setting.general_setting', compact('lims_general_setting_data', 'lims_account_list', 'zones_array', 'lims_currency_list', 'lims_category_list', 'lims_unit_list', 'lims_warehouse_list', 'lims_biller_list'));
+        // Building the list mutates PHP's default TZ — restore app timezone.
+        date_default_timezone_set($appTimezone);
+        $currentTimezone = EnvFile::get('APP_TIMEZONE') ?: $appTimezone;
+
+        return view('setting.general_setting', compact(
+            'lims_general_setting_data',
+            'lims_account_list',
+            'zones_array',
+            'lims_currency_list',
+            'lims_category_list',
+            'lims_unit_list',
+            'lims_warehouse_list',
+            'lims_biller_list',
+            'currentTimezone'
+        ));
     }
 
     public function envSetting()
@@ -118,13 +133,23 @@ class SettingController extends Controller
         ]);
 
         $data = $request->except('site_logo');
-        //return $data;
-        //writting timezone info in .env file
-        $path = '.env';
-        $searchArray = array('APP_TIMEZONE='.env('APP_TIMEZONE'));
-        $replaceArray = array('APP_TIMEZONE='.$data['timezone']);
 
-//        file_put_contents($path, str_replace($searchArray, $replaceArray, file_get_contents($path)));
+        $timezone = trim((string) ($data['timezone'] ?? ''));
+        if ($timezone !== '' && in_array($timezone, timezone_identifiers_list(), true)) {
+            if (! EnvFile::upsert(['APP_TIMEZONE' => $timezone])) {
+                return redirect()->back()->with('not_permitted', 'Could not write APP_TIMEZONE to .env (check file permissions).');
+            }
+            putenv('APP_TIMEZONE='.$timezone);
+            $_ENV['APP_TIMEZONE'] = $timezone;
+            $_SERVER['APP_TIMEZONE'] = $timezone;
+            config(['app.timezone' => $timezone]);
+            date_default_timezone_set($timezone);
+            try {
+                Artisan::call('config:clear');
+            } catch (\Throwable $e) {
+                // Non-fatal: runtime config already updated for this process.
+            }
+        }
 
         $general_setting = GeneralSetting::latest()->first();
         $general_setting->id = 1;
@@ -137,7 +162,7 @@ class SettingController extends Controller
         $general_setting->date_format = $data['date_format'];
         $general_setting->developed_by = $data['developed_by'];
         $general_setting->invoice_format = $data['invoice_format'];
-        $general_setting->state = $data['state'];
+        $general_setting->state = $data['state'] ?? $general_setting->state;
         $general_setting->unit = $data['unit'];
         $general_setting->category = $data['category'];
         $general_setting->profit_percentage = $data['profit_percentage'];
