@@ -172,7 +172,9 @@ class InternshipAdminController extends Controller
             ->get()
             ->keyBy('application_id');
 
-        return view('internship.admin.interns', compact('interns', 'status', 'enrolmentsByApp'));
+        $tabCounts = app(\App\Services\ApplicationService::class)->internshipInternTabCounts();
+
+        return view('internship.admin.interns', compact('interns', 'status', 'enrolmentsByApp', 'tabCounts'));
     }
 
     /**

@@ -7,6 +7,7 @@ use App\InternshipEnrolment;
 use App\JobPosting;
 use App\Support\WhatsAppPhone;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -554,6 +555,91 @@ class ApplicationService
         }
 
         return $q->paginate(50);
+    }
+
+    /**
+     * Small badge counts for Job Board nav tabs (route name => int).
+     *
+     * @return array<string,int>
+     */
+    public function jobBoardTabCounts()
+    {
+        $byStatus = Application::query()
+            ->select('status', DB::raw('COUNT(*) as c'))
+            ->groupBy('status')
+            ->pluck('c', 'status');
+
+        $sum = function (array $keys) use ($byStatus) {
+            $n = 0;
+            foreach ($keys as $key) {
+                $n += (int) ($byStatus[$key] ?? 0);
+            }
+
+            return $n;
+        };
+
+        $awaiting = $sum([Application::STATUS_AWAITING, 'new', 'reviewed', 'interview', 'pending']);
+        $selected = $sum([Application::STATUS_SELECTED, 'shortlisted']);
+        $rejected = $sum([Application::STATUS_REJECTED, 'withdrawn']);
+        $all = (int) array_sum(array_map('intval', $byStatus->all()));
+
+        // Unique people in Interns directory (same keying as applicantDirectory).
+        $interns = (int) Application::query()
+            ->select(DB::raw("COUNT(DISTINCT LOWER(TRIM(COALESCE(NULLIF(email, ''), CONCAT('id:', id))))) as c"))
+            ->value('c');
+
+        return [
+            'jobs.applicants' => $interns,
+            'jobs.index' => (int) JobPosting::count(),
+            'jobs.applications' => $all,
+            'jobs.awaiting' => $awaiting,
+            'jobs.selected' => $selected,
+            'jobs.rejected' => $rejected,
+        ];
+    }
+
+    /**
+     * Counts for Internships → Interns status tabs.
+     *
+     * @return array<string,int>
+     */
+    public function internshipInternTabCounts()
+    {
+        $base = Application::query()
+            ->whereIn('applications.status', [
+                Application::STATUS_SELECTED,
+                Application::STATUS_HIRED,
+                'shortlisted',
+            ])
+            ->where(function ($q) {
+                $q->whereHas('job', function ($j) {
+                    $j->where('posting_type', 'internship');
+                })->orWhereNotNull('applications.internship_program_id');
+            });
+
+        $all = (clone $base)->count();
+        $selected = (clone $base)->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])->count();
+        $hired = (clone $base)->where('applications.status', Application::STATUS_HIRED)->count();
+        $placed = (clone $base)->whereExists(function ($w) {
+            $w->select(DB::raw(1))
+                ->from('internship_enrolments as ie')
+                ->whereColumn('ie.application_id', 'applications.id')
+                ->whereIn('ie.status', ['active', 'paused', 'completed']);
+        })->count();
+        $ready = (clone $base)->whereNotExists(function ($w) {
+            $w->select(DB::raw(1))
+                ->from('internship_enrolments as ie')
+                ->whereColumn('ie.application_id', 'applications.id')
+                ->whereIn('ie.status', ['active', 'paused', 'completed']);
+        })->count();
+
+        return [
+            'ready' => $ready,
+            'selected' => $selected,
+            'hired' => $hired,
+            'placed' => $placed,
+            'all' => $all,
+        ];
     }
 
     public function updateStatus(Application $application, array $data)

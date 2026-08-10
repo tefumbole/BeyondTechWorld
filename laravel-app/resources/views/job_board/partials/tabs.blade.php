@@ -124,9 +124,33 @@
         display: inline-block; max-width: 100%;
     }
     .jb-sig-box img { max-width: 360px; max-height: 140px; }
+    .jb-nav-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1;
+        background: rgba(15, 23, 42, 0.08);
+        color: inherit;
+    }
+    .jb-nav a.is-active .jb-nav-count {
+        background: rgba(255, 255, 255, 0.28);
+        color: inherit;
+    }
+    .jb-nav a.tone-gold.is-active .jb-nav-count,
+    .jb-nav a.tone-orange.is-active .jb-nav-count {
+        background: rgba(16, 33, 61, 0.12);
+        color: #10213d;
+    }
 </style>
 @php
     $jbTab = $jbTab ?? '';
+    $jbTabCounts = $jbTabCounts ?? app(\App\Services\ApplicationService::class)->jobBoardTabCounts();
     $tabs = [
         ['jobs.applicants', 'Interns', 'dripicons-user', 'tone-pink'],
         ['jobs.index', 'Job Postings', 'dripicons-briefcase', 'tone-blue'],
@@ -140,8 +164,12 @@
 @endphp
 <nav class="jb-nav" aria-label="Job Board">
     @foreach($tabs as $tab)
+        @php $count = $jbTabCounts[$tab[0]] ?? null; @endphp
         <a href="{{ route($tab[0]) }}" class="{{ $tab[3] }} {{ $jbTab === $tab[0] ? 'is-active' : '' }}">
             <i class="{{ $tab[2] }}"></i> {{ $tab[1] }}
+            @if($count !== null)
+                <span class="jb-nav-count">{{ $count }}</span>
+            @endif
         </a>
     @endforeach
 </nav>

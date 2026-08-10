@@ -13,6 +13,13 @@
     .ip-badge.warn { background:#fff7ed; color:#c2410c; }
     .ip-badge.blue { background:#eff6ff; color:#1d4ed8; }
     .ip-nav { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:1rem; }
+    .ip-nav-count {
+        display:inline-flex; align-items:center; justify-content:center;
+        min-width:18px; height:18px; padding:0 5px; border-radius:999px;
+        font-size:11px; font-weight:800; line-height:1;
+        background:rgba(255,255,255,.22); color:inherit;
+    }
+    .ip-btn-outline .ip-nav-count { background:rgba(11,63,144,.1); color:#0b3f90; }
     .ip-table { width:100%; }
     .ip-table th { font-size:12px; text-transform:uppercase; color:#64748b; }
     .ip-ol { padding-left:1.2rem; }
@@ -158,4 +165,24 @@
         margin: 0 0 .85rem; color: #64748b; font-size: 13px; line-height: 1.45; min-height: 2.6em;
     }
     .ip-hub-stat { color: #0b3f90; font-size: 13px; }
+    .ip-hub-teal { border-top: 4px solid #14b8a6; }
+    .ip-hub-teal .ip-hub-icon { background: #ccfbf1; color: #0f766e; }
+    .ip-hub-amber { border-top: 4px solid #f59e0b; }
+    .ip-hub-amber .ip-hub-icon { background: #fef3c7; color: #b45309; }
+    .ip-hub-violet { border-top: 4px solid #8b5cf6; }
+    .ip-hub-violet .ip-hub-icon { background: #ede9fe; color: #6d28d9; }
+    .ip-stat-tile {
+        border-radius: 14px;
+        padding: 1.1rem 1.2rem;
+        color: #fff;
+        min-height: 96px;
+        box-shadow: 0 8px 20px rgba(15,23,42,.08);
+    }
+    .ip-stat-tile .ip-meta { color: rgba(255,255,255,.85); margin-bottom: .25rem; }
+    .ip-stat-tile strong { font-size: 2rem; line-height: 1.1; display: block; }
+    .ip-stat-blue { background: linear-gradient(135deg, #0b3f90, #2563eb); }
+    .ip-stat-green { background: linear-gradient(135deg, #047857, #22c55e); }
+    .ip-stat-orange { background: linear-gradient(135deg, #c2410c, #f59e0b); }
+    .ip-chart-title { color: #0b3f90; font-weight: 800; font-size: 1rem; margin: 0 0 .75rem; }
+    .ip-chart-box { position: relative; height: 240px; }
 </style>

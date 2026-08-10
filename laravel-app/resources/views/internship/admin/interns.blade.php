@@ -11,6 +11,7 @@
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
         <div class="ip-nav">
+            @php $tabCounts = $tabCounts ?? []; @endphp
             @foreach([
                 'ready' => 'Ready to assign',
                 'selected' => 'Selected',
@@ -19,7 +20,10 @@
                 'all' => 'All accepted',
             ] as $key => $label)
                 <a class="ip-btn {{ ($status ?? '') === $key ? '' : 'ip-btn-outline' }}"
-                   href="{{ route('internship.interns', ['status' => $key, 'q' => request('q')]) }}">{{ $label }}</a>
+                   href="{{ route('internship.interns', ['status' => $key, 'q' => request('q')]) }}">
+                    {{ $label }}
+                    <span class="ip-nav-count">{{ (int) ($tabCounts[$key] ?? 0) }}</span>
+                </a>
             @endforeach
         </div>
 
