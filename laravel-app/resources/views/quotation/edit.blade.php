@@ -1094,12 +1094,19 @@ $('select[name="order_tax_rate"]').on("change", function() {
 if (typeof tinymce !== 'undefined') {
     tinymce.init({
         selector: 'textarea.quotation-note-editor',
-        height: 220,
+        height: 320,
         menubar: false,
-        plugins: 'lists link paste code',
-        toolbar: 'undo redo | bold italic underline | bullist numlist | removeformat',
+        plugins: 'lists link paste code table',
+        toolbar: 'undo redo | styles | bold italic underline | bullist numlist | alignleft aligncenter alignright | link | removeformat | code',
         branding: false,
-        statusbar: false
+        statusbar: true,
+        paste_as_text: false,
+        paste_merge_formats: true,
+        paste_webkit_styles: 'font-weight font-style text-decoration font-size color',
+        paste_retain_style_properties: 'font-weight font-style text-decoration font-size color text-align',
+        extended_valid_elements: 'h1,h2,h3,h4,h5,h6,div[style|class|align],span[style|class],p[style|class|align],table[border|width|cellpadding|cellspacing],tr,td[colspan|rowspan|style|align],th[colspan|rowspan|style|align],a[href|target|rel|title]',
+        valid_children: '+body[style],+div[h1|h2|h3|h4|h5|h6|p|ul|ol|table|div]',
+        content_style: 'body{font-family:Arial,sans-serif;font-size:14px;line-height:1.5} h1{font-size:1.5em} h2{font-size:1.3em} h3{font-size:1.15em} ul,ol{padding-left:1.4em}'
     });
 }
 </script>

@@ -19,7 +19,13 @@
         .note-content ul, .note-content ol { margin:8px 0 8px 1.25rem; padding:0; }
         .note-content li { margin:4px 0; }
         .note-content p { margin:0 0 10px; }
+        .note-content h1, .note-content h2, .note-content h3, .note-content h4 { color:#fff; margin:14px 0 8px; line-height:1.25; font-weight:800; }
+        .note-content h1 { font-size:1.35em; }
+        .note-content h2 { font-size:1.2em; }
+        .note-content h3 { font-size:1.08em; }
         .note-content strong, .note-content b { color:#fff; }
+        .note-content table { width:100%; border-collapse:collapse; margin:10px 0; }
+        .note-content td, .note-content th { border:1px solid rgba(255,255,255,.2); padding:6px 8px; vertical-align:top; }
         table.items { width:100%; border-collapse:collapse; margin-top:8px; }
         table.items th, table.items td { border-bottom:1px solid rgba(255,255,255,.12); padding:10px 8px; text-align:left; font-size:14px; }
         table.items th { color:var(--accent); }

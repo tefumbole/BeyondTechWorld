@@ -63,6 +63,9 @@
         .invoice-note ul, .invoice-note ol { margin: 6px 0 6px 1.25rem; padding: 0; }
         .invoice-note li { margin: 3px 0; }
         .invoice-note p { margin: 0 0 8px; }
+        .invoice-note h1, .invoice-note h2, .invoice-note h3 { margin: 10px 0 6px; font-weight: 800; line-height: 1.25; }
+        .invoice-note h1 { font-size: 1.25em; }
+        .invoice-note h2 { font-size: 1.1em; }
 
         @media print {
             * {

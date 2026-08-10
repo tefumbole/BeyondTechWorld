@@ -261,6 +261,14 @@
     .inv-words { font-style: italic; }
     .inv-note p:last-child { margin-bottom: 0; }
     .inv-note ul, .inv-note ol { margin: 3px 0 3px 14px; padding: 0; }
+    .inv-note h1, .inv-note h2, .inv-note h3, .inv-note h4 {
+        margin: 6px 0 3px; font-weight: bold; line-height: 1.25; color: #0b3f90;
+    }
+    .inv-note h1 { font-size: 12px; }
+    .inv-note h2 { font-size: 11px; }
+    .inv-note h3, .inv-note h4 { font-size: 10px; }
+    .inv-note table { width: 100%; border-collapse: collapse; margin: 4px 0; }
+    .inv-note td, .inv-note th { border: 1px solid #dfe3ec; padding: 3px 5px; vertical-align: top; }
 
     .inv-status {
         display: inline-block;
