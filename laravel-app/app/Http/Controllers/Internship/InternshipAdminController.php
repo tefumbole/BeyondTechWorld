@@ -9,6 +9,7 @@ use App\InternshipProgram;
 use App\InternshipProgramTask;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Support\InternCompliance;
 use App\Support\InternshipHandbook;
 use App\User;
 use Illuminate\Http\Request;
@@ -67,8 +68,11 @@ class InternshipAdminController extends Controller
         $stats = [
             'programs' => InternshipProgram::where('status', 'published')->count(),
             'active_enrolments' => InternshipEnrolment::where('status', 'active')->count(),
+            'paused_enrolments' => InternshipEnrolment::where('status', 'paused')->count(),
             'completed' => InternshipEnrolment::where('status', 'completed')->count(),
             'pending_review' => DB::table('internship_task_assignments')->where('status', 'submitted')->count(),
+            'in_progress_tasks' => DB::table('internship_task_assignments')->where('status', 'in_progress')->count(),
+            'available_tasks' => DB::table('internship_task_assignments')->where('status', 'available')->count(),
             'supervisors' => $this->supervisorDirectoryQuery()->count(),
             'interns_ready' => $this->acceptedInternsQuery()
                 ->whereNotExists(function ($w) {
@@ -80,7 +84,46 @@ class InternshipAdminController extends Controller
                 ->count(),
         ];
 
-        return view('internship.admin.dashboard', compact('stats'));
+        $byProgram = InternshipEnrolment::query()
+            ->select('program_id', DB::raw('COUNT(*) as total'))
+            ->whereIn('status', ['active', 'paused', 'completed'])
+            ->groupBy('program_id')
+            ->orderByDesc('total')
+            ->get();
+        $programNames = InternshipProgram::whereIn('id', $byProgram->pluck('program_id')->filter())
+            ->get()
+            ->keyBy('id');
+        $programChart = [
+            'labels' => $byProgram->map(function ($row) use ($programNames) {
+                $p = $programNames->get($row->program_id);
+
+                return $p ? $p->displayName() : ('Program #'.$row->program_id);
+            })->values()->all(),
+            'values' => $byProgram->pluck('total')->map(function ($n) {
+                return (int) $n;
+            })->values()->all(),
+        ];
+
+        $taskStatusChart = [
+            'labels' => ['Available', 'In progress', 'Submitted', 'Passed'],
+            'values' => [
+                (int) DB::table('internship_task_assignments')->where('status', 'available')->count(),
+                (int) DB::table('internship_task_assignments')->where('status', 'in_progress')->count(),
+                (int) DB::table('internship_task_assignments')->where('status', 'submitted')->count(),
+                (int) DB::table('internship_task_assignments')->where('status', 'passed')->count(),
+            ],
+        ];
+
+        $placementChart = [
+            'labels' => ['Active', 'Paused', 'Completed'],
+            'values' => [
+                (int) $stats['active_enrolments'],
+                (int) $stats['paused_enrolments'],
+                (int) $stats['completed'],
+            ],
+        ];
+
+        return view('internship.admin.dashboard', compact('stats', 'programChart', 'taskStatusChart', 'placementChart'));
     }
 
     /**
@@ -124,7 +167,8 @@ class InternshipAdminController extends Controller
 
         $interns = $q->orderByDesc('applications.submitted_at')->paginate(40)->appends($request->query());
 
-        $enrolmentsByApp = InternshipEnrolment::whereIn('application_id', $interns->pluck('id')->filter())
+        $enrolmentsByApp = InternshipEnrolment::with('student')
+            ->whereIn('application_id', $interns->pluck('id')->filter())
             ->get()
             ->keyBy('application_id');
 
@@ -458,6 +502,122 @@ class InternshipAdminController extends Controller
         }
 
         $status = $request->get('status', 'open');
+        $missingWw = in_array((string) $request->get('missing_ww'), ['1', 'true', 'yes'], true);
+        $tomorrow = \Carbon\Carbon::tomorrow()->startOfDay();
+        $dayAfter = \Carbon\Carbon::tomorrow()->addDay()->startOfDay();
+        $upcoming = collect();
+        $assignments = null;
+        $missingWeekRows = collect();
+        $wwLabels = [];
+
+        // Filter chip: active interns who cannot receive day tasks yet.
+        if ($missingWw) {
+            $eq = InternshipEnrolment::with(['student', 'program', 'supervisor'])
+                ->where('status', 'active');
+            if (Auth::user()->role_id > 2
+                && ! in_array('internship.enrolments.view', $this->all_permission, true)
+                && ! in_array('internship.programs.view', $this->all_permission, true)) {
+                $uid = (int) Auth::id();
+                $eq->where(function ($w) use ($uid) {
+                    $w->where('supervisor_id', $uid)
+                        ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+                });
+            }
+            if ($request->filled('q')) {
+                $term = '%'.trim($request->get('q')).'%';
+                $eq->whereHas('student', function ($w) use ($term) {
+                    $w->where('name', 'like', $term)->orWhere('email', 'like', $term);
+                });
+            }
+            $missingWeekRows = $eq->get()->filter(function ($e) {
+                $student = $e->student;
+
+                return $student && ! InternCompliance::workingWeekConfigured($student);
+            })->sortBy(function ($e) {
+                return optional($e->student)->name ?: 'zzz';
+            })->values();
+
+            $targetDate = null;
+
+            return view('internship.admin.task_manager', compact(
+                'assignments', 'status', 'upcoming', 'targetDate', 'missingWw', 'missingWeekRows', 'wwLabels'
+            ));
+        }
+
+        // Upcoming preview tabs (not yet released, or already scheduled for that date).
+        if (in_array($status, ['tomorrow', 'day_after'], true)) {
+            $target = $status === 'tomorrow' ? $tomorrow : $dayAfter;
+            $upcoming = $this->service->previewUpcomingReleases($target);
+
+            // Also include assignments already created for that calendar day.
+            $existingQ = InternshipTaskAssignment::with(['task', 'enrolment.student', 'enrolment.program', 'enrolment.supervisor'])
+                ->whereDate('scheduled_work_date', $target->toDateString())
+                ->orderBy('progression_day');
+            if (Auth::user()->role_id > 2
+                && ! in_array('internship.enrolments.view', $this->all_permission, true)
+                && ! in_array('internship.programs.view', $this->all_permission, true)) {
+                $uid = (int) Auth::id();
+                $existingQ->whereHas('enrolment', function ($w) use ($uid) {
+                    $w->where('supervisor_id', $uid)
+                        ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+                });
+            }
+            if ($request->filled('q')) {
+                $needle = strtolower(trim($request->get('q')));
+                $term = '%'.$needle.'%';
+                $existingQ->whereHas('enrolment.student', function ($w) use ($term) {
+                    $w->where('name', 'like', $term)->orWhere('email', 'like', $term);
+                });
+                $upcoming = $upcoming->filter(function ($row) use ($needle) {
+                    $name = strtolower((string) optional($row['student'])->name);
+                    $email = strtolower((string) optional($row['student'])->email);
+
+                    return strpos($name, $needle) !== false || strpos($email, $needle) !== false;
+                })->values();
+            }
+
+            $existing = $existingQ->get();
+            $seenEnrolmentDays = [];
+            foreach ($existing as $a) {
+                $key = $a->enrolment_id.':'.$a->progression_day;
+                $seenEnrolmentDays[$key] = true;
+                $upcoming->push([
+                    'enrolment' => $a->enrolment,
+                    'student' => optional($a->enrolment)->student,
+                    'program' => optional($a->enrolment)->program,
+                    'supervisor' => optional($a->enrolment)->supervisor,
+                    'task' => $a->task,
+                    'progression_day' => $a->progression_day,
+                    'scheduled_work_date' => optional($a->scheduled_work_date)->toDateString() ?: $target->toDateString(),
+                    'source' => 'assigned',
+                    'assignment' => $a,
+                ]);
+            }
+            $upcoming = $upcoming->filter(function ($row) use ($seenEnrolmentDays) {
+                if (($row['source'] ?? '') === 'assigned') {
+                    return true;
+                }
+                $key = optional($row['enrolment'])->id.':'.($row['progression_day'] ?? '');
+
+                return empty($seenEnrolmentDays[$key]);
+            })->sortBy(function ($row) {
+                return (optional($row['student'])->name ?: 'zzz').'|'.($row['progression_day'] ?? 0);
+            })->values();
+
+            $studentIds = $upcoming->map(function ($row) {
+                return optional($row['student'])->id;
+            })->filter()->unique()->values();
+            foreach (User::whereIn('id', $studentIds)->get() as $u) {
+                $wwLabels[$u->id] = InternCompliance::workingWeekLabel($u);
+            }
+
+            $targetDate = $target->toDateString();
+
+            return view('internship.admin.task_manager', compact(
+                'assignments', 'status', 'upcoming', 'targetDate', 'missingWw', 'missingWeekRows', 'wwLabels'
+            ));
+        }
+
         $q = InternshipTaskAssignment::with(['task', 'enrolment.student', 'enrolment.program', 'enrolment.supervisor'])
             ->orderByDesc('scheduled_work_date')
             ->orderByDesc('id');
@@ -477,6 +637,10 @@ class InternshipAdminController extends Controller
             $q->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted']);
         } elseif ($status === 'today') {
             $q->whereDate('scheduled_work_date', now()->toDateString());
+        } elseif ($status === 'assigned') {
+            // Released day tasks only (one row per student assignment — not the full curriculum).
+            $q->whereNotNull('released_at')
+                ->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted', 'passed', 'skipped']);
         } elseif ($status !== 'all') {
             $q->where('status', $status);
         }
@@ -489,8 +653,17 @@ class InternshipAdminController extends Controller
         }
 
         $assignments = $q->paginate(40)->appends($request->query());
+        $studentIds = $assignments->getCollection()->map(function ($a) {
+            return optional($a->enrolment)->student_user_id;
+        })->filter()->unique()->values();
+        foreach (User::whereIn('id', $studentIds)->get() as $u) {
+            $wwLabels[$u->id] = InternCompliance::workingWeekLabel($u);
+        }
+        $targetDate = null;
 
-        return view('internship.admin.task_manager', compact('assignments', 'status'));
+        return view('internship.admin.task_manager', compact(
+            'assignments', 'status', 'upcoming', 'targetDate', 'missingWw', 'missingWeekRows', 'wwLabels'
+        ));
     }
 
     public function resendTask(Request $request, $id)

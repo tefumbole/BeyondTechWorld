@@ -11,6 +11,7 @@ use App\InternshipSubmissionFile;
 use App\InternshipTaskAssignment;
 use App\Services\Messaging\NotificationRouter;
 use App\Services\TimesheetService;
+use App\Support\InternCompliance;
 use App\Support\InternshipHandbook;
 use App\Support\WhatsAppMessage;
 use App\User;
@@ -122,12 +123,14 @@ class InternshipProgramService
 
     public function isWorkingDate(User $user, Carbon $date)
     {
+        // One schedule per student — no silent Mon–Fri default; student must save Working Week.
+        if (! InternCompliance::workingWeekConfigured($user)) {
+            return false;
+        }
+
         $ww = WorkingWeek::where('user_id', $user->id)->first();
         if (! $ww) {
-            // Default Mon–Fri until student configures
-            $dow = strtolower($date->format('l'));
-
-            return in_array($dow, ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], true);
+            return false;
         }
         $day = strtolower($date->format('l'));
 
@@ -145,6 +148,96 @@ class InternshipProgramService
         }
 
         return null;
+    }
+
+    /**
+     * Preview which active placements would receive a new daily task on $date
+     * (without creating assignments). Used by Task Manager upcoming tabs.
+     *
+     * @return \Illuminate\Support\Collection<int, array{
+     *   enrolment:InternshipEnrolment,
+     *   student:?User,
+     *   program:?InternshipProgram,
+     *   task:?InternshipProgramTask,
+     *   progression_day:int,
+     *   scheduled_work_date:string,
+     *   source:string
+     * }>
+     */
+    public function previewUpcomingReleases(Carbon $date)
+    {
+        $date = $date->copy()->startOfDay();
+        $dateStr = $date->toDateString();
+        $out = collect();
+
+        $enrolments = InternshipEnrolment::with(['student', 'program', 'supervisor'])
+            ->where('status', 'active')
+            ->where(function ($w) use ($dateStr) {
+                $w->whereNull('start_date')->orWhere('start_date', '<=', $dateStr);
+            })
+            ->get();
+
+        foreach ($enrolments as $enrolment) {
+            $student = $enrolment->student;
+            if (! $student) {
+                continue;
+            }
+
+            // Must have a saved personal Working Week before any preview/release.
+            if (! InternCompliance::workingWeekConfigured($student)) {
+                continue;
+            }
+
+            $blocking = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
+                ->exists();
+            if ($blocking) {
+                continue;
+            }
+
+            if ($enrolment->last_release_date
+                && Carbon::parse($enrolment->last_release_date)->isSameDay($date)) {
+                continue;
+            }
+
+            if (! $this->isWorkingDate($student, $date)) {
+                continue;
+            }
+
+            $nextDay = $enrolment->nextCurriculumDay();
+            if (! $nextDay) {
+                continue;
+            }
+
+            $task = InternshipProgramTask::where('program_id', $enrolment->program_id)
+                ->where('day_number', $nextDay)
+                ->where('is_active', true)
+                ->first();
+            if (! $task) {
+                continue;
+            }
+
+            $existing = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+                ->where('program_task_id', $task->id)
+                ->first();
+            if ($existing && in_array($existing->status, ['passed', 'skipped', 'available', 'in_progress', 'submitted', 'revision_required'], true)) {
+                continue;
+            }
+
+            $out->push([
+                'enrolment' => $enrolment,
+                'student' => $student,
+                'program' => $enrolment->program,
+                'supervisor' => $enrolment->supervisor,
+                'task' => $task,
+                'progression_day' => $nextDay,
+                'scheduled_work_date' => $dateStr,
+                'source' => 'scheduled',
+                'assignment' => $existing,
+            ]);
+        }
+
+        return $out;
     }
 
     public function enroll(array $data)
@@ -280,6 +373,11 @@ class InternshipProgramService
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
         $student = $enrolment->student;
         if (! $student) {
+            return false;
+        }
+
+        // Block daily release until the student has configured their own Working Week.
+        if (! InternCompliance::workingWeekConfigured($student)) {
             return false;
         }
 

@@ -5,7 +5,7 @@
     <div class="container-fluid ip-shell" style="max-width:1200px;">
         <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
         <h1 class="ip-title">Interns</h1>
-        <p class="ip-meta mb-3">Accepted or hired internship applicants. Assign a program, supervisors, and start dates from here.</p>
+        <p class="ip-meta mb-3">Accepted or hired internship applicants. Assign a program, supervisors, and start dates from here. Each placed intern must configure their own Working Week before daily tasks release.</p>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -41,6 +41,7 @@
                             <th>Program preference</th>
                             <th>Status</th>
                             <th>Placement</th>
+                            <th>Working week</th>
                             <th>Applied</th>
                             <th></th>
                         </tr>
@@ -49,6 +50,9 @@
                     @forelse($interns as $app)
                         @php
                             $enrolment = $enrolmentsByApp[$app->id] ?? null;
+                            $student = $enrolment ? $enrolment->student : null;
+                            $wwLabel = $student ? \App\Support\InternCompliance::workingWeekLabel($student) : null;
+                            $wwConfigured = $student ? \App\Support\InternCompliance::workingWeekConfigured($student) : false;
                         @endphp
                         <tr>
                             <td>
@@ -72,6 +76,17 @@
                                     <span class="ip-meta">Not placed</span>
                                 @endif
                             </td>
+                            <td>
+                                @if(! $enrolment)
+                                    <span class="ip-meta">—</span>
+                                @elseif($wwConfigured)
+                                    <span class="ip-badge active">Configured</span>
+                                    <div class="ip-meta">{{ $wwLabel ?: 'Saved' }}</div>
+                                @else
+                                    <span class="ip-badge warn">Missing</span>
+                                    <div class="ip-meta">Tasks will not release</div>
+                                @endif
+                            </td>
                             <td class="ip-meta">{{ optional($app->submitted_at)->format('d M Y') ?: '—' }}</td>
                             <td class="text-nowrap">
                                 <a class="ip-btn ip-btn-sm" href="{{ route('jobs.applicants.placement.edit', $app->id) }}">
@@ -81,7 +96,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">No interns match this filter.</td>
+                            <td colspan="7" class="text-center text-muted py-4">No interns match this filter.</td>
                         </tr>
                     @endforelse
                     </tbody>

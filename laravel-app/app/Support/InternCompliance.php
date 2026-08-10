@@ -68,6 +68,40 @@ class InternCompliance
     }
 
     /**
+     * Short label of the student's configured working days (e.g. "Mon–Fri"), or null if missing.
+     */
+    public static function workingWeekLabel(User $user)
+    {
+        if (! self::workingWeekConfigured($user)) {
+            return null;
+        }
+
+        $row = WorkingWeek::where('user_id', $user->id)->first();
+        if (! $row) {
+            return null;
+        }
+
+        $short = [
+            'monday' => 'Mon', 'tuesday' => 'Tue', 'wednesday' => 'Wed',
+            'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun',
+        ];
+        $active = [];
+        foreach (WorkingWeek::days() as $day) {
+            if ($row->{$day}) {
+                $active[] = $short[$day];
+            }
+        }
+        if (! $active) {
+            return 'No days';
+        }
+        if ($active === ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) {
+            return 'Mon–Fri';
+        }
+
+        return implode(', ', $active);
+    }
+
+    /**
      * Most recent working day (today after EOD, or a past day within 7 days) missing a timesheet entry.
      *
      * @return string|null Y-m-d
