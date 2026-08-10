@@ -21,21 +21,45 @@ class Application extends Model
     const STATUS_HIRED = 'hired';
 
     protected $fillable = [
-        'id', 'job_id', 'internship_program_id', 'internship_duration_days', 'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
+        'id', 'job_id', 'internship_program_id', 'internship_duration_days', 'working_week_json',
+        'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
         'school', 'level_of_study', 'education_status', 'is_academic_required',
         'cover_letter', 'expected_salary', 'availability', 'availability_days',
         'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path', 'selfie_path',
         'signature_image', 'agreement_token', 'agreement_sent_at', 'agreement_signed_at',
+        'offer_accepted_at', 'offer_flow_version',
         'agreement_signature_image', 'status', 'reference_number', 'rejection_reason',
         'interview_date', 'submitted_at',
     ];
 
-    protected $dates = ['interview_date', 'submitted_at', 'agreement_sent_at', 'agreement_signed_at'];
+    protected $dates = ['interview_date', 'submitted_at', 'agreement_sent_at', 'agreement_signed_at', 'offer_accepted_at'];
 
     protected $casts = [
         'is_academic_required' => 'boolean',
         'internship_duration_days' => 'integer',
+        'offer_flow_version' => 'integer',
     ];
+
+    public function needsOfferPortal()
+    {
+        return (int) ($this->offer_flow_version ?? 0) >= 1 && empty($this->offer_accepted_at);
+    }
+
+    public function workingWeekData()
+    {
+        return \App\Support\WorkingWeekForm::fromArray($this->working_week_json);
+    }
+
+    public function hasWorkingWeekOnApplication()
+    {
+        try {
+            \App\Support\WorkingWeekForm::assertValid($this->workingWeekData());
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
     /** Suggested preset lengths (UI helpers only — any 1–180 days is allowed). */
     public static function internshipDurationOptions()

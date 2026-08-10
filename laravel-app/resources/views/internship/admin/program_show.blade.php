@@ -50,6 +50,13 @@
                         <label>Prerequisites</label>
                         <input class="form-control" name="prerequisites" value="{{ old('prerequisites', $program->prerequisites) }}">
                     </div>
+                    <div class="col-md-6 form-group">
+                        <label>Max students</label>
+                        <input class="form-control" type="number" min="1" max="10000" name="max_students"
+                               value="{{ old('max_students', $program->max_students) }}"
+                               placeholder="Leave blank for unlimited">
+                        <small class="text-muted">{{ $program->capacityLabel() }} · leave empty for unlimited seats</small>
+                    </div>
                     <div class="col-md-12 form-group">
                         <label>Description</label>
                         <textarea class="form-control" name="description" rows="3">{{ old('description', $program->description) }}</textarea>

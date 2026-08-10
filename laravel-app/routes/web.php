@@ -106,6 +106,8 @@ Route::post('/apply-now/{id}', 'ApplyController@store')->name('apply.store');
 Route::get('/application-confirmation/{reference}', 'ApplyController@confirmation')->name('apply.confirmation');
 Route::get('/application-agreement/{token}', 'ApplicationAgreementController@show')->name('apply.agreement');
 Route::post('/application-agreement/{token}', 'ApplicationAgreementController@sign')->name('apply.agreement.sign');
+Route::get('/offer/{token}', 'ApplicationAgreementController@show')->name('apply.offer');
+Route::post('/offer/{token}', 'ApplicationAgreementController@sign')->name('apply.offer.sign');
 
 // Applicant portal — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {

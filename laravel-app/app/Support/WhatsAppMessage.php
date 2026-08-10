@@ -509,15 +509,20 @@ class WhatsAppMessage
         return $msg;
     }
 
-    public static function applicationSelected($name, $jobTitle, $reference, $agreementUrl, $isInternship = false)
+    public static function applicationSelected($name, $jobTitle, $reference, $agreementUrl, $isInternship = false, $offerPortal = false)
     {
         $kind = $isInternship ? 'Internship' : 'Employment';
         $msg = self::statusBlock('✅', 'Selected');
         $msg .= self::greeting($name);
         $msg .= "Congratulations! You have been *selected* for the {$kind} role *{$jobTitle}*.\n\n";
         $msg .= self::bullet('Reference', $reference);
-        $msg .= self::actionLink('Sign your agreement', $agreementUrl);
-        $msg .= "\nAfter signing, you will receive a WhatsApp confirmation.";
+        $linkLabel = ($isInternship && $offerPortal)
+            ? 'Accept your offer & set up your account'
+            : 'Sign your agreement';
+        $msg .= self::actionLink($linkLabel, $agreementUrl);
+        $msg .= $offerPortal
+            ? "\nUse the link to accept the offer, create your password, and confirm your Working Week."
+            : "\nAfter signing, you will receive a WhatsApp confirmation.";
         $msg .= self::footer();
 
         return $msg;
@@ -546,8 +551,8 @@ class WhatsAppMessage
         $msg .= self::greeting($name);
         $msg .= "Your {$kind} agreement for *{$jobTitle}* has been signed and received.\n\n";
         $msg .= self::bullet('Reference', $reference);
-        $msg .= self::bullet('Working hours', '7:30 AM – 4:00 PM');
-        $msg .= self::bullet('Timesheets', 'Daily · minimum 40 hours per week');
+        $msg .= self::bullet('Working hours', $isInternship ? 'Per your Working Week' : '7:30 AM – 4:00 PM');
+        $msg .= self::bullet('Timesheets', $isInternship ? 'Daily on your working days' : 'Daily · minimum 40 hours per week');
         $msg .= "\nFailure to complete assigned tasks may result in termination.\n\n";
         $msg .= 'Welcome to *' . self::companyName() . '*.';
         $msg .= self::footer();

@@ -66,17 +66,21 @@ class ApplicationNotifier
 
     public function selected(Application $application, JobPosting $job, $agreementUrl)
     {
+        $offerPortal = $job->isInternship() && $application->needsOfferPortal();
         $message = WhatsAppMessage::applicationSelected(
             $application->full_name,
             $job->title,
             $application->reference_number,
             $agreementUrl,
-            $job->isInternship()
+            $job->isInternship(),
+            $offerPortal
         );
 
         return $this->send($application, $message, [
             'title' => 'Congratulations',
-            'message' => 'You have been selected for '.$job->title.'. Please sign your agreement.',
+            'message' => $offerPortal
+                ? 'You have been selected for '.$job->title.'. Accept your offer and set up your account.'
+                : 'You have been selected for '.$job->title.'. Please sign your agreement.',
             'details' => $agreementUrl ?: '-',
         ]);
     }
@@ -109,7 +113,7 @@ class ApplicationNotifier
         return $this->send($application, $message, [
             'title' => 'Agreement signed',
             'message' => 'Your agreement for '.$job->title.' has been signed and received.',
-            'details' => 'Working hours 7:30 AM – 4:00 PM',
+            'details' => $job->isInternship() ? 'Working hours per Working Week' : 'Working hours 7:30 AM – 4:00 PM',
         ]);
     }
 

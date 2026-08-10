@@ -516,11 +516,19 @@ class JobBoardController extends Controller
     public function showApplication($id)
     {
         $this->authorizeJobs();
-        $app = Application::with('job')->findOrFail($id);
+        $app = Application::with(['job', 'internshipProgram'])->findOrFail($id);
+        $programOptions = collect();
+        if ($app->job && $app->job->isInternship()) {
+            $programOptions = \App\InternshipProgram::where('status', 'published')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get();
+        }
 
         return view('job_board.application_show', [
             'app' => $app,
             'jbTab' => 'jobs.applications',
+            'programOptions' => $programOptions,
         ]);
     }
 
@@ -564,12 +572,17 @@ class JobBoardController extends Controller
             'rejection_reason' => 'nullable|string|max:2000',
             'status_reason' => 'nullable|string|max:2000',
             'interview_date' => 'nullable|date',
+            'internship_program_id' => 'nullable|integer|exists:internship_programs,id',
         ]);
         if (! empty($data['status_reason']) && empty($data['rejection_reason'])) {
             $data['rejection_reason'] = $data['status_reason'];
         }
         $app = Application::findOrFail($id);
-        $this->applications->updateStatus($app, $data);
+        try {
+            $this->applications->updateStatus($app, $data);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         return back()->with('message', 'Application updated. Candidate notified via WhatsApp when applicable.');
     }

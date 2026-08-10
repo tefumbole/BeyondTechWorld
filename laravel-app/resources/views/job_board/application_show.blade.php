@@ -27,6 +27,11 @@
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
+        @if($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0 pl-3">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+            </div>
+        @endif
 
         <div class="row">
             <div class="col-lg-7">
@@ -55,10 +60,17 @@
                     @if($isInternship || $app->school || $app->level_of_study || $app->education_status || $app->is_academic_required !== null || $app->internship_program_id)
                         <table class="table table-sm mb-0 jb-detail-table">
                             @if($app->internship_program_id)
-                                <tr><th>Internship program</th><td><strong>{{ optional($app->internshipProgram)->displayName() ?: ('#'.$app->internship_program_id) }}</strong></td></tr>
+                                <tr><th>Internship program</th><td><strong>{{ optional($app->internshipProgram)->displayName() ?: ('#'.$app->internship_program_id) }}</strong>
+                                    @if(optional($app->internshipProgram)->max_students !== null)
+                                        <div class="text-muted small">{{ $app->internshipProgram->capacityLabel() }}</div>
+                                    @endif
+                                </td></tr>
                             @endif
                             @if($app->internship_duration_days)
                                 <tr><th>Internship duration</th><td><strong>{{ $app->internshipDurationLabel() }}</strong></td></tr>
+                            @endif
+                            @if($app->hasWorkingWeekOnApplication())
+                                <tr><th>Working Week</th><td><span class="jb-badge">Saved on application</span></td></tr>
                             @endif
                             <tr><th>School / Institution</th><td>{{ $app->school ?: '—' }}</td></tr>
                             <tr><th>Level of study</th><td>{{ $app->level_of_study ?: '—' }}</td></tr>
@@ -200,6 +212,26 @@
                                 @endforeach
                             </select>
                         </div>
+                        @if($isInternship && isset($programOptions) && $programOptions->count()
+                            && in_array($app->status, ['awaiting_approval','new','reviewed','interview','pending','selected','shortlisted'], true))
+                            <div>
+                                <label class="jb-label">Internship program</label>
+                                <select name="internship_program_id" class="jb-native-select" autocomplete="off">
+                                    @foreach($programOptions as $prog)
+                                        @php
+                                            $cap = $prog->capacityLabel();
+                                            $full = $prog->max_students !== null && ! $prog->hasCapacityForOneMore($app->id);
+                                        @endphp
+                                        <option value="{{ $prog->id }}"
+                                            @if((int) $app->internship_program_id === (int) $prog->id) selected @endif
+                                            @if($full && (int) $app->internship_program_id !== (int) $prog->id) disabled @endif>
+                                            {{ $prog->displayName() }} — {{ $cap }}{{ $full ? ' (full)' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <p class="text-muted small mb-0 mt-1">Filled seats = active placements + selected without enrolment. Full programs cannot be chosen.</p>
+                            </div>
+                        @endif
                         <div>
                             <label class="jb-label jb-reason-label">Reason</label>
                             <input type="text" name="status_reason" class="jb-field jb-reason-input" value="{{ $app->rejection_reason }}" placeholder="Reason (optional)">

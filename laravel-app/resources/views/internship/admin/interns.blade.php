@@ -57,6 +57,7 @@
                             $student = $enrolment ? $enrolment->student : null;
                             $wwLabel = $student ? \App\Support\InternCompliance::workingWeekLabel($student) : null;
                             $wwConfigured = $student ? \App\Support\InternCompliance::workingWeekConfigured($student) : false;
+                            $wwOnApp = ! $wwConfigured && $app->hasWorkingWeekOnApplication();
                         @endphp
                         <tr>
                             <td>
@@ -81,11 +82,14 @@
                                 @endif
                             </td>
                             <td>
-                                @if(! $enrolment)
-                                    <span class="ip-meta">—</span>
-                                @elseif($wwConfigured)
+                                @if($wwConfigured)
                                     <span class="ip-badge active">Configured</span>
                                     <div class="ip-meta">{{ $wwLabel ?: 'Saved' }}</div>
+                                @elseif($wwOnApp)
+                                    <span class="ip-badge blue">Saved on application</span>
+                                    <div class="ip-meta">Syncs when account is created</div>
+                                @elseif(! $enrolment)
+                                    <span class="ip-meta">—</span>
                                 @else
                                     <span class="ip-badge warn">Missing</span>
                                     <div class="ip-meta">Tasks will not release</div>

@@ -6,6 +6,7 @@ use App\Application;
 use App\InternshipEnrolment;
 use App\JobPosting;
 use App\Support\WhatsAppPhone;
+use App\Support\WorkingWeekForm;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -61,6 +62,9 @@ class ApplicationService
             'country' => $data['country'] ?? null,
             'internship_program_id' => $job->isInternship() ? ($data['internship_program_id'] ?? null) : null,
             'internship_duration_days' => $job->isInternship() ? ($data['internship_duration_days'] ?? null) : null,
+            'working_week_json' => null,
+            'offer_flow_version' => $job->isInternship() ? 1 : 0,
+            'offer_accepted_at' => null,
             'school' => $job->isInternship() ? trim((string) ($data['school'] ?? '')) : null,
             'level_of_study' => $job->isInternship() ? trim((string) ($data['level_of_study'] ?? '')) : null,
             'education_status' => $job->isInternship() ? ($data['education_status'] ?? null) : null,
@@ -95,6 +99,10 @@ class ApplicationService
                 ]);
             }
             $payload['internship_duration_days'] = $duration;
+            $wwData = WorkingWeekForm::fromArray($data['working_week'] ?? $data);
+            WorkingWeekForm::assertValid($wwData, 'working_week');
+            $payload['working_week_json'] = WorkingWeekForm::toJson($wwData);
+            $payload['offer_flow_version'] = 1;
             if ($payload['school'] === '') {
                 $payload['school'] = null;
             }
@@ -685,9 +693,14 @@ class ApplicationService
         $previous = $application->status;
         $status = $data['status'] ?? $application->status;
 
-        // Hired without a signed agreement → treat as Selected and send agreement link.
-        if ($status === Application::STATUS_HIRED && empty($application->agreement_signed_at)) {
+        // Hired without a signed / accepted offer → treat as Selected and send offer/agreement link.
+        if ($status === Application::STATUS_HIRED
+            && (empty($application->agreement_signed_at) || $application->needsOfferPortal())) {
             $status = Application::STATUS_SELECTED;
+        }
+
+        if (array_key_exists('internship_program_id', $data) && $data['internship_program_id'] !== null) {
+            $this->reassignInternshipProgram($application, (int) $data['internship_program_id']);
         }
 
         $application->status = $status;
@@ -706,7 +719,10 @@ class ApplicationService
                 $application->agreement_sent_at = now();
                 $application->save();
                 $this->notifier->selected($application, $application->job, $url);
-                $this->enrolInInternshipProgram($application);
+                // New offer-portal apps enrol only after the candidate completes the portal.
+                if (! $application->needsOfferPortal()) {
+                    $this->enrolInInternshipProgram($application);
+                }
             } elseif ($status === Application::STATUS_REJECTED) {
                 $this->notifier->rejected($application, $application->job);
             } elseif ($status === Application::STATUS_HIRED) {
@@ -716,6 +732,94 @@ class ApplicationService
                 $this->notifier->underReview($application, $application->job);
             }
         }
+
+        return $application;
+    }
+
+    /**
+     * Change program while awaiting (or selected before placement). Enforces max_students.
+     */
+    public function reassignInternshipProgram(Application $application, $programId)
+    {
+        $programId = (int) $programId;
+        if ($programId < 1) {
+            throw ValidationException::withMessages([
+                'internship_program_id' => ['Select a valid internship program.'],
+            ]);
+        }
+        $allowedStatuses = [
+            Application::STATUS_AWAITING,
+            'new', 'reviewed', 'interview', 'pending',
+            Application::STATUS_SELECTED,
+            'shortlisted',
+        ];
+        if (! in_array($application->status, $allowedStatuses, true)) {
+            throw ValidationException::withMessages([
+                'internship_program_id' => ['Program can only be changed while awaiting approval or before hire.'],
+            ]);
+        }
+        if ((int) $application->internship_program_id === $programId) {
+            return $application;
+        }
+
+        $program = \App\InternshipProgram::where('id', $programId)
+            ->where('is_active', true)
+            ->first();
+        if (! $program) {
+            throw ValidationException::withMessages([
+                'internship_program_id' => ['That internship program was not found or is inactive.'],
+            ]);
+        }
+        if (! $program->hasCapacityForOneMore($application->id)) {
+            throw ValidationException::withMessages([
+                'internship_program_id' => [
+                    $program->displayName().' is full ('.$program->capacityLabel().'). Choose another program.',
+                ],
+            ]);
+        }
+
+        $application->internship_program_id = $programId;
+        $application->save();
+
+        return $application;
+    }
+
+    public function syncWorkingWeekToUser($userId, array $wwData)
+    {
+        if (! $userId) {
+            return null;
+        }
+        WorkingWeekForm::assertValid($wwData);
+
+        return app(\App\Services\TimesheetService::class)->saveWorkingWeek($userId, WorkingWeekForm::fromArray($wwData));
+    }
+
+    /**
+     * Offer portal completion: password + Working Week + signature → hired + enrol.
+     */
+    public function completeOfferPortal(Application $application, $signatureImage, $plainPassword, array $wwData)
+    {
+        WorkingWeekForm::assertValid($wwData);
+        $application->working_week_json = WorkingWeekForm::toJson($wwData);
+        $application->save();
+
+        $user = $this->ensureErpInternUser($application, $plainPassword, true);
+        if ($user) {
+            $this->syncWorkingWeekToUser($user->id, $wwData);
+        }
+
+        $application->agreement_signature_image = $signatureImage;
+        $application->agreement_signed_at = now();
+        $application->offer_accepted_at = now();
+        $application->status = Application::STATUS_HIRED;
+        $application->save();
+        $application->load('job');
+
+        if ($application->job) {
+            $this->notifier->agreementSigned($application, $application->job);
+            $this->notifier->hiredAdmission($application, $application->job);
+        }
+        $this->enrolInInternshipProgram($application);
 
         return $application;
     }
@@ -1143,7 +1247,7 @@ class ApplicationService
         }
     }
 
-    public function ensureErpInternUser(Application $application, $plainPassword = 'system')
+    public function ensureErpInternUser(Application $application, $plainPassword = 'system', $updatePassword = false)
     {
         $email = strtolower(trim((string) $application->email));
         if ($email === '') {
@@ -1170,6 +1274,9 @@ class ApplicationService
             $user->name = $application->full_name ?: $user->name;
             $user->phone = $application->whatsapp_number ?: $application->phone ?: $user->phone;
             $user->is_active = 1;
+            if ($updatePassword && $plainPassword !== '') {
+                $user->password = bcrypt($plainPassword);
+            }
             if ($warehouseId && ! $user->warehouse_id) {
                 $user->warehouse_id = $warehouseId;
             }
@@ -1193,7 +1300,7 @@ class ApplicationService
                 'is_active' => 1,
                 'is_deleted' => 0,
             ]);
-            Log::info('Created Intern ERP user for application '.$application->id.' password '.$password);
+            Log::info('Created Intern ERP user for application '.$application->id);
         }
 
         // Link numeric ERP user id on applications when column expects it (may already hold Beyond UUID).
@@ -1205,6 +1312,15 @@ class ApplicationService
         } catch (\Throwable $e) {
         }
 
+        // Copy Working Week from application onto the ERP user when available.
+        if ($user && $application->hasWorkingWeekOnApplication()) {
+            try {
+                $this->syncWorkingWeekToUser($user->id, $application->workingWeekData());
+            } catch (\Throwable $e) {
+                Log::warning('WW sync from application failed: '.$e->getMessage());
+            }
+        }
+
         return $user;
     }
 
@@ -1212,6 +1328,9 @@ class ApplicationService
     {
         $application->agreement_signature_image = $signatureImage;
         $application->agreement_signed_at = now();
+        if (empty($application->offer_accepted_at)) {
+            $application->offer_accepted_at = now();
+        }
         $application->status = Application::STATUS_HIRED;
         $application->save();
         $application->load('job');

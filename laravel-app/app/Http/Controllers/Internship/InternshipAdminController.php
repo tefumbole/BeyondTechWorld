@@ -284,6 +284,7 @@ class InternshipAdminController extends Controller
             'status' => 'required|in:draft,published,archived',
             'discipline' => 'nullable|string|max:255',
             'prerequisites' => 'nullable|string|max:2000',
+            'max_students' => 'nullable|integer|min:1|max:10000',
             'is_active' => 'nullable|boolean',
         ]);
         $program->fill([
@@ -293,6 +294,7 @@ class InternshipAdminController extends Controller
             'status' => $data['status'],
             'discipline' => $data['discipline'] ?? null,
             'prerequisites' => $data['prerequisites'] ?? null,
+            'max_students' => $request->filled('max_students') ? (int) $data['max_students'] : null,
             'is_active' => $request->boolean('is_active'),
         ]);
         $program->save();

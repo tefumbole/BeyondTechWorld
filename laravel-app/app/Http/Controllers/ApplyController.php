@@ -126,6 +126,7 @@ class ApplyController extends Controller
             $rules['selfie'] = 'required|file|mimes:jpeg,jpg,png|max:5120';
             $rules['signature_image'] = 'required|string|max:500000';
             $rules['agreement_accepted'] = 'required|accepted';
+            $rules = array_merge($rules, \App\Support\WorkingWeekForm::validationRules());
 
             $educationStatus = (string) $request->input('education_status', '');
             $academicRequired = $educationStatus === 'currently_studying'
@@ -147,6 +148,9 @@ class ApplyController extends Controller
             } else {
                 $validated['is_academic_required'] = (string) $request->input('is_academic_required', '0') === '1' ? 1 : 0;
             }
+            $wwData = \App\Support\WorkingWeekForm::fromRequest($request);
+            \App\Support\WorkingWeekForm::assertValid($wwData, 'working_week');
+            $validated['working_week'] = $wwData;
         }
 
         // Fail with a form error (not a 500) when the WhatsApp number is invalid.

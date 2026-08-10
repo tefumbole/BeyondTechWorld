@@ -263,11 +263,29 @@
                 </p>
             </div>
         </div>
+
+        <div class="apply-step" id="step-working-week">
+            <div class="apply-step-head">
+                <span class="apply-step-num">4</span>
+                <div>
+                    <h3 class="apply-step-title">Working Week</h3>
+                    <p class="apply-step-sub">Your usual days and hours — required for daily tasks</p>
+                </div>
+            </div>
+            @error('working_week')
+                <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-3">{{ $message }}</div>
+            @enderror
+            @include('beyond.apply.partials.working_week_fields', [
+                'wwData' => old() ?: \App\Support\WorkingWeekForm::defaultData(),
+                'formId' => 'apply-ww',
+                'required' => true,
+            ])
+        </div>
         @endif
 
         <div class="apply-step" id="step-documents">
             <div class="apply-step-head">
-                @if($isInternship)<span class="apply-step-num">4</span>@endif
+                @if($isInternship)<span class="apply-step-num">5</span>@endif
                 <div>
                     <h3 class="apply-step-title">Documents</h3>
                     <p class="apply-step-sub">{{ $isInternship ? 'Snap photos or attach files' : 'Upload your CV' }}</p>
@@ -376,7 +394,7 @@
 
         <div class="apply-step" id="step-cover">
             <div class="apply-step-head">
-                @if($isInternship)<span class="apply-step-num">5</span>@endif
+                @if($isInternship)<span class="apply-step-num">6</span>@endif
                 <div>
                     <h3 class="apply-step-title">Cover letter <span class="normal-case font-semibold text-gray-500">(optional)</span></h3>
                     <p class="apply-step-sub">A short note helps us know you</p>

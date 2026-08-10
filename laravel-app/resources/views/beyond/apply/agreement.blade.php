@@ -34,8 +34,8 @@
                 <h2 class="text-lg font-bold text-brand-blue">Internship terms</h2>
                 <ul class="list-disc pl-5 space-y-2">
                     <li>This internship is <strong>unpaid</strong>.</li>
-                    <li>Expected working hours: <strong>7:30 AM to 4:00 PM</strong>.</li>
-                    <li>You must complete <strong>daily timesheets</strong> and work at least <strong>40 hours per week</strong>.</li>
+                    <li>Expected working hours: <strong>per your Working Week</strong> (configured in your portal).</li>
+                    <li>You must complete <strong>daily timesheets</strong> on your configured working days.</li>
                     <li>Failure to complete assigned tasks may result in <strong>termination or premature termination</strong> of the internship.</li>
                 </ul>
             @else
