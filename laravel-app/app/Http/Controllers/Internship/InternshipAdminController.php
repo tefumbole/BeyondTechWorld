@@ -147,12 +147,14 @@ class InternshipAdminController extends Controller
                     ->whereIn('ie.status', ['active', 'paused', 'completed']);
             });
         } elseif ($status === 'ready') {
-            $q->whereNotExists(function ($w) {
-                $w->select(DB::raw(1))
-                    ->from('internship_enrolments as ie')
-                    ->whereColumn('ie.application_id', 'applications.id')
-                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
-            });
+            // Selected / shortlisted and not yet assigned to a program.
+            $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
+                ->whereNotExists(function ($w) {
+                    $w->select(DB::raw(1))
+                        ->from('internship_enrolments as ie')
+                        ->whereColumn('ie.application_id', 'applications.id')
+                        ->whereIn('ie.status', ['active', 'paused', 'completed']);
+                });
         }
 
         if ($request->filled('q')) {

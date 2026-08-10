@@ -618,7 +618,6 @@ class ApplicationService
             });
 
         $all = (clone $base)->count();
-        $selected = (clone $base)->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])->count();
         $hired = (clone $base)->where('applications.status', Application::STATUS_HIRED)->count();
         $placed = (clone $base)->whereExists(function ($w) {
             $w->select(DB::raw(1))
@@ -626,12 +625,18 @@ class ApplicationService
                 ->whereColumn('ie.application_id', 'applications.id')
                 ->whereIn('ie.status', ['active', 'paused', 'completed']);
         })->count();
-        $ready = (clone $base)->whereNotExists(function ($w) {
-            $w->select(DB::raw(1))
-                ->from('internship_enrolments as ie')
-                ->whereColumn('ie.application_id', 'applications.id')
-                ->whereIn('ie.status', ['active', 'paused', 'completed']);
-        })->count();
+        $selected = (clone $base)
+            ->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
+            ->count();
+        // Ready = selected/shortlisted and not yet assigned to a program.
+        $ready = (clone $base)
+            ->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
+            ->whereNotExists(function ($w) {
+                $w->select(DB::raw(1))
+                    ->from('internship_enrolments as ie')
+                    ->whereColumn('ie.application_id', 'applications.id')
+                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
+            })->count();
 
         return [
             'ready' => $ready,
