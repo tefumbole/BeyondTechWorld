@@ -1,0 +1,70 @@
+{
+  "program_count": 8,
+  "total_days": 1440,
+  "programs": [
+    {
+      "key": "CyberSecurity",
+      "title": "Beyond Cyber Security Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_CyberSecurity_Internship_180_Day_Program.json",
+      "package_file": "Beyond_CyberSecurity_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "DataScience",
+      "title": "Beyond Data Science Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_DataScience_Internship_180_Day_Program.json",
+      "package_file": "Beyond_DataScience_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "SoftwareDev",
+      "title": "Beyond Software Development Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_SoftwareDev_Internship_180_Day_Program.json",
+      "package_file": "Beyond_SoftwareDev_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "Intercom",
+      "title": "Beyond Intercom Systems Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_Intercom_Internship_180_Day_Program.json",
+      "package_file": "Beyond_Intercom_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "Lighting",
+      "title": "Beyond Lighting Engineering Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_Lighting_Internship_180_Day_Program.json",
+      "package_file": "Beyond_Lighting_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "LiveSound",
+      "title": "Beyond Live Sound Engineering Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_LiveSound_Internship_180_Day_Program.json",
+      "package_file": "Beyond_LiveSound_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "Networking",
+      "title": "Beyond Networking Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_Networking_Internship_180_Day_Program.json",
+      "package_file": "Beyond_Networking_Internship_180_Day_Program_Package.zip"
+    },
+    {
+      "key": "ScreensVideo",
+      "title": "Beyond Screens and Video Internship \u2014 180-Day Program",
+      "days": 180,
+      "phases": 18,
+      "json_file": "Beyond_ScreensVideo_Internship_180_Day_Program.json",
+      "package_file": "Beyond_ScreensVideo_Internship_180_Day_Program_Package.zip"
+    }
+  ]
+}
