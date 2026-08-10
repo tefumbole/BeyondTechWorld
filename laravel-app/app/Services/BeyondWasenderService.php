@@ -139,4 +139,132 @@ class BeyondWasenderService
 
         return substr($formatted, 0, 6).'****'.substr($formatted, -2);
     }
+
+    /**
+     * Upload a local file to Wasender and send it as a document attachment.
+     *
+     * @return array{success:bool,error?:string,msg_id?:mixed,publicUrl?:string}
+     */
+    public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
+    {
+        if (! $this->isConfigured()) {
+            if (app()->environment('local')) {
+                \Log::info('[beyond-whatsapp] Wasender not configured — skip document', [
+                    'path' => $localPath,
+                    'file' => $fileName,
+                ]);
+
+                return ['success' => true, 'dev' => true];
+            }
+
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Document file not found.'];
+        }
+
+        $fileName = $fileName ?: basename($localPath);
+
+        try {
+            $to = $this->formatPhone($phone);
+            if (! $to) {
+                return ['success' => false, 'error' => 'Invalid WhatsApp number'];
+            }
+
+            $publicUrl = $this->uploadLocalFile($localPath);
+            if (empty($publicUrl)) {
+                return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
+            }
+
+            $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+            $url = $base.'/send-message';
+            $payload = json_encode([
+                'to' => $to,
+                'documentUrl' => $publicUrl,
+                'fileName' => $fileName,
+                'text' => $caption !== null && $caption !== '' ? $caption : $fileName,
+            ]);
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                    'Accept: application/json',
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_TIMEOUT => 60,
+            ]);
+            $body = curl_exec($ch);
+            $err = curl_error($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($err) {
+                return ['success' => false, 'error' => $err];
+            }
+
+            $decoded = json_decode($body, true);
+            $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
+            if ($http >= 400 || $apiSuccess === false) {
+                $error = is_array($decoded)
+                    ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http))
+                    : ('HTTP '.$http);
+
+                return ['success' => false, 'error' => $error];
+            }
+
+            return [
+                'success' => true,
+                'http' => $http,
+                'publicUrl' => $publicUrl,
+                'msg_id' => is_array($decoded) ? ($decoded['data']['msgId'] ?? null) : null,
+            ];
+        } catch (\Throwable $e) {
+            \Log::warning('[beyond-whatsapp] document send exception', ['error' => $e->getMessage()]);
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    protected function uploadLocalFile($path)
+    {
+        $mime = function_exists('mime_content_type') ? @mime_content_type($path) : null;
+        if (empty($mime)) {
+            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mime = $ext === 'pdf' ? 'application/pdf' : 'application/octet-stream';
+        }
+
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $url = $base.'/upload';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+                'Content-Type: '.$mime,
+            ],
+            CURLOPT_POSTFIELDS => file_get_contents($path),
+            CURLOPT_TIMEOUT => 90,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) {
+            throw new \Exception($err);
+        }
+
+        $decoded = json_decode($body, true);
+        if (! empty($decoded['publicUrl'])) {
+            return $decoded['publicUrl'];
+        }
+
+        throw new \Exception($decoded['message'] ?? $decoded['error'] ?? 'Wasender upload failed.');
+    }
 }

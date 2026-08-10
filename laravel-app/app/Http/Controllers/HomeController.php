@@ -65,7 +65,7 @@ class HomeController extends Controller
         if (\App\Support\LocalDevAuth::skipStaffOtp()) {
             $user->update(['otp_verify' => 1, 'otp' => null, 'otp_time' => null]);
 
-            return redirect('/admin');
+            return $this->redirectAfterStaffOtp($user);
         }
 
         try {
@@ -122,7 +122,7 @@ class HomeController extends Controller
                 'path' => '/otp/screen/store',
             ], $request);
 
-            return redirect('/admin');
+            return $this->redirectAfterStaffOtp($user);
         }
 
         \App\Services\ActivityLogService::log([
@@ -134,6 +134,16 @@ class HomeController extends Controller
         ], $request);
 
         return redirect()->back()->with('not_permitted', 'Invalid or expired OTP');
+    }
+
+    protected function redirectAfterStaffOtp($user)
+    {
+        $internRedirect = \App\Support\InternCompliance::postLoginRedirect($user);
+        if ($internRedirect) {
+            return redirect($internRedirect);
+        }
+
+        return redirect('/admin');
     }
 
     protected function otpResendSecondsRemaining($user)

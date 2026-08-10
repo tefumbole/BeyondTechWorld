@@ -22,6 +22,7 @@ class WorkingWeek extends Model
         'sunday' => 'boolean',
         'lunch_break_minutes' => 'integer',
         'expected_hours_per_day' => 'float',
+        'configured_at' => 'datetime',
     ];
 
     protected static function boot()

@@ -327,10 +327,53 @@ class TimesheetService
             $payload[$day . '_start'] = $data[$day . '_start'] ?? $row->{$day . '_start'};
             $payload[$day . '_end'] = $data[$day . '_end'] ?? $row->{$day . '_end'};
         }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('be_working_week', 'configured_at')) {
+            $payload['configured_at'] = now();
+        }
         $row->fill($payload);
         $row->save();
 
         return $row;
+    }
+
+    public function hasEntryOnDate($userId, $date)
+    {
+        return TimesheetEntry::where('user_id', $userId)
+            ->whereDate('entry_date', $date)
+            ->exists();
+    }
+
+    /**
+     * Ensure the intern has at least one activity they can log against.
+     */
+    public function ensureInternshipActivity($userId)
+    {
+        $existing = TimesheetActivity::where('is_active', true)
+            ->where(function ($q) use ($userId) {
+                $q->whereNull('owner_user_id')->orWhere('owner_user_id', $userId);
+            })
+            ->where(function ($q) {
+                $q->where('name', 'like', '%Internship%')
+                    ->orWhere('name', 'like', '%Daily internship%');
+            })
+            ->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $owned = TimesheetActivity::where('owner_user_id', $userId)->where('is_active', true)->first();
+        if ($owned) {
+            return $owned;
+        }
+
+        return TimesheetActivity::create([
+            'name' => 'Daily internship work',
+            'description' => 'End-of-day hours for Beyond Enterprise internship tasks',
+            'category' => 'Internship',
+            'color' => '#0b3f90',
+            'is_active' => true,
+            'owner_user_id' => $userId,
+        ]);
     }
 
     public function dayHours(WorkingWeek $ww, $day)

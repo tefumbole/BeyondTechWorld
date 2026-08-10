@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
 use App\InternshipProgram;
 use App\InternshipProgramTask;
+use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
 use App\Support\InternshipHandbook;
 use App\User;
@@ -315,5 +316,75 @@ class InternshipAdminController extends Controller
             ->orderByDesc('id')->get();
 
         return view('internship.admin.reports', compact('rows'));
+    }
+
+    /**
+     * Internship Task Manager — open/released daily tasks, checklist progress, resend WhatsApp.
+     */
+    public function taskManager(Request $request)
+    {
+        if (Auth::user()->role_id > 2
+            && ! in_array('internship.enrolments.view', $this->all_permission, true)
+            && ! in_array('internship.supervise', $this->all_permission, true)
+            && ! in_array('internship.submissions.grade', $this->all_permission, true)
+            && ! in_array('internship.dashboard.view', $this->all_permission, true)) {
+            abort(403, 'Internship access denied.');
+        }
+
+        $status = $request->get('status', 'open');
+        $q = InternshipTaskAssignment::with(['task', 'enrolment.student', 'enrolment.program', 'enrolment.supervisor'])
+            ->orderByDesc('scheduled_work_date')
+            ->orderByDesc('id');
+
+        // Supervisors (non-admin) only see their assigned students.
+        if (Auth::user()->role_id > 2
+            && ! in_array('internship.enrolments.view', $this->all_permission, true)
+            && ! in_array('internship.programs.view', $this->all_permission, true)) {
+            $uid = (int) Auth::id();
+            $q->whereHas('enrolment', function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+
+        if ($status === 'open') {
+            $q->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted']);
+        } elseif ($status === 'today') {
+            $q->whereDate('scheduled_work_date', now()->toDateString());
+        } elseif ($status !== 'all') {
+            $q->where('status', $status);
+        }
+
+        if ($request->filled('q')) {
+            $term = '%'.trim($request->get('q')).'%';
+            $q->whereHas('enrolment.student', function ($w) use ($term) {
+                $w->where('name', 'like', $term)->orWhere('email', 'like', $term);
+            });
+        }
+
+        $assignments = $q->paginate(40)->appends($request->query());
+
+        return view('internship.admin.task_manager', compact('assignments', 'status'));
+    }
+
+    public function resendTask(Request $request, $id)
+    {
+        if (Auth::user()->role_id > 2
+            && ! in_array('internship.notifications.retry', $this->all_permission, true)
+            && ! in_array('internship.enrolments.update', $this->all_permission, true)) {
+            abort(403, 'Not allowed to resend internship tasks.');
+        }
+
+        $assignment = InternshipTaskAssignment::with(['task', 'enrolment.student', 'enrolment.program'])->findOrFail($id);
+        $includeSupervisors = $request->boolean('include_supervisors', true);
+        $result = $this->service->resendTaskReleased($assignment, $includeSupervisors);
+
+        if (empty($result['success'])) {
+            return back()->with('not_permitted', $result['error'] ?? 'Failed to resend WhatsApp task.');
+        }
+
+        $name = optional(optional($assignment->enrolment)->student)->name ?: 'student';
+
+        return back()->with('message', 'Task WhatsApp resent to '.$name.'.');
     }
 }

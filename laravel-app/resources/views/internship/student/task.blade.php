@@ -1,7 +1,13 @@
 @extends('layout.main')
 @section('content')
 @include('internship.partials.styles')
-@php $task = $assignment->task; @endphp
+@php
+    $task = $assignment->task;
+    $progress = $stepProgress ?? $assignment->stepProgress();
+    $checked = $progress['checked'] ?? [];
+    $steps = $progress['steps'] ?? $task->instructions();
+    $canEditSteps = in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true);
+@endphp
 <section class="forms">
     <div class="container-fluid ip-shell">
         <a href="{{ route('internship.student.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Dashboard</a>
@@ -13,6 +19,20 @@
         @if($errors->any())
             <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
         @endif
+
+        <div class="ip-card ip-pending">
+            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                <div>
+                    <div class="ip-meta">Guide checklist progress</div>
+                    <strong id="ip-step-count" style="font-size:1.25rem;color:#0b3f90;">{{ $progress['done'] }}/{{ $progress['total'] }}</strong>
+                    <span class="ip-meta"> steps complete</span>
+                </div>
+                <strong id="ip-step-pct" style="color:#0b3f90;">{{ $progress['percent'] }}%</strong>
+            </div>
+            <div class="ip-progress-wrap mt-2 mb-0">
+                <div class="ip-progress-bar ip-progress-bar-lg"><span id="ip-step-bar" style="width:{{ $progress['percent'] }}%;"></span></div>
+            </div>
+        </div>
 
         <div class="ip-card">
             <h5 style="font-weight:700;color:#0b3f90;">Objective</h5>
@@ -35,14 +55,37 @@
                 <p class="text-muted">Study notes are not loaded for this day. Download the Student Handbook above, or contact your supervisor.</p>
             @endif
 
-            <h5 style="font-weight:700;color:#0b3f90;">Instructions</h5>
-            @php $steps = $task->instructions(); @endphp
+            <h5 style="font-weight:700;color:#0b3f90;">Guide checklist</h5>
+            <p class="ip-meta mb-2">Tick each point as you complete it. Progress is saved automatically and visible in the Internship Task Manager.</p>
             @if(!empty($steps))
-                <ol class="ip-ol">
-                    @foreach($steps as $line)
-                        <li>{{ is_string($line) ? $line : json_encode($line) }}</li>
-                    @endforeach
-                </ol>
+                <form id="ip-steps-form" method="POST" action="{{ route('internship.student.steps', $assignment->id) }}">
+                    @csrf
+                    <ul class="ip-checklist">
+                        @foreach($steps as $idx => $line)
+                            @php
+                                $label = is_string($line) ? $line : json_encode($line);
+                                $isChecked = in_array((int) $idx, $checked, true);
+                            @endphp
+                            <li class="ip-check-item {{ $isChecked ? 'is-done' : '' }}">
+                                <label>
+                                    <input type="checkbox"
+                                           class="ip-step-check"
+                                           name="checked[]"
+                                           value="{{ $idx }}"
+                                           @if($isChecked) checked @endif
+                                           @if(!$canEditSteps) disabled @endif>
+                                    <span class="ip-check-num">{{ $idx + 1 }}</span>
+                                    <span class="ip-check-text">{{ $label }}</span>
+                                </label>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if($canEditSteps)
+                        <noscript>
+                            <button class="ip-btn mt-2" type="submit">Save checklist</button>
+                        </noscript>
+                    @endif
+                </form>
             @else
                 <p class="text-muted">No step instructions are loaded for this day. Use the Student Handbook procedure, then ask your supervisor.</p>
             @endif
@@ -105,4 +148,54 @@
         @endif
     </div>
 </section>
+@if($canEditSteps)
+<script>
+(function () {
+    var form = document.getElementById('ip-steps-form');
+    if (!form) return;
+    var token = form.querySelector('input[name="_token"]').value;
+    var saveTimer = null;
+
+    function collectChecked() {
+        return Array.prototype.map.call(form.querySelectorAll('.ip-step-check:checked'), function (el) {
+            return parseInt(el.value, 10);
+        });
+    }
+
+    function updateUi(progress) {
+        var bar = document.getElementById('ip-step-bar');
+        var count = document.getElementById('ip-step-count');
+        var pct = document.getElementById('ip-step-pct');
+        if (bar) bar.style.width = (progress.percent || 0) + '%';
+        if (count) count.textContent = (progress.done || 0) + '/' + (progress.total || 0);
+        if (pct) pct.textContent = (progress.percent || 0) + '%';
+        Array.prototype.forEach.call(form.querySelectorAll('.ip-check-item'), function (li) {
+            var cb = li.querySelector('.ip-step-check');
+            li.classList.toggle('is-done', !!(cb && cb.checked));
+        });
+    }
+
+    function saveSteps() {
+        var body = new FormData();
+        body.append('_token', token);
+        collectChecked().forEach(function (i) { body.append('checked[]', i); });
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            body: body,
+            credentials: 'same-origin'
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data && data.progress) updateUi(data.progress);
+        }).catch(function () {});
+    }
+
+    form.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('ip-step-check')) return;
+        e.target.closest('.ip-check-item').classList.toggle('is-done', e.target.checked);
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveSteps, 250);
+    });
+})();
+</script>
+@endif
 @endsection

@@ -66,4 +66,65 @@
         max-height: 32rem;
         overflow: auto;
     }
+    .ip-progress-wrap { width: 100%; }
+    .ip-progress-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .ip-progress-bar-lg { height: 12px; }
+    .ip-progress-bar > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #0b3f90, #2563eb);
+        border-radius: 999px;
+        transition: width .25s ease;
+    }
+    .ip-progress-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .ip-btn-sm { padding: 5px 10px; font-size: 12px; }
+    .ip-checklist { list-style: none; padding: 0; margin: 0; }
+    .ip-check-item {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        background: #fff;
+        transition: background .15s ease, border-color .15s ease;
+    }
+    .ip-check-item.is-done {
+        background: #ecfdf5;
+        border-color: #a7f3d0;
+    }
+    .ip-check-item label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        margin: 0;
+        cursor: pointer;
+        font-weight: 500;
+        color: #1e293b;
+    }
+    .ip-check-item input[type="checkbox"] {
+        margin-top: 3px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+    .ip-check-num {
+        flex-shrink: 0;
+        min-width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 999px;
+        background: #0b3f90;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ip-check-item.is-done .ip-check-num { background: #047857; }
+    .ip-check-text { flex: 1; line-height: 1.45; }
+    .ip-check-item.is-done .ip-check-text { text-decoration: line-through; color: #64748b; }
 </style>

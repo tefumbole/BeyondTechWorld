@@ -1427,11 +1427,15 @@
                                     @if($internship_is_admin)
                                         <li id="ip-programs"><a href="{{ route('internship.programs') }}">Programs (AI, Cyber…)</a></li>
                                         <li id="ip-admin-dash"><a href="{{ route('internship.dashboard') }}">Admin Dashboard</a></li>
+                                        <li id="ip-tasks"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
                                         <li id="ip-enrol"><a href="{{ route('internship.enrolments') }}">Enrolments</a></li>
                                         <li id="ip-import"><a href="{{ route('internship.import') }}">Import Curriculum</a></li>
                                         <li id="ip-reports"><a href="{{ route('internship.reports') }}">Reports</a></li>
                                     @endif
                                     @if($internship_supervise_active || in_array($role->id, [1,2]) || in_array('internship.submissions.grade', $all_permission ?? []))
+                                        @unless($internship_is_admin)
+                                            <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
+                                        @endunless
                                         <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
                                         <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Students / Place</a></li>
                                     @endif

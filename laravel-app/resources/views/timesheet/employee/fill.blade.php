@@ -17,6 +17,15 @@
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
+        @if(!empty($internPrompt))
+            <div class="alert alert-warning">
+                <strong>End-of-day timesheet.</strong>
+                Interns must log hours for each working day. Select activity <em>Daily internship work</em> (or your own), enter hours, and save.
+                @if(!empty($prefillDate))
+                    Focus date: <strong>{{ $prefillDate }}</strong>.
+                @endif
+            </div>
+        @endif
         @if($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
@@ -35,14 +44,19 @@
                         @csrf
                         <div class="mb-3">
                             <label class="ts-label">Date <span class="text-danger">*</span></label>
-                            <input type="date" name="entry_date" class="ts-field" required value="{{ old('entry_date', date('Y-m-d')) }}">
+                            <input type="date" name="entry_date" class="ts-field" required value="{{ old('entry_date', $prefillDate ?? date('Y-m-d')) }}">
                         </div>
                         <div class="mb-3">
                             <label class="ts-label">Activity <span class="text-danger">*</span></label>
                             <select name="activity_id" class="ts-field" required>
                                 <option value="">Select activity...</option>
                                 @foreach($activities as $act)
-                                    <option value="{{ $act->id }}" @if(old('activity_id')==$act->id) selected @endif>{{ $act->name }}</option>
+                                    @php
+                                        $defaultIntern = !empty($internPrompt)
+                                            && !old('activity_id')
+                                            && stripos($act->name, 'internship') !== false;
+                                    @endphp
+                                    <option value="{{ $act->id }}" @if(old('activity_id')==$act->id || $defaultIntern) selected @endif>{{ $act->name }}</option>
                                 @endforeach
                             </select>
                         </div>

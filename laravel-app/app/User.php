@@ -16,7 +16,11 @@ class User extends Authenticatable
     protected $whatsappPhoneAttributes = ['phone', 'additional_phone'];
 
     protected $fillable = [
-        'name', 'email', 'password',"phone", "additional_phone", "company_name", "role_id", "biller_id", "warehouse_id", "is_active", "is_deleted", "sign", "stemp", "approve", "sign_request_token", "sign_request_type", "sign_request_expires_at", "otp", "otp_time", "otp_verify"
+        'name', 'email', 'password', 'phone', 'additional_phone', 'company_name', 'role_id', 'biller_id', 'warehouse_id', 'is_active', 'is_deleted', 'sign', 'stemp', 'approve', 'sign_request_token', 'sign_request_type', 'sign_request_expires_at', 'otp', 'otp_time', 'otp_verify', 'must_set_password',
+    ];
+
+    protected $casts = [
+        'must_set_password' => 'boolean',
     ];
 
     protected $hidden = [

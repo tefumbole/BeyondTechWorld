@@ -162,6 +162,12 @@ Route::post('/otp-verification/resend', 'BeyondAuthController@resendOtp');
 Route::get('/forgot-password', 'BeyondAuthController@showForgotPassword')->name('beyond.forgot');
 Route::post('/forgot-password', 'BeyondAuthController@requestPasswordReset');
 Route::post('/forgot-password/confirm', 'BeyondAuthController@confirmPasswordReset');
+Route::get('/staff-otp-login', 'StaffPhoneAuthController@show')->name('staff.otp.login');
+Route::post('/staff-otp-login', 'StaffPhoneAuthController@requestOtp');
+Route::post('/staff-otp-login/verify', 'StaffPhoneAuthController@verifyOtp');
+Route::post('/staff-otp-login/resend', 'StaffPhoneAuthController@resendOtp');
+Route::get('/staff-set-password', 'StaffPhoneAuthController@showSetPassword')->name('staff.set-password');
+Route::post('/staff-set-password', 'StaffPhoneAuthController@storeSetPassword');
 Route::get('/complete-profile', 'BeyondAuthController@showCompleteProfile')->middleware('beyond.auth');
 Route::post('/complete-profile', 'BeyondAuthController@completeProfile')->middleware('beyond.auth');
 Route::get('/user/profile', 'BeyondAuthController@showProfile')->middleware(['beyond.auth', 'beyond.otp']);
@@ -267,7 +273,7 @@ Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');
 });
 
-Route::group(['middleware' => ['auth', 'active']], function() {
+Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function() {
 
     // Auth::routes already registers POST /logout → LoginController@logout (overridden).
 	Route::get('/otp/screen', 'HomeController@otpCheck')->name('check.otp');
@@ -468,11 +474,14 @@ Route::group(['middleware' => ['auth', 'active']], function() {
     Route::post('/admin/internship/enrolments/{id}/pause', 'Internship\InternshipAdminController@enrolPause')->name('internship.enrol.pause');
     Route::post('/admin/internship/enrolments/{id}/resume', 'Internship\InternshipAdminController@enrolResume')->name('internship.enrol.resume');
     Route::get('/admin/internship/reports', 'Internship\InternshipAdminController@reports')->name('internship.reports');
+    Route::get('/admin/internship/tasks', 'Internship\InternshipAdminController@taskManager')->name('internship.tasks');
+    Route::post('/admin/internship/tasks/{id}/resend', 'Internship\InternshipAdminController@resendTask')->name('internship.tasks.resend');
     Route::get('/admin/internship/student', 'Internship\InternshipStudentController@dashboard')->name('internship.student.dashboard');
     Route::get('/admin/internship/student/portfolio', 'Internship\InternshipStudentController@portfolio')->name('internship.student.portfolio');
     Route::get('/admin/internship/student/task/{id}', 'Internship\InternshipStudentController@task')->name('internship.student.task');
     Route::get('/admin/internship/student/task/{id}/handbook', 'Internship\InternshipStudentController@downloadHandbook')->name('internship.student.handbook');
     Route::post('/admin/internship/student/task/{id}/start', 'Internship\InternshipStudentController@start')->name('internship.student.start');
+    Route::post('/admin/internship/student/task/{id}/steps', 'Internship\InternshipStudentController@updateStepProgress')->name('internship.student.steps');
     Route::post('/admin/internship/student/task/{id}/submit', 'Internship\InternshipStudentController@submit')->name('internship.student.submit');
     Route::get('/admin/internship/student/files/{fileId}', 'Internship\InternshipStudentController@downloadFile')->name('internship.student.file');
     Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');

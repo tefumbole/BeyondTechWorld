@@ -715,11 +715,12 @@ class WhatsAppMessage
      * @param  string  $startDate
      * @param  string  $durationLabel
      */
-    public static function internshipSupervisorAssigned($supervisorName, $internNames, $program, $startDate, $durationLabel)
+    public static function internshipSupervisorAssigned($supervisorName, $internNames, $program, $startDate, $durationLabel, $loginUrl = null)
     {
         $names = is_array($internNames) ? array_values(array_filter($internNames)) : [trim((string) $internNames)];
         $names = array_values(array_filter(array_map('strval', $names)));
         $internList = $names ? implode(', ', $names) : 'an intern';
+        $loginUrl = $loginUrl ?: url('/staff-otp-login');
 
         $msg = self::statusBlock('🎓', 'Internship Supervision Assigned');
         $msg .= self::greeting($supervisorName ?: 'Supervisor');
@@ -729,6 +730,66 @@ class WhatsAppMessage
         $msg .= self::bullet('Start date', $startDate ?: '—');
         $msg .= self::bullet('Duration', $durationLabel ?: '—');
         $msg .= "\nPlease log in to the ERP to review placements, release tasks, and support your intern(s).";
+        $msg .= "\n\n*Existing account:* sign in with your email/username and password.";
+        $msg .= "\n*New / first-time access:* use WhatsApp OTP with your phone number, then create a password.";
+        $msg .= self::actionLink('Supervisor login', $loginUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
+     * Daily internship task notice to the student, with guide checklist points.
+     *
+     * @param  array  $instructionSteps
+     */
+    public static function internshipDailyTask($studentName, $program, $taskLabel, $workDate, $url, array $instructionSteps = [])
+    {
+        $msg = self::statusBlock('📚', 'Internship Task');
+        $msg .= self::greeting($studentName ?: 'Intern');
+        $msg .= "Your internship task for today is ready.\n\n";
+        $msg .= self::bullet('Program', $program ?: '—');
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        $msg .= self::bullet('Date', $workDate ?: '—');
+
+        $steps = array_values(array_filter(array_map(function ($line) {
+            return trim(is_string($line) ? $line : json_encode($line));
+        }, $instructionSteps)));
+        if ($steps) {
+            $msg .= "\n*Guide checklist (tick each point in the ERP):*\n";
+            $max = min(count($steps), 12);
+            for ($i = 0; $i < $max; $i++) {
+                $label = $steps[$i];
+                if (mb_strlen($label) > 120) {
+                    $label = mb_substr($label, 0, 117).'…';
+                }
+                $msg .= ($i + 1).'. '.$label."\n";
+            }
+            if (count($steps) > $max) {
+                $msg .= '… +'.(count($steps) - $max)." more in the dashboard\n";
+            }
+        }
+
+        $msg .= self::actionLink('Open internship dashboard', $url);
+        $msg .= 'Complete each checklist item, then submit evidence from your dashboard. Only one task is released per working day.';
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
+     * Supervisor copy when an intern's daily task is released.
+     */
+    public static function internshipSupervisorTaskCopy($supervisorName, $studentName, $program, $taskLabel, $workDate, $dashboardUrl)
+    {
+        $msg = self::statusBlock('📚', 'Intern Task Released');
+        $msg .= self::greeting($supervisorName ?: 'Supervisor');
+        $msg .= "A daily internship task was released to your intern. A copy of the task details and the instruction handbook follow.\n\n";
+        $msg .= self::bullet('Intern', $studentName ?: '—');
+        $msg .= self::bullet('Program', $program ?: '—');
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        $msg .= self::bullet('Date', $workDate ?: '—');
+        $msg .= self::actionLink('Open supervisor portal', $dashboardUrl ?: url('/admin/internship/supervisor'));
         $msg .= self::footer();
 
         return $msg;

@@ -17,6 +17,15 @@ class Active
     public function handle($request, Closure $next)
     {
         if(Auth::check() && Auth::user()->isActive()){
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')
+                && Auth::user()->must_set_password
+                && ! $request->is('staff-set-password')
+                && ! $request->is('logout')) {
+                $request->session()->put('staff_must_set_password', true);
+
+                return redirect('/staff-set-password');
+            }
+
             return $next($request);
         }
 

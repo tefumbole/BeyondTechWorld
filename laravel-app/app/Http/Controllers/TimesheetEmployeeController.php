@@ -94,12 +94,17 @@ class TimesheetEmployeeController extends Controller
     {
         $this->authorizeEmployee();
         $user = Auth::user();
+        if (\App\Support\InternCompliance::appliesTo($user)) {
+            $this->timesheet->ensureInternshipActivity($user->id);
+        }
         $activities = $this->timesheet->activities($user->id);
         $mine = $this->timesheet->activitiesForOwner($user->id);
         $activities = $activities->merge($mine)->unique('id')->values();
         $entries = $this->timesheet->entriesRecent($user->id);
+        $prefillDate = $request->get('date', date('Y-m-d'));
+        $internPrompt = (bool) $request->get('intern') || \App\Support\InternCompliance::appliesTo($user);
 
-        return view('timesheet.employee.fill', compact('activities', 'entries'));
+        return view('timesheet.employee.fill', compact('activities', 'entries', 'prefillDate', 'internPrompt'));
     }
 
     public function storeEntry(Request $request)
@@ -112,6 +117,17 @@ class TimesheetEmployeeController extends Controller
             'notes' => 'nullable|string|max:2000',
         ]);
         $this->timesheet->addEntryAdmin(Auth::user(), $data);
+
+        if (\App\Support\InternCompliance::appliesTo(Auth::user())) {
+            $stillMissing = \App\Support\InternCompliance::missingTimesheetDate(Auth::user());
+            if (! $stillMissing) {
+                return redirect()->route('internship.student.dashboard')
+                    ->with('message', 'Timesheet saved. You can continue your internship.');
+            }
+
+            return redirect()->route('timesheet.fill', ['date' => $stillMissing, 'intern' => 1])
+                ->with('message', 'Entry saved. Please also log hours for '.$stillMissing.'.');
+        }
 
         return back()->with('message', 'Time entry saved.');
     }
@@ -153,14 +169,28 @@ class TimesheetEmployeeController extends Controller
         foreach (\App\WorkingWeek::days() as $day) {
             $summary['day_hours'][$day] = $this->timesheet->dayHours($ww, $day);
         }
+        $internSetup = \App\Support\InternCompliance::appliesTo(Auth::user())
+            && ! \App\Support\InternCompliance::workingWeekConfigured(Auth::user());
 
-        return view('timesheet.employee.working_week', compact('ww', 'summary'));
+        return view('timesheet.employee.working_week', compact('ww', 'summary', 'internSetup'));
     }
 
     public function saveWorkingWeek(Request $request)
     {
         $this->authorizeEmployee();
         $this->timesheet->saveWorkingWeek(Auth::id(), $request->all());
+
+        if (\App\Support\InternCompliance::appliesTo(Auth::user())) {
+            $this->timesheet->ensureInternshipActivity(Auth::id());
+            $missing = \App\Support\InternCompliance::missingTimesheetDate(Auth::user());
+            if ($missing) {
+                return redirect()->route('timesheet.fill', ['date' => $missing, 'intern' => 1])
+                    ->with('message', 'Working week saved. Please fill your timesheet for '.$missing.'.');
+            }
+
+            return redirect()->route('internship.student.dashboard')
+                ->with('message', 'Working week saved. You can open today’s internship task and fill your timesheet at the end of each working day.');
+        }
 
         return back()->with('message', 'Working week saved.');
     }

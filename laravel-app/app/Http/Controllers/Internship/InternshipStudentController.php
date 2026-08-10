@@ -70,8 +70,44 @@ class InternshipStudentController extends Controller
             ? InternshipHandbook::absolutePath($program, $assignment->task)
             : null;
         $hasHandbook = (bool) $handbookPath;
+        $stepProgress = $assignment->stepProgress();
 
-        return view('internship.student.task', compact('assignment', 'hasHandbook'));
+        return view('internship.student.task', compact('assignment', 'hasHandbook', 'stepProgress'));
+    }
+
+    public function updateStepProgress(Request $request, $id)
+    {
+        $this->allowStudent();
+        $assignment = InternshipTaskAssignment::with(['task', 'enrolment'])->findOrFail($id);
+        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+        if (! in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true)) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'error' => 'Task is not editable.'], 422);
+            }
+
+            return back()->with('not_permitted', 'Checklist can only be updated while the task is open.');
+        }
+
+        $data = $request->validate([
+            'checked' => 'nullable|array',
+            'checked.*' => 'integer|min:0|max:500',
+        ]);
+        $progress = $this->service->updateAssignmentStepProgress($assignment, $data['checked'] ?? []);
+
+        if ($assignment->status === 'available') {
+            try {
+                $this->service->startAssignment($assignment, Auth::user());
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'progress' => $progress]);
+        }
+
+        return back()->with('message', 'Checklist updated ('.$progress['done'].'/'.$progress['total'].').');
     }
 
     public function downloadHandbook($id)
@@ -118,7 +154,14 @@ class InternshipStudentController extends Controller
             return back()->withInput()->with('not_permitted', $e->getMessage());
         }
 
-        return redirect()->route('internship.student.dashboard')->with('message', 'Submission sent. Your supervisor will grade it. The next task unlocks on your next working day after a Pass.');
+        try {
+            $date = \Carbon\Carbon::parse($assignment->scheduled_work_date)->toDateString();
+        } catch (\Throwable $e) {
+            $date = date('Y-m-d');
+        }
+
+        return redirect()->route('timesheet.fill', ['date' => $date, 'intern' => 1])
+            ->with('message', 'Submission sent. Your supervisor will grade it. Please fill today’s timesheet to close out the day.');
     }
 
     public function portfolio()

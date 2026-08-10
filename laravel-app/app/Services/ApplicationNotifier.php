@@ -172,7 +172,8 @@ class ApplicationNotifier
                 $internNames,
                 $program,
                 $startDate,
-                $durationLabel
+                $durationLabel,
+                url('/staff-otp-login')
             );
             $send = $this->router->sendWhatsAppText($phone, $message, [
                 'title' => 'Internship supervision assigned',

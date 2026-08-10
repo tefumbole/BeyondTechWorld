@@ -121,6 +121,25 @@ class NotificationRouter
     }
 
     /**
+     * Send a local file as a WhatsApp document (Wasender upload + document message).
+     *
+     * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool}
+     */
+    public function sendWhatsAppDocument($phone, $localPath, $fileName = null, $caption = null)
+    {
+        if (! $this->whatsappEnabled()) {
+            \Log::info('[messaging] WhatsApp disabled — skip document');
+
+            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
+        }
+
+        $result = $this->wasender->sendDocument($phone, $localPath, $fileName, $caption);
+        $result['provider'] = 'wasender';
+
+        return $result;
+    }
+
+    /**
      * Announcements use the same Twilio beyond_notice template when provider is TWILIO.
      *
      * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars

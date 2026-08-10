@@ -604,8 +604,12 @@ class ApplicationService
         if (strpos($ref, 'user:') === 0) {
             $id = (int) substr($ref, 5);
             $user = \App\User::where('is_deleted', false)->find($id);
+            if (! $user) {
+                return null;
+            }
+            $this->ensureSupervisorAccess($user);
 
-            return $user ? (int) $user->id : null;
+            return (int) $user->id;
         }
 
         $name = null;
@@ -643,6 +647,10 @@ class ApplicationService
             ->whereRaw('LOWER(email) = ?', [$emailKey])
             ->first();
 
+        if (! $user && $phone) {
+            $user = $this->findErpUserByPhone($phone);
+        }
+
         $supervisorRole = \App\Roles::where('is_active', true)->where('name', 'Internship Supervisor')->first()
             ?: \Spatie\Permission\Models\Role::where('name', 'Internship Supervisor')->where('guard_name', 'web')->first();
 
@@ -650,13 +658,11 @@ class ApplicationService
         $billerId = optional(\App\Biller::where('is_active', true)->first())->id;
 
         if ($user) {
-            if ($supervisorRole && (int) $user->role_id !== (int) $supervisorRole->id && (int) $user->role_id >= 4) {
-                // Don't demote admins; only promote generic/high role_ids when appropriate.
-            }
             $user->name = $name ?: $user->name;
             $user->phone = $phone ?: $user->phone;
             $user->is_active = 1;
             $user->save();
+            $this->ensureSupervisorAccess($user);
 
             return (int) $user->id;
         }
@@ -666,7 +672,7 @@ class ApplicationService
         }
 
         $password = 'Bt@'.random_int(100000, 999999);
-        $user = \App\User::create([
+        $payload = [
             'name' => $name ?: 'Supervisor',
             'email' => $email,
             'phone' => $phone,
@@ -676,10 +682,99 @@ class ApplicationService
             'biller_id' => $billerId,
             'is_active' => 1,
             'is_deleted' => 0,
-        ]);
-        Log::info('Created Internship Supervisor ERP user '.$user->id.' from '.$ref.' password '.$password);
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')) {
+            $payload['must_set_password'] = 1;
+        }
+        $user = \App\User::create($payload);
+        Log::info('Created Internship Supervisor ERP user '.$user->id.' from '.$ref.' (must set password via WhatsApp OTP)');
 
         return (int) $user->id;
+    }
+
+    /**
+     * Grant internship supervisor access without demoting Admins.
+     */
+    public function ensureSupervisorAccess(\App\User $user)
+    {
+        if ((int) $user->role_id <= 2) {
+            return;
+        }
+
+        $supervisorPerms = [
+            'internship_module',
+            'internship.dashboard.view',
+            'internship.supervise',
+            'internship.submissions.view',
+            'internship.submissions.grade',
+            'internship.submissions.request_revision',
+            'internship.enrolments.view',
+            'internship.reports.view',
+        ];
+
+        $supervisorRole = \App\Roles::where('is_active', true)->where('name', 'Internship Supervisor')->first()
+            ?: \Spatie\Permission\Models\Role::where('name', 'Internship Supervisor')->where('guard_name', 'web')->first();
+
+        $role = \Spatie\Permission\Models\Role::find($user->role_id);
+        if (! $role) {
+            if ($supervisorRole) {
+                $user->role_id = $supervisorRole->id;
+                $user->save();
+            }
+
+            return;
+        }
+
+        $roleName = strtolower(trim((string) $role->name));
+        if (in_array($roleName, ['intern', 'customer', ''], true) && $supervisorRole) {
+            $user->role_id = $supervisorRole->id;
+            $user->save();
+
+            return;
+        }
+
+        try {
+            if ($role->hasPermissionTo('internship.supervise')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            // permission may not exist yet
+        }
+
+        foreach ($supervisorPerms as $name) {
+            try {
+                \Spatie\Permission\Models\Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+                $role->givePermissionTo($name);
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    protected function findErpUserByPhone($phone)
+    {
+        try {
+            $formatted = app(\App\Services\BeyondWasenderService::class)->formatPhone($phone);
+        } catch (\Throwable $e) {
+            $formatted = preg_replace('/\D/', '', (string) $phone);
+        }
+        $digits = preg_replace('/\D/', '', (string) $formatted);
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        $tail = substr($digits, -9);
+
+        return \App\User::where('is_deleted', false)
+            ->where('is_active', 1)
+            ->where(function ($q) use ($formatted, $digits, $tail) {
+                $q->where('phone', $formatted)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', '+'.$digits)
+                    ->orWhereRaw(
+                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                        [$tail]
+                    );
+            })
+            ->first();
     }
 
     /**

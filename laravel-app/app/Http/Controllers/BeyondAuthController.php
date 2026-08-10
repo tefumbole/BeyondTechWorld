@@ -53,6 +53,11 @@ class BeyondAuthController extends Controller
                 return redirect()->route('otp_screen');
             }
 
+            $internRedirect = \App\Support\InternCompliance::postLoginRedirect($webUser);
+            if ($internRedirect) {
+                return redirect($internRedirect);
+            }
+
             return redirect('/admin');
         }
 
@@ -333,6 +338,25 @@ class BeyondAuthController extends Controller
                 'method' => 'POST',
                 'path' => '/login',
             ], $request);
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')
+                && Auth::user()->must_set_password) {
+                $request->session()->put('staff_must_set_password', true);
+
+                return redirect('/staff-set-password');
+            }
+
+            $internRedirect = \App\Support\InternCompliance::postLoginRedirect(Auth::user());
+            if ($internRedirect) {
+                return redirect($internRedirect);
+            }
+
+            try {
+                if ($role->hasPermissionTo('internship.supervise')) {
+                    return redirect('/admin/internship/supervisor');
+                }
+            } catch (\Throwable $e) {
+            }
 
             return redirect('/admin');
         }

@@ -28,6 +28,13 @@
             @if(session('message'))
                 <div class="alert alert-success">{{ session('message') }}</div>
             @endif
+            @if(!empty($internSetup))
+                <div class="alert alert-warning">
+                    <strong>Internship setup required.</strong>
+                    Choose the days and hours you will work each week, then click <strong>Save Changes</strong>.
+                    Daily internship tasks are released on your working days, and you must fill a timesheet at the end of each working day.
+                </div>
+            @endif
 
             <div class="row">
                 <div class="col-lg-8 mb-4">

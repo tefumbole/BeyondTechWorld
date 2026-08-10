@@ -4,7 +4,7 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <h1 class="ip-title"><i class="dripicons-graduation"></i> My Internship Placement</h1>
-        <p class="ip-meta mb-3">Your assigned program tasks and progress. Use <strong>TimeSheets (Employee)</strong> in the sidebar for Working Week and daily timesheets.</p>
+        <p class="ip-meta mb-3">Complete today’s task, then fill your timesheet at the end of each working day. Tasks release only on days in your Working Week.</p>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
@@ -12,10 +12,14 @@
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
+        <div class="alert alert-info">
+            <strong>Daily routine:</strong> Open task → submit work → <a href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}">fill timesheet</a>.
+            Update your schedule anytime under <a href="{{ route('timesheet.working-week') }}">Working Week</a>.
+        </div>
 
         <div class="ip-nav">
             <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.portfolio') }}"><i class="dripicons-folder"></i> Portfolio</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill') }}"><i class="dripicons-clock"></i> Open TimeSheets</a>
+            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}"><i class="dripicons-clock"></i> Fill timesheet</a>
             <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.working-week') }}"><i class="dripicons-calendar"></i> Working Week</a>
         </div>
 
@@ -42,16 +46,21 @@
             </div>
 
             @if($assignment)
+                @php $dayProgress = $assignment->stepProgress(); @endphp
                 <div class="ip-card ip-pending">
                     <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:8px;">
-                        <div>
+                        <div style="flex:1;min-width:220px;">
                             <span class="ip-badge blue">Pending task for today</span>
                             <h3 class="mt-2 mb-1" style="color:#0b3f90;font-weight:800;">
                                 Task #{{ $assignment->progression_day }} — {{ $assignment->task->title ?? 'Task' }}
                             </h3>
                             <p class="ip-meta mb-2">Status: <strong>{{ str_replace('_', ' ', $assignment->status) }}</strong>
                                 · Scheduled: {{ $assignment->scheduled_work_date }}</p>
-                            <p class="mb-0">{{ \Illuminate\Support\Str::limit($assignment->task->objective ?? '', 180) }}</p>
+                            <p class="mb-2">{{ \Illuminate\Support\Str::limit($assignment->task->objective ?? '', 180) }}</p>
+                            <div class="ip-progress-wrap" style="max-width:320px;">
+                                <div class="ip-progress-bar"><span style="width:{{ $dayProgress['percent'] }}%;"></span></div>
+                                <div class="ip-progress-label">Checklist {{ $dayProgress['done'] }}/{{ $dayProgress['total'] }} ({{ $dayProgress['percent'] }}%)</div>
+                            </div>
                         </div>
                         <a class="ip-btn" href="{{ route('internship.student.task', $assignment->id) }}">
                             <i class="dripicons-checkmark"></i>

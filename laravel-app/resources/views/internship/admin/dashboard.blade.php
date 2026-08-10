@@ -7,6 +7,7 @@
         <p class="ip-meta mb-3">180-day practical programs, enrolments, and grading oversight.</p>
         <div class="ip-nav">
             <a class="ip-btn" href="{{ route('internship.programs') }}">Programs</a>
+            <a class="ip-btn ip-btn-outline" href="{{ route('internship.tasks') }}">Task Manager</a>
             <a class="ip-btn ip-btn-outline" href="{{ route('internship.import') }}">Import curriculum</a>
             <a class="ip-btn ip-btn-outline" href="{{ route('internship.enrolments') }}">Enrolments</a>
             <a class="ip-btn ip-btn-outline" href="{{ route('internship.enrol.create') }}">Enrol student</a>
