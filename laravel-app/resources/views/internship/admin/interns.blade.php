@@ -19,8 +19,9 @@
                 'placed' => 'Already placed',
                 'all' => 'All accepted',
             ] as $key => $label)
+                {{-- Tab switch clears search so badges (full totals) match the unfiltered list --}}
                 <a class="ip-btn {{ ($status ?? '') === $key ? '' : 'ip-btn-outline' }}"
-                   href="{{ route('internship.interns', ['status' => $key, 'q' => request('q')]) }}">
+                   href="{{ route('internship.interns', ['status' => $key]) }}">
                     {{ $label }}
                     <span class="ip-nav-count">{{ (int) ($tabCounts[$key] ?? 0) }}</span>
                 </a>
@@ -29,10 +30,14 @@
 
         <form method="GET" action="{{ route('internship.interns') }}" class="ip-card mb-3">
             <input type="hidden" name="status" value="{{ $status }}">
-            <div class="d-flex flex-wrap" style="gap:8px;">
+            <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
                 <input type="search" name="q" value="{{ request('q') }}" class="form-control" style="max-width:280px;"
                        placeholder="Search name, email, phone">
                 <button class="ip-btn" type="submit">Search</button>
+                @if(request()->filled('q'))
+                    <a class="ip-btn ip-btn-outline" href="{{ route('internship.interns', ['status' => $status]) }}">Clear search</a>
+                    <span class="ip-meta mb-0">Filtered to “{{ request('q') }}”. Clear search or switch tabs to see all {{ (int) ($tabCounts[$status] ?? 0) }}.</span>
+                @endif
             </div>
         </form>
 

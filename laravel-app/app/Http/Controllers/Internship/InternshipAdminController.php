@@ -159,6 +159,7 @@ class InternshipAdminController extends Controller
             ->get()
             ->keyBy('application_id');
 
+        // Always unfiltered totals — tab clicks clear search so the list matches these badges.
         $tabCounts = app(\App\Services\ApplicationService::class)->internshipInternTabCounts();
 
         return view('internship.admin.interns', compact('interns', 'status', 'enrolmentsByApp', 'tabCounts'));

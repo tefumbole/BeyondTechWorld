@@ -650,10 +650,11 @@ class ApplicationService
 
     /**
      * Counts for Internships → Interns status tabs.
+     * Optional $search applies the same name/email/phone filter as the list.
      *
      * @return array<string,int>
      */
-    public function internshipInternTabCounts()
+    public function internshipInternTabCounts($search = null)
     {
         $base = Application::query()
             ->whereIn('applications.status', [
@@ -666,6 +667,17 @@ class ApplicationService
                     $j->where('posting_type', 'internship');
                 })->orWhereNotNull('applications.internship_program_id');
             });
+
+        $term = is_string($search) ? trim($search) : '';
+        if ($term !== '') {
+            $like = '%'.$term.'%';
+            $base->where(function ($w) use ($like) {
+                $w->where('applications.full_name', 'like', $like)
+                    ->orWhere('applications.email', 'like', $like)
+                    ->orWhere('applications.phone', 'like', $like)
+                    ->orWhere('applications.whatsapp_number', 'like', $like);
+            });
+        }
 
         $all = (clone $base)->count();
         $hired = (clone $base)->where('applications.status', Application::STATUS_HIRED)->count();
