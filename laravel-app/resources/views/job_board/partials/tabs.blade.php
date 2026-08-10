@@ -110,6 +110,9 @@
         display: inline-block; padding: 3px 10px; border-radius: 999px;
         font-size: 12px; font-weight: 600; background: #f1f5f9; color: #334155;
     }
+    .jb-badge.jb-badge--success { background: #dcfce7; color: #166534; }
+    .jb-badge.jb-badge--danger { background: #fee2e2; color: #991b1b; }
+    .jb-badge.jb-badge--warn { background: #ffedd5; color: #9a3412; }
     tr.jb-row-click { cursor: pointer; }
     tr.jb-row-click:hover { background: #f8fafc; }
     .jb-doc-thumb {

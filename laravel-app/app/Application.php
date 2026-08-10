@@ -129,6 +129,28 @@ class Application extends Model
         return $map[$this->status] ?? ucfirst(str_replace('_', ' ', (string) $this->status));
     }
 
+    /** CSS modifier for status pills (jb-badge--*). */
+    public function statusBadgeClass()
+    {
+        return self::badgeClassForStatus($this->status);
+    }
+
+    public static function badgeClassForStatus($status)
+    {
+        $status = (string) $status;
+        if (in_array($status, [self::STATUS_REJECTED, 'withdrawn'], true)) {
+            return 'jb-badge--danger';
+        }
+        if (in_array($status, [self::STATUS_SELECTED, 'shortlisted', self::STATUS_HIRED], true)) {
+            return 'jb-badge--success';
+        }
+        if (in_array($status, [self::STATUS_AWAITING, 'new', 'reviewed', 'interview', 'pending'], true)) {
+            return 'jb-badge--warn';
+        }
+
+        return '';
+    }
+
     /**
      * Public URL for a stored upload path under public/uploads/...
      * Stored values look like "uploads/applications/file.jpg" or "/uploads/applications/file.jpg".

@@ -39,7 +39,7 @@
                         <tr><th>WhatsApp</th><td>{{ $app->whatsapp_number ?: '—' }}</td></tr>
                         <tr><th>Country</th><td>{{ $app->country ?: '—' }}</td></tr>
                         <tr><th>Reference</th><td><code>{{ $app->reference_number ?: '—' }}</code></td></tr>
-                        <tr><th>Status</th><td><span class="jb-badge">{{ $app->statusLabel() }}</span></td></tr>
+                        <tr><th>Status</th><td><span class="jb-badge {{ $app->statusBadgeClass() }}">{{ $app->statusLabel() }}</span></td></tr>
                         <tr><th>Status note / reason</th><td>{{ $app->rejection_reason ?: '—' }}</td></tr>
                         <tr><th>Submitted</th><td>{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y H:i') : '—' }}</td></tr>
                         <tr><th>Availability</th><td>{{ $availabilityDisplay }}</td></tr>

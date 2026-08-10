@@ -86,7 +86,7 @@
                         <div class="text-muted">
                             {{ $application->email }}
                             · {{ $application->whatsapp_number ?: $application->phone ?: '—' }}
-                            · <span class="jb-badge">{{ str_replace('_', ' ', $application->status) }}</span>
+                            · <span class="jb-badge {{ $application->statusBadgeClass() }}">{{ $application->statusLabel() }}</span>
                             @if(optional($application->job)->title)
                                 · {{ $application->job->title }}
                             @endif
@@ -188,7 +188,7 @@
                                     <div>{{ $person['phone'] ?: '—' }}</div>
                                 </td>
                                 <td>{{ $person['applications_count'] }}</td>
-                                <td><span class="jb-badge">{{ str_replace('_', ' ', $person['latest_status']) }}</span></td>
+                                <td><span class="jb-badge {{ \App\Application::badgeClassForStatus($person['latest_status'] ?? '') }}">{{ str_replace('_', ' ', $person['latest_status'] ?? '') }}</span></td>
                                 <td class="jb-applied">{{ $person['submitted_at'] ? \Carbon\Carbon::parse($person['submitted_at'])->format('Y-m-d') : '—' }}</td>
                                 <td class="jb-actions text-right" onclick="event.stopPropagation();">
                                     <a class="jb-btn jb-act" href="{{ $openUrl }}" title="Open intern tab">Open</a>

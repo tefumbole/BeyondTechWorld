@@ -142,7 +142,7 @@
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
-                                <td class="jb-nav-cell"><span class="jb-badge">{{ $app->statusLabel() }}</span></td>
+                                <td class="jb-nav-cell"><span class="jb-badge {{ $app->statusBadgeClass() }}">{{ $app->statusLabel() }}</span></td>
                                 <td class="text-right jb-no-nav jb-actions-cell">
                                     <form method="POST" action="{{ route('jobs.applications.update', $app->id) }}" class="jb-status-form" style="display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:210px;">
                                         @csrf
