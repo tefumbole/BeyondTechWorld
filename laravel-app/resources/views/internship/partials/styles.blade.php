@@ -127,4 +127,35 @@
     .ip-check-item.is-done .ip-check-num { background: #047857; }
     .ip-check-text { flex: 1; line-height: 1.45; }
     .ip-check-item.is-done .ip-check-text { text-decoration: line-through; color: #64748b; }
+    .ip-hub-card {
+        display: block;
+        height: 100%;
+        text-decoration: none !important;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.35rem 1.25rem 1.2rem;
+        box-shadow: 0 1px 3px rgba(15,23,42,.06);
+        transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+        color: inherit;
+    }
+    .ip-hub-card:hover {
+        border-color: #0b3f90;
+        box-shadow: 0 8px 24px rgba(11,63,144,.12);
+        transform: translateY(-2px);
+        color: inherit;
+    }
+    .ip-hub-icon {
+        width: 48px; height: 48px; border-radius: 12px;
+        background: #eef4ff; color: #0b3f90;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem; margin-bottom: .85rem;
+    }
+    .ip-hub-card h3 {
+        margin: 0 0 .35rem; color: #0b3f90; font-weight: 800; font-size: 1.2rem;
+    }
+    .ip-hub-card p {
+        margin: 0 0 .85rem; color: #64748b; font-size: 13px; line-height: 1.45; min-height: 2.6em;
+    }
+    .ip-hub-stat { color: #0b3f90; font-size: 13px; }
 </style>

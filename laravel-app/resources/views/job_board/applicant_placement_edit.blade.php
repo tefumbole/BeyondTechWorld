@@ -39,7 +39,7 @@
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
-        <a href="{{ route('jobs.applicants', ['open' => $application->id]) }}" class="jb-btn-secondary mb-3" style="display:inline-flex;">&larr; Interns</a>
+        <a href="{{ route('internship.interns') }}" class="jb-btn-secondary mb-3" style="display:inline-flex;">&larr; Internships · Interns</a>
 
         <div class="mb-3">
             <h1 class="jb-title">Edit placement</h1>

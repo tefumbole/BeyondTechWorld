@@ -69,9 +69,135 @@ class InternshipAdminController extends Controller
             'active_enrolments' => InternshipEnrolment::where('status', 'active')->count(),
             'completed' => InternshipEnrolment::where('status', 'completed')->count(),
             'pending_review' => DB::table('internship_task_assignments')->where('status', 'submitted')->count(),
+            'supervisors' => $this->supervisorDirectoryQuery()->count(),
+            'interns_ready' => $this->acceptedInternsQuery()
+                ->whereNotExists(function ($w) {
+                    $w->select(DB::raw(1))
+                        ->from('internship_enrolments as ie')
+                        ->whereColumn('ie.application_id', 'applications.id')
+                        ->whereIn('ie.status', ['active', 'paused', 'completed']);
+                })
+                ->count(),
         ];
 
         return view('internship.admin.dashboard', compact('stats'));
+    }
+
+    /**
+     * Accepted / hired internship applicants — assign programs and supervisors from here.
+     */
+    public function interns(Request $request)
+    {
+        $this->allow('internship.enrolments.view');
+        $status = $request->get('status', 'ready');
+        $q = $this->acceptedInternsQuery();
+
+        if ($status === 'hired') {
+            $q->where('applications.status', Application::STATUS_HIRED);
+        } elseif ($status === 'selected') {
+            $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted']);
+        } elseif ($status === 'placed') {
+            $q->whereExists(function ($w) {
+                $w->select(DB::raw(1))
+                    ->from('internship_enrolments as ie')
+                    ->whereColumn('ie.application_id', 'applications.id')
+                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
+            });
+        } elseif ($status === 'ready') {
+            $q->whereNotExists(function ($w) {
+                $w->select(DB::raw(1))
+                    ->from('internship_enrolments as ie')
+                    ->whereColumn('ie.application_id', 'applications.id')
+                    ->whereIn('ie.status', ['active', 'paused', 'completed']);
+            });
+        }
+
+        if ($request->filled('q')) {
+            $term = '%'.trim($request->get('q')).'%';
+            $q->where(function ($w) use ($term) {
+                $w->where('applications.full_name', 'like', $term)
+                    ->orWhere('applications.email', 'like', $term)
+                    ->orWhere('applications.phone', 'like', $term)
+                    ->orWhere('applications.whatsapp_number', 'like', $term);
+            });
+        }
+
+        $interns = $q->orderByDesc('applications.submitted_at')->paginate(40)->appends($request->query());
+
+        $enrolmentsByApp = InternshipEnrolment::whereIn('application_id', $interns->pluck('id')->filter())
+            ->get()
+            ->keyBy('application_id');
+
+        return view('internship.admin.interns', compact('interns', 'status', 'enrolmentsByApp'));
+    }
+
+    /**
+     * Directory of internship supervisors (role + active placement supervisors).
+     */
+    public function supervisors(Request $request)
+    {
+        $this->allow('internship.enrolments.view');
+        $rows = $this->supervisorDirectoryQuery()->get();
+
+        if ($request->filled('q')) {
+            $term = strtolower(trim($request->get('q')));
+            $rows = $rows->filter(function ($u) use ($term) {
+                return strpos(strtolower((string) $u->name), $term) !== false
+                    || strpos(strtolower((string) $u->email), $term) !== false
+                    || strpos(preg_replace('/\D/', '', (string) $u->phone), preg_replace('/\D/', '', $term)) !== false;
+            })->values();
+        }
+
+        $counts = InternshipEnrolment::whereIn('status', ['active', 'paused'])
+            ->whereNotNull('supervisor_id')
+            ->select('supervisor_id', DB::raw('COUNT(*) as c'))
+            ->groupBy('supervisor_id')
+            ->pluck('c', 'supervisor_id');
+
+        return view('internship.admin.supervisors', compact('rows', 'counts'));
+    }
+
+    protected function acceptedInternsQuery()
+    {
+        return Application::query()
+            ->with(['job', 'internshipProgram'])
+            ->whereIn('applications.status', [
+                Application::STATUS_SELECTED,
+                Application::STATUS_HIRED,
+                'shortlisted',
+            ])
+            ->where(function ($q) {
+                $q->whereHas('job', function ($j) {
+                    $j->where('posting_type', 'internship');
+                })->orWhereNotNull('applications.internship_program_id');
+            });
+    }
+
+    protected function supervisorDirectoryQuery()
+    {
+        $roleIds = Role::where('guard_name', 'web')
+            ->where(function ($q) {
+                $q->where('name', 'Internship Supervisor')
+                    ->orWhere('name', 'like', '%Internship Supervisor%');
+            })
+            ->pluck('id');
+
+        $fromRole = User::query()
+            ->where('is_deleted', false)
+            ->where('is_active', 1)
+            ->whereIn('role_id', $roleIds)
+            ->pluck('id');
+
+        $fromEnrolments = InternshipEnrolment::whereIn('status', ['active', 'paused', 'completed'])
+            ->whereNotNull('supervisor_id')
+            ->pluck('supervisor_id');
+
+        $ids = $fromRole->merge($fromEnrolments)->unique()->filter()->values()->all();
+
+        return User::query()
+            ->where('is_deleted', false)
+            ->whereIn('id', $ids ?: [0])
+            ->orderBy('name');
     }
 
     public function programs()

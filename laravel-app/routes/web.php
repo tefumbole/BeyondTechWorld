@@ -459,6 +459,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     // 180-day Internship Program (additive)
     Route::get('/admin/internship', 'Internship\InternshipAdminController@dashboard')->name('internship.dashboard');
+    Route::get('/admin/internship/interns', 'Internship\InternshipAdminController@interns')->name('internship.interns');
+    Route::get('/admin/internship/supervisors', 'Internship\InternshipAdminController@supervisors')->name('internship.supervisors');
     Route::get('/admin/internship/programs', 'Internship\InternshipAdminController@programs')->name('internship.programs');
     Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
     Route::post('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programUpdate')->name('internship.programs.update');

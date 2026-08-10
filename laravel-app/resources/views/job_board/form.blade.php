@@ -55,7 +55,7 @@
                         <label class="jb-label">Internship programs candidates can choose *</label>
                         <p class="text-muted small mb-2">Select one or more programs. Applicants pick a program and their duration in days when they apply; on acceptance they are enrolled for that period.</p>
                         @if($internshipPrograms->isEmpty())
-                            <div class="alert alert-warning mb-0">No published internship programs found. Import curriculum under Internship Program → Import first.</div>
+                            <div class="alert alert-warning mb-0">No published internship programs found. Import curriculum under Internships → Import first.</div>
                         @else
                             <div class="row">
                                 @foreach($internshipPrograms as $prog)

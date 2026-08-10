@@ -453,7 +453,7 @@ class JobBoardController extends Controller
             return back()->withInput()->with('not_permitted', $e->getMessage());
         }
 
-        return redirect()->route('jobs.applicants', ['open' => $application->id])
+        return redirect()->route('internship.interns', ['status' => 'placed', 'q' => $application->full_name])
             ->with('message', 'Placement updated for '.$application->full_name.'. Supervisors notified when phone numbers are available.');
     }
 

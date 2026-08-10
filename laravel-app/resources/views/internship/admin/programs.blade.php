@@ -3,9 +3,10 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
+        <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
         <div class="d-flex justify-content-between align-items-start flex-wrap mb-3" style="gap:12px;">
             <div>
-                <h1 class="ip-title mb-1">Internship Programs</h1>
+                <h1 class="ip-title mb-1">Programs</h1>
                 <p class="ip-meta mb-0">Open a track to view and edit its full day-by-day curriculum (up to 180 days).</p>
             </div>
             <a href="{{ route('internship.import') }}" class="ip-btn ip-btn-outline"><i class="dripicons-cloud-upload"></i> Import Curriculum</a>

@@ -1422,20 +1422,13 @@
                                     || in_array('internship.dashboard.view', $all_permission ?? [])
                                     || in_array('internship.programs.view', $all_permission ?? []);
                             @endphp
-                            <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internship Program</span></a>
+                            @if($internship_is_admin)
+                                <li id="ip-hub"><a href="{{ route('internship.dashboard') }}"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a></li>
+                            @else
+                            <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
                                 <ul id="internship-module" class="collapse list-unstyled ">
-                                    @if($internship_is_admin)
-                                        <li id="ip-programs"><a href="{{ route('internship.programs') }}">Programs (AI, Cyber…)</a></li>
-                                        <li id="ip-admin-dash"><a href="{{ route('internship.dashboard') }}">Admin Dashboard</a></li>
-                                        <li id="ip-tasks"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
-                                        <li id="ip-enrol"><a href="{{ route('internship.enrolments') }}">Enrolments</a></li>
-                                        <li id="ip-import"><a href="{{ route('internship.import') }}">Import Curriculum</a></li>
-                                        <li id="ip-reports"><a href="{{ route('internship.reports') }}">Reports</a></li>
-                                    @endif
                                     @if($internship_supervise_active || in_array($role->id, [1,2]) || in_array('internship.submissions.grade', $all_permission ?? []))
-                                        @unless($internship_is_admin)
-                                            <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
-                                        @endunless
+                                        <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
                                         <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
                                         <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Students / Place</a></li>
                                     @endif
@@ -1444,6 +1437,7 @@
                                     @endif
                                 </ul>
                             </li>
+                            @endif
                         @endif
                         @php
                             $contracts_module_permission = \Spatie\Permission\Models\Permission::where('name', 'contracts_module')->first();
