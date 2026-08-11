@@ -72,22 +72,32 @@ class SendScheduledLetters extends Command
                         }
                     }
                 } else {
+                    $toRecipients = [];
                     foreach (explode(',', (string) $letter->to) as $to) {
                         $to = trim($to);
-                        if ($to === '') { continue; }
+                        if ($to === '') {
+                            continue;
+                        }
                         $recipient = $customerModel::find($to);
                         if ($recipient) {
                             $controller->sendPDF($letter, $recipient, $to);
                             $controller->sendMail($letter, $recipient, $to);
+                            $toRecipients[] = $recipient;
                         }
                     }
-                    if (!empty($letter->cc)) {
+                    if (! empty($letter->cc)) {
+                        $originals = ! empty($toRecipients) ? $toRecipients : [null];
                         foreach (explode(',', (string) $letter->cc) as $cc) {
                             $cc = trim($cc);
-                            if ($cc === '') { continue; }
-                            $recipient = $customerModel::find($cc);
-                            if ($recipient) {
-                                $controller->sendPDFToCC($letter, $recipient, $letter->to);
+                            if ($cc === '') {
+                                continue;
+                            }
+                            $ccRecipient = $customerModel::find($cc);
+                            if (! $ccRecipient) {
+                                continue;
+                            }
+                            foreach ($originals as $original) {
+                                $controller->sendPDFToCC($letter, $ccRecipient, $original);
                             }
                         }
                     }

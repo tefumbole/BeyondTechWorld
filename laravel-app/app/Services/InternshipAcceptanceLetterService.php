@@ -30,6 +30,8 @@ class InternshipAcceptanceLetterService
     {
         $existing = LetterTemplate::where('name', self::TEMPLATE_NAME)->first();
         if ($existing) {
+            $this->syncTemplateDefaults($existing);
+
             return $existing;
         }
 
@@ -42,7 +44,7 @@ class InternshipAcceptanceLetterService
             'category_id' => $category->id,
             'name' => self::TEMPLATE_NAME,
             'header' => '',
-            'subject' => 'Subject: Internship Acceptance — [program]',
+            'subject' => 'Internship Admission and Welcome to the [system_name] Internship Programme',
             'body' => $this->defaultBodyHtml(),
             'footer' => '<p>Beyond Company Ltd · Internship Programme</p>',
             'is_active' => 1,
@@ -50,16 +52,70 @@ class InternshipAcceptanceLetterService
         ]);
     }
 
+    /**
+     * Keep required internship placeholders on the editable template.
+     */
+    protected function syncTemplateDefaults(LetterTemplate $template): void
+    {
+        $body = (string) $template->body;
+        $dirty = false;
+
+        if (stripos($body, '[password]') === false) {
+            $body = $this->defaultBodyHtml();
+            $dirty = true;
+        } else {
+            if (stripos($body, '[end_date]') === false && stripos($body, '[start_date]') !== false) {
+                $body = str_ireplace(
+                    'will run from <strong>[start_date]</strong>.',
+                    'will run from <strong>[start_date]</strong> to <strong>[end_date]</strong>.',
+                    $body
+                );
+                $body = str_ireplace(
+                    'will run from <strong>[start_date]</strong>',
+                    'will run from <strong>[start_date]</strong> to <strong>[end_date]</strong>',
+                    $body
+                );
+                $dirty = true;
+            }
+            // Letter chrome already prints Dear / Sincerely — drop duplicates from body.
+            if (preg_match('/^\s*<p>\s*Dear\b/i', $body)) {
+                $body = preg_replace('/^\s*<p>\s*Dear\b.*?<\/p>\s*/is', '', $body, 1) ?: $body;
+                $dirty = true;
+            }
+            if (preg_match('/<p>\s*Sincerely,?\s*<\/p>\s*$/i', $body)) {
+                $body = preg_replace('/<p>\s*Sincerely,?\s*<\/p>\s*$/i', '', $body) ?: $body;
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $template->body = $body;
+        }
+
+        $subject = trim((string) $template->subject);
+        if ($subject === '' || (stripos($subject, '[program]') === false && stripos($subject, '[system_name]') === false)) {
+            $template->subject = 'Internship Admission and Welcome to the [system_name] Internship Programme';
+            $dirty = true;
+        } elseif (stripos($subject, 'Subject:') === 0) {
+            // PDF already prefixes "Subject:"
+            $template->subject = trim(preg_replace('/^Subject:\s*/i', '', $subject));
+            $dirty = true;
+        }
+
+        if ($dirty) {
+            $template->save();
+        }
+    }
+
     public function defaultBodyHtml(): string
     {
         return <<<'HTML'
-<p>Dear <strong>[name]</strong>,</p>
 <p><em>[school]</em></p>
 <p>Congratulations, and welcome to <strong>[system_name]</strong>!</p>
 <p>We are delighted to confirm that you have been <strong>admitted</strong> into the <strong>[system_name] Internship Programme</strong> for <strong>[program]</strong>.</p>
 <p>You were selected because we believe in your potential, passion for technology, and willingness to learn. During your internship, you will work alongside experienced professionals on real-world projects. We encourage you to be curious, professional, collaborative, and ready to contribute fresh ideas.</p>
 <p><strong>Your supervisor(s)</strong> will be <strong>[supervisors]</strong>.</p>
-<p><strong>Your internship period</strong> will run from <strong>[start_date]</strong>.</p>
+<p><strong>Your internship period</strong> will run from <strong>[start_date]</strong> to <strong>[end_date]</strong>.</p>
 <p><strong>Duration:</strong> [duration]. You are required to <strong>submit a task daily</strong>.</p>
 <p><strong>Login credentials</strong><br>
 Username: <strong>[phone_number]</strong> (or email <strong>[email]</strong>)<br>
@@ -67,7 +123,6 @@ Default password: <strong>[password]</strong><br>
 After you log in, please change your password immediately. Then go to <strong>Timesheets</strong> and configure your working week.</p>
 <p>This is more than an internship—it is an opportunity to learn, grow, solve meaningful problems, and build your future.</p>
 <p>Welcome to the Beyond family. We look forward to achieving great things together!</p>
-<p>Sincerely,</p>
 HTML;
     }
 
@@ -154,7 +209,7 @@ HTML;
             $sigFile = LetterSignature::storeFromAccountFile($signer->sign, 'sign');
         }
 
-        $person = [
+        $person = array_merge($payload, [
             'id' => 'applicant:'.$application->id,
             'name' => $payload['name'],
             'phone' => $payload['phone_number'],
@@ -162,9 +217,14 @@ HTML;
             'address' => $payload['address'] ?? '',
             'role' => 'intern',
             'source' => 'applicant',
-        ];
+        ]);
 
-        $subject = LetterPlaceholders::replace($template->subject, (object) $payload);
+        $recipientObj = (object) $payload;
+        $subject = LetterPlaceholders::replace($template->subject, $recipientObj);
+        $subject = trim(preg_replace('/^Subject:\s*/i', '', $subject));
+        $body = LetterPlaceholders::replace($template->body, $recipientObj);
+        $footer = LetterPlaceholders::replace($template->footer, $recipientObj);
+        $header = LetterPlaceholders::replace($template->header, $recipientObj);
 
         return Letter::create([
             'category_id' => $template->category_id,
@@ -176,10 +236,10 @@ HTML;
             'cc' => null,
             'recipients_json' => json_encode([$person]),
             'cc_json' => null,
-            'header' => $template->header,
+            'header' => $header,
             'subject' => $subject,
-            'body' => $template->body,
-            'footer' => $template->footer,
+            'body' => $body,
+            'footer' => $footer,
             'is_active' => 1,
             'is_edit' => 1,
             'is_approve' => 1,
@@ -211,14 +271,17 @@ HTML;
             ?: 'Internship Programme';
 
         $supervisors = $this->supervisorNames($enrolment);
-        $startDate = $enrolment && $enrolment->start_date
-            ? \Carbon\Carbon::parse($enrolment->start_date)->format('F j, Y')
-            : now()->format('F j, Y');
-
         $days = $enrolment
             ? $enrolment->plannedDurationDays()
             : Application::normalizeInternshipDurationDays($application->internship_duration_days, 90);
         $duration = $days.' day'.($days === 1 ? '' : 's');
+
+        $startCarbon = $enrolment && $enrolment->start_date
+            ? \Carbon\Carbon::parse($enrolment->start_date)->startOfDay()
+            : now()->startOfDay();
+        $endCarbon = $startCarbon->copy()->addDays(max(1, $days) - 1);
+        $startDate = $startCarbon->format('F j, Y');
+        $endDate = $endCarbon->format('F j, Y');
 
         $rawPhone = $application->whatsapp_number ?: $application->phone;
         $phone = $rawPhone ? WhatsAppPhone::display($rawPhone) : '';
@@ -233,6 +296,7 @@ HTML;
             'program' => $program,
             'supervisors' => $supervisors,
             'start_date' => $startDate,
+            'end_date' => $endDate,
             'duration' => $duration,
             'password' => self::DEFAULT_PASSWORD,
             'username' => $phone ?: (string) ($application->email ?: ''),
@@ -240,11 +304,11 @@ HTML;
             'column1' => $systemName,
             'column2' => $program,
             'column3' => $supervisors,
-            'column4' => $startDate,
+            'column4' => $startDate.' – '.$endDate,
             'column5' => $duration,
             'column6' => self::DEFAULT_PASSWORD,
             'column7' => $application->school ?: '',
-            'column8' => '',
+            'column8' => $endDate,
             'column9' => '',
             'column10' => '',
         ];
@@ -282,26 +346,59 @@ HTML;
             return 'to be assigned';
         }
 
-        $names = [];
+        $labels = [];
+        $seen = [];
+
+        $add = function ($name, $phone = null) use (&$labels, &$seen) {
+            $name = trim((string) $name);
+            if ($name === '') {
+                return;
+            }
+            $key = strtolower($name);
+            if (isset($seen[$key])) {
+                return;
+            }
+            $seen[$key] = true;
+            $phone = trim((string) $phone);
+            if ($phone !== '') {
+                $labels[] = $name.' ('.$phone.')';
+            } else {
+                $labels[] = $name;
+            }
+        };
+
         if ($enrolment->supervisor) {
-            $names[] = $enrolment->supervisor->name;
+            $add($enrolment->supervisor->name, $this->formatSupervisorPhone($enrolment->supervisor->phone ?? null));
         }
         foreach ($enrolment->supervisorRefs() as $ref) {
             if (strpos($ref, 'user:') === 0) {
                 $u = User::find((int) substr($ref, 5));
-                if ($u && $u->name) {
-                    $names[] = $u->name;
+                if ($u) {
+                    $add($u->name, $this->formatSupervisorPhone($u->phone ?? null));
                 }
             } elseif (strpos($ref, 'customer:') === 0) {
                 $c = Customer::find((int) substr($ref, 9));
-                if ($c && $c->name) {
-                    $names[] = $c->name;
+                if ($c) {
+                    $add($c->name, $this->formatSupervisorPhone($c->phone_number ?? null));
                 }
             }
         }
-        $names = array_values(array_unique(array_filter($names)));
 
-        return $names ? implode(', ', $names) : 'to be assigned';
+        return $labels ? implode(', ', $labels) : 'to be assigned';
+    }
+
+    protected function formatSupervisorPhone($raw): string
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '' || strtoupper($raw) === 'NAN') {
+            return '';
+        }
+
+        try {
+            return WhatsAppPhone::display($raw);
+        } catch (\Throwable $e) {
+            return $raw;
+        }
     }
 
     protected function systemName(): string

@@ -41,7 +41,13 @@
         }
     }
 
+    $user_to = \App\Support\LetterPlaceholders::enrich($user_to);
     $rendered_header = \App\Support\LetterPlaceholders::replace($data->header, $user_to);
+    $rendered_subject = trim(preg_replace(
+        '/^Subject:\s*/i',
+        '',
+        \App\Support\LetterPlaceholders::replace($data->subject ?? '', $user_to)
+    ));
     $rendered_body = \App\Support\LetterPlaceholders::replace($data->body, $user_to);
     $rendered_footer = \App\Support\LetterPlaceholders::replace($data->footer ?? '', $user_to);
 
@@ -92,6 +98,12 @@
     @endif
 </div>
 
+@if(!empty($cc_copy_for))
+    <div class="letter-cc-banner">
+        Copy — You have been CC'd on this letter to <strong>{{ $cc_copy_for }}</strong>.
+    </div>
+@endif
+
 <div class="letter-meta">
     Ref: {{ $data->reference }}<br>
     {{ date('M d, Y') }}
@@ -119,7 +131,7 @@
 </div>
 
 <div class="letter-body">
-    <h2>Subject: <span style="text-decoration: underline;">{{ $data->subject }}</span></h2>
+    <h2>Subject: <span style="text-decoration: underline;">{{ $rendered_subject !== '' ? $rendered_subject : $data->subject }}</span></h2>
     {!! $rendered_body !!}
 </div>
 

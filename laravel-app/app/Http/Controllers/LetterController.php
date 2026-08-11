@@ -1047,9 +1047,16 @@ class LetterController extends Controller
     }
 
     public function sendPDF($letter, $lims_customer_data, $to) {
+        $lims_customer_data = \App\Support\LetterPlaceholders::enrich($lims_customer_data);
+
         // Clone and render placeholders for PDF content
         $rendered = clone $letter;
         $rendered->header = $this->replacePlaceholders($letter->header, $lims_customer_data);
+        $rendered->subject = trim(preg_replace(
+            '/^Subject:\s*/i',
+            '',
+            $this->replacePlaceholders($letter->subject, $lims_customer_data)
+        ));
         $rendered->body = $this->replacePlaceholders($letter->body, $lims_customer_data);
         $rendered->footer = $this->replacePlaceholders($letter->footer, $lims_customer_data);
 
@@ -1139,54 +1146,140 @@ class LetterController extends Controller
         return $message;
     }
 
-    public function sendPDFToCC($letter, $lims_customer_data, $to) {
+    /**
+     * Send a CC copy of the letter. The PDF is always personalized for the original
+     * To recipient — never rewritten as if addressed to the CC person.
+     *
+     * @param  object|string|null  $originalTo  Original recipient object, or To id/ref hint
+     */
+    public function sendPDFToCC($letter, $ccRecipient, $originalTo = null)
+    {
+        $original = $this->resolveLetterOriginalRecipient($letter, $originalTo);
+        if (! $original) {
+            $original = (object) ['name' => ''];
+        }
+        $original = \App\Support\LetterPlaceholders::enrich($original);
+
+        $originalName = trim((string) ($original->name ?? ''));
+        if ($originalName === '') {
+            $originalName = 'the recipient';
+        }
+
+        $rendered = clone $letter;
+        $rendered->header = $this->replacePlaceholders($letter->header, $original);
+        $rendered->subject = trim(preg_replace(
+            '/^Subject:\s*/i',
+            '',
+            $this->replacePlaceholders($letter->subject, $original)
+        ));
+        $rendered->body = $this->replacePlaceholders($letter->body, $original);
+        $rendered->footer = $this->replacePlaceholders($letter->footer, $original);
+
         $data = [
-            'to' => $to,
-            'data' => $letter,
-            'user_to' => $lims_customer_data,
+            'to' => $original->directory_id ?? ($original->id ?? $letter->to),
+            'data' => $rendered,
+            'user_to' => $original,
             'letterhead_flow' => true,
+            'cc_copy_for' => $originalName,
         ];
         $pdf = PDF::loadView('pdf.letter_pdf', $data)->setPaper('A4', 'portrait');
 
         $content = $pdf->download()->getOriginalContent();
 
-        Storage::put('public/letter/letter.pdf',$content);
+        Storage::put('public/letter/letter.pdf', $content);
         $path = storage_path('app/public/letter/letter.pdf');
         $attachment_path = public_path('letter/attachment/');
         $message = 'Letter notification sent successfully';
-        try{
-            $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf');
-        }
-        catch(\Exception $e){
+
+        $ccName = trim((string) ($ccRecipient->name ?? 'Colleague'));
+        $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'CC Copy')
+            .\App\Support\WhatsAppMessage::greeting($ccName !== '' ? $ccName : 'Colleague')
+            .'You have been *CC\'d* on a letter to *'.$originalName.'*.'
+            ."\n\n"
+            .'Please find the same letter PDF attached.'
+            .\App\Support\WhatsAppMessage::footer();
+
+        try {
+            $this->wpPDFMessage($path, $ccRecipient, 'letter.pdf', null, $caption);
+        } catch (\Exception $e) {
             $message = 'Letter not sent. Please setup your whatsapp setting.';
         }
 
-
-        if($letter->attachment) {
+        if ($letter->attachment) {
             $attachment_name = 'attachment-'.$letter->attachment;
-            try{
-                $this->wpPDFMessage($attachment_path . $letter->attachment, $lims_customer_data, $attachment_name);
-            }
-            catch(\Exception $e){
+            try {
+                $this->wpPDFMessage($attachment_path.$letter->attachment, $ccRecipient, $attachment_name, null, $caption);
+            } catch (\Exception $e) {
                 $message = 'Letter not sent. Please setup your whatsapp setting.';
             }
         }
-        if(isset($letter->attachmentlib[0])) {
+        if (isset($letter->attachmentlib[0])) {
             foreach ($letter->attachmentlib as $key => $attachment) {
-                if($key == 0) {
+                if ($key == 0) {
                     continue;
                 }
                 $attachment_name = 'attachment-'.$attachment->attachment;
-                try{
-                    $this->wpPDFMessage($attachment_path . $attachment->attachment, $lims_customer_data, $attachment_name);
-                }
-                catch(\Exception $e){
+                try {
+                    $this->wpPDFMessage($attachment_path.$attachment->attachment, $ccRecipient, $attachment_name, null, $caption);
+                } catch (\Exception $e) {
                     $message = 'Letter not sent. Please setup your whatsapp setting.';
                 }
             }
-
         }
+
         return $message;
+    }
+
+    /**
+     * Resolve the original To recipient used to personalize a letter PDF.
+     *
+     * @param  object|string|null  $hint
+     * @return object|null
+     */
+    protected function resolveLetterOriginalRecipient($letter, $hint = null)
+    {
+        if (is_object($hint) && (isset($hint->name) || isset($hint->email) || isset($hint->phone_number))) {
+            return $hint;
+        }
+
+        $peopleType = (string) ($letter->people_type ?? '');
+
+        if ($peopleType === 'directory') {
+            $people = LetterRecipients::decodePeopleJson($letter->recipients_json);
+            $hintId = is_string($hint) ? trim($hint) : '';
+            if ($hintId !== '') {
+                foreach ($people as $person) {
+                    if (($person['id'] ?? null) === $hintId
+                        || ($person['email'] ?? null) === $hintId
+                        || ($person['phone'] ?? null) === $hintId) {
+                        return LetterRecipients::toSendObject($person);
+                    }
+                }
+            }
+            if (! empty($people[0])) {
+                return LetterRecipients::toSendObject($people[0]);
+            }
+
+            return null;
+        }
+
+        $model = in_array($peopleType, ['customer', 'all'], true) ? Customer::class : Employee::class;
+        $hintId = is_string($hint) ? trim(explode(',', $hint)[0]) : '';
+        if ($hintId !== '') {
+            $found = $model::find($hintId);
+            if ($found) {
+                return $found;
+            }
+        }
+
+        foreach (array_filter(explode(',', (string) $letter->to)) as $id) {
+            $found = $model::find(trim($id));
+            if ($found) {
+                return $found;
+            }
+        }
+
+        return null;
     }
 
     public function sign(Letter $letter, $id)

@@ -102,6 +102,115 @@ class InternCompliance
     }
 
     /**
+     * Day + hours summary (e.g. "Mon–Fri 08:00–17:00") from configured week or application JSON data.
+     *
+     * @param  User|null  $user
+     * @param  array|null  $fallbackData  WorkingWeekForm-style array
+     */
+    public static function workingWeekDetailLabel($user = null, array $fallbackData = null)
+    {
+        if ($user instanceof User && self::workingWeekConfigured($user)) {
+            $row = WorkingWeek::where('user_id', $user->id)->first();
+            if ($row) {
+                return self::formatWorkingWeekDetail(self::workingWeekRowToSlots($row));
+            }
+        }
+
+        if (is_array($fallbackData) && $fallbackData) {
+            return self::formatWorkingWeekDetail(self::workingWeekArrayToSlots($fallbackData));
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  WorkingWeek  $row
+     * @return array<int, array{day:string,start:string,end:string}>
+     */
+    protected static function workingWeekRowToSlots(WorkingWeek $row)
+    {
+        $short = [
+            'monday' => 'Mon', 'tuesday' => 'Tue', 'wednesday' => 'Wed',
+            'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun',
+        ];
+        $slots = [];
+        foreach (WorkingWeek::days() as $day) {
+            if (! $row->{$day}) {
+                continue;
+            }
+            $slots[] = [
+                'day' => $short[$day],
+                'start' => substr((string) ($row->{$day.'_start'} ?: '08:00'), 0, 5),
+                'end' => substr((string) ($row->{$day.'_end'} ?: '17:00'), 0, 5),
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * @param  array  $data
+     * @return array<int, array{day:string,start:string,end:string}>
+     */
+    protected static function workingWeekArrayToSlots(array $data)
+    {
+        $short = [
+            'monday' => 'Mon', 'tuesday' => 'Tue', 'wednesday' => 'Wed',
+            'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun',
+        ];
+        $slots = [];
+        foreach (WorkingWeek::days() as $day) {
+            $on = ! empty($data[$day])
+                && (filter_var($data[$day], FILTER_VALIDATE_BOOLEAN)
+                    || $data[$day] === 1
+                    || $data[$day] === '1'
+                    || $data[$day] === true);
+            if (! $on) {
+                continue;
+            }
+            $slots[] = [
+                'day' => $short[$day],
+                'start' => substr((string) ($data[$day.'_start'] ?? '08:00'), 0, 5),
+                'end' => substr((string) ($data[$day.'_end'] ?? '17:00'), 0, 5),
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * @param  array<int, array{day:string,start:string,end:string}>  $slots
+     */
+    protected static function formatWorkingWeekDetail(array $slots)
+    {
+        if (! $slots) {
+            return 'No days';
+        }
+
+        $days = array_column($slots, 'day');
+        $starts = array_values(array_unique(array_column($slots, 'start')));
+        $ends = array_values(array_unique(array_column($slots, 'end')));
+        $hours = (count($starts) === 1 && count($ends) === 1)
+            ? ($starts[0].'–'.$ends[0])
+            : null;
+
+        if ($days === ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] && $hours) {
+            return 'Mon–Fri '.$hours;
+        }
+
+        if ($hours) {
+            return implode(', ', $days).' '.$hours;
+        }
+
+        $parts = [];
+        foreach ($slots as $slot) {
+            $parts[] = $slot['day'].' '.$slot['start'].'–'.$slot['end'];
+        }
+
+        return implode('; ', $parts);
+    }
+
+    /**
      * Most recent working day (today after EOD, or a past day within 7 days) missing a timesheet entry.
      *
      * @return string|null Y-m-d

@@ -8,10 +8,12 @@ use App\InternshipEnrolment;
 use App\InternshipProgram;
 use App\InternshipProgramTask;
 use App\InternshipTaskAssignment;
+use App\Services\ApplicationService;
 use App\Services\Internship\InternshipProgramService;
 use App\Support\InternCompliance;
 use App\Support\InternshipHandbook;
 use App\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -154,15 +156,54 @@ class InternshipAdminController extends Controller
 
         $interns = $q->orderByDesc('applications.submitted_at')->paginate(40)->appends($request->query());
 
-        $enrolmentsByApp = InternshipEnrolment::with('student')
+        $enrolmentsByApp = InternshipEnrolment::with(['student', 'supervisor', 'program'])
             ->whereIn('application_id', $interns->pluck('id')->filter())
             ->get()
             ->keyBy('application_id');
 
-        // Always unfiltered totals — tab clicks clear search so the list matches these badges.
-        $tabCounts = app(\App\Services\ApplicationService::class)->internshipInternTabCounts();
+        // Sync application Working Week → be_working_week for placed interns who never synced.
+        $appService = app(ApplicationService::class);
+        foreach ($interns as $app) {
+            $enrolment = $enrolmentsByApp[$app->id] ?? null;
+            $student = $enrolment ? $enrolment->student : null;
+            if (! $student || ! $enrolment) {
+                continue;
+            }
+            if (InternCompliance::workingWeekConfigured($student)) {
+                continue;
+            }
+            if (! $app->hasWorkingWeekOnApplication()) {
+                continue;
+            }
+            try {
+                $appService->syncWorkingWeekToUser($student->id, $app->workingWeekData());
+            } catch (\Throwable $e) {
+                // Leave as "Saved on application" if data is invalid.
+            }
+        }
 
-        return view('internship.admin.interns', compact('interns', 'status', 'enrolmentsByApp', 'tabCounts'));
+        $today = Carbon::today()->toDateString();
+        $enrolmentIds = $enrolmentsByApp->pluck('id')->filter()->values()->all();
+        $todayTasksByEnrolment = collect();
+        if ($enrolmentIds) {
+            $todayTasksByEnrolment = InternshipTaskAssignment::with('task')
+                ->whereIn('enrolment_id', $enrolmentIds)
+                ->whereDate('scheduled_work_date', $today)
+                ->get()
+                ->keyBy('enrolment_id');
+        }
+
+        // Always unfiltered totals — tab clicks clear search so the list matches these badges.
+        $tabCounts = $appService->internshipInternTabCounts();
+
+        return view('internship.admin.interns', compact(
+            'interns',
+            'status',
+            'enrolmentsByApp',
+            'tabCounts',
+            'todayTasksByEnrolment',
+            'today'
+        ));
     }
 
     /**
@@ -675,7 +716,8 @@ class InternshipAdminController extends Controller
         }
 
         $name = optional(optional($assignment->enrolment)->student)->name ?: 'student';
+        $extra = $includeSupervisors ? ' Student and supervisor(s) received the text + Word handbook.' : ' Student received the text + Word handbook.';
 
-        return back()->with('message', 'Task WhatsApp resent to '.$name.'.');
+        return back()->with('message', 'Task WhatsApp resent to '.$name.'.'.$extra);
     }
 }

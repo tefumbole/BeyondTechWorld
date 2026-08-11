@@ -664,13 +664,20 @@ class InternshipProgramService
         }
 
         $url = url('/admin/internship/student/task/'.$assignment->id);
+        $taskLabel = '#'.$assignment->progression_day.' — '.$task->title;
+        $program = $enrolment->program;
+        $handbookPath = $program ? InternshipHandbook::absolutePath($program, $task) : null;
+        $handbookName = $program ? InternshipHandbook::downloadName($program, $task) : null;
+        $hasHandbook = $handbookPath && is_file($handbookPath);
+
         $msg = WhatsAppMessage::internshipDailyTask(
             $student->name,
-            optional($enrolment->program)->displayName() ?? '',
-            '#'.$assignment->progression_day.' — '.$task->title,
+            optional($program)->displayName() ?? '',
+            $taskLabel,
             (string) $assignment->scheduled_work_date,
             $url,
-            $task->instructions()
+            $task->instructions(),
+            $hasHandbook
         );
 
         $result = $this->sendWhatsApp($student, $msg, $key, $forceResend ? 'task_released_resend' : 'task_released');
@@ -678,6 +685,21 @@ class InternshipProgramService
             $assignment->whatsapp_sent_at = now();
             $assignment->whatsapp_message_id = $result['sid'] ?? $result['provider_sid'] ?? $result['msg_id'] ?? null;
             $assignment->save();
+        }
+
+        // Word handbook so interns can work even if they cannot log into the ERP.
+        if ($hasHandbook) {
+            $docKey = 'task_handbook:'.$assignment->id.':student:'.$student->id.$suffix;
+            if ($forceResend || ! $this->alreadyNotified($docKey)) {
+                $this->sendWhatsAppDocument(
+                    $student,
+                    $handbookPath,
+                    $handbookName ?: basename($handbookPath),
+                    $docKey,
+                    $forceResend ? 'task_handbook_student_resend' : 'task_handbook_student',
+                    'Instruction handbook — '.$taskLabel
+                );
+            }
         }
 
         if (! $forceResend) {

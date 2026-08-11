@@ -748,7 +748,7 @@ class WhatsAppMessage
      *
      * @param  array  $instructionSteps
      */
-    public static function internshipDailyTask($studentName, $program, $taskLabel, $workDate, $url, array $instructionSteps = [])
+    public static function internshipDailyTask($studentName, $program, $taskLabel, $workDate, $url, array $instructionSteps = [], $handbookAttached = false)
     {
         $msg = self::statusBlock('📚', 'Internship Task');
         $msg .= self::greeting($studentName ?: 'Intern');
@@ -773,6 +773,10 @@ class WhatsAppMessage
             if (count($steps) > $max) {
                 $msg .= '… +'.(count($steps) - $max)." more in the dashboard\n";
             }
+        }
+
+        if ($handbookAttached) {
+            $msg .= "\nA *Word handbook* for this day is attached on WhatsApp — you can follow it even if you cannot log in yet.\n";
         }
 
         $msg .= self::actionLink('Open internship dashboard', $url);

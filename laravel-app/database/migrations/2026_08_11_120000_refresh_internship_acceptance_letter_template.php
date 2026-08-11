@@ -4,26 +4,13 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class SeedInternshipAcceptanceLetterTemplate extends Migration
+class RefreshInternshipAcceptanceLetterTemplate extends Migration
 {
     const TEMPLATE_NAME = 'Internship Acceptance Letter';
 
     public function up()
     {
-        if (! Schema::hasTable('letter_templates') || ! Schema::hasTable('letter_categories')) {
-            return;
-        }
-
-        $categoryId = DB::table('letter_categories')->where('name', 'Internship')->value('id');
-        if (! $categoryId) {
-            $categoryId = DB::table('letter_categories')->insertGetId([
-                'name' => 'Internship',
-                'is_active' => 1,
-            ]);
-        }
-
-        $exists = DB::table('letter_templates')->where('name', self::TEMPLATE_NAME)->exists();
-        if ($exists) {
+        if (! Schema::hasTable('letter_templates')) {
             return;
         }
 
@@ -43,25 +30,18 @@ After you log in, please change your password immediately. Then go to <strong>Ti
 <p>Welcome to the Beyond family. We look forward to achieving great things together!</p>
 HTML;
 
-        DB::table('letter_templates')->insert([
-            'category_id' => $categoryId,
-            'name' => self::TEMPLATE_NAME,
-            'header' => '',
-            'subject' => 'Internship Admission and Welcome to the [system_name] Internship Programme',
-            'body' => $body,
-            'footer' => '<p>Beyond Company Ltd · Internship Programme</p>',
-            'is_active' => 1,
-            'created_by' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('letter_templates')
+            ->where('name', self::TEMPLATE_NAME)
+            ->update([
+                'subject' => 'Internship Admission and Welcome to the [system_name] Internship Programme',
+                'body' => $body,
+                'footer' => '<p>Beyond Company Ltd · Internship Programme</p>',
+                'updated_at' => now(),
+            ]);
     }
 
     public function down()
     {
-        if (! Schema::hasTable('letter_templates')) {
-            return;
-        }
-        DB::table('letter_templates')->where('name', self::TEMPLATE_NAME)->delete();
+        // Non-destructive: leave the refreshed template in place.
     }
 }

@@ -120,7 +120,18 @@ class LetterRecipients
         $r->role = $person['role'] ?? '';
         $r->source = $person['source'] ?? '';
 
-        return $r;
+        foreach ([
+            'school', 'system_name', 'program', 'supervisors',
+            'start_date', 'end_date', 'duration', 'password', 'username',
+            'column1', 'column2', 'column3', 'column4', 'column5',
+            'column6', 'column7', 'column8', 'column9', 'column10',
+        ] as $key) {
+            if (array_key_exists($key, $person)) {
+                $r->{$key} = $person[$key];
+            }
+        }
+
+        return LetterPlaceholders::enrich($r);
     }
 
     public static function recipientModel(string $peopleType): string

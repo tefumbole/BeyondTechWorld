@@ -154,7 +154,7 @@
                                 <td class="text-nowrap">
                                     @if($assignment)
                                         <form method="POST" action="{{ route('internship.tasks.resend', $assignment->id) }}" class="d-inline"
-                                              onsubmit="return confirm('Resend this daily task WhatsApp to {{ addslashes(optional($student)->name ?: 'the student') }}?');">
+                                              onsubmit="return confirm('Resend this daily task WhatsApp (Word handbook) to {{ addslashes(optional($student)->name ?: 'the student') }} and supervisor(s)?');">
                                             @csrf
                                             <input type="hidden" name="include_supervisors" value="1">
                                             <button type="submit" class="ip-btn ip-btn-sm">
@@ -238,7 +238,7 @@
                                 </td>
                                 <td class="text-nowrap">
                                     <form method="POST" action="{{ route('internship.tasks.resend', $a->id) }}" class="d-inline"
-                                          onsubmit="return confirm('Resend this daily task WhatsApp to {{ addslashes(optional($student)->name ?: 'the student') }}?');">
+                                          onsubmit="return confirm('Resend this daily task WhatsApp (Word handbook) to {{ addslashes(optional($student)->name ?: 'the student') }} and supervisor(s)?');">
                                         @csrf
                                         <input type="hidden" name="include_supervisors" value="1">
                                         <button type="submit" class="ip-btn ip-btn-sm" title="Resend WhatsApp">

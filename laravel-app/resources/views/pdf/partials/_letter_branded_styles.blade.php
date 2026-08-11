@@ -180,6 +180,15 @@
         line-height: 1.15;
         font-size: 13px;
     }
+    .letter-cc-banner {
+        margin: 0 0 10px;
+        padding: 6px 10px;
+        border: 1px solid #c5d0c8;
+        background: #f3f7f4;
+        color: #1f3d2f;
+        font-size: 12px;
+        line-height: 1.35;
+    }
     .letter-codes-back {
         position: absolute;
         left: 0;

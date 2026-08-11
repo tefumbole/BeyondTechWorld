@@ -678,7 +678,7 @@ class Controller extends BaseController
     }
 
 
-    public function wpPDFMessage($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null){
+    public function wpPDFMessage($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null, $captionOverride = null){
         if ($this->usesWasender()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
@@ -686,10 +686,12 @@ class Controller extends BaseController
             }
 
             $customerName = $lims_customer_data->name ?? 'Customer';
-            $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'Document Attached')
-                . \App\Support\WhatsAppMessage::greeting($customerName)
-                . 'Please find your *' . $filename . '* attached.'
-                . \App\Support\WhatsAppMessage::footer();
+            $caption = $captionOverride !== null && $captionOverride !== ''
+                ? $captionOverride
+                : (\App\Support\WhatsAppMessage::statusBlock('📄', 'Document Attached')
+                    . \App\Support\WhatsAppMessage::greeting($customerName)
+                    . 'Please find your *' . $filename . '* attached.'
+                    . \App\Support\WhatsAppMessage::footer());
 
             try {
                 $this->sendWasenderTextMessage(
