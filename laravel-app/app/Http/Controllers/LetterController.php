@@ -848,10 +848,10 @@ class LetterController extends Controller
                 $customer = Employee::class;
             }
 
-            ProcessQueue::dispatch($data, $id, $customer);
+            $this->dispatchLetterQueueAfterResponse($data, $id, $customer);
 
             $data->update(['is_sent' => true, 'sent_by' => Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter will sent soon');
+            return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
         }
         $this->sendOTP($data);
         return view('letter.send', compact('data'));
@@ -870,7 +870,7 @@ class LetterController extends Controller
 
         if ($this->checkOtp($request, $letter) == true) {
 
-            ProcessQueue::dispatch($letter, $id, $customer);
+            $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
 //            foreach (explode(",", $letter->to) as $to) {
 //                $lims_customer_data = $customer::find($to);
@@ -885,7 +885,7 @@ class LetterController extends Controller
 //            }
 
             $letter->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter will sent soon');
+            return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
         }
         $letter->update(['otp' => null]);
         return back()->with('not_permitted', 'OTP is wrong or Expired');
@@ -1012,10 +1012,10 @@ class LetterController extends Controller
             $customer = Employee::class;
         }
 
-        ProcessQueue::dispatch($letter, $id, $customer);
+        $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
         $letter->find($id)->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-        return redirect()->back()->with('message', 'Letter will send soon');
+        return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
     }
 
     public function sendEmail(Letter $letter, $id)
@@ -1236,8 +1236,9 @@ class LetterController extends Controller
         );
 
         try {
-            // Wasender account protection after the PDF document message.
-            usleep(5500000);
+            // Throttle is handled by Wasender account protection retries in NotificationRouter/Wasender.
+            // A short pause after the PDF document is enough; long sleeps in-request caused nginx 502s.
+            usleep(1500000);
             app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppText($phone, $msg);
         } catch (\Throwable $e) {
             \Log::warning('Internship login guide WhatsApp failed', [
@@ -1245,6 +1246,35 @@ class LetterController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Deliver WhatsApp/PDF after the browser response so nginx does not 502 on long Wasender sends.
+     * QUEUE_CONNECTION=sync would otherwise block the HTTP request for many recipients.
+     */
+    protected function dispatchLetterQueueAfterResponse($letter, $id, $customer = null): void
+    {
+        $letterId = is_object($letter) ? (int) $letter->id : (int) $letter;
+        register_shutdown_function(function () use ($letterId, $id, $customer) {
+            try {
+                if (function_exists('fastcgi_finish_request')) {
+                    @fastcgi_finish_request();
+                }
+                @set_time_limit(900);
+                ignore_user_abort(true);
+
+                $saved = Letter::find($letterId);
+                if (! $saved) {
+                    return;
+                }
+
+                (new ProcessQueue($saved, $id, $customer))->handle();
+            } catch (\Throwable $e) {
+                \Log::error('Letter ProcessQueue after-response failed: '.$e->getMessage(), [
+                    'letter_id' => $letterId,
+                ]);
+            }
+        });
     }
 
     public function imageUpload(Request $request)
@@ -1476,15 +1506,10 @@ class LetterController extends Controller
                 $customer = null;
             }
 
-            try {
-                ProcessQueue::dispatch($letter, $id, $customer);
-            } catch (\Throwable $e) {
-                \Log::error('Letter signSend ProcessQueue failed: '.$e->getMessage());
-                return redirect()->back()->with('not_permitted', 'Letter was signed but sending failed. Please try Send again from the letter list.');
-            }
+            $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
             $letter->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter Signed & Sent Successfully');
+            return redirect()->back()->with('message', 'Letter signed. WhatsApp delivery continues in the background.');
         }
 
         $letter->update(['otp' => null]);
@@ -1714,11 +1739,11 @@ class LetterController extends Controller
 //                        $this->sendPDFToCC($letter, $lims_customer_data, $letter->to);
 //                    }
 //                }
-                ProcessQueue::dispatch($letter, $id, $customer);
+                $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
                 $letter->find($id)->update(['is_sent' => true, 'sent_by' => Auth::user()->id, 'otp' => null]);
 
             }
-            return redirect()->route('letter.index.sent')->with('message', 'Letters will sent soon');
+            return redirect()->route('letter.index.sent')->with('message', 'Letters will be sent shortly via WhatsApp.');
         }
 
         $letter->update(['otp' => null]);
