@@ -1076,6 +1076,9 @@ class LetterController extends Controller
         $message = 'Letter notification sent successfully';
         try{
             $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf');
+            if ($this->isInternshipAcceptanceLetter($letter)) {
+                $this->sendInternshipLoginGuideWhatsApp($lims_customer_data);
+            }
         }
         catch(\Exception $e){
             $message = 'Letter not sent. Please setup your whatsapp setting.';
@@ -1107,6 +1110,77 @@ class LetterController extends Controller
 
         }
         return $message;
+    }
+
+    protected function isInternshipAcceptanceLetter($letter): bool
+    {
+        $hay = strtolower(trim(
+            (string) ($letter->name ?? '').' '.
+            (string) ($letter->subject ?? '')
+        ));
+        if (strpos($hay, 'internship acceptance') !== false
+            || strpos($hay, 'internship admission') !== false) {
+            return true;
+        }
+
+        if (! empty($letter->template_id)) {
+            $template = LetterTemplate::find($letter->template_id);
+            if ($template) {
+                $t = strtolower((string) $template->name.' '.(string) $template->subject);
+                if (strpos($t, 'internship acceptance') !== false
+                    || strpos($t, 'internship admission') !== false) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * WhatsApp text after internship admission PDF: login link + Timesheets working week.
+     */
+    protected function sendInternshipLoginGuideWhatsApp($recipient): void
+    {
+        $phone = $recipient->phone_number ?? $recipient->phone ?? null;
+        if (! $phone) {
+            return;
+        }
+
+        $name = trim((string) ($recipient->name ?? 'Intern'));
+        $username = trim((string) (
+            $recipient->username
+            ?? $recipient->phone_number
+            ?? $recipient->phone
+            ?? $recipient->email
+            ?? ''
+        ));
+        $password = trim((string) (
+            $recipient->password
+            ?? \App\Services\InternshipAcceptanceLetterService::DEFAULT_PASSWORD
+        ));
+        if ($password === '') {
+            $password = \App\Services\InternshipAcceptanceLetterService::DEFAULT_PASSWORD;
+        }
+
+        $msg = \App\Support\WhatsAppMessage::internshipAdmissionLoginGuide(
+            $name,
+            $username,
+            $password,
+            url('/login'),
+            url('/admin/timesheet/working-week')
+        );
+
+        try {
+            // Wasender account protection after the PDF document message.
+            usleep(5500000);
+            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppText($phone, $msg);
+        } catch (\Throwable $e) {
+            \Log::warning('Internship login guide WhatsApp failed', [
+                'phone' => $phone,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function imageUpload(Request $request)

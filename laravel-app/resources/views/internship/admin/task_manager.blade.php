@@ -16,6 +16,9 @@
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
+        @if(request()->filled('assignment'))
+            <div class="alert alert-info">Showing the selected intern day task (assignment #{{ (int) request('assignment') }}).</div>
+        @endif
 
         <div class="ip-nav">
             @foreach([

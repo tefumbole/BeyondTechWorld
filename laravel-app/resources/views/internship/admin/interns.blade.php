@@ -131,7 +131,7 @@
                                     @endif
                                     <div class="mt-1 d-flex flex-wrap" style="gap:6px;">
                                         <a class="ip-btn ip-btn-sm ip-btn-outline"
-                                           href="{{ route('internship.tasks', ['status' => 'open', 'q' => $app->full_name]) }}">View</a>
+                                           href="{{ route('internship.tasks', ['status' => 'open', 'assignment' => $todayAssignment->id]) }}">View</a>
                                         @if(in_array($todayAssignment->status, ['available', 'in_progress', 'revision_required', 'submitted'], true))
                                             <form method="POST" action="{{ route('internship.tasks.resend', $todayAssignment->id) }}" class="d-inline"
                                                   onsubmit="return confirm('Send task WhatsApp + Word handbook to student and supervisor? This may take ~20 seconds.');">

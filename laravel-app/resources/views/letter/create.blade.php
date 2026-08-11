@@ -61,10 +61,18 @@
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label>{{trans('file.Letter Template')}} </label>
-                                            <select class="form-control" name="template_id">
+                                            <select class="form-control selectpicker" name="template_id"
+                                                    data-live-search="true"
+                                                    data-size="10"
+                                                    title="Search templates…"
+                                                    data-none-results-text="No template match">
                                                 <option value="">-- Blank --</option>
                                                 @foreach($template as $tem)
-                                                    <option value="{{$tem->id}}">{{$tem->subject}}</option>
+                                                    <option value="{{$tem->id}}"
+                                                            data-tokens="{{ $tem->name }} {{ $tem->subject }}"
+                                                            data-subtext="{{ \Illuminate\Support\Str::limit(strip_tags((string) $tem->name), 40) }}">
+                                                        {{ $tem->subject ?: $tem->name }}
+                                                    </option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -308,9 +316,18 @@
     <script type="text/javascript">
 
         $(document).ready(function() {
-            $('select[name="template_id"]').on('change', function() {
+            var $templateSelect = $('select[name="template_id"]');
+            if ($templateSelect.length && $.fn.selectpicker) {
+                $templateSelect.selectpicker({
+                    liveSearch: true,
+                    size: 10,
+                    noneResultsText: 'No template match {0}'
+                });
+            }
+            $templateSelect.on('changed.bs.select change', function() {
                 var url = "/letters/template/info/"
                 var id = $(this).val();
+                if (!id) { return; }
                 url = url.concat(id);
                 $.get(url, function(data) {
                     $("input[name='subject']").val(data['subject']);
@@ -605,7 +622,7 @@
                     $el.closest('.form-group').find('.letter-field-error-msg').remove();
                     $el.next('.bootstrap-select').find('> .dropdown-toggle').removeClass('is-invalid');
                 });
-                $(document).on('click', '.lt-user-item, .lt-chip button, .lt-rselect-all', function () {
+                $(document).on('click', '.lt-user-item, .lt-chip button, .lt-rselect-all, .lt-rdeselect-all, .lt-cselect-all, .lt-cdeselect-all', function () {
                     $('.letter-recipient-panel').removeClass('letter-panel-invalid');
                     $('.letter-recipient-panel .letter-label-invalid').removeClass('letter-label-invalid');
                     $('.letter-recipient-panel > .letter-field-error-msg').remove();

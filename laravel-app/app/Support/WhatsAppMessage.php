@@ -803,4 +803,25 @@ class WhatsAppMessage
 
         return $msg;
     }
+
+    /**
+     * Follow-up after internship admission letter PDF: login + Timesheets working week.
+     */
+    public static function internshipAdmissionLoginGuide($name, $username, $password, $loginUrl = null, $timesheetUrl = null)
+    {
+        $loginUrl = $loginUrl ?: url('/login');
+        $timesheetUrl = $timesheetUrl ?: url('/admin/timesheet/working-week');
+
+        $msg = self::statusBlock('🔑', 'Internship Login');
+        $msg .= self::greeting($name ?: 'Intern');
+        $msg .= "Your internship admission letter PDF was sent above. Use these details to sign in and set your Working Week.\n\n";
+        $msg .= self::bullet('Username', $username ?: '—');
+        $msg .= self::bullet('Default password', $password ?: 'system');
+        $msg .= self::actionLink('Sign in', $loginUrl);
+        $msg .= self::actionLink('Go to Timesheets → Working Week', $timesheetUrl);
+        $msg .= "\nAfter login, change your password, then open *Timesheets* and configure your working week so daily tasks can be released.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
 }

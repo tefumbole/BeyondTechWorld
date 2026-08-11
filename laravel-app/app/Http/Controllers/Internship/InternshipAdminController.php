@@ -678,7 +678,10 @@ class InternshipAdminController extends Controller
             });
         }
 
-        if ($status === 'open') {
+        // Deep-link from Interns "View" — show that assignment even if the name search would miss it.
+        if ($request->filled('assignment')) {
+            $q->where('id', (int) $request->get('assignment'));
+        } elseif ($status === 'open') {
             $q->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted']);
         } elseif ($status === 'today') {
             $q->whereDate('scheduled_work_date', now()->toDateString());
@@ -690,10 +693,27 @@ class InternshipAdminController extends Controller
             $q->where('status', $status);
         }
 
-        if ($request->filled('q')) {
+        if ($request->filled('q') && ! $request->filled('assignment')) {
             $term = '%'.trim($request->get('q')).'%';
-            $q->whereHas('enrolment.student', function ($w) use ($term) {
-                $w->where('name', 'like', $term)->orWhere('email', 'like', $term);
+            $q->where(function ($outer) use ($term) {
+                $outer->whereHas('enrolment.student', function ($w) use ($term) {
+                    $w->where('name', 'like', $term)
+                        ->orWhere('email', 'like', $term)
+                        ->orWhere('phone', 'like', $term);
+                })->orWhereExists(function ($sub) use ($term) {
+                    $sub->select(DB::raw(1))
+                        ->from('internship_enrolments')
+                        ->join('applications', 'applications.id', '=', 'internship_enrolments.application_id')
+                        ->whereColumn('internship_enrolments.id', 'internship_task_assignments.enrolment_id')
+                        ->where(function ($a) use ($term) {
+                            $a->where('applications.full_name', 'like', $term)
+                                ->orWhere('applications.email', 'like', $term)
+                                ->orWhere('applications.phone', 'like', $term)
+                                ->orWhere('applications.whatsapp_number', 'like', $term);
+                        });
+                })->orWhereHas('task', function ($w) use ($term) {
+                    $w->where('title', 'like', $term);
+                });
             });
         }
 

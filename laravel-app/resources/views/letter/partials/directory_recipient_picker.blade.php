@@ -36,9 +36,10 @@
         <button type="button" class="lt-pill lt-rf" data-role="applicants">Applicants</button>
         <button type="button" class="lt-pill lt-rf" data-role="all">All</button>
     </div>
-    <div class="d-flex mb-2" style="gap:8px;">
-        <input type="search" class="lt-field lt-rsearch" placeholder="Search name, email, phone…">
+    <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+        <input type="search" class="lt-field lt-rsearch" placeholder="Search name, email, phone…" style="flex:1;min-width:180px;">
         <button type="button" class="lt-btn-outline lt-rselect-all" style="white-space:nowrap;">Select all</button>
+        <button type="button" class="lt-btn-outline lt-rdeselect-all" style="white-space:nowrap;">Deselect all</button>
     </div>
     <div class="lt-user-list lt-rlist"></div>
     <div class="lt-rchips mt-2"></div>
@@ -53,7 +54,11 @@
         <button type="button" class="lt-pill lt-cf" data-role="customers">Customers</button>
         <button type="button" class="lt-pill lt-cf" data-role="applicants">Applicants</button>
     </div>
-    <input type="search" class="lt-field lt-csearch mb-2" placeholder="Search CC…">
+    <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+        <input type="search" class="lt-field lt-csearch" placeholder="Search CC…" style="flex:1;min-width:180px;">
+        <button type="button" class="lt-btn-outline lt-cselect-all" style="white-space:nowrap;">Select all</button>
+        <button type="button" class="lt-btn-outline lt-cdeselect-all" style="white-space:nowrap;">Deselect all</button>
+    </div>
     <div class="lt-user-list lt-clist" style="max-height:140px;"></div>
     <div class="lt-cchips mt-2"></div>
     <div class="lt-chiddens"></div>
@@ -231,6 +236,20 @@ window.LT_PRESELECT = @json([
             if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
         });
         refreshRecipients();
+    });
+    document.querySelector('.lt-rdeselect-all').addEventListener('click', function () {
+        recipients = [];
+        refreshRecipients();
+    });
+    document.querySelector('.lt-cselect-all').addEventListener('click', function () {
+        filterUsersLocal(document.querySelector('.lt-csearch').value, cRole).forEach(function (u) {
+            if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+        });
+        refreshCc();
+    });
+    document.querySelector('.lt-cdeselect-all').addEventListener('click', function () {
+        ccs = [];
+        refreshCc();
     });
 
     var form = document.getElementById('product-form');
