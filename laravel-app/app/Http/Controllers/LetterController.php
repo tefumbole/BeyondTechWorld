@@ -371,42 +371,9 @@ class LetterController extends Controller
                 $is_template = true;
             }
 
-            if(isset($data['forward_letter'])) {
-                if($data['forward_letter'] == 'editor') {
-                    $data['is_rejected'] = 0;
-                    $data['reject_by'] = null;
-                    $data['is_edit'] = 0;
-                    $data['edit_by'] = null;
-                    $data['is_approve'] = 0;
-                    $data['approved_by'] = null;
-                    $data['is_sign'] = 0;
-                    $data['signed_by'] = null;
-                }
-                if($data['forward_letter'] == 'approver') {
-                    $data['is_rejected'] = 0;
-                    $data['reject_by'] = null;
-                    $data['is_edit'] = 1;
-                    $data['edit_by'] = $data['created_by'];
-                }
-                if($data['forward_letter'] == 'signer') {
-                    $data['is_rejected'] = 0;
-                    $data['reject_by'] = null;
-                    $data['is_edit'] = 1;
-                    $data['edit_by'] = $data['created_by'];
-                    $data['is_approve'] = 1;
-                    $data['approved_by'] = $data['created_by'];
-                }
-                if($data['forward_letter'] == 'sender') {
-                    $data['is_rejected'] = 0;
-                    $data['reject_by'] = null;
-                    $data['is_edit'] = 1;
-                    $data['edit_by'] = $data['created_by'];
-                    $data['is_approve'] = 1;
-                    $data['approved_by'] = $data['created_by'];
-                    $data['is_sign'] = 1;
-                    $data['signed_by'] = $data['created_by'];
-                }
-            }
+            $forwardTo = isset($data['forward_letter']) ? (string) $data['forward_letter'] : 'editor';
+            $creator = Auth::user();
+            $this->applyLetterForwardSkip($data, $forwardTo, $creator);
 
             unset($data['customer_type']);
             unset($data['people_type_mode']);
@@ -470,7 +437,16 @@ class LetterController extends Controller
                 }
             }
 
-            return $this->letterStoreResponse($request, true, 'Letter created successfully', 200, $letter->id);
+            $msg = 'Letter created successfully';
+            if ($forwardTo === 'approver') {
+                $msg = 'Letter created and sent to Approver (Awaiting Approval).';
+            } elseif ($forwardTo === 'signer') {
+                $msg = 'Letter created and sent to Signer (Awaiting Signature).';
+            } elseif ($forwardTo === 'sender') {
+                $msg = 'Letter created and is Ready To Send.';
+            }
+
+            return $this->letterStoreResponse($request, true, $msg, 200, $letter->id, $forwardTo);
         } catch (\Throwable $e) {
             \Log::error('Letter store failed: ' . $e->getMessage());
 
@@ -486,19 +462,102 @@ class LetterController extends Controller
         }
     }
 
-    protected function letterStoreResponse(Request $request, bool $success, string $message, int $status = 200, $letterId = null)
+    /**
+     * Skip workflow stages when "Forward Letter To" is Approver / Signer / Sender.
+     *
+     * @param  array  $data
+     * @param  string  $forwardTo  editor|approver|signer|sender
+     * @param  \App\User|null  $actor
+     */
+    protected function applyLetterForwardSkip(array &$data, $forwardTo, $actor = null): void
     {
+        $actorId = $actor ? $actor->id : ($data['created_by'] ?? Auth::id());
+        $forwardTo = in_array($forwardTo, ['editor', 'approver', 'signer', 'sender'], true)
+            ? $forwardTo
+            : 'editor';
+
+        $data['is_rejected'] = 0;
+        $data['reject_by'] = null;
+        $data['is_edit'] = 0;
+        $data['edit_by'] = null;
+        $data['is_approve'] = 0;
+        $data['approved_by'] = null;
+        $data['is_sign'] = 0;
+        $data['signed_by'] = null;
+        $data['edit_signature'] = null;
+        $data['edit_signed_at'] = null;
+        $data['approve_signature'] = null;
+        $data['approve_signed_at'] = null;
+        $data['sign_signature'] = null;
+        $data['sign_signed_at'] = null;
+
+        if ($forwardTo === 'editor') {
+            return;
+        }
+
+        // Skip editing → land in Awaiting Approval (and beyond).
+        $data['is_edit'] = 1;
+        $data['edit_by'] = $actorId;
+        $data['edit_signed_at'] = now();
+        if ($actor && ! empty($actor->stemp)) {
+            $data['edit_signature'] = LetterSignature::storeFromAccountFile($actor->stemp, 'edit');
+        }
+
+        if ($forwardTo === 'approver') {
+            return;
+        }
+
+        // Skip approval → land in Awaiting Signature (and beyond).
+        $data['is_approve'] = 1;
+        $data['approved_by'] = $actorId;
+        $data['approve_signed_at'] = now();
+        if ($actor && ! empty($actor->approve)) {
+            $data['approve_signature'] = LetterSignature::storeFromAccountFile($actor->approve, 'approve');
+        }
+
+        if ($forwardTo === 'signer') {
+            return;
+        }
+
+        // Skip signing → land in Ready To Send.
+        $data['is_sign'] = 1;
+        $data['signed_by'] = $actorId;
+        $data['sign_signed_at'] = now();
+        if ($actor && ! empty($actor->sign)) {
+            $data['sign_signature'] = LetterSignature::storeFromAccountFile($actor->sign, 'sign');
+        }
+    }
+
+    protected function letterForwardRedirectRoute($forwardTo = 'editor'): string
+    {
+        if ($forwardTo === 'approver') {
+            return route('letter.index.edited'); // Awaiting Approval
+        }
+        if ($forwardTo === 'signer') {
+            return route('letter.index.approved'); // Awaiting Signature
+        }
+        if ($forwardTo === 'sender') {
+            return route('letter.index.signed'); // Ready To Send
+        }
+
+        return route('letter.index'); // Awaiting Editing
+    }
+
+    protected function letterStoreResponse(Request $request, bool $success, string $message, int $status = 200, $letterId = null, $forwardTo = 'editor')
+    {
+        $redirect = $success ? $this->letterForwardRedirectRoute($forwardTo) : null;
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => $success,
                 'message' => $message,
-                'redirect' => route('letter.index'),
+                'redirect' => $redirect ?: route('letter.index'),
                 'letter_id' => $letterId,
             ], $status);
         }
 
         if ($success) {
-            return redirect()->route('letter.index')->with('message', $message);
+            return redirect()->to($redirect)->with('message', $message);
         }
 
         return redirect()->back()->withInput()->with('not_permitted', $message);
@@ -713,19 +772,24 @@ class LetterController extends Controller
     }
 
     public function sendMsgToConcernPerson($letter) {
-        $role_id = 9;
-        $role_name = 'Editor';
-        $action = 'editing';
-        if ($letter->is_approve == 0) {
+        // Match queue stages: Editing → Approval → Signature → Send.
+        if ((int) $letter->is_edit === 0) {
+            $role_id = 9;
+            $role_name = 'Editor';
+            $action = 'editing';
+        } elseif ((int) $letter->is_approve === 0) {
             $role_id = 10;
             $role_name = 'Approver';
             $action = 'approve';
-        } elseif ($letter->is_sign == 0) {
+        } elseif ((int) $letter->is_sign === 0) {
             $role_id = 11;
             $role_name = 'Signer';
             $action = 'signing';
+        } else {
+            $role_id = 12;
+            $role_name = 'Sender';
+            $action = 'sending';
         }
-
 
         $msg = 'Dear '.$role_name.', A new letter from '.@$letter->createdBy->name.', with the subject ('.$letter->subject.') is available for '.$action.'. Here is the comment('.$letter->comment.') attached to the letter.';
         $msg .= "\n\nPlease click the link below to " . $action . ": ".request()->getSchemeAndHttpHost()."/letters/show/".$letter->id."\n\n";

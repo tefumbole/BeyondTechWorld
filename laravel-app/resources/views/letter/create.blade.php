@@ -503,12 +503,12 @@
                     $("#footer").val(tinyFooter);
                 }
 
-                function finishLetterSubmit(success, message) {
+                function finishLetterSubmit(success, message, redirectUrl) {
                     letterSubmitting = false;
                     $("#loader").css('display', 'none');
                     $('#submit-btn').prop('disabled', false).val(submitLabel);
                     if (success) {
-                        window.location.href = "{{ route('letter.index') }}";
+                        window.location.href = redirectUrl || "{{ route('letter.index') }}";
                     } else if (message) {
                         alert(message);
                     }
@@ -660,7 +660,7 @@
                         },
                         success: function (response) {
                             if (response && response.success) {
-                                finishLetterSubmit(true);
+                                finishLetterSubmit(true, response.message || '', response.redirect || null);
                             } else {
                                 finishLetterSubmit(false, (response && response.message) ? response.message : 'Failed to save letter.');
                             }
@@ -735,7 +735,7 @@
                     }
                 }
                 if (payload && payload.success) {
-                    window.location.href = "{{ route('letter.index') }}";
+                    window.location.href = payload.redirect || "{{ route('letter.index') }}";
                     return;
                 }
                 $("#loader").css('display', 'none');
