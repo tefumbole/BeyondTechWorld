@@ -688,10 +688,11 @@ class InternshipProgramService
         }
 
         // Word handbook so interns can work even if they cannot log into the ERP.
+        $handbookResult = null;
         if ($hasHandbook) {
             $docKey = 'task_handbook:'.$assignment->id.':student:'.$student->id.$suffix;
             if ($forceResend || ! $this->alreadyNotified($docKey)) {
-                $this->sendWhatsAppDocument(
+                $handbookResult = $this->sendWhatsAppDocument(
                     $student,
                     $handbookPath,
                     $handbookName ?: basename($handbookPath),
@@ -699,6 +700,8 @@ class InternshipProgramService
                     $forceResend ? 'task_handbook_student_resend' : 'task_handbook_student',
                     'Instruction handbook — '.$taskLabel
                 );
+            } else {
+                $handbookResult = ['success' => true, 'skipped' => true];
             }
         }
 
@@ -706,10 +709,18 @@ class InternshipProgramService
             $this->notifySupervisorsTaskReleased($enrolment, $assignment, false);
         }
 
+        $ok = ! empty($result['success']);
+        $error = $result['error'] ?? null;
+        if ($ok && $hasHandbook && is_array($handbookResult) && empty($handbookResult['success']) && empty($handbookResult['skipped'])) {
+            $ok = false;
+            $error = 'WhatsApp text sent, but Word handbook failed: '.($handbookResult['error'] ?? 'upload/send error');
+        }
+
         return [
-            'success' => ! empty($result['success']),
-            'error' => $result['error'] ?? null,
+            'success' => $ok,
+            'error' => $error,
             'student' => $result,
+            'handbook' => $handbookResult,
         ];
     }
 
@@ -743,6 +754,8 @@ class InternshipProgramService
 
             $textKey = 'task_released:'.$assignment->id.':supervisor:'.$supervisor->id.$suffix;
             if ($forceResend || ! $this->alreadyNotified($textKey)) {
+                // Respect Wasender 1-message / 5s account protection after student messages.
+                usleep(5500000);
                 $msg = WhatsAppMessage::internshipSupervisorTaskCopy(
                     $supervisor->name,
                     optional($enrolment->student)->name,
@@ -990,8 +1003,8 @@ class InternshipProgramService
         }
 
         try {
-            // Brief pause after text so Wasender does not drop the document
-            usleep(1500000);
+            // Wasender account protection: only 1 message every 5 seconds.
+            usleep(5500000);
             $result = app(NotificationRouter::class)->sendWhatsAppDocument($phone, $localPath, $fileName, $caption);
             DB::table('internship_notification_logs')->where('idempotency_key', $idempotencyKey)->update([
                 'status' => ! empty($result['success']) ? 'sent' : 'failed',

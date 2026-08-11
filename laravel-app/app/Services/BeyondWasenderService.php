@@ -232,11 +232,7 @@ class BeyondWasenderService
 
     protected function uploadLocalFile($path)
     {
-        $mime = function_exists('mime_content_type') ? @mime_content_type($path) : null;
-        if (empty($mime)) {
-            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-            $mime = $ext === 'pdf' ? 'application/pdf' : 'application/octet-stream';
-        }
+        $mime = self::mimeTypeForPath($path);
 
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
         $url = $base.'/upload';
@@ -266,5 +262,45 @@ class BeyondWasenderService
         }
 
         throw new \Exception($decoded['message'] ?? $decoded['error'] ?? 'Wasender upload failed.');
+    }
+
+    /**
+     * Wasender rejects application/octet-stream. Prefer extension mapping for Office docs
+     * because mime_content_type often returns octet-stream for .docx on Linux.
+     */
+    public static function mimeTypeForPath($path, $fileName = null)
+    {
+        $name = $fileName ?: basename((string) $path);
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $byExt = [
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt' => 'application/vnd.ms-powerpoint',
+            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'zip' => 'application/zip',
+        ];
+        if (isset($byExt[$ext])) {
+            return $byExt[$ext];
+        }
+
+        $detected = null;
+        if (is_file($path) && function_exists('mime_content_type')) {
+            $detected = @mime_content_type($path) ?: null;
+        }
+        if ($detected && $detected !== 'application/octet-stream') {
+            return $detected;
+        }
+
+        return 'application/octet-stream';
     }
 }

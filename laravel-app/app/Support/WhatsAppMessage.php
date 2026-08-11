@@ -776,7 +776,7 @@ class WhatsAppMessage
         }
 
         if ($handbookAttached) {
-            $msg .= "\nA *Word handbook* for this day is attached on WhatsApp — you can follow it even if you cannot log in yet.\n";
+            $msg .= "\nA *Word handbook* for this day will be sent next on WhatsApp — you can follow it even if you cannot log in yet.\n";
         }
 
         $msg .= self::actionLink('Open internship dashboard', $url);

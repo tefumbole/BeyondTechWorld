@@ -184,13 +184,25 @@ class InternshipAdminController extends Controller
 
         $today = Carbon::today()->toDateString();
         $enrolmentIds = $enrolmentsByApp->pluck('id')->filter()->values()->all();
+        // Prefer today's assignment; otherwise the current open task (Selected/Hired alike).
         $todayTasksByEnrolment = collect();
         if ($enrolmentIds) {
-            $todayTasksByEnrolment = InternshipTaskAssignment::with('task')
+            $open = InternshipTaskAssignment::with('task')
                 ->whereIn('enrolment_id', $enrolmentIds)
-                ->whereDate('scheduled_work_date', $today)
+                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
+                ->orderByDesc('scheduled_work_date')
+                ->orderByDesc('id')
                 ->get()
-                ->keyBy('enrolment_id');
+                ->groupBy('enrolment_id');
+
+            $todayTasksByEnrolment = $open->map(function ($group) use ($today) {
+                $forToday = $group->first(function ($a) use ($today) {
+                    return optional($a->scheduled_work_date)->toDateString() === $today
+                        || (string) $a->scheduled_work_date === $today;
+                });
+
+                return $forToday ?: $group->first();
+            });
         }
 
         // Always unfiltered totals — tab clicks clear search so the list matches these badges.
@@ -712,12 +724,14 @@ class InternshipAdminController extends Controller
         $result = $this->service->resendTaskReleased($assignment, $includeSupervisors);
 
         if (empty($result['success'])) {
-            return back()->with('not_permitted', $result['error'] ?? 'Failed to resend WhatsApp task.');
+            return back()->with('not_permitted', $result['error'] ?? 'Failed to send WhatsApp task / Word handbook.');
         }
 
         $name = optional(optional($assignment->enrolment)->student)->name ?: 'student';
-        $extra = $includeSupervisors ? ' Student and supervisor(s) received the text + Word handbook.' : ' Student received the text + Word handbook.';
+        $extra = $includeSupervisors
+            ? ' Text + Word handbook sent to student; supervisor copy queued with rate-limit pauses.'
+            : ' Text + Word handbook sent to student.';
 
-        return back()->with('message', 'Task WhatsApp resent to '.$name.'.'.$extra);
+        return back()->with('message', 'Task WhatsApp sent to '.$name.'.'.$extra);
     }
 }

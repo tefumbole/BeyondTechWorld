@@ -204,11 +204,7 @@ class Controller extends BaseController
             throw new \Exception('Document file not found for upload.');
         }
 
-        $mime = function_exists('mime_content_type') ? @mime_content_type($path) : null;
-        if (empty($mime)) {
-            $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-            $mime = $ext === 'pdf' ? 'application/pdf' : 'application/octet-stream';
-        }
+        $mime = \App\Services\BeyondWasenderService::mimeTypeForPath($path);
 
         $decoded = $this->wasenderRawRequest('/upload', file_get_contents($path), [
             'Content-Type: ' . $mime,

@@ -56,7 +56,7 @@
                             <th>Status</th>
                             <th>Placement</th>
                             <th>Working week</th>
-                            <th>Today’s task</th>
+                            <th>Current task</th>
                             <th>Applied</th>
                             <th></th>
                         </tr>
@@ -123,19 +123,21 @@
                                 @elseif($todayAssignment)
                                     <strong>#{{ $todayAssignment->progression_day }}</strong>
                                     {{ optional($todayAssignment->task)->title ?: 'Day task' }}
-                                    <div class="ip-meta">{{ ucfirst(str_replace('_', ' ', $todayAssignment->status)) }}</div>
+                                    <div class="ip-meta">{{ ucfirst(str_replace('_', ' ', $todayAssignment->status)) }}
+                                        · {{ optional($todayAssignment->scheduled_work_date)->format('d M') ?: $today }}
+                                    </div>
                                     @if($todayAssignment->whatsapp_sent_at)
-                                        <div class="ip-meta">WA {{ $todayAssignment->whatsapp_sent_at->format('H:i') }}</div>
+                                        <div class="ip-meta">WA {{ $todayAssignment->whatsapp_sent_at->format('d M H:i') }}</div>
                                     @endif
                                     <div class="mt-1 d-flex flex-wrap" style="gap:6px;">
                                         <a class="ip-btn ip-btn-sm ip-btn-outline"
-                                           href="{{ route('internship.tasks', ['status' => 'today', 'q' => $app->full_name]) }}">View</a>
+                                           href="{{ route('internship.tasks', ['status' => 'open', 'q' => $app->full_name]) }}">View</a>
                                         @if(in_array($todayAssignment->status, ['available', 'in_progress', 'revision_required', 'submitted'], true))
                                             <form method="POST" action="{{ route('internship.tasks.resend', $todayAssignment->id) }}" class="d-inline"
-                                                  onsubmit="return confirm('Resend today’s task WhatsApp (Word handbook) to student and supervisor?');">
+                                                  onsubmit="return confirm('Send task WhatsApp + Word handbook to student and supervisor? This may take ~20 seconds.');">
                                                 @csrf
                                                 <input type="hidden" name="include_supervisors" value="1">
-                                                <button type="submit" class="ip-btn ip-btn-sm">Resend WA</button>
+                                                <button type="submit" class="ip-btn ip-btn-sm">Send WA</button>
                                             </form>
                                         @endif
                                     </div>
