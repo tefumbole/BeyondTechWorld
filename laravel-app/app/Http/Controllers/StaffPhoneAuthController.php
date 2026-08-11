@@ -292,18 +292,9 @@ class StaffPhoneAuthController extends Controller
             return redirect($internRedirect);
         }
 
-        $role = Role::find($user->role_id);
-        $canSupervise = false;
-        if ($role) {
-            try {
-                $canSupervise = $role->hasPermissionTo('internship.supervise')
-                    || $role->hasPermissionTo('internship.submissions.grade');
-            } catch (\Throwable $e) {
-                $canSupervise = false;
-            }
-        }
-        if ((int) $user->role_id <= 2 || $canSupervise) {
-            return redirect('/admin/internship/supervisor');
+        $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($user);
+        if ($supervisorRedirect) {
+            return redirect($supervisorRedirect);
         }
 
         return redirect('/admin');

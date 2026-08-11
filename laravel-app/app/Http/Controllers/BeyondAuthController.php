@@ -58,6 +58,11 @@ class BeyondAuthController extends Controller
                 return redirect($internRedirect);
             }
 
+            $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($webUser);
+            if ($supervisorRedirect) {
+                return redirect($supervisorRedirect);
+            }
+
             return redirect('/admin');
         }
 
@@ -179,6 +184,14 @@ class BeyondAuthController extends Controller
             $intended = $request->session()->pull('beyond_intended');
             if ($intended && strpos($intended, '/') === 0) {
                 return $intended;
+            }
+
+            $webUser = Auth::guard('web')->user();
+            if ($webUser) {
+                $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($webUser);
+                if ($supervisorRedirect) {
+                    return $supervisorRedirect;
+                }
             }
 
             return '/admin';
@@ -351,11 +364,9 @@ class BeyondAuthController extends Controller
                 return redirect($internRedirect);
             }
 
-            try {
-                if ($role->hasPermissionTo('internship.supervise')) {
-                    return redirect('/admin/internship/supervisor');
-                }
-            } catch (\Throwable $e) {
+            $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect(Auth::user());
+            if ($supervisorRedirect) {
+                return redirect($supervisorRedirect);
             }
 
             return redirect('/admin');

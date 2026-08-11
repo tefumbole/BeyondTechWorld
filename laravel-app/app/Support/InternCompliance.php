@@ -283,4 +283,59 @@ class InternCompliance
 
         return route('internship.student.dashboard');
     }
+
+    /** Owner/Admin or staff who manage all internship programmes/enrolments. */
+    public static function isInternshipAdmin(User $user)
+    {
+        if ((int) $user->role_id <= 2) {
+            return true;
+        }
+
+        try {
+            $role = Role::find($user->role_id);
+            if (! $role) {
+                return false;
+            }
+
+            return $role->hasPermissionTo('internship.programs.view')
+                || $role->hasPermissionTo('internship.enrolments.create')
+                || $role->hasPermissionTo('internship.programs.import');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function canSuperviseInternships(User $user)
+    {
+        try {
+            $role = Role::find($user->role_id);
+            if (! $role) {
+                return false;
+            }
+
+            return $role->hasPermissionTo('internship.supervise')
+                || $role->hasPermissionTo('internship.submissions.grade');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Non-admin supervisors should only see their assigned interns. */
+    public static function shouldScopeSupervisees(User $user)
+    {
+        return (int) $user->role_id > 2 && ! self::isInternshipAdmin($user);
+    }
+
+    /** After login: pure supervisors land on Supervisor home (not /admin). */
+    public static function supervisorPostLoginRedirect(User $user)
+    {
+        if (self::appliesTo($user)) {
+            return null;
+        }
+        if (self::canSuperviseInternships($user) && ! self::isInternshipAdmin($user)) {
+            return route('internship.supervisor.dashboard');
+        }
+
+        return null;
+    }
 }

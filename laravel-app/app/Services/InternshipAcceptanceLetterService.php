@@ -170,20 +170,13 @@ HTML;
                 }
 
                 $letter = $this->createSignedLetter($template, $application, $payload, $actorId);
-                $recipient = (object) $payload;
-                $to = $payload['phone_number'];
-                $sendMsg = $controller->sendPDF($letter, $recipient, $to);
-                $sendFailed = is_string($sendMsg) && stripos($sendMsg, 'not sent') !== false;
-
-                if ($sendFailed) {
-                    $result['skipped']++;
-                    $result['errors'][] = ($application->full_name ?: $application->id).': '.$sendMsg;
-                    continue;
-                }
-
                 $letter->is_sent = 1;
                 $letter->sent_by = $actorId;
                 $letter->save();
+
+                // Queue WhatsApp/PDF after the HTTP response — in-request Wasender
+                // (PDF + login text + rate-limit pauses) causes nginx 502s.
+                $controller->queueDeliveryAfterResponse($letter, $letter->id, null);
 
                 $result['sent']++;
             } catch (\Throwable $e) {

@@ -1436,19 +1436,28 @@
                         @if($internship_module_active)
                             @php
                                 $internship_is_admin = in_array($role->id, [1, 2])
-                                    || in_array('internship.dashboard.view', $all_permission ?? [])
-                                    || in_array('internship.programs.view', $all_permission ?? []);
+                                    || in_array('internship.programs.view', $all_permission ?? [])
+                                    || in_array('internship.enrolments.create', $all_permission ?? [])
+                                    || in_array('internship.programs.import', $all_permission ?? []);
+                                $internship_is_supervisor = ! $internship_is_admin && (
+                                    $internship_supervise_active
+                                    || in_array('internship.submissions.grade', $all_permission ?? [])
+                                );
                             @endphp
-                            @if($internship_is_admin)
+                            @if($internship_is_supervisor)
+                                <li><a href="#supervisor-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-users"></i><span>Supervisor</span></a>
+                                    <ul id="supervisor-module" class="collapse list-unstyled ">
+                                        <li id="ip-sup-home"><a href="{{ route('internship.supervisor.dashboard') }}">Home</a></li>
+                                        <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Interns</a></li>
+                                        <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Tasks</a></li>
+                                        <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
+                                    </ul>
+                                </li>
+                            @elseif($internship_is_admin)
                                 <li id="ip-hub"><a href="{{ route('internship.dashboard') }}"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a></li>
                             @else
                             <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
                                 <ul id="internship-module" class="collapse list-unstyled ">
-                                    @if($internship_supervise_active || in_array($role->id, [1,2]) || in_array('internship.submissions.grade', $all_permission ?? []))
-                                        <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
-                                        <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
-                                        <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Students / Place</a></li>
-                                    @endif
                                     @if($internship_student_active || in_array($role->id, [1,2]))
                                         <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Placement (student)</a></li>
                                     @endif
@@ -1704,6 +1713,9 @@
                                         ])->first();
                                         ?>
                                     @if($index_permission_letter_active)
+                                        <li id="letter-queued-menu">
+                                            <a href="{{ route('message.delivery.index') }}">Queued Messages</a>
+                                        </li>
                                         <li id="letter-sent-menu"><a href="{{route('letter.index.sent')}}">Sent Letters</a>
                                             <span class="badge badge-primary badge-count">{{ $sent_letters }}</span></li>
                                         <li id="letter-sent-print-menu"><a href="{{route('letter.index.sent.print')}}">Print Letters</a>

@@ -559,9 +559,7 @@ class InternshipAdminController extends Controller
         if ($missingWw) {
             $eq = InternshipEnrolment::with(['student', 'program', 'supervisor'])
                 ->where('status', 'active');
-            if (Auth::user()->role_id > 2
-                && ! in_array('internship.enrolments.view', $this->all_permission, true)
-                && ! in_array('internship.programs.view', $this->all_permission, true)) {
+            if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
                 $uid = (int) Auth::id();
                 $eq->where(function ($w) use ($uid) {
                     $w->where('supervisor_id', $uid)
@@ -593,14 +591,20 @@ class InternshipAdminController extends Controller
         if (in_array($status, ['tomorrow', 'day_after'], true)) {
             $target = $status === 'tomorrow' ? $tomorrow : $dayAfter;
             $upcoming = $this->service->previewUpcomingReleases($target);
+            if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
+                $uid = (int) Auth::id();
+                $upcoming = $upcoming->filter(function ($row) use ($uid) {
+                    $enrolment = $row['enrolment'] ?? null;
+
+                    return $enrolment && $enrolment->isSupervisedBy($uid);
+                })->values();
+            }
 
             // Also include assignments already created for that calendar day.
             $existingQ = InternshipTaskAssignment::with(['task', 'enrolment.student', 'enrolment.program', 'enrolment.supervisor'])
                 ->whereDate('scheduled_work_date', $target->toDateString())
                 ->orderBy('progression_day');
-            if (Auth::user()->role_id > 2
-                && ! in_array('internship.enrolments.view', $this->all_permission, true)
-                && ! in_array('internship.programs.view', $this->all_permission, true)) {
+            if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
                 $uid = (int) Auth::id();
                 $existingQ->whereHas('enrolment', function ($w) use ($uid) {
                     $w->where('supervisor_id', $uid)
@@ -668,9 +672,7 @@ class InternshipAdminController extends Controller
             ->orderByDesc('id');
 
         // Supervisors (non-admin) only see their assigned students.
-        if (Auth::user()->role_id > 2
-            && ! in_array('internship.enrolments.view', $this->all_permission, true)
-            && ! in_array('internship.programs.view', $this->all_permission, true)) {
+        if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
             $uid = (int) Auth::id();
             $q->whereHas('enrolment', function ($w) use ($uid) {
                 $w->where('supervisor_id', $uid)

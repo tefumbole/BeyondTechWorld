@@ -272,16 +272,19 @@ class JobBoardController extends Controller
         $result = app(\App\Services\InternshipAcceptanceLetterService::class)
             ->notifyApplications($data['application_ids']);
 
-        $msg = 'Sent '.$result['sent'].' internship acceptance letter(s).';
+        $msg = $result['sent'] > 0
+            ? 'Queued '.$result['sent'].' internship acceptance letter(s) for WhatsApp delivery.'
+            : 'No internship acceptance letters were queued.';
         if ($result['skipped'] > 0) {
             $msg .= ' '.$result['skipped'].' skipped.';
         }
-        $redirect = redirect()->route('jobs.applicants')->with('message', $msg);
+        if ($result['sent'] > 0) {
+            $redirect = redirect()->route('message.delivery.index')->with('message', $msg);
+        } else {
+            $redirect = redirect()->route('jobs.applicants')->with('message', $msg);
+        }
         if (! empty($result['errors'])) {
             $redirect->with('not_permitted', implode(' ', array_slice($result['errors'], 0, 5)));
-        }
-        if (! empty($result['template_id'])) {
-            $redirect->with('message', $msg.' Template: Letters → Templates → Internship Acceptance Letter (editable).');
         }
 
         return $redirect;

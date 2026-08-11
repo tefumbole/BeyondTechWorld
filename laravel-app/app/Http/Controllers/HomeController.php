@@ -143,6 +143,11 @@ class HomeController extends Controller
             return redirect($internRedirect);
         }
 
+        $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($user);
+        if ($supervisorRedirect) {
+            return redirect($supervisorRedirect);
+        }
+
         return redirect('/admin');
     }
 

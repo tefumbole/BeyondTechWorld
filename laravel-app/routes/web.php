@@ -489,7 +489,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/internship/student/task/{id}/steps', 'Internship\InternshipStudentController@updateStepProgress')->name('internship.student.steps');
     Route::post('/admin/internship/student/task/{id}/submit', 'Internship\InternshipStudentController@submit')->name('internship.student.submit');
     Route::get('/admin/internship/student/files/{fileId}', 'Internship\InternshipStudentController@downloadFile')->name('internship.student.file');
-    Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');
+    Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@dashboard')->name('internship.supervisor.dashboard');
+    Route::get('/admin/internship/supervisor/queue', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');
     Route::get('/admin/internship/supervisor/students', 'Internship\InternshipSupervisorController@students')->name('internship.supervisor.students');
     Route::get('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeEdit')->name('internship.supervisor.place');
     Route::post('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeUpdate')->name('internship.supervisor.place.update');
@@ -1040,6 +1041,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/letters/sent', 'LetterController@sent')->name('letter.index.sent');
     Route::get('/letters/sent/print', 'LetterController@sentPrint')->name('letter.index.sent.print');
     Route::get('/letters/sent/download', 'LetterController@sentDownload')->name('letter.index.sent.download');
+    Route::get('/letters/queued-messages', 'MessageDeliveryController@index')->name('message.delivery.index');
+    Route::get('/letters/queued-messages/status', 'MessageDeliveryController@status')->name('message.delivery.status');
+    Route::get('/letters/queued-messages/{id}', 'MessageDeliveryController@show')->name('message.delivery.show');
+    Route::get('/letters/queued-messages/{id}/status', 'MessageDeliveryController@itemStatus')->name('message.delivery.item-status');
     Route::get('/letters/show/{id}', 'LetterController@show')->name('letter.show');
     Route::post('/letters/store', 'LetterController@store')->name('letter.store');
     Route::delete('/letters/destroy/{id}', 'LetterController@destroy')->name('letter.destroy');

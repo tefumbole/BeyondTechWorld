@@ -4,10 +4,13 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
-            <h1 class="ip-title mb-0">My students</h1>
-            <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.index') }}">Grade Queue</a>
+            <h1 class="ip-title mb-0">My interns</h1>
+            <div class="d-flex flex-wrap" style="gap:8px;">
+                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.dashboard') }}">Supervisor Home</a>
+                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.index') }}">Grade Queue</a>
+            </div>
         </div>
-        <p class="ip-meta mb-3">Place each student on a calendar start date and curriculum day (not necessarily day 1).</p>
+        <p class="ip-meta mb-3">Place each intern on a calendar start date and curriculum day (not necessarily day 1).</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         <div class="ip-card">
             <table class="table ip-table">

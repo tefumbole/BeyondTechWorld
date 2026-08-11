@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Letter;
 use App\LetterCategory;
 use App\LetterTemplate;
+use App\Services\MessageDeliveryTracker;
 use App\Services\PeopleDirectoryService;
 use App\Support\LetterRecipients;
 use App\Support\LetterSignature;
@@ -851,7 +852,8 @@ class LetterController extends Controller
             $this->dispatchLetterQueueAfterResponse($data, $id, $customer);
 
             $data->update(['is_sent' => true, 'sent_by' => Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
+            return redirect()->route('message.delivery.index')
+                ->with('message', 'Letter queued. Watch WhatsApp delivery progress below.');
         }
         $this->sendOTP($data);
         return view('letter.send', compact('data'));
@@ -872,20 +874,9 @@ class LetterController extends Controller
 
             $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
-//            foreach (explode(",", $letter->to) as $to) {
-//                $lims_customer_data = $customer::find($to);
-//                $message = $this->sendPDF($letter, $lims_customer_data, $to);
-//                $message = $this->sendMail($letter, $lims_customer_data, $to);
-//            }
-//            if ($letter->cc != null) {
-//                foreach (explode(",", $letter->cc) as $cc) {
-//                    $lims_customer_data = $customer::find($cc);
-//                    $this->sendPDFToCC($letter, $lims_customer_data, $letter->to);
-//                }
-//            }
-
             $letter->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
+            return redirect()->route('message.delivery.index')
+                ->with('message', 'Letter queued. Watch WhatsApp delivery progress below.');
         }
         $letter->update(['otp' => null]);
         return back()->with('not_permitted', 'OTP is wrong or Expired');
@@ -1015,7 +1006,8 @@ class LetterController extends Controller
         $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
         $letter->find($id)->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-        return redirect()->back()->with('message', 'Letter will be sent shortly via WhatsApp.');
+        return redirect()->route('message.delivery.index')
+            ->with('message', 'Letter queued. Watch WhatsApp delivery progress below.');
     }
 
     public function sendEmail(Letter $letter, $id)
@@ -1248,33 +1240,102 @@ class LetterController extends Controller
         }
     }
 
+    /** @var array<int, array{letterId:int,id:mixed,customer:mixed,batchId:?int}> */
+    protected static $pendingLetterDeliveries = [];
+
+    /** @var bool */
+    protected static $letterDeliveryRunnerRegistered = false;
+
+    /** @var bool */
+    protected static $letterDeliveryRunnerStarted = false;
+
     /**
      * Deliver WhatsApp/PDF after the browser response so nginx does not 502 on long Wasender sends.
      * QUEUE_CONNECTION=sync would otherwise block the HTTP request for many recipients.
      */
-    protected function dispatchLetterQueueAfterResponse($letter, $id, $customer = null): void
+    public function queueDeliveryAfterResponse($letter, $id = null, $customer = null): void
+    {
+        $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
+    }
+
+    /**
+     * Deliver WhatsApp/PDF after the browser response so nginx does not 502 on long Wasender sends.
+     * QUEUE_CONNECTION=sync would otherwise block the HTTP request for many recipients.
+     */
+    protected function dispatchLetterQueueAfterResponse($letter, $id = null, $customer = null): void
     {
         $letterId = is_object($letter) ? (int) $letter->id : (int) $letter;
-        register_shutdown_function(function () use ($letterId, $id, $customer) {
+        $id = $id ?? $letterId;
+        $saved = is_object($letter) ? $letter : Letter::find($letterId);
+        $batchId = null;
+        if ($saved) {
             try {
-                if (function_exists('fastcgi_finish_request')) {
-                    @fastcgi_finish_request();
-                }
-                @set_time_limit(900);
-                ignore_user_abort(true);
-
-                $saved = Letter::find($letterId);
-                if (! $saved) {
-                    return;
-                }
-
-                (new ProcessQueue($saved, $id, $customer))->handle();
+                $batch = app(MessageDeliveryTracker::class)->queueLetter($saved, $customer);
+                $batchId = $batch ? (int) $batch->id : null;
             } catch (\Throwable $e) {
-                \Log::error('Letter ProcessQueue after-response failed: '.$e->getMessage(), [
+                \Log::warning('Could not create delivery batch: '.$e->getMessage(), [
                     'letter_id' => $letterId,
                 ]);
             }
-        });
+        }
+
+        self::$pendingLetterDeliveries[] = [
+            'letterId' => $letterId,
+            'id' => $id,
+            'customer' => $customer,
+            'batchId' => $batchId,
+        ];
+
+        if (self::$letterDeliveryRunnerRegistered) {
+            return;
+        }
+        self::$letterDeliveryRunnerRegistered = true;
+
+        $runner = function () {
+            if (self::$letterDeliveryRunnerStarted) {
+                return;
+            }
+            self::$letterDeliveryRunnerStarted = true;
+
+            // Close the FastCGI connection to nginx first — otherwise long Wasender
+            // work keeps the request open and nginx returns 502 while PHP still sends.
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            }
+            if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
+                @session_write_close();
+            }
+            @set_time_limit(900);
+            ignore_user_abort(true);
+
+            $jobs = self::$pendingLetterDeliveries;
+            self::$pendingLetterDeliveries = [];
+
+            foreach ($jobs as $job) {
+                try {
+                    $saved = Letter::find($job['letterId']);
+                    if (! $saved) {
+                        continue;
+                    }
+                    (new ProcessQueue($saved, $job['id'], $job['customer'], $job['batchId'] ?? null))->handle();
+                } catch (\Throwable $e) {
+                    \Log::error('Letter ProcessQueue after-response failed: '.$e->getMessage(), [
+                        'letter_id' => $job['letterId'] ?? null,
+                    ]);
+                    if (! empty($job['batchId'])) {
+                        try {
+                            app(MessageDeliveryTracker::class)->finalizeBatch((int) $job['batchId']);
+                        } catch (\Throwable $ignored) {
+                        }
+                    }
+                }
+            }
+        };
+
+        // After Laravel has sent the redirect/HTML response…
+        app()->terminating($runner);
+        // …and as a fallback if terminate callbacks are skipped.
+        register_shutdown_function($runner);
     }
 
     public function imageUpload(Request $request)
@@ -1509,7 +1570,8 @@ class LetterController extends Controller
             $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
 
             $letter->update(['is_sent'=>true, 'sent_by'=>Auth::user()->id, 'otp' => null]);
-            return redirect()->back()->with('message', 'Letter signed. WhatsApp delivery continues in the background.');
+            return redirect()->route('message.delivery.index')
+                ->with('message', 'Letter signed and queued. Watch WhatsApp delivery progress below.');
         }
 
         $letter->update(['otp' => null]);
@@ -1743,7 +1805,8 @@ class LetterController extends Controller
                 $letter->find($id)->update(['is_sent' => true, 'sent_by' => Auth::user()->id, 'otp' => null]);
 
             }
-            return redirect()->route('letter.index.sent')->with('message', 'Letters will be sent shortly via WhatsApp.');
+            return redirect()->route('message.delivery.index')
+                ->with('message', 'Letters queued. Watch WhatsApp delivery progress below.');
         }
 
         $letter->update(['otp' => null]);

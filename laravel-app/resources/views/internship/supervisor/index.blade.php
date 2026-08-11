@@ -5,7 +5,10 @@
     <div class="container-fluid ip-shell">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
             <h1 class="ip-title mb-0">Submissions to grade</h1>
-            <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.students') }}">My Students / Place</a>
+            <div class="d-flex flex-wrap" style="gap:8px;">
+                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.dashboard') }}">Supervisor Home</a>
+                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.students') }}">My Interns</a>
+            </div>
         </div>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         <div class="ip-card">

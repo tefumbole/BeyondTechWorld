@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Internship;
 use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
 use App\InternshipSubmission;
+use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Support\InternCompliance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -43,6 +45,71 @@ class InternshipSupervisorController extends Controller
         abort(403, 'Supervisor access denied.');
     }
 
+    public function dashboard()
+    {
+        $this->allow();
+        $uid = (int) Auth::id();
+        $scopeOwn = InternCompliance::shouldScopeSupervisees(Auth::user());
+
+        $enrolmentQ = InternshipEnrolment::with(['student', 'program', 'assignments.task'])
+            ->whereIn('status', ['pending', 'active', 'paused'])
+            ->orderByDesc('id');
+        if ($scopeOwn) {
+            $enrolmentQ->where(function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+        $enrolments = $enrolmentQ->limit(50)->get();
+
+        $internRows = $enrolments->map(function (InternshipEnrolment $e) {
+            $open = $e->currentOpenAssignment();
+
+            return [
+                'enrolment' => $e,
+                'open_assignment' => $open,
+            ];
+        });
+
+        $pendingGradeQ = InternshipSubmission::where('status', 'submitted');
+        if ($scopeOwn) {
+            $pendingGradeQ->whereHas('assignment.enrolment', function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+        $pendingGradeCount = (clone $pendingGradeQ)->count();
+        $recentSubmissions = (clone $pendingGradeQ)
+            ->with(['student', 'assignment.task', 'assignment.enrolment.program'])
+            ->orderByDesc('submitted_at')
+            ->limit(8)
+            ->get();
+
+        $openTaskQ = InternshipTaskAssignment::with(['task', 'enrolment.student'])
+            ->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted'])
+            ->orderByDesc('scheduled_work_date')
+            ->orderByDesc('id');
+        if ($scopeOwn) {
+            $openTaskQ->whereHas('enrolment', function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+        $openTaskCount = (clone $openTaskQ)->count();
+        $openTasks = $openTaskQ->limit(25)->get();
+
+        $stats = [
+            'interns' => $enrolments->count(),
+            'active' => $enrolments->where('status', 'active')->count(),
+            'pending_grades' => $pendingGradeCount,
+            'open_tasks' => $openTaskCount,
+        ];
+
+        return view('internship.supervisor.dashboard', compact(
+            'internRows', 'recentSubmissions', 'openTasks', 'stats'
+        ));
+    }
+
     public function index()
     {
         $this->allow();
@@ -50,7 +117,7 @@ class InternshipSupervisorController extends Controller
             'student', 'assignment.task', 'assignment.enrolment.program', 'files',
         ])->where('status', 'submitted')->orderByDesc('submitted_at');
 
-        if (Auth::user()->role_id > 2 && ! in_array('internship.enrolments.view', $this->all_permission, true)) {
+        if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
             $uid = (int) Auth::id();
             $q->whereHas('assignment.enrolment', function ($w) use ($uid) {
                 $w->where('supervisor_id', $uid)
@@ -144,7 +211,7 @@ class InternshipSupervisorController extends Controller
         $q = InternshipEnrolment::with(['student', 'program'])
             ->whereIn('status', ['pending', 'active', 'paused'])
             ->orderByDesc('id');
-        if (Auth::user()->role_id > 2 && ! in_array('internship.enrolments.create', $this->all_permission, true)) {
+        if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
             $uid = (int) Auth::id();
             $q->where(function ($w) use ($uid) {
                 $w->where('supervisor_id', $uid)
