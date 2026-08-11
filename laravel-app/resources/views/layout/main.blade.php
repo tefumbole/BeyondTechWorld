@@ -416,6 +416,23 @@
                 margin: 0;
                 box-shadow: 0 2px 6px rgba(0,0,0,.2);
             }
+            .beyond-module-tab .badge-count {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 18px;
+                height: 18px;
+                padding: 0 5px;
+                margin-left: 4px;
+                border-radius: 999px;
+                font-size: 11px;
+                font-weight: 800;
+                line-height: 1;
+            }
+            .beyond-module-tab.is-active .badge-count {
+                background: rgba(255,255,255,.25);
+                color: #fff;
+            }
             .side-navbar .beyond-attention-badge {
                 float: right;
                 margin-top: 2px;
@@ -1636,8 +1653,16 @@
                                         ])->first();
                                         ?>
                                     @if($index_permission_letter_active)
-                                        <li id="letter-edited-menu"><a href="{{route('letter.index.edited')}}">Awaiting Approval</a>
-                                            <span class="badge badge-primary badge-count">{{ $awaiting_approve_letters }}</span></li>
+                                        <li id="letter-edited-menu">
+                                            <a href="{{route('letter.index.edited')}}">
+                                                Awaiting Approval
+                                                @if((int) $awaiting_approve_letters > 0)
+                                                    <span class="beyond-attention-badge" title="{{ (int) $awaiting_approve_letters }} awaiting approval">{{ (int) $awaiting_approve_letters }}</span>
+                                                @else
+                                                    <span class="badge badge-primary badge-count">0</span>
+                                                @endif
+                                            </a>
+                                        </li>
                                     @endif
                                         <?php
                                         $index_permission_letter = DB::table('permissions')->where('name', 'letter_approve_index')->first();
@@ -1647,8 +1672,16 @@
                                         ])->first();
                                         ?>
                                     @if($index_permission_letter_active)
-                                        <li id="letter-approved-menu"><a href="{{route('letter.index.approved')}}">Awaiting Signature</a>
-                                            <span class="badge badge-primary badge-count">{{ $awaiting_sign_letters }}</span></li>
+                                        <li id="letter-approved-menu">
+                                            <a href="{{route('letter.index.approved')}}">
+                                                Awaiting Signature
+                                                @if((int) $awaiting_sign_letters > 0)
+                                                    <span class="beyond-attention-badge" title="{{ (int) $awaiting_sign_letters }} awaiting signature">{{ (int) $awaiting_sign_letters }}</span>
+                                                @else
+                                                    <span class="badge badge-primary badge-count">0</span>
+                                                @endif
+                                            </a>
+                                        </li>
                                     @endif
 
                                         <?php
@@ -3446,9 +3479,13 @@
                           return;
                       }
 
-                      var $badge = $link.find('.beyond-attention-badge').first();
-                      var badgeHtml = $badge.length ? $badge.clone() : null;
-                      var label = $.trim($link.clone().children('.beyond-attention-badge, .badge').remove().end().text());
+                      var $li = $link.closest('li');
+                      var $badge = $link.find('.beyond-attention-badge, .badge-count, .badge').first();
+                      if (!$badge.length) {
+                          $badge = $li.children('.beyond-attention-badge, .badge-count, .badge').first();
+                      }
+                      var badgeCount = $badge.length ? $.trim($badge.text()) : '';
+                      var label = $.trim($link.clone().children('.beyond-attention-badge, .badge-count, .badge').remove().end().text());
                       if (!label) {
                           return;
                       }
@@ -3463,8 +3500,13 @@
                       });
                       $tab.append($('<i>', { 'class': iconClass }));
                       $tab.append($('<span>').text(label));
-                      if (badgeHtml) {
-                          $tab.append(badgeHtml);
+                      if (badgeCount !== '') {
+                          var useAttention = $badge.hasClass('beyond-attention-badge') || (parseInt(badgeCount, 10) > 0 && /awaiting (approval|signature)/i.test(label));
+                          $tab.append($('<span>', {
+                              'class': useAttention ? 'beyond-attention-badge' : 'badge badge-primary badge-count',
+                              'text': badgeCount,
+                              'title': badgeCount + ' ' + label
+                          }));
                       }
 
                       $nav.append($tab);

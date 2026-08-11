@@ -353,8 +353,16 @@
                                     ])->first();
                                     ?>
                                 @if($index_permission_letter_active)
-                                    <li id="letter-edited-menu"><a href="{{route('letter.index.edited')}}">Awaiting Approval</a>
-                                        <span class="badge badge-primary badge-count">{{ $awaiting_approve_letters }}</span></li>
+                                    <li id="letter-edited-menu">
+                                        <a href="{{route('letter.index.edited')}}">
+                                            Awaiting Approval
+                                            @if((int) $awaiting_approve_letters > 0)
+                                                <span class="beyond-attention-badge" title="{{ (int) $awaiting_approve_letters }} awaiting approval">{{ (int) $awaiting_approve_letters }}</span>
+                                            @else
+                                                <span class="badge badge-primary badge-count">0</span>
+                                            @endif
+                                        </a>
+                                    </li>
                                 @endif
                                     <?php
                                     $index_permission_letter = DB::table('permissions')->where('name', 'letter_approve_index')->first();
@@ -364,8 +372,16 @@
                                     ])->first();
                                     ?>
                                 @if($index_permission_letter_active)
-                                    <li id="letter-approved-menu"><a href="{{route('letter.index.approved')}}">Awaiting Signature</a>
-                                        <span class="badge badge-primary badge-count">{{ $awaiting_sign_letters }}</span></li>
+                                    <li id="letter-approved-menu">
+                                        <a href="{{route('letter.index.approved')}}">
+                                            Awaiting Signature
+                                            @if((int) $awaiting_sign_letters > 0)
+                                                <span class="beyond-attention-badge" title="{{ (int) $awaiting_sign_letters }} awaiting signature">{{ (int) $awaiting_sign_letters }}</span>
+                                            @else
+                                                <span class="badge badge-primary badge-count">0</span>
+                                            @endif
+                                        </a>
+                                    </li>
                                 @endif
 
                                     <?php
