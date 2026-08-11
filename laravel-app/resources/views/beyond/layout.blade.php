@@ -63,18 +63,18 @@
             box-shadow: none;
         }
         .nav-logo-spin {
-            width: 3.5rem;
-            height: 3.5rem;
+            width: 2.75rem;
+            height: 2.75rem;
             object-fit: contain;
             background: transparent;
             border-radius: 0;
             animation: navLogoSpin 7s linear infinite, navLogoMetal 5s ease-in-out infinite;
         }
         @media (min-width: 768px) {
-            .nav-logo-spin { width: 4rem; height: 4rem; }
+            .nav-logo-spin { width: 3.25rem; height: 3.25rem; }
         }
         @media (min-width: 1024px) {
-            .nav-logo-spin { width: 4.5rem; height: 4.5rem; }
+            .nav-logo-spin { width: 3.5rem; height: 3.5rem; }
         }
         @media (prefers-reduced-motion: reduce) {
             .nav-logo-spin { animation: none; }
@@ -111,7 +111,7 @@
 @endphp
 
 <header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="userMenu = false">
-    <div class="w-full flex items-center justify-between h-20 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
+    <div class="w-full flex items-center justify-between h-14 sm:h-16 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
         <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
             <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
         </a>

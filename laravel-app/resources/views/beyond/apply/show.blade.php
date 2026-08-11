@@ -19,16 +19,16 @@
 <div class="min-h-screen apply-shell pb-28">
     <div class="relative overflow-hidden bg-brand-blue text-white">
         <div class="absolute inset-0 opacity-30" style="background:linear-gradient(120deg,rgba(198,171,71,.35),transparent 45%),radial-gradient(circle at 80% 20%,rgba(255,255,255,.12),transparent 40%);"></div>
-        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-12 md:py-16">
-            <a href="{{ route('apply.index') }}" class="inline-flex items-center gap-2 text-blue-100 hover:text-white text-sm mb-5 font-medium">
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+            <a href="{{ route('apply.index') }}" class="inline-flex items-center gap-2 text-blue-100 hover:text-white text-sm mb-3 font-medium">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> All openings
             </a>
-            <div class="flex flex-wrap gap-2 items-center mb-4">
+            <div class="flex flex-wrap gap-2 items-center mb-3">
                 <span class="bg-white/12 backdrop-blur text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/15">{{ $job->department ?: 'General' }}</span>
                 <span class="bg-brand-gold/95 text-brand-blue text-xs font-bold px-3 py-1 rounded-full">{{ $isInternship ? 'Internship' : ($job->employment_type ?: 'Full-Time') }}</span>
             </div>
-            <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight max-w-3xl">{{ $job->title }}</h1>
-            <div class="flex flex-wrap gap-x-5 gap-y-2 mt-5 text-blue-100 text-sm">
+            <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight max-w-3xl">{{ $job->title }}</h1>
+            <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-blue-100 text-sm">
                 <span class="inline-flex items-center gap-1.5"><i data-lucide="map-pin" class="w-4 h-4 text-brand-gold"></i> {{ $job->location ?: 'Remote' }}</span>
                 @if (! $isInternship && $job->salary)
                     <span class="inline-flex items-center gap-1.5"><i data-lucide="dollar-sign" class="w-4 h-4 text-brand-gold"></i> {{ $job->salary }}</span>

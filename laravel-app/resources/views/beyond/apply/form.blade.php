@@ -13,8 +13,8 @@
 <div class="min-h-screen apply-shell">
     <div class="relative overflow-hidden bg-brand-blue text-white">
         <div class="absolute inset-0 opacity-30" style="background:linear-gradient(120deg,rgba(198,171,71,.35),transparent 45%),radial-gradient(circle at 80% 20%,rgba(255,255,255,.12),transparent 40%);"></div>
-        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-7 md:py-12">
-            <a href="{{ route('apply.show', $job->id) }}" class="inline-flex items-center gap-2 text-blue-100 hover:text-white text-sm mb-3 md:mb-5 font-medium min-h-[2.5rem]">
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 py-5 md:py-6">
+            <a href="{{ route('apply.show', $job->id) }}" class="inline-flex items-center gap-2 text-blue-100 hover:text-white text-sm mb-2 md:mb-3 font-medium min-h-[2.5rem]">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to posting
             </a>
             <p class="text-brand-gold text-xs font-bold uppercase tracking-wider m-0">Application</p>

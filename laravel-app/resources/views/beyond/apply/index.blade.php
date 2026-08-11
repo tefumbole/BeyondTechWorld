@@ -17,16 +17,16 @@
         ];
 @endphp
 <div class="min-h-screen bg-gray-50 pb-20">
-    <div class="bg-gradient-to-r from-brand-blue via-[#004e9a] to-brand-dark text-white py-20 px-4 relative overflow-hidden">
+    <div class="bg-gradient-to-r from-brand-blue via-[#004e9a] to-brand-dark text-white py-6 sm:py-8 px-4 relative overflow-hidden">
         <div class="max-w-7xl mx-auto text-center relative z-10">
-            <h1 class="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight">Apply Now</h1>
-            <p class="text-xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
+            <h1 class="text-3xl md:text-4xl font-extrabold mb-2 tracking-tight">Apply Now</h1>
+            <p class="text-base md:text-lg text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
                 Browse real jobs and internship adverts — then apply online in minutes.
             </p>
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-20">
 
         @if (session('warning'))
             <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-6">{{ session('warning') }}</div>

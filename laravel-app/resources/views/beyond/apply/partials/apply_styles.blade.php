@@ -121,7 +121,7 @@
     }
 
     .apply-step {
-        scroll-margin-top: 5.5rem;
+        scroll-margin-top: 4.5rem;
     }
     .apply-step-head {
         display: flex; align-items: center; gap: .65rem;
