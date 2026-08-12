@@ -8,6 +8,7 @@ use App\CustomerGroup;
 use App\OnlineInvitation;
 use App\OnlineInvitationCategory;
 use App\OnlineInvitationEvent;
+use App\OnlineInvitationRequestLink;
 use App\Services\MessageDeliveryTracker;
 use App\User;
 use Carbon\Carbon;
@@ -783,7 +784,7 @@ class OnlineInvitationInvitationController extends Controller
         return redirect()->back()->with('message', implode('. ', $parts));
     }
 
-    public function showByToken($token)
+    public function showByToken(Request $request, $token)
     {
         $data = OnlineInvitation::with(['event.template', 'event.categories', 'user', 'customer', 'category'])
             ->where('is_active', 1)
@@ -793,7 +794,56 @@ class OnlineInvitationInvitationController extends Controller
         $canManage = $this->canAdmit();
         $canRsvp = empty($data->used_at);
 
-        return view('online_invitation.invitation.accept', compact('data', 'canManage', 'canRsvp'));
+        // QR scans show a compact Valid/Invalid card (invoice style), not the full invitation artwork.
+        // Staff can still open ?full=1 for the designed invite page.
+        if ($request->query('full') == '1') {
+            return view('online_invitation.invitation.accept', compact('data', 'canManage', 'canRsvp'));
+        }
+
+        return view('online_invitation.invitation.verify', compact('data', 'canManage', 'canRsvp'));
+    }
+
+    /**
+     * Create or reuse a guest self-apply link for this invitation's event + type.
+     */
+    public function guestApplyLink($id)
+    {
+        if (! $this->ensureAccess()) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+        }
+
+        $invitation = OnlineInvitation::with('category')->where('is_active', 1)->findOrFail($id);
+        if (! $invitation->event_id || ! $invitation->category_id) {
+            return redirect()->back()->with('not_permitted', 'Invitation is missing event or type.');
+        }
+
+        $link = OnlineInvitationRequestLink::where('is_active', 1)
+            ->where('event_id', $invitation->event_id)
+            ->where('category_id', $invitation->category_id)
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $link) {
+            $link = OnlineInvitationRequestLink::create([
+                'event_id' => $invitation->event_id,
+                'category_id' => $invitation->category_id,
+                'token' => Str::random(40),
+                'is_active' => 1,
+                'max_uses' => null,
+                'use_count' => 0,
+                'created_by' => Auth::id(),
+            ]);
+        }
+
+        $url = route('online_invitation.request.show', $link->token);
+
+        return redirect()->back()->with(
+            'message',
+            'Guest apply link for <strong>'.e(optional($invitation->category)->name ?: 'this type').'</strong> '
+            .'(event #'.(int) $invitation->event_id.'): '
+            .'<a href="'.e($url).'" target="_blank" rel="noopener">'.e($url).'</a> '
+            .'— share this so guests can enter their phone and receive an invitation.'
+        );
     }
 
     public function rsvpAccept($token)

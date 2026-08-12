@@ -138,7 +138,8 @@
 
                             <div class="mt-auto pt-3 d-flex flex-wrap" style="gap: 8px;">
                                 @if($row->token)
-                                    <a href="{{ route('online_invitation.invite.show', $row->token) }}" class="btn btn-sm btn-outline-secondary"><i class="dripicons-preview"></i> Open QR</a>
+                                    <a href="{{ route('online_invitation.invite.show', $row->token) }}" class="btn btn-sm btn-outline-secondary" title="Scan / verify view"><i class="dripicons-preview"></i> Verify</a>
+                                    <a href="{{ route('online_invitation.invite.show', $row->token) }}?full=1" class="btn btn-sm btn-outline-secondary">Full invite</a>
                                 @endif
 
                                 @if(in_array($row->status, ['awaiting_sending', 'failed', 'sent'], true))
@@ -156,6 +157,13 @@
                                         </button>
                                     </form>
                                 @endif
+
+                                <form action="{{ route('online_invitation.invitations.guest_apply_link', $row->id) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-info" title="Link for guests to request this event type by phone">
+                                        <i class="dripicons-link"></i> Guest link
+                                    </button>
+                                </form>
 
                                 <form action="{{ route('online_invitation.invitations.destroy', $row->id) }}" method="POST" onsubmit="return confirmDelete()">
                                     @csrf

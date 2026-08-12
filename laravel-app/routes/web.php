@@ -517,6 +517,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
         Route::post('invitations/bulk-send', 'OnlineInvitationInvitationController@bulkSend')->name('invitations.bulk_send');
         Route::post('invitations/bulk-delete', 'OnlineInvitationInvitationController@bulkDelete')->name('invitations.bulk_delete');
         Route::post('invitations/{id}/send', 'OnlineInvitationInvitationController@send')->name('invitations.send');
+        Route::post('invitations/{id}/guest-apply-link', 'OnlineInvitationInvitationController@guestApplyLink')->name('invitations.guest_apply_link');
         Route::delete('invitations/{id}', 'OnlineInvitationInvitationController@destroy')->name('invitations.destroy');
         Route::post('invite/{token}/accept-use', 'OnlineInvitationInvitationController@acceptAndUse')->name('invite.accept_use');
 

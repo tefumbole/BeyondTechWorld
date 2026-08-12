@@ -61,72 +61,70 @@
 	                        </div>
 	                        <div class="col-md-6">
 	                            <div class="form-group">
-	                                <label>Live Preview</label>
-	                                <div id="oi-preview" class="card" style="border-radius: 10px; overflow: hidden; border: 1px solid #e9ecef;">
+	                                <label>Live Preview <small class="text-muted">(matches delivered PDF)</small></label>
+	                                <div id="oi-preview" class="card" style="border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 8px 24px rgba(15,23,42,.08);">
 	                                    <style>
-	                                        /* Keep live-preview colors consistent with saved invitation:
-	                                           font color applies to all text; border color applies only to borders. */
-	                                        #oi-preview-canvas { color: #f3e7c1; }
-	                                        #oi-preview-canvas * { color: inherit !important; }
+	                                        #oi-preview-canvas { color: #f3e7c1; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+	                                        #oi-preview-canvas .oi-pv { color: inherit; }
 	                                    </style>
 	                                    <div id="oi-preview-canvas" style="
-	                                        height: 360px;
+	                                        height: 560px;
 	                                        position: relative;
 	                                        background: #111;
 	                                        background-repeat: no-repeat;
 	                                        background-position: center center;
 	                                        background-size: cover;
-	                                        font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, 'DejaVu Serif', 'DejaVu Sans', serif;
 	                                    ">
-	                                        <div style="position:absolute; inset:0; background: rgba(0,0,0,0.45);"></div>
+	                                        <div style="position:absolute; inset:0; background: rgba(0,0,0,0.42);"></div>
 
-	                                        <div id="oi-preview-border-outer" style="position:absolute; inset:14px; border: 2px solid #c8a75e; padding: 8px;">
-	                                            <div id="oi-preview-border-inner" style="position:absolute; inset:8px; border: 1px solid #c8a75e;"></div>
+	                                        <div id="oi-preview-border-outer" style="position:absolute; inset:12px; border: 3px solid #c8a75e; padding: 6px; box-sizing:border-box;">
+	                                            <div id="oi-preview-border-inner" style="position:absolute; inset:6px; border: 1px solid #c8a75e;"></div>
 	                                        </div>
 
-	                                        <div id="oi-preview-text" style="position:absolute; inset:26px; padding-right: 120px; padding-bottom: 120px; box-sizing: border-box;">
-	                                            <div id="oi-preview-title" style="text-align:center; letter-spacing:2px; font-size: 26px; font-weight:700; text-transform:uppercase;">Invitation</div>
-	                                            <div style="text-align:center; letter-spacing:2px; font-size: 14px; margin-top:2px; text-transform:uppercase;">Invitation</div>
+	                                        <div id="oi-preview-text" class="oi-pv" style="position:absolute; inset:28px 24px 18px 24px; overflow:hidden; box-sizing: border-box; display:flex; flex-direction:column;">
+	                                            <div id="oi-preview-title" class="oi-pv" style="text-align:center; letter-spacing:2px; font-size: 20px; font-weight:700; text-transform:uppercase;">Guest</div>
+	                                            <div class="oi-pv" style="text-align:center; letter-spacing:3px; font-size: 10px; font-weight:600; text-transform:uppercase; opacity:.9; margin-bottom:8px;">Invitation</div>
 
-	                                            <div id="oi-preview-dear" style="text-align:center; font-size: 18px; font-style: italic; margin-top: 14px;">
+	                                            <div id="oi-preview-dear" class="oi-pv" style="text-align:center; font-size: 15px; font-style: italic; margin: 4px 0 8px;">
 	                                                Dear Guest,
 	                                            </div>
-	                                            <div id="oi-preview-message" style="text-align:center; font-size: 12px; margin-top: 6px;">
-	                                                You are invited as a Guest to our Event
+	                                            <div id="oi-preview-message" class="oi-pv" style="text-align:center; font-size: 12px; font-weight:500; line-height:1.35;">
+	                                                You are cordially invited as Guest to
 	                                            </div>
-	                                            <div id="oi-preview-optional-message" style="text-align:center; font-size: 10px; margin-top: 6px;">
+	                                            <div id="oi-preview-event" class="oi-pv" style="text-align:center; font-size: 18px; font-weight:800; letter-spacing:1px; text-transform:uppercase; line-height:1.15; margin: 4px 0 8px; padding-bottom:8px; border-bottom: 2px solid #c8a75e;">
+	                                                Event
 	                                            </div>
+	                                            <div id="oi-preview-optional-message" class="oi-pv" style="text-align:center; font-size: 11px; margin-bottom:8px;"></div>
 
-	                                            <div id="oi-preview-details" style="margin: 12px auto 0 auto; width: 86%; border-top: 1px solid #c8a75e; border-bottom: 1px solid #c8a75e; padding: 10px 0;">
-	                                                <div style="display:flex; justify-content:space-between; font-size: 12px; padding: 4px 0;">
-	                                                    <span style="color: rgba(243,231,193,0.8);">Date:</span>
-	                                                    <span id="oi-preview-date" style="font-weight:600;">—</span>
+	                                            <div id="oi-preview-details" class="oi-pv" style="margin: 0 auto; width: 92%; border: 2px solid #c8a75e; border-radius: 6px; padding: 10px 12px; background: rgba(0,0,0,0.22);">
+	                                                <div style="text-align:center; padding: 4px 0;">
+	                                                    <div class="oi-pv" style="font-size: 9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; opacity:.85;">Date</div>
+	                                                    <div id="oi-preview-date" class="oi-pv" style="font-size: 14px; font-weight:800;">—</div>
 	                                                </div>
-	                                                <div style="display:flex; justify-content:space-between; font-size: 12px; padding: 4px 0;">
-	                                                    <span style="color: rgba(243,231,193,0.8);">Venue:</span>
-	                                                    <span id="oi-preview-venue" style="font-weight:600;">—</span>
-	                                                </div>
-	                                                <div style="display:flex; justify-content:space-between; font-size: 11px; padding: 4px 0;">
-	                                                    <span style="color: rgba(243,231,193,0.8);">Phone:</span>
-	                                                    <span id="oi-preview-phone" style="font-weight:600;">—</span>
-	                                                </div>
-	                                                <div id="oi-preview-email-row" style="display:flex; justify-content:space-between; font-size: 11px; padding: 4px 0;">
-	                                                    <span style="color: rgba(243,231,193,0.8);">Email:</span>
-	                                                    <span id="oi-preview-email" style="font-weight:600;">—</span>
+	                                                <div id="oi-preview-venue-row" style="text-align:center; padding: 8px 0 4px; border-top: 1px solid #c8a75e; margin-top:4px;">
+	                                                    <div class="oi-pv" style="font-size: 9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; opacity:.85;">Location</div>
+	                                                    <div id="oi-preview-venue" class="oi-pv" style="font-size: 14px; font-weight:800;">—</div>
 	                                                </div>
 	                                            </div>
 
-	                                                <div style="position:absolute; left: 0; right: 0; bottom: 0; padding-bottom: 6px; text-align:center; font-size: 9px;">
+	                                            <div style="flex:1;"></div>
+
+	                                            <div id="oi-preview-qr-box" style="width: 72px; height: 72px; margin: 10px auto 0; background:#fff; border: 3px solid #c8a75e; padding: 4px; box-sizing:border-box;">
+	                                                <div id="oi-preview-qr" style="width: 100%; height: 100%; background:#fff; display:flex; align-items:center; justify-content:center;"></div>
+	                                            </div>
+
+	                                            <div id="oi-preview-footer" class="oi-pv" style="text-align:center; font-size: 11px; font-weight:700; margin-top: 10px; padding-top: 8px; border-top: 1px solid #c8a75e; line-height:1.35;">
+	                                                Please present this invitation at the venue.<br>This invitation is generated electronically.
+	                                            </div>
+
+	                                            <div style="text-align:center; margin-top: 8px;">
+	                                                <div id="oi-preview-rsvp-label" class="oi-pv" style="font-size: 10px; font-weight:800; letter-spacing:2px; text-transform:uppercase;">RSVP</div>
+	                                                <div id="oi-preview-rsvp" class="oi-pv" style="font-size: 13px; font-weight:800; word-break: break-word; line-height:1.25; margin-top:2px;">{{ rtrim(env('APP_URL'), '/') }}/online-invitation/invite/xxxxx</div>
+	                                            </div>
+
+	                                            <div class="oi-pv" style="text-align:center; font-size: 9px; opacity:.75; margin-top:6px;">
 	                                                Recipients: <span id="oi-preview-recipients">—</span>
 	                                            </div>
-	                                        </div>
-
-	                                        <div style="position:absolute; left: 50%; transform: translateX(-50%); bottom: 22px; width: 220px; text-align:center;">
-	                                            <div id="oi-preview-qr-box" style="width: 88px; height: 88px; margin: 0 auto; background: rgba(0,0,0,0.35); border: 2px solid rgba(200,167,94,0.85); padding: 6px; box-sizing:border-box;">
-	                                                <div id="oi-preview-qr" style="width: 100%; height: 100%; background:#fff; display:flex; align-items:center; justify-content:center; border-radius: 2px;"></div>
-	                                            </div>
-	                                            <div style="margin-top: 6px; font-size: 9px; color: rgba(243,231,193,0.85);">RSVP:</div>
-	                                            <div id="oi-preview-rsvp" style="font-size: 8px; word-break: break-word; margin-top: 2px; color: rgba(243,231,193,0.85);">{{ rtrim(env('APP_URL'), '/') }}/online-invitation/invite/xxxxx</div>
 	                                        </div>
 	                                    </div>
 	                                </div>
@@ -147,25 +145,50 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>RSVP</label>
-                                    <input type="text" name="rsvp" id="rsvp" class="form-control" value="{{ old('rsvp') }}" placeholder="e.g. 0300-1234567 or a URL">
-                                    <small class="form-text text-muted">Shown below the QR code. If empty, the invitation link is shown.</small>
+                                    <input type="text" name="rsvp" id="rsvp" class="form-control" value="{{ old('rsvp') }}" placeholder="e.g. Sir. Jude Wandas or a phone / URL">
+                                    <small class="form-text text-muted">Shown large at the bottom of the invitation. If empty, the invite link is shown.</small>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Border Color</label>
-                                    <input type="color" name="border_color" id="border_color" class="form-control" value="{{ old('border_color', '#c8a75e') }}">
+                                    <div class="oi-color-field">
+                                        <input type="color" id="border_color_picker" value="{{ old('border_color', '#c8a75e') }}" title="Pick border color">
+                                        <input type="text" name="border_color" id="border_color" class="form-control" value="{{ old('border_color', '#c8a75e') }}" maxlength="7" placeholder="#c8a75e" spellcheck="false">
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label>Font Color</label>
-                                    <input type="color" name="font_color" id="font_color" class="form-control" value="{{ old('font_color', '#f3e7c1') }}">
+                                    <div class="oi-color-field">
+                                        <input type="color" id="font_color_picker" value="{{ old('font_color', '#f3e7c1') }}" title="Pick font color">
+                                        <input type="text" name="font_color" id="font_color" class="form-control" value="{{ old('font_color', '#f3e7c1') }}" maxlength="7" placeholder="#f3e7c1" spellcheck="false">
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                     <style>
+                        .oi-color-field {
+                            display:flex; align-items:center; gap:10px;
+                            background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;
+                            padding:8px 10px;
+                        }
+                        .oi-color-field input[type="color"] {
+                            -webkit-appearance:none; appearance:none; border:0; padding:0; width:42px; height:42px;
+                            border-radius:10px; background:transparent; cursor:pointer; flex:0 0 auto;
+                        }
+                        .oi-color-field input[type="color"]::-webkit-color-swatch-wrapper { padding:0; }
+                        .oi-color-field input[type="color"]::-webkit-color-swatch {
+                            border:2px solid #fff; border-radius:10px;
+                            box-shadow:0 0 0 1px #cbd5e1, 0 2px 8px rgba(15,23,42,.12);
+                        }
+                        .oi-color-field input[type="text"] {
+                            border:0; background:transparent; font-weight:700; letter-spacing:.04em;
+                            text-transform:uppercase; color:#0f172a; padding:0;
+                        }
+                        .oi-color-field input[type="text"]:focus { outline:none; box-shadow:none; }
                         .oi-pill {
                             border:0; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600;
                             background:#f1f5f9; color:#334155; cursor:pointer; margin:0 4px 6px 0;
@@ -475,27 +498,60 @@
         categorySelect.selectpicker('refresh');
     }
 
+    function normalizeHexColor(value, fallback) {
+        var v = (value || '').toString().trim();
+        if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) {
+            if (v.length === 4) {
+                v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+            }
+            return v.toLowerCase();
+        }
+        return fallback;
+    }
+
+    function syncColorPair(textId, pickerId, fallback) {
+        var $text = $('#' + textId);
+        var $picker = $('#' + pickerId);
+        var hex = normalizeHexColor($text.val(), fallback);
+        $text.val(hex);
+        $picker.val(hex);
+        return hex;
+    }
+
+    function bindColorPair(textId, pickerId, fallback) {
+        $('#' + pickerId).on('input change', function () {
+            $('#' + textId).val($(this).val());
+            refreshPreview();
+        });
+        $('#' + textId).on('input change blur', function () {
+            var hex = normalizeHexColor($(this).val(), fallback);
+            $(this).val(hex);
+            $('#' + pickerId).val(hex);
+            refreshPreview();
+        });
+    }
+
     function refreshPreview() {
         var eventId = $('#event_id').val();
         var eventData = eventId ? oiEventPreviewData[eventId] : null;
 
         var eventName = eventData ? (eventData.name || 'Event') : 'Event';
         var eventAt = eventData ? (eventData.event_at || '—') : '—';
-        var venue = eventData ? (eventData.location || '—') : '—';
+        var venue = eventData ? (eventData.location || '') : '';
         setPreviewBackground(eventData && eventData.template ? eventData.template.background : '');
 
         var catText = $('#category_id option:selected').text() || '';
         var inviteType = (catText && catText !== 'Select Invitation Type') ? catText : 'Guest';
         $('#oi-preview-title').text(inviteType);
-        $('#oi-preview-message').text('You are invited as a ' + inviteType + ' to our ' + eventName);
+        $('#oi-preview-message').text('You are cordially invited as ' + inviteType + ' to');
+        $('#oi-preview-event').text(eventName);
         $('#oi-preview-date').text(eventAt);
-        $('#oi-preview-venue').text(venue);
+        $('#oi-preview-venue').text(venue || '—');
+        $('#oi-preview-venue-row').toggle(!!venue);
 
         var mode = $('#recipient_mode').val();
         var recipientText = '—';
         var dearName = 'Guest';
-        var phone = '—';
-        var email = '';
         if (mode === 'directory') {
             var estimate = oiRecipientEstimate();
             recipientText = oiSelected.length
@@ -507,11 +563,6 @@
                 var one = map[oiSelected[0]];
                 if (one && (one.source || '').toLowerCase() !== 'group') {
                     dearName = (one.name || 'Guest').toString().trim() || 'Guest';
-                    phone = (one.phone || '—').toString();
-                    email = (one.email || '').toString().trim();
-                    if (email === '—' || email === '-' || email.toLowerCase() === 'n/a' || email.toLowerCase() === 'na' || email.toLowerCase() === 'null' || email.toLowerCase() === 'none') {
-                        email = '';
-                    }
                 }
             }
         } else if (mode === 'csv') {
@@ -521,24 +572,24 @@
         }
         $('#oi-preview-recipients').text(recipientText);
         $('#oi-preview-dear').text('Dear ' + dearName + ',');
-        $('#oi-preview-phone').text(phone || '—');
-        $('#oi-preview-email').text(email);
-        $('#oi-preview-email-row').toggle(!!email);
 
         var rsvp = ($('#rsvp').val() || '').toString().trim();
         var rsvpDisplay = rsvp || (oiBaseUrl + '/online-invitation/invite/xxxxx');
+        $('#oi-preview-rsvp-label').text(rsvp ? 'RSVP' : 'RSVP / View');
         $('#oi-preview-rsvp').text(rsvpDisplay);
 
-        var borderColor = ($('#border_color').val() || '#c8a75e').toString();
+        var borderColor = syncColorPair('border_color', 'border_color_picker', '#c8a75e');
         $('#oi-preview-border-outer').css('border-color', borderColor);
         $('#oi-preview-border-inner').css('border-color', borderColor);
         $('#oi-preview-qr-box').css('border-color', borderColor);
-        $('#oi-preview-details').css('border-top-color', borderColor).css('border-bottom-color', borderColor);
+        $('#oi-preview-details').css('border-color', borderColor);
+        $('#oi-preview-event').css('border-bottom-color', borderColor);
+        $('#oi-preview-footer').css('border-top-color', borderColor);
+        $('#oi-preview-venue-row').css('border-top-color', borderColor);
 
-        var fontColor = ($('#font_color').val() || '#f3e7c1').toString();
+        var fontColor = syncColorPair('font_color', 'font_color_picker', '#f3e7c1');
         $('#oi-preview-canvas').css('color', fontColor);
-        $('#oi-preview-text').css('color', fontColor);
-        $('#oi-preview-title').css('color', fontColor);
+        $('#oi-preview-text').find('.oi-pv').css('color', fontColor);
 
         var msg = ($('#message').val() || '').toString().trim();
         if (msg) {
@@ -641,8 +692,8 @@
     $('input[name="recipient_csv"]').on('change', refreshPreview);
     $('#message').on('input', refreshPreview);
     $('#rsvp').on('input', refreshPreview);
-    $('#border_color').on('input', refreshPreview);
-    $('#font_color').on('input', refreshPreview);
+    bindColorPair('border_color', 'border_color_picker', '#c8a75e');
+    bindColorPair('font_color', 'font_color_picker', '#f3e7c1');
 
     $('form').on('submit', function (e) {
         if ($('#recipient_mode').val() === 'directory' && oiSelected.length === 0) {

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Customer;
 use App\Jobs\SendOnlineInvitationJob;
 use App\OnlineInvitation;
 use App\OnlineInvitationCategory;
 use App\OnlineInvitationEvent;
 use App\OnlineInvitationRequestLink;
+use App\Services\BeyondWasenderService;
+use App\Support\WhatsAppPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
@@ -138,30 +141,54 @@ class OnlineInvitationRequestLinkController extends Controller
         }
 
         $data = $request->validate([
-            'name' => 'required|string|max:255',
             'phone' => 'required|string|max:50',
-            'email' => 'nullable|email|max:255',
         ]);
 
-        $phone = preg_replace('/\s+/', '', trim($data['phone']));
-        $phone = preg_replace('/[^0-9+]/', '', $phone);
+        try {
+            $phone = WhatsAppPhone::normalize($data['phone']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['phone' => $e->getMessage()]);
+        }
 
         $exists = OnlineInvitation::where('is_active', 1)
             ->where('event_id', $link->event_id)
             ->where('category_id', $link->category_id)
-            ->where('recipient_phone', $phone)
+            ->where(function ($q) use ($phone) {
+                $q->where('recipient_phone', $phone)
+                    ->orWhere('recipient_phone', '+'.$phone)
+                    ->orWhere('recipient_phone', 'like', '%'.substr($phone, -9));
+            })
             ->whereIn('status', ['awaiting_sending', 'sent'])
             ->exists();
         if ($exists) {
             return back()->with('not_permitted', 'An invitation was already created for this phone and event type.');
         }
 
+        // Prefer Wasender contact name (same as voting), then CRM customer, then "Guest".
+        $name = $this->resolveGuestNameFromPhone($phone);
+        $email = null;
+        $customer = Customer::where('is_active', 1)
+            ->where(function ($q) use ($phone) {
+                $q->where('phone_number', $phone)
+                    ->orWhere('phone_number', '+'.$phone)
+                    ->orWhere('phone_number', 'like', '%'.substr($phone, -9));
+            })
+            ->orderByDesc('id')
+            ->first();
+        if ($customer) {
+            $email = $customer->email ?: null;
+            if ($name === 'Guest' && trim((string) $customer->name) !== '') {
+                $name = $customer->name;
+            }
+        }
+
         $invitation = OnlineInvitation::create([
             'event_id' => $link->event_id,
             'category_id' => $link->category_id,
-            'recipient_name' => $data['name'],
+            'customer_id' => $customer ? $customer->id : null,
+            'recipient_name' => $name,
             'recipient_phone' => $phone,
-            'recipient_email' => $data['email'] ?? null,
+            'recipient_email' => $email,
             'status' => 'awaiting_sending',
             'rsvp_status' => 'pending',
             'token' => Str::random(48),
@@ -195,6 +222,23 @@ class OnlineInvitationRequestLinkController extends Controller
         app()->terminating($runner);
         register_shutdown_function($runner);
 
-        return back()->with('message', 'Your invitation is being sent to WhatsApp shortly.');
+        return back()->with('message', 'Your invitation is being prepared for '.$name.' and will arrive on WhatsApp shortly.');
+    }
+
+    /**
+     * Resolve guest name via Wasender contacts API (voting-style), then fall back.
+     */
+    protected function resolveGuestNameFromPhone(string $phone): string
+    {
+        try {
+            $fromWasender = app(BeyondWasenderService::class)->getContactName($phone);
+            if ($fromWasender) {
+                return $fromWasender;
+            }
+        } catch (\Throwable $e) {
+            \Log::info('Guest invite contact resolve failed', ['error' => $e->getMessage()]);
+        }
+
+        return 'Guest';
     }
 }

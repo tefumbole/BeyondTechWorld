@@ -303,4 +303,71 @@ class BeyondWasenderService
 
         return 'application/octet-stream';
     }
+
+    /**
+     * Resolve a WhatsApp display name for a phone (same Wasender contacts API used in voting).
+     * Returns null when Wasender is unavailable or no name is found.
+     */
+    public function getContactName($phone): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $to = $this->formatPhone($phone);
+            if (! $to) {
+                return null;
+            }
+            $digits = ltrim(preg_replace('/\D+/', '', $to), '0');
+            if ($digits === '') {
+                return null;
+            }
+
+            $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+            $url = $base.'/contacts/'.rawurlencode($digits);
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPGET => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                    'Accept: application/json',
+                ],
+                CURLOPT_TIMEOUT => 20,
+            ]);
+            $body = curl_exec($ch);
+            $err = curl_error($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($err || $http >= 400 || ! is_string($body)) {
+                \Log::info('[beyond-whatsapp] contact lookup failed', [
+                    'phone' => $digits,
+                    'http' => $http,
+                    'error' => $err ?: null,
+                ]);
+
+                return null;
+            }
+
+            $decoded = json_decode($body, true);
+            $data = is_array($decoded) ? ($decoded['data'] ?? $decoded) : null;
+            if (! is_array($data)) {
+                return null;
+            }
+
+            foreach (['name', 'notify', 'verifiedName', 'verified_name', 'pushname', 'pushName'] as $key) {
+                $value = trim((string) ($data[$key] ?? ''));
+                if ($value !== '' && strcasecmp($value, $digits) !== 0) {
+                    return $value;
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::info('[beyond-whatsapp] contact lookup exception', ['error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
 }
