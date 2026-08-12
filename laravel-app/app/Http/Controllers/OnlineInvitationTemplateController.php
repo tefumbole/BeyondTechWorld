@@ -87,18 +87,7 @@ class OnlineInvitationTemplateController extends Controller
 
         $background = null;
         if ($request->hasFile('background_image')) {
-            $this->validateTemplateBackgroundImageDimensions($request->file('background_image'));
-
-            $image = $request->file('background_image');
-            $imageName = time() . '_' . Str::random(12) . '.' . $image->getClientOriginalExtension();
-            $imageDir = public_path('images/online_invitation/templates');
-            if (!File::exists($imageDir)) {
-                File::makeDirectory($imageDir, 0755, true);
-            }
-            $image->move($imageDir, $imageName);
-            $publicUrl = asset('images/online_invitation/templates/' . $imageName);
-            $publicUrl = OnlineInvitationUrl::ensurePublicInAppUrl($publicUrl);
-            $background = "url('{$publicUrl}')";
+            $background = $this->storeTemplateBackgroundImage($request->file('background_image'));
         }
 
         OnlineInvitationTemplate::create([
@@ -144,20 +133,8 @@ class OnlineInvitationTemplateController extends Controller
         ];
 
         if ($request->hasFile('background_image')) {
-            $this->validateTemplateBackgroundImageDimensions($request->file('background_image'));
-
             $this->deleteExistingTemplateBackgroundIfLocal($template->background);
-
-            $image = $request->file('background_image');
-            $imageName = time() . '_' . Str::random(12) . '.' . $image->getClientOriginalExtension();
-            $imageDir = public_path('images/online_invitation/templates');
-            if (!File::exists($imageDir)) {
-                File::makeDirectory($imageDir, 0755, true);
-            }
-            $image->move($imageDir, $imageName);
-            $publicUrl = asset('images/online_invitation/templates/' . $imageName);
-            $publicUrl = OnlineInvitationUrl::ensurePublicInAppUrl($publicUrl);
-            $updates['background'] = "url('{$publicUrl}')";
+            $updates['background'] = $this->storeTemplateBackgroundImage($request->file('background_image'));
         }
 
         $template->update($updates);
@@ -165,49 +142,120 @@ class OnlineInvitationTemplateController extends Controller
         return redirect()->route('online_invitation.templates.index')->with('message', 'Template updated successfully');
     }
 
-    private function validateTemplateBackgroundImageDimensions($image): void
+    /**
+     * Save upload under public/images/... and auto-fit to 1024×1536 (cover-crop).
+     * Returns CSS background value: url('...').
+     */
+    private function storeTemplateBackgroundImage($image): string
     {
-        if (!$image) {
-            return;
+        if (! $image) {
+            throw ValidationException::withMessages([
+                'background_image' => 'No image uploaded.',
+            ]);
+        }
+
+        $imageDir = public_path('images/online_invitation/templates');
+        if (! File::exists($imageDir)) {
+            File::makeDirectory($imageDir, 0755, true);
         }
 
         $ext = strtolower((string) $image->getClientOriginalExtension());
         $mime = strtolower((string) ($image->getMimeType() ?? ''));
-        if ($ext === 'svg' || $mime === 'image/svg+xml') {
-            // SVG does not have reliable pixel dimensions from getimagesize().
-            return;
+        $isSvg = ($ext === 'svg' || $mime === 'image/svg+xml');
+
+        if ($isSvg) {
+            $imageName = time().'_'.Str::random(12).'.svg';
+            $image->move($imageDir, $imageName);
+        } else {
+            // Always store as JPEG after resize for reliable DomPDF backgrounds.
+            $imageName = time().'_'.Str::random(12).'.jpg';
+            $destPath = $imageDir.DIRECTORY_SEPARATOR.$imageName;
+            $this->resizeTemplateBackgroundToCanvas($image->getRealPath(), $destPath, 1024, 1536);
         }
 
-        $path = $image->getRealPath();
-        if (!$path) {
+        $publicUrl = asset('images/online_invitation/templates/'.$imageName);
+        $publicUrl = OnlineInvitationUrl::ensurePublicInAppUrl($publicUrl);
+
+        return "url('{$publicUrl}')";
+    }
+
+    /**
+     * Cover-crop source image onto a 1024×1536 canvas using GD.
+     */
+    private function resizeTemplateBackgroundToCanvas(?string $sourcePath, string $destPath, int $targetW, int $targetH): void
+    {
+        if (! $sourcePath || ! is_file($sourcePath)) {
             throw ValidationException::withMessages([
                 'background_image' => 'Could not read uploaded image.',
             ]);
         }
+        if (! function_exists('imagecreatetruecolor')) {
+            // Fallback: keep original file if GD missing (rare on production).
+            if (! @copy($sourcePath, $destPath)) {
+                throw ValidationException::withMessages([
+                    'background_image' => 'Could not save uploaded image (GD unavailable).',
+                ]);
+            }
 
-        $size = @getimagesize($path);
-        if (!is_array($size) || empty($size[0]) || empty($size[1])) {
+            return;
+        }
+
+        $info = @getimagesize($sourcePath);
+        if (! is_array($info) || empty($info[0]) || empty($info[1])) {
             throw ValidationException::withMessages([
                 'background_image' => 'Invalid image file.',
             ]);
         }
 
-        $width = (int) $size[0];
-        $height = (int) $size[1];
+        $srcW = (int) $info[0];
+        $srcH = (int) $info[1];
+        $type = (int) ($info[2] ?? 0);
 
-        // Enforce exact template background dimensions to match the invitation design.
-        $requiredWidth = 1024;
-        $requiredHeight = 1536;
+        switch ($type) {
+            case IMAGETYPE_JPEG:
+                $src = @imagecreatefromjpeg($sourcePath);
+                break;
+            case IMAGETYPE_PNG:
+                $src = @imagecreatefrompng($sourcePath);
+                break;
+            case IMAGETYPE_GIF:
+                $src = @imagecreatefromgif($sourcePath);
+                break;
+            case IMAGETYPE_WEBP:
+                $src = function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourcePath) : false;
+                break;
+            case IMAGETYPE_BMP:
+                $src = function_exists('imagecreatefrombmp') ? @imagecreatefrombmp($sourcePath) : false;
+                break;
+            default:
+                $src = false;
+        }
 
-        if ($height < $width) {
+        if (! $src) {
             throw ValidationException::withMessages([
-                'background_image' => "Background image must be portrait. Required: {$requiredWidth}x{$requiredHeight}px. Uploaded: {$width}x{$height}px.",
+                'background_image' => 'Unsupported image format. Use JPG, PNG, GIF, or WEBP.',
             ]);
         }
 
-        if ($width !== $requiredWidth || $height !== $requiredHeight) {
+        // Cover-crop: scale so image fills canvas, then center-crop overflow.
+        $scale = max($targetW / max(1, $srcW), $targetH / max(1, $srcH));
+        $scaledW = (int) ceil($srcW * $scale);
+        $scaledH = (int) ceil($srcH * $scale);
+        $dstX = (int) floor(($targetW - $scaledW) / 2);
+        $dstY = (int) floor(($targetH - $scaledH) / 2);
+
+        $dst = imagecreatetruecolor($targetW, $targetH);
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        imagefill($dst, 0, 0, $white);
+        imagecopyresampled($dst, $src, $dstX, $dstY, 0, 0, $scaledW, $scaledH, $srcW, $srcH);
+
+        $ok = @imagejpeg($dst, $destPath, 90);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        if (! $ok || ! is_file($destPath)) {
             throw ValidationException::withMessages([
-                'background_image' => "Background image must be exactly {$requiredWidth}x{$requiredHeight}px. Uploaded: {$width}x{$height}px.",
+                'background_image' => 'Could not process uploaded image.',
             ]);
         }
     }

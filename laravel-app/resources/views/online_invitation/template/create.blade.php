@@ -26,7 +26,7 @@
                                 <div class="form-group">
                                     <label>Background Image</label>
                                     <input type="file" name="background_image" class="form-control" accept="image/*">
-                                <small class="form-text text-muted">Required: 1024×1536 px (portrait).</small>
+                                <small class="form-text text-muted">Any portrait image is fine — it will be auto-fitted to 1024×1536 px.</small>
                                 </div>
                             </div>
                         </div>
