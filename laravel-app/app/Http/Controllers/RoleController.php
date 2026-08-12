@@ -1953,6 +1953,11 @@ class RoleController extends Controller
 
         foreach ([
             'invitations_module',
+            'online_invitation_category',
+            'online_invitation_template',
+            'online_invitation_event',
+            'online_invitation_send_invitation',
+            'online_invitation_admit',
             'invitations.view',
             'invitations.create',
             'invitations.edit',

@@ -1354,21 +1354,53 @@
                         if (! $invitations_module_active && in_array('invitations.view', $all_permission ?? [])) {
                             $invitations_module_active = true;
                         }
+                        if (! $invitations_module_active) {
+                            foreach (['online_invitation_category','online_invitation_template','online_invitation_event','online_invitation_send_invitation'] as $oiPerm) {
+                                if (in_array($oiPerm, $all_permission ?? [])) {
+                                    $invitations_module_active = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (! $invitations_module_active && in_array($role->id ?? 0, [1, 2])) {
+                            $invitations_module_active = true;
+                        }
                         ?>
                         @if($invitations_module_active)
-                            <li><a href="#invitations-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-ticket"></i><span>Digital Invitations</span></a>
-                                <ul id="invitations-module" class="collapse list-unstyled ">
-                                    @if(in_array('invitations.view', $all_permission))
-                                        <li id="invitations-list-menu"><a href="{{ route('invitations.index') }}">All Invitations</a></li>
+                            @php
+                                $oi_cat = in_array('online_invitation_category', $all_permission ?? []) || in_array($role->id ?? 0, [1, 2]);
+                                $oi_tpl = in_array('online_invitation_template', $all_permission ?? []) || in_array($role->id ?? 0, [1, 2]);
+                                $oi_evt = in_array('online_invitation_event', $all_permission ?? []) || in_array($role->id ?? 0, [1, 2]);
+                                $oi_send = in_array('online_invitation_send_invitation', $all_permission ?? [])
+                                    || in_array('invitations.view', $all_permission ?? [])
+                                    || in_array($role->id ?? 0, [1, 2]);
+                            @endphp
+                            @if($oi_cat || $oi_tpl || $oi_evt || $oi_send)
+                            <li><a href="#online_invitation" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-ticket"></i><span>Digital Invitations</span></a>
+                                <ul id="online_invitation" class="collapse list-unstyled ">
+                                    @if($oi_cat)
+                                        <li id="online-invitation-category-menu"><a href="{{ route('online_invitation.categories.index') }}">Categories</a></li>
                                     @endif
-                                    @if(in_array('invitations.create', $all_permission))
-                                        <li id="invitations-create-menu"><a href="{{ route('invitations.create') }}">Create Invitation</a></li>
+                                    @if($oi_tpl)
+                                        <li id="online-invitation-template-menu"><a href="{{ route('online_invitation.templates.index') }}">Templates</a></li>
                                     @endif
-                                    @if(in_array('invitations.check_in', $all_permission) || in_array('invitations.edit', $all_permission))
-                                        <li id="invitations-checkin-menu"><a href="{{ route('invitations.check_in') }}">Check-in</a></li>
+                                    @if($oi_evt)
+                                        <li id="online-invitation-event-menu"><a href="{{ route('online_invitation.events.index') }}">Events</a></li>
+                                    @endif
+                                    @if($oi_send)
+                                        <li id="online-invitation-invitation-menu"><a href="{{ route('online_invitation.invitations.index') }}">All Invitations</a></li>
+                                        <li id="online-invitation-invitation-awaiting-menu"><a href="{{ route('online_invitation.invitations.index') }}?status=awaiting_sending">Awaiting Sending</a></li>
+                                        <li id="online-invitation-invitation-sent-menu"><a href="{{ route('online_invitation.invitations.index') }}?status=sent">Sent</a></li>
+                                        <li id="online-invitation-invitation-used-menu"><a href="{{ route('online_invitation.invitations.index') }}?status=used">Used</a></li>
+                                        <li id="online-invitation-invitation-failed-menu"><a href="{{ route('online_invitation.invitations.index') }}?status=failed">Failed</a></li>
+                                        <li id="online-invitation-attending-menu"><a href="{{ route('online_invitation.invitations.attending') }}">Attending</a></li>
+                                        <li id="online-invitation-request-links-menu"><a href="{{ route('online_invitation.request_links.index') }}">Request Links</a></li>
+                                        <li id="online-invitation-reminders-menu"><a href="{{ route('online_invitation.reminders.index') }}">Reminders</a></li>
+                                        <li id="online-invitation-create-menu"><a href="{{ route('online_invitation.invitations.create') }}">Create Invitation</a></li>
                                     @endif
                                 </ul>
                             </li>
+                            @endif
                         @endif
                         <?php
                         $tasks_module_permission = DB::table('permissions')->where('name', 'tasks_module')->first();

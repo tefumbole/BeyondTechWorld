@@ -240,8 +240,14 @@ Route::get('/sale/scan/{id}', 'QRController@saleScan')->name('sale.scan');
 Route::get('/quotation/scan/{id}', 'QRController@quotationScan')->name('quotation.scan');
 Route::get('/letters/scan/{id}', 'QRController@letterScan')->name('letters.scan');
 
-
-
+// Digital Invitations — public invite + self-request (no auth)
+Route::get('/online-invitation/invite/{token}', 'OnlineInvitationInvitationController@showByToken')->name('online_invitation.invite.show');
+Route::get('/online-invitation/invite/{token}/pdf', 'OnlineInvitationInvitationController@pdfByToken')->name('online_invitation.invite.pdf');
+Route::get('/online-invitation/invite/{token}/png', 'OnlineInvitationInvitationController@pngByToken')->name('online_invitation.invite.png');
+Route::post('/online-invitation/invite/{token}/rsvp-accept', 'OnlineInvitationInvitationController@rsvpAccept')->name('online_invitation.invite.rsvp_accept');
+Route::post('/online-invitation/invite/{token}/rsvp-decline', 'OnlineInvitationInvitationController@rsvpDecline')->name('online_invitation.invite.rsvp_decline');
+Route::get('/online-invitation/request/{token}', 'OnlineInvitationRequestLinkController@showPublic')->name('online_invitation.request.show');
+Route::post('/online-invitation/request/{token}', 'OnlineInvitationRequestLinkController@submitPublic')->name('online_invitation.request.submit');
 
 Auth::routes(['register' => false, 'reset' => false, 'verify' => false]);
 // GET/POST /login are registered by Auth::routes → LoginController, which delegates
@@ -498,14 +504,42 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/internship/supervisor/submissions/{id}/grade', 'Internship\InternshipSupervisorController@grade')->name('internship.supervisor.grade');
     Route::get('/admin/internship/supervisor/files/{fileId}', 'Internship\InternshipSupervisorController@downloadFile')->name('internship.supervisor.file');
 
-    // Events module (Phase 1)
-    Route::get('/admin/invitations', 'DigitalInvitationController@index')->name('invitations.index');
-    Route::get('/admin/invitations/create', 'DigitalInvitationController@create')->name('invitations.create');
-    Route::post('/admin/invitations', 'DigitalInvitationController@store')->name('invitations.store');
-    Route::get('/admin/invitations/check-in', 'DigitalInvitationController@checkInForm')->name('invitations.check_in');
-    Route::post('/admin/invitations/check-in', 'DigitalInvitationController@checkIn')->name('invitations.check_in.store');
-    Route::get('/admin/invitations/{id}', 'DigitalInvitationController@show')->name('invitations.show');
-    Route::post('/admin/invitations/{id}/delete', 'DigitalInvitationController@destroy')->name('invitations.destroy');
+    // Digital Invitations (Online Invitation module)
+    Route::name('online_invitation.')->prefix('online-invitation')->group(function () {
+        Route::resource('categories', 'OnlineInvitationCategoryController');
+        Route::resource('templates', 'OnlineInvitationTemplateController');
+        Route::resource('events', 'OnlineInvitationEventController');
+
+        Route::get('invitations', 'OnlineInvitationInvitationController@index')->name('invitations.index');
+        Route::get('invitations/attending', 'OnlineInvitationInvitationController@attending')->name('invitations.attending');
+        Route::get('invitations/create', 'OnlineInvitationInvitationController@create')->name('invitations.create');
+        Route::post('invitations', 'OnlineInvitationInvitationController@store')->name('invitations.store');
+        Route::post('invitations/bulk-send', 'OnlineInvitationInvitationController@bulkSend')->name('invitations.bulk_send');
+        Route::post('invitations/bulk-delete', 'OnlineInvitationInvitationController@bulkDelete')->name('invitations.bulk_delete');
+        Route::post('invitations/{id}/send', 'OnlineInvitationInvitationController@send')->name('invitations.send');
+        Route::delete('invitations/{id}', 'OnlineInvitationInvitationController@destroy')->name('invitations.destroy');
+        Route::post('invite/{token}/accept-use', 'OnlineInvitationInvitationController@acceptAndUse')->name('invite.accept_use');
+
+        Route::get('request-links', 'OnlineInvitationRequestLinkController@index')->name('request_links.index');
+        Route::get('request-links/create', 'OnlineInvitationRequestLinkController@create')->name('request_links.create');
+        Route::post('request-links', 'OnlineInvitationRequestLinkController@store')->name('request_links.store');
+        Route::delete('request-links/{id}', 'OnlineInvitationRequestLinkController@destroy')->name('request_links.destroy');
+
+        Route::get('reminders', 'OnlineInvitationReminderController@index')->name('reminders.index');
+        Route::post('reminders', 'OnlineInvitationReminderController@store')->name('reminders.store');
+        Route::post('reminders/{id}/cancel', 'OnlineInvitationReminderController@cancel')->name('reminders.cancel');
+    });
+
+    // Legacy stub routes → new module
+    Route::get('/admin/invitations', function () {
+        return redirect()->route('online_invitation.invitations.index');
+    })->name('invitations.index');
+    Route::get('/admin/invitations/create', function () {
+        return redirect()->route('online_invitation.invitations.create');
+    })->name('invitations.create');
+    Route::get('/admin/invitations/check-in', function () {
+        return redirect()->route('online_invitation.invitations.index', ['status' => 'sent']);
+    })->name('invitations.check_in');
 
     Route::get('/admin/events', 'EventDashboardController@index')->name('events.dashboard');
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');

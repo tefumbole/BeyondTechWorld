@@ -1743,11 +1743,16 @@
                                     <td class="report-permissions" colspan="5">
                                         @foreach([
                                             'invitations_module' => 'Invitations Module',
-                                            'invitations.view' => 'View',
-                                            'invitations.create' => 'Create',
-                                            'invitations.edit' => 'Edit',
-                                            'invitations.delete' => 'Delete',
-                                            'invitations.check_in' => 'Check-in',
+                                            'online_invitation_category' => 'Categories',
+                                            'online_invitation_template' => 'Templates',
+                                            'online_invitation_event' => 'Events',
+                                            'online_invitation_send_invitation' => 'Send invitations',
+                                            'online_invitation_admit' => 'Admit guests',
+                                            'invitations.view' => 'View (legacy)',
+                                            'invitations.create' => 'Create (legacy)',
+                                            'invitations.edit' => 'Edit (legacy)',
+                                            'invitations.delete' => 'Delete (legacy)',
+                                            'invitations.check_in' => 'Check-in (legacy)',
                                         ] as $perm => $label)
                                         @php $pid = str_replace('.', '_', $perm); @endphp
                                         <span>
