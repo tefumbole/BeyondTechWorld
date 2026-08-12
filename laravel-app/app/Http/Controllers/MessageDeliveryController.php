@@ -24,10 +24,16 @@ class MessageDeliveryController extends Controller
                     $this->all_permission[] = $permission->name;
                 }
             }
-            if ((int) Auth::user()->role_id > 2
-                && ! in_array('letter_send_index', $this->all_permission, true)
-                && ! in_array('letter_index', $this->all_permission, true)
-                && ! in_array('letter_sign_index', $this->all_permission, true)) {
+
+            $roleId = (int) Auth::user()->role_id;
+            $hasLetter = in_array('letter_send_index', $this->all_permission, true)
+                || in_array('letter_index', $this->all_permission, true)
+                || in_array('letter_sign_index', $this->all_permission, true);
+            $hasInvitation = in_array('online_invitation_send_invitation', $this->all_permission, true)
+                || in_array('invitations.view', $this->all_permission, true)
+                || in_array('online_invitation_event', $this->all_permission, true);
+
+            if ($roleId > 2 && ! $hasLetter && ! $hasInvitation) {
                 abort(403, 'Not permitted');
             }
 
@@ -35,39 +41,72 @@ class MessageDeliveryController extends Controller
         });
     }
 
+    protected function moduleFromRequest(Request $request): string
+    {
+        $module = strtolower(trim((string) $request->get('module', '')));
+        if (in_array($module, ['invitations', 'online_invitation', 'invitation'], true)) {
+            return 'invitations';
+        }
+        if (in_array($module, ['letters', 'letter'], true)) {
+            return 'letters';
+        }
+
+        return 'all';
+    }
+
     public function index(Request $request)
     {
+        $module = $this->moduleFromRequest($request);
+
         if (! app(MessageDeliveryTracker::class)->enabled()) {
             return view('message_delivery.index', [
                 'batches' => collect(),
                 'activeCount' => 0,
                 'tablesMissing' => true,
+                'module' => $module,
                 'all_permission' => $this->all_permission,
             ]);
         }
 
-        $batches = MessageDeliveryBatch::with('letter')
-            ->orderByDesc('id')
-            ->paginate(25);
+        $query = MessageDeliveryBatch::with('letter')->orderByDesc('id');
+        if ($module === 'invitations') {
+            $query->where('type', 'online_invitation');
+        } elseif ($module === 'letters') {
+            $query->where('type', 'letter');
+        }
 
-        $activeCount = MessageDeliveryBatch::whereIn('status', ['queued', 'sending'])->count();
+        $batches = $query->paginate(25)->appends($request->query());
+
+        $activeQuery = MessageDeliveryBatch::whereIn('status', ['queued', 'sending']);
+        if ($module === 'invitations') {
+            $activeQuery->where('type', 'online_invitation');
+        } elseif ($module === 'letters') {
+            $activeQuery->where('type', 'letter');
+        }
+        $activeCount = $activeQuery->count();
 
         return view('message_delivery.index', [
             'batches' => $batches,
             'activeCount' => $activeCount,
             'tablesMissing' => false,
+            'module' => $module,
             'all_permission' => $this->all_permission,
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $batch = MessageDeliveryBatch::with(['items' => function ($q) {
             $q->orderBy('id');
         }, 'letter', 'queuedBy'])->findOrFail($id);
 
+        $module = $batch->type === 'online_invitation'
+            ? 'invitations'
+            : $this->moduleFromRequest($request);
+
         return view('message_delivery.show', [
             'batch' => $batch,
+            'module' => $module,
             'all_permission' => $this->all_permission,
         ]);
     }
@@ -81,8 +120,14 @@ class MessageDeliveryController extends Controller
             return response()->json(['batches' => [], 'active' => 0]);
         }
 
+        $module = $this->moduleFromRequest($request);
         $ids = array_filter(array_map('intval', (array) $request->get('ids', [])));
         $q = MessageDeliveryBatch::query()->orderByDesc('id');
+        if ($module === 'invitations') {
+            $q->where('type', 'online_invitation');
+        } elseif ($module === 'letters') {
+            $q->where('type', 'letter');
+        }
         if ($ids) {
             $q->whereIn('id', $ids);
         } else {
@@ -97,6 +142,7 @@ class MessageDeliveryController extends Controller
                 'id' => $b->id,
                 'uuid' => $b->uuid,
                 'title' => $b->title,
+                'type' => $b->type,
                 'letter_id' => $b->letter_id,
                 'status' => $b->status,
                 'total' => (int) $b->total,
@@ -111,7 +157,13 @@ class MessageDeliveryController extends Controller
             ];
         });
 
-        $active = MessageDeliveryBatch::whereIn('status', ['queued', 'sending'])->count();
+        $activeQuery = MessageDeliveryBatch::whereIn('status', ['queued', 'sending']);
+        if ($module === 'invitations') {
+            $activeQuery->where('type', 'online_invitation');
+        } elseif ($module === 'letters') {
+            $activeQuery->where('type', 'letter');
+        }
+        $active = $activeQuery->count();
 
         return response()->json([
             'batches' => $batches,
@@ -129,6 +181,7 @@ class MessageDeliveryController extends Controller
         return response()->json([
             'id' => $batch->id,
             'status' => $batch->status,
+            'type' => $batch->type,
             'total' => (int) $batch->total,
             'sent_count' => (int) $batch->sent_count,
             'failed_count' => (int) $batch->failed_count,

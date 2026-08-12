@@ -1,5 +1,7 @@
 @extends('layout.main')
 @section('content')
+@php $oiTab = 'request_links'; @endphp
+@include('online_invitation.partials.tabs')
 <section class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="mb-0">Self-request invite links</h3>

@@ -14,8 +14,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Support\OnlineInvitationQr;
 use App\Support\OnlineInvitationUrl;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use PDF;
 
 class SendOnlineInvitationJob implements ShouldQueue
@@ -26,11 +26,13 @@ class SendOnlineInvitationJob implements ShouldQueue
 
     protected $invitationId;
     protected $triggeredBy;
+    protected $batchId;
 
-    public function __construct($invitationId, $triggeredBy = null)
+    public function __construct($invitationId, $triggeredBy = null, $batchId = null)
     {
         $this->invitationId = $invitationId;
         $this->triggeredBy = $triggeredBy;
+        $this->batchId = $batchId ? (int) $batchId : null;
     }
 
     public function handle()
@@ -93,8 +95,8 @@ class SendOnlineInvitationJob implements ShouldQueue
             }
 
             // Build a PDF invitation (with embedded QR code) and send as a WhatsApp document.
-            $qrPng = QrCode::format('png')->size(320)->margin(1)->generate($acceptUrl);
-            $qrDataUri = 'data:image/png;base64,' . base64_encode($qrPng);
+            // Hostinger PHP often lacks Imagick; OnlineInvitationQr uses GD/SVG instead.
+            $qrDataUri = OnlineInvitationQr::dataUri($acceptUrl, 320, 1);
 
             $eventAt = $event->event_at;
             $eventAtText = $eventAt;
@@ -182,7 +184,9 @@ class SendOnlineInvitationJob implements ShouldQueue
                     if (is_file($pngPath)) {
                         $attachmentPath = $pngPath;
                         $attachmentFilename = $pngFilename;
-                        $attachmentUrl = $waBasePath . $pngFilename;
+                        $attachmentUrl = OnlineInvitationUrl::publicAsset(
+                            'documents/online_invitation/'.$pngFilename
+                        );
                     }
                 } catch (\Throwable $e) {
                     // Fallback to PDF silently.

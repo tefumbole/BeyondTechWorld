@@ -206,8 +206,7 @@
     $rsvpValue = $rsvpValue !== '' ? $rsvpValue : $acceptUrl;
     $rsvpLabel = trim((string) ($data->rsvp ?? '')) !== '' ? 'RSVP:' : 'RSVP / View:';
 
-    $qrPng = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('png')->size(320)->margin(1)->generate($acceptUrl);
-    $qrDataUri = 'data:image/png;base64,' . base64_encode($qrPng);
+    $qrDataUri = \App\Support\OnlineInvitationQr::dataUri($acceptUrl, 320, 1);
 @endphp
 
 <style>

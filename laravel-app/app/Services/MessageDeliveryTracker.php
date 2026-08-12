@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Letter;
 use App\MessageDeliveryBatch;
 use App\MessageDeliveryItem;
+use App\OnlineInvitation;
 use App\Support\LetterRecipients;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -48,6 +49,69 @@ class MessageDeliveryTracker
         }
 
         $batch->total = count($rows);
+        if ($batch->total === 0) {
+            $batch->status = 'failed';
+            $batch->finished_at = now();
+        }
+        $batch->save();
+
+        return $batch->fresh('items');
+    }
+
+    /**
+     * Create a queued batch for Digital Invitation WhatsApp sends.
+     *
+     * @param  array<int, int>  $invitationIds
+     */
+    public function queueOnlineInvitations(array $invitationIds, ?string $title = null): ?MessageDeliveryBatch
+    {
+        if (! $this->enabled()) {
+            return null;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $invitationIds))));
+        if (! $ids) {
+            return null;
+        }
+
+        $invitations = OnlineInvitation::with(['customer', 'user', 'event'])
+            ->whereIn('id', $ids)
+            ->where('is_active', 1)
+            ->get();
+
+        $batch = MessageDeliveryBatch::create([
+            'uuid' => (string) Str::uuid(),
+            'type' => 'online_invitation',
+            'letter_id' => null,
+            'title' => $title ?: ('Digital Invitations ('.$invitations->count().')'),
+            'status' => 'queued',
+            'total' => 0,
+            'sent_count' => 0,
+            'failed_count' => 0,
+            'queued_by' => Auth::id(),
+        ]);
+
+        foreach ($invitations as $invitation) {
+            $name = $invitation->recipient_name
+                ?: (optional($invitation->customer)->name ?: optional($invitation->user)->name);
+            $phone = $invitation->recipient_phone
+                ?: (optional($invitation->customer)->phone_number ?: optional($invitation->user)->phone);
+            $email = $invitation->recipient_email
+                ?: (optional($invitation->customer)->email ?: optional($invitation->user)->email);
+
+            MessageDeliveryItem::create([
+                'batch_id' => $batch->id,
+                'recipient_ref' => 'invitation:'.$invitation->id,
+                'recipient_name' => $name ? (string) $name : null,
+                'phone' => $phone ? (string) $phone : null,
+                'email' => $email ? (string) $email : null,
+                'channel' => 'whatsapp_pdf',
+                'role' => 'to',
+                'status' => 'queued',
+            ]);
+        }
+
+        $batch->total = $invitations->count();
         if ($batch->total === 0) {
             $batch->status = 'failed';
             $batch->finished_at = now();

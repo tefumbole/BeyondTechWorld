@@ -1,5 +1,7 @@
 @extends('layout.main')
 @section('content')
+@php $oiTab = 'attending'; @endphp
+@include('online_invitation.partials.tabs')
 <section>
     <div class="container-fluid">
         <h3>Attending guests</h3>

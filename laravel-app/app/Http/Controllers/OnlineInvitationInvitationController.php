@@ -8,6 +8,7 @@ use App\CustomerGroup;
 use App\OnlineInvitation;
 use App\OnlineInvitationCategory;
 use App\OnlineInvitationEvent;
+use App\Services\MessageDeliveryTracker;
 use App\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Support\OnlineInvitationQr;
 use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Spatie\Permission\Models\Role;
 use PDF;
@@ -88,14 +89,23 @@ class OnlineInvitationInvitationController extends Controller
     }
 
     /** Queue Wasender sends after the HTTP response to avoid nginx 502s. */
-    protected function dispatchInvitationSendAfterResponse(array $invitationIds): void
+    protected function dispatchInvitationSendAfterResponse(array $invitationIds): ?int
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', $invitationIds))));
         if (! $ids) {
-            return;
+            return null;
         }
+
+        $batchId = null;
+        try {
+            $batch = app(MessageDeliveryTracker::class)->queueOnlineInvitations($ids);
+            $batchId = $batch ? (int) $batch->id : null;
+        } catch (\Throwable $e) {
+            \Log::warning('Could not create invitation delivery batch: '.$e->getMessage());
+        }
+
         $userId = Auth::id();
-        $runner = function () use ($ids, $userId) {
+        $runner = function () use ($ids, $userId, $batchId) {
             static $done = false;
             if ($done) {
                 return;
@@ -109,19 +119,61 @@ class OnlineInvitationInvitationController extends Controller
             }
             @set_time_limit(900);
             ignore_user_abort(true);
-            foreach ($ids as $id) {
+
+            $tracker = app(MessageDeliveryTracker::class);
+            if ($batchId) {
                 try {
-                    (new SendOnlineInvitationJob($id, $userId))->handle();
+                    $tracker->markBatchSending($batchId);
+                } catch (\Throwable $e) {
+                }
+            }
+
+            foreach ($ids as $id) {
+                $ref = 'invitation:'.$id;
+                try {
+                    if ($batchId) {
+                        $tracker->markItemSending($batchId, $ref);
+                    }
+                    (new SendOnlineInvitationJob($id, $userId, $batchId))->handle();
+
+                    if ($batchId) {
+                        $invitation = OnlineInvitation::find($id);
+                        if ($invitation && $invitation->status === 'sent') {
+                            $tracker->markItemSent($batchId, $ref, $invitation->recipient_phone);
+                        } else {
+                            $tracker->markItemFailed(
+                                $batchId,
+                                $ref,
+                                $invitation ? $invitation->recipient_phone : null,
+                                $invitation ? ($invitation->last_error ?: 'Send failed') : 'Invitation not found'
+                            );
+                        }
+                    }
                 } catch (\Throwable $e) {
                     \Log::warning('Online invitation send failed after response', [
                         'invitation_id' => $id,
                         'error' => $e->getMessage(),
                     ]);
+                    if ($batchId) {
+                        try {
+                            $tracker->markItemFailed($batchId, $ref, null, $e->getMessage());
+                        } catch (\Throwable $ignored) {
+                        }
+                    }
+                }
+            }
+
+            if ($batchId) {
+                try {
+                    $tracker->finalizeBatch($batchId);
+                } catch (\Throwable $e) {
                 }
             }
         };
         app()->terminating($runner);
         register_shutdown_function($runner);
+
+        return $batchId;
     }
 
     public function index(Request $request)
@@ -188,10 +240,55 @@ class OnlineInvitationInvitationController extends Controller
             ->where('is_active', 1)
             ->orderBy('id', 'desc')
             ->get();
-        $customers = Customer::where('is_active', 1)->orderBy('name')->get(['id', 'name', 'phone_number', 'email']);
+        $customers = Customer::where('is_active', 1)->orderBy('name')->get(['id', 'name', 'phone_number', 'email', 'customer_group_id']);
         $customerGroups = CustomerGroup::where('is_active', 1)->orderBy('name')->get(['id', 'name']);
         $users = User::where('is_active', 1)->where('is_deleted', false)->orderBy('name')->get(['id', 'name', 'phone', 'email']);
         $categories = OnlineInvitationCategory::where('is_active', 1)->orderBy('name')->get(['id', 'name']);
+
+        $groupCounts = Customer::where('is_active', 1)
+            ->selectRaw('customer_group_id, COUNT(*) as member_count')
+            ->groupBy('customer_group_id')
+            ->pluck('member_count', 'customer_group_id');
+
+        $directoryPeople = collect();
+        foreach ($customerGroups as $g) {
+            $count = (int) ($groupCounts[$g->id] ?? 0);
+            $directoryPeople->push([
+                'id' => 'group:' . $g->id,
+                'name' => $g->name,
+                'email' => '',
+                'phone' => '',
+                'role' => 'group',
+                'source' => 'Group',
+                'member_count' => $count,
+                'meta' => $count . ' customer' . ($count === 1 ? '' : 's'),
+            ]);
+        }
+        foreach ($customers as $c) {
+            $directoryPeople->push([
+                'id' => 'customer:' . $c->id,
+                'name' => $c->name ?: 'Untitled',
+                'email' => $c->email ?: '',
+                'phone' => $c->phone_number ?: '',
+                'role' => 'customer',
+                'source' => 'Customer',
+                'member_count' => 1,
+                'meta' => trim(($c->phone_number ?: '') . (($c->phone_number && $c->email) ? ' · ' : '') . ($c->email ?: '')),
+            ]);
+        }
+        foreach ($users as $u) {
+            $directoryPeople->push([
+                'id' => 'user:' . $u->id,
+                'name' => $u->name ?: 'Untitled',
+                'email' => $u->email ?: '',
+                'phone' => $u->phone ?: '',
+                'role' => 'staff',
+                'source' => 'Staff',
+                'member_count' => 1,
+                'meta' => trim(($u->phone ?: '') . (($u->phone && $u->email) ? ' · ' : '') . ($u->email ?: '')),
+            ]);
+        }
+        $directoryPeople = $directoryPeople->values()->all();
 
         $eventPreviewData = [];
         foreach ($events as $event) {
@@ -211,7 +308,15 @@ class OnlineInvitationInvitationController extends Controller
             ];
         }
 
-        return view('online_invitation.invitation.create', compact('events', 'customers', 'customerGroups', 'users', 'categories', 'eventPreviewData'));
+        return view('online_invitation.invitation.create', compact(
+            'events',
+            'customers',
+            'customerGroups',
+            'users',
+            'categories',
+            'eventPreviewData',
+            'directoryPeople'
+        ));
     }
 
     public function store(Request $request)
@@ -223,12 +328,9 @@ class OnlineInvitationInvitationController extends Controller
         $this->validate($request, [
             'event_id' => 'required|integer|exists:online_invitation_events,id',
             'category_id' => 'required|integer|exists:online_invitation_categories,id',
-            'recipient_mode' => 'bail|required|in:customers,customer_group,users,csv',
-            'customer_ids' => 'bail|nullable|required_if:recipient_mode,customers|array|min:1',
-            'customer_ids.*' => 'bail|integer|exists:customers,id',
-            'customer_group_id' => 'bail|nullable|required_if:recipient_mode,customer_group|integer|exists:customer_groups,id',
-            'user_ids' => 'bail|nullable|required_if:recipient_mode,users|array|min:1',
-            'user_ids.*' => 'bail|integer|exists:users,id',
+            'recipient_mode' => 'bail|required|in:directory,csv',
+            'recipient_ids' => 'bail|nullable|required_if:recipient_mode,directory|array|min:1',
+            'recipient_ids.*' => 'bail|string|max:64',
             'recipient_csv' => 'bail|nullable|required_if:recipient_mode,csv|file|mimes:csv,txt|max:5120',
             'message' => 'nullable|string|max:500',
             'rsvp' => 'nullable|string|max:255',
@@ -290,50 +392,75 @@ class OnlineInvitationInvitationController extends Controller
             $created++;
         };
 
-        if ($request->recipient_mode === 'customers') {
-            $customerIds = $request->customer_ids ?: [];
-            $customers = Customer::whereIn('id', $customerIds)
-                ->where('is_active', 1)
-                ->get(['id', 'name', 'phone_number', 'email']);
+        if ($request->recipient_mode === 'directory') {
+            $customerIds = [];
+            $userIds = [];
+            $groupIds = [];
 
-            foreach ($customers as $customer) {
-                $createInvitation(
-                    (int) $customer->id,
-                    null,
-                    $customer->name,
-                    $customer->phone_number,
-                    $customer->email
-                );
+            foreach ((array) $request->recipient_ids as $ref) {
+                $ref = trim((string) $ref);
+                if ($ref === '') {
+                    continue;
+                }
+                if (Str::startsWith($ref, 'customer:')) {
+                    $customerIds[] = (int) substr($ref, 9);
+                } elseif (Str::startsWith($ref, 'user:')) {
+                    $userIds[] = (int) substr($ref, 5);
+                } elseif (Str::startsWith($ref, 'group:')) {
+                    $groupIds[] = (int) substr($ref, 6);
+                }
             }
-        } elseif ($request->recipient_mode === 'customer_group') {
-            $groupId = (int) $request->customer_group_id;
-            $customers = Customer::where('customer_group_id', $groupId)
-                ->where('is_active', 1)
-                ->get(['id', 'name', 'phone_number', 'email']);
 
-            foreach ($customers as $customer) {
-                $createInvitation(
-                    (int) $customer->id,
-                    null,
-                    $customer->name,
-                    $customer->phone_number,
-                    $customer->email
-                );
+            $customerIds = array_values(array_unique(array_filter($customerIds)));
+            $userIds = array_values(array_unique(array_filter($userIds)));
+            $groupIds = array_values(array_unique(array_filter($groupIds)));
+
+            if (!empty($groupIds)) {
+                $fromGroups = Customer::whereIn('customer_group_id', $groupIds)
+                    ->where('is_active', 1)
+                    ->pluck('id')
+                    ->map(function ($id) {
+                        return (int) $id;
+                    })
+                    ->all();
+                $customerIds = array_values(array_unique(array_merge($customerIds, $fromGroups)));
             }
-        } elseif ($request->recipient_mode === 'users') {
-            $userIds = $request->user_ids ?: [];
-            $users = User::whereIn('id', $userIds)
-                ->where('is_active', 1)
-                ->where('is_deleted', false)
-                ->get(['id', 'name', 'phone', 'email']);
-            foreach ($users as $user) {
-                $createInvitation(
-                    null,
-                    (int) $user->id,
-                    $user->name,
-                    $user->phone,
-                    $user->email
-                );
+
+            if (empty($customerIds) && empty($userIds)) {
+                throw ValidationException::withMessages([
+                    'recipient_ids' => ['Select at least one group, customer, or staff member.'],
+                ]);
+            }
+
+            if (!empty($customerIds)) {
+                $customers = Customer::whereIn('id', $customerIds)
+                    ->where('is_active', 1)
+                    ->get(['id', 'name', 'phone_number', 'email']);
+                foreach ($customers as $customer) {
+                    $createInvitation(
+                        (int) $customer->id,
+                        null,
+                        $customer->name,
+                        $customer->phone_number,
+                        $customer->email
+                    );
+                }
+            }
+
+            if (!empty($userIds)) {
+                $staffUsers = User::whereIn('id', $userIds)
+                    ->where('is_active', 1)
+                    ->where('is_deleted', false)
+                    ->get(['id', 'name', 'phone', 'email']);
+                foreach ($staffUsers as $user) {
+                    $createInvitation(
+                        null,
+                        (int) $user->id,
+                        $user->name,
+                        $user->phone,
+                        $user->email
+                    );
+                }
             }
         } else {
             $rows = $this->parseRecipientCsv($request->file('recipient_csv'));
@@ -491,7 +618,7 @@ class OnlineInvitationInvitationController extends Controller
 //            $invitation->last_error = substr((string) $e->getMessage(), 0, 2000);
 //            $invitation->save();
 //        }
-        return redirect()->route('message.delivery.index')
+        return redirect()->route('message.delivery.index', ['module' => 'invitations'])
             ->with('message', 'Invitation queued for WhatsApp delivery.');
     }
 
@@ -571,7 +698,7 @@ class OnlineInvitationInvitationController extends Controller
             $parts[] = "Not found: {$notFound}";
         }
 
-        return redirect()->route('message.delivery.index')
+        return redirect()->route('message.delivery.index', ['module' => 'invitations'])
             ->with('message', implode('. ', $parts).'. Watch delivery progress below.');
     }
 
@@ -880,8 +1007,7 @@ class OnlineInvitationInvitationController extends Controller
 
         $acceptUrl = route('online_invitation.invite.show', $invitation->token);
 
-        $qrPng = QrCode::format('png')->size(320)->margin(1)->generate($acceptUrl);
-        $qrDataUri = 'data:image/png;base64,' . base64_encode($qrPng);
+        $qrDataUri = OnlineInvitationQr::dataUri($acceptUrl, 320, 1);
 
         $eventAtText = $event->event_at;
         try {

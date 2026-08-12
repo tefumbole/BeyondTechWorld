@@ -21,18 +21,35 @@
     @keyframes mdq-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 </style>
 
+@php $module = $module ?? 'all'; @endphp
 <section class="forms">
     <div class="container-fluid mdq-shell">
+        @if($module === 'invitations')
+            @php $oiTab = 'queued'; @endphp
+            @include('online_invitation.partials.tabs')
+        @endif
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:10px;">
             <div>
                 <h1 class="mdq-title">Queued Messages</h1>
-                <p class="mdq-meta mb-0">Live WhatsApp letter delivery progress.</p>
+                <p class="mdq-meta mb-0">
+                    @if($module === 'invitations')
+                        Live WhatsApp digital invitation delivery progress.
+                    @elseif($module === 'letters')
+                        Live WhatsApp letter delivery progress.
+                    @else
+                        Live WhatsApp delivery progress (letters &amp; invitations).
+                    @endif
+                </p>
             </div>
             <div class="d-flex align-items-center" style="gap:12px;">
                 <span class="mdq-live" id="mdq-live" style="{{ ($activeCount ?? 0) > 0 ? '' : 'display:none' }}">
                     <span class="dot"></span> Sending in progress
                 </span>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ route('letter.index.sent') }}">Sent Letters</a>
+                @if($module === 'invitations')
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('online_invitation.invitations.index') }}">All Invitations</a>
+                @else
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ route('letter.index.sent') }}">Sent Letters</a>
+                @endif
             </div>
         </div>
 
@@ -64,7 +81,9 @@
                         <tr data-batch-id="{{ $batch->id }}">
                             <td>
                                 <strong>{{ $batch->title ?: ('Batch #'.$batch->id) }}</strong>
-                                @if($batch->letter_id)
+                                @if(($batch->type ?? '') === 'online_invitation')
+                                    <div class="mdq-meta">Digital Invitations</div>
+                                @elseif($batch->letter_id)
                                     <div class="mdq-meta">Letter #{{ $batch->letter_id }}</div>
                                 @endif
                             </td>
@@ -79,7 +98,13 @@
                             <td><a class="btn btn-sm btn-info" href="{{ route('message.delivery.show', $batch->id) }}">Details</a></td>
                         </tr>
                     @empty
-                        <tr id="mdq-empty"><td colspan="7">No queued deliveries yet. Send a letter to see progress here.</td></tr>
+                        <tr id="mdq-empty"><td colspan="7">
+                            @if(($module ?? '') === 'invitations')
+                                No invitation deliveries yet. Send selected invitations to see progress here.
+                            @else
+                                No queued deliveries yet. Send a letter or invitation to see progress here.
+                            @endif
+                        </td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -93,7 +118,7 @@
 
 <script>
 (function () {
-    var pollUrl = @json(route('message.delivery.status'));
+    var pollUrl = @json(route('message.delivery.status', ['module' => $module ?? 'all']));
     var live = document.getElementById('mdq-live');
     var table = document.getElementById('mdq-table');
     if (!table) return;

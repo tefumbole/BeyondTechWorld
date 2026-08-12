@@ -1396,6 +1396,7 @@
                                         <li id="online-invitation-attending-menu"><a href="{{ route('online_invitation.invitations.attending') }}">Attending</a></li>
                                         <li id="online-invitation-request-links-menu"><a href="{{ route('online_invitation.request_links.index') }}">Request Links</a></li>
                                         <li id="online-invitation-reminders-menu"><a href="{{ route('online_invitation.reminders.index') }}">Reminders</a></li>
+                                        <li id="online-invitation-queued-menu"><a href="{{ route('message.delivery.index', ['module' => 'invitations']) }}">Queued Messages</a></li>
                                         <li id="online-invitation-create-menu"><a href="{{ route('online_invitation.invitations.create') }}">Create Invitation</a></li>
                                     @endif
                                 </ul>

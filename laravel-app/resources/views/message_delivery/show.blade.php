@@ -15,18 +15,25 @@
     .mdq-badge.failed, .mdq-badge.skipped { background: #fee2e2; color: #b91c1c; }
 </style>
 
+@php $module = $module ?? ((($batch->type ?? '') === 'online_invitation') ? 'invitations' : 'all'); @endphp
 <section class="forms">
     <div class="container-fluid mdq-shell">
+        @if($module === 'invitations')
+            @php $oiTab = 'queued'; @endphp
+            @include('online_invitation.partials.tabs')
+        @endif
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:10px;">
             <div>
                 <h1 class="mdq-title">{{ $batch->title ?: ('Batch #'.$batch->id) }}</h1>
                 <p class="mdq-meta mb-0">
                     Batch #{{ $batch->id }}
-                    @if($batch->letter_id) · Letter #{{ $batch->letter_id }} @endif
+                    @if(($batch->type ?? '') === 'online_invitation') · Digital Invitations
+                    @elseif($batch->letter_id) · Letter #{{ $batch->letter_id }}
+                    @endif
                     @if(optional($batch->queuedBy)->name) · Queued by {{ $batch->queuedBy->name }} @endif
                 </p>
             </div>
-            <a class="btn btn-outline-secondary btn-sm" href="{{ route('message.delivery.index') }}">&larr; All queues</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : []) }}">&larr; All queues</a>
         </div>
 
         <div class="mdq-card" id="mdq-summary"

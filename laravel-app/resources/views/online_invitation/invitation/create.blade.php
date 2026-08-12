@@ -1,5 +1,7 @@
 @extends('layout.main')
 @section('content')
+@php $oiTab = 'create'; @endphp
+@include('online_invitation.partials.tabs')
 
 @if($errors->any())
     <div class="alert alert-danger alert-dismissible text-center">
@@ -39,9 +41,7 @@
                             <div class="form-group">
                                 <label>Send To *</label>
                                 <select name="recipient_mode" id="recipient_mode" class="form-control" required>
-                                    <option value="customers" {{ old('recipient_mode', 'customers') === 'customers' ? 'selected' : '' }}>Customers (Multiple)</option>
-                                    <option value="customer_group" {{ old('recipient_mode') === 'customer_group' ? 'selected' : '' }}>Customer Group</option>
-                                    <option value="users" {{ old('recipient_mode') === 'users' ? 'selected' : '' }}>Users (Staff / Interns)</option>
+                                    <option value="directory" {{ old('recipient_mode', 'directory') === 'directory' ? 'selected' : '' }}>Directory (Groups &amp; People)</option>
                                     <option value="csv" {{ old('recipient_mode') === 'csv' ? 'selected' : '' }}>Import CSV</option>
                                 </select>
                             </div>
@@ -167,52 +167,57 @@
                             </div>
                         </div>
 
-                    <div class="row" id="mode-customers">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label>Customers *</label>
-	                                <select name="customer_ids[]" class="form-control selectpicker" multiple data-live-search="true" data-actions-box="true" title="Select customers...">
-	                                    @foreach($customers as $c)
-	                                        @php($label = $c->name)
-	                                        @if($c->phone_number)
-	                                            @php($label = $label . ' (' . $c->phone_number . ')')
-	                                        @endif
-	                                        <option value="{{ $c->id }}" data-phone="{{ $c->phone_number }}" data-email="{{ $c->email }}" {{ in_array($c->id, old('customer_ids', [])) ? 'selected' : '' }}>{{ $label }}</option>
-	                                    @endforeach
-	                                </select>
-                                <small class="form-text text-muted">Tip: use search box to quickly find customers.</small>
-                            </div>
-                        </div>
-                    </div>
+                    <style>
+                        .oi-pill {
+                            border:0; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600;
+                            background:#f1f5f9; color:#334155; cursor:pointer; margin:0 4px 6px 0;
+                        }
+                        .oi-pill.active { background:#0b3f90; color:#fff; }
+                        .oi-pill-outline {
+                            border:1px solid #0b3f90; color:#0b3f90; background:#fff; border-radius:8px;
+                            padding:8px 12px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;
+                        }
+                        .oi-user-list { max-height:260px; overflow:auto; border:1px solid #e3e9f4; border-radius:10px; background:#fff; }
+                        .oi-user-item {
+                            display:block; width:100%; text-align:left; padding:10px 12px; border:0;
+                            border-bottom:1px solid #f0f3f8; background:#fff; cursor:pointer;
+                        }
+                        .oi-user-item:hover, .oi-user-item.selected { background:#f0f6ff; }
+                        .oi-user-item .meta { color:#6b7280; font-size:12px; }
+                        .oi-chip {
+                            display:inline-flex; align-items:center; gap:6px; border:1px solid #0b3f90; color:#0b3f90;
+                            background:#eef4ff; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600; margin:2px;
+                        }
+                        .oi-chip button { border:0; background:transparent; color:#0b3f90; font-weight:800; cursor:pointer; }
+                        .oi-field { width:100%; border:1px solid #d7deea; border-radius:8px; padding:9px 12px; font-size:14px; }
+                    </style>
 
-                    <div class="row" id="mode-customer-group" style="display:none;">
+                    <div class="row" id="mode-directory">
                         <div class="col-md-12">
-                            <div class="form-group">
-                                <label>Customer Group *</label>
-                                <select name="customer_group_id" class="form-control selectpicker" data-live-search="true" title="Select customer group...">
-                                    <option value="">Select Customer Group</option>
-                                    @foreach($customerGroups as $g)
-                                        <option value="{{ $g->id }}" {{ old('customer_group_id') == $g->id ? 'selected' : '' }}>{{ $g->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row" id="mode-users" style="display:none;">
-                        <div class="col-md-12">
-                            <div class="form-group">
-                                <label>Users *</label>
-                                <select name="user_ids[]" class="form-control selectpicker" multiple data-live-search="true" data-actions-box="true" title="Select users...">
-                                    @foreach(($users ?? []) as $u)
-                                        @php($label = $u->name)
-                                        @if($u->phone)
-                                            @php($label = $label . ' (' . $u->phone . ')')
-                                        @endif
-                                        <option value="{{ $u->id }}" {{ in_array($u->id, old('user_ids', [])) ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                <small class="form-text text-muted">Tip: use Select all / Deselect all in the picker.</small>
+                            <div class="form-group mb-2">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+                                    <label class="mb-0">Recipients *</label>
+                                    <div>
+                                        <small class="text-muted">Selected</small>
+                                        <strong id="oi-recipient-count" style="color:#0b3f90;font-size:1.15rem;margin-left:6px;">0</strong>
+                                    </div>
+                                </div>
+                                <p class="text-muted small mb-2">Pick entire customer groups and/or individuals (customers &amp; staff), same style as Task Manager.</p>
+                                <div class="mb-2">
+                                    <button type="button" class="oi-pill active oi-rf" data-role="all">All</button>
+                                    <button type="button" class="oi-pill oi-rf" data-role="groups">Groups</button>
+                                    <button type="button" class="oi-pill oi-rf" data-role="customers">Customers</button>
+                                    <button type="button" class="oi-pill oi-rf" data-role="staff">Staff</button>
+                                </div>
+                                <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+                                    <input type="search" class="oi-field" id="oi-rsearch" placeholder="Search groups, names, phone, email…" style="flex:1;min-width:180px;">
+                                    <button type="button" class="oi-pill-outline" id="oi-rselect-all">Select everyone</button>
+                                    <button type="button" class="oi-pill-outline" id="oi-rdeselect-all">Deselect all</button>
+                                </div>
+                                <div class="oi-user-list" id="oi-rlist"></div>
+                                <div class="mt-2" id="oi-rchips"></div>
+                                <div id="oi-rhiddens"></div>
+                                <small class="text-danger d-none" id="oi-rerr">Pick at least one group or person.</small>
                             </div>
                         </div>
                     </div>
@@ -244,13 +249,161 @@
 
     var oiEventPreviewData = @json($eventPreviewData);
     var oiBaseUrl = "{{ rtrim(url('/'), '/') }}";
+    window.OI_PEOPLE = @json($directoryPeople ?? []);
+    window.OI_PRESELECT = @json(old('recipient_ids', []));
+
+    var oiSelected = (window.OI_PRESELECT || []).slice();
+    var oiRole = 'all';
+
+    function oiEsc(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+        });
+    }
+
+    function oiMatchesRole(u, roleFilter) {
+        var source = (u.source || '').toLowerCase();
+        var role = (u.role || '').toLowerCase();
+        if (roleFilter === 'groups') return source === 'group' || role === 'group';
+        if (roleFilter === 'customers') return source === 'customer' || role === 'customer';
+        if (roleFilter === 'staff') return source === 'staff' || role === 'staff';
+        return true;
+    }
+
+    function oiFilterPeople(query, roleFilter) {
+        var q = (query || '').toLowerCase().trim();
+        return (window.OI_PEOPLE || []).filter(function (u) {
+            if (!oiMatchesRole(u, roleFilter)) return false;
+            if (!q) return true;
+            return (u.name || '').toLowerCase().indexOf(q) !== -1
+                || (u.email || '').toLowerCase().indexOf(q) !== -1
+                || (u.phone || '').toLowerCase().indexOf(q) !== -1
+                || (u.meta || '').toLowerCase().indexOf(q) !== -1
+                || (u.source || '').toLowerCase().indexOf(q) !== -1;
+        });
+    }
+
+    function oiRecipientEstimate() {
+        var map = {};
+        (window.OI_PEOPLE || []).forEach(function (u) { map[u.id] = u; });
+        var total = 0;
+        oiSelected.forEach(function (id) {
+            var u = map[id];
+            if (!u) { total += 1; return; }
+            if ((u.source || '').toLowerCase() === 'group' || (u.role || '').toLowerCase() === 'group') {
+                total += parseInt(u.member_count || 0, 10) || 0;
+            } else {
+                total += 1;
+            }
+        });
+        return total;
+    }
+
+    function oiSyncHiddens() {
+        var box = document.getElementById('oi-rhiddens');
+        if (!box) return;
+        box.innerHTML = oiSelected.map(function (id) {
+            return '<input type="hidden" name="recipient_ids[]" value="' + oiEsc(id) + '">';
+        }).join('');
+        var countEl = document.getElementById('oi-recipient-count');
+        if (countEl) countEl.textContent = String(oiSelected.length);
+        var err = document.getElementById('oi-rerr');
+        if (err) err.classList.toggle('d-none', oiSelected.length > 0 || $('#recipient_mode').val() !== 'directory');
+    }
+
+    function oiRenderChips() {
+        var el = document.getElementById('oi-rchips');
+        if (!el) return;
+        var map = {};
+        (window.OI_PEOPLE || []).forEach(function (u) { map[u.id] = u; });
+        el.innerHTML = oiSelected.map(function (id) {
+            var u = map[id] || { name: id, source: '' };
+            var label = (u.source ? u.source + ': ' : '') + (u.name || id);
+            return '<span class="oi-chip" data-id="' + oiEsc(id) + '">' + oiEsc(label)
+                + ' <button type="button" title="Remove" aria-label="Remove">×</button></span>';
+        }).join('');
+        el.querySelectorAll('.oi-chip button').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                oiToggle(btn.parentNode.getAttribute('data-id'));
+            });
+        });
+    }
+
+    function oiRenderList() {
+        var el = document.getElementById('oi-rlist');
+        if (!el) return;
+        var people = oiFilterPeople(document.getElementById('oi-rsearch').value, oiRole);
+        el.innerHTML = people.map(function (u) {
+            var sel = oiSelected.indexOf(u.id) !== -1 ? ' selected' : '';
+            var meta = u.meta || ((u.phone || '') + ((u.phone && u.email) ? ' · ' : '') + (u.email || ''));
+            return '<button type="button" class="oi-user-item' + sel + '" data-id="' + oiEsc(u.id) + '">'
+                + '<div class="font-weight-bold">' + oiEsc(u.name || 'Untitled')
+                + (u.source ? ' <span class="badge badge-light">' + oiEsc(u.source) + '</span>' : '')
+                + '</div>'
+                + '<div class="meta">' + oiEsc(meta || '—') + '</div>'
+                + '</button>';
+        }).join('') || '<div class="p-3 text-muted small text-center">No matches.</div>';
+        el.querySelectorAll('.oi-user-item').forEach(function (item) {
+            item.addEventListener('click', function () { oiToggle(item.getAttribute('data-id')); });
+        });
+    }
+
+    function oiToggle(id) {
+        if (!id) return;
+        var idx = oiSelected.indexOf(id);
+        if (idx === -1) oiSelected.push(id);
+        else oiSelected.splice(idx, 1);
+        oiSyncHiddens();
+        oiRenderChips();
+        oiRenderList();
+        refreshPreview();
+    }
+
+    function oiInitPicker() {
+        document.querySelectorAll('.oi-rf').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                oiRole = btn.getAttribute('data-role') || 'all';
+                document.querySelectorAll('.oi-rf').forEach(function (b) { b.classList.toggle('active', b === btn); });
+                oiRenderList();
+            });
+        });
+        var search = document.getElementById('oi-rsearch');
+        if (search) {
+            search.addEventListener('input', function () { oiRenderList(); });
+        }
+        var selectAll = document.getElementById('oi-rselect-all');
+        if (selectAll) {
+            selectAll.addEventListener('click', function () {
+                oiFilterPeople(document.getElementById('oi-rsearch').value, oiRole).forEach(function (u) {
+                    if (oiSelected.indexOf(u.id) === -1) oiSelected.push(u.id);
+                });
+                oiSyncHiddens();
+                oiRenderChips();
+                oiRenderList();
+                refreshPreview();
+            });
+        }
+        var deselectAll = document.getElementById('oi-rdeselect-all');
+        if (deselectAll) {
+            deselectAll.addEventListener('click', function () {
+                oiSelected = [];
+                oiSyncHiddens();
+                oiRenderChips();
+                oiRenderList();
+                refreshPreview();
+            });
+        }
+        oiSyncHiddens();
+        oiRenderChips();
+        oiRenderList();
+    }
 
     function toggleRecipientMode() {
         var mode = $('#recipient_mode').val();
-        $('#mode-customers').toggle(mode === 'customers');
-        $('#mode-customer-group').toggle(mode === 'customer_group');
-        $('#mode-users').toggle(mode === 'users');
+        $('#mode-directory').toggle(mode === 'directory');
         $('#mode-csv').toggle(mode === 'csv');
+        oiSyncHiddens();
     }
 
     function setPreviewBackground(background) {
@@ -345,24 +498,24 @@
         var dearName = 'Guest';
         var phone = '—';
         var email = '';
-        if (mode === 'customers') {
-            var selected = $('select[name="customer_ids[]"]').val() || [];
-            recipientText = selected.length ? (selected.length + ' customer(s) selected') : '—';
-            if (selected.length === 1) {
-                var optText = $('select[name="customer_ids[]"] option[value="' + selected[0] + '"]').text() || '';
-                dearName = optText.split('(')[0].trim() || 'Guest';
-
-                var opt = $('select[name="customer_ids[]"] option[value="' + selected[0] + '"]');
-                phone = (opt.data('phone') || '—').toString();
-                email = (opt.data('email') || '').toString().trim();
-                if (email === '—' || email === '-' || email.toLowerCase() === 'n/a' || email.toLowerCase() === 'na' || email.toLowerCase() === 'null' || email.toLowerCase() === 'none') {
-                    email = '';
+        if (mode === 'directory') {
+            var estimate = oiRecipientEstimate();
+            recipientText = oiSelected.length
+                ? (oiSelected.length + ' selection(s) ≈ ' + estimate + ' recipient(s)')
+                : '—';
+            if (oiSelected.length === 1) {
+                var map = {};
+                (window.OI_PEOPLE || []).forEach(function (u) { map[u.id] = u; });
+                var one = map[oiSelected[0]];
+                if (one && (one.source || '').toLowerCase() !== 'group') {
+                    dearName = (one.name || 'Guest').toString().trim() || 'Guest';
+                    phone = (one.phone || '—').toString();
+                    email = (one.email || '').toString().trim();
+                    if (email === '—' || email === '-' || email.toLowerCase() === 'n/a' || email.toLowerCase() === 'na' || email.toLowerCase() === 'null' || email.toLowerCase() === 'none') {
+                        email = '';
+                    }
                 }
             }
-        } else if (mode === 'customer_group') {
-            var g = $('select[name="customer_group_id"] option:selected').text() || '';
-            recipientText = g && g !== 'Select Customer Group' ? ('Group: ' + g) : '—';
-            dearName = 'Guest';
         } else if (mode === 'csv') {
             var fileInput = document.querySelector('input[name="recipient_csv"]');
             recipientText = (fileInput && fileInput.files && fileInput.files.length) ? ('CSV: ' + fileInput.files[0].name) : '—';
@@ -487,14 +640,21 @@
         refreshPreview();
     });
     $('#category_id').on('change', refreshPreview);
-    $('select[name="customer_ids[]"]').on('changed.bs.select', refreshPreview);
-    $('select[name="customer_group_id"]').on('changed.bs.select', refreshPreview);
     $('input[name="recipient_csv"]').on('change', refreshPreview);
     $('#message').on('input', refreshPreview);
     $('#rsvp').on('input', refreshPreview);
     $('#border_color').on('input', refreshPreview);
     $('#font_color').on('input', refreshPreview);
 
+    $('form').on('submit', function (e) {
+        if ($('#recipient_mode').val() === 'directory' && oiSelected.length === 0) {
+            e.preventDefault();
+            $('#oi-rerr').removeClass('d-none');
+            return false;
+        }
+    });
+
+    oiInitPicker();
     toggleRecipientMode();
     refreshCategoriesForEvent($('#event_id').val());
     refreshPreview();

@@ -1,5 +1,7 @@
 @extends('layout.main')
 @section('content')
+@php $oiTab = 'reminders'; @endphp
+@include('online_invitation.partials.tabs')
 <section class="container-fluid">
     <h3>Event invitation reminders</h3>
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
