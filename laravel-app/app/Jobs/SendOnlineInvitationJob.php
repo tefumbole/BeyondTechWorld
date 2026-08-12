@@ -143,9 +143,13 @@ class SendOnlineInvitationJob implements ShouldQueue
                 'pdfBgImage' => $pdfBackground['image'],
             ];
 
-            $pdfDir = public_path('documents/online_invitation/');
+            // Write under storage/app/public (www-data writable). public/documents is often root-owned.
+            $pdfDir = storage_path('app/public/online_invitation/');
             if (! File::exists($pdfDir)) {
-                File::makeDirectory($pdfDir, 0755, true);
+                File::makeDirectory($pdfDir, 0775, true);
+            }
+            if (! is_dir($pdfDir) || ! is_writable($pdfDir)) {
+                throw new \Exception('Invitation PDF directory is not writable: '.$pdfDir);
             }
             $pdfFilename = 'invitation_'.$invitation->id.'.pdf';
             $pdfPath = $pdfDir.$pdfFilename;
@@ -160,9 +164,9 @@ class SendOnlineInvitationJob implements ShouldQueue
 
             $attachmentPath = $pdfPath;
             $attachmentFilename = $pdfFilename;
-            // Beyond nginx root is laravel-app/, so public files are under /public/...
-            $attachmentUrl = \App\Support\OnlineInvitationUrl::publicAsset(
-                'documents/online_invitation/'.$pdfFilename
+            // Served via public/storage symlink → /public/storage/online_invitation/...
+            $attachmentUrl = OnlineInvitationUrl::publicAsset(
+                'storage/online_invitation/'.$pdfFilename
             );
 
             // Optional: convert the generated PDF into a PNG (first page) and send as image.
@@ -185,7 +189,7 @@ class SendOnlineInvitationJob implements ShouldQueue
                         $attachmentPath = $pngPath;
                         $attachmentFilename = $pngFilename;
                         $attachmentUrl = OnlineInvitationUrl::publicAsset(
-                            'documents/online_invitation/'.$pngFilename
+                            'storage/online_invitation/'.$pngFilename
                         );
                     }
                 } catch (\Throwable $e) {
