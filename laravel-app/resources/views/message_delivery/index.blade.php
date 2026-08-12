@@ -24,10 +24,6 @@
 @php $module = $module ?? 'all'; @endphp
 <section class="forms">
     <div class="container-fluid mdq-shell">
-        @if($module === 'invitations')
-            @php $oiTab = 'queued'; @endphp
-            @include('online_invitation.partials.tabs')
-        @endif
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:10px;">
             <div>
                 <h1 class="mdq-title">Queued Messages</h1>
@@ -116,6 +112,13 @@
     </div>
 </section>
 
+@if(($module ?? '') === 'invitations')
+<script type="text/javascript">
+    $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
+    $("ul#online_invitation").addClass("show");
+    $("ul#online_invitation #online-invitation-queued-menu").addClass("active");
+</script>
+@endif
 <script>
 (function () {
     var pollUrl = @json(route('message.delivery.status', ['module' => $module ?? 'all']));

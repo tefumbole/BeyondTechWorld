@@ -1,7 +1,5 @@
 @extends('layout.main')
 @section('content')
-@php $oiTab = 'reminders'; @endphp
-@include('online_invitation.partials.tabs')
 <section class="container-fluid">
     <h3>Event invitation reminders</h3>
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
@@ -69,4 +67,9 @@
         </div>
     </div>
 </section>
+<script type="text/javascript">
+    $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
+    $("ul#online_invitation").addClass("show");
+    $("ul#online_invitation #online-invitation-reminders-menu").addClass("active");
+</script>
 @endsection

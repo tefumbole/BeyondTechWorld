@@ -1,12 +1,5 @@
 @extends('layout.main')
 @section('content')
-@php
-    $oiTab = request('status') === 'awaiting_sending' ? 'awaiting'
-        : (request('status') === 'sent' ? 'sent'
-        : (request('status') === 'used' ? 'used'
-        : (request('status') === 'failed' ? 'failed' : 'invitations')));
-@endphp
-@include('online_invitation.partials.tabs')
 
 @if(session()->has('not_permitted'))
     <div class="alert alert-danger alert-dismissible text-center">

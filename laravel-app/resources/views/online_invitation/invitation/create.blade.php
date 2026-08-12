@@ -1,7 +1,5 @@
 @extends('layout.main')
 @section('content')
-@php $oiTab = 'create'; @endphp
-@include('online_invitation.partials.tabs')
 
 @if($errors->any())
     <div class="alert alert-danger alert-dismissible text-center">
@@ -245,7 +243,7 @@
 <script type="text/javascript">
     $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
     $("ul#online_invitation").addClass("show");
-    $("ul#online_invitation #online-invitation-invitation-menu").addClass("active");
+    $("ul#online_invitation #online-invitation-create-menu").addClass("active");
 
     var oiEventPreviewData = @json($eventPreviewData);
     var oiBaseUrl = "{{ rtrim(url('/'), '/') }}";

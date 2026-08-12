@@ -18,10 +18,6 @@
 @php $module = $module ?? ((($batch->type ?? '') === 'online_invitation') ? 'invitations' : 'all'); @endphp
 <section class="forms">
     <div class="container-fluid mdq-shell">
-        @if($module === 'invitations')
-            @php $oiTab = 'queued'; @endphp
-            @include('online_invitation.partials.tabs')
-        @endif
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:10px;">
             <div>
                 <h1 class="mdq-title">{{ $batch->title ?: ('Batch #'.$batch->id) }}</h1>
@@ -121,4 +117,11 @@
     if (active) setTimeout(tick, 1200);
 })();
 </script>
+@if(($module ?? '') === 'invitations')
+<script type="text/javascript">
+    $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
+    $("ul#online_invitation").addClass("show");
+    $("ul#online_invitation #online-invitation-queued-menu").addClass("active");
+</script>
+@endif
 @endsection

@@ -1,7 +1,5 @@
 @extends('layout.main')
 @section('content')
-@php $oiTab = 'templates'; @endphp
-@include('online_invitation.partials.tabs')
 
 @if(session()->has('not_permitted'))
     <div class="alert alert-danger alert-dismissible text-center">
