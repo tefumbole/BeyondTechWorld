@@ -173,8 +173,7 @@ class OnlineInvitationTemplateController extends Controller
             $this->resizeTemplateBackgroundToCanvas($image->getRealPath(), $destPath, 1024, 1536);
         }
 
-        $publicUrl = asset('images/online_invitation/templates/'.$imageName);
-        $publicUrl = OnlineInvitationUrl::ensurePublicInAppUrl($publicUrl);
+        $publicUrl = OnlineInvitationUrl::publicAsset('images/online_invitation/templates/'.$imageName);
 
         return "url('{$publicUrl}')";
     }

@@ -158,8 +158,10 @@ class SendOnlineInvitationJob implements ShouldQueue
 
             $attachmentPath = $pdfPath;
             $attachmentFilename = $pdfFilename;
-            // Prefer local path; Wasender upload resolves from disk when URL fetch fails.
-            $attachmentUrl = rtrim((string) env('APP_URL'), '/').'/documents/online_invitation/'.$pdfFilename;
+            // Beyond nginx root is laravel-app/, so public files are under /public/...
+            $attachmentUrl = \App\Support\OnlineInvitationUrl::publicAsset(
+                'documents/online_invitation/'.$pdfFilename
+            );
 
             // Optional: convert the generated PDF into a PNG (first page) and send as image.
             // Enable by setting ONLINE_INVITATION_ATTACHMENT=png in .env.
