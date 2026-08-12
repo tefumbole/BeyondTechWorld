@@ -1077,6 +1077,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/letters/sent/download', 'LetterController@sentDownload')->name('letter.index.sent.download');
     Route::get('/letters/queued-messages', 'MessageDeliveryController@index')->name('message.delivery.index');
     Route::get('/letters/queued-messages/status', 'MessageDeliveryController@status')->name('message.delivery.status');
+    Route::post('/letters/queued-messages/{id}/resend', 'MessageDeliveryController@resendFailed')->name('message.delivery.resend');
     Route::get('/letters/queued-messages/{id}', 'MessageDeliveryController@show')->name('message.delivery.show');
     Route::get('/letters/queued-messages/{id}/status', 'MessageDeliveryController@itemStatus')->name('message.delivery.item-status');
     Route::get('/letters/show/{id}', 'LetterController@show')->name('letter.show');

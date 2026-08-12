@@ -6,6 +6,7 @@ use App\MessageDeliveryBatch;
 use App\Services\MessageDeliveryTracker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class MessageDeliveryController extends Controller
@@ -109,6 +110,42 @@ class MessageDeliveryController extends Controller
             'module' => $module,
             'all_permission' => $this->all_permission,
         ]);
+    }
+
+    /**
+     * Resend failed Digital Invitation recipients from a delivery batch.
+     */
+    public function resendFailed($id)
+    {
+        $batch = MessageDeliveryBatch::with('items')->findOrFail($id);
+        if (($batch->type ?? '') !== 'online_invitation') {
+            return redirect()->back()->with('not_permitted', 'Resend is only available for digital invitation batches.');
+        }
+
+        $invitationIds = [];
+        foreach ($batch->items as $item) {
+            if (($item->status ?? '') !== 'failed') {
+                continue;
+            }
+            $ref = trim((string) $item->recipient_ref);
+            if (Str::startsWith($ref, 'invitation:')) {
+                $invitationIds[] = (int) substr($ref, 11);
+            }
+        }
+        $invitationIds = array_values(array_unique(array_filter($invitationIds)));
+
+        if (! $invitationIds) {
+            return redirect()->back()->with('not_permitted', 'No failed invitations found in this batch to resend.');
+        }
+
+        $newBatchId = app(OnlineInvitationInvitationController::class)->queueResendByIds($invitationIds);
+        if (! $newBatchId) {
+            return redirect()->route('online_invitation.invitations.index', ['status' => 'failed'])
+                ->with('not_permitted', 'Could not queue resend. Open Failed invitations and use Send Again.');
+        }
+
+        return redirect()->route('message.delivery.index', ['module' => 'invitations'])
+            ->with('message', 'Resent '.count($invitationIds).' invitation(s). New batch #'.$newBatchId.' is in the queue.');
     }
 
     /**

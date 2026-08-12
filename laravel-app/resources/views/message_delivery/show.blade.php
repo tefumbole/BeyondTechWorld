@@ -29,8 +29,23 @@
                     @if(optional($batch->queuedBy)->name) · Queued by {{ $batch->queuedBy->name }} @endif
                 </p>
             </div>
-            <a class="btn btn-outline-secondary btn-sm" href="{{ route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : []) }}">&larr; All queues</a>
+            <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
+                @if(($batch->type ?? '') === 'online_invitation' && (int) $batch->failed_count > 0)
+                    <form action="{{ route('message.delivery.resend', $batch->id) }}" method="POST" onsubmit="return confirm('Resend all failed invitations in this batch?');">
+                        @csrf
+                        <button type="submit" class="btn btn-primary btn-sm">Resend failed</button>
+                    </form>
+                    <a class="btn btn-outline-danger btn-sm" href="{{ route('online_invitation.invitations.index', ['status' => 'failed']) }}">Open Failed list</a>
+                @endif
+                <a class="btn btn-outline-secondary btn-sm" href="{{ route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : []) }}">&larr; All queues</a>
+            </div>
         </div>
+        @if(session('message'))
+            <div class="alert alert-success">{{ session('message') }}</div>
+        @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
 
         <div class="mdq-card" id="mdq-summary"
              data-status-url="{{ route('message.delivery.item-status', $batch->id) }}"

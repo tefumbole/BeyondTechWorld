@@ -42,6 +42,7 @@
                     <span class="dot"></span> Sending in progress
                 </span>
                 @if($module === 'invitations')
+                    <a class="btn btn-outline-danger btn-sm" href="{{ route('online_invitation.invitations.index', ['status' => 'failed']) }}">Failed Invitations</a>
                     <a class="btn btn-outline-secondary btn-sm" href="{{ route('online_invitation.invitations.index') }}">All Invitations</a>
                 @else
                     <a class="btn btn-outline-secondary btn-sm" href="{{ route('letter.index.sent') }}">Sent Letters</a>
@@ -51,6 +52,12 @@
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
+        @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
+        @if($module === 'invitations')
+            <p class="mdq-meta mb-3">Failed batches stay listed here for history. Use <strong>Resend failed</strong> below, or open <strong>Failed Invitations</strong> to Send Again on each card.</p>
         @endif
         @if(!empty($tablesMissing))
             <div class="alert alert-warning">
@@ -91,7 +98,15 @@
                             <td data-field="sent">{{ $batch->sent_count }} / {{ $batch->total }}</td>
                             <td data-field="failed">{{ $batch->failed_count }}</td>
                             <td data-field="updated">{{ optional($batch->updated_at)->format('d M H:i:s') }}</td>
-                            <td><a class="btn btn-sm btn-info" href="{{ route('message.delivery.show', $batch->id) }}">Details</a></td>
+                            <td class="text-nowrap">
+                                <a class="btn btn-sm btn-info" href="{{ route('message.delivery.show', $batch->id) }}">Details</a>
+                                @if(($batch->type ?? '') === 'online_invitation' && (int) $batch->failed_count > 0)
+                                    <form action="{{ route('message.delivery.resend', $batch->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Resend all failed invitations in this batch?');">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-primary">Resend failed</button>
+                                    </form>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr id="mdq-empty"><td colspan="7">

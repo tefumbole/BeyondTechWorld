@@ -88,6 +88,46 @@ class OnlineInvitationInvitationController extends Controller
         }
     }
 
+    /**
+     * Reset invitations to awaiting_sending and queue WhatsApp delivery.
+     * Used by bulk send and by the Queued Messages "Resend failed" action.
+     *
+     * @param  array<int, int>  $invitationIds
+     */
+    public function queueResendByIds(array $invitationIds): ?int
+    {
+        if (! $this->ensureAccess()) {
+            return null;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $invitationIds))));
+        if (! $ids) {
+            return null;
+        }
+
+        $invitations = OnlineInvitation::where('is_active', 1)->whereIn('id', $ids)->get();
+        foreach ($invitations as $invitation) {
+            if (! in_array($invitation->status, ['awaiting_sending', 'failed', 'sent'], true)) {
+                continue;
+            }
+            $invitation->status = 'awaiting_sending';
+            $invitation->sent_at = null;
+            $invitation->last_error = null;
+            $invitation->save();
+        }
+
+        $sendIds = OnlineInvitation::where('is_active', 1)
+            ->whereIn('id', $ids)
+            ->where('status', 'awaiting_sending')
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->all();
+
+        return $this->dispatchInvitationSendAfterResponse($sendIds);
+    }
+
     /** Queue Wasender sends after the HTTP response to avoid nginx 502s. */
     protected function dispatchInvitationSendAfterResponse(array $invitationIds): ?int
     {
