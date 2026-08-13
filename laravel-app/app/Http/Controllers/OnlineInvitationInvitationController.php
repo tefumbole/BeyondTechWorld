@@ -342,6 +342,9 @@ class OnlineInvitationInvitationController extends Controller
                     'id' => $event->template->id,
                     'name' => $event->template->name,
                     'background' => $event->template->background,
+                    'border_color' => $event->template->border_color ?: '#c8a75e',
+                    'font_color' => $event->template->font_color ?: '#f3e7c1',
+                    'font_size' => (int) ($event->template->font_size ?: 16),
                 ] : null,
                 'categories' => $event->categories ? $event->categories->map(function ($c) {
                     return ['id' => $c->id, 'name' => $c->name];
@@ -377,6 +380,7 @@ class OnlineInvitationInvitationController extends Controller
             'rsvp' => 'nullable|string|max:255',
             'border_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'font_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'font_size' => 'nullable|integer|min:12|max:28',
         ]);
 
         $eventId = (int) $request->event_id;
@@ -385,6 +389,10 @@ class OnlineInvitationInvitationController extends Controller
         $rsvp = trim((string) $request->rsvp) ?: null;
         $borderColor = trim((string) $request->border_color) ?: '#c8a75e';
         $fontColor = trim((string) $request->font_color) ?: '#f3e7c1';
+        $fontSize = (int) ($request->font_size ?: 16);
+        if ($fontSize < 12 || $fontSize > 28) {
+            $fontSize = 16;
+        }
 
         $event = OnlineInvitationEvent::with('categories')->where('is_active', 1)->find($eventId);
         if (!$event) {
@@ -398,7 +406,7 @@ class OnlineInvitationInvitationController extends Controller
         $created = 0;
         $markedFailedMissingPhone = 0;
 
-        $createInvitation = function (?int $customerId, ?int $userId, ?string $name, ?string $phone, ?string $email) use ($eventId, $categoryId, $optionalMessage, $rsvp, $borderColor, $fontColor, &$created, &$markedFailedMissingPhone) {
+        $createInvitation = function (?int $customerId, ?int $userId, ?string $name, ?string $phone, ?string $email) use ($eventId, $categoryId, $optionalMessage, $rsvp, $borderColor, $fontColor, $fontSize, &$created, &$markedFailedMissingPhone) {
             $name = trim((string) $name) ?: null;
             $phone = $this->normalizeRecipientPhone($phone);
             $email = trim((string) $email) ?: null;
@@ -421,6 +429,7 @@ class OnlineInvitationInvitationController extends Controller
                 'rsvp' => $rsvp,
                 'border_color' => $borderColor,
                 'font_color' => $fontColor,
+                'font_size' => $fontSize,
                 'status' => $status,
                 'rsvp_status' => 'pending',
                 'last_error' => $lastError,
@@ -1143,6 +1152,7 @@ class OnlineInvitationInvitationController extends Controller
             'rsvp' => $invitation->rsvp,
             'borderColor' => $invitation->border_color ?: '#c8a75e',
             'fontColor' => $invitation->font_color ?: '#f3e7c1',
+            'fontSize' => (int) ($invitation->font_size ?: optional(optional($event)->template)->font_size ?: 16),
             'eventName' => $event->name,
             'eventLocation' => $event->location,
             'eventAtText' => $eventAtText,

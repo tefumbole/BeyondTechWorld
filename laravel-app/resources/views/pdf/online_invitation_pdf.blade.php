@@ -18,6 +18,15 @@
             $fontColor = '#f3e7c1';
         }
 
+        $fontSize = (int) ($fontSize ?? 16);
+        if ($fontSize < 12 || $fontSize > 28) {
+            $fontSize = 16;
+        }
+        $fs = $fontSize / 16.0;
+        $px = function ($base) use ($fs) {
+            return (int) max(8, round($base * $fs));
+        };
+
         $rsvpValue = !empty($rsvp) ? trim((string) $rsvp) : (string) ($acceptUrl ?? '');
         $rsvpValue = $rsvpValue !== '' ? $rsvpValue : (string) ($acceptUrl ?? '');
         $rsvpLabel = !empty($rsvp) ? 'RSVP' : 'RSVP / View';
@@ -64,7 +73,7 @@
         .title {
             text-align: center;
             letter-spacing: 3px;
-            font-size: 36px;
+            font-size: {{ $px(36) }}px;
             font-weight: 700;
             margin: 4px 0 2px 0;
             text-transform: uppercase;
@@ -73,7 +82,7 @@
         .subtitle {
             text-align: center;
             letter-spacing: 4px;
-            font-size: 13px;
+            font-size: {{ $px(13) }}px;
             font-weight: 600;
             color: inherit;
             margin: 0 0 18px 0;
@@ -83,7 +92,7 @@
 
         .dear {
             text-align: center;
-            font-size: 22px;
+            font-size: {{ $px(22) }}px;
             font-style: italic;
             margin: 8px 0 14px 0;
             color: inherit;
@@ -91,7 +100,7 @@
 
         .invite-line {
             text-align: center;
-            font-size: 16px;
+            font-size: {{ $px(16) }}px;
             font-weight: 500;
             color: inherit;
             margin: 0 0 8px 0;
@@ -100,7 +109,7 @@
 
         .event-name {
             text-align: center;
-            font-size: 34px;
+            font-size: {{ $px(34) }}px;
             font-weight: 800;
             letter-spacing: 1.5px;
             text-transform: uppercase;
@@ -113,7 +122,7 @@
 
         .optional-message {
             text-align: center;
-            font-size: 14px;
+            font-size: {{ $px(14) }}px;
             margin: 0 0 16px 0;
             color: inherit;
             opacity: 0.95;
@@ -139,7 +148,7 @@
         }
         .detail-label {
             display: block;
-            font-size: 12px;
+            font-size: {{ $px(12) }}px;
             font-weight: 700;
             letter-spacing: 2px;
             text-transform: uppercase;
@@ -148,7 +157,7 @@
         }
         .detail-value {
             display: block;
-            font-size: 22px;
+            font-size: {{ $px(22) }}px;
             font-weight: 800;
             letter-spacing: 0.3px;
             line-height: 1.25;
@@ -168,7 +177,7 @@
         .footer-note {
             margin: 18px auto 0 auto;
             text-align: center;
-            font-size: 15px;
+            font-size: {{ $px(15) }}px;
             font-weight: 700;
             letter-spacing: 0.2px;
             color: inherit;
@@ -184,14 +193,14 @@
             color: inherit;
         }
         .rsvp .label {
-            font-size: 14px;
+            font-size: {{ $px(14) }}px;
             font-weight: 800;
             letter-spacing: 3px;
             text-transform: uppercase;
             margin-bottom: 6px;
         }
         .rsvp .url {
-            font-size: 20px;
+            font-size: {{ $px(20) }}px;
             font-weight: 800;
             word-break: break-word;
             line-height: 1.3;

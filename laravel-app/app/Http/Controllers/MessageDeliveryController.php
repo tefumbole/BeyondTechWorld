@@ -113,6 +113,53 @@ class MessageDeliveryController extends Controller
     }
 
     /**
+     * Delete one delivery batch (and its items via FK cascade).
+     */
+    public function destroy(Request $request, $id)
+    {
+        $batch = MessageDeliveryBatch::findOrFail($id);
+        $module = $batch->type === 'online_invitation'
+            ? 'invitations'
+            : $this->moduleFromRequest($request);
+
+        $batch->items()->delete();
+        $batch->delete();
+
+        return redirect()->route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : [])
+            ->with('message', 'Queued message batch #'.$id.' deleted.');
+    }
+
+    /**
+     * Delete multiple delivery batches.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $module = $this->moduleFromRequest($request);
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (! $ids) {
+            return redirect()->back()->with('not_permitted', 'Select at least one queued message to delete.');
+        }
+
+        $query = MessageDeliveryBatch::whereIn('id', $ids);
+        if ($module === 'invitations') {
+            $query->where('type', 'online_invitation');
+        } elseif ($module === 'letters') {
+            $query->where('type', 'letter');
+        }
+
+        $batches = $query->get();
+        $count = 0;
+        foreach ($batches as $batch) {
+            $batch->items()->delete();
+            $batch->delete();
+            $count++;
+        }
+
+        return redirect()->route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : ($module === 'letters' ? ['module' => 'letters'] : []))
+            ->with('message', $count.' queued message batch(es) deleted.');
+    }
+
+    /**
      * Resend failed Digital Invitation recipients from a delivery batch.
      */
     public function resendFailed($id)

@@ -132,11 +132,30 @@
     if (active) setTimeout(tick, 1200);
 })();
 </script>
-@if(($module ?? '') === 'invitations')
 <script type="text/javascript">
-    $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
-    $("ul#online_invitation").addClass("show");
-    $("ul#online_invitation #online-invitation-queued-menu").addClass("active");
+(function () {
+    function activateModuleTabs() {
+        var module = @json($module ?? 'all');
+        $('#side-main-menu ul.collapse li.active').removeClass('active');
+        $('#side-main-menu > li > a').removeClass('menu-parent-active').attr('aria-expanded', 'false');
+        $('#side-main-menu ul.collapse').removeClass('show');
+        if (module === 'invitations') {
+            $("ul#online_invitation").siblings('a').attr('aria-expanded', 'true').addClass('menu-parent-active');
+            $("ul#online_invitation").addClass('show');
+            $("ul#online_invitation #online-invitation-queued-menu").addClass('active');
+        } else {
+            $("ul#letter").siblings('a').attr('aria-expanded', 'true').addClass('menu-parent-active');
+            $("ul#letter").addClass('show');
+            $("ul#letter #letter-queued-menu").addClass('active');
+        }
+        if (typeof window.beyondBuildModuleTabs === 'function') {
+            window.beyondBuildModuleTabs();
+        }
+    }
+    if (window.jQuery) {
+        $(activateModuleTabs);
+        $(function () { setTimeout(activateModuleTabs, 0); });
+    }
+})();
 </script>
-@endif
 @endsection

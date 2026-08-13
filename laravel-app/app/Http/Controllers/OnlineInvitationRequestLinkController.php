@@ -131,7 +131,7 @@ class OnlineInvitationRequestLinkController extends Controller
 
     public function submitPublic(Request $request, $token)
     {
-        $link = OnlineInvitationRequestLink::with(['event', 'category'])
+        $link = OnlineInvitationRequestLink::with(['event.template', 'category'])
             ->where('token', $token)
             ->where('is_active', 1)
             ->firstOrFail();
@@ -182,6 +182,14 @@ class OnlineInvitationRequestLinkController extends Controller
             }
         }
 
+        $template = optional($link->event)->template;
+        $borderColor = trim((string) optional($template)->border_color) ?: '#c8a75e';
+        $fontColor = trim((string) optional($template)->font_color) ?: '#f3e7c1';
+        $fontSize = (int) (optional($template)->font_size ?: 16);
+        if ($fontSize < 12 || $fontSize > 28) {
+            $fontSize = 16;
+        }
+
         $invitation = OnlineInvitation::create([
             'event_id' => $link->event_id,
             'category_id' => $link->category_id,
@@ -192,8 +200,9 @@ class OnlineInvitationRequestLinkController extends Controller
             'status' => 'awaiting_sending',
             'rsvp_status' => 'pending',
             'token' => Str::random(48),
-            'border_color' => '#c8a75e',
-            'font_color' => '#f3e7c1',
+            'border_color' => $borderColor,
+            'font_color' => $fontColor,
+            'font_size' => $fontSize,
             'is_active' => 1,
             'created_by' => $link->created_by,
         ]);

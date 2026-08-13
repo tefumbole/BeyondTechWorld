@@ -83,6 +83,9 @@ class OnlineInvitationTemplateController extends Controller
                 }),
             ],
             'background_image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp,bmp,svg|max:5120',
+            'border_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'font_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'font_size' => 'nullable|integer|min:12|max:28',
         ]);
 
         $background = null;
@@ -90,9 +93,17 @@ class OnlineInvitationTemplateController extends Controller
             $background = $this->storeTemplateBackgroundImage($request->file('background_image'));
         }
 
+        $fontSize = (int) ($request->font_size ?: 16);
+        if ($fontSize < 12 || $fontSize > 28) {
+            $fontSize = 16;
+        }
+
         OnlineInvitationTemplate::create([
             'name' => $request->name,
             'background' => $background,
+            'border_color' => trim((string) $request->border_color) ?: '#c8a75e',
+            'font_color' => trim((string) $request->font_color) ?: '#f3e7c1',
+            'font_size' => $fontSize,
             'is_active' => 1,
             'created_by' => Auth::id(),
         ]);
@@ -125,11 +136,21 @@ class OnlineInvitationTemplateController extends Controller
                 }),
             ],
             'background_image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp,bmp,svg|max:5120',
+            'border_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'font_color' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'font_size' => 'nullable|integer|min:12|max:28',
         ]);
 
         $template = OnlineInvitationTemplate::findOrFail($id);
+        $fontSize = (int) ($request->font_size ?: 16);
+        if ($fontSize < 12 || $fontSize > 28) {
+            $fontSize = 16;
+        }
         $updates = [
             'name' => $request->name,
+            'border_color' => trim((string) $request->border_color) ?: '#c8a75e',
+            'font_color' => trim((string) $request->font_color) ?: '#f3e7c1',
+            'font_size' => $fontSize,
         ];
 
         if ($request->hasFile('background_image')) {

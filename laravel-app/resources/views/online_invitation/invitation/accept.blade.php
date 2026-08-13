@@ -52,7 +52,7 @@
     .title {
         text-align: center;
         letter-spacing: 3px;
-        font-size: 36px;
+        font-size: calc(36px * var(--oi-fs, 1));
         font-weight: 700;
         margin: 4px 0 2px 0;
         text-transform: uppercase;
@@ -61,7 +61,7 @@
     .subtitle {
         text-align: center;
         letter-spacing: 4px;
-        font-size: 13px;
+        font-size: calc(13px * var(--oi-fs, 1));
         font-weight: 600;
         color: inherit;
         margin: 0 0 18px 0;
@@ -71,14 +71,14 @@
 
     .dear {
         text-align: center;
-        font-size: 22px;
+        font-size: calc(22px * var(--oi-fs, 1));
         font-style: italic;
         margin: 8px 0 14px 0;
         color: inherit;
     }
     .invite-line {
         text-align: center;
-        font-size: 16px;
+        font-size: calc(16px * var(--oi-fs, 1));
         font-weight: 500;
         color: inherit;
         margin: 0 0 8px 0;
@@ -86,7 +86,7 @@
     }
     .event-name {
         text-align: center;
-        font-size: 34px;
+        font-size: calc(34px * var(--oi-fs, 1));
         font-weight: 800;
         letter-spacing: 1.5px;
         text-transform: uppercase;
@@ -97,7 +97,7 @@
     }
     .optional-message {
         text-align: center;
-        font-size: 14px;
+        font-size: calc(14px * var(--oi-fs, 1));
         margin: 0 0 16px 0;
         opacity: 0.95;
     }
@@ -119,7 +119,7 @@
     }
     .detail-label {
         display: block;
-        font-size: 12px;
+        font-size: calc(12px * var(--oi-fs, 1));
         font-weight: 700;
         letter-spacing: 2px;
         text-transform: uppercase;
@@ -128,7 +128,7 @@
     }
     .detail-value {
         display: block;
-        font-size: 22px;
+        font-size: calc(22px * var(--oi-fs, 1));
         font-weight: 800;
         line-height: 1.25;
     }
@@ -139,14 +139,14 @@
         color: inherit;
     }
     .rsvp .label {
-        font-size: 14px;
+        font-size: calc(14px * var(--oi-fs, 1));
         font-weight: 800;
         letter-spacing: 3px;
         text-transform: uppercase;
         margin-bottom: 6px;
     }
     .rsvp .url {
-        font-size: 20px;
+        font-size: calc(20px * var(--oi-fs, 1));
         font-weight: 800;
         word-break: break-word;
         line-height: 1.3;
@@ -166,7 +166,7 @@
     .footer-note {
         margin: 18px auto 0 auto;
         text-align: center;
-        font-size: 15px;
+        font-size: calc(15px * var(--oi-fs, 1));
         font-weight: 700;
         letter-spacing: 0.2px;
         line-height: 1.4;
@@ -179,8 +179,6 @@
     @media (max-width: 575.98px) {
         .frame { padding: 12px; }
         .border-inner { padding: 16px; min-height: auto; }
-        .title { font-size: 34px; }
-        .dear { font-size: 22px; }
         .details { width: 100%; }
     }
     @media print {
@@ -255,6 +253,11 @@
     if (!preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', $fontColor)) {
         $fontColor = '#f3e7c1';
     }
+    $fontSize = (int) ($data->font_size ?? optional(optional($event)->template)->font_size ?: 16);
+    if ($fontSize < 12 || $fontSize > 28) {
+        $fontSize = 16;
+    }
+    $fs = $fontSize / 16.0;
 
     $rsvpValue = trim((string) ($data->rsvp ?? ''));
     $rsvpValue = $rsvpValue !== '' ? $rsvpValue : $acceptUrl;
@@ -267,6 +270,7 @@
     :root {
         --oi-border: {{ $borderColor }};
         --oi-font: {{ $fontColor }};
+        --oi-fs: {{ $fs }};
     }
 </style>
 

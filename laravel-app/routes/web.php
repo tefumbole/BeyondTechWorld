@@ -529,6 +529,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
         Route::get('reminders', 'OnlineInvitationReminderController@index')->name('reminders.index');
         Route::post('reminders', 'OnlineInvitationReminderController@store')->name('reminders.store');
         Route::post('reminders/{id}/cancel', 'OnlineInvitationReminderController@cancel')->name('reminders.cancel');
+
+        Route::get('queued-messages', function () {
+            return redirect()->route('message.delivery.index', ['module' => 'invitations']);
+        })->name('queued');
     });
 
     // Legacy stub routes → new module
@@ -1078,7 +1082,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/letters/sent/download', 'LetterController@sentDownload')->name('letter.index.sent.download');
     Route::get('/letters/queued-messages', 'MessageDeliveryController@index')->name('message.delivery.index');
     Route::get('/letters/queued-messages/status', 'MessageDeliveryController@status')->name('message.delivery.status');
+    Route::post('/letters/queued-messages/bulk-delete', 'MessageDeliveryController@bulkDestroy')->name('message.delivery.bulk_destroy');
     Route::post('/letters/queued-messages/{id}/resend', 'MessageDeliveryController@resendFailed')->name('message.delivery.resend');
+    Route::delete('/letters/queued-messages/{id}', 'MessageDeliveryController@destroy')->name('message.delivery.destroy');
     Route::get('/letters/queued-messages/{id}', 'MessageDeliveryController@show')->name('message.delivery.show');
     Route::get('/letters/queued-messages/{id}/status', 'MessageDeliveryController@itemStatus')->name('message.delivery.item-status');
     Route::get('/letters/show/{id}', 'LetterController@show')->name('letter.show');

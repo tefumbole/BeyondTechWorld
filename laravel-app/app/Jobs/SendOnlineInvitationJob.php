@@ -133,6 +133,7 @@ class SendOnlineInvitationJob implements ShouldQueue
                 'rsvp' => $invitation->rsvp,
                 'borderColor' => $invitation->border_color ?: '#c8a75e',
                 'fontColor' => $invitation->font_color ?: '#f3e7c1',
+                'fontSize' => (int) ($invitation->font_size ?: optional($event->template)->font_size ?: 16),
                 'eventName' => $event->name,
                 'eventLocation' => $event->location,
                 'eventAtText' => $eventAtText,

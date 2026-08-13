@@ -167,6 +167,13 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Font size</label>
+                                    <input type="number" name="font_size" id="font_size" class="form-control" min="12" max="28" value="{{ old('font_size', 16) }}">
+                                    <small class="form-text text-muted">Defaults from the event template (12–28).</small>
+                                </div>
+                            </div>
                         </div>
 
                     <style>
@@ -591,6 +598,17 @@
         $('#oi-preview-canvas').css('color', fontColor);
         $('#oi-preview-text').find('.oi-pv').css('color', fontColor);
 
+        var fontSize = parseInt($('#font_size').val(), 10) || 16;
+        if (fontSize < 12 || fontSize > 28) fontSize = 16;
+        var scale = fontSize / 16;
+        $('#oi-preview-title').css('font-size', (20 * scale) + 'px');
+        $('#oi-preview-dear').css('font-size', (15 * scale) + 'px');
+        $('#oi-preview-message').css('font-size', (12 * scale) + 'px');
+        $('#oi-preview-event').css('font-size', (18 * scale) + 'px');
+        $('#oi-preview-date, #oi-preview-venue').css('font-size', (14 * scale) + 'px');
+        $('#oi-preview-footer').css('font-size', (11 * scale) + 'px');
+        $('#oi-preview-rsvp').css('font-size', (13 * scale) + 'px');
+
         var msg = ($('#message').val() || '').toString().trim();
         if (msg) {
             $('#oi-preview-optional-message').text(msg);
@@ -685,9 +703,23 @@
     $('#recipient_mode').on('change', toggleRecipientMode);
     $('#recipient_mode').on('change', refreshPreview);
     $('#event_id').on('change', function () {
-        refreshCategoriesForEvent($(this).val());
+        var eventId = $(this).val();
+        refreshCategoriesForEvent(eventId);
+        var eventData = eventId ? oiEventPreviewData[eventId] : null;
+        if (eventData && eventData.template) {
+            var border = normalizeHexColor(eventData.template.border_color, '#c8a75e');
+            var font = normalizeHexColor(eventData.template.font_color, '#f3e7c1');
+            var size = parseInt(eventData.template.font_size, 10) || 16;
+            if (size < 12 || size > 28) size = 16;
+            $('#border_color').val(border);
+            $('#border_color_picker').val(border);
+            $('#font_color').val(font);
+            $('#font_color_picker').val(font);
+            $('#font_size').val(size);
+        }
         refreshPreview();
     });
+    $('#font_size').on('input change', refreshPreview);
     $('#category_id').on('change', refreshPreview);
     $('input[name="recipient_csv"]').on('change', refreshPreview);
     $('#message').on('input', refreshPreview);

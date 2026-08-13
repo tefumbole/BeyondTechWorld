@@ -37,14 +37,16 @@
                     @endif
                 </p>
             </div>
-            <div class="d-flex align-items-center" style="gap:12px;">
+            <div class="d-flex align-items-center flex-wrap" style="gap:12px;">
                 <span class="mdq-live" id="mdq-live" style="{{ ($activeCount ?? 0) > 0 ? '' : 'display:none' }}">
                     <span class="dot"></span> Sending in progress
                 </span>
+                <button type="button" id="mdq-bulk-delete-btn" class="btn btn-danger btn-sm" disabled>Delete selected</button>
                 @if($module === 'invitations')
                     <a class="btn btn-outline-danger btn-sm" href="{{ route('online_invitation.invitations.index', ['status' => 'failed']) }}">Failed Invitations</a>
                     <a class="btn btn-outline-secondary btn-sm" href="{{ route('online_invitation.invitations.index') }}">All Invitations</a>
                 @else
+                    <a class="btn btn-outline-primary btn-sm" href="{{ route('online_invitation.queued') }}">Invitation queue</a>
                     <a class="btn btn-outline-secondary btn-sm" href="{{ route('letter.index.sent') }}">Sent Letters</a>
                 @endif
             </div>
@@ -65,11 +67,24 @@
             </div>
         @endif
 
+        <form id="mdq-bulk-delete-form" action="{{ route('message.delivery.bulk_destroy') }}" method="POST" class="d-none">
+            @csrf
+            @if($module === 'invitations')
+                <input type="hidden" name="module" value="invitations">
+            @elseif($module === 'letters')
+                <input type="hidden" name="module" value="letters">
+            @endif
+            <div id="mdq-bulk-delete-inputs"></div>
+        </form>
+
         <div class="mdq-card">
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="mdq-table">
                     <thead>
                     <tr>
+                        <th style="width:36px;">
+                            <input type="checkbox" id="mdq-select-all" title="Select all">
+                        </th>
                         <th>Batch</th>
                         <th>Status</th>
                         <th>Progress</th>
@@ -82,6 +97,9 @@
                     <tbody>
                     @forelse($batches as $batch)
                         <tr data-batch-id="{{ $batch->id }}">
+                            <td>
+                                <input type="checkbox" class="mdq-batch-checkbox" value="{{ $batch->id }}">
+                            </td>
                             <td>
                                 <strong>{{ $batch->title ?: ('Batch #'.$batch->id) }}</strong>
                                 @if(($batch->type ?? '') === 'online_invitation')
@@ -106,10 +124,15 @@
                                         <button type="submit" class="btn btn-sm btn-primary">Resend failed</button>
                                     </form>
                                 @endif
+                                <form action="{{ route('message.delivery.destroy', $batch->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this queued message batch?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
                             </td>
                         </tr>
                     @empty
-                        <tr id="mdq-empty"><td colspan="7">
+                        <tr id="mdq-empty"><td colspan="8">
                             @if(($module ?? '') === 'invitations')
                                 No invitation deliveries yet. Send selected invitations to see progress here.
                             @else
@@ -127,19 +150,91 @@
     </div>
 </section>
 
-@if(($module ?? '') === 'invitations')
 <script type="text/javascript">
-    $("ul#online_invitation").siblings('a').attr('aria-expanded','true');
-    $("ul#online_invitation").addClass("show");
-    $("ul#online_invitation #online-invitation-queued-menu").addClass("active");
+(function () {
+    function activateModuleTabs() {
+        var module = @json($module ?? 'all');
+        $('#side-main-menu ul.collapse li.active').removeClass('active');
+        $('#side-main-menu > li > a').removeClass('menu-parent-active').attr('aria-expanded', 'false');
+        $('#side-main-menu ul.collapse').removeClass('show');
+
+        if (module === 'invitations') {
+            $("ul#online_invitation").siblings('a').attr('aria-expanded', 'true').addClass('menu-parent-active');
+            $("ul#online_invitation").addClass('show');
+            $("ul#online_invitation #online-invitation-queued-menu").addClass('active');
+        } else {
+            $("ul#letter").siblings('a').attr('aria-expanded', 'true').addClass('menu-parent-active');
+            $("ul#letter").addClass('show');
+            $("ul#letter #letter-queued-menu").addClass('active');
+        }
+
+        if (typeof window.beyondBuildModuleTabs === 'function') {
+            window.beyondBuildModuleTabs();
+        }
+    }
+
+    if (window.jQuery) {
+        $(activateModuleTabs);
+        // Layout also builds tabs on ready — rebuild after so our active item wins.
+        $(function () { setTimeout(activateModuleTabs, 0); });
+    }
+})();
 </script>
-@endif
 <script>
 (function () {
     var pollUrl = @json(route('message.delivery.status', ['module' => $module ?? 'all']));
     var live = document.getElementById('mdq-live');
     var table = document.getElementById('mdq-table');
     if (!table) return;
+
+    function updateBulkBtn() {
+        var btn = document.getElementById('mdq-bulk-delete-btn');
+        var boxes = table.querySelectorAll('.mdq-batch-checkbox:checked');
+        if (btn) btn.disabled = boxes.length === 0;
+        var all = table.querySelectorAll('.mdq-batch-checkbox');
+        var selectAll = document.getElementById('mdq-select-all');
+        if (selectAll && all.length) {
+            selectAll.checked = boxes.length === all.length;
+        }
+    }
+
+    var selectAll = document.getElementById('mdq-select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            table.querySelectorAll('.mdq-batch-checkbox').forEach(function (cb) {
+                cb.checked = selectAll.checked;
+            });
+            updateBulkBtn();
+        });
+    }
+    table.addEventListener('change', function (e) {
+        if (e.target && e.target.classList.contains('mdq-batch-checkbox')) {
+            updateBulkBtn();
+        }
+    });
+
+    var bulkBtn = document.getElementById('mdq-bulk-delete-btn');
+    if (bulkBtn) {
+        bulkBtn.addEventListener('click', function () {
+            var ids = Array.prototype.map.call(table.querySelectorAll('.mdq-batch-checkbox:checked'), function (cb) {
+                return cb.value;
+            });
+            if (!ids.length) return;
+            if (!confirm('Delete ' + ids.length + ' selected queued message batch(es)? This cannot be undone.')) return;
+            var container = document.getElementById('mdq-bulk-delete-inputs');
+            var form = document.getElementById('mdq-bulk-delete-form');
+            if (!container || !form) return;
+            container.innerHTML = '';
+            ids.forEach(function (id) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = id;
+                container.appendChild(input);
+            });
+            form.submit();
+        });
+    }
 
     function applyBatch(b) {
         var row = table.querySelector('tr[data-batch-id="' + b.id + '"]');
@@ -169,7 +264,7 @@
         var ids = Array.prototype.map.call(table.querySelectorAll('tr[data-batch-id]'), function (tr) {
             return tr.getAttribute('data-batch-id');
         });
-        var qs = ids.length ? ('?ids[]=' + ids.join('&ids[]=')) : '';
+        var qs = ids.length ? ((pollUrl.indexOf('?') >= 0 ? '&' : '?') + 'ids[]=' + ids.join('&ids[]=')) : '';
         fetch(pollUrl + qs, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
