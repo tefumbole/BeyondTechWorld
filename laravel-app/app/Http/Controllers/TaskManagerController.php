@@ -239,4 +239,34 @@ class TaskManagerController extends Controller
 
         return response()->json($users);
     }
+
+    /**
+     * Quick-add an assignee (customer + portal user) from Create Task Assign To.
+     */
+    public function quickAssignee(Request $request)
+    {
+        $this->authorizeTasks('tasks.create');
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $result = app(\App\Services\PeopleDirectoryService::class)->findOrCreateCustomerQuick($data);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'created' => $result['created'],
+            'customer_id' => $result['customer']->id,
+            'user' => $result['person'],
+        ]);
+    }
 }

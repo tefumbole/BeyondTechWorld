@@ -407,6 +407,24 @@ class BeyondAuthController extends Controller
             return (clone $query)->whereRaw('LOWER(email) = ?', [strtolower($id)])->first();
         }
 
+        // Phone (digits) — admission letters tell interns to use WhatsApp number as username.
+        $digits = preg_replace('/\D+/', '', $id);
+        if (strlen($digits) >= 8) {
+            $tail = substr($digits, -9);
+            $byPhone = (clone $query)->where(function ($q) use ($id, $digits, $tail) {
+                $q->where('phone', $id)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', '+'.$digits)
+                    ->orWhereRaw(
+                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                        [$tail]
+                    );
+            })->first();
+            if ($byPhone) {
+                return $byPhone;
+            }
+        }
+
         return (clone $query)->whereRaw('LOWER(name) = ?', [strtolower($id)])->first();
     }
 
@@ -497,14 +515,20 @@ class BeyondAuthController extends Controller
             ? CountryDialCodes::combine($data['country_code'], $data['phone'])
             : $data['phone'];
 
-        $user = $this->auth->findByPhone($phone);
-        if (! $user) {
+        $account = $this->resolveRecoverableAccountByPhone($phone);
+        if (! $account) {
             return back()->withErrors(['phone' => 'No account found with this phone number.']);
         }
 
-        $otp = $this->auth->createOtp($phone, 'password_reset');
-        $send = $this->whatsapp->sendOtp($phone, $otp['code'], 'password_reset');
-        if (! $send['success']) {
+        try {
+            $formatted = $this->whatsapp->formatPhone($account['phone'] ?: $phone);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['phone' => 'Invalid WhatsApp number on this account.']);
+        }
+
+        $otp = $this->auth->createOtp($formatted, 'password_reset');
+        $send = $this->whatsapp->sendOtp($formatted, $otp['code'], 'password_reset');
+        if (empty($send['success'])) {
             return back()->withErrors(['phone' => $send['error'] ?? 'Failed to send verification code.']);
         }
 
@@ -512,6 +536,9 @@ class BeyondAuthController extends Controller
             'password_reset_phone' => $otp['phone'],
             'password_reset_masked' => $this->whatsapp->maskPhone($otp['phone']),
             'password_reset_step' => 2,
+            'password_reset_account_type' => $account['type'],
+            'password_reset_account_id' => $account['id'],
+            'password_reset_current_username' => $account['username'],
         ]);
 
         return redirect('/forgot-password')->with('success', 'Verification code sent to your WhatsApp.');
@@ -521,11 +548,14 @@ class BeyondAuthController extends Controller
     {
         $request->validate([
             'otp' => 'required|string|size:6',
+            'username' => 'required|string|min:3|max:100',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
         $phone = session('password_reset_phone');
-        if (! $phone) {
+        $type = session('password_reset_account_type');
+        $accountId = session('password_reset_account_id');
+        if (! $phone || ! $type || ! $accountId) {
             return redirect('/forgot-password')->withErrors(['otp' => 'Session expired. Request a new code.']);
         }
 
@@ -534,16 +564,106 @@ class BeyondAuthController extends Controller
             return back()->withErrors(['otp' => $result['error']]);
         }
 
-        $user = $this->auth->findByPhone($phone);
-        if (! $user) {
-            return back()->withErrors(['otp' => 'Account not found.']);
+        $username = trim((string) $request->username);
+        if ($type === 'beyond') {
+            $user = BeyondUser::find($accountId);
+            if (! $user) {
+                return back()->withErrors(['otp' => 'Account not found.']);
+            }
+            $norm = $this->auth->normalizeUsername($username);
+            $taken = BeyondUser::whereRaw('LOWER(username) = ?', [strtolower($norm)])
+                ->where('id', '!=', $user->id)
+                ->exists();
+            if ($taken) {
+                return back()->withErrors(['username' => 'That username is already taken.']);
+            }
+            $user->username = $norm;
+            $user->password_hash = $this->auth->hashPassword($request->password);
+            $user->save();
+        } else {
+            $user = User::where('is_deleted', false)->where('is_active', 1)->find($accountId);
+            if (! $user) {
+                return back()->withErrors(['otp' => 'Account not found.']);
+            }
+            // ERP login username is users.name (email and phone also work after this fix).
+            $taken = User::where('is_deleted', false)
+                ->whereRaw('LOWER(name) = ?', [strtolower($username)])
+                ->where('id', '!=', $user->id)
+                ->exists();
+            if ($taken) {
+                return back()->withErrors(['username' => 'That username is already taken.']);
+            }
+            $user->name = $username;
+            $user->password = Hash::make($request->password);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')) {
+                $user->must_set_password = 0;
+            }
+            $user->save();
         }
 
-        $user->password_hash = $this->auth->hashPassword($request->password);
-        $user->save();
-        session()->forget(['password_reset_phone', 'password_reset_masked', 'password_reset_step']);
+        session()->forget([
+            'password_reset_phone',
+            'password_reset_masked',
+            'password_reset_step',
+            'password_reset_account_type',
+            'password_reset_account_id',
+            'password_reset_current_username',
+        ]);
 
         return redirect('/forgot-password')->with('reset_complete', true);
+    }
+
+    /**
+     * Resolve Beyond portal or ERP (intern/staff) account by WhatsApp phone.
+     *
+     * @return array{type:string,id:string|int,phone:string,username:string}|null
+     */
+    protected function resolveRecoverableAccountByPhone($phone)
+    {
+        $beyond = $this->auth->findByPhone($phone);
+        if ($beyond) {
+            return [
+                'type' => 'beyond',
+                'id' => $beyond->id,
+                'phone' => optional(BeyondProfile::find($beyond->id))->phone ?: $beyond->phone,
+                'username' => $beyond->username ?: $beyond->email,
+            ];
+        }
+
+        try {
+            $formatted = $this->whatsapp->formatPhone($phone);
+        } catch (\Throwable $e) {
+            $formatted = preg_replace('/\D/', '', (string) $phone);
+        }
+        $digits = preg_replace('/\D/', '', (string) $formatted);
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        $tail = substr($digits, -9);
+
+        $staff = User::where('is_deleted', false)
+            ->where('is_active', 1)
+            ->where(function ($q) use ($formatted, $digits, $tail) {
+                $q->where('phone', $formatted)
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', '+'.$digits)
+                    ->orWhereRaw(
+                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                        [$tail]
+                    );
+            })
+            ->first();
+
+        if (! $staff) {
+            return null;
+        }
+
+        return [
+            'type' => 'web',
+            'id' => $staff->id,
+            'phone' => $staff->phone ?: $formatted,
+            'username' => $staff->name ?: ($staff->email ?: ''),
+        ];
     }
 
     public function showProfile()

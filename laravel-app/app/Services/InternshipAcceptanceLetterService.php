@@ -118,7 +118,7 @@ class InternshipAcceptanceLetterService
 <p><strong>Your internship period</strong> will run from <strong>[start_date]</strong> to <strong>[end_date]</strong>.</p>
 <p><strong>Duration:</strong> [duration]. You are required to <strong>submit a task daily</strong>.</p>
 <p><strong>Login credentials</strong><br>
-Username: <strong>[phone_number]</strong> (or email <strong>[email]</strong>)<br>
+Username: <strong>[email]</strong> (or WhatsApp <strong>[phone_number]</strong>)<br>
 Default password: <strong>[password]</strong><br>
 After you log in, please change your password immediately. Then go to <strong>Timesheets</strong> and configure your working week.</p>
 <p>This is more than an internship—it is an opportunity to learn, grow, solve meaningful problems, and build your future.</p>
@@ -292,7 +292,7 @@ HTML;
             'end_date' => $endDate,
             'duration' => $duration,
             'password' => self::DEFAULT_PASSWORD,
-            'username' => $phone ?: (string) ($application->email ?: ''),
+            'username' => (string) ($application->email ?: $phone),
             // Also map into columns for older templates / CSV-style docs.
             'column1' => $systemName,
             'column2' => $program,

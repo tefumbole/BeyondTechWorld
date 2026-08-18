@@ -325,6 +325,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/tasks/settings/templates', 'TaskManagerController@storeTemplate')->name('tasks.settings.templates.store');
     Route::post('/admin/tasks/settings/templates/{id}/delete', 'TaskManagerController@destroyTemplate')->name('tasks.settings.templates.destroy');
     Route::get('/admin/tasks/users/search', 'TaskManagerController@searchUsers')->name('tasks.users.search');
+    Route::post('/admin/tasks/users/quick', 'TaskManagerController@quickAssignee')->name('tasks.users.quick');
 
     // Job Board admin
     Route::get('/admin/permissions', 'StaffPermissionAdminController@index')->name('permissions.index');

@@ -182,6 +182,21 @@ class TimesheetEmployeeController extends Controller
 
         if (\App\Support\InternCompliance::appliesTo(Auth::user())) {
             $this->timesheet->ensureInternshipActivity(Auth::id());
+
+            // Working Week just configured — release Task 1 immediately if due.
+            try {
+                $enrolment = \App\InternshipEnrolment::where('student_user_id', Auth::id())
+                    ->where('status', 'active')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($enrolment) {
+                    app(\App\Services\Internship\InternshipProgramService::class)
+                        ->tryReleaseNext($enrolment, \Carbon\Carbon::today(), true);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Working week post-save task release failed: '.$e->getMessage());
+            }
+
             $missing = \App\Support\InternCompliance::missingTimesheetDate(Auth::user());
             if ($missing) {
                 return redirect()->route('timesheet.fill', ['date' => $missing, 'intern' => 1])
@@ -189,7 +204,7 @@ class TimesheetEmployeeController extends Controller
             }
 
             return redirect()->route('internship.student.dashboard')
-                ->with('message', 'Working week saved. You can open today’s internship task and fill your timesheet at the end of each working day.');
+                ->with('message', 'Working week saved. Your internship task will appear when released.');
         }
 
         return back()->with('message', 'Working week saved.');

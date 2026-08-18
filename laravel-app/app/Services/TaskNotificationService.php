@@ -51,7 +51,50 @@ class TaskNotificationService extends Controller
         ]);
         $message = TaskPersonalization::personalize($template, $vars);
 
-        return $this->sendPhone($user->phone, $message);
+        $phone = $this->resolveBeyondUserPhone($user);
+
+        return $this->sendPhone($phone, $message);
+    }
+
+    /**
+     * Prefer BeyondUser.phone; fall back to profile / customer directory phone.
+     */
+    protected function resolveBeyondUserPhone(BeyondUser $user)
+    {
+        $phone = trim((string) ($user->phone ?? ''));
+        if ($phone !== '') {
+            return $phone;
+        }
+        try {
+            $profile = \App\BeyondProfile::find($user->id);
+            if ($profile && trim((string) $profile->phone) !== '') {
+                $phone = trim((string) $profile->phone);
+                $user->phone = $phone;
+                $user->save();
+
+                return $phone;
+            }
+        } catch (\Throwable $e) {
+        }
+        try {
+            if (! empty($user->email)) {
+                $customer = \App\Customer::where('is_active', 1)
+                    ->whereRaw('LOWER(email) = ?', [strtolower($user->email)])
+                    ->whereNotNull('phone_number')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($customer && trim((string) $customer->phone_number) !== '') {
+                    $phone = trim((string) $customer->phone_number);
+                    $user->phone = $phone;
+                    $user->save();
+
+                    return $phone;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $phone;
     }
 
     public function notifyCcOnAssignment(Task $task)

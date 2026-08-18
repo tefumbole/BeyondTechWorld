@@ -817,9 +817,11 @@ class WhatsAppMessage
         $msg .= "Your internship admission letter PDF was sent above. Use these details to sign in and set your Working Week.\n\n";
         $msg .= self::bullet('Username', $username ?: '—');
         $msg .= self::bullet('Default password', $password ?: 'system');
+        $msg .= "_Sign in with your email, WhatsApp number, or username. If you forget either, use Forgot username / password on the login page._\n";
         $msg .= self::actionLink('Sign in', $loginUrl);
+        $msg .= self::actionLink('Recover account (OTP)', url('/forgot-password'));
         $msg .= self::actionLink('Go to Timesheets → Working Week', $timesheetUrl);
-        $msg .= "\nAfter login, change your password, then open *Timesheets* and configure your working week so daily tasks can be released.";
+        $msg .= "\nAfter login, change your password (or recover via WhatsApp OTP), then open *Timesheets* and configure your working week so daily tasks continue.";
         $msg .= self::footer();
 
         return $msg;

@@ -181,6 +181,8 @@
 <script>
 window.TM_USERS = @json($usersJson);
 window.TM_USERS_SEARCH = @json(route('tasks.users.search'));
+window.TM_USERS_QUICK = @json(route('tasks.users.quick'));
+window.TM_CSRF = @json(csrf_token());
 (function () {
     var container = document.getElementById('tm-tasks');
     var taskIndex = 0;
@@ -377,9 +379,24 @@ window.TM_USERS_SEARCH = @json(route('tasks.users.search'));
             + '      <button type="button" class="tm-pill tm-af" data-role="staff">Staff</button>'
             + '      <button type="button" class="tm-pill tm-af" data-role="customers">Customers</button>'
             + '    </div>'
-            + '    <div class="d-flex mb-2" style="gap:8px;">'
+            + '    <div class="d-flex mb-2" style="gap:8px;flex-wrap:wrap;">'
             + '      <div class="tm-search-wrap"><input type="search" class="tm-field tm-asearch" placeholder="Search…"></div>'
             + '      <button type="button" class="tm-pill-outline tm-aselect-all">Select everyone</button>'
+            + '      <button type="button" class="tm-pill-outline tm-add-new">+ Add new</button>'
+            + '    </div>'
+            + '    <div class="tm-add-panel mb-2" style="display:none;border:1px solid #dbe4f0;border-radius:10px;padding:12px;background:#f8fafc;">'
+            + '      <p class="tm-hint mb-2">Create a guest assignee with name + WhatsApp. They are saved as a Customer and can be selected again later.</p>'
+            + '      <div class="row">'
+            + '        <div class="col-md-6 mb-2"><input type="text" class="tm-field tm-new-name" placeholder="Full name *"></div>'
+            + '        <div class="col-md-6 mb-2"><input type="tel" class="tm-field tm-new-phone" placeholder="WhatsApp / phone *"></div>'
+            + '        <div class="col-md-6 mb-2"><input type="email" class="tm-field tm-new-email" placeholder="Email (optional)"></div>'
+            + '        <div class="col-md-6 mb-2"><input type="text" class="tm-field tm-new-address" placeholder="Address (optional)"></div>'
+            + '      </div>'
+            + '      <div class="d-flex" style="gap:8px;">'
+            + '        <button type="button" class="tm-pill-outline tm-new-save">Save &amp; assign</button>'
+            + '        <button type="button" class="tm-pill tm-new-cancel">Cancel</button>'
+            + '        <small class="tm-new-status text-muted align-self-center"></small>'
+            + '      </div>'
             + '    </div>'
             + '    <div class="tm-user-list tm-alist"></div>'
             + '    <div class="tm-achips mt-2"></div>'
@@ -506,6 +523,79 @@ window.TM_USERS_SEARCH = @json(route('tasks.users.search'));
                 if (assignees.indexOf(u.id) === -1) assignees.push(u.id);
             });
             refreshAssignees();
+        });
+        wrap.querySelector('.tm-add-new').addEventListener('click', function () {
+            var panel = wrap.querySelector('.tm-add-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') {
+                wrap.querySelector('.tm-new-name').focus();
+            }
+        });
+        wrap.querySelector('.tm-new-cancel').addEventListener('click', function () {
+            wrap.querySelector('.tm-add-panel').style.display = 'none';
+            wrap.querySelector('.tm-new-status').textContent = '';
+        });
+        wrap.querySelector('.tm-new-save').addEventListener('click', function () {
+            var name = (wrap.querySelector('.tm-new-name').value || '').trim();
+            var phone = (wrap.querySelector('.tm-new-phone').value || '').trim();
+            var email = (wrap.querySelector('.tm-new-email').value || '').trim();
+            var address = (wrap.querySelector('.tm-new-address').value || '').trim();
+            var statusEl = wrap.querySelector('.tm-new-status');
+            var btn = wrap.querySelector('.tm-new-save');
+            if (!name || !phone) {
+                alert('Name and WhatsApp / phone are required.');
+                return;
+            }
+            if (!window.TM_USERS_QUICK) {
+                alert('Quick-add is not available.');
+                return;
+            }
+            btn.disabled = true;
+            statusEl.textContent = 'Saving…';
+            fetch(window.TM_USERS_QUICK, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': window.TM_CSRF || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ name: name, phone: phone, email: email, address: address })
+            }).then(function (r) {
+                return r.json().then(function (body) {
+                    if (!r.ok) {
+                        var msg = (body && body.message) ? body.message : 'Could not save assignee.';
+                        if (body && body.errors) {
+                            var first = Object.keys(body.errors)[0];
+                            if (first && body.errors[first] && body.errors[first][0]) msg = body.errors[first][0];
+                        }
+                        throw new Error(msg);
+                    }
+                    return body;
+                });
+            }).then(function (body) {
+                var u = body.user;
+                if (!u || !u.id) throw new Error('Invalid response.');
+                mergeUsers([u]);
+                if (assignees.indexOf(u.id) === -1) assignees.push(u.id);
+                aRole = 'customers';
+                wrap.querySelectorAll('.tm-af').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-role') === 'customers');
+                });
+                wrap.querySelector('.tm-new-name').value = '';
+                wrap.querySelector('.tm-new-phone').value = '';
+                wrap.querySelector('.tm-new-email').value = '';
+                wrap.querySelector('.tm-new-address').value = '';
+                wrap.querySelector('.tm-add-panel').style.display = 'none';
+                statusEl.textContent = body.created ? 'Assignee added.' : 'Existing contact selected.';
+                refreshAssignees();
+            }).catch(function (err) {
+                alert(err.message || 'Could not save assignee.');
+                statusEl.textContent = '';
+            }).finally(function () {
+                btn.disabled = false;
+            });
         });
         wrap.querySelector('.tm-cselect-all').addEventListener('click', function () {
             filterUsers(wrap.querySelector('.tm-csearch').value, cRole).forEach(function (u) {

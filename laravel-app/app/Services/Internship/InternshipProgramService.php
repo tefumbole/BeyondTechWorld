@@ -189,7 +189,7 @@ class InternshipProgramService
             }
 
             $blocking = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
+                ->whereIn('status', ['available', 'in_progress', 'revision_required'])
                 ->exists();
             if ($blocking) {
                 continue;
@@ -368,7 +368,7 @@ class InternshipProgramService
         return $released;
     }
 
-    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null)
+    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false)
     {
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
         $student = $enrolment->student;
@@ -376,30 +376,38 @@ class InternshipProgramService
             return false;
         }
 
-        // Block daily release until the student has configured their own Working Week.
-        if (! InternCompliance::workingWeekConfigured($student)) {
+        $releasedCount = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+            ->whereNotNull('released_at')
+            ->count();
+        $isFirstTask = $releasedCount === 0;
+
+        // First task after admission: allow release even before Working Week is configured.
+        // Later tasks still require a personal Working Week.
+        if (! $isFirstTask && ! InternCompliance::workingWeekConfigured($student)) {
             return false;
         }
 
-        $result = DB::transaction(function () use ($enrolment, $student, $today) {
+        $result = DB::transaction(function () use ($enrolment, $student, $today, $forceSameDay, $isFirstTask) {
             $enrolment = InternshipEnrolment::where('id', $enrolment->id)->lockForUpdate()->first();
             if (! $enrolment || $enrolment->status !== 'active') {
                 return null;
             }
 
+            // Only block when the student still has an open (unsubmitted) task.
+            // Submitted tasks may await grading while the next day is released.
             $blocking = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
+                ->whereIn('status', ['available', 'in_progress', 'revision_required'])
                 ->exists();
             if ($blocking) {
                 return null;
             }
 
-            if ($enrolment->last_release_date
+            if (! $forceSameDay && $enrolment->last_release_date
                 && Carbon::parse($enrolment->last_release_date)->isSameDay($today)) {
                 return null;
             }
 
-            if (! $this->isWorkingDate($student, $today)) {
+            if (! $isFirstTask && ! $this->isWorkingDate($student, $today)) {
                 return null;
             }
 
@@ -532,6 +540,18 @@ class InternshipProgramService
         ]);
 
         $this->notifySubmission($assignment->enrolment->fresh(['student', 'program', 'supervisor']), $assignment->fresh(['task']), $submission);
+
+        // After Task N is submitted, immediately release Task N+1 (same account / placement).
+        try {
+            $enrolment = $assignment->enrolment->fresh(['student', 'program']);
+            if ($enrolment) {
+                $this->tryReleaseNext($enrolment, Carbon::today(), true);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Post-submit next task release failed: '.$e->getMessage(), [
+                'assignment_id' => $assignment->id,
+            ]);
+        }
 
         return $submission;
     }
@@ -916,9 +936,47 @@ class InternshipProgramService
         return DB::table('internship_notification_logs')->where('idempotency_key', $key)->where('status', 'sent')->exists();
     }
 
+    /**
+     * When ERP user.phone is empty, recover WhatsApp number from the linked application.
+     */
+    protected function resolveFallbackPhoneForUser(User $user)
+    {
+        try {
+            $enrolment = InternshipEnrolment::where('student_user_id', $user->id)
+                ->whereNotNull('application_id')
+                ->orderByDesc('id')
+                ->first();
+            if (! $enrolment || ! $enrolment->application_id) {
+                return null;
+            }
+            $app = \App\Application::find($enrolment->application_id);
+            if (! $app) {
+                return null;
+            }
+            $raw = $app->whatsapp_number ?: $app->phone;
+            if (! $raw) {
+                return null;
+            }
+
+            return app(\App\Services\BeyondWasenderService::class)->formatPhone($raw) ?: $raw;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     protected function sendWhatsApp(User $user, $message, $idempotencyKey, $event)
     {
         $phone = $user->phone ?? $user->phone_number ?? null;
+        if (! $phone) {
+            $phone = $this->resolveFallbackPhoneForUser($user);
+            if ($phone) {
+                try {
+                    $user->phone = $phone;
+                    $user->save();
+                } catch (\Throwable $e) {
+                }
+            }
+        }
         $row = [
             'idempotency_key' => $idempotencyKey,
             'event' => $event,

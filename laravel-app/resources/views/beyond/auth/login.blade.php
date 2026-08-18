@@ -92,7 +92,7 @@
             <i data-lucide="user" class="absolute left-3 top-3 h-4 w-4 text-gray-400"></i>
             <input type="text" name="identifier" value="{{ old('identifier', $prefill) }}" required
                    class="w-full pl-10 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="email or username" autocomplete="username">
+                   placeholder="email, WhatsApp number, or username" autocomplete="username">
         </div>
     </div>
     <div class="space-y-2">
@@ -106,12 +106,13 @@
         </div>
     </div>
     <div class="flex items-center justify-between text-sm">
-        <a href="{{ url('/forgot-password') }}" class="text-brand-light hover:text-brand-blue font-medium">Forgot Password?</a>
+        <a href="{{ url('/forgot-password') }}" class="text-brand-light hover:text-brand-blue font-medium">Forgot username or password?</a>
         <a href="{{ $signupUrl }}" class="text-brand-gold font-semibold hover:underline">Sign up</a>
     </div>
     @unless($asCustomer)
+    <p class="text-center text-xs text-gray-500">Interns: use email, WhatsApp number, or username. Default password is often <code>system</code>.</p>
     <p class="text-center text-sm">
-        <a href="{{ url('/staff-otp-login') }}" class="text-brand-blue font-semibold hover:underline">Internship supervisor? Login with WhatsApp OTP</a>
+        <a href="{{ url('/staff-otp-login') }}" class="text-brand-blue font-semibold hover:underline">Login with WhatsApp OTP</a>
     </p>
     @endunless
     <button type="submit" class="w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3 rounded-md flex items-center justify-center gap-2">

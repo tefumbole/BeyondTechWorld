@@ -87,7 +87,18 @@ class InternshipEnrolment extends Model
     /** Next curriculum day to release (null if placement finished). */
     public function nextCurriculumDay()
     {
-        $next = $this->startCurriculumDay() + (int) $this->completed_count;
+        // Advance by highest already-released day so submitting Task 1 unlocks Task 2
+        // while Task 1 awaits supervisor review (completed_count still tracks Passes).
+        $maxReleased = (int) \App\InternshipTaskAssignment::where('enrolment_id', $this->id)
+            ->whereNotNull('progression_day')
+            ->max('progression_day');
+
+        if ($maxReleased > 0) {
+            $next = $maxReleased + 1;
+        } else {
+            $next = $this->startCurriculumDay() + (int) $this->completed_count;
+        }
+
         if ($next > $this->endCurriculumDay()) {
             return null;
         }
