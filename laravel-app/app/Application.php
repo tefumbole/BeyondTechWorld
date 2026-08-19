@@ -20,19 +20,32 @@ class Application extends Model
     const STATUS_REJECTED = 'rejected';
     const STATUS_HIRED = 'hired';
 
+    const APPLICANT_STUDENT = 'student';
+    const APPLICANT_WORKER = 'worker';
+
+    const DOCS_COMPLETE = 'complete';
+    const DOCS_INCOMPLETE = 'incomplete';
+    const DOCS_UPDATE_REQUESTED = 'update_requested';
+
     protected $fillable = [
         'id', 'job_id', 'internship_program_id', 'internship_duration_days', 'working_week_json',
         'user_id', 'full_name', 'email', 'phone', 'whatsapp_number', 'country',
-        'school', 'level_of_study', 'education_status', 'is_academic_required',
+        'school', 'level_of_study', 'education_status', 'applicant_type', 'is_academic_required',
         'cover_letter', 'expected_salary', 'availability', 'availability_days',
-        'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path', 'selfie_path',
+        'cv_url', 'cv_path', 'student_id_path', 'student_id_back_path', 'internship_letter_path',
+        'employment_letter_path', 'official_badge_path', 'selfie_path',
+        'deferred_documents', 'documents_status', 'documents_update_token',
+        'documents_requested_at', 'documents_request_note',
         'signature_image', 'agreement_token', 'agreement_sent_at', 'agreement_signed_at',
         'offer_accepted_at', 'offer_flow_version',
         'agreement_signature_image', 'status', 'reference_number', 'rejection_reason',
         'interview_date', 'submitted_at',
     ];
 
-    protected $dates = ['interview_date', 'submitted_at', 'agreement_sent_at', 'agreement_signed_at', 'offer_accepted_at'];
+    protected $dates = [
+        'interview_date', 'submitted_at', 'agreement_sent_at', 'agreement_signed_at',
+        'offer_accepted_at', 'documents_requested_at',
+    ];
 
     protected $casts = [
         'is_academic_required' => 'boolean',
@@ -112,13 +125,153 @@ class Application extends Model
         $map = [
             'currently_studying' => 'Currently studying',
             'graduated' => 'Graduated',
+            'not_a_student' => 'Not a student (worker)',
         ];
 
         return $map[$this->education_status] ?? ($this->education_status ?: '—');
     }
 
+    public function isWorkerApplicant()
+    {
+        return ($this->applicant_type === self::APPLICANT_WORKER)
+            || ($this->education_status === 'not_a_student');
+    }
+
+    public function isStudentApplicant()
+    {
+        return ! $this->isWorkerApplicant();
+    }
+
+    public function applicantTypeLabel()
+    {
+        return $this->isWorkerApplicant() ? 'Worker / Not a student' : 'Student';
+    }
+
+    public function deferredDocumentKeys()
+    {
+        $raw = $this->deferred_documents;
+        if (is_array($raw)) {
+            return array_values(array_unique(array_filter(array_map('strval', $raw))));
+        }
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded)
+            ? array_values(array_unique(array_filter(array_map('strval', $decoded))))
+            : [];
+    }
+
+    public function setDeferredDocumentKeys(array $keys)
+    {
+        $keys = array_values(array_unique(array_filter(array_map('strval', $keys))));
+        $this->deferred_documents = empty($keys) ? null : json_encode(array_values($keys));
+    }
+
+    public static function documentKeyLabels()
+    {
+        return [
+            'internship_letter' => 'School internship letter',
+            'employment_letter' => 'Employment letter',
+            'official_badge' => 'Official badge',
+            'student_id' => 'ID card (front)',
+            'student_id_back' => 'ID card (back)',
+            'selfie' => 'Selfie / Photo',
+        ];
+    }
+
+    public function documentPathForKey($key)
+    {
+        $map = [
+            'internship_letter' => 'internship_letter_path',
+            'employment_letter' => 'employment_letter_path',
+            'official_badge' => 'official_badge_path',
+            'student_id' => 'student_id_path',
+            'student_id_back' => 'student_id_back_path',
+            'selfie' => 'selfie_path',
+        ];
+        $col = $map[$key] ?? null;
+
+        return $col ? ($this->{$col} ?: null) : null;
+    }
+
+    /**
+     * Keys still expected but missing (deferred and not yet uploaded).
+     * Worker employment letter OR badge satisfies both deferred worker-proof keys.
+     */
+    public function missingDocumentKeys()
+    {
+        $missing = [];
+        $hasWorkerProof = $this->employment_letter_path || $this->official_badge_path;
+        foreach ($this->deferredDocumentKeys() as $key) {
+            if (in_array($key, ['employment_letter', 'official_badge'], true) && $hasWorkerProof) {
+                continue;
+            }
+            if (! $this->documentPathForKey($key)) {
+                $missing[] = $key;
+            }
+        }
+
+        return array_values(array_unique($missing));
+    }
+
+    public function hasIncompleteDocuments()
+    {
+        return ! empty($this->missingDocumentKeys())
+            || in_array((string) $this->documents_status, [self::DOCS_INCOMPLETE, self::DOCS_UPDATE_REQUESTED], true);
+    }
+
+    public function documentsStatusLabel()
+    {
+        if ($this->documents_status === self::DOCS_UPDATE_REQUESTED) {
+            return 'Update requested';
+        }
+        if (! empty($this->missingDocumentKeys()) || $this->documents_status === self::DOCS_INCOMPLETE) {
+            return 'Incomplete';
+        }
+
+        return 'Complete';
+    }
+
+    public function refreshDocumentsStatus($keepUpdateRequested = false)
+    {
+        $missing = $this->missingDocumentKeys();
+        if (empty($missing)) {
+            $this->documents_status = self::DOCS_COMPLETE;
+            // Clear deferred keys that are now filled.
+            $stillDeferred = [];
+            foreach ($this->deferredDocumentKeys() as $key) {
+                if (! $this->documentPathForKey($key)) {
+                    $stillDeferred[] = $key;
+                }
+            }
+            $this->setDeferredDocumentKeys($stillDeferred);
+        } else {
+            if ($keepUpdateRequested && $this->documents_status === self::DOCS_UPDATE_REQUESTED) {
+                // leave as update_requested
+            } else {
+                $this->documents_status = self::DOCS_INCOMPLETE;
+            }
+        }
+
+        return $this;
+    }
+
+    public function documentsUpdateUrl()
+    {
+        if (! $this->documents_update_token) {
+            return null;
+        }
+
+        return url('/application-documents/'.$this->documents_update_token);
+    }
+
     public function academicRequiredLabel()
     {
+        if ($this->isWorkerApplicant()) {
+            return 'N/A (not a student)';
+        }
         if ($this->is_academic_required === null) {
             return '—';
         }

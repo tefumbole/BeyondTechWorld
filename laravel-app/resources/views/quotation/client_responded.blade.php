@@ -30,6 +30,13 @@
             <div class="badge no">Rejected</div>
             <h1>Response received</h1>
             <p>You rejected quotation <strong>{{ $quotation->reference_no }}</strong>. Our team may contact you about modifications.</p>
+        @elseif((int)$quotation->quotation_status === \App\Quotation::STATUS_CLIENT_QUOTE)
+            <div class="badge" style="background:#38bdf8;color:#0c4a6e;">Quote submitted</div>
+            <h1>Quote received</h1>
+            <p>You submitted a quote on quotation <strong>{{ $quotation->reference_no }}</strong>. Our team will review it and may accept, adjust, or decline — you will get an updated quotation link on WhatsApp.</p>
+            @if(!empty($quote) && $quote->proposed_grand_total)
+                <p><strong>Your proposed total:</strong> {{ number_format((float)$quote->proposed_grand_total, 2) }}</p>
+            @endif
         @else
             <div class="badge no">Unavailable</div>
             <h1>Link not active</h1>

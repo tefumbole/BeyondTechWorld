@@ -108,7 +108,10 @@
                                         <strong>{{ $app->school ?: '—' }}</strong><br>
                                         <span class="text-muted">{{ $app->level_of_study ?: '—' }}</span><br>
                                         <span>{{ $app->educationStatusLabel() }}</span><br>
-                                        <span class="jb-badge">{{ $app->academicRequiredLabel() }}</span>
+                                        <span class="jb-badge">{{ $app->applicantTypeLabel() }}</span>
+                                        @if($app->isStudentApplicant())
+                                            <br><span class="jb-badge">{{ $app->academicRequiredLabel() }}</span>
+                                        @endif
                                     @else
                                         <span class="text-muted">—</span>
                                     @endif
@@ -122,23 +125,40 @@
                                 <td class="jb-nav-cell"><code>{{ $app->reference_number }}</code></td>
                                 <td class="jb-nav-cell">{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y') : '—' }}</td>
                                 <td class="small jb-no-nav">
+                                    @if($app->hasIncompleteDocuments())
+                                        <span class="jb-badge jb-badge--warn" title="{{ implode(', ', $app->missingDocumentKeys()) }}">{{ $app->documentsStatusLabel() }}</span><br>
+                                    @endif
                                     @if($app->cv_url || $app->cv_path)
                                         <a href="{{ route('jobs.applications.document', [$app->id, 'cv']) }}" target="_blank" rel="noopener">CV</a>
                                     @endif
                                     @if($app->student_id_path)
                                         <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">ID Front</a>
+                                    @else
+                                        <br><span class="text-danger small">ID Front missing</span>
                                     @endif
                                     @if($app->student_id_back_path)
                                         <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" target="_blank" rel="noopener">ID Back</a>
                                     @endif
                                     @if($app->internship_letter_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">Letter</a>
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">School letter</a>
+                                    @elseif($app->isStudentApplicant() && in_array('internship_letter', $app->deferredDocumentKeys(), true))
+                                        <br><span class="text-warning small">School letter later</span>
+                                    @endif
+                                    @if($app->employment_letter_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" target="_blank" rel="noopener">Employment letter</a>
+                                    @elseif($app->isWorkerApplicant() && in_array('employment_letter', $app->deferredDocumentKeys(), true))
+                                        <br><span class="text-warning small">Employment letter later</span>
+                                    @endif
+                                    @if($app->official_badge_path)
+                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" target="_blank" rel="noopener">Badge</a>
+                                    @elseif($app->isWorkerApplicant() && in_array('official_badge', $app->deferredDocumentKeys(), true))
+                                        <br><span class="text-warning small">Badge later</span>
                                     @endif
                                     @if($app->selfie_path)
                                         <br><a href="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" target="_blank" rel="noopener">Selfie</a>
                                     @endif
                                     @if($app->agreement_signed_at)<br><span class="text-success">Agreement signed</span>@endif
-                                    @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->student_id_back_path && !$app->internship_letter_path && !$app->selfie_path)
+                                    @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->student_id_back_path && !$app->internship_letter_path && !$app->employment_letter_path && !$app->official_badge_path && !$app->selfie_path)
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
@@ -151,13 +171,16 @@
                                                 'awaiting_approval' => 'Awaiting Approval',
                                                 'selected' => 'Selected (send agreement)',
                                                 'rejected' => 'Rejected',
-                                                'hired' => 'Hired (only if agreement signed)',
+                                                'hired' => 'Hired (admin admits)',
                                             ] as $st => $label)
                                                 <option value="{{ $st }}" @if(in_array($app->status, [$st], true) || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
                                             @endforeach
                                         </select>
                                         <input type="text" name="status_reason" class="jb-field jb-reason-input" placeholder="Note / reason (optional)" value="{{ $app->rejection_reason }}">
-                                        <button type="submit" class="btn btn-sm btn-primary">Save &amp; Notify</button>
+                                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                            <button type="submit" name="notify" value="0" class="btn btn-sm btn-outline-secondary" style="flex:1;">Save</button>
+                                            <button type="submit" name="notify" value="1" class="btn btn-sm btn-primary" style="flex:1;">Save &amp; Notify</button>
+                                        </div>
                                     </form>
                                     <button type="button" class="btn btn-sm btn-link text-danger jb-app-delete-one mt-1" data-id="{{ $app->id }}">Delete</button>
                                 </td>

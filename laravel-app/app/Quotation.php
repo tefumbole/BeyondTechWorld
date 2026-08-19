@@ -13,6 +13,8 @@ class Quotation extends Model
     const STATUS_REJECTED = 4;
     /** Finalized without client signature (no approval link). */
     const STATUS_NO_SIGNATURE = 5;
+    /** Client submitted a counter-quote; awaiting admin review. */
+    const STATUS_CLIENT_QUOTE = 6;
 
     protected $fillable = [
         'reference_no',
@@ -58,6 +60,7 @@ class Quotation extends Model
             self::STATUS_APPROVED => 'Approved',
             self::STATUS_REJECTED => 'Rejected',
             self::STATUS_NO_SIGNATURE => 'No Signature Required',
+            self::STATUS_CLIENT_QUOTE => 'Client Quote',
         ];
 
         return $map[(int) $status] ?? 'Unknown';
@@ -77,6 +80,23 @@ class Quotation extends Model
     public function statusLabelText()
     {
         return self::statusLabel($this->quotation_status);
+    }
+
+    public function quotes()
+    {
+        return $this->hasMany(QuotationQuote::class);
+    }
+
+    public function pendingQuote()
+    {
+        return $this->hasOne(QuotationQuote::class)
+            ->where('status', QuotationQuote::STATUS_PENDING)
+            ->latest('id');
+    }
+
+    public function latestQuote()
+    {
+        return $this->hasOne(QuotationQuote::class)->latest('id');
     }
 
     public function ensureApprovalToken()

@@ -57,6 +57,8 @@
                                 <div class="badge badge-danger">{{$status}}</div>
                             @elseif($st === \App\Quotation::STATUS_AWAITING)
                                 <div class="badge badge-warning">{{$status}}</div>
+                            @elseif($st === \App\Quotation::STATUS_CLIENT_QUOTE)
+                                <div class="badge badge-info">{{$status}}</div>
                             @else
                                 <div class="badge badge-secondary">{{$status}}</div>
                             @endif
@@ -71,6 +73,15 @@
                                     @endif
                                 </div>
                             @endif
+                            @if($st === \App\Quotation::STATUS_CLIENT_QUOTE)
+                                @php $pq = $quotation->pendingQuote; @endphp
+                                @if($pq)
+                                    <div class="mt-1 small text-info">
+                                        Proposed: {{ number_format((float)$pq->proposed_grand_total, 2) }}
+                                        (was {{ number_format((float)$pq->original_grand_total, 2) }})
+                                    </div>
+                                @endif
+                            @endif
                         </td>
                         <td>{{ number_format($quotation->grand_total, 2, '.', ',') }}</td>
                         <td>
@@ -83,7 +94,12 @@
                                     <li>
                                         <button type="button" class="btn btn-link view"><i class="fa fa-eye"></i>  {{trans('file.View')}}</button>
                                     </li>
-                                    @if(in_array("quotes-edit", $all_permission) && in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE], true))
+                                    @if($st === \App\Quotation::STATUS_CLIENT_QUOTE)
+                                        <li>
+                                            <a class="btn btn-link" href="{{ route('quotation.quote_review', $quotation->id) }}"><i class="dripicons-message"></i> Review client quote</a>
+                                        </li>
+                                    @endif
+                                    @if(in_array("quotes-edit", $all_permission) && in_array($st, [\App\Quotation::STATUS_PENDING, \App\Quotation::STATUS_AWAITING, \App\Quotation::STATUS_REJECTED, \App\Quotation::STATUS_APPROVED, \App\Quotation::STATUS_NO_SIGNATURE, \App\Quotation::STATUS_CLIENT_QUOTE], true))
                                         <li>
                                             <a class="btn btn-link" href="{{ route('quotations.edit', $quotation->id) }}"><i class="dripicons-document-edit"></i> {{trans('file.edit')}} / resend</a>
                                         </li>

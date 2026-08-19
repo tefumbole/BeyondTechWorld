@@ -17,6 +17,7 @@ use App\Category;
 use App\Unit;
 use App\Tax;
 use App\Quotation;
+use App\QuotationQuote;
 use App\User;
 use App\Delivery;
 use App\PosSetting;
@@ -67,17 +68,19 @@ class QuotationController extends Controller
                 $all_permission[] = 'dummy text';
 
             $tab = $request->get('tab', 'awaiting');
-            if (! in_array($tab, ['awaiting', 'approved', 'rejected', 'draft'], true)) {
+            if (! in_array($tab, ['awaiting', 'approved', 'rejected', 'draft', 'quoted'], true)) {
                 $tab = 'awaiting';
             }
 
-            $query = Quotation::with('biller', 'customer', 'supplier', 'user')->orderBy('id', 'desc');
+            $query = Quotation::with('biller', 'customer', 'supplier', 'user', 'pendingQuote')->orderBy('id', 'desc');
             if ($tab === 'approved') {
                 $query->whereIn('quotation_status', Quotation::saleReadyStatuses());
             } elseif ($tab === 'draft') {
                 $query->where('quotation_status', Quotation::STATUS_PENDING);
             } elseif ($tab === 'rejected') {
                 $query->where('quotation_status', Quotation::STATUS_REJECTED);
+            } elseif ($tab === 'quoted') {
+                $query->where('quotation_status', Quotation::STATUS_CLIENT_QUOTE);
             } else {
                 $query->where('quotation_status', Quotation::STATUS_AWAITING);
             }
@@ -97,6 +100,7 @@ class QuotationController extends Controller
                 'approved' => (clone $baseCounts)->whereIn('quotation_status', Quotation::saleReadyStatuses())->count(),
                 'rejected' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_REJECTED)->count(),
                 'draft' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_PENDING)->count(),
+                'quoted' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_CLIENT_QUOTE)->count(),
             ];
 
             return view('quotation.index', compact(
@@ -706,7 +710,7 @@ class QuotationController extends Controller
     /**
      * WhatsApp the quotation creator and CC contacts.
      *
-     * @param  string  $event  sent|approved|rejected
+     * @param  string  $event  sent|approved|rejected|quoted|quote_accepted|quote_rejected
      */
     public function notifyQuotationStakeholders(Quotation $quotation, $event, array $mail_data = [])
     {
@@ -718,13 +722,15 @@ class QuotationController extends Controller
         $pricing = $this->quotationWhatsAppPricing($quotation, $mail_data);
 
         $tab = 'awaiting';
-        if ($event === 'approved') {
-            $tab = 'approved';
+        if ($event === 'approved' || $event === 'quote_accepted') {
+            $tab = $event === 'approved' ? 'approved' : 'awaiting';
         } elseif ($event === 'rejected') {
             $tab = 'rejected';
+        } elseif ($event === 'quoted') {
+            $tab = 'quoted';
         }
         $listUrl = url('quotations?tab='.$tab);
-        $approvalUrl = $event === 'sent' ? $quotation->approvalUrl() : null;
+        $approvalUrl = in_array($event, ['sent', 'quote_accepted'], true) ? $quotation->approvalUrl() : null;
 
         $recipients = [];
 
@@ -775,6 +781,54 @@ class QuotationController extends Controller
                 $this->wpMessage($recipient['phone'], $msg);
             } catch (\Throwable $e) {
                 \Log::warning('Quotation stakeholder notify failed: '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Notify admins when a client submits a counter-quote.
+     */
+    public function notifyClientQuoteSubmitted(Quotation $quotation, QuotationQuote $quote)
+    {
+        $customer = Customer::find($quotation->customer_id);
+        $customerName = $customer ? $customer->name : 'Client';
+        $reviewUrl = route('quotation.quote_review', $quotation->id);
+
+        $recipients = [];
+        $creator = User::find($quotation->user_id);
+        if ($creator && ! empty(trim((string) $creator->phone))) {
+            $recipients[] = ['phone' => $creator->phone, 'name' => $creator->name];
+        }
+        // Also notify role_id <= 2 staff with phones when creator missing phone
+        if (empty($recipients)) {
+            $admins = User::where('is_deleted', false)->where('is_active', 1)->where('role_id', '<=', 2)
+                ->whereNotNull('phone')->where('phone', '!=', '')->get(['name', 'phone']);
+            foreach ($admins as $admin) {
+                $recipients[] = ['phone' => $admin->phone, 'name' => $admin->name];
+            }
+        }
+
+        $seen = [];
+        foreach ($recipients as $recipient) {
+            $digits = preg_replace('/\D/', '', (string) $recipient['phone']);
+            if ($digits === '' || isset($seen[$digits])) {
+                continue;
+            }
+            $seen[$digits] = true;
+            try {
+                $msg = WhatsAppMessage::quotationClientQuoteSubmitted(
+                    $recipient['name'],
+                    $quotation->reference_no,
+                    $customerName,
+                    $quote->original_grand_total,
+                    $quote->proposed_grand_total,
+                    $quote->mode,
+                    $reviewUrl,
+                    (string) ($quote->client_note ?? '')
+                );
+                $this->wpMessage($recipient['phone'], $msg);
+            } catch (\Throwable $e) {
+                \Log::warning('Client quote WhatsApp failed: '.$e->getMessage());
             }
         }
     }
@@ -1351,6 +1405,203 @@ class QuotationController extends Controller
         }
 
         return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
+    }
+
+    public function quoteReview($id)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || ! $role->hasPermissionTo('quotes-index')) {
+            return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
+        }
+
+        $quotation = Quotation::with(['customer', 'biller', 'user'])->findOrFail($id);
+        $quote = QuotationQuote::with('lines')
+            ->where('quotation_id', $quotation->id)
+            ->where('status', QuotationQuote::STATUS_PENDING)
+            ->latest('id')
+            ->first();
+        if (! $quote) {
+            $quote = QuotationQuote::with('lines')
+                ->where('quotation_id', $quotation->id)
+                ->latest('id')
+                ->first();
+        }
+        if (! $quote) {
+            return redirect()->route('quotations.index', ['tab' => 'quoted'])
+                ->with('not_permitted', 'No client quote found for this quotation.');
+        }
+
+        $productRows = ProductQuotation::where('quotation_id', $quotation->id)->get()->keyBy('id');
+        $lineViews = [];
+        foreach ($quote->lines as $ql) {
+            $pq = $productRows->get($ql->product_quotation_id);
+            $name = 'Item';
+            if ($pq) {
+                $product = Product::find($pq->product_id);
+                $name = $product ? $product->name : 'Product #'.$pq->product_id;
+                if ($pq->variant_id) {
+                    $variant = Variant::find($pq->variant_id);
+                    if ($variant) {
+                        $name .= ' ['.$variant->name.']';
+                    }
+                }
+            }
+            $lineViews[] = [
+                'quote_line' => $ql,
+                'product_quotation' => $pq,
+                'name' => $name,
+                'qty' => $pq ? (float) $pq->qty : 0,
+            ];
+        }
+
+        return view('quotation.quote_review', compact('quotation', 'quote', 'lineViews'));
+    }
+
+    public function acceptClientQuote(Request $request, $id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $quote = QuotationQuote::with('lines')
+            ->where('quotation_id', $quotation->id)
+            ->where('status', QuotationQuote::STATUS_PENDING)
+            ->latest('id')
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'admin_note' => 'nullable|string|max:2000',
+            'lines' => 'nullable|array',
+            'lines.*.quote_line_id' => 'required_with:lines|integer',
+            'lines.*.proposed_net_unit_price' => 'required_with:lines|numeric|min:0',
+            'proposed_grand_total' => 'nullable|numeric|min:0',
+        ]);
+
+        // Apply admin modifications to quote lines if provided.
+        $incoming = [];
+        foreach (($data['lines'] ?? []) as $row) {
+            $incoming[(int) $row['quote_line_id']] = (float) $row['proposed_net_unit_price'];
+        }
+        if (! empty($incoming)) {
+            foreach ($quote->lines as $ql) {
+                if (! array_key_exists((int) $ql->id, $incoming)) {
+                    continue;
+                }
+                $pq = ProductQuotation::find($ql->product_quotation_id);
+                $qty = $pq ? max(0.0001, (float) $pq->qty) : 1;
+                $unit = round($incoming[(int) $ql->id], 4);
+                $ql->proposed_net_unit_price = $unit;
+                $ql->proposed_total = round($unit * $qty, 2);
+                $ql->save();
+            }
+            $quote->load('lines');
+        }
+
+        $orderTax = (float) ($quotation->order_tax ?? 0);
+        $shipping = (float) ($quotation->shipping_cost ?? 0);
+        $orderDiscount = (float) ($quotation->order_discount ?? 0);
+
+        $linesSum = 0.0;
+        $totalDiscount = 0.0;
+        $totalTax = 0.0;
+        foreach ($quote->lines as $ql) {
+            $pq = ProductQuotation::find($ql->product_quotation_id);
+            if (! $pq) {
+                continue;
+            }
+            $qty = (float) $pq->qty;
+            $unit = (float) $ql->proposed_net_unit_price;
+            $lineTotal = round($unit * $qty, 2);
+            // Keep existing per-line discount/tax amounts; only replace unit price + total.
+            $pq->net_unit_price = $unit;
+            $pq->total = $lineTotal;
+            $pq->save();
+            $linesSum += $lineTotal;
+            $totalDiscount += (float) ($pq->discount ?? 0);
+            $totalTax += (float) ($pq->tax ?? 0);
+        }
+
+        if (isset($data['proposed_grand_total']) && $data['proposed_grand_total'] !== null && $data['proposed_grand_total'] !== '') {
+            $grand = round((float) $data['proposed_grand_total'], 2);
+        } else {
+            $grand = round($linesSum + $orderTax + $shipping - $orderDiscount, 2);
+        }
+
+        $quotation->total_price = round($linesSum, 2);
+        $quotation->total_discount = round($totalDiscount, 2);
+        $quotation->total_tax = round($totalTax, 2);
+        $quotation->grand_total = $grand;
+        $quotation->quotation_status = Quotation::STATUS_AWAITING;
+        $quotation->client_comment = null;
+        $quotation->client_signed_at = null;
+        $quotation->client_signature_path = null;
+        $quotation->client_responded_at = null;
+        $quotation->rotateApprovalToken();
+        $quotation->approval_sent_at = now();
+        $quotation->save();
+
+        $quote->proposed_grand_total = $grand;
+        $quote->status = QuotationQuote::STATUS_ACCEPTED;
+        $quote->admin_note = $data['admin_note'] ?? null;
+        $quote->admin_user_id = Auth::id();
+        $quote->save();
+
+        $customer = Customer::find($quotation->customer_id);
+        $message = 'Client quote accepted. Updated quotation amounts applied.';
+        if ($customer && ! empty($customer->phone_number)) {
+            $mail_data = [
+                'grand_total' => $quotation->grand_total,
+                'total_price' => $quotation->total_price,
+                'order_discount' => $quotation->order_discount,
+                'order_tax' => $quotation->order_tax,
+                'shipping_cost' => $quotation->shipping_cost,
+                'products' => [],
+                'qty' => [],
+                'total' => [],
+            ];
+            try {
+                $message = $this->sendWhatsappMsg($customer, $quotation->fresh(), $mail_data, optional($quotation->biller)->name, []);
+                $this->notifyQuotationStakeholders($quotation->fresh(), 'quote_accepted', $mail_data);
+            } catch (\Throwable $e) {
+                \Log::error('Accept client quote WhatsApp failed: '.$e->getMessage());
+                $message .= ' WhatsApp could not be sent: '.$e->getMessage();
+            }
+        } else {
+            $message .= ' Customer phone missing — send for signature manually.';
+        }
+
+        return redirect()->route('quotations.index', ['tab' => 'awaiting'])->with('message', $message);
+    }
+
+    public function rejectClientQuote(Request $request, $id)
+    {
+        $quotation = Quotation::findOrFail($id);
+        $quote = QuotationQuote::where('quotation_id', $quotation->id)
+            ->where('status', QuotationQuote::STATUS_PENDING)
+            ->latest('id')
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'admin_note' => 'nullable|string|max:2000',
+        ]);
+
+        $quote->status = QuotationQuote::STATUS_REJECTED;
+        $quote->admin_note = $data['admin_note'] ?? null;
+        $quote->admin_user_id = Auth::id();
+        $quote->save();
+
+        // Keep original prices; reopen for staff to resend original quotation.
+        $quotation->quotation_status = Quotation::STATUS_AWAITING;
+        $quotation->client_responded_at = null;
+        $quotation->client_comment = $quote->client_note;
+        $quotation->rotateApprovalToken();
+        $quotation->save();
+
+        try {
+            $this->notifyQuotationStakeholders($quotation->fresh(), 'quote_rejected');
+        } catch (\Throwable $e) {
+            \Log::warning('Reject client quote notify failed: '.$e->getMessage());
+        }
+
+        return redirect()->route('quotations.index', ['tab' => 'awaiting'])
+            ->with('message', 'Client quote rejected. Original amounts kept. You can send for signature again.');
     }
 
     public function createSale($id)

@@ -68,6 +68,7 @@ class ApplicationService
             'school' => $job->isInternship() ? trim((string) ($data['school'] ?? '')) : null,
             'level_of_study' => $job->isInternship() ? trim((string) ($data['level_of_study'] ?? '')) : null,
             'education_status' => $job->isInternship() ? ($data['education_status'] ?? null) : null,
+            'applicant_type' => $job->isInternship() ? ($data['applicant_type'] ?? Application::APPLICANT_STUDENT) : null,
             'is_academic_required' => $job->isInternship()
                 ? filter_var($data['is_academic_required'] ?? false, FILTER_VALIDATE_BOOLEAN)
                 : null,
@@ -109,10 +110,37 @@ class ApplicationService
             if ($payload['level_of_study'] === '') {
                 $payload['level_of_study'] = null;
             }
-            // Graduated candidates are not on an academic-required internship by default.
-            if (($payload['education_status'] ?? null) === 'graduated') {
+            // Graduated / worker candidates are not on an academic-required internship.
+            if (($payload['education_status'] ?? null) === 'not_a_student') {
+                $payload['applicant_type'] = Application::APPLICANT_WORKER;
                 $payload['is_academic_required'] = false;
+            } elseif (($payload['education_status'] ?? null) === 'graduated') {
+                $payload['applicant_type'] = Application::APPLICANT_STUDENT;
+                $payload['is_academic_required'] = false;
+            } else {
+                $payload['applicant_type'] = Application::APPLICANT_STUDENT;
             }
+
+            $deferred = [];
+            if (! empty($data['defer_internship_letter'])) {
+                $deferred[] = 'internship_letter';
+            }
+            if (! empty($data['defer_employment_letter'])) {
+                $deferred[] = 'employment_letter';
+            }
+            if (! empty($data['defer_official_badge'])) {
+                $deferred[] = 'official_badge';
+            }
+            // Legacy single checkbox for worker proof later
+            if (! empty($data['defer_worker_proof'])) {
+                if (! in_array('employment_letter', $deferred, true)) {
+                    $deferred[] = 'employment_letter';
+                }
+                if (! in_array('official_badge', $deferred, true)) {
+                    $deferred[] = 'official_badge';
+                }
+            }
+
             if (! empty($extraFiles['student_id'])) {
                 $payload['student_id_path'] = $this->storeUploadFlexible($extraFiles['student_id'], 'student_id_front', $job->id);
             }
@@ -121,10 +149,22 @@ class ApplicationService
             }
             if (! empty($extraFiles['internship_letter'])) {
                 $payload['internship_letter_path'] = $this->storeUploadFlexible($extraFiles['internship_letter'], 'internship_letter', $job->id);
+                $deferred = array_values(array_diff($deferred, ['internship_letter']));
+            }
+            if (! empty($extraFiles['employment_letter'])) {
+                $payload['employment_letter_path'] = $this->storeUploadFlexible($extraFiles['employment_letter'], 'employment_letter', $job->id);
+                $deferred = array_values(array_diff($deferred, ['employment_letter']));
+            }
+            if (! empty($extraFiles['official_badge'])) {
+                $payload['official_badge_path'] = $this->storeUploadFlexible($extraFiles['official_badge'], 'official_badge', $job->id);
+                $deferred = array_values(array_diff($deferred, ['official_badge']));
             }
             if (! empty($extraFiles['selfie'])) {
                 $payload['selfie_path'] = $this->storeImageUpload($extraFiles['selfie'], 'selfie', $job->id);
             }
+
+            $payload['deferred_documents'] = empty($deferred) ? null : json_encode(array_values($deferred));
+            $payload['documents_status'] = empty($deferred) ? Application::DOCS_COMPLETE : Application::DOCS_INCOMPLETE;
         }
 
         $application = Application::create($payload);
@@ -137,6 +177,132 @@ class ApplicationService
                 'application_id' => $application->id,
             ]);
         }
+
+        return $application;
+    }
+
+    /**
+     * Admin: WhatsApp the applicant a link to upload missing / deferred documents.
+     */
+    public function requestDocumentsUpdate(Application $application, $note = null)
+    {
+        $application->refreshDocumentsStatus();
+        $missing = $application->missingDocumentKeys();
+        if (empty($missing)) {
+            // Still allow request for any optional letter/badge gaps.
+            if ($application->isStudentApplicant() && ! $application->internship_letter_path) {
+                $missing = ['internship_letter'];
+                $application->setDeferredDocumentKeys(array_values(array_unique(array_merge(
+                    $application->deferredDocumentKeys(),
+                    ['internship_letter']
+                ))));
+            } elseif ($application->isWorkerApplicant()
+                && ! $application->employment_letter_path
+                && ! $application->official_badge_path) {
+                $missing = ['employment_letter', 'official_badge'];
+                $application->setDeferredDocumentKeys(array_values(array_unique(array_merge(
+                    $application->deferredDocumentKeys(),
+                    ['employment_letter', 'official_badge']
+                ))));
+            }
+        }
+
+        if (empty($missing)) {
+            throw ValidationException::withMessages([
+                'documents' => ['This application already has all expected documents.'],
+            ]);
+        }
+
+        if (! $application->documents_update_token) {
+            $application->documents_update_token = Str::random(48);
+        }
+        $application->documents_status = Application::DOCS_UPDATE_REQUESTED;
+        $application->documents_requested_at = now();
+        $application->documents_request_note = $note ? trim((string) $note) : null;
+        $application->save();
+
+        $url = $application->documentsUpdateUrl();
+        $labels = Application::documentKeyLabels();
+        $missingLabels = array_map(function ($key) use ($labels) {
+            return $labels[$key] ?? $key;
+        }, $missing);
+
+        $this->notifier->documentsUpdateRequested(
+            $application,
+            $application->job ?: JobPosting::find($application->job_id),
+            $url,
+            $missingLabels,
+            $application->documents_request_note
+        );
+
+        return $application;
+    }
+
+    /**
+     * Public token upload of missing documents.
+     *
+     * @param  array  $files  keyed by document key
+     */
+    public function submitDocumentUpdate(Application $application, array $files)
+    {
+        $stored = 0;
+        if (! empty($files['internship_letter'])) {
+            $application->internship_letter_path = $this->storeUploadFlexible(
+                $files['internship_letter'],
+                'internship_letter',
+                $application->job_id
+            );
+            $stored++;
+        }
+        if (! empty($files['employment_letter'])) {
+            $application->employment_letter_path = $this->storeUploadFlexible(
+                $files['employment_letter'],
+                'employment_letter',
+                $application->job_id
+            );
+            $stored++;
+        }
+        if (! empty($files['official_badge'])) {
+            $application->official_badge_path = $this->storeUploadFlexible(
+                $files['official_badge'],
+                'official_badge',
+                $application->job_id
+            );
+            $stored++;
+        }
+        if (! empty($files['student_id'])) {
+            $application->student_id_path = $this->storeUploadFlexible(
+                $files['student_id'],
+                'student_id_front',
+                $application->job_id
+            );
+            $stored++;
+        }
+        if (! empty($files['student_id_back'])) {
+            $application->student_id_back_path = $this->storeUploadFlexible(
+                $files['student_id_back'],
+                'student_id_back',
+                $application->job_id
+            );
+            $stored++;
+        }
+        if (! empty($files['selfie'])) {
+            $application->selfie_path = $this->storeImageUpload(
+                $files['selfie'],
+                'selfie',
+                $application->job_id
+            );
+            $stored++;
+        }
+
+        if ($stored < 1) {
+            throw ValidationException::withMessages([
+                'documents' => ['Please upload at least one missing document.'],
+            ]);
+        }
+
+        $application->refreshDocumentsStatus(false);
+        $application->save();
 
         return $application;
     }
@@ -704,8 +870,9 @@ class ApplicationService
     {
         $previous = $application->status;
         $status = $data['status'] ?? $application->status;
+        $notify = ! array_key_exists('notify', $data) || ! empty($data['notify']);
 
-        // Hired without a signed / accepted offer → treat as Selected and send offer/agreement link.
+        // Hired without a signed / accepted offer → treat as Selected (send agreement when notifying).
         if ($status === Application::STATUS_HIRED
             && (empty($application->agreement_signed_at) || $application->needsOfferPortal())) {
             $status = Application::STATUS_SELECTED;
@@ -730,18 +897,26 @@ class ApplicationService
                 $url = $this->agreementUrl($application);
                 $application->agreement_sent_at = now();
                 $application->save();
-                $this->notifier->selected($application, $application->job, $url);
+                if ($notify) {
+                    $this->notifier->selected($application, $application->job, $url);
+                }
                 // New offer-portal apps enrol only after the candidate completes the portal.
                 if (! $application->needsOfferPortal()) {
                     $this->enrolInInternshipProgram($application);
                 }
             } elseif ($status === Application::STATUS_REJECTED) {
-                $this->notifier->rejected($application, $application->job);
+                if ($notify) {
+                    $this->notifier->rejected($application, $application->job);
+                }
             } elseif ($status === Application::STATUS_HIRED) {
-                $this->notifier->hiredAdmission($application, $application->job);
+                if ($notify) {
+                    $this->notifier->hiredAdmission($application, $application->job);
+                }
                 $this->enrolInInternshipProgram($application);
             } elseif ($status === Application::STATUS_AWAITING && $previous !== Application::STATUS_AWAITING) {
-                $this->notifier->underReview($application, $application->job);
+                if ($notify) {
+                    $this->notifier->underReview($application, $application->job);
+                }
             }
         }
 
@@ -807,7 +982,8 @@ class ApplicationService
     }
 
     /**
-     * Offer portal completion: password + Working Week + signature → hired + enrol.
+     * Offer portal completion: password + Working Week + signature → Selected + enrol.
+     * Admin must explicitly mark Hired for admission WhatsApp.
      */
     public function completeOfferPortal(Application $application, $signatureImage, $plainPassword, array $wwData)
     {
@@ -823,13 +999,15 @@ class ApplicationService
         $application->agreement_signature_image = $signatureImage;
         $application->agreement_signed_at = now();
         $application->offer_accepted_at = now();
-        $application->status = Application::STATUS_HIRED;
+        // Stay Selected until an admin explicitly marks Hired.
+        if (! in_array($application->status, [Application::STATUS_HIRED, Application::STATUS_REJECTED, 'withdrawn'], true)) {
+            $application->status = Application::STATUS_SELECTED;
+        }
         $application->save();
         $application->load('job');
 
         if ($application->job) {
             $this->notifier->agreementSigned($application, $application->job);
-            $this->notifier->hiredAdmission($application, $application->job);
         }
         $this->enrolInInternshipProgram($application);
 
@@ -1343,13 +1521,15 @@ class ApplicationService
         if (empty($application->offer_accepted_at)) {
             $application->offer_accepted_at = now();
         }
-        $application->status = Application::STATUS_HIRED;
+        // Stay Selected until an admin explicitly marks Hired (do not auto-promote).
+        if (! in_array($application->status, [Application::STATUS_HIRED, Application::STATUS_REJECTED, 'withdrawn'], true)) {
+            $application->status = Application::STATUS_SELECTED;
+        }
         $application->save();
         $application->load('job');
 
         if ($application->job) {
             $this->notifier->agreementSigned($application, $application->job);
-            $this->notifier->hiredAdmission($application, $application->job);
         }
         $this->enrolInInternshipProgram($application);
 

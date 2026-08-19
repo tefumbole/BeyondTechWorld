@@ -31,6 +31,8 @@
     .qt-nav a.tone-red.is-active, .qt-nav a.tone-red:hover { background: #ef4444; border-color: #ef4444; color: #fff !important; }
     .qt-nav a.tone-blue { border-color: #0b3f90; color: #0b3f90; }
     .qt-nav a.tone-blue.is-active, .qt-nav a.tone-blue:hover { background: #0b3f90; border-color: #0b3f90; color: #fff !important; }
+    .qt-nav a.tone-cyan { border-color: #0ea5e9; color: #0369a1; }
+    .qt-nav a.tone-cyan.is-active, .qt-nav a.tone-cyan:hover { background: #0ea5e9; border-color: #0ea5e9; color: #fff !important; }
     .qt-count {
         display: inline-flex; min-width: 22px; height: 22px; padding: 0 6px;
         align-items: center; justify-content: center; border-radius: 999px;
@@ -40,9 +42,10 @@
 </style>
 @php
     $qtTab = $tab ?? 'awaiting';
-    $counts = $tabCounts ?? ['awaiting' => 0, 'approved' => 0, 'rejected' => 0, 'draft' => 0];
+    $counts = $tabCounts ?? ['awaiting' => 0, 'approved' => 0, 'rejected' => 0, 'draft' => 0, 'quoted' => 0];
     $qtTabs = [
         ['awaiting', 'Awaiting Signature', 'dripicons-clock', 'tone-orange'],
+        ['quoted', 'Client Quotes', 'dripicons-message', 'tone-cyan'],
         ['approved', 'Approved / Final', 'dripicons-checkmark', 'tone-green'],
         ['rejected', 'Rejected', 'dripicons-wrong', 'tone-red'],
         ['draft', 'Drafts', 'dripicons-document', 'tone-blue'],

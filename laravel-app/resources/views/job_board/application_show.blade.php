@@ -72,10 +72,15 @@
                             @if($app->hasWorkingWeekOnApplication())
                                 <tr><th>Working Week</th><td><span class="jb-badge">Saved on application</span></td></tr>
                             @endif
-                            <tr><th>School / Institution</th><td>{{ $app->school ?: '—' }}</td></tr>
-                            <tr><th>Level of study</th><td>{{ $app->level_of_study ?: '—' }}</td></tr>
-                            <tr><th>Student / Graduated</th><td>{{ $app->educationStatusLabel() }}</td></tr>
-                            <tr><th>Academic-required internship</th><td>{{ $app->academicRequiredLabel() }}</td></tr>
+                            <tr><th>Applicant type</th><td><strong>{{ $app->applicantTypeLabel() }}</strong></td></tr>
+                            <tr><th>School / Organisation</th><td>{{ $app->school ?: '—' }}</td></tr>
+                            @if($app->isStudentApplicant())
+                                <tr><th>Level of study</th><td>{{ $app->level_of_study ?: '—' }}</td></tr>
+                            @endif
+                            <tr><th>Student / Worker status</th><td>{{ $app->educationStatusLabel() }}</td></tr>
+                            @if($app->isStudentApplicant())
+                                <tr><th>Academic-required internship</th><td>{{ $app->academicRequiredLabel() }}</td></tr>
+                            @endif
                         </table>
                     @else
                         <p class="text-muted mb-0 small">No education fields on this application (older submission or job posting).</p>
@@ -138,7 +143,28 @@
 
             <div class="col-lg-5">
                 <div class="jb-card">
-                    <h5 style="color:#0b3f90;font-weight:800;">Documents</h5>
+                    <h5 style="color:#0b3f90;font-weight:800;">Documents
+                        @if($app->hasIncompleteDocuments())
+                            <span class="jb-badge jb-badge--warn">{{ $app->documentsStatusLabel() }}</span>
+                        @else
+                            <span class="jb-badge jb-badge--success">Complete</span>
+                        @endif
+                    </h5>
+                    @if($app->hasIncompleteDocuments())
+                        <p class="text-muted small">
+                            Missing:
+                            @php
+                                $labels = \App\Application::documentKeyLabels();
+                                $missingNames = array_map(function ($k) use ($labels) { return $labels[$k] ?? $k; }, $app->missingDocumentKeys());
+                            @endphp
+                            {{ implode(', ', $missingNames) ?: '—' }}
+                        </p>
+                        <form method="POST" action="{{ route('jobs.applications.request_documents', $app->id) }}" class="mb-3" style="display:flex;flex-direction:column;gap:8px;">
+                            @csrf
+                            <input type="text" name="documents_request_note" class="jb-field" placeholder="Optional note for the candidate" value="{{ old('documents_request_note', $app->documents_request_note) }}">
+                            <button type="submit" class="jb-btn" style="justify-content:center;">Request update (WhatsApp)</button>
+                        </form>
+                    @endif
                     <div class="d-flex flex-column" style="gap:14px;">
                         <div>
                             <div class="jb-label">Resume / CV</div>
@@ -157,7 +183,7 @@
                                     <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" alt="ID Front">
                                 </a>
                             @else
-                                <p class="text-muted small mb-0">—</p>
+                                <p class="text-danger small mb-0">Missing</p>
                             @endif
                         </div>
                         <div>
@@ -167,17 +193,47 @@
                                     <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" alt="ID Back">
                                 </a>
                             @else
-                                <p class="text-muted small mb-0">—</p>
+                                <p class="text-danger small mb-0">Missing</p>
                             @endif
                         </div>
                         <div>
-                            <div class="jb-label">Internship letter</div>
+                            <div class="jb-label">School internship letter</div>
                             @if($app->internship_letter_path)
                                 <a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">
                                     <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" alt="Letter"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
                                 </a>
                                 <a class="jb-btn-secondary mt-2" style="display:none;" href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">Open letter file</a>
+                            @elseif(in_array('internship_letter', $app->deferredDocumentKeys(), true))
+                                <p class="text-warning small mb-0">Marked submit later</p>
+                            @else
+                                <p class="text-muted small mb-0">—</p>
+                            @endif
+                        </div>
+                        <div>
+                            <div class="jb-label">Employment letter</div>
+                            @if($app->employment_letter_path)
+                                <a href="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" target="_blank" rel="noopener">
+                                    <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" alt="Employment letter"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                </a>
+                                <a class="jb-btn-secondary mt-2" style="display:none;" href="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" target="_blank" rel="noopener">Open file</a>
+                            @elseif(in_array('employment_letter', $app->deferredDocumentKeys(), true))
+                                <p class="text-warning small mb-0">Marked submit later</p>
+                            @else
+                                <p class="text-muted small mb-0">—</p>
+                            @endif
+                        </div>
+                        <div>
+                            <div class="jb-label">Official badge</div>
+                            @if($app->official_badge_path)
+                                <a href="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" target="_blank" rel="noopener">
+                                    <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" alt="Badge"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                </a>
+                                <a class="jb-btn-secondary mt-2" style="display:none;" href="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" target="_blank" rel="noopener">Open file</a>
+                            @elseif(in_array('official_badge', $app->deferredDocumentKeys(), true))
+                                <p class="text-warning small mb-0">Marked submit later</p>
                             @else
                                 <p class="text-muted small mb-0">—</p>
                             @endif
@@ -189,7 +245,7 @@
                                     <img class="jb-doc-thumb" src="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" alt="Selfie">
                                 </a>
                             @else
-                                <p class="text-muted small mb-0">—</p>
+                                <p class="text-danger small mb-0">Missing</p>
                             @endif
                         </div>
                     </div>
@@ -211,6 +267,7 @@
                                     <option value="{{ $st }}" @if($app->status === $st || ($st==='awaiting_approval' && in_array($app->status, ['new','reviewed','interview'], true)) || ($st==='selected' && $app->status==='shortlisted')) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
+                            <p class="text-muted small mb-0 mt-1">Selected stays Selected after the candidate signs. Choose Hired when you are ready to admit them.</p>
                         </div>
                         @if($isInternship && isset($programOptions) && $programOptions->count()
                             && in_array($app->status, ['awaiting_approval','new','reviewed','interview','pending','selected','shortlisted'], true))
@@ -236,7 +293,11 @@
                             <label class="jb-label jb-reason-label">Reason</label>
                             <input type="text" name="status_reason" class="jb-field jb-reason-input" value="{{ $app->rejection_reason }}" placeholder="Reason (optional)">
                         </div>
-                        <button type="submit" class="jb-btn" style="justify-content:center;">Save & Notify</button>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            <button type="submit" name="notify" value="0" class="jb-btn-secondary" style="justify-content:center;flex:1;">Save</button>
+                            <button type="submit" name="notify" value="1" class="jb-btn" style="justify-content:center;flex:1;">Save &amp; Notify</button>
+                        </div>
+                        <p class="text-muted small mb-0">Use <strong>Save</strong> to update without WhatsApp. Use <strong>Save &amp; Notify</strong> when the candidate should be messaged (e.g. Selected → agreement link, Hired → admission).</p>
                     </form>
                 </div>
             </div>

@@ -40,7 +40,15 @@
         .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:10px; padding:12px 18px; font-weight:700; cursor:pointer; border:0; text-decoration:none; }
         .btn-accent { background:var(--accent); color:#10213d; }
         .btn-danger { background:#ef4444; color:#fff; }
+        .btn-quote { background:#38bdf8; color:#0c4a6e; }
         .btn-outline { background:#fff; color:#0b3f90; }
+        .quote-panel { display:none; }
+        .quote-panel.open { display:block; }
+        .quote-mode { display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 14px; }
+        .quote-mode label { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:8px 14px; cursor:pointer; font-size:14px; }
+        .quote-mode input { accent-color:#c6ab47; }
+        input.quote-input { width:100%; max-width:160px; border-radius:8px; border:1px solid #d7deea; padding:8px 10px; font-size:14px; color:#10213d; }
+        .quote-hint { color:var(--muted); font-size:13px; margin:0 0 10px; }
         .footer-bar { position:fixed; left:0; right:0; bottom:0; background:rgba(4,31,74,.96); border-top:1px solid rgba(255,255,255,.12); padding:14px 16px; }
         .footer-inner { max-width:920px; margin:0 auto; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; }
         .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000; align-items:center; justify-content:center; padding:16px; }
@@ -158,17 +166,81 @@
 
     <div class="card">
         <h3>Your comment</h3>
-        <p style="color:var(--muted);font-size:13px;margin-top:0;">Required if you reject. Optional if you approve.</p>
+        <p style="color:var(--muted);font-size:13px;margin-top:0;">Required if you reject. Optional if you approve or quote.</p>
         <textarea id="client_comment_shared" rows="3" placeholder="Add a comment for our team…">{{ old('client_comment') }}</textarea>
         <img id="sig-preview" class="preview-signature" alt="Signature preview">
+    </div>
+
+    <div class="card quote-panel" id="quote-panel">
+        <h3>Propose your quote</h3>
+        <p class="quote-hint">Choose an overall total for the whole quotation, or edit individual item prices. Our team will review and may accept, reject, or adjust your proposal.</p>
+        <form id="quote-form" method="POST" action="{{ route('quotation.client.quote', $quotation->client_approval_token) }}">
+            @csrf
+            <input type="hidden" name="client_note" id="quote_client_note">
+            <div class="quote-mode" role="radiogroup">
+                <label>
+                    <input type="radio" name="mode" value="overall" id="mode-overall" {{ old('mode', 'overall') === 'overall' ? 'checked' : '' }}>
+                    Overall total
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="lines" id="mode-lines" {{ old('mode') === 'lines' ? 'checked' : '' }}>
+                    Item prices
+                </label>
+            </div>
+
+            <div id="quote-overall-block">
+                <label style="display:block;font-size:14px;margin-bottom:6px;">Proposed total (current: {{ number_format($grandTotal, 2) }})</label>
+                <input class="quote-input" type="number" step="0.01" min="0.01" name="proposed_grand_total" id="proposed_grand_total"
+                       value="{{ old('proposed_grand_total', number_format($grandTotal, 2, '.', '')) }}" style="max-width:220px;">
+            </div>
+
+            <div id="quote-lines-block" style="display:none;">
+                <table class="items">
+                    <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Your unit price</th>
+                        <th>Line total</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($lines as $idx => $line)
+                        <tr data-qty="{{ (float) $line['qty'] }}">
+                            <td>{{ $line['name'] }}</td>
+                            <td>{{ $line['qty'] }} {{ $line['unit'] }}</td>
+                            <td>
+                                <input type="hidden" name="lines[{{ $idx }}][product_quotation_id]" value="{{ $line['id'] }}">
+                                <input class="quote-input line-unit" type="number" step="0.01" min="0"
+                                       name="lines[{{ $idx }}][proposed_net_unit_price]"
+                                       value="{{ old('lines.'.$idx.'.proposed_net_unit_price', number_format((float)$line['net_unit_price'], 2, '.', '')) }}">
+                            </td>
+                            <td class="line-total">{{ number_format((float)$line['total'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+                <p style="text-align:right;margin:10px 0 0;font-weight:800;">
+                    Estimated total:
+                    <span id="quote-lines-grand">{{ number_format($grandTotal, 2) }}</span>
+                </p>
+                <p class="quote-hint">Estimated total uses your line prices plus existing tax/shipping minus discount.</p>
+            </div>
+
+            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-outline" id="quote-cancel">Cancel</button>
+                <button type="submit" class="btn btn-quote" id="quote-submit">Submit quote</button>
+            </div>
+        </form>
     </div>
 </div>
 
 <div class="footer-bar">
     <div class="footer-inner">
-        <div style="color:var(--muted);font-size:13px;">Approve with signature, or reject with a comment.</div>
+        <div style="color:var(--muted);font-size:13px;">Approve, reject, or quote your own amounts.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button type="button" class="btn btn-danger" id="btn-reject">Reject</button>
+            <button type="button" class="btn btn-quote" id="btn-quote">Quote</button>
             <button type="button" class="btn btn-accent" id="btn-approve">Sign &amp; Approve</button>
         </div>
     </div>
@@ -282,6 +354,71 @@
         document.getElementById('reject_comment').value = comment;
         document.getElementById('reject-form').submit();
     });
+
+    var quotePanel = document.getElementById('quote-panel');
+    var modeOverall = document.getElementById('mode-overall');
+    var modeLines = document.getElementById('mode-lines');
+    var overallBlock = document.getElementById('quote-overall-block');
+    var linesBlock = document.getElementById('quote-lines-block');
+    var orderTax = {{ json_encode($orderTax) }};
+    var shipping = {{ json_encode($shipping) }};
+    var orderDiscount = {{ json_encode($orderDiscount) }};
+
+    function syncQuoteMode() {
+        var lines = modeLines.checked;
+        overallBlock.style.display = lines ? 'none' : 'block';
+        linesBlock.style.display = lines ? 'block' : 'none';
+        document.getElementById('proposed_grand_total').disabled = lines;
+        Array.prototype.forEach.call(document.querySelectorAll('.line-unit'), function (el) {
+            el.disabled = !lines;
+        });
+        if (lines) recalcLines();
+    }
+    function recalcLines() {
+        var sum = 0;
+        Array.prototype.forEach.call(document.querySelectorAll('#quote-lines-block tbody tr'), function (tr) {
+            var qty = parseFloat(tr.getAttribute('data-qty') || '0') || 0;
+            var input = tr.querySelector('.line-unit');
+            var unit = parseFloat(input && input.value ? input.value : '0') || 0;
+            var total = Math.round(unit * qty * 100) / 100;
+            sum += total;
+            var cell = tr.querySelector('.line-total');
+            if (cell) cell.textContent = total.toFixed(2);
+        });
+        var grand = Math.round((sum + orderTax + shipping - orderDiscount) * 100) / 100;
+        var el = document.getElementById('quote-lines-grand');
+        if (el) el.textContent = grand.toFixed(2);
+    }
+    modeOverall.addEventListener('change', syncQuoteMode);
+    modeLines.addEventListener('change', syncQuoteMode);
+    Array.prototype.forEach.call(document.querySelectorAll('.line-unit'), function (el) {
+        el.addEventListener('input', recalcLines);
+    });
+    document.getElementById('btn-quote').addEventListener('click', function () {
+        quotePanel.classList.add('open');
+        quotePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        syncQuoteMode();
+    });
+    document.getElementById('quote-cancel').addEventListener('click', function () {
+        quotePanel.classList.remove('open');
+    });
+    document.getElementById('quote-form').addEventListener('submit', function (e) {
+        document.getElementById('quote_client_note').value = document.getElementById('client_comment_shared').value || '';
+        if (modeOverall.checked) {
+            var v = parseFloat(document.getElementById('proposed_grand_total').value || '0');
+            if (!(v > 0)) {
+                e.preventDefault();
+                alert('Enter a proposed overall total greater than zero.');
+                return;
+            }
+        } else {
+            recalcLines();
+        }
+        if (!confirm('Submit your quote for our team to review?')) {
+            e.preventDefault();
+        }
+    });
+    syncQuoteMode();
 })();
 </script>
 </body>

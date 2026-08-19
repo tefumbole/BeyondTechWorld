@@ -544,6 +544,8 @@ class JobBoardController extends Controller
             'student_id' => $app->student_id_path,
             'student_id_back' => $app->student_id_back_path,
             'letter' => $app->internship_letter_path,
+            'employment_letter' => $app->employment_letter_path,
+            'official_badge' => $app->official_badge_path,
             'selfie' => $app->selfie_path,
         ];
         if (! isset($map[$type]) || ! $map[$type]) {
@@ -576,10 +578,13 @@ class JobBoardController extends Controller
             'status_reason' => 'nullable|string|max:2000',
             'interview_date' => 'nullable|date',
             'internship_program_id' => 'nullable|integer|exists:internship_programs,id',
+            'notify' => 'nullable',
         ]);
         if (! empty($data['status_reason']) && empty($data['rejection_reason'])) {
             $data['rejection_reason'] = $data['status_reason'];
         }
+        // Default to notify unless the admin explicitly chose Save (notify=0).
+        $data['notify'] = $request->input('notify', '1') !== '0' && $request->input('notify') !== 0;
         $app = Application::findOrFail($id);
         try {
             $this->applications->updateStatus($app, $data);
@@ -587,7 +592,27 @@ class JobBoardController extends Controller
             throw $e;
         }
 
-        return back()->with('message', 'Application updated. Candidate notified via WhatsApp when applicable.');
+        return back()->with('message', $data['notify']
+            ? 'Application updated. Candidate notified via WhatsApp when applicable.'
+            : 'Application saved (no WhatsApp notification sent).');
+    }
+
+    public function requestDocuments(Request $request, $id)
+    {
+        $this->authorizeJobs();
+        $data = $request->validate([
+            'documents_request_note' => 'nullable|string|max:1000',
+        ]);
+        $app = Application::findOrFail($id);
+        try {
+            $this->applications->requestDocumentsUpdate($app, $data['documents_request_note'] ?? null);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return back()->with('not_permitted', 'Could not request documents: '.$e->getMessage());
+        }
+
+        return back()->with('message', 'Document update requested. Candidate notified on WhatsApp.');
     }
 
     /**

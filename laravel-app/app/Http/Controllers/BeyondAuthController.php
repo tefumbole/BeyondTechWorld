@@ -63,6 +63,11 @@ class BeyondAuthController extends Controller
                 return redirect($supervisorRedirect);
             }
 
+            $intended = $request->session()->pull('beyond_intended');
+            if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
+                return redirect($intended);
+            }
+
             return redirect('/admin');
         }
 
@@ -367,6 +372,11 @@ class BeyondAuthController extends Controller
             $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect(Auth::user());
             if ($supervisorRedirect) {
                 return redirect($supervisorRedirect);
+            }
+
+            $intended = $request->session()->pull('beyond_intended');
+            if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
+                return redirect($intended);
             }
 
             return redirect('/admin');

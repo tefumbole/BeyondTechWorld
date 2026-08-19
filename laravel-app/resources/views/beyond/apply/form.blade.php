@@ -122,13 +122,31 @@
         var academic = form.__x && form.__x.$data
             ? form.__x.$data.academicRequired
             : (document.querySelector('[name="is_academic_required"]:checked') || {}).value;
-        if (eduStatus === 'currently_studying' && String(academic) === '1') {
+        var deferLetter = form.__x && form.__x.$data
+            ? !!form.__x.$data.deferInternshipLetter
+            : !!(document.querySelector('[name="defer_internship_letter"]') || {}).checked;
+        var deferWorker = form.__x && form.__x.$data
+            ? !!form.__x.$data.deferWorkerProof
+            : !!(document.querySelector('[name="defer_worker_proof"]') || {}).checked;
+        var isWorker = eduStatus === 'not_a_student';
+
+        if (!isWorker && eduStatus === 'currently_studying' && String(academic) === '1' && !deferLetter) {
             requiredDocs.push(['internship_letter', 'internship letter']);
         }
         requiredDocs.forEach(function (pair) {
             var input = document.querySelector('input[name="' + pair[0] + '"]');
-            if (!input || !input.files || !input.files.length) missing.push(pair[1]);
+            if (!input || input.disabled) return;
+            if (!input.files || !input.files.length) missing.push(pair[1]);
         });
+        if (isWorker && !deferWorker) {
+            var emp = document.querySelector('input[name="employment_letter"]');
+            var badge = document.querySelector('input[name="official_badge"]');
+            var hasEmp = emp && emp.files && emp.files.length;
+            var hasBadge = badge && badge.files && badge.files.length;
+            if (!hasEmp && !hasBadge) {
+                missing.push('employment letter or official badge');
+            }
+        }
         if (missing.length) {
             e.preventDefault();
             alert('Please snap or attach: ' + missing.join(', '));

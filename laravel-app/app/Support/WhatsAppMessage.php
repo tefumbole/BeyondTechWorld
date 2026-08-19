@@ -146,9 +146,38 @@ class WhatsAppMessage
         $msg .= self::bullet('Reference', $referenceNo);
         $msg .= self::quotationProductsBlock($options['products'] ?? []);
         $msg .= self::quotationPricingBlock($grandTotal, $options);
-        $msg .= "\nThis is a *quotation* (not a receipt). Open the link, review the agreement, then approve with your signature or reject with a comment.\n";
+        $msg .= "\nThis is a *quotation* (not a receipt). Open the link to *Sign & Approve*, *Reject*, or *Quote* (propose your own amounts).\n";
         $msg .= "*The official PDF quotation will be sent to you only after you sign.*\n";
-        $msg .= self::actionLink('Review & sign', $approvalUrl);
+        $msg .= self::actionLink('Review quotation', $approvalUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function quotationClientQuoteSubmitted(
+        $recipientName,
+        $referenceNo,
+        $customerName,
+        $originalTotal,
+        $proposedTotal,
+        $mode,
+        $reviewUrl = null,
+        $clientNote = ''
+    ) {
+        $modeLabel = $mode === 'lines' ? 'Item prices' : 'Overall total';
+        $msg = self::statusBlock('💬', 'Client Quote Submitted');
+        $msg .= self::greeting($recipientName);
+        $msg .= "*{$customerName}* submitted a quote on quotation *{$referenceNo}*.\n\n";
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Mode', $modeLabel);
+        $msg .= self::bullet('Original total', number_format((float) $originalTotal, 2));
+        $msg .= self::bullet('Proposed total', number_format((float) $proposedTotal, 2));
+        if ($clientNote !== '' && $clientNote !== null) {
+            $msg .= "\n*Client note:*\n{$clientNote}\n";
+        }
+        if ($reviewUrl) {
+            $msg .= self::actionLink('Review client quote', $reviewUrl);
+        }
         $msg .= self::footer();
 
         return $msg;
@@ -207,9 +236,7 @@ class WhatsAppMessage
     /**
      * Notify quotation creator / CC on send, approve, or reject.
      *
-     * @param  string  $event  sent|approved|rejected
-     * @param  array  $lines  optional [['name'=>,'qty'=>], ...]  (no undiscounted totals)
-     * @param  array  $pricing  optional pricing keys for quotationPricingBlock
+     * @param  string  $event  sent|approved|rejected|quoted|quote_accepted|quote_rejected
      */
     public static function quotationStakeholderNotify(
         $recipientName,
@@ -232,6 +259,18 @@ class WhatsAppMessage
             $msg = self::statusBlock('❌', 'Quotation Rejected');
             $msg .= self::greeting($recipientName);
             $msg .= "*{$customerName}* rejected quotation *{$referenceNo}*.\n\n";
+        } elseif ($event === 'quoted') {
+            $msg = self::statusBlock('💬', 'Client Quote');
+            $msg .= self::greeting($recipientName);
+            $msg .= "*{$customerName}* submitted a quote on quotation *{$referenceNo}*.\n\n";
+        } elseif ($event === 'quote_accepted') {
+            $msg = self::statusBlock('✅', 'Quote Accepted');
+            $msg .= self::greeting($recipientName);
+            $msg .= "Client quote on *{$referenceNo}* was accepted. Updated quotation sent for signature.\n\n";
+        } elseif ($event === 'quote_rejected') {
+            $msg = self::statusBlock('❌', 'Quote Rejected');
+            $msg .= self::greeting($recipientName);
+            $msg .= "Client quote on *{$referenceNo}* was rejected. Original amounts kept.\n\n";
         } else {
             $msg = self::statusBlock('📤', 'Quotation Sent for Approval');
             $msg .= self::greeting($recipientName);
@@ -247,7 +286,7 @@ class WhatsAppMessage
             $msg .= "\n*Client comment:*\n{$comment}\n";
         }
 
-        if ($event === 'sent' && $approvalUrl) {
+        if (in_array($event, ['sent', 'quote_accepted'], true) && $approvalUrl) {
             $msg .= self::actionLink('Client approval link', $approvalUrl);
         }
         if ($listUrl) {
@@ -509,6 +548,28 @@ class WhatsAppMessage
         return $msg;
     }
 
+    /**
+     * Admin alert when a new application is submitted (same style as applicant receipt).
+     */
+    public static function applicationUnderReviewAdmin($adminName, $applicantName, $jobTitle, $reference, $loginUrl, $isInternship = false, $applicantPhone = null)
+    {
+        $kind = $isInternship ? 'Internship' : 'Job';
+        $msg = self::statusBlock('📩', $kind.' Application');
+        $msg .= self::greeting($adminName ?: 'Admin');
+        $msg .= "A new application for *{$jobTitle}* has been received and is now *under review*.\n\n";
+        $msg .= self::bullet('Applicant', $applicantName ?: '—');
+        if ($applicantPhone) {
+            $msg .= self::bullet('WhatsApp', $applicantPhone);
+        }
+        $msg .= self::bullet('Reference', $reference);
+        $msg .= self::bullet('Type', $kind);
+        $msg .= self::actionLink('Login to review application', $loginUrl);
+        $msg .= "\nTap the link, sign in, and you will open this application directly.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function applicationSelected($name, $jobTitle, $reference, $agreementUrl, $isInternship = false, $offerPortal = false)
     {
         $kind = $isInternship ? 'Internship' : 'Employment';
@@ -539,6 +600,25 @@ class WhatsAppMessage
             $msg .= self::bullet('Reason', $reason);
         }
         $msg .= "\nWe wish you the best in your future opportunities.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function applicationDocumentsUpdateRequested($name, $jobTitle, $reference, $updateUrl, array $missingLabels = [], $note = null)
+    {
+        $msg = self::statusBlock('📎', 'Documents Needed');
+        $msg .= self::greeting($name);
+        $msg .= "Please upload the missing documents for your application to *{$jobTitle}*.\n\n";
+        $msg .= self::bullet('Reference', $reference);
+        if (! empty($missingLabels)) {
+            $msg .= self::bullet('Missing', implode(', ', $missingLabels));
+        }
+        if ($note) {
+            $msg .= self::bullet('Note', $note);
+        }
+        $msg .= self::actionLink('Upload documents', $updateUrl);
+        $msg .= "\nYou can open the link on your phone, snap photos, and submit.";
         $msg .= self::footer();
 
         return $msg;

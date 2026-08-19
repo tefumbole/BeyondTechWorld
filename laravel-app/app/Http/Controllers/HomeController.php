@@ -148,6 +148,11 @@ class HomeController extends Controller
             return redirect($supervisorRedirect);
         }
 
+        $intended = session()->pull('beyond_intended');
+        if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
+            return redirect($intended);
+        }
+
         return redirect('/admin');
     }
 

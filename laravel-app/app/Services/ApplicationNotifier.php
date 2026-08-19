@@ -57,11 +57,83 @@ class ApplicationNotifier
             $job->isInternship()
         );
 
-        return $this->send($application, $message, [
+        $result = $this->send($application, $message, [
             'title' => 'Application received',
             'message' => 'Your application for '.$job->title.' has been received and is under review.',
             'details' => $job->isInternship() ? 'Type: Internship' : 'Type: Job',
         ]);
+
+        $applicationId = $application->id;
+        $jobId = $job->id;
+        app()->terminating(function () use ($applicationId, $jobId) {
+            try {
+                $application = Application::find($applicationId);
+                $job = JobPosting::find($jobId);
+                if ($application && $job) {
+                    app(self::class)->notifyAdminsOfNewApplication($application, $job);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Admin new-application notify failed', [
+                    'application_id' => $applicationId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
+        return $result;
+    }
+
+    /**
+     * WhatsApp admins (role_id <= 2) with a phone when a new application arrives.
+     * Login link redirects to the application review page after sign-in.
+     */
+    public function notifyAdminsOfNewApplication(Application $application, JobPosting $job)
+    {
+        $path = route('jobs.applications.show', $application->id, false);
+        $loginUrl = url('/login?redirect='.rawurlencode($path));
+
+        $admins = \App\User::where('is_deleted', false)
+            ->where('is_active', 1)
+            ->where('role_id', '<=', 2)
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->orderBy('id')
+            ->get(['id', 'name', 'phone']);
+
+        $sent = 0;
+        foreach ($admins as $admin) {
+            $phone = trim((string) $admin->phone);
+            if ($phone === '') {
+                continue;
+            }
+            $message = WhatsAppMessage::applicationUnderReviewAdmin(
+                $admin->name,
+                $application->full_name,
+                $job->title,
+                $application->reference_number,
+                $loginUrl,
+                $job->isInternship(),
+                $this->notifyPhone($application)
+            );
+            // Wasender account protection: wait after applicant message and between admins.
+            usleep(5500000);
+            $send = $this->router->sendWhatsAppText($phone, $message, [
+                'title' => 'New application',
+                'message' => ($application->full_name ?: 'Applicant').' applied for '.$job->title,
+                'details' => $application->reference_number ?: '-',
+            ]);
+            if (! empty($send['success'])) {
+                $sent++;
+            } else {
+                Log::warning('Admin application WhatsApp failed', [
+                    'application_id' => $application->id,
+                    'admin_id' => $admin->id,
+                    'error' => $send['error'] ?? 'unknown',
+                ]);
+            }
+        }
+
+        return ['sent' => $sent];
     }
 
     public function selected(Application $application, JobPosting $job, $agreementUrl)
@@ -98,6 +170,25 @@ class ApplicationNotifier
             'title' => 'Application update',
             'message' => 'We are unable to proceed with your application for '.$job->title.' at this time.',
             'details' => $application->rejection_reason ?: '-',
+        ]);
+    }
+
+    public function documentsUpdateRequested(Application $application, $job, $updateUrl, array $missingLabels = [], $note = null)
+    {
+        $title = $job ? $job->title : 'your internship';
+        $message = WhatsAppMessage::applicationDocumentsUpdateRequested(
+            $application->full_name,
+            $title,
+            $application->reference_number,
+            $updateUrl,
+            $missingLabels,
+            $note
+        );
+
+        return $this->send($application, $message, [
+            'title' => 'Documents needed',
+            'message' => 'Please upload missing documents for '.$title,
+            'details' => implode(', ', $missingLabels) ?: '-',
         ]);
     }
 

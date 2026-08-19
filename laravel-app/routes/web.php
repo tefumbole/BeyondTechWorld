@@ -27,6 +27,7 @@ Route::get('/booking/payment/check/display', 'CartController@placeBookingAfterPa
 Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->name('quotation.client.show');
 Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
 Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');
+Route::post('/quotation-approval/{token}/quote', 'QuotationApprovalController@quote')->name('quotation.client.quote');
 
 Route::get('/delivery-sign/{token}', 'DeliverySignatureController@show')->name('delivery.client.show');
 Route::post('/delivery-sign/{token}/sign', 'DeliverySignatureController@sign')->name('delivery.client.sign');
@@ -108,6 +109,8 @@ Route::get('/application-agreement/{token}', 'ApplicationAgreementController@sho
 Route::post('/application-agreement/{token}', 'ApplicationAgreementController@sign')->name('apply.agreement.sign');
 Route::get('/offer/{token}', 'ApplicationAgreementController@show')->name('apply.offer');
 Route::post('/offer/{token}', 'ApplicationAgreementController@sign')->name('apply.offer.sign');
+Route::get('/application-documents/{token}', 'ApplicationDocumentsController@show')->name('apply.documents');
+Route::post('/application-documents/{token}', 'ApplicationDocumentsController@store')->name('apply.documents.store');
 
 // Applicant portal — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
@@ -397,8 +400,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/jobs/applications/delete', 'JobBoardController@deleteApplications')->name('jobs.applications.delete');
     Route::get('/admin/jobs/applications/{id}', 'JobBoardController@showApplication')->name('jobs.applications.show');
     Route::get('/admin/jobs/applications/{id}/document/{type}', 'JobBoardController@document')->name('jobs.applications.document')
-        ->where('type', 'cv|student_id|student_id_back|letter|selfie');
+        ->where('type', 'cv|student_id|student_id_back|letter|employment_letter|official_badge|selfie');
     Route::post('/admin/jobs/applications/{id}', 'JobBoardController@updateApplication')->name('jobs.applications.update');
+    Route::post('/admin/jobs/applications/{id}/request-documents', 'JobBoardController@requestDocuments')->name('jobs.applications.request_documents');
     Route::get('/admin/jobs/{id}/edit', 'JobBoardController@edit')->name('jobs.edit');
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');
     Route::post('/admin/jobs/{id}/clone', 'JobBoardController@clone')->name('jobs.clone');
@@ -746,6 +750,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('quotations/sendmail', 'QuotationController@sendMail')->name('quotation.sendmail');
 	Route::post('quotations/sendwhatsapp', 'QuotationController@sendWhatsapp')->name('quotation.sendwhatsapp');
 	Route::post('quotations/{id}/resend-approval', 'QuotationController@resendApproval')->name('quotation.resend_approval');
+	Route::get('quotations/{id}/quote', 'QuotationController@quoteReview')->name('quotation.quote_review');
+	Route::post('quotations/{id}/quote/accept', 'QuotationController@acceptClientQuote')->name('quotation.quote_accept');
+	Route::post('quotations/{id}/quote/reject', 'QuotationController@rejectClientQuote')->name('quotation.quote_reject');
 	Route::post('quotations/deletebyselection', 'QuotationController@deleteBySelection');
 	Route::get('quotations', 'QuotationController@index')->name('quotations.index');
 	Route::resource('quotations', 'QuotationController')->except(['index']);

@@ -43,9 +43,12 @@
               availability: '{{ old('availability', 'Immediately') }}',
               educationStatus: '{{ old('education_status', 'currently_studying') }}',
               academicRequired: '{{ old('is_academic_required', '1') }}',
+              deferInternshipLetter: {{ old('defer_internship_letter') === '1' ? 'true' : 'false' }},
+              deferWorkerProof: {{ old('defer_worker_proof') === '1' ? 'true' : 'false' }},
               selectedProgram: '{{ old('internship_program_id', '') }}',
               durationDays: '{{ old('internship_duration_days', '') }}',
-              setDuration(d) { this.durationDays = String(d); }
+              setDuration(d) { this.durationDays = String(d); },
+              get isWorker() { return this.educationStatus === 'not_a_student'; }
           }">
         @csrf
 
@@ -204,22 +207,8 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="text-sm font-semibold text-gray-700">School / Institution *</label>
-                    <input required name="school" value="{{ old('school') }}" type="text" autocomplete="organization"
-                           placeholder="e.g. University of Bamenda" class="apply-field">
-                </div>
-                <div>
-                    <label class="text-sm font-semibold text-gray-700">Level of study *</label>
-                    <select required name="level_of_study" class="apply-field">
-                        <option value="">Select level…</option>
-                        @foreach (['Secondary / High School', 'Certificate', 'Diploma / HND', 'Bachelor’s degree', 'Master’s degree', 'PhD / Doctorate', 'Other'] as $level)
-                            <option value="{{ $level }}" @if(old('level_of_study') === $level) selected @endif>{{ $level }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-semibold text-gray-700">Student status *</label>
-                    <div class="apply-toggle" role="radiogroup">
+                    <label class="text-sm font-semibold text-gray-700">Applicant type *</label>
+                    <div class="apply-toggle" role="radiogroup" style="flex-wrap:wrap;">
                         <label :class="educationStatus === 'currently_studying' ? 'is-on' : ''">
                             <input type="radio" name="education_status" value="currently_studying" required
                                    x-model="educationStatus"
@@ -232,7 +221,36 @@
                                    @if(old('education_status') === 'graduated') checked @endif>
                             Graduated
                         </label>
+                        <label :class="educationStatus === 'not_a_student' ? 'is-on' : ''">
+                            <input type="radio" name="education_status" value="not_a_student" required
+                                   x-model="educationStatus"
+                                   @if(old('education_status') === 'not_a_student') checked @endif>
+                            Not a student
+                        </label>
                     </div>
+                    <p class="text-xs text-gray-500 mt-1 mb-0" x-show="isWorker" x-cloak>
+                        Workers / professionals can apply. You will need a National ID plus an employment letter or official badge (or submit those later).
+                    </p>
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">
+                        <span x-show="!isWorker">School / Institution *</span>
+                        <span x-show="isWorker" x-cloak>Organisation / Employer <span class="font-normal text-gray-500">(optional)</span></span>
+                    </label>
+                    <input name="school" value="{{ old('school') }}" type="text" autocomplete="organization"
+                           class="apply-field"
+                           x-bind:required="!isWorker"
+                           x-bind:placeholder="isWorker ? 'e.g. Current workplace' : 'e.g. University of Bamenda'">
+                </div>
+                <div x-show="!isWorker" x-cloak>
+                    <label class="text-sm font-semibold text-gray-700">Level of study *</label>
+                    <select name="level_of_study" class="apply-field" x-bind:required="!isWorker">
+                        <option value="">Select level…</option>
+                        @foreach (['Secondary / High School', 'Certificate', 'Diploma / HND', 'Bachelor’s degree', 'Master’s degree', 'PhD / Doctorate', 'Other'] as $level)
+                            <option value="{{ $level }}" @if(old('level_of_study') === $level) selected @endif>{{ $level }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div x-show="educationStatus === 'currently_studying'" x-cloak>
                     <label class="text-sm font-semibold text-gray-700">Academic-required internship? *</label>
@@ -254,12 +272,12 @@
                         </label>
                     </div>
                 </div>
-                <template x-if="educationStatus === 'graduated'">
+                <template x-if="educationStatus !== 'currently_studying'">
                     <input type="hidden" name="is_academic_required" value="0">
                 </template>
                 <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-0 leading-relaxed"
-                   x-show="educationStatus === 'currently_studying' && academicRequired === '1'" x-cloak>
-                    An internship letter from your school is required in the Documents step.
+                   x-show="educationStatus === 'currently_studying' && academicRequired === '1' && !deferInternshipLetter" x-cloak>
+                    An internship letter from your school is required in the Documents step (or choose Submit later).
                 </p>
             </div>
         </div>
@@ -336,14 +354,17 @@
                         @endforeach
                     </div>
 
-                    <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Internship Letter">
+                    <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Internship Letter"
+                         x-show="!isWorker" x-cloak>
                         <label class="text-sm font-semibold text-gray-700">
-                            Internship letter
-                            <span x-text="(educationStatus === 'currently_studying' && academicRequired === '1') ? '*' : '(optional)'"></span>
+                            School internship letter
+                            <span x-text="(educationStatus === 'currently_studying' && academicRequired === '1' && !deferInternshipLetter) ? '*' : '(optional / later)'"></span>
                         </label>
-                        <input type="file" name="internship_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1">
-                        <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-internship_letter">
-                        <div class="apply-doc-actions">
+                        <input type="file" name="internship_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
+                               x-bind:disabled="deferInternshipLetter">
+                        <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-internship_letter"
+                               x-bind:disabled="deferInternshipLetter">
+                        <div class="apply-doc-actions" x-show="!deferInternshipLetter">
                             <button type="button" data-doc-snap class="apply-doc-btn primary">
                                 <i data-lucide="camera" class="w-4 h-4"></i> Snap
                             </button>
@@ -351,8 +372,64 @@
                                 <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
                             </label>
                         </div>
-                        <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status>No file yet</p>
+                        <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferInternshipLetter">No file yet</p>
                         <img data-doc-preview alt="Internship Letter preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
+                        <label class="flex items-start gap-2 text-xs text-gray-700 mt-2 mb-0">
+                            <input type="checkbox" name="defer_internship_letter" value="1" class="mt-0.5 accent-[#0b3f90]"
+                                   x-model="deferInternshipLetter">
+                            <span>I will submit the school internship letter later</span>
+                        </label>
+                    </div>
+
+                    <div class="rounded-xl border border-sky-200 bg-sky-50/80 p-3 space-y-3" x-show="isWorker" x-cloak>
+                        <div>
+                            <p class="text-sm font-bold text-sky-900 m-0">Worker proof *</p>
+                            <p class="text-xs text-sky-800 mt-1 mb-0 leading-relaxed">
+                                Upload an <strong>employment letter</strong> or an <strong>official badge</strong> (or both). You can submit later if you do not have them yet.
+                            </p>
+                        </div>
+
+                        <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Employment Letter">
+                            <label class="text-sm font-semibold text-gray-700">Employment letter</label>
+                            <input type="file" name="employment_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
+                                   x-bind:disabled="deferWorkerProof">
+                            <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-employment_letter"
+                                   x-bind:disabled="deferWorkerProof">
+                            <div class="apply-doc-actions" x-show="!deferWorkerProof">
+                                <button type="button" data-doc-snap class="apply-doc-btn primary">
+                                    <i data-lucide="camera" class="w-4 h-4"></i> Snap
+                                </button>
+                                <label for="attach-employment_letter" class="apply-doc-btn">
+                                    <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
+                                </label>
+                            </div>
+                            <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferWorkerProof">No file yet</p>
+                            <img data-doc-preview alt="Employment letter preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
+                        </div>
+
+                        <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Official Badge">
+                            <label class="text-sm font-semibold text-gray-700">Official badge</label>
+                            <input type="file" name="official_badge" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
+                                   x-bind:disabled="deferWorkerProof">
+                            <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-official_badge"
+                                   x-bind:disabled="deferWorkerProof">
+                            <div class="apply-doc-actions" x-show="!deferWorkerProof">
+                                <button type="button" data-doc-snap class="apply-doc-btn primary">
+                                    <i data-lucide="camera" class="w-4 h-4"></i> Snap
+                                </button>
+                                <label for="attach-official_badge" class="apply-doc-btn">
+                                    <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
+                                </label>
+                            </div>
+                            <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferWorkerProof">No file yet</p>
+                            <img data-doc-preview alt="Official badge preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
+                        </div>
+
+                        <label class="flex items-start gap-2 text-xs text-gray-700 mb-0 bg-white border border-sky-200 rounded-xl p-3">
+                            <input type="checkbox" name="defer_worker_proof" value="1" class="mt-0.5 accent-[#0b3f90]"
+                                   x-model="deferWorkerProof">
+                            <span>I will submit my employment letter or official badge later</span>
+                        </label>
                     </div>
 
                     @foreach ([
