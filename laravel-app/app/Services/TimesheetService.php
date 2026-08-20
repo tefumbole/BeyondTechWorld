@@ -198,6 +198,7 @@ class TimesheetService
             'be_user_id' => null,
             'activity_id' => $data['activity_id'] ?? null,
             'activity_name' => $activityName,
+            'assignment_id' => ! empty($data['assignment_id']) ? (int) $data['assignment_id'] : null,
             'entry_date' => $data['entry_date'],
             'hours' => $data['hours'],
             'notes' => $data['notes'] ?? null,
@@ -244,6 +245,9 @@ class TimesheetService
         $entry->update([
             'activity_id' => $data['activity_id'] ?? $entry->activity_id,
             'activity_name' => $activityName,
+            'assignment_id' => array_key_exists('assignment_id', $data)
+                ? (! empty($data['assignment_id']) ? (int) $data['assignment_id'] : null)
+                : $entry->assignment_id,
             'entry_date' => $data['entry_date'] ?? $entry->entry_date,
             'hours' => $data['hours'] ?? $entry->hours,
             'notes' => array_key_exists('notes', $data) ? $data['notes'] : $entry->notes,
@@ -425,7 +429,9 @@ class TimesheetService
 
     public function adminEntries($from = null, $to = null, $userId = null, $month = null)
     {
-        $q = TimesheetEntry::query()->orderByDesc('entry_date')->orderByDesc('created_at');
+        $q = TimesheetEntry::with(['approver', 'assignment.task'])
+            ->orderByDesc('entry_date')
+            ->orderByDesc('created_at');
         if ($month) {
             $date = Carbon::createFromFormat('Y-m', $month);
             $q->whereBetween('entry_date', [
@@ -573,10 +579,20 @@ class TimesheetService
         return $out->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
     }
 
-    public function updateEntryStatus($id, $status)
+    public function updateEntryStatus($id, $status, $adminId = null, $note = null)
     {
         $entry = TimesheetEntry::findOrFail($id);
         $entry->status = $status;
+        if (in_array($status, ['approved', 'rejected'], true)) {
+            $entry->approved_by = $adminId;
+            $entry->approved_at = now();
+        } else {
+            $entry->approved_by = null;
+            $entry->approved_at = null;
+        }
+        if ($note !== null) {
+            $entry->review_note = $note !== '' ? $note : null;
+        }
         $entry->save();
 
         return $entry;

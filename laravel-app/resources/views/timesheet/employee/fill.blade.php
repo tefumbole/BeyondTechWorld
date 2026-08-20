@@ -24,6 +24,11 @@
                 @if(!empty($prefillDate))
                     Focus date: <strong>{{ $prefillDate }}</strong>.
                 @endif
+                @if(!empty($assignment))
+                    <div class="mt-1">
+                        Hours for: <strong>Day {{ $assignment->progression_day }}@if($assignment->task) — {{ $assignment->task->title }}@endif</strong>
+                    </div>
+                @endif
             </div>
         @endif
         @if($errors->any())
@@ -42,6 +47,9 @@
                     <p class="text-muted small mb-3">Record hours for a specific activity.</p>
                     <form method="POST" action="{{ route('timesheet.entries.store') }}">
                         @csrf
+                        @if(!empty($assignment))
+                            <input type="hidden" name="assignment_id" value="{{ $assignment->id }}">
+                        @endif
                         <div class="mb-3">
                             <label class="ts-label">Date <span class="text-danger">*</span></label>
                             <input type="date" name="entry_date" class="ts-field" required value="{{ old('entry_date', $prefillDate ?? date('Y-m-d')) }}">

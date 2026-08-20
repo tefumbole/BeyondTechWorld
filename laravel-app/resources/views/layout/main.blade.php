@@ -1493,6 +1493,8 @@
                                 <ul id="internship-module" class="collapse list-unstyled ">
                                     @if($internship_student_active || in_array($role->id, [1,2]))
                                         <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Placement (student)</a></li>
+                                        <li id="ip-student-portfolio"><a href="{{ route('internship.student.portfolio') }}">Portfolio</a></li>
+                                        <li id="ip-student-timesheet"><a href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}">Fill Time Sheet</a></li>
                                     @endif
                                 </ul>
                             </li>

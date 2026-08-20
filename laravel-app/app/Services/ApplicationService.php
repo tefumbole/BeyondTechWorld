@@ -93,6 +93,16 @@ class ApplicationService
                 ]);
             }
             $payload['internship_program_id'] = $chosen;
+
+            $program = \App\InternshipProgram::find($chosen);
+            if ($program && ! $program->hasCapacityForOneMore()) {
+                throw ValidationException::withMessages([
+                    'internship_program_id' => [
+                        $program->displayName().' is full for now. Please choose another program.',
+                    ],
+                ]);
+            }
+
             $duration = (int) ($payload['internship_duration_days'] ?? 0);
             if ($duration < Application::internshipDurationMin() || $duration > Application::internshipDurationMax()) {
                 throw ValidationException::withMessages([
@@ -125,20 +135,10 @@ class ApplicationService
             if (! empty($data['defer_internship_letter'])) {
                 $deferred[] = 'internship_letter';
             }
-            if (! empty($data['defer_employment_letter'])) {
-                $deferred[] = 'employment_letter';
-            }
-            if (! empty($data['defer_official_badge'])) {
-                $deferred[] = 'official_badge';
-            }
-            // Legacy single checkbox for worker proof later
+            // Workers tick one box and may satisfy it later with either proof.
             if (! empty($data['defer_worker_proof'])) {
-                if (! in_array('employment_letter', $deferred, true)) {
-                    $deferred[] = 'employment_letter';
-                }
-                if (! in_array('official_badge', $deferred, true)) {
-                    $deferred[] = 'official_badge';
-                }
+                $deferred[] = 'employment_letter';
+                $deferred[] = 'official_badge';
             }
 
             if (! empty($extraFiles['student_id'])) {
@@ -924,6 +924,24 @@ class ApplicationService
     }
 
     /**
+     * The only program state an applicant may be placed on: published and active.
+     *
+     * @return \App\InternshipProgram|null
+     */
+    public function assignableProgram($programId)
+    {
+        $programId = (int) $programId;
+        if ($programId < 1) {
+            return null;
+        }
+
+        return \App\InternshipProgram::where('id', $programId)
+            ->where('status', 'published')
+            ->where('is_active', true)
+            ->first();
+    }
+
+    /**
      * Change program while awaiting (or selected before placement). Enforces max_students.
      */
     public function reassignInternshipProgram(Application $application, $programId)
@@ -949,12 +967,10 @@ class ApplicationService
             return $application;
         }
 
-        $program = \App\InternshipProgram::where('id', $programId)
-            ->where('is_active', true)
-            ->first();
+        $program = $this->assignableProgram($programId);
         if (! $program) {
             throw ValidationException::withMessages([
-                'internship_program_id' => ['That internship program was not found or is inactive.'],
+                'internship_program_id' => ['That internship program was not found, is unpublished, or is inactive.'],
             ]);
         }
         if (! $program->hasCapacityForOneMore($application->id)) {
@@ -1332,10 +1348,7 @@ class ApplicationService
         }
 
         $programId = (int) ($opts['program_id'] ?? $application->internship_program_id ?? 0);
-        $program = \App\InternshipProgram::where('id', $programId)
-            ->where('status', 'published')
-            ->where('is_active', true)
-            ->first();
+        $program = $this->assignableProgram($programId);
         if (! $program) {
             throw new \RuntimeException('Internship program not found or not published.');
         }

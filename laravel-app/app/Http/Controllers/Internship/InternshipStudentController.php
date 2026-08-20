@@ -160,8 +160,8 @@ class InternshipStudentController extends Controller
             $date = date('Y-m-d');
         }
 
-        return redirect()->route('timesheet.fill', ['date' => $date, 'intern' => 1])
-            ->with('message', 'Submission sent. Your supervisor will grade it. Please fill today’s timesheet to close out the day.');
+        return redirect()->route('timesheet.fill', ['date' => $date, 'intern' => 1, 'assignment' => $assignment->id])
+            ->with('message', 'Submission sent. Your supervisor reviews it, and your next task arrives on your next working day once accepted. Please log today’s hours.');
     }
 
     public function portfolio()

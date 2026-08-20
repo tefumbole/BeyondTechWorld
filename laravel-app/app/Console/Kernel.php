@@ -22,6 +22,8 @@ class Kernel extends ConsoleKernel
         Commands\ProcessContractExpiryAlerts::class,
         Commands\InternshipReconcileReleases::class,
         Commands\InternshipImportCurriculum::class,
+        Commands\InternshipTimesheetReminders::class,
+        Commands\InternshipReviewSla::class,
         Commands\SendOnlineInvitationReminders::class,
     ];
 
@@ -45,6 +47,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('contracts:process-reminders')->everyMinute();
         $schedule->command('contracts:expiry-alerts')->dailyAt('08:00');
         $schedule->command('internship:reconcile-releases')->hourly();
+        $schedule->command('internship:timesheet-reminders')->hourly()->withoutOverlapping();
+        $schedule->command('internship:review-sla')->hourly()->withoutOverlapping();
         $schedule->command('online-invitations:send-reminders')->everyMinute();
     }
 

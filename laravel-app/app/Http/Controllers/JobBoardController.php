@@ -586,10 +586,18 @@ class JobBoardController extends Controller
         // Default to notify unless the admin explicitly chose Save (notify=0).
         $data['notify'] = $request->input('notify', '1') !== '0' && $request->input('notify') !== 0;
         $app = Application::findOrFail($id);
+        $requested = $data['status'];
         try {
-            $this->applications->updateStatus($app, $data);
+            $updated = $this->applications->updateStatus($app, $data);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
+        }
+
+        if ($requested === Application::STATUS_HIRED && $updated->status === Application::STATUS_SELECTED) {
+            return back()->with('not_permitted', 'Kept as Selected: the candidate has not signed the offer agreement yet. '
+                .($data['notify']
+                    ? 'The offer link was sent again on WhatsApp — mark Hired once it is signed.'
+                    : 'Use Save & Notify to send the offer link, then mark Hired once it is signed.'));
         }
 
         return back()->with('message', $data['notify']

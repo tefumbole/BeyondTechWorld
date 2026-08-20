@@ -5,11 +5,25 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <a href="{{ route('internship.supervisor.index') }}" class="ip-btn ip-btn-outline mb-3">&larr; Queue</a>
-        <h1 class="ip-title">Grade submission</h1>
+        <h1 class="ip-title">Review submission</h1>
         <div class="ip-card">
             <p><strong>Student:</strong> {{ optional($submission->student)->name }}</p>
             <p><strong>Task #{{ $submission->assignment->progression_day }}:</strong> {{ $task->title }}</p>
             <p><strong>Attempt:</strong> {{ $submission->attempt_no }}</p>
+            @if($submission->status === 'submitted' && !empty($sla['deadline']))
+                <p class="mb-2">
+                    <span class="ip-badge {{ $sla['overdue'] ? 'warn' : 'active' }}">
+                        Review due {{ $sla['deadline']->format('D d M Y H:i') }}
+                    </span>
+                    <span class="ip-meta">
+                        @if($sla['overdue'])
+                            Past the {{ $slaDays }}-working-day window — this will be auto-accepted on the next run.
+                        @else
+                            Auto-accepted after {{ $slaDays }} working day{{ $slaDays == 1 ? '' : 's' }} without a decision.
+                        @endif
+                    </span>
+                </p>
+            @endif
             <p>{{ $submission->description }}</p>
             <p>
                 @foreach($submission->files as $f)
@@ -40,11 +54,15 @@
                 <div class="form-group">
                     <label>Decision</label>
                     <select name="decision" class="form-control" required>
-                        <option value="pass">Pass</option>
+                        <option value="pass">Accept submission</option>
                         <option value="revision_required">Request revision</option>
                     </select>
+                    <small class="form-text text-muted">
+                        Accepting schedules the next task for the student’s next working day.
+                        Requesting a revision reopens this task and releases nothing new.
+                    </small>
                 </div>
-                <button class="ip-btn" type="submit">Save grade</button>
+                <button class="ip-btn" type="submit">Save decision</button>
             </form>
         </div>
     </div>

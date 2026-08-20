@@ -12,7 +12,7 @@
     <div class="container-fluid ip-shell" style="max-width:1200px;">
         <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
         <h1 class="ip-title">Internship Task Manager</h1>
-        <p class="ip-meta mb-3">Per-student day tasks: open work, upcoming releases on each student’s working days, and tasks already released. Schedules are student-owned (Working Week), not program-wide.</p>
+        <p class="ip-meta mb-3">Per-student day tasks: open work, upcoming releases on each student’s working days, and tasks already released. Schedules are student-owned (Working Week), not program-wide. A student only appears as upcoming once their previous submission has been accepted.</p>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -165,7 +165,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="ip-meta">Auto-releases on working day</span>
+                                        <span class="ip-meta">Auto-releases at the working-day start time</span>
                                     @endif
                                 </td>
                             </tr>

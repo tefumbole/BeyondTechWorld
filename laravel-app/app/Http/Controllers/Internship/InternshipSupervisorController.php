@@ -127,7 +127,13 @@ class InternshipSupervisorController extends Controller
 
         $submissions = $q->paginate(30);
 
-        return view('internship.supervisor.index', compact('submissions'));
+        $sla = [];
+        foreach ($submissions as $submission) {
+            $sla[$submission->id] = $this->service->reviewSlaStatus($submission);
+        }
+        $slaDays = $this->service->reviewSlaWorkingDays();
+
+        return view('internship.supervisor.index', compact('submissions', 'sla', 'slaDays'));
     }
 
     public function show($id)
@@ -158,8 +164,10 @@ class InternshipSupervisorController extends Controller
         }
 
         $rubric = $submission->assignment->task->rubric();
+        $sla = $this->service->reviewSlaStatus($submission);
+        $slaDays = $this->service->reviewSlaWorkingDays();
 
-        return view('internship.supervisor.show', compact('submission', 'rubric'));
+        return view('internship.supervisor.show', compact('submission', 'rubric', 'sla', 'slaDays'));
     }
 
     public function grade(Request $request, $id)
@@ -185,7 +193,18 @@ class InternshipSupervisorController extends Controller
 
         $this->service->gradeSubmission($submission, Auth::user(), $data);
 
-        return redirect()->route('internship.supervisor.index')->with('message', 'Grade saved.');
+        $enrolment = $submission->assignment->enrolment->fresh();
+        $accepted = $submission->assignment->fresh()->status === 'passed';
+        if ($accepted && $enrolment && $enrolment->next_release_date) {
+            $message = 'Submission accepted. The next task is scheduled for '
+                .\Carbon\Carbon::parse($enrolment->next_release_date)->format('D d M Y').'.';
+        } elseif ($accepted) {
+            $message = 'Submission accepted. The next task releases on the student’s next working day.';
+        } else {
+            $message = 'Revision requested. The student keeps this task and no new task is released.';
+        }
+
+        return redirect()->route('internship.supervisor.index')->with('message', $message);
     }
 
     public function downloadFile($fileId)

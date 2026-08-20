@@ -90,6 +90,25 @@ class TimesheetEmployeeController extends Controller
         return back()->with('message', 'Activity deleted.');
     }
 
+    /**
+     * Task assignment the logged-in intern owns, or null when absent/foreign.
+     *
+     * @return \App\InternshipTaskAssignment|null
+     */
+    protected function ownAssignment($assignmentId, $userId)
+    {
+        if (! $assignmentId) {
+            return null;
+        }
+
+        $assignment = \App\InternshipTaskAssignment::with(['task', 'enrolment'])->find($assignmentId);
+        if (! $assignment || (int) optional($assignment->enrolment)->student_user_id !== (int) $userId) {
+            return null;
+        }
+
+        return $assignment;
+    }
+
     public function fill(Request $request)
     {
         $this->authorizeEmployee();
@@ -103,8 +122,9 @@ class TimesheetEmployeeController extends Controller
         $entries = $this->timesheet->entriesRecent($user->id);
         $prefillDate = $request->get('date', date('Y-m-d'));
         $internPrompt = (bool) $request->get('intern') || \App\Support\InternCompliance::appliesTo($user);
+        $assignment = $this->ownAssignment($request->get('assignment'), $user->id);
 
-        return view('timesheet.employee.fill', compact('activities', 'entries', 'prefillDate', 'internPrompt'));
+        return view('timesheet.employee.fill', compact('activities', 'entries', 'prefillDate', 'internPrompt', 'assignment'));
     }
 
     public function storeEntry(Request $request)
@@ -115,7 +135,10 @@ class TimesheetEmployeeController extends Controller
             'activity_id' => 'required|string',
             'hours' => 'required|numeric|min:0.25|max:24',
             'notes' => 'nullable|string|max:2000',
+            'assignment_id' => 'nullable|integer',
         ]);
+        $assignment = $this->ownAssignment($data['assignment_id'] ?? null, Auth::id());
+        $data['assignment_id'] = $assignment ? $assignment->id : null;
         $this->timesheet->addEntryAdmin(Auth::user(), $data);
 
         if (\App\Support\InternCompliance::appliesTo(Auth::user())) {

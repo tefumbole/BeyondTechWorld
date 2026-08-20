@@ -139,6 +139,7 @@
                         @foreach($sub->grades as $g)
                             <div class="mt-2 p-2" style="background:#f8fafc;border-radius:8px;">
                                 <strong>Grade:</strong> {{ $g->score }}/100 — {{ str_replace('_',' ', $g->decision) }}
+                                @if($g->auto_accepted)<span class="ip-badge warn">Auto-accepted</span>@endif
                                 @if($g->feedback)<div class="mt-1">{{ $g->feedback }}</div>@endif
                             </div>
                         @endforeach

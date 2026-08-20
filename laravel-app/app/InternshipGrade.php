@@ -10,13 +10,14 @@ class InternshipGrade extends Model
 
     protected $fillable = [
         'submission_id', 'grader_id', 'score', 'rubric_scores_json',
-        'feedback', 'decision', 'graded_at',
+        'feedback', 'decision', 'graded_at', 'auto_accepted',
     ];
 
     protected $dates = ['graded_at'];
 
     protected $casts = [
         'score' => 'integer',
+        'auto_accepted' => 'boolean',
     ];
 
     public function submission()

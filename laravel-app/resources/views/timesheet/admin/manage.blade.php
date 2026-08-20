@@ -50,6 +50,7 @@
                             <th>Date</th>
                             <th>Employee</th>
                             <th>Activity</th>
+                            <th>Task</th>
                             <th>Hours</th>
                             <th>Status</th>
                             <th class="text-right">Actions</th>
@@ -61,23 +62,40 @@
                                 <td>{{ \Carbon\Carbon::parse($entry->entry_date)->format('M j, Y') }}</td>
                                 <td>{{ $entry->employee_name ?: '—' }}</td>
                                 <td>{{ $entry->activity_name ?: '—' }}</td>
+                                <td class="text-muted small">
+                                    @if($entry->assignment)
+                                        Day {{ $entry->assignment->progression_day }}
+                                        @if($entry->assignment->task)
+                                            — {{ \Illuminate\Support\Str::limit($entry->assignment->task->title, 40) }}
+                                        @endif
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td>{{ number_format((float)$entry->hours, 2) }}</td>
-                                <td><span class="ts-badge">{{ ucfirst($entry->status) }}</span></td>
+                                <td>
+                                    <span class="ts-badge">{{ ucfirst($entry->status) }}</span>
+                                    @if($entry->approved_at)
+                                        <div class="text-muted small mt-1">
+                                            {{ optional($entry->approver)->name ?: 'Admin' }}
+                                            · {{ \Carbon\Carbon::parse($entry->approved_at)->format('M j, Y H:i') }}
+                                        </div>
+                                    @endif
+                                    @if($entry->review_note)
+                                        <div class="text-muted small">“{{ \Illuminate\Support\Str::limit($entry->review_note, 60) }}”</div>
+                                    @endif
+                                </td>
                                 <td class="text-right text-nowrap">
-                                    @if($entry->status !== 'approved')
-                                        <form method="POST" action="{{ route('timesheet.admin.entries.status', $entry->id) }}" class="d-inline">
-                                            @csrf
-                                            <input type="hidden" name="status" value="approved">
-                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Approve">Approve</button>
-                                        </form>
-                                    @endif
-                                    @if($entry->status !== 'rejected')
-                                        <form method="POST" action="{{ route('timesheet.admin.entries.status', $entry->id) }}" class="d-inline">
-                                            @csrf
-                                            <input type="hidden" name="status" value="rejected">
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reject">Reject</button>
-                                        </form>
-                                    @endif
+                                    <form method="POST" action="{{ route('timesheet.admin.entries.status', $entry->id) }}" class="d-inline">
+                                        @csrf
+                                        <input type="text" name="review_note" class="ts-field d-inline-block" style="width:150px;" placeholder="Note (optional)" value="{{ $entry->review_note }}">
+                                        @if($entry->status !== 'approved')
+                                            <button type="submit" name="status" value="approved" class="btn btn-sm btn-outline-success" title="Approve">Approve</button>
+                                        @endif
+                                        @if($entry->status !== 'rejected')
+                                            <button type="submit" name="status" value="rejected" class="btn btn-sm btn-outline-secondary" title="Reject">Reject</button>
+                                        @endif
+                                    </form>
                                     <form method="POST" action="{{ route('timesheet.admin.entries.destroy', $entry->id) }}" class="d-inline" onsubmit="return confirm('Delete this entry?');">
                                         @csrf
                                         <button type="submit" class="btn btn-link text-danger p-1" title="Delete"><i class="dripicons-trash"></i></button>
@@ -86,7 +104,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No entries found matching filters.</td>
+                                <td colspan="7" class="text-center text-muted py-4">No entries found matching filters.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -13,10 +13,11 @@ class TimesheetEntry extends Model
 
     protected $fillable = [
         'id', 'be_user_id', 'user_id', 'employee_name', 'activity_id', 'activity_name',
-        'entry_date', 'hours', 'notes', 'status',
+        'assignment_id', 'entry_date', 'hours', 'notes', 'status',
+        'approved_by', 'approved_at', 'review_note',
     ];
 
-    protected $dates = ['entry_date'];
+    protected $dates = ['entry_date', 'approved_at'];
 
     protected $casts = [
         'hours' => 'float',
@@ -40,5 +41,15 @@ class TimesheetEntry extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function assignment()
+    {
+        return $this->belongsTo(InternshipTaskAssignment::class, 'assignment_id');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

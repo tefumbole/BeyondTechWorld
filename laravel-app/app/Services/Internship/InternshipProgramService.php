@@ -137,6 +137,33 @@ class InternshipProgramService
         return (bool) $ww->{$day};
     }
 
+    /**
+     * True when the student's timetable for $date has already started, so a task
+     * released today lands inside their working hours instead of overnight.
+     * Only today is time-gated; other dates are day-level decisions.
+     */
+    public function releaseWindowOpen(User $user, Carbon $date)
+    {
+        if (! $date->copy()->startOfDay()->isSameDay(Carbon::today())) {
+            return true;
+        }
+
+        $ww = WorkingWeek::where('user_id', $user->id)->first();
+        if (! $ww) {
+            return false;
+        }
+
+        $day = strtolower($date->format('l'));
+        $start = $ww->{$day.'_start'} ?: '08:00';
+        try {
+            $startAt = Carbon::createFromFormat('Y-m-d H:i', $date->toDateString().' '.substr($start, 0, 5));
+        } catch (\Throwable $e) {
+            $startAt = $date->copy()->startOfDay()->setTime(8, 0, 0);
+        }
+
+        return now()->greaterThanOrEqualTo($startAt);
+    }
+
     public function nextWorkingDate(User $user, Carbon $from)
     {
         $d = $from->copy()->startOfDay();
@@ -189,7 +216,7 @@ class InternshipProgramService
             }
 
             $blocking = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-                ->whereIn('status', ['available', 'in_progress', 'revision_required'])
+                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
                 ->exists();
             if ($blocking) {
                 continue;
@@ -200,7 +227,16 @@ class InternshipProgramService
                 continue;
             }
 
+            if ($enrolment->next_release_date
+                && Carbon::parse($enrolment->next_release_date)->startOfDay()->greaterThan($date)) {
+                continue;
+            }
+
             if (! $this->isWorkingDate($student, $date)) {
+                continue;
+            }
+
+            if (! $this->releaseWindowOpen($student, $date)) {
                 continue;
             }
 
@@ -368,6 +404,68 @@ class InternshipProgramService
         return $released;
     }
 
+    /**
+     * WhatsApp interns who finished a working day without logging hours.
+     * One reminder per intern per missing date (idempotency key in the notification log).
+     *
+     * @return int reminders sent
+     */
+    public function remindMissingTimesheets()
+    {
+        $sent = 0;
+        $enrolments = InternshipEnrolment::with('student')
+            ->whereIn('status', ['active', 'paused'])
+            ->get();
+
+        foreach ($enrolments as $enrolment) {
+            $student = $enrolment->student;
+            if (! $student || ! InternCompliance::workingWeekConfigured($student)) {
+                continue;
+            }
+
+            $missing = InternCompliance::missingTimesheetDate($student);
+            if (! $missing) {
+                continue;
+            }
+
+            $key = 'timesheet_reminder:'.$student->id.':'.$missing;
+            if ($this->alreadyNotified($key)) {
+                continue;
+            }
+
+            $assignment = InternshipTaskAssignment::with('task')
+                ->where('enrolment_id', $enrolment->id)
+                ->whereDate('scheduled_work_date', $missing)
+                ->orderByDesc('id')
+                ->first();
+            $taskLabel = $assignment
+                ? '#'.$assignment->progression_day.' — '.optional($assignment->task)->title
+                : null;
+
+            $params = ['date' => $missing, 'intern' => 1];
+            if ($assignment) {
+                $params['assignment'] = $assignment->id;
+            }
+
+            $msg = WhatsAppMessage::internshipTimesheetReminder(
+                $student->name,
+                Carbon::parse($missing)->format('D d M Y'),
+                $taskLabel,
+                route('timesheet.fill', $params)
+            );
+
+            $result = $this->sendWhatsApp($student, $msg, $key, 'timesheet_reminder');
+            if (! empty($result['success'])) {
+                $sent++;
+            }
+
+            // Wasender account protection: one message every 5 seconds.
+            usleep(5500000);
+        }
+
+        return $sent;
+    }
+
     public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false)
     {
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
@@ -393,10 +491,10 @@ class InternshipProgramService
                 return null;
             }
 
-            // Only block when the student still has an open (unsubmitted) task.
-            // Submitted tasks may await grading while the next day is released.
+            // Nothing releases while the student has work in hand — including a
+            // submission awaiting grading. The next task follows acceptance.
             $blocking = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-                ->whereIn('status', ['available', 'in_progress', 'revision_required'])
+                ->whereIn('status', ['available', 'in_progress', 'submitted', 'revision_required'])
                 ->exists();
             if ($blocking) {
                 return null;
@@ -407,7 +505,18 @@ class InternshipProgramService
                 return null;
             }
 
+            // A scheduled hold from an accepted submission is honoured even by
+            // same-day paths, so nothing arrives before the planned working day.
+            if ($enrolment->next_release_date
+                && Carbon::parse($enrolment->next_release_date)->startOfDay()->greaterThan($today)) {
+                return null;
+            }
+
             if (! $isFirstTask && ! $this->isWorkingDate($student, $today)) {
+                return null;
+            }
+
+            if (! $isFirstTask && ! $forceSameDay && ! $this->releaseWindowOpen($student, $today)) {
                 return null;
             }
 
@@ -438,6 +547,7 @@ class InternshipProgramService
                     $existing->save();
                     $enrolment->current_task_order = $nextDay;
                     $enrolment->last_release_date = $today->toDateString();
+                    $enrolment->next_release_date = null;
                     $enrolment->save();
 
                     return ['enrolment_id' => $enrolment->id, 'assignment_id' => $existing->id, 'day' => $nextDay];
@@ -458,6 +568,7 @@ class InternshipProgramService
 
             $enrolment->current_task_order = $nextDay;
             $enrolment->last_release_date = $today->toDateString();
+            $enrolment->next_release_date = null;
             $enrolment->save();
 
             $this->log($enrolment->id, 'task_released', null, [
@@ -541,17 +652,8 @@ class InternshipProgramService
 
         $this->notifySubmission($assignment->enrolment->fresh(['student', 'program', 'supervisor']), $assignment->fresh(['task']), $submission);
 
-        // After Task N is submitted, immediately release Task N+1 (same account / placement).
-        try {
-            $enrolment = $assignment->enrolment->fresh(['student', 'program']);
-            if ($enrolment) {
-                $this->tryReleaseNext($enrolment, Carbon::today(), true);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Post-submit next task release failed: '.$e->getMessage(), [
-                'assignment_id' => $assignment->id,
-            ]);
-        }
+        // No task is released here: the next one is scheduled when the supervisor
+        // accepts this submission (see gradeSubmission).
 
         return $submission;
     }
@@ -580,22 +682,7 @@ class InternshipProgramService
         $passMark = (int) ($assignment->task->pass_mark ?? 60);
 
         if ($decision === 'pass' && $grade->score >= $passMark) {
-            $submission->status = 'passed';
-            $submission->save();
-            $assignment->status = 'passed';
-            $assignment->save();
-            $enrolment->completed_count = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-                ->where('status', 'passed')
-                ->count();
-            if ($enrolment->completed_count >= $enrolment->plannedDurationDays()) {
-                $enrolment->status = 'completed';
-                $enrolment->completed_at = now();
-            }
-            $enrolment->save();
-            $this->notifyPassed($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $grade);
-            if ($enrolment->status === 'completed') {
-                $this->notifyCompleted($enrolment);
-            }
+            $this->applyAcceptance($submission, $assignment, $enrolment, $grade);
         } else {
             $submission->status = 'revision_required';
             $submission->save();
@@ -611,6 +698,322 @@ class InternshipProgramService
         ]);
 
         return $grade;
+    }
+
+    /**
+     * Mark an accepted submission passed, count progress, and schedule the next
+     * task for the student's next working day. Shared by supervisor acceptance
+     * and the review-SLA auto-acceptance.
+     */
+    protected function applyAcceptance(
+        InternshipSubmission $submission,
+        InternshipTaskAssignment $assignment,
+        InternshipEnrolment $enrolment,
+        InternshipGrade $grade
+    ) {
+        $submission->status = 'passed';
+        $submission->save();
+        $assignment->status = 'passed';
+        $assignment->save();
+
+        $enrolment->completed_count = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+            ->where('status', 'passed')
+            ->count();
+        if ($enrolment->completed_count >= $enrolment->plannedDurationDays()) {
+            $enrolment->status = 'completed';
+            $enrolment->completed_at = now();
+            $enrolment->next_release_date = null;
+        } else {
+            // Acceptance schedules the next task for the student's next working day;
+            // the hourly cron delivers it once that day's start time arrives.
+            $student = $enrolment->student;
+            $next = $student ? $this->nextWorkingDate($student, Carbon::tomorrow()) : null;
+            $enrolment->next_release_date = $next ? $next->toDateString() : null;
+        }
+        $enrolment->save();
+
+        $this->notifyPassed($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $grade);
+        if ($enrolment->status === 'completed') {
+            $this->notifyCompleted($enrolment);
+        }
+
+        return $enrolment;
+    }
+
+    public function reviewSlaWorkingDays()
+    {
+        return max(0, (int) config('internship.review_sla_working_days', 2));
+    }
+
+    public function reviewReminderWorkingDays()
+    {
+        return max(0, (int) config('internship.review_reminder_working_days', 1));
+    }
+
+    /**
+     * Nth working day (in the intern's own timetable) after a submission, at that
+     * day's end time. Null when auto-acceptance is switched off.
+     *
+     * @return \Carbon\Carbon|null
+     */
+    public function reviewDeadlineFor(InternshipSubmission $submission, $workingDays = null)
+    {
+        $workingDays = $workingDays === null ? $this->reviewSlaWorkingDays() : (int) $workingDays;
+        if ($workingDays < 1) {
+            return null;
+        }
+
+        $submittedAt = $submission->submitted_at
+            ? Carbon::parse($submission->submitted_at)
+            : Carbon::parse($submission->created_at ?: now());
+
+        $student = optional($submission->assignment)->enrolment
+            ? optional($submission->assignment->enrolment)->student
+            : $submission->student;
+
+        if (! $student || ! InternCompliance::workingWeekConfigured($student)) {
+            // No timetable to count against — fall back to calendar days.
+            return $submittedAt->copy()->addDays($workingDays)->endOfDay();
+        }
+
+        $cursor = $submittedAt->copy()->startOfDay();
+        for ($i = 0; $i < $workingDays; $i++) {
+            $next = $this->nextWorkingDate($student, $cursor->copy()->addDay());
+            if (! $next) {
+                return $submittedAt->copy()->addDays($workingDays)->endOfDay();
+            }
+            $cursor = $next;
+        }
+
+        return $this->endOfWorkingDay($student, $cursor);
+    }
+
+    /**
+     * The intern's configured finish time on $date (17:00 when unset).
+     */
+    protected function endOfWorkingDay(User $user, Carbon $date)
+    {
+        $ww = WorkingWeek::where('user_id', $user->id)->first();
+        $day = strtolower($date->format('l'));
+        $end = $ww ? ($ww->{$day.'_end'} ?: '17:00') : '17:00';
+        try {
+            return Carbon::createFromFormat('Y-m-d H:i', $date->toDateString().' '.substr($end, 0, 5));
+        } catch (\Throwable $e) {
+            return $date->copy()->startOfDay()->setTime(17, 0, 0);
+        }
+    }
+
+    /**
+     * Submissions still waiting for a supervisor, with SLA context for the queue UI.
+     *
+     * @return array{deadline:?\Carbon\Carbon,overdue:bool,waiting_hours:int}
+     */
+    public function reviewSlaStatus(InternshipSubmission $submission)
+    {
+        $deadline = $this->reviewDeadlineFor($submission);
+        $submittedAt = $submission->submitted_at
+            ? Carbon::parse($submission->submitted_at)
+            : Carbon::parse($submission->created_at ?: now());
+
+        return [
+            'deadline' => $deadline,
+            'overdue' => $deadline ? now()->greaterThan($deadline) : false,
+            'waiting_hours' => (int) $submittedAt->diffInHours(now()),
+        ];
+    }
+
+    /**
+     * Nudge supervisors about submissions that have waited past the reminder
+     * threshold but are not yet auto-accepted. One nudge per submission.
+     *
+     * @return int reminders sent
+     */
+    public function remindPendingReviews()
+    {
+        $threshold = $this->reviewReminderWorkingDays();
+        if ($threshold < 1) {
+            return 0;
+        }
+
+        $sent = 0;
+        $pending = InternshipSubmission::with([
+            'student', 'assignment.task', 'assignment.enrolment.student', 'assignment.enrolment.program',
+        ])->where('status', 'submitted')->orderBy('submitted_at')->get();
+
+        foreach ($pending as $submission) {
+            $assignment = $submission->assignment;
+            $enrolment = $assignment ? $assignment->enrolment : null;
+            if (! $assignment || ! $enrolment) {
+                continue;
+            }
+
+            $remindAt = $this->reviewDeadlineFor($submission, $threshold);
+            if (! $remindAt || now()->lessThan($remindAt)) {
+                continue;
+            }
+
+            $deadline = $this->reviewDeadlineFor($submission);
+            if ($deadline && now()->greaterThan($deadline)) {
+                // Past the SLA already — auto-acceptance handles this one.
+                continue;
+            }
+
+            $taskLabel = '#'.$assignment->progression_day.' — '.optional($assignment->task)->title;
+            $url = url('/admin/internship/supervisor/submissions/'.$submission->id);
+
+            foreach ($this->supervisorRecipients($enrolment) as $supervisor) {
+                $key = 'review_reminder:'.$submission->id.':supervisor:'.$supervisor->id;
+                if ($this->alreadyNotified($key)) {
+                    continue;
+                }
+                $msg = WhatsAppMessage::internshipReviewReminder(
+                    $supervisor->name,
+                    optional($enrolment->student)->name,
+                    $taskLabel,
+                    optional($submission->submitted_at)->format('d M Y H:i'),
+                    $deadline ? $deadline->format('D d M Y H:i') : null,
+                    $url
+                );
+                $result = $this->sendWhatsApp($supervisor, $msg, $key, 'review_reminder');
+                if (! empty($result['success'])) {
+                    $sent++;
+                }
+                usleep(5500000);
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Accept submissions no supervisor reviewed inside the SLA, so a silent
+     * supervisor cannot stall a placement. Records the grade as auto-accepted.
+     *
+     * @return int submissions auto-accepted
+     */
+    public function autoAcceptOverdueSubmissions()
+    {
+        if ($this->reviewSlaWorkingDays() < 1) {
+            return 0;
+        }
+
+        $accepted = 0;
+        $pending = InternshipSubmission::with([
+            'student', 'assignment.task', 'assignment.enrolment.student', 'assignment.enrolment.program',
+        ])->where('status', 'submitted')->orderBy('submitted_at')->get();
+
+        foreach ($pending as $submission) {
+            $assignment = $submission->assignment;
+            $enrolment = $assignment ? $assignment->enrolment : null;
+            if (! $assignment || ! $enrolment || $assignment->status !== 'submitted') {
+                continue;
+            }
+
+            $deadline = $this->reviewDeadlineFor($submission);
+            if (! $deadline || now()->lessThanOrEqualTo($deadline)) {
+                continue;
+            }
+
+            try {
+                $this->autoAcceptSubmission($submission, $assignment, $enrolment, $deadline);
+                $accepted++;
+            } catch (\Throwable $e) {
+                Log::warning('Internship auto-accept failed for submission '.$submission->id.': '.$e->getMessage());
+            }
+        }
+
+        return $accepted;
+    }
+
+    protected function autoAcceptSubmission(
+        InternshipSubmission $submission,
+        InternshipTaskAssignment $assignment,
+        InternshipEnrolment $enrolment,
+        Carbon $deadline
+    ) {
+        $passMark = (int) (optional($assignment->task)->pass_mark ?: 60);
+        $configured = config('internship.auto_accept_score');
+        $score = $configured === null ? $passMark : max(0, min(100, (int) $configured));
+        $slaDays = $this->reviewSlaWorkingDays();
+
+        $grade = InternshipGrade::create([
+            'submission_id' => $submission->id,
+            'grader_id' => null,
+            'score' => $score,
+            'rubric_scores_json' => json_encode([]),
+            'feedback' => 'Auto-accepted: no supervisor review within '.$slaDays
+                .' working day'.($slaDays === 1 ? '' : 's').' of submission.',
+            'decision' => 'pass',
+            'graded_at' => now(),
+            'auto_accepted' => true,
+        ]);
+
+        $this->applyAcceptance($submission, $assignment, $enrolment, $grade);
+
+        $this->log($enrolment->id, 'auto_accepted', null, [
+            'submission_id' => $submission->id,
+            'deadline' => $deadline->toDateTimeString(),
+            'score' => $grade->score,
+        ]);
+
+        $this->notifyAutoAcceptance($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $submission, $grade);
+
+        return $grade;
+    }
+
+    /**
+     * Tell supervisors their review window lapsed (the student already learns of
+     * the acceptance through the standard notifyPassed message).
+     */
+    protected function notifyAutoAcceptance(
+        InternshipEnrolment $enrolment,
+        InternshipTaskAssignment $assignment,
+        InternshipSubmission $submission,
+        InternshipGrade $grade
+    ) {
+        $taskLabel = '#'.$assignment->progression_day.' — '.optional($assignment->task)->title;
+        $url = url('/admin/internship/supervisor/submissions/'.$submission->id);
+        $slaDays = $this->reviewSlaWorkingDays();
+
+        foreach ($this->supervisorRecipients($enrolment) as $supervisor) {
+            $key = 'auto_accepted:'.$submission->id.':supervisor:'.$supervisor->id;
+            if ($this->alreadyNotified($key)) {
+                continue;
+            }
+            usleep(5500000);
+            $msg = WhatsAppMessage::internshipReviewSlaBreached(
+                $supervisor->name,
+                optional($enrolment->student)->name,
+                $taskLabel,
+                $slaDays,
+                optional($enrolment->next_release_date)
+                    ? Carbon::parse($enrolment->next_release_date)->format('D d M Y')
+                    : null,
+                $url
+            );
+            $this->sendWhatsApp($supervisor, $msg, $key, 'review_sla_breached');
+        }
+    }
+
+    /**
+     * @return \App\User[]
+     */
+    protected function supervisorRecipients(InternshipEnrolment $enrolment)
+    {
+        $ids = $enrolment->supervisorUserIds();
+        if (empty($ids) && $enrolment->supervisor_id) {
+            $ids = [(int) $enrolment->supervisor_id];
+        }
+
+        $out = [];
+        foreach ($ids as $id) {
+            $user = User::where('is_deleted', false)->find($id);
+            if ($user) {
+                $out[] = $user;
+            }
+        }
+
+        return $out;
     }
 
     public function pendingForStudent(User $user)
@@ -898,14 +1301,21 @@ class InternshipProgramService
         if ($this->alreadyNotified($key)) {
             return;
         }
-        $msg = WhatsAppMessage::statusBlock('✅', 'Task Passed');
+        $msg = WhatsAppMessage::statusBlock('✅', 'Submission Accepted');
         $msg .= WhatsAppMessage::greeting($student->name);
-        $msg .= "Great work — your internship task was passed.\n\n";
+        $msg .= $grade->auto_accepted
+            ? "Your task was accepted so your placement keeps moving — your supervisor may still send feedback.\n\n"
+            : "Great work — your supervisor accepted your internship task.\n\n";
         $msg .= WhatsAppMessage::bullet('Task', '#'.$assignment->progression_day.' — '.optional($assignment->task)->title);
         $msg .= WhatsAppMessage::bullet('Score', $grade->score.'/100');
         $msg .= WhatsAppMessage::bullet('Progress', $enrolment->completed_count.'/'.$enrolment->plannedDurationDays());
         if ($enrolment->completed_count < $enrolment->plannedDurationDays()) {
-            $msg .= "\nYour next task will be released on your next configured working day.";
+            if ($enrolment->next_release_date) {
+                $msg .= WhatsAppMessage::bullet('Next task', Carbon::parse($enrolment->next_release_date)->format('D d M Y'));
+                $msg .= "\nYour next task arrives on that working day, at your start time.";
+            } else {
+                $msg .= "\nYour next task will be released on your next configured working day.";
+            }
         }
         $msg .= WhatsAppMessage::footer();
         $this->sendWhatsApp($student, $msg, $key, 'task_passed');

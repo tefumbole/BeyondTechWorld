@@ -885,6 +885,70 @@ class WhatsAppMessage
     }
 
     /**
+     * Nudge a supervisor whose intern is waiting for a review decision.
+     */
+    public static function internshipReviewReminder($supervisorName, $studentName, $taskLabel, $submittedAt, $autoAcceptAt, $url)
+    {
+        $msg = self::statusBlock('⏳', 'Submission Waiting');
+        $msg .= self::greeting($supervisorName ?: 'Supervisor');
+        $msg .= "An intern is waiting on your review before their next task can be scheduled.\n\n";
+        $msg .= self::bullet('Intern', $studentName ?: '—');
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        $msg .= self::bullet('Submitted', $submittedAt ?: '—');
+        if ($autoAcceptAt) {
+            $msg .= self::bullet('Auto-accepts', $autoAcceptAt);
+            $msg .= "\nIf no decision is recorded by then, the system accepts it automatically so the placement is not delayed.\n";
+        }
+        $msg .= self::actionLink('Review submission', $url);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
+     * Tell a supervisor their review window lapsed and the system accepted the work.
+     */
+    public static function internshipReviewSlaBreached($supervisorName, $studentName, $taskLabel, $slaDays, $nextTaskDate, $url)
+    {
+        $dayLabel = $slaDays.' working day'.((int) $slaDays === 1 ? '' : 's');
+
+        $msg = self::statusBlock('⚠️', 'Auto-Accepted');
+        $msg .= self::greeting($supervisorName ?: 'Supervisor');
+        $msg .= "A submission passed its {$dayLabel} review window, so it was accepted automatically to keep the placement moving.\n\n";
+        $msg .= self::bullet('Intern', $studentName ?: '—');
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        if ($nextTaskDate) {
+            $msg .= self::bullet('Next task', $nextTaskDate);
+        }
+        $msg .= self::actionLink('Open submission', $url);
+        $msg .= 'The work was recorded at the task pass mark. Please still review it and give the intern feedback.';
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
+     * Nudge an intern who has not logged hours for a completed working day.
+     */
+    public static function internshipTimesheetReminder($studentName, $missingDate, $taskLabel = null, $fillUrl = null)
+    {
+        $fillUrl = $fillUrl ?: url('/admin/timesheet/fill');
+
+        $msg = self::statusBlock('⏰', 'Timesheet Missing');
+        $msg .= self::greeting($studentName ?: 'Intern');
+        $msg .= "Your working day has ended and no hours are logged yet.\n\n";
+        $msg .= self::bullet('Date', $missingDate ?: '—');
+        if ($taskLabel) {
+            $msg .= self::bullet('Task', $taskLabel);
+        }
+        $msg .= self::actionLink('Fill timesheet', $fillUrl);
+        $msg .= 'Log your hours today so your supervisor can approve the day.';
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
      * Follow-up after internship admission letter PDF: login + Timesheets working week.
      */
     public static function internshipAdmissionLoginGuide($name, $username, $password, $loginUrl = null, $timesheetUrl = null)

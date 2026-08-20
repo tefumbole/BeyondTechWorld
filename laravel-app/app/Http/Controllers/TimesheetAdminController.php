@@ -85,9 +85,10 @@ class TimesheetAdminController extends Controller
     {
         $this->authorizeAdmin();
         $status = $request->input('status', 'approved');
-        $this->timesheet->updateEntryStatus($id, $status);
+        $note = $request->input('review_note');
+        $this->timesheet->updateEntryStatus($id, $status, Auth::id(), $note);
 
-        return back()->with('message', 'Entry status updated.');
+        return back()->with('message', 'Entry '.$status.'.');
     }
 
     public function destroyEntry($id)
