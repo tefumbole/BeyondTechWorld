@@ -14,7 +14,14 @@
 @if (session('reset_complete'))
     <div class="text-center space-y-4">
         <i data-lucide="check-circle-2" class="w-16 h-16 text-green-600 mx-auto"></i>
-        <p class="text-gray-700">Username and password updated for this account. You can now sign in.</p>
+        <p class="text-gray-700">Username and password updated. You can now sign in.</p>
+        @if (session('reset_username'))
+            <div class="rounded-md bg-blue-50 border border-blue-100 px-3 py-3 text-sm text-blue-900">
+                Sign in with this exact username:
+                <div class="mt-1 text-lg font-bold tracking-wide">{{ session('reset_username') }}</div>
+                <p class="mt-2 text-xs">Usernames are saved in lower case with spaces as dots. Your email address and WhatsApp number also work.</p>
+            </div>
+        @endif
         <a href="{{ url('/login') }}" class="inline-block bg-brand-blue text-white px-6 py-3 rounded-md font-semibold">Go to Sign in</a>
     </div>
 @elseif (session('password_reset_step') == 2)
@@ -35,8 +42,11 @@
             <input type="text" name="username" required minlength="3" maxlength="100"
                    value="{{ old('username', session('password_reset_current_username')) }}"
                    class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                   placeholder="Choose a username you will remember">
-            <p class="text-xs text-gray-500 mt-1">You can also sign in with your email or WhatsApp number after recovery.</p>
+                   placeholder="e.g. ines.karel">
+            <p class="text-xs text-gray-500 mt-1">
+                Saved in lower case, with spaces turned into dots (“Ines Karel” becomes “ines.karel”).
+                We show you the final username on the next screen. Your email and WhatsApp number keep working too.
+            </p>
         </div>
         <div>
             <label class="text-sm font-semibold text-gray-700">New Password</label>

@@ -12,6 +12,7 @@ use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -245,14 +246,25 @@ class BeyondAuthController extends Controller
 
         // Unified login: staff/admin (users) first, then Beyond customer — unless forced customer.
         if (! $forceCustomer) {
-            $staffResponse = $this->attemptStaffLogin($request, $identifier, $password);
-            if ($staffResponse !== null) {
-                return $staffResponse;
+            $staff = $this->findStaffUser($identifier);
+            if ($staff && Hash::check($password, $staff->password)) {
+                return $this->completeStaffLogin($request, $staff);
             }
         }
 
+        // A staff row matching the identifier must not shadow the portal account:
+        // interns hold both, and only one of them may carry the new password.
         $user = $this->auth->findByLogin($identifier);
         if (! $user || ! Hash::check($password, $user->password_hash)) {
+            \App\Services\ActivityLogService::log([
+                'action' => 'failed_login',
+                'entity' => 'auth',
+                'user_name' => $identifier,
+                'summary' => 'Failed login for '.$identifier,
+                'method' => 'POST',
+                'path' => '/login',
+            ], $request);
+
             return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
         }
 
@@ -288,35 +300,14 @@ class BeyondAuthController extends Controller
     }
 
     /**
-     * Try ERP staff/admin login (users table / web guard).
-     * Returns a redirect response on handle, or null if no staff account exists for this identifier.
-     * If a staff account exists but the password is wrong, returns an error (does not fall through to Beyond).
+     * Sign a verified ERP staff/intern account into the web guard and route them.
+     *
+     * The password is checked by the caller against the resolved row, so login by
+     * email, username, phone or name all behave the same.
      */
-    protected function attemptStaffLogin(Request $request, $identifier, $password)
+    protected function completeStaffLogin(Request $request, User $staff)
     {
-        $staff = $this->findStaffUser($identifier);
-        if (! $staff) {
-            return null;
-        }
-
-        $fieldType = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
-        $loginValue = $fieldType === 'email' ? $staff->email : $staff->name;
-        if (! Auth::guard('web')->attempt([
-            $fieldType => $loginValue,
-            'password' => $password,
-            'is_active' => 1,
-        ])) {
-            \App\Services\ActivityLogService::log([
-                'action' => 'failed_login',
-                'entity' => 'auth',
-                'user_name' => $identifier,
-                'summary' => 'Failed login for '.$identifier,
-                'method' => 'POST',
-                'path' => '/login',
-            ], $request);
-
-            return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
-        }
+        Auth::guard('web')->login($staff);
 
         if (Auth::guard('beyond')->check()) {
             Auth::guard('beyond')->logout();
@@ -415,6 +406,24 @@ class BeyondAuthController extends Controller
 
         if (filter_var($id, FILTER_VALIDATE_EMAIL)) {
             return (clone $query)->whereRaw('LOWER(email) = ?', [strtolower($id)])->first();
+        }
+
+        // Username chosen during account recovery, matched the way it was stored.
+        if (Schema::hasColumn('users', 'username')) {
+            $byUsername = (clone $query)
+                ->whereRaw('LOWER(username) = ?', [strtolower($id)])
+                ->first();
+            if (! $byUsername) {
+                $normalized = $this->auth->normalizeUsername($id);
+                if ($normalized !== '' && $normalized !== strtolower($id)) {
+                    $byUsername = (clone $query)
+                        ->whereRaw('LOWER(username) = ?', [$normalized])
+                        ->first();
+                }
+            }
+            if ($byUsername) {
+                return $byUsername;
+            }
         }
 
         // Phone (digits) — admission letters tell interns to use WhatsApp number as username.
@@ -525,13 +534,13 @@ class BeyondAuthController extends Controller
             ? CountryDialCodes::combine($data['country_code'], $data['phone'])
             : $data['phone'];
 
-        $account = $this->resolveRecoverableAccountByPhone($phone);
-        if (! $account) {
+        $accounts = $this->resolveRecoverableAccountsByPhone($phone);
+        if (! $accounts) {
             return back()->withErrors(['phone' => 'No account found with this phone number.']);
         }
 
         try {
-            $formatted = $this->whatsapp->formatPhone($account['phone'] ?: $phone);
+            $formatted = $this->whatsapp->formatPhone($accounts[0]['phone'] ?: $phone);
         } catch (\Throwable $e) {
             return back()->withErrors(['phone' => 'Invalid WhatsApp number on this account.']);
         }
@@ -546,9 +555,10 @@ class BeyondAuthController extends Controller
             'password_reset_phone' => $otp['phone'],
             'password_reset_masked' => $this->whatsapp->maskPhone($otp['phone']),
             'password_reset_step' => 2,
-            'password_reset_account_type' => $account['type'],
-            'password_reset_account_id' => $account['id'],
-            'password_reset_current_username' => $account['username'],
+            'password_reset_accounts' => array_map(function ($account) {
+                return ['type' => $account['type'], 'id' => $account['id']];
+            }, $accounts),
+            'password_reset_current_username' => $accounts[0]['username'],
         ]);
 
         return redirect('/forgot-password')->with('success', 'Verification code sent to your WhatsApp.');
@@ -563,9 +573,8 @@ class BeyondAuthController extends Controller
         ]);
 
         $phone = session('password_reset_phone');
-        $type = session('password_reset_account_type');
-        $accountId = session('password_reset_account_id');
-        if (! $phone || ! $type || ! $accountId) {
+        $accounts = session('password_reset_accounts', []);
+        if (! $phone || ! is_array($accounts) || ! $accounts) {
             return redirect('/forgot-password')->withErrors(['otp' => 'Session expired. Request a new code.']);
         }
 
@@ -574,65 +583,122 @@ class BeyondAuthController extends Controller
             return back()->withErrors(['otp' => $result['error']]);
         }
 
-        $username = trim((string) $request->username);
-        if ($type === 'beyond') {
-            $user = BeyondUser::find($accountId);
+        $username = $this->auth->normalizeUsername($request->username);
+        if (strlen($username) < 3) {
+            return back()->withErrors([
+                'username' => 'Use at least 3 letters or numbers. Letters, numbers, dots, dashes and underscores are kept; spaces become dots.',
+            ]);
+        }
+
+        $ids = [];
+        foreach ($accounts as $account) {
+            $ids[$account['type']] = $account['id'];
+        }
+
+        if ($taken = $this->usernameTakenBy($username, $ids)) {
+            return back()->withErrors(['username' => 'The username "'.$username.'" is already used by '.$taken.'. Choose another one.']);
+        }
+
+        $updated = 0;
+        foreach ($accounts as $account) {
+            if ($account['type'] === 'beyond') {
+                $user = BeyondUser::find($account['id']);
+                if (! $user) {
+                    continue;
+                }
+                $user->username = $username;
+                $user->password_hash = $this->auth->hashPassword($request->password);
+                $user->must_change_credentials = false;
+                $user->save();
+                $this->auth->syncProfile($user);
+                $updated++;
+
+                continue;
+            }
+
+            $user = User::where('is_deleted', false)->where('is_active', 1)->find($account['id']);
             if (! $user) {
-                return back()->withErrors(['otp' => 'Account not found.']);
+                continue;
             }
-            $norm = $this->auth->normalizeUsername($username);
-            $taken = BeyondUser::whereRaw('LOWER(username) = ?', [strtolower($norm)])
-                ->where('id', '!=', $user->id)
-                ->exists();
-            if ($taken) {
-                return back()->withErrors(['username' => 'That username is already taken.']);
+            // users.name stays as the person's real name — it is their payroll and
+            // letter identity. The username lives in its own column.
+            if (Schema::hasColumn('users', 'username')) {
+                $user->username = $username;
             }
-            $user->username = $norm;
-            $user->password_hash = $this->auth->hashPassword($request->password);
-            $user->save();
-        } else {
-            $user = User::where('is_deleted', false)->where('is_active', 1)->find($accountId);
-            if (! $user) {
-                return back()->withErrors(['otp' => 'Account not found.']);
-            }
-            // ERP login username is users.name (email and phone also work after this fix).
-            $taken = User::where('is_deleted', false)
-                ->whereRaw('LOWER(name) = ?', [strtolower($username)])
-                ->where('id', '!=', $user->id)
-                ->exists();
-            if ($taken) {
-                return back()->withErrors(['username' => 'That username is already taken.']);
-            }
-            $user->name = $username;
             $user->password = Hash::make($request->password);
-            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'must_set_password')) {
+            if (Schema::hasColumn('users', 'must_set_password')) {
                 $user->must_set_password = 0;
             }
             $user->save();
+            $updated++;
+        }
+
+        if (! $updated) {
+            return back()->withErrors(['otp' => 'Account not found.']);
         }
 
         session()->forget([
             'password_reset_phone',
             'password_reset_masked',
             'password_reset_step',
-            'password_reset_account_type',
-            'password_reset_account_id',
+            'password_reset_accounts',
             'password_reset_current_username',
         ]);
 
-        return redirect('/forgot-password')->with('reset_complete', true);
+        return redirect('/forgot-password')
+            ->with('reset_complete', true)
+            ->with('reset_username', $username);
     }
 
     /**
-     * Resolve Beyond portal or ERP (intern/staff) account by WhatsApp phone.
+     * Who else already answers to this username, across both login tables. The
+     * ERP name column counts too, because signing in by name still works.
      *
-     * @return array{type:string,id:string|int,phone:string,username:string}|null
+     * @param  array{beyond?:string,web?:int}  $ownIds  accounts being updated
+     * @return string|null description of the clashing account
      */
-    protected function resolveRecoverableAccountByPhone($phone)
+    protected function usernameTakenBy($username, array $ownIds)
     {
+        $beyondClash = BeyondUser::whereRaw('LOWER(username) = ?', [$username])
+            ->when(! empty($ownIds['beyond']), function ($q) use ($ownIds) {
+                return $q->where('id', '!=', $ownIds['beyond']);
+            })
+            ->exists();
+        if ($beyondClash) {
+            return 'another portal account';
+        }
+
+        $staffQuery = User::where('is_deleted', false)
+            ->where(function ($q) use ($username) {
+                $q->whereRaw('LOWER(name) = ?', [$username]);
+                if (Schema::hasColumn('users', 'username')) {
+                    $q->orWhereRaw('LOWER(username) = ?', [$username]);
+                }
+            })
+            ->when(! empty($ownIds['web']), function ($q) use ($ownIds) {
+                return $q->where('id', '!=', $ownIds['web']);
+            });
+
+        return $staffQuery->exists() ? 'another staff account' : null;
+    }
+
+    /**
+     * Every account reachable from one WhatsApp number: the Beyond portal login
+     * and/or the ERP (intern/staff) login.
+     *
+     * A placed intern owns both, and login tries the ERP account first, so a
+     * reset that touched only one of them left the person locked out with the
+     * credentials they had just chosen.
+     *
+     * @return array<int, array{type:string,id:string|int,phone:string,username:string}>
+     */
+    protected function resolveRecoverableAccountsByPhone($phone)
+    {
+        $accounts = [];
+
         $beyond = $this->auth->findByPhone($phone);
         if ($beyond) {
-            return [
+            $accounts[] = [
                 'type' => 'beyond',
                 'id' => $beyond->id,
                 'phone' => optional(BeyondProfile::find($beyond->id))->phone ?: $beyond->phone,
@@ -647,7 +713,7 @@ class BeyondAuthController extends Controller
         }
         $digits = preg_replace('/\D/', '', (string) $formatted);
         if (strlen($digits) < 8) {
-            return null;
+            return $accounts;
         }
         $tail = substr($digits, -9);
 
@@ -664,16 +730,16 @@ class BeyondAuthController extends Controller
             })
             ->first();
 
-        if (! $staff) {
-            return null;
+        if ($staff) {
+            $accounts[] = [
+                'type' => 'web',
+                'id' => $staff->id,
+                'phone' => $staff->phone ?: $formatted,
+                'username' => $staff->username ?: ($staff->email ?: $staff->name),
+            ];
         }
 
-        return [
-            'type' => 'web',
-            'id' => $staff->id,
-            'phone' => $staff->phone ?: $formatted,
-            'username' => $staff->name ?: ($staff->email ?: ''),
-        ];
+        return $accounts;
     }
 
     public function showProfile()
@@ -723,7 +789,12 @@ class BeyondAuthController extends Controller
         $user->save();
         $this->auth->syncProfile($user);
 
-        return back()->with('success', 'Profile updated successfully.');
+        $message = 'Profile updated successfully.';
+        if ($request->filled('username')) {
+            $message .= ' Sign in with the username: '.$user->username;
+        }
+
+        return back()->with('success', $message);
     }
 
     public function showCompleteProfile()

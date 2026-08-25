@@ -24,10 +24,17 @@ class BeyondAuthService
             return null;
         }
 
+        // Also match the stored form of the identifier, so someone who chose
+        // "Ines Karel" can sign in with it even though it is kept as "ines.karel".
+        $normalized = $this->normalizeUsername($id);
+
         return BeyondUser::where('status', 'active')
-            ->where(function ($q) use ($id) {
+            ->where(function ($q) use ($id, $normalized) {
                 $q->whereRaw('LOWER(email) = ?', [strtolower($id)])
                     ->orWhereRaw('LOWER(username) = ?', [strtolower($id)]);
+                if ($normalized !== '' && $normalized !== strtolower($id)) {
+                    $q->orWhereRaw('LOWER(username) = ?', [$normalized]);
+                }
             })
             ->first();
     }
@@ -150,8 +157,21 @@ class BeyondAuthService
         return Hash::make($password);
     }
 
+    /**
+     * Fold a chosen username into the stored form: lower case, spaces become
+     * dots, anything else unsupported is dropped.
+     *
+     * Lower-casing has to happen first — folding before that silently deleted
+     * every capital letter, so "Ines Karel" was stored as "nesarel" and the
+     * person could never sign in with what they typed.
+     */
     public function normalizeUsername($value)
     {
-        return strtolower(preg_replace('/[^a-z0-9._-]/', '', trim($value)));
+        $value = strtolower(trim((string) $value));
+        $value = preg_replace('/\s+/', '.', $value);
+        $value = preg_replace('/[^a-z0-9._-]/', '', $value);
+        $value = preg_replace('/\.{2,}/', '.', $value);
+
+        return trim((string) $value, '.');
     }
 }
