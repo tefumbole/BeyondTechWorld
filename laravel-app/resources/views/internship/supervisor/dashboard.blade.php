@@ -14,18 +14,11 @@
                     @endif
                 </p>
             </div>
-            <div class="d-flex flex-wrap" style="gap:8px;">
-                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.students') }}">My Interns</a>
-                <a class="ip-btn ip-btn-outline" href="{{ route('internship.tasks') }}">Task Manager</a>
-                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.index') }}">Grade Queue
-                    @if(($stats['pending_grades'] ?? 0) > 0)
-                        <span class="beyond-attention-badge">{{ $stats['pending_grades'] }}</span>
-                    @endif
-                </a>
-            </div>
+            @include('internship.partials.supervisor_nav', ['ipNavHere' => 'home', 'pendingGrades' => $stats['pending_grades'] ?? 0])
         </div>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
+        @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
         <div class="row mb-3">
             <div class="col-md-3 col-6 mb-2">
@@ -64,14 +57,20 @@
                     <th>Status</th>
                     <th>Progress</th>
                     <th>Current task</th>
+                    <th>Working week</th>
                     <th></th>
                 </tr>
                 </thead>
                 <tbody>
                 @forelse($internRows as $row)
-                    @php $e = $row['enrolment']; $open = $row['open_assignment']; @endphp
+                    @php
+                        $e = $row['enrolment'];
+                        $open = $row['open_assignment'];
+                        $student = $e->student;
+                        $ww = $student ? \App\Support\InternCompliance::workingWeekInspect($student) : ['label' => null, 'configured' => false];
+                    @endphp
                     <tr>
-                        <td>{{ optional($e->student)->name ?: '—' }}</td>
+                        <td>{{ optional($student)->name ?: '—' }}</td>
                         <td>{{ optional($e->program)->displayName() }}</td>
                         <td><span class="ip-badge">{{ $e->status }}</span></td>
                         <td>{{ $e->completed_count }}/{{ $e->plannedDurationDays() }}</td>
@@ -83,15 +82,34 @@
                                 —
                             @endif
                         </td>
+                        <td>
+                            @if($ww['configured'])
+                                <span class="ip-badge active">Set</span>
+                                <div class="ip-meta">{{ $ww['label'] }}</div>
+                            @else
+                                <span class="ip-badge warn">Missing</span>
+                            @endif
+                            <div class="mt-1">
+                                <a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ route('internship.supervisor.working_week', $e->id) }}">View week</a>
+                            </div>
+                        </td>
                         <td class="text-nowrap">
                             @if($open)
                                 <a class="ip-btn ip-btn-outline" href="{{ route('internship.tasks', ['assignment' => $open->id]) }}">View task</a>
                             @endif
                             <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.place', $e->id) }}">Place</a>
+                            @if(\App\Support\InternCompliance::isInternshipAdmin(auth()->user()))
+                                <form method="POST" action="{{ route('internship.supervisor.destroy', $e->id) }}" class="d-inline"
+                                      onsubmit="return confirm('Permanently delete {{ addslashes(optional($student)->name ?: 'this intern') }} from the system? Their login, placement, submissions and timesheets will be removed. This cannot be undone.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="ip-btn ip-btn-outline ip-btn-danger">Delete</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6">No interns assigned to you yet.</td></tr>
+                    <tr><td colspan="7">No interns assigned to you yet.</td></tr>
                 @endforelse
                 </tbody>
             </table>

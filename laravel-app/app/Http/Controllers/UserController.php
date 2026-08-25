@@ -646,13 +646,21 @@ class UserController extends Controller
     public function deleteBySelection(Request $request)
     {
         $user_id = $request['userIdArray'];
-        foreach ($user_id as $id) {
+        $purge = app(\App\Services\Internship\InternAccountPurge::class);
+        $ok = 0;
+        foreach ((array) $user_id as $id) {
             $lims_user_data = User::find($id);
-            $lims_user_data->is_deleted = true;
-            $lims_user_data->is_active = false;
-            $lims_user_data->save();
+            if (! $lims_user_data) {
+                continue;
+            }
+            try {
+                $purge->purgeUser($lims_user_data, Auth::user());
+                $ok++;
+            } catch (\Throwable $e) {
+            }
         }
-        return 'User deleted successfully!';
+
+        return $ok ? $ok.' user(s) deleted from the system.' : 'No users were deleted.';
     }
 
     public function destroy($id)
@@ -665,12 +673,17 @@ class UserController extends Controller
         }
 
         $lims_user_data = User::find($id);
-        $lims_user_data->is_deleted = true;
-        $lims_user_data->name = 'deleted';
-        $lims_user_data->password = 'deleted';
-        $lims_user_data->is_active = false;
-        $lims_user_data->save();
+        if (! $lims_user_data) {
+            return redirect('user')->with('not_permitted', 'User not found.');
+        }
 
-        return redirect('user')->with('message3', 'Data deleted successfullly');
+        try {
+            $name = app(\App\Services\Internship\InternAccountPurge::class)
+                ->purgeUser($lims_user_data, Auth::user());
+        } catch (\Throwable $e) {
+            return redirect('user')->with('not_permitted', $e->getMessage());
+        }
+
+        return redirect('user')->with('message3', ($name ?: 'User').' was deleted from the system.');
     }
 }

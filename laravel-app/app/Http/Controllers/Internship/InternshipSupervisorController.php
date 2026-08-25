@@ -302,6 +302,40 @@ class InternshipSupervisorController extends Controller
         return redirect()->route('internship.supervisor.students')->with('message', 'Placement updated. Tasks will follow the new start day.');
     }
 
+    public function showWorkingWeek($id)
+    {
+        $this->allow();
+        $enrolment = InternshipEnrolment::with(['student', 'program'])->findOrFail($id);
+        $this->assertCanReview($enrolment);
+        $student = $enrolment->student;
+        $inspect = InternCompliance::workingWeekInspect($student);
+        $backUrl = route('internship.supervisor.dashboard');
+        $personName = $student ? $student->name : 'Intern';
+        $application = null;
+
+        return view('internship.shared.working_week', compact(
+            'inspect', 'student', 'application', 'enrolment', 'backUrl', 'personName'
+        ));
+    }
+
+    public function destroyIntern($id)
+    {
+        $this->allow();
+        if (! InternCompliance::isInternshipAdmin(Auth::user())) {
+            abort(403, 'Only internship admins can delete an intern from the system.');
+        }
+        $enrolment = InternshipEnrolment::with('student')->findOrFail($id);
+        $label = optional($enrolment->student)->name ?: 'Intern';
+        try {
+            app(\App\Services\Internship\InternAccountPurge::class)->purgeEnrolment($enrolment, Auth::user());
+        } catch (\Throwable $e) {
+            return back()->with('not_permitted', $e->getMessage());
+        }
+
+        return redirect()->route('internship.supervisor.dashboard')
+            ->with('message', $label.' was deleted from the system.');
+    }
+
     protected function assertCanPlace(InternshipEnrolment $enrolment)
     {
         if (Auth::user()->role_id <= 2

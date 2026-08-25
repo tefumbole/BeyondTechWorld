@@ -475,6 +475,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/internship', 'Internship\InternshipAdminController@dashboard')->name('internship.dashboard');
     Route::get('/admin/internship/interns', 'Internship\InternshipAdminController@interns')->name('internship.interns');
     Route::post('/admin/internship/interns/{id}/request-week', 'Internship\InternshipAdminController@requestWorkingWeek')->name('internship.interns.request_week');
+    Route::get('/admin/internship/interns/{id}/working-week', 'Internship\InternshipAdminController@showWorkingWeek')->name('internship.interns.working_week');
+    Route::delete('/admin/internship/interns/{id}', 'Internship\InternshipAdminController@destroyIntern')->name('internship.interns.destroy');
     Route::get('/admin/internship/supervisors', 'Internship\InternshipAdminController@supervisors')->name('internship.supervisors');
     Route::get('/admin/internship/programs', 'Internship\InternshipAdminController@programs')->name('internship.programs');
     Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
@@ -505,6 +507,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@dashboard')->name('internship.supervisor.dashboard');
     Route::get('/admin/internship/supervisor/queue', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');
     Route::get('/admin/internship/supervisor/students', 'Internship\InternshipSupervisorController@students')->name('internship.supervisor.students');
+    Route::get('/admin/internship/supervisor/students/{id}/working-week', 'Internship\InternshipSupervisorController@showWorkingWeek')->name('internship.supervisor.working_week');
+    Route::delete('/admin/internship/supervisor/students/{id}', 'Internship\InternshipSupervisorController@destroyIntern')->name('internship.supervisor.destroy');
     Route::get('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeEdit')->name('internship.supervisor.place');
     Route::post('/admin/internship/supervisor/students/{id}/place', 'Internship\InternshipSupervisorController@placeUpdate')->name('internship.supervisor.place.update');
     Route::get('/admin/internship/supervisor/submissions/{id}', 'Internship\InternshipSupervisorController@show')->name('internship.supervisor.show');

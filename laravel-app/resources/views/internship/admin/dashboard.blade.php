@@ -3,7 +3,8 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell" style="max-width:1180px;">
-        <h1 class="ip-title">Internships</h1>
+        @include('internship.partials.supervisor_nav', ['ipNavHere' => 'dashboard'])
+        <h1 class="ip-title mt-3">Internships</h1>
         <p class="ip-meta mb-4">Manage programs, supervisors, and accepted interns from one place.</p>
 
         @if(session('message'))

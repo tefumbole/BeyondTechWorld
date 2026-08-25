@@ -107,6 +107,35 @@ class InternCompliance
      * @param  User|null  $user
      * @param  array|null  $fallbackData  WorkingWeekForm-style array
      */
+    /**
+     * Full week for admin/supervisor review: slots plus the source of the data.
+     *
+     * @return array{slots:array,source:?string,label:?string,configured:bool}
+     */
+    public static function workingWeekInspect($user = null, array $fallbackData = null)
+    {
+        $slots = [];
+        $source = null;
+        if ($user instanceof User && self::workingWeekConfigured($user)) {
+            $row = WorkingWeek::where('user_id', $user->id)->first();
+            if ($row) {
+                $slots = self::workingWeekRowToSlots($row);
+                $source = 'user';
+            }
+        }
+        if (! $slots && is_array($fallbackData) && $fallbackData) {
+            $slots = self::workingWeekArrayToSlots($fallbackData);
+            $source = $slots ? 'application' : null;
+        }
+
+        return [
+            'slots' => $slots,
+            'source' => $source,
+            'label' => $slots ? self::formatWorkingWeekDetail($slots) : null,
+            'configured' => $source === 'user',
+        ];
+    }
+
     public static function workingWeekDetailLabel($user = null, array $fallbackData = null)
     {
         if ($user instanceof User && self::workingWeekConfigured($user)) {

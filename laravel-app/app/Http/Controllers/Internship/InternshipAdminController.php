@@ -852,4 +852,45 @@ class InternshipAdminController extends Controller
 
         return back()->with('message', 'Working Week request sent to '.($name ?: 'the intern').'. Link: '.$weekUrl);
     }
+
+    public function showWorkingWeek($id)
+    {
+        $this->allow('internship.enrolments.view');
+        $application = Application::findOrFail($id);
+        $enrolment = InternshipEnrolment::with('student')
+            ->where('application_id', $application->id)
+            ->orderByDesc('id')
+            ->first();
+        $student = $enrolment ? $enrolment->student : null;
+        if (! $student && $application->email) {
+            $student = User::whereRaw('LOWER(email) = ?', [strtolower(trim($application->email))])->first();
+        }
+        $inspect = InternCompliance::workingWeekInspect(
+            $student,
+            $application->hasWorkingWeekOnApplication() ? $application->workingWeekData() : null
+        );
+        $backUrl = route('internship.interns');
+        $personName = $student ? $student->name : $application->full_name;
+
+        return view('internship.shared.working_week', compact(
+            'inspect', 'student', 'application', 'enrolment', 'backUrl', 'personName'
+        ));
+    }
+
+    public function destroyIntern($id)
+    {
+        if (! InternCompliance::isInternshipAdmin(Auth::user())) {
+            abort(403, 'Only internship admins can delete an intern from the system.');
+        }
+        $application = Application::findOrFail($id);
+        $label = $application->full_name ?: 'Intern';
+        try {
+            app(\App\Services\Internship\InternAccountPurge::class)->purgeApplication($application, Auth::user());
+        } catch (\Throwable $e) {
+            return back()->with('not_permitted', $e->getMessage());
+        }
+
+        return redirect()->route('internship.interns')
+            ->with('message', $label.' was deleted from the system.');
+    }
 }

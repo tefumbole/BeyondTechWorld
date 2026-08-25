@@ -10,7 +10,8 @@
 @endphp
 <section class="forms">
     <div class="container-fluid ip-shell" style="max-width:1200px;">
-        <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
+        @include('internship.partials.supervisor_nav', ['ipNavHere' => 'tasks'])
+        <div class="mb-3"></div>
         <h1 class="ip-title">Internship Task Manager</h1>
         <p class="ip-meta mb-3">Per-student day tasks: open work, upcoming releases on each student’s working days, and tasks already released. Schedules are student-owned (Working Week), not program-wide. A student only appears as upcoming once their previous submission has been accepted.</p>
 

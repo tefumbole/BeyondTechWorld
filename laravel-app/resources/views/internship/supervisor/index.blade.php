@@ -5,10 +5,7 @@
     <div class="container-fluid ip-shell">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
             <h1 class="ip-title mb-0">Grade Queue</h1>
-            <div class="d-flex flex-wrap" style="gap:8px;">
-                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.dashboard') }}">Supervisor Home</a>
-                <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.students') }}">My Interns</a>
-            </div>
+            @include('internship.partials.supervisor_nav', ['ipNavHere' => 'queue'])
         </div>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         <p class="ip-meta">A student receives their next task only after you accept the current submission. It is then delivered on their next working day.

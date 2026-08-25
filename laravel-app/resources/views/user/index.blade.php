@@ -124,7 +124,7 @@
     });
 
 	function confirmDelete() {
-	    if (confirm("Are you sure want to delete?")) {
+	    if (confirm("Permanently delete this person from the system? If they are an intern, their login, placement, submissions and timesheets are removed. This cannot be undone.")) {
 	        return true;
 	    }
 	    return false;
@@ -200,7 +200,7 @@
                                 user_id[i-1] = $(this).closest('tr').data('id');
                             }
                         });
-                        if(user_id.length && confirm("Are you sure want to delete?")) {
+                        if(user_id.length && confirm("Permanently delete the selected people from the system? Interns lose their login, placement, submissions and timesheets. This cannot be undone.")) {
                             $.ajax({
                                 type:'POST',
                                 url:'user/deletebyselection',

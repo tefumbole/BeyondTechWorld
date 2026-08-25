@@ -1477,17 +1477,32 @@
                                 $internship_show_supervisor_menu = $internship_is_supervisor || $internship_is_admin;
                             @endphp
                             @if($internship_is_admin)
-                                <li id="ip-hub"><a href="{{ route('internship.dashboard') }}"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a></li>
+                                <li><a href="#internship-admin-module" data-nav-key="internship" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
+                                    <ul id="internship-admin-module" class="collapse list-unstyled ">
+                                        <li id="ip-hub"><a href="{{ route('internship.dashboard') }}">Dashboard</a></li>
+                                        <li id="ip-interns"><a href="{{ route('internship.interns') }}">Interns</a></li>
+                                        <li id="ip-programs"><a href="{{ route('internship.programs') }}">Programs</a></li>
+                                        <li id="ip-supervisors-admin"><a href="{{ route('internship.supervisors') }}">Supervisors</a></li>
+                                        <li id="ip-admin-tasks"><a href="{{ route('internship.tasks') }}">Task Manager</a></li>
+                                        <li id="ip-admin-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
+                                        <li id="ip-admin-sup-home"><a href="{{ route('internship.supervisor.dashboard') }}">Supervisor Home</a></li>
+                                        <li id="ip-enrolments"><a href="{{ route('internship.enrolments') }}">Enrolments</a></li>
+                                        <li id="ip-reports"><a href="{{ route('internship.reports') }}">Reports</a></li>
+                                    </ul>
+                                </li>
                             @endif
                             @if($internship_show_supervisor_menu)
-                                <li><a href="#supervisor-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-users"></i><span>Supervisor</span></a>
+                                <li><a href="#supervisor-module" data-nav-key="supervisor" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-users"></i><span>Supervisor</span></a>
                                     <ul id="supervisor-module" class="collapse list-unstyled ">
                                         <li id="ip-sup-home"><a href="{{ route('internship.supervisor.dashboard') }}">Home</a></li>
                                         <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">{{ $internship_is_admin ? 'All Interns' : 'My Interns' }}</a></li>
+                                        @if($internship_is_admin)
+                                            <li id="ip-sup-interns"><a href="{{ route('internship.interns') }}">Interns</a></li>
+                                        @endif
                                         <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Tasks</a></li>
                                         <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
                                         <li id="ip-sup-timesheet"><a href="{{ route('timesheet.fill') }}">Fill Time Sheet</a></li>
-                                        <li id="ip-sup-week"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
+                                        <li id="ip-sup-week"><a href="{{ route('timesheet.working-week') }}">My Working Week</a></li>
                                     </ul>
                                 </li>
                             @endif

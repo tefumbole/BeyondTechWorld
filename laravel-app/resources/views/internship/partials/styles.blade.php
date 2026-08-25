@@ -6,6 +6,8 @@
     .ip-btn:hover { color:#fff; background:#0a3578; text-decoration:none; }
     .ip-btn-outline { background:#fff; color:#0b3f90; }
     .ip-btn-outline:hover { background:#eef4ff; color:#0b3f90; }
+    .ip-btn-danger { border-color:#b91c1c; color:#b91c1c; background:#fff; }
+    .ip-btn-danger:hover { background:#fef2f2; color:#991b1b; }
     .ip-pending { border:2px solid #0b3f90; background:linear-gradient(180deg,#f0f6ff,#fff); }
     .ip-meta { color:#6b7280; font-size:13px; }
     .ip-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; background:#f1f5f9; color:#334155; }
