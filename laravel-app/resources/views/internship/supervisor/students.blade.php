@@ -4,7 +4,7 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
-            <h1 class="ip-title mb-0">My interns</h1>
+            <h1 class="ip-title mb-0">{{ \App\Support\InternCompliance::isInternshipAdmin(auth()->user()) ? 'All interns' : 'My interns' }}</h1>
             <div class="d-flex flex-wrap" style="gap:8px;">
                 <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.dashboard') }}">Supervisor Home</a>
                 <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.index') }}">Grade Queue</a>

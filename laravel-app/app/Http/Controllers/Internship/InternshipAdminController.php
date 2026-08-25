@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 class InternshipAdminController extends Controller
@@ -402,6 +403,7 @@ class InternshipAdminController extends Controller
             'tools' => 'nullable|string|max:500',
             'difficulty' => 'nullable|string|max:64',
             'submission_requirements' => 'nullable|string|max:5000',
+            'evidence_slots_text' => 'nullable|string|max:4000',
             'pass_mark' => 'nullable|integer|min:0|max:100',
             'requires_supervisor_approval' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
@@ -425,6 +427,10 @@ class InternshipAdminController extends Controller
             'requires_supervisor_approval' => $request->boolean('requires_supervisor_approval'),
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
         ]);
+        if (Schema::hasColumn('internship_program_tasks', 'evidence_slots_json')) {
+            $slots = $task->parseSlotLines($data['evidence_slots_text'] ?? '');
+            $task->evidence_slots_json = $slots ? json_encode($slots) : null;
+        }
         $task->save();
 
         return back()->with('message', 'Day '.$task->day_number.' updated.')->with('focus_day', $task->day_number);

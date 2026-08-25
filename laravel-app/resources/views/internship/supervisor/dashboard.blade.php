@@ -6,7 +6,13 @@
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
             <div>
                 <h1 class="ip-title mb-0">Supervisor</h1>
-                <p class="ip-meta mb-0">Your interns and the tasks assigned to them.</p>
+                <p class="ip-meta mb-0">
+                    @if(\App\Support\InternCompliance::isInternshipAdmin(auth()->user()))
+                        All internship placements, open tasks, and submissions waiting to be graded.
+                    @else
+                        Your interns and the tasks assigned to them.
+                    @endif
+                </p>
             </div>
             <div class="d-flex flex-wrap" style="gap:8px;">
                 <a class="ip-btn ip-btn-outline" href="{{ route('internship.supervisor.students') }}">My Interns</a>

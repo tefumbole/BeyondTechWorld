@@ -171,6 +171,24 @@
     .ip-hub-amber .ip-hub-icon { background: #fef3c7; color: #b45309; }
     .ip-hub-violet { border-top: 4px solid #8b5cf6; }
     .ip-hub-violet .ip-hub-icon { background: #ede9fe; color: #6d28d9; }
+    .ip-hub-rose { border-top: 4px solid #e11d48; }
+    .ip-hub-rose .ip-hub-icon { background: #ffe4e6; color: #be123c; }
+    .ip-evidence-row {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+    .ip-evidence-row h6 { margin: 0 0 8px; color: #0b3f90; font-weight: 700; font-size: 14px; }
+    .ip-evidence-preview { margin-top: 8px; font-size: 12px; color: #64748b; }
+    .ip-shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .ip-shot-card {
+        border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff;
+    }
+    .ip-shot-card img { width: 100%; height: 140px; object-fit: cover; display: block; background: #f1f5f9; }
+    .ip-shot-card .ip-shot-body { padding: 8px 10px 10px; font-size: 13px; }
+    .ip-shot-card .ip-shot-note { color: #334155; margin-top: 4px; }
     .ip-stat-tile {
         border-radius: 14px;
         padding: 1.1rem 1.2rem;

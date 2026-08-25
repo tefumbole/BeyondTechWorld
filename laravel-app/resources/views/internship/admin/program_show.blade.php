@@ -140,6 +140,11 @@
                                     <textarea class="form-control" name="submission_requirements" rows="2">{{ $t->submission_requirements }}</textarea>
                                 </div>
                                 <div class="form-group">
+                                    <label>Screenshots the student must upload (one per line)</label>
+                                    <textarea class="form-control" name="evidence_slots_text" rows="4" placeholder="Screenshot of the finished configuration&#10;Screenshot of the verification / test result&#10;Screenshot of the report cover (optional extra)">{{ old('evidence_slots_text', implode("\n", array_map(function ($s) { return $s['label']; }, $t->parseSlotLines($t->evidence_slots_json)))) }}</textarea>
+                                    <small class="ip-meta">Each line becomes its own upload box with a short-note field. Leave blank to use the default three screenshot slots. Students can still add more shots if they need them.</small>
+                                </div>
+                                <div class="form-group">
                                     <label class="d-inline-flex align-items-center mr-4" style="gap:6px;">
                                         <input type="checkbox" name="requires_supervisor_approval" value="1" @if($t->requires_supervisor_approval) checked @endif>
                                         Requires supervisor approval
@@ -170,7 +175,14 @@
                                 <p class="text-muted">No instructions loaded for this day.</p>
                             @endif
                             @if($t->submission_requirements)
-                                <p class="mb-0"><strong>Submit:</strong> {{ $t->submission_requirements }}</p>
+                                <p class="mb-1"><strong>Submit:</strong> {{ $t->submission_requirements }}</p>
+                            @endif
+                            @php $slots = $t->evidenceSlots(); @endphp
+                            @if(!empty($slots))
+                                <p class="mb-1"><strong>Screenshot slots</strong></p>
+                                <ol class="ip-ol mb-0">
+                                    @foreach($slots as $slot)<li>{{ $slot['label'] }}</li>@endforeach
+                                </ol>
                             @endif
                         @endif
                     </div>

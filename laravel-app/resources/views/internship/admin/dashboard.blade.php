@@ -35,6 +35,22 @@
                     <strong class="ip-hub-stat">{{ (int) ($stats['interns_ready'] ?? 0) }} ready to assign</strong>
                 </a>
             </div>
+            <div class="col-md-4 mb-3">
+                <a href="{{ route('internship.supervisor.index') }}" class="ip-hub-card ip-hub-rose">
+                    <div class="ip-hub-icon"><i class="fa fa-check-square"></i></div>
+                    <h3>Grade submissions</h3>
+                    <p>Open the supervisor queue, review evidence, and accept work so the next task is released.</p>
+                    <strong class="ip-hub-stat">{{ (int) ($stats['pending_review'] ?? 0) }} awaiting review</strong>
+                </a>
+            </div>
+            <div class="col-md-4 mb-3">
+                <a href="{{ route('internship.supervisor.dashboard') }}" class="ip-hub-card ip-hub-teal">
+                    <div class="ip-hub-icon"><i class="fa fa-clipboard"></i></div>
+                    <h3>Supervisor home</h3>
+                    <p>Interns, open tasks, and recent submissions — the same workspace supervisors use.</p>
+                    <strong class="ip-hub-stat">Open supervisor workspace</strong>
+                </a>
+            </div>
         </div>
 
         <div class="row">
@@ -51,10 +67,10 @@
                 </div>
             </div>
             <div class="col-md-4 mb-3">
-                <div class="ip-stat-tile ip-stat-orange">
+                <a href="{{ route('internship.supervisor.index') }}" class="ip-stat-tile ip-stat-orange" style="display:block;text-decoration:none;color:#fff;">
                     <div class="ip-meta">Awaiting review</div>
                     <strong>{{ $stats['pending_review'] }}</strong>
-                </div>
+                </a>
             </div>
         </div>
 

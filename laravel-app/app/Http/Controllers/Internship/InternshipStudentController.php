@@ -116,6 +116,7 @@ class InternshipStudentController extends Controller
         $supervisors = $this->service->studentSupervisors($assignment->enrolment);
         $gradeSummary = $this->service->studentGradeSummary($assignment);
         $criteria = InternshipRubric::criteria($assignment->task);
+        $evidenceSlots = $assignment->task ? $assignment->task->evidenceSlots() : [];
 
         return view('internship.student.task', compact(
             'assignment',
@@ -123,7 +124,8 @@ class InternshipStudentController extends Controller
             'stepProgress',
             'supervisors',
             'gradeSummary',
-            'criteria'
+            'criteria',
+            'evidenceSlots'
         ));
     }
 
@@ -197,11 +199,35 @@ class InternshipStudentController extends Controller
         $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
         $data = $request->validate([
             'description' => 'required|string|min:20',
-            'files' => 'required|array|min:1|max:10',
+            'evidence' => 'required|array|min:1|max:15',
+            'evidence.*.file' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:10240',
+            'evidence.*.caption' => 'nullable|string|max:400',
+            'files' => 'nullable|array|max:15',
             'files.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:10240',
         ]);
+
+        $items = [];
+        foreach ((array) $request->file('evidence', []) as $index => $row) {
+            $file = is_array($row) ? ($row['file'] ?? null) : $row;
+            if (! $file) {
+                continue;
+            }
+            $caption = trim((string) data_get($data, 'evidence.'.$index.'.caption', ''));
+            $items[] = ['file' => $file, 'caption' => $caption];
+        }
+        foreach ((array) $request->file('files', []) as $file) {
+            if ($file) {
+                $items[] = ['file' => $file, 'caption' => ''];
+            }
+        }
+        if (count($items) < 1) {
+            return back()->withInput()->withErrors([
+                'evidence' => 'Attach at least one screenshot or PDF. Use Add another screenshot if you need more than the slots shown.',
+            ]);
+        }
+
         try {
-            $this->service->submitAssignment($assignment, Auth::user(), $data['description'], $request->file('files', []));
+            $this->service->submitAssignment($assignment, Auth::user(), $data['description'], $items);
         } catch (\Throwable $e) {
             return back()->withInput()->with('not_permitted', $e->getMessage());
         }

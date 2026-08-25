@@ -18,9 +18,11 @@ use App\Support\WhatsAppMessage;
 use App\User;
 use App\WorkingWeek;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class InternshipProgramService
@@ -609,6 +611,9 @@ class InternshipProgramService
         return $assignment;
     }
 
+    /**
+     * @param  array<int, \Illuminate\Http\UploadedFile|\Illuminate\Http\UploadedFile[]|array{file?:mixed,caption?:string}>  $uploadedFiles
+     */
     public function submitAssignment(InternshipTaskAssignment $assignment, User $user, $description, array $uploadedFiles)
     {
         if ((int) $assignment->enrolment->student_user_id !== (int) $user->id) {
@@ -616,6 +621,11 @@ class InternshipProgramService
         }
         if (! in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true)) {
             throw new \RuntimeException('This task cannot accept a submission right now.');
+        }
+
+        $items = $this->normalizeEvidenceItems($uploadedFiles);
+        if (count($items) < 1) {
+            throw new \RuntimeException('Attach at least one screenshot or PDF of the finished work.');
         }
 
         $attempt = ((int) $assignment->attempt_count) + 1;
@@ -629,12 +639,11 @@ class InternshipProgramService
         ]);
 
         $dir = 'internship/submissions/'.$submission->id;
-        foreach ($uploadedFiles as $file) {
-            if (! $file) {
-                continue;
-            }
+        $hasCaption = Schema::hasColumn('internship_submission_files', 'caption');
+        foreach ($items as $index => $item) {
+            $file = $item['file'];
             $path = $file->store($dir, 'local');
-            InternshipSubmissionFile::create([
+            $row = [
                 'submission_id' => $submission->id,
                 'disk' => 'local',
                 'path' => $path,
@@ -642,7 +651,12 @@ class InternshipProgramService
                 'mime' => $file->getMimeType(),
                 'size' => $file->getSize() ?: 0,
                 'checksum' => @hash_file('sha256', $file->getRealPath()) ?: null,
-            ]);
+            ];
+            if ($hasCaption) {
+                $row['caption'] = $item['caption'] !== '' ? $item['caption'] : null;
+                $row['sort_order'] = $index;
+            }
+            InternshipSubmissionFile::create($row);
         }
 
         $assignment->attempt_count = $attempt;
@@ -660,6 +674,39 @@ class InternshipProgramService
         // accepts this submission (see gradeSubmission).
 
         return $submission;
+    }
+
+    /**
+     * Accept either a flat list of UploadedFile or evidence rows with a file
+     * plus the short note the student wrote about that screenshot.
+     *
+     * @param  array  $uploadedFiles
+     * @return array<int, array{file:UploadedFile,caption:string}>
+     */
+    protected function normalizeEvidenceItems(array $uploadedFiles)
+    {
+        $items = [];
+        foreach ($uploadedFiles as $item) {
+            if ($item instanceof UploadedFile) {
+                $items[] = ['file' => $item, 'caption' => ''];
+
+                continue;
+            }
+            if (! is_array($item)) {
+                continue;
+            }
+            $file = $item['file'] ?? null;
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+            $caption = trim((string) ($item['caption'] ?? ''));
+            if (strlen($caption) > 400) {
+                $caption = substr($caption, 0, 400);
+            }
+            $items[] = ['file' => $file, 'caption' => $caption];
+        }
+
+        return $items;
     }
 
     /**

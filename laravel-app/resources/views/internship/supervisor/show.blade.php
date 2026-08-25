@@ -63,18 +63,33 @@
         <div class="ip-card">
             <h5 style="color:#0b3f90;font-weight:700;">What the student submitted</h5>
             <div class="ip-study-note">{{ $submission->description ?: 'No description given.' }}</div>
-            <p class="ip-meta mb-1">Files ({{ $submission->files->count() }})</p>
+            <p class="ip-meta mb-1">Evidence ({{ $submission->files->count() }} screenshot{{ $submission->files->count() === 1 ? '' : 's' }})</p>
             @if($submission->files->isEmpty())
                 <p class="mb-0"><span class="ip-badge warn">No files attached</span></p>
             @else
-                <ul class="ip-file-list">
+                <div class="ip-shot-grid">
                     @foreach($submission->files as $f)
-                        <li>
-                            <a href="{{ route('internship.supervisor.file', $f->id) }}" target="_blank">{{ $f->original_name }}</a>
-                            <span class="ip-meta">({{ $f->size ? number_format($f->size / 1048576, 2).' MB' : 'size unknown' }})</span>
-                        </li>
+                        <div class="ip-shot-card">
+                            @if($f->isImage())
+                                <a href="{{ route('internship.supervisor.file', $f->id) }}" target="_blank">
+                                    <img src="{{ route('internship.supervisor.file', $f->id) }}" alt="{{ $f->original_name }}">
+                                </a>
+                            @else
+                                <a href="{{ route('internship.supervisor.file', $f->id) }}" target="_blank" class="d-block p-4 text-center">
+                                    <i class="fa fa-file-pdf-o" style="font-size:2rem;color:#0b3f90;"></i>
+                                    <div class="mt-2">Open PDF</div>
+                                </a>
+                            @endif
+                            <div class="ip-shot-body">
+                                <a href="{{ route('internship.supervisor.file', $f->id) }}" target="_blank">{{ $f->original_name }}</a>
+                                <div class="ip-meta">{{ $f->size ? number_format($f->size / 1048576, 2).' MB' : '' }}</div>
+                                @if($f->caption)
+                                    <div class="ip-shot-note">{{ $f->caption }}</div>
+                                @endif
+                            </div>
+                        </div>
                     @endforeach
-                </ul>
+                </div>
             @endif
         </div>
 

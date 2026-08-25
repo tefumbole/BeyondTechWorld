@@ -126,9 +126,9 @@
                 <h5 style="font-weight:700;color:#0b3f90;">How to upload this task</h5>
                 <ol class="ip-ol">
                     <li>Finish the work using the handbook and the checklist above. Tick each step as you go.</li>
-                    <li>Write a short report in the box below (at least 20 characters): what you did, how you checked it, and any problem you solved.</li>
-                    <li>Attach <strong>1 to 10 files</strong>. Allowed types: <strong>JPG, PNG, GIF, WEBP, or PDF</strong>. Each file must be under <strong>10&nbsp;MB</strong>.</li>
-                    <li>Use screenshots of the finished work, or a PDF report. Name files so your supervisor can tell them apart (for example <code>step-3-screenshot.png</code>).</li>
+                    <li>Write a short report in the first box (at least 20 characters): what you did, how you checked it, and any problem you solved.</li>
+                    <li>Upload <strong>every screenshot this task asks for</strong>. Each screenshot has its own short-note box so your supervisor knows what they are looking at.</li>
+                    <li>Need more than the slots shown? Click <strong>Add another screenshot</strong>. Allowed types: <strong>JPG, PNG, GIF, WEBP, or PDF</strong>, under <strong>10&nbsp;MB</strong> each, up to 15 files.</li>
                     <li>Click <strong>Submit for grading</strong>. Your supervisor is notified on WhatsApp.</li>
                     <li>Then fill your timesheet for this day. The next task is released on your next working day after they accept this one.</li>
                 </ol>
@@ -145,11 +145,32 @@
                         <textarea name="description" id="ip-desc" class="form-control" rows="6" required minlength="20" placeholder="Example: I completed the lab steps, captured the output screenshot, and verified the result against the handbook.">{{ old('description') }}</textarea>
                         <small class="ip-meta"><span id="ip-desc-count">0</span> / 20 characters minimum</small>
                     </div>
-                    <div class="form-group">
-                        <label>2. Attach screenshots or PDF (required)</label>
-                        <input type="file" name="files[]" id="ip-files" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" multiple required>
-                        <small class="ip-meta">JPG, PNG, GIF, WEBP, PDF · max 10 files · 10 MB each</small>
-                        <ul id="ip-file-list" class="ip-file-list"></ul>
+                    <div class="form-group mb-2">
+                        <label>2. Screenshots and short notes (at least one required)</label>
+                        <p class="ip-meta mb-2">One file per box. Add a short note so your supervisor can tell the shots apart. You can add more boxes if this task needs extra evidence.</p>
+                        <div id="ip-evidence-list">
+                            @foreach(($evidenceSlots ?? [['label' => 'Screenshot 1 — finished work', 'required' => true]]) as $i => $slot)
+                                <div class="ip-evidence-row" data-index="{{ $i }}">
+                                    <h6>{{ $slot['label'] }}@if(!empty($slot['required'])) <span class="ip-badge warn">Required</span>@endif</h6>
+                                    <input type="file"
+                                           name="evidence[{{ $i }}][file]"
+                                           class="form-control ip-evidence-file"
+                                           accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+                                           @if(!empty($slot['required'])) required @endif>
+                                    <input type="text"
+                                           name="evidence[{{ $i }}][caption]"
+                                           class="form-control mt-2"
+                                           maxlength="400"
+                                           value="{{ old('evidence.'.$i.'.caption') }}"
+                                           placeholder="Short note — what this screenshot shows">
+                                    <div class="ip-evidence-preview"></div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <button type="button" class="ip-btn ip-btn-outline ip-btn-sm" id="ip-add-evidence">
+                            <i class="dripicons-plus"></i> Add another screenshot
+                        </button>
+                        <small class="ip-meta d-block mt-1">JPG, PNG, GIF, WEBP, PDF · max 15 files · 10 MB each</small>
                     </div>
                     <button class="ip-btn" type="submit"><i class="dripicons-cloud-upload"></i> 3. Submit for grading</button>
                 </form>
@@ -172,7 +193,10 @@
                         <p class="mt-2 mb-1">{{ $sub->description }}</p>
                         <div>
                             @foreach($sub->files as $f)
-                                <a href="{{ route('internship.student.file', $f->id) }}" target="_blank">{{ $f->original_name }}</a>@if(!$loop->last), @endif
+                                <div class="mb-1">
+                                    <a href="{{ route('internship.student.file', $f->id) }}" target="_blank">{{ $f->original_name }}</a>
+                                    @if($f->caption)<span class="ip-meta"> — {{ $f->caption }}</span>@endif
+                                </div>
                             @endforeach
                         </div>
                         @foreach($sub->grades as $g)
@@ -206,21 +230,46 @@
         desc.addEventListener('input', tick);
         tick();
     }
-    var input = document.getElementById('ip-files');
-    var list = document.getElementById('ip-file-list');
-    if (input && list) {
+    var list = document.getElementById('ip-evidence-list');
+    var addBtn = document.getElementById('ip-add-evidence');
+    function bindPreview(row) {
+        var input = row.querySelector('.ip-evidence-file');
+        var preview = row.querySelector('.ip-evidence-preview');
+        if (!input || !preview) return;
         input.addEventListener('change', function () {
-            list.innerHTML = '';
-            Array.prototype.forEach.call(input.files || [], function (f) {
-                var li = document.createElement('li');
-                var mb = (f.size / 1048576).toFixed(2);
-                li.textContent = f.name + ' (' + mb + ' MB)';
-                if (f.size > 10 * 1048576) {
-                    li.style.color = '#b91c1c';
-                    li.textContent += ' — too large (max 10 MB)';
-                }
-                list.appendChild(li);
-            });
+            preview.textContent = '';
+            var f = input.files && input.files[0];
+            if (!f) return;
+            var mb = (f.size / 1048576).toFixed(2);
+            preview.textContent = f.name + ' (' + mb + ' MB)';
+            if (f.size > 10 * 1048576) {
+                preview.style.color = '#b91c1c';
+                preview.textContent += ' — too large (max 10 MB)';
+            } else {
+                preview.style.color = '#64748b';
+            }
+        });
+    }
+    if (list) {
+        Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-row'), bindPreview);
+    }
+    if (list && addBtn) {
+        addBtn.addEventListener('click', function () {
+            var next = list.querySelectorAll('.ip-evidence-row').length;
+            if (next >= 15) {
+                addBtn.disabled = true;
+                return;
+            }
+            var row = document.createElement('div');
+            row.className = 'ip-evidence-row';
+            row.setAttribute('data-index', next);
+            row.innerHTML = '<h6>Extra screenshot ' + (next + 1) + '</h6>'
+                + '<input type="file" name="evidence[' + next + '][file]" class="form-control ip-evidence-file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf">'
+                + '<input type="text" name="evidence[' + next + '][caption]" class="form-control mt-2" maxlength="400" placeholder="Short note — what this screenshot shows">'
+                + '<div class="ip-evidence-preview"></div>';
+            list.appendChild(row);
+            bindPreview(row);
+            if (next + 1 >= 15) addBtn.disabled = true;
         });
     }
 })();

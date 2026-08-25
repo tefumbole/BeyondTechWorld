@@ -230,11 +230,23 @@ class InternshipSupervisorController extends Controller
         $this->allow();
         $file = \App\InternshipSubmissionFile::with('submission.assignment.enrolment')->findOrFail($fileId);
         $this->assertCanReview($file->submission->assignment->enrolment);
-        if (! Storage::disk($file->disk ?: 'local')->exists($file->path)) {
+        $disk = Storage::disk($file->disk ?: 'local');
+        if (! $disk->exists($file->path)) {
             abort(404);
         }
 
-        return Storage::disk($file->disk ?: 'local')->download($file->path, $file->original_name);
+        $absolute = method_exists($disk, 'path')
+            ? $disk->path($file->path)
+            : storage_path('app/'.$file->path);
+
+        if ($file->isImage() && is_file($absolute)) {
+            return response()->file($absolute, [
+                'Content-Type' => $file->mime ?: 'image/jpeg',
+                'Content-Disposition' => 'inline; filename="'.addslashes($file->original_name).'"',
+            ]);
+        }
+
+        return $disk->download($file->path, $file->original_name);
     }
 
     public function students()
