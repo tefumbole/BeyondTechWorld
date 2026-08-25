@@ -1772,6 +1772,89 @@
                                     <th colspan="5">Digital Invitations Module End</th>
                                 </tr>
 
+                                {{-- Internship & TimeSheets Module --}}
+                                <tr class="permission-section-header">
+                                    <th colspan="5">
+                                        <div class="checkbox">
+                                            <input type="checkbox" class="section-select-all" id="section-internship-module">
+                                            <label for="section-internship-module">Internship &amp; TimeSheets Module</label>
+                                        </div>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td>TimeSheets</td>
+                                    <td class="report-permissions" colspan="5">
+                                        @foreach([
+                                            'timesheets_module' => 'TimeSheets Module (menu)',
+                                            'timesheets.employee' => 'Fill Own TimeSheet',
+                                            'timesheets.view' => 'View TimeSheets',
+                                            'timesheets.manage' => 'Manage / Approve All',
+                                            'timesheets.admin' => 'TimeSheet Admin Reports',
+                                        ] as $perm => $label)
+                                        @php $pid = str_replace('.', '_', $perm); @endphp
+                                        <span>
+                                            <div class="checkbox">
+                                                @if(in_array($perm, $all_permission))
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}" checked>
+                                                @else
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}">
+                                                @endif
+                                                <label for="{{ $pid }}" class="padding05">{{ $label }}</label>
+                                            </div>
+                                        </span>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Internship</td>
+                                    <td class="report-permissions" colspan="5">
+                                        @foreach([
+                                            'internship_module' => 'Internship Module (menu)',
+                                            'internship.dashboard.view' => 'Dashboard',
+                                            'internship.student' => 'Intern Portal (student)',
+                                            'internship.supervise' => 'Supervise Interns',
+                                            'internship.programs.view' => 'View Programmes',
+                                            'internship.programs.create' => 'Create Programmes',
+                                            'internship.programs.update' => 'Update Programmes',
+                                            'internship.programs.publish' => 'Publish Programmes',
+                                            'internship.programs.archive' => 'Archive Programmes',
+                                            'internship.programs.import' => 'Import Programmes',
+                                            'internship.enrolments.view' => 'View Enrolments',
+                                            'internship.enrolments.create' => 'Create Enrolments',
+                                            'internship.enrolments.update' => 'Update Enrolments',
+                                            'internship.enrolments.assign_supervisor' => 'Assign Supervisor',
+                                            'internship.enrolments.pause' => 'Pause Enrolments',
+                                            'internship.enrolments.resume' => 'Resume Enrolments',
+                                            'internship.tasks.view' => 'View Tasks',
+                                            'internship.tasks.create' => 'Create Tasks',
+                                            'internship.tasks.update' => 'Update Tasks',
+                                            'internship.tasks.reorder' => 'Reorder Tasks',
+                                            'internship.submissions.view' => 'View Submissions',
+                                            'internship.submissions.grade' => 'Accept / Grade Submissions',
+                                            'internship.submissions.request_revision' => 'Request Revision',
+                                            'internship.reports.view' => 'View Reports',
+                                            'internship.reports.export' => 'Export Reports',
+                                            'internship.notifications.retry' => 'Retry Notifications',
+                                            'internship.settings.manage' => 'Internship Settings',
+                                        ] as $perm => $label)
+                                        @php $pid = str_replace('.', '_', $perm); @endphp
+                                        <span>
+                                            <div class="checkbox">
+                                                @if(in_array($perm, $all_permission))
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}" checked>
+                                                @else
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}">
+                                                @endif
+                                                <label for="{{ $pid }}" class="padding05">{{ $label }}</label>
+                                            </div>
+                                        </span>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                                <tr class="permission-section-end">
+                                    <th colspan="5">Internship &amp; TimeSheets Module End</th>
+                                </tr>
+
                                 {{--                                Booking Module--}}
                                 <tr class="permission-section-header">
                                     <th colspan="5">

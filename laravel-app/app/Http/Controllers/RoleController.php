@@ -1974,6 +1974,31 @@ class RoleController extends Controller
             }
         }
 
+        foreach ([
+            'timesheets_module', 'timesheets.employee', 'timesheets.view', 'timesheets.manage', 'timesheets.admin',
+            'internship_module', 'internship.dashboard.view', 'internship.student', 'internship.supervise',
+            'internship.programs.view', 'internship.programs.create', 'internship.programs.update',
+            'internship.programs.publish', 'internship.programs.archive', 'internship.programs.import',
+            'internship.enrolments.view', 'internship.enrolments.create', 'internship.enrolments.update',
+            'internship.enrolments.assign_supervisor', 'internship.enrolments.pause', 'internship.enrolments.resume',
+            'internship.tasks.view', 'internship.tasks.create', 'internship.tasks.update', 'internship.tasks.reorder',
+            'internship.submissions.view', 'internship.submissions.grade', 'internship.submissions.request_revision',
+            'internship.reports.view', 'internship.reports.export',
+            'internship.notifications.retry', 'internship.settings.manage',
+        ] as $internPerm) {
+            try {
+                if ($request->has($internPerm)) {
+                    $permission = Permission::firstOrCreate(['name' => $internPerm]);
+                    if (! $role->hasPermissionTo($internPerm)) {
+                        $role->givePermissionTo($permission);
+                    }
+                } else {
+                    $role->revokePermissionTo($internPerm);
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
         return redirect('role')->with('message', 'Permission updated successfully');
     }
 
