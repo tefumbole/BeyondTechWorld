@@ -3,127 +3,90 @@
 @section('title', 'Sign in')
 
 @php
-    $title = 'Sign in';
-    $header = '<h1 class="text-2xl font-bold text-brand-blue">Beyond Enterprise</h1><p class="text-brand-blue text-sm mt-1">Sign in to continue</p>';
-    $activeTab = $tab ?? 'signin';
     $asCustomer = !empty($asCustomer);
-    $signinQuery = [];
-    if (request('redirect')) { $signinQuery['redirect'] = request('redirect'); }
-    if ($asCustomer) { $signinQuery['as'] = 'customer'; }
-    $signinUrl = url('/login'.(count($signinQuery) ? '?'.http_build_query($signinQuery) : ''));
-    $signupUrl = url('/login?tab=signup'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : ''));
 @endphp
 
 @section('auth_body')
-<div class="flex rounded-lg bg-gray-100 p-1 mb-6" role="tablist">
-    <a href="{{ $signinUrl }}"
-       class="flex-1 text-center py-2 rounded-md text-sm font-bold transition {{ $activeTab === 'signin' ? 'bg-white text-brand-blue shadow' : 'text-gray-600 hover:text-brand-blue' }}">
-        Sign in
-    </a>
-    <a href="{{ $signupUrl }}"
-       class="flex-1 text-center py-2 rounded-md text-sm font-bold transition {{ $activeTab === 'signup' ? 'bg-white text-brand-blue shadow' : 'text-gray-600 hover:text-brand-blue' }}">
-        Sign up
-    </a>
-</div>
-
-@if($activeTab === 'signup')
-<form method="POST" action="{{ url('/signup') }}" class="space-y-4">
-    @csrf
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Full Name</label>
-        <input type="text" name="full_name" value="{{ old('full_name') }}" required
-               class="w-full rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-               placeholder="Your full name">
-    </div>
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Email (optional)</label>
-        <input type="email" name="email" value="{{ old('email') }}"
-               class="w-full rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-               placeholder="you@example.com">
-    </div>
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">WhatsApp number</label>
-        <div class="flex gap-2">
-            <select name="country_code" class="rounded-md border border-gray-200 px-2 py-2 w-40 shrink-0">
-                @foreach(($countryCodes ?? []) as $code => $label)
-                    <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $label }}</option>
-                @endforeach
-            </select>
-            <input type="tel" name="phone" value="{{ old('phone') }}" required
-                   class="flex-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="Phone number">
-        </div>
-        <p class="text-xs text-gray-500">Any country — we verify with WhatsApp OTP.</p>
-    </div>
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Password</label>
-        <input type="password" name="password" required minlength="8"
-               class="w-full rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-               placeholder="Min. 8 characters">
-    </div>
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Confirm Password</label>
-        <input type="password" name="password_confirmation" required minlength="8"
-               class="w-full rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
-    </div>
-    <button type="submit" class="w-full bg-brand-gold hover:bg-[#b5952f] text-brand-blue font-bold py-3 rounded-md flex items-center justify-center gap-2">
-        Create account <i data-lucide="arrow-right" class="w-4 h-4"></i>
-    </button>
-    <p class="text-center text-sm text-gray-600">
-        Already registered?
-        <a href="{{ url('/login'.(request('redirect') ? '?redirect='.urlencode(request('redirect')) : '')) }}" class="text-brand-blue font-semibold hover:underline">Sign in</a>
-    </p>
-</form>
-@else
 @if($asCustomer)
-    <div class="mb-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm">
+    <div class="auth-alert" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;">
         Signing in as a <strong>customer</strong> account.
-        <a href="{{ url('/login'.(request('redirect') ? '?redirect='.urlencode(request('redirect')) : '')) }}" class="font-semibold underline">Use staff login instead</a>
+        <a href="{{ url('/login'.(request('redirect') ? '?redirect='.urlencode(request('redirect')) : '')) }}" style="font-weight:600;text-decoration:underline;">Use staff login</a>
     </div>
 @endif
-<form method="POST" action="{{ url('/login') }}" class="space-y-5">
+
+<form method="POST" action="{{ url('/login') }}" autocomplete="on">
     @csrf
     @if($asCustomer)
         <input type="hidden" name="as" value="customer">
     @endif
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Email or Username</label>
-        <div class="relative">
-            <i data-lucide="user" class="absolute left-3 top-3 h-4 w-4 text-gray-400"></i>
-            <input type="text" name="identifier" value="{{ old('identifier', $prefill) }}" required
-                   class="w-full pl-10 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="email, WhatsApp number, or username" autocomplete="username">
-        </div>
+
+    <div class="auth-field">
+        <svg class="auth-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <input type="text" name="identifier" class="auth-input"
+               value="{{ old('identifier', $prefill) }}" required
+               placeholder="Name, email or phone" autocomplete="username">
     </div>
-    <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-700">Password</label>
-        <div class="relative">
-            <i data-lucide="lock" class="absolute left-3 top-3 h-4 w-4 text-gray-400"></i>
-            <input type="password" name="password" required
-                   value="{{ $guestPassword ? 'system' : '' }}"
-                   class="w-full pl-10 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
-                   placeholder="••••••••" autocomplete="current-password">
-        </div>
+
+    <div class="auth-field">
+        <svg class="auth-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <input id="login-password" type="password" name="password" class="auth-input" required
+               value="{{ $guestPassword ? 'system' : '' }}"
+               placeholder="Password" autocomplete="current-password">
+        <button type="button" class="auth-toggle" id="toggle-password" aria-label="Show password">
+            <svg id="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.77 21.77 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+        </button>
     </div>
-    <div class="flex items-center justify-between text-sm">
-        <a href="{{ url('/forgot-password') }}" class="text-brand-light hover:text-brand-blue font-medium">Forgot username or password?</a>
-        <a href="{{ $signupUrl }}" class="text-brand-gold font-semibold hover:underline">Sign up</a>
-    </div>
-    @unless($asCustomer)
-    <p class="text-center text-xs text-gray-500">Interns: use email, WhatsApp number, or username. Default password is often <code>system</code>.</p>
-    <p class="text-center text-sm">
-        <a href="{{ url('/staff-otp-login') }}" class="text-brand-blue font-semibold hover:underline">Login with WhatsApp OTP</a>
-    </p>
-    @endunless
-    <button type="submit" class="w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3 rounded-md flex items-center justify-center gap-2">
-        Sign in <i data-lucide="arrow-right" class="w-4 h-4"></i>
+
+    <button type="submit" class="auth-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Sign In
     </button>
-    @unless($asCustomer)
-    <p class="text-center text-xs text-gray-500">
-        Same email as a customer account?
-        <a href="{{ url('/login?as=customer'.(request('redirect') ? '&redirect='.urlencode(request('redirect')) : '')) }}" class="text-brand-gold font-semibold hover:underline">Sign in as customer</a>
-    </p>
-    @endunless
 </form>
-@endif
+
+<div class="auth-links">
+    <a class="wa" href="{{ url('/forgot-password') }}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true">
+            <path d="M20.5 3.5A11 11 0 0 0 2.1 17.2L1 23l5.9-1.1A11 11 0 1 0 20.5 3.5zm-8.5 17a9 9 0 0 1-4.6-1.3l-.3-.2-3.5.7.7-3.4-.2-.3A9 9 0 1 1 12 20.5zm5.2-6.7c-.3-.1-1.6-.8-1.9-.9s-.4-.1-.6.1-.7.9-.8 1-.3.2-.6.1a7.4 7.4 0 0 1-2.2-1.4 8.2 8.2 0 0 1-1.5-1.9c-.2-.3 0-.4.1-.6l.4-.5.1-.3c0-.1 0-.3-.1-.4s-.6-1.4-.8-1.9-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3a2.3 2.3 0 0 0-.7 1.7 4 4 0 0 0 .8 2.1c.2.3 1.7 2.7 4.2 3.7 2.5 1 2.5.7 3 .6a2.5 2.5 0 0 0 1.6-1.2c.2-.4.2-.8.1-.9s-.2-.1-.5-.2z"/>
+        </svg>
+        Forgot password? Reset via WhatsApp
+    </a>
+    <a href="{{ url('/') }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Back to Homepage
+    </a>
+</div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var input = document.getElementById('login-password');
+    var btn = document.getElementById('toggle-password');
+    if (!input || !btn) return;
+    var open = document.getElementById('eye-open');
+    var off = document.getElementById('eye-off');
+    btn.addEventListener('click', function () {
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        if (open) open.style.display = show ? 'none' : 'block';
+        if (off) off.style.display = show ? 'block' : 'none';
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+})();
+</script>
+@endpush

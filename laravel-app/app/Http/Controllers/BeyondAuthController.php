@@ -84,8 +84,6 @@ class BeyondAuthController extends Controller
         return view('beyond.auth.login', [
             'prefill' => $request->get('u', ''),
             'guestPassword' => $request->get('guest') === '1',
-            'tab' => $request->get('tab') === 'signup' ? 'signup' : 'signin',
-            'countryCodes' => CountryDialCodes::all(),
             'asCustomer' => $asCustomer,
         ]);
     }
