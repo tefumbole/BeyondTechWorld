@@ -9,6 +9,7 @@ use App\TimesheetEntry;
 use App\User;
 use App\WorkingWeek;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class TimesheetService
@@ -52,19 +53,11 @@ class TimesheetService
 
     public function activities($userId = null, $category = null)
     {
-        $q = TimesheetActivity::where('is_active', true)->orderBy('name');
-        if ($userId) {
-            $q->where(function ($w) use ($userId) {
-                $w->whereNull('owner_user_id')->orWhere('owner_user_id', $userId);
-            });
-        }
-        if ($category && $category !== 'all') {
-            $q->where(function ($w) use ($category) {
-                $w->where('category', $category)->orWhere('category_id', $category);
-            });
+        if (! $userId) {
+            return collect();
         }
 
-        return $q->get();
+        return $this->activitiesForOwner($userId, $category)->where('is_active', true)->values();
     }
 
     public function activitiesForOwner($userId, $category = null)
@@ -81,18 +74,25 @@ class TimesheetService
         return $q->get();
     }
 
-    /** Shared activities + those owned by this Beyond portal user. */
+    /** Activities this Beyond portal user created — not other people's. */
     public function activitiesForPortal($beUserId)
     {
         return TimesheetActivity::with('categoryRel')
             ->where('is_active', true)
-            ->where(function ($q) use ($beUserId) {
-                $q->where(function ($shared) {
-                    $shared->whereNull('owner_user_id')->whereNull('owner_be_user_id');
-                })->orWhere('owner_be_user_id', $beUserId);
-            })
+            ->where('owner_be_user_id', $beUserId)
             ->orderBy('name')
             ->get();
+    }
+
+    public function ownedActivity($userId, $activityId)
+    {
+        if (! $userId || ! $activityId) {
+            return null;
+        }
+
+        return TimesheetActivity::where('id', $activityId)
+            ->where('owner_user_id', $userId)
+            ->first();
     }
 
     public function storeActivity($userId, array $data)
@@ -192,7 +192,7 @@ class TimesheetService
             }
         }
 
-        return TimesheetEntry::create([
+        $entry = TimesheetEntry::create([
             'user_id' => $user->id,
             'employee_name' => $user->name,
             'be_user_id' => null,
@@ -204,6 +204,10 @@ class TimesheetService
             'notes' => $data['notes'] ?? null,
             'status' => 'submitted',
         ]);
+
+        $this->refreshDayBalance($user->id, $data['entry_date']);
+
+        return $entry->fresh();
     }
 
     /** Keep portal staff path working */
@@ -242,6 +246,9 @@ class TimesheetService
             $activity = TimesheetActivity::find($data['activity_id']);
             $activityName = $activity ? $activity->name : $activityName;
         }
+        $oldDate = $entry->entry_date instanceof Carbon
+            ? $entry->entry_date->toDateString()
+            : (string) $entry->entry_date;
         $entry->update([
             'activity_id' => $data['activity_id'] ?? $entry->activity_id,
             'activity_name' => $activityName,
@@ -252,8 +259,15 @@ class TimesheetService
             'hours' => $data['hours'] ?? $entry->hours,
             'notes' => array_key_exists('notes', $data) ? $data['notes'] : $entry->notes,
         ]);
+        $newDate = $entry->entry_date instanceof Carbon
+            ? $entry->entry_date->toDateString()
+            : (string) $entry->entry_date;
+        $this->refreshDayBalance($userId, $newDate);
+        if ($oldDate && $oldDate !== $newDate) {
+            $this->refreshDayBalance($userId, $oldDate);
+        }
 
-        return $entry;
+        return $entry->fresh();
     }
 
     public function updateEntry($userId, $id, array $data)
@@ -280,7 +294,17 @@ class TimesheetService
 
     public function deleteEntryAdmin($userId, $id)
     {
-        return TimesheetEntry::where('user_id', $userId)->where('id', $id)->delete();
+        $entry = TimesheetEntry::where('user_id', $userId)->where('id', $id)->first();
+        if (! $entry) {
+            return 0;
+        }
+        $date = $entry->entry_date instanceof Carbon
+            ? $entry->entry_date->toDateString()
+            : (string) $entry->entry_date;
+        $deleted = $entry->delete();
+        $this->refreshDayBalance($userId, $date);
+
+        return $deleted;
     }
 
     public function deleteEntry($userId, $id)
@@ -352,19 +376,6 @@ class TimesheetService
      */
     public function ensureInternshipActivity($userId)
     {
-        $existing = TimesheetActivity::where('is_active', true)
-            ->where(function ($q) use ($userId) {
-                $q->whereNull('owner_user_id')->orWhere('owner_user_id', $userId);
-            })
-            ->where(function ($q) {
-                $q->where('name', 'like', '%Internship%')
-                    ->orWhere('name', 'like', '%Daily internship%');
-            })
-            ->first();
-        if ($existing) {
-            return $existing;
-        }
-
         $owned = TimesheetActivity::where('owner_user_id', $userId)->where('is_active', true)->first();
         if ($owned) {
             return $owned;
@@ -378,6 +389,19 @@ class TimesheetService
             'is_active' => true,
             'owner_user_id' => $userId,
         ]);
+    }
+
+    /**
+     * Lunch is only deducted on days longer than 5 hours (e.g. Sat 09:00–12:00 stays 3h).
+     */
+    public function lunchMinutesForSpan($spanMinutes, $lunchMinutes)
+    {
+        $lunch = (int) $lunchMinutes;
+        if ($lunch <= 0 || $spanMinutes <= 5 * 60) {
+            return 0;
+        }
+
+        return $lunch;
     }
 
     public function dayHours(WorkingWeek $ww, $day)
@@ -397,12 +421,155 @@ class TimesheetService
         if ($mins < 0) {
             $mins += 24 * 60;
         }
-        $mins -= (int) $ww->lunch_break_minutes;
+        $mins -= $this->lunchMinutesForSpan($mins, $ww->lunch_break_minutes);
         if ($mins < 0) {
             $mins = 0;
         }
 
         return round($mins / 60, 2);
+    }
+
+    public function expectedHoursForDate($userId, $date)
+    {
+        $day = strtolower(Carbon::parse($date)->format('l'));
+        $ww = WorkingWeek::where('user_id', $userId)->first();
+        if (! $ww) {
+            return in_array($day, ['saturday', 'sunday'], true) ? 0.0 : 8.0;
+        }
+
+        return $this->dayHours($ww, $day);
+    }
+
+    public function hoursLoggedOnDate($userId, $date, $exceptEntryId = null)
+    {
+        $q = TimesheetEntry::where('user_id', $userId)->whereDate('entry_date', $date);
+        if ($exceptEntryId) {
+            $q->where('id', '!=', $exceptEntryId);
+        }
+
+        return round((float) $q->sum('hours'), 2);
+    }
+
+    public function hoursByDate($userId)
+    {
+        $map = [];
+        TimesheetEntry::where('user_id', $userId)->get(['entry_date', 'hours'])->each(function ($e) use (&$map) {
+            $d = $e->entry_date instanceof Carbon
+                ? $e->entry_date->toDateString()
+                : Carbon::parse($e->entry_date)->toDateString();
+            $map[$d] = round(($map[$d] ?? 0) + (float) $e->hours, 2);
+        });
+
+        return $map;
+    }
+
+    public function expectedByWeekday($userId)
+    {
+        $out = [];
+        $ww = WorkingWeek::where('user_id', $userId)->first();
+        foreach (WorkingWeek::days() as $day) {
+            $out[$day] = $ww ? $this->dayHours($ww, $day) : (in_array($day, ['saturday', 'sunday'], true) ? 0.0 : 8.0);
+        }
+
+        return $out;
+    }
+
+    public function dayBalance($userId, $date, $exceptEntryId = null)
+    {
+        $expected = $this->expectedHoursForDate($userId, $date);
+        $logged = $this->hoursLoggedOnDate($userId, $date, $exceptEntryId);
+        $remaining = max(0, round($expected - $logged, 2));
+        $overtime = max(0, round($logged - $expected, 2));
+
+        return [
+            'date' => Carbon::parse($date)->toDateString(),
+            'expected' => $expected,
+            'logged' => $logged,
+            'remaining' => $remaining,
+            'overtime' => $overtime,
+            'complete' => $expected > 0 && $remaining <= 0.009 && $overtime <= 0.009,
+        ];
+    }
+
+    public function balanceMessage(array $balance)
+    {
+        $logged = number_format((float) $balance['logged'], 2);
+        $expected = number_format((float) $balance['expected'], 2);
+        if ($balance['expected'] <= 0 && $balance['logged'] > 0) {
+            return $logged.'h logged on a non-working day. Supervisor will need to approve overtime.';
+        }
+        if ($balance['overtime'] > 0.009) {
+            return number_format((float) $balance['overtime'], 2).'h overtime on this day. Supervisor will need to approve overtime.';
+        }
+        if ($balance['remaining'] > 0.009) {
+            return number_format((float) $balance['remaining'], 2).'h still remaining to complete this working day ('.$logged.' of '.$expected.'h).';
+        }
+
+        return 'Working day complete ('.$logged.' of '.$expected.'h).';
+    }
+
+    public function weekScore($userId, $weekStart = null)
+    {
+        $start = $weekStart
+            ? Carbon::parse($weekStart)->startOfWeek(Carbon::MONDAY)
+            : Carbon::now()->startOfWeek(Carbon::MONDAY);
+        $end = $start->copy()->endOfWeek(Carbon::SUNDAY);
+        $ww = WorkingWeek::where('user_id', $userId)->first();
+        $expected = $ww ? $this->weeklyExpectedHours($ww) : 40.0;
+        $logged = round((float) TimesheetEntry::where('user_id', $userId)
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('hours'), 2);
+        $days = [];
+        foreach (range(0, 6) as $i) {
+            $d = $start->copy()->addDays($i);
+            $dayKey = strtolower($d->format('l'));
+            $dayExpected = $ww ? $this->dayHours($ww, $dayKey) : ($i < 5 ? 8.0 : 0.0);
+            $dayLogged = $this->hoursLoggedOnDate($userId, $d->toDateString());
+            $days[] = [
+                'date' => $d->toDateString(),
+                'day' => $dayKey,
+                'expected' => $dayExpected,
+                'logged' => $dayLogged,
+                'remaining' => max(0, round($dayExpected - $dayLogged, 2)),
+                'overtime' => max(0, round($dayLogged - $dayExpected, 2)),
+            ];
+        }
+
+        return [
+            'week_start' => $start->toDateString(),
+            'week_end' => $end->toDateString(),
+            'expected' => $expected,
+            'logged' => $logged,
+            'remaining' => max(0, round($expected - $logged, 2)),
+            'overtime' => max(0, round($logged - $expected, 2)),
+            'met' => $logged + 0.009 >= $expected && $expected > 0,
+            'days' => $days,
+        ];
+    }
+
+    public function refreshDayBalance($userId, $date)
+    {
+        if (! $userId || ! $date) {
+            return $this->dayBalance($userId, $date ?: date('Y-m-d'));
+        }
+        $balance = $this->dayBalance($userId, $date);
+        $hasOtCol = Schema::hasColumn('be_timesheet_entries', 'overtime_hours');
+        $hasFlagCol = Schema::hasColumn('be_timesheet_entries', 'requires_ot_approval');
+        $entries = TimesheetEntry::where('user_id', $userId)->whereDate('entry_date', $date)->get();
+        foreach ($entries as $e) {
+            if ($hasOtCol) {
+                $e->overtime_hours = $balance['overtime'];
+            }
+            if ($hasFlagCol) {
+                $e->requires_ot_approval = $balance['overtime'] > 0.009;
+            }
+            if (! in_array($e->status, ['approved', 'rejected'], true)) {
+                $e->status = $balance['overtime'] > 0.009 ? 'overtime_pending' : 'submitted';
+            }
+            $e->save();
+        }
+
+        return $balance;
     }
 
     public function weeklyExpectedHours(WorkingWeek $ww)

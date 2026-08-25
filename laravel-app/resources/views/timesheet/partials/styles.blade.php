@@ -152,4 +152,30 @@
     .ts-lunch-box {
         background: #eff6ff; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px;
     }
+    .ts-hours-hint {
+        margin-top: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 600;
+        min-height: 1.2em;
+    }
+    .ts-hours-hint.is-remain { color: #b45309; }
+    .ts-hours-hint.is-ot { color: #b91c1c; }
+    .ts-hours-hint.is-ok { color: #047857; }
+    .ts-week-bar {
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 1.25rem;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #1e3a8a;
+    }
+    .ts-week-bar.is-met { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .ts-week-bar.is-ot { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .ts-week-bar.is-short { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
 </style>

@@ -117,14 +117,19 @@ class TimesheetEmployeeController extends Controller
             $this->timesheet->ensureInternshipActivity($user->id);
         }
         $activities = $this->timesheet->activities($user->id);
-        $mine = $this->timesheet->activitiesForOwner($user->id);
-        $activities = $activities->merge($mine)->unique('id')->values();
         $entries = $this->timesheet->entriesRecent($user->id);
         $prefillDate = $request->get('date', date('Y-m-d'));
         $internPrompt = (bool) $request->get('intern') || \App\Support\InternCompliance::appliesTo($user);
         $assignment = $this->ownAssignment($request->get('assignment'), $user->id);
+        $expectedByWeekday = $this->timesheet->expectedByWeekday($user->id);
+        $hoursByDate = $this->timesheet->hoursByDate($user->id);
+        $weekScore = $this->timesheet->weekScore($user->id);
+        $dayBalance = $this->timesheet->dayBalance($user->id, $prefillDate);
 
-        return view('timesheet.employee.fill', compact('activities', 'entries', 'prefillDate', 'internPrompt', 'assignment'));
+        return view('timesheet.employee.fill', compact(
+            'activities', 'entries', 'prefillDate', 'internPrompt', 'assignment',
+            'expectedByWeekday', 'hoursByDate', 'weekScore', 'dayBalance'
+        ));
     }
 
     public function storeEntry(Request $request)
@@ -139,20 +144,25 @@ class TimesheetEmployeeController extends Controller
         ]);
         $assignment = $this->ownAssignment($data['assignment_id'] ?? null, Auth::id());
         $data['assignment_id'] = $assignment ? $assignment->id : null;
+        if (! $this->timesheet->ownedActivity(Auth::id(), $data['activity_id'])) {
+            return back()->withInput()->with('not_permitted', 'Choose an activity you created.');
+        }
         $this->timesheet->addEntryAdmin(Auth::user(), $data);
+        $balance = $this->timesheet->dayBalance(Auth::id(), $data['entry_date']);
+        $saved = $this->timesheet->balanceMessage($balance);
 
         if (\App\Support\InternCompliance::appliesTo(Auth::user())) {
             $stillMissing = \App\Support\InternCompliance::missingTimesheetDate(Auth::user());
             if (! $stillMissing) {
                 return redirect()->route('internship.student.dashboard')
-                    ->with('message', 'Timesheet saved. You can continue your internship.');
+                    ->with('message', 'Timesheet saved. '.$saved);
             }
 
             return redirect()->route('timesheet.fill', ['date' => $stillMissing, 'intern' => 1])
-                ->with('message', 'Entry saved. Please also log hours for '.$stillMissing.'.');
+                ->with('message', $saved.' Please also log hours for '.$stillMissing.'.');
         }
 
-        return back()->with('message', 'Time entry saved.');
+        return back()->with('message', $saved);
     }
 
     public function updateEntry(Request $request, $id)
@@ -164,12 +174,16 @@ class TimesheetEmployeeController extends Controller
             'hours' => 'required|numeric|min:0.25|max:24',
             'notes' => 'nullable|string|max:2000',
         ]);
+        if (! $this->timesheet->ownedActivity(Auth::id(), $data['activity_id'])) {
+            return back()->withInput()->with('not_permitted', 'Choose an activity you created.');
+        }
         $updated = $this->timesheet->updateEntryAdmin(Auth::id(), $id, $data);
         if (! $updated) {
             return back()->with('not_permitted', 'Entry not found.');
         }
+        $balance = $this->timesheet->dayBalance(Auth::id(), $data['entry_date']);
 
-        return back()->with('message', 'Entry updated.');
+        return back()->with('message', $this->timesheet->balanceMessage($balance));
     }
 
     public function destroyEntry($id)
@@ -194,8 +208,9 @@ class TimesheetEmployeeController extends Controller
         }
         $internSetup = \App\Support\InternCompliance::appliesTo(Auth::user())
             && ! \App\Support\InternCompliance::workingWeekConfigured(Auth::user());
+        $weekScore = $this->timesheet->weekScore(Auth::id());
 
-        return view('timesheet.employee.working_week', compact('ww', 'summary', 'internSetup'));
+        return view('timesheet.employee.working_week', compact('ww', 'summary', 'internSetup', 'weekScore'));
     }
 
     public function saveWorkingWeek(Request $request)

@@ -50,7 +50,7 @@
                             <input type="number" name="lunch_break_minutes" id="lunch_break" class="ts-field"
                                    style="max-width:140px;" min="0" max="180"
                                    value="{{ old('lunch_break_minutes', $ww->lunch_break_minutes ?? 60) }}">
-                            <div class="text-muted small mt-1">Deducted from daily total.</div>
+                            <div class="text-muted small mt-1">Deducted only on days longer than 5 hours (a 09:00–12:00 Saturday stays 3h).</div>
                         </div>
 
                         @foreach($days as $day)
@@ -90,9 +90,36 @@
                         </div>
                         <div style="opacity:.9;font-size:11px;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">TOTAL EXPECTED HOURS</div>
                         <div class="gold" id="sum-hours">{{ number_format($summary['expected'], 2) }}h</div>
-                        <div class="small mt-2" style="opacity:.8;">Per week based on current configuration.</div>
-                        <div class="mt-4 p-3" style="background:rgba(0,0,0,.18);border-radius:10px;font-size:13px;line-height:1.4;">
-                            Lunch break of <strong id="sum-lunch">{{ $ww->lunch_break_minutes ?? 60 }}</strong> min is deducted daily.
+                        <div class="small mt-2" style="opacity:.8;">Expected per week from this schedule.</div>
+                        @if(!empty($weekScore))
+                            <div class="mt-4 p-3" style="background:rgba(0,0,0,.18);border-radius:10px;font-size:13px;line-height:1.45;">
+                                <div style="font-weight:700;margin-bottom:6px;">This week’s score</div>
+                                <div>{{ number_format($weekScore['logged'], 2) }}h logged of {{ number_format($weekScore['expected'], 2) }}h</div>
+                                @if($weekScore['met'])
+                                    <div class="mt-1" style="color:#86efac;">Required weekly hours met.</div>
+                                @elseif($weekScore['overtime'] > 0)
+                                    <div class="mt-1" style="color:#fde68a;">{{ number_format($weekScore['overtime'], 2) }}h overtime — supervisor approval needed.</div>
+                                @else
+                                    <div class="mt-1" style="color:#fde68a;">{{ number_format($weekScore['remaining'], 2) }}h still needed this week.</div>
+                                @endif
+                                <div class="mt-3" style="opacity:.85;">
+                                    @foreach($weekScore['days'] as $d)
+                                        @php
+                                            $lab = ['monday'=>'Mon','tuesday'=>'Tue','wednesday'=>'Wed','thursday'=>'Thu','friday'=>'Fri','saturday'=>'Sat','sunday'=>'Sun'];
+                                        @endphp
+                                        <div class="d-flex justify-content-between">
+                                            <span>{{ $lab[$d['day']] ?? $d['day'] }}</span>
+                                            <span>
+                                                {{ number_format($d['logged'], 1) }}/{{ number_format($d['expected'], 1) }}h
+                                                @if($d['overtime'] > 0) OT @elseif($d['remaining'] > 0 && $d['expected'] > 0) −{{ number_format($d['remaining'], 1) }} @endif
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                        <div class="mt-3 p-3" style="background:rgba(0,0,0,.18);border-radius:10px;font-size:13px;line-height:1.4;">
+                            Lunch break of <strong id="sum-lunch">{{ $ww->lunch_break_minutes ?? 60 }}</strong> min is deducted on days longer than 5 hours.
                         </div>
                     </div>
                 </div>
@@ -115,7 +142,7 @@
         if (s === null || e === null) return 0;
         var mins = e - s;
         if (mins < 0) mins += 24 * 60;
-        mins -= lunch;
+        if (mins > 5 * 60) mins -= lunch;
         if (mins < 0) mins = 0;
         return Math.round((mins / 60) * 100) / 100;
     }

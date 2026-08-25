@@ -8,8 +8,28 @@
 
         <div class="mb-4">
             <h1 class="ts-title">Fill Time Sheet</h1>
-            <p class="ts-subtitle">Log your daily work hours and activities.</p>
+            <p class="ts-subtitle">Log hours against activities you created. Categories are shared; activities are yours only.</p>
         </div>
+
+        @if(!empty($weekScore))
+            <div class="ts-week-bar {{ $weekScore['met'] ? 'is-met' : ($weekScore['overtime'] > 0 ? 'is-ot' : 'is-short') }}">
+                <div>
+                    <strong>This week</strong>
+                    ({{ \Carbon\Carbon::parse($weekScore['week_start'])->format('D j M') }}
+                    – {{ \Carbon\Carbon::parse($weekScore['week_end'])->format('D j M') }})
+                </div>
+                <div>
+                    {{ number_format($weekScore['logged'], 2) }}h logged of {{ number_format($weekScore['expected'], 2) }}h expected
+                    @if($weekScore['met'])
+                        · Target met
+                    @elseif($weekScore['overtime'] > 0)
+                        · {{ number_format($weekScore['overtime'], 2) }}h overtime (supervisor approval needed)
+                    @else
+                        · {{ number_format($weekScore['remaining'], 2) }}h remaining this week
+                    @endif
+                </div>
+            </div>
+        @endif
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
@@ -52,12 +72,18 @@
                         @endif
                         <div class="mb-3">
                             <label class="ts-label">Date <span class="text-danger">*</span></label>
-                            <input type="date" name="entry_date" class="ts-field" required value="{{ old('entry_date', $prefillDate ?? date('Y-m-d')) }}">
+                            <input type="date" name="entry_date" id="ts-date" class="ts-field" required value="{{ old('entry_date', $prefillDate ?? date('Y-m-d')) }}">
                         </div>
                         <div class="mb-3">
                             <label class="ts-label">Activity <span class="text-danger">*</span></label>
+                            @if($activities->isEmpty())
+                                <p class="small mb-2" style="color:#b45309;">
+                                    You have no activities yet.
+                                    <a href="{{ route('timesheet.activities') }}">Create one</a> — other people’s activities will not appear here.
+                                </p>
+                            @endif
                             <select name="activity_id" class="ts-field" required>
-                                <option value="">Select activity...</option>
+                                <option value="">{{ $activities->isEmpty() ? 'Create an activity first…' : 'Select your activity...' }}</option>
                                 @foreach($activities as $act)
                                     @php
                                         $defaultIntern = !empty($internPrompt)
@@ -70,7 +96,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="ts-label">Hours <span class="text-danger">*</span></label>
-                            <input type="number" name="hours" class="ts-field" step="0.25" min="0.25" max="24" placeholder="e.g. 8.0" required value="{{ old('hours') }}">
+                            <input type="number" name="hours" id="ts-hours" class="ts-field" step="0.25" min="0.25" max="24" placeholder="e.g. 8.0" required value="{{ old('hours') }}">
+                            <div id="ts-hours-hint" class="ts-hours-hint" role="status"></div>
                         </div>
                         <div class="mb-3">
                             <label class="ts-label">Notes</label>
@@ -101,7 +128,12 @@
                                     <tr>
                                         <td>{{ \Carbon\Carbon::parse($entry->entry_date)->format('M j, Y') }}</td>
                                         <td>{{ $entry->activity_name ?: '—' }}</td>
-                                        <td>{{ number_format((float)$entry->hours, 2) }}</td>
+                                        <td>
+                                            {{ number_format((float)$entry->hours, 2) }}
+                                            @if(!empty($entry->requires_ot_approval) || $entry->status === 'overtime_pending')
+                                                <div class="small" style="color:#b45309;font-weight:600;">OT pending</div>
+                                            @endif
+                                        </td>
                                         <td class="text-muted">{{ \Illuminate\Support\Str::limit($entry->notes, 40) ?: '—' }}</td>
                                         <td class="text-right text-nowrap">
                                             <button type="button" class="btn btn-link text-primary p-1" data-toggle="modal" data-target="#editEntry{{ $entry->id }}">
@@ -168,4 +200,75 @@
     </div>
 </div>
 @endforeach
+
+<script>
+(function () {
+    var expectedByWeekday = @json($expectedByWeekday ?? []);
+    var hoursByDate = @json($hoursByDate ?? []);
+    var dateEl = document.getElementById('ts-date');
+    var hoursEl = document.getElementById('ts-hours');
+    var hintEl = document.getElementById('ts-hours-hint');
+    if (!dateEl || !hoursEl || !hintEl) return;
+
+    var dowKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+    function weekdayKey(dateStr) {
+        var d = new Date(dateStr + 'T12:00:00');
+        if (isNaN(d.getTime())) return null;
+        return dowKeys[d.getDay()];
+    }
+    function fmt(n) {
+        return (Math.round(n * 100) / 100).toFixed(2);
+    }
+    function refresh() {
+        var dateStr = dateEl.value;
+        var day = weekdayKey(dateStr);
+        var expected = day && expectedByWeekday[day] != null ? parseFloat(expectedByWeekday[day]) : 8;
+        var logged = hoursByDate[dateStr] ? parseFloat(hoursByDate[dateStr]) : 0;
+        var extra = parseFloat(hoursEl.value || '0') || 0;
+        var projected = Math.round((logged + extra) * 100) / 100;
+        var remaining = Math.round((expected - projected) * 100) / 100;
+        var overtime = Math.round((projected - expected) * 100) / 100;
+        hintEl.className = 'ts-hours-hint';
+        if (!dateStr) {
+            hintEl.textContent = '';
+            return;
+        }
+        if (expected <= 0 && extra > 0) {
+            hintEl.classList.add('is-ot');
+            hintEl.textContent = 'This is not a scheduled working day. Hours will need supervisor overtime approval.';
+            return;
+        }
+        if (extra <= 0) {
+            if (logged <= 0) {
+                hintEl.classList.add('is-remain');
+                hintEl.textContent = fmt(expected) + 'h expected today. Enter hours to see what is still remaining.';
+            } else if (remaining > 0.009) {
+                hintEl.classList.add('is-remain');
+                hintEl.textContent = fmt(remaining) + 'h still remaining to complete this working day (' + fmt(logged) + ' of ' + fmt(expected) + 'h logged).';
+            } else if (overtime > 0.009) {
+                hintEl.classList.add('is-ot');
+                hintEl.textContent = fmt(overtime) + 'h overtime already logged. Supervisor will need to approve overtime.';
+            } else {
+                hintEl.classList.add('is-ok');
+                hintEl.textContent = 'Working day complete (' + fmt(logged) + ' of ' + fmt(expected) + 'h).';
+            }
+            return;
+        }
+        if (remaining > 0.009) {
+            hintEl.classList.add('is-remain');
+            hintEl.textContent = fmt(remaining) + 'h still remaining to complete this working day (' + fmt(projected) + ' of ' + fmt(expected) + 'h).';
+        } else if (overtime > 0.009) {
+            hintEl.classList.add('is-ot');
+            hintEl.textContent = fmt(overtime) + 'h overtime. Supervisor will need to approve overtime.';
+        } else {
+            hintEl.classList.add('is-ok');
+            hintEl.textContent = 'Working day complete (' + fmt(projected) + ' of ' + fmt(expected) + 'h).';
+        }
+    }
+    dateEl.addEventListener('change', refresh);
+    hoursEl.addEventListener('input', refresh);
+    refresh();
+})();
+</script>
 @endsection

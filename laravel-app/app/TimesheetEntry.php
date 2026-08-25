@@ -13,14 +13,16 @@ class TimesheetEntry extends Model
 
     protected $fillable = [
         'id', 'be_user_id', 'user_id', 'employee_name', 'activity_id', 'activity_name',
-        'assignment_id', 'entry_date', 'hours', 'notes', 'status',
-        'approved_by', 'approved_at', 'review_note',
+        'assignment_id', 'entry_date', 'hours', 'overtime_hours', 'requires_ot_approval',
+        'notes', 'status', 'approved_by', 'approved_at', 'review_note',
     ];
 
     protected $dates = ['entry_date', 'approved_at'];
 
     protected $casts = [
         'hours' => 'float',
+        'overtime_hours' => 'float',
+        'requires_ot_approval' => 'boolean',
     ];
 
     protected static function boot()

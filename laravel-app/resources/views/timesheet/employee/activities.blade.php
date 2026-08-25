@@ -8,7 +8,7 @@
 
         <div class="mb-4">
             <h1 class="ts-title">Activity Management</h1>
-            <p class="ts-subtitle">Create and manage your task categories for time tracking.</p>
+            <p class="ts-subtitle">Create your own activities. Everyone can see the shared categories; nobody else sees your activities.</p>
         </div>
 
         @if(session('message'))
@@ -114,7 +114,7 @@
                             </div>
                         </div>
                     @empty
-                        <p class="text-muted text-center py-4 mb-0">No activities yet. Create one on the left.</p>
+                        <p class="text-muted text-center py-4 mb-0">No activities of yours yet. Create one on the left — you will not see other people’s activities.</p>
                     @endforelse
                 </div>
             </div>

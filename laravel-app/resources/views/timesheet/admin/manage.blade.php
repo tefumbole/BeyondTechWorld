@@ -74,7 +74,16 @@
                                 </td>
                                 <td>{{ number_format((float)$entry->hours, 2) }}</td>
                                 <td>
-                                    <span class="ts-badge">{{ ucfirst($entry->status) }}</span>
+                                    @if($entry->status === 'overtime_pending' || !empty($entry->requires_ot_approval))
+                                        <span class="ts-badge" style="background:#fef3c7;color:#92400e;">
+                                            {{ $entry->status === 'approved' ? 'Approved OT' : 'Overtime — approve' }}
+                                            @if((float) ($entry->overtime_hours ?? 0) > 0)
+                                                ({{ number_format((float) $entry->overtime_hours, 2) }}h)
+                                            @endif
+                                        </span>
+                                    @else
+                                        <span class="ts-badge">{{ ucfirst(str_replace('_', ' ', $entry->status)) }}</span>
+                                    @endif
                                     @if($entry->approved_at)
                                         <div class="text-muted small mt-1">
                                             {{ optional($entry->approver)->name ?: 'Admin' }}
