@@ -19,7 +19,13 @@ class RedirectIfAuthenticated
     public function handle($request, Closure $next, $guard = null)
     {
         if (Auth::guard($guard)->check()) {
-            return redirect('home');
+            \App\Support\AuthIntended::rememberFromRequest($request);
+            $user = Auth::guard($guard)->user();
+            if ($user instanceof \App\User) {
+                return redirect(\App\Support\AuthIntended::afterLogin($user));
+            }
+
+            return redirect('/admin');
         }
 
         return $next($request);

@@ -138,22 +138,7 @@ class HomeController extends Controller
 
     protected function redirectAfterStaffOtp($user)
     {
-        $internRedirect = \App\Support\InternCompliance::postLoginRedirect($user);
-        if ($internRedirect) {
-            return redirect($internRedirect);
-        }
-
-        $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($user);
-        if ($supervisorRedirect) {
-            return redirect($supervisorRedirect);
-        }
-
-        $intended = session()->pull('beyond_intended');
-        if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
-            return redirect($intended);
-        }
-
-        return redirect('/admin');
+        return redirect(\App\Support\AuthIntended::afterLogin($user));
     }
 
     protected function otpResendSecondsRemaining($user)

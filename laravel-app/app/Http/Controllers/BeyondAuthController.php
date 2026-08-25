@@ -30,10 +30,7 @@ class BeyondAuthController extends Controller
 
     public function showLogin(Request $request)
     {
-        $redirect = $request->get('redirect');
-        if ($redirect && strpos($redirect, '/') === 0 && strpos($redirect, '//') !== 0) {
-            $request->session()->put('beyond_intended', $redirect);
-        }
+        \App\Support\AuthIntended::rememberFromRequest($request);
 
         // Already signed in as staff / admin
         if (Auth::guard('web')->check()) {
@@ -54,22 +51,7 @@ class BeyondAuthController extends Controller
                 return redirect()->route('otp_screen');
             }
 
-            $internRedirect = \App\Support\InternCompliance::postLoginRedirect($webUser);
-            if ($internRedirect) {
-                return redirect($internRedirect);
-            }
-
-            $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($webUser);
-            if ($supervisorRedirect) {
-                return redirect($supervisorRedirect);
-            }
-
-            $intended = $request->session()->pull('beyond_intended');
-            if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
-                return redirect($intended);
-            }
-
-            return redirect('/admin');
+            return redirect(\App\Support\AuthIntended::afterLogin($webUser));
         }
 
         if (Auth::guard('beyond')->check() && $request->session()->get('beyond_otp_verified')) {
@@ -169,8 +151,8 @@ class BeyondAuthController extends Controller
 
     protected function postLoginRedirect(Request $request, $user, $profile)
     {
-        $intended = $request->session()->pull('beyond_intended');
-        if ($intended && strpos($intended, '/') === 0) {
+        $intended = \App\Support\AuthIntended::pull();
+        if ($intended) {
             return $intended;
         }
 
@@ -185,17 +167,13 @@ class BeyondAuthController extends Controller
     protected function loginRedirect(Request $request, $user, $profile)
     {
         if ($this->bridgePosAdmin($user)) {
-            $intended = $request->session()->pull('beyond_intended');
-            if ($intended && strpos($intended, '/') === 0) {
-                return $intended;
-            }
-
             $webUser = Auth::guard('web')->user();
             if ($webUser) {
-                $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($webUser);
-                if ($supervisorRedirect) {
-                    return $supervisorRedirect;
-                }
+                return \App\Support\AuthIntended::afterLogin($webUser);
+            }
+            $intended = \App\Support\AuthIntended::pull();
+            if ($intended) {
+                return $intended;
             }
 
             return '/admin';
@@ -232,6 +210,7 @@ class BeyondAuthController extends Controller
 
     public function login(Request $request)
     {
+        \App\Support\AuthIntended::rememberFromRequest($request);
         $request->validate([
             'identifier' => 'required|string',
             'password' => 'required|string',
@@ -353,22 +332,7 @@ class BeyondAuthController extends Controller
                 return redirect('/staff-set-password');
             }
 
-            $internRedirect = \App\Support\InternCompliance::postLoginRedirect(Auth::user());
-            if ($internRedirect) {
-                return redirect($internRedirect);
-            }
-
-            $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect(Auth::user());
-            if ($supervisorRedirect) {
-                return redirect($supervisorRedirect);
-            }
-
-            $intended = $request->session()->pull('beyond_intended');
-            if ($intended && strpos($intended, '/') === 0 && strpos($intended, '//') !== 0) {
-                return redirect($intended);
-            }
-
-            return redirect('/admin');
+            return redirect(\App\Support\AuthIntended::afterLogin(Auth::user()));
         }
 
         // ERP shop-customer role (legacy POS customer login)

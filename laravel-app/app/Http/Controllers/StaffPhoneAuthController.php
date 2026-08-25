@@ -30,6 +30,7 @@ class StaffPhoneAuthController extends Controller
 
     public function show(Request $request)
     {
+        \App\Support\AuthIntended::rememberFromRequest($request);
         if (Auth::guard('web')->check()) {
             $user = Auth::guard('web')->user();
             if ($this->userMustSetPassword($user) || $request->session()->get('staff_must_set_password')) {
@@ -287,16 +288,6 @@ class StaffPhoneAuthController extends Controller
 
     protected function redirectAfterStaffLogin(User $user)
     {
-        $internRedirect = \App\Support\InternCompliance::postLoginRedirect($user);
-        if ($internRedirect) {
-            return redirect($internRedirect);
-        }
-
-        $supervisorRedirect = \App\Support\InternCompliance::supervisorPostLoginRedirect($user);
-        if ($supervisorRedirect) {
-            return redirect($supervisorRedirect);
-        }
-
-        return redirect('/admin');
+        return redirect(\App\Support\AuthIntended::afterLogin($user));
     }
 }

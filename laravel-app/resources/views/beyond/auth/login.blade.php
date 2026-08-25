@@ -16,6 +16,12 @@
 
 <form method="POST" action="{{ url('/login') }}" autocomplete="on">
     @csrf
+    @php
+        $loginRedirect = request('redirect') ?: session('beyond_intended');
+    @endphp
+    @if($loginRedirect)
+        <input type="hidden" name="redirect" value="{{ $loginRedirect }}">
+    @endif
     @if($asCustomer)
         <input type="hidden" name="as" value="customer">
     @endif

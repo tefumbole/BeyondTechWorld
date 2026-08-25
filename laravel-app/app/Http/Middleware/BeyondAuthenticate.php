@@ -10,7 +10,7 @@ class BeyondAuthenticate
     public function handle($request, Closure $next)
     {
         if (! Auth::guard('beyond')->check()) {
-            return redirect()->guest('/login');
+            return redirect()->guest(\App\Support\AuthIntended::loginUrl($request));
         }
 
         return $next($request);

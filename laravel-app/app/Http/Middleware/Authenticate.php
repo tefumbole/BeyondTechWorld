@@ -15,14 +15,7 @@ class Authenticate extends Middleware
     protected function redirectTo($request)
     {
         if (! $request->expectsJson()) {
-            if (\Illuminate\Support\Facades\Route::has('login')) {
-                return route('login');
-            }
-            if (\Illuminate\Support\Facades\Route::has('beyond.login')) {
-                return route('beyond.login');
-            }
-
-            return url('/login');
+            return \App\Support\AuthIntended::loginUrl($request);
         }
     }
 }
