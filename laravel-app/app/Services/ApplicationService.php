@@ -20,6 +20,9 @@ class ApplicationService
     protected $jobs;
     protected $notifier;
 
+    /** @var string|null Reason the last auto-enrol produced no placement. */
+    protected $lastEnrolmentIssue = null;
+
     public function __construct(JobService $jobs, ApplicationNotifier $notifier)
     {
         $this->jobs = $jobs;
@@ -1027,9 +1030,32 @@ class ApplicationService
         if ($application->job) {
             $this->notifier->agreementSigned($application, $application->job);
         }
-        $this->enrolInInternshipProgram($application);
+        $this->enrolAfterSignedOffer($application);
 
         return $application;
+    }
+
+    /**
+     * The candidate has signed and can do nothing more, so a failed placement has
+     * to reach an admin rather than dying in the log.
+     */
+    protected function enrolAfterSignedOffer(Application $application)
+    {
+        $enrolment = $this->enrolInInternshipProgram($application);
+        if ($enrolment || ! $application->internship_program_id) {
+            return $enrolment;
+        }
+
+        try {
+            $this->notifier->notifyAdminsOfPlacementIssue(
+                $application,
+                $this->lastEnrolmentIssue ?: 'The signed offer did not create an internship placement.'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Placement-issue admin notify failed for application '.$application->id.': '.$e->getMessage());
+        }
+
+        return null;
     }
 
     /**
@@ -1356,6 +1382,11 @@ class ApplicationService
         if (! $program) {
             throw new \RuntimeException('Internship program not found or not published.');
         }
+        // The applicant's own seat hold is excluded, so this only blocks moves onto a full programme.
+        if (! $program->hasCapacityForOneMore($application->id)) {
+            throw new \RuntimeException($program->displayName().' is full ('.$program->max_students.' places), so '
+                .($application->full_name ?: 'this applicant').' cannot be placed on it.');
+        }
 
         $duration = Application::normalizeInternshipDurationDays(
             $opts['planned_duration_days'] ?? $application->internship_duration_days ?? 90,
@@ -1430,16 +1461,31 @@ class ApplicationService
     }
 
     /**
+     * Why the last auto-enrol attempt produced no placement, for the admin UI.
+     *
+     * @return string|null
+     */
+    public function lastEnrolmentIssue()
+    {
+        return $this->lastEnrolmentIssue;
+    }
+
+    /**
      * When an internship applicant is accepted, enrol them in the program they chose.
+     *
+     * Never throws — accepting a candidate must not fail because of a programme
+     * misconfiguration — but the reason is kept so callers can tell the admin
+     * instead of leaving an accepted applicant silently unplaced.
      */
     public function enrolInInternshipProgram(Application $application)
     {
+        $this->lastEnrolmentIssue = null;
         if (! $application->internship_program_id) {
             return null;
         }
 
         try {
-            return $this->assignApplicationToInternship($application, [
+            $enrolment = $this->assignApplicationToInternship($application, [
                 'program_id' => $application->internship_program_id,
                 'planned_duration_days' => $application->internship_duration_days ?: 180,
                 'start_date' => now()->toDateString(),
@@ -1447,7 +1493,16 @@ class ApplicationService
                 'supervisor_id' => null,
                 'mark_selected' => false,
             ]);
+
+            if (! $enrolment) {
+                $this->lastEnrolmentIssue = 'No intern login could be created for '
+                    .($application->email ?: 'this applicant')
+                    .', so no placement was made. Check the email address and that the Intern role exists, then place them from Interns → Placement.';
+            }
+
+            return $enrolment;
         } catch (\Throwable $e) {
+            $this->lastEnrolmentIssue = 'Placement failed: '.$e->getMessage();
             Log::warning('Internship auto-enrol failed for application '.$application->id.': '.$e->getMessage());
 
             return null;
@@ -1548,7 +1603,7 @@ class ApplicationService
         if ($application->job) {
             $this->notifier->agreementSigned($application, $application->job);
         }
-        $this->enrolInInternshipProgram($application);
+        $this->enrolAfterSignedOffer($application);
 
         return $application;
     }

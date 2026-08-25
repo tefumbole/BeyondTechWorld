@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Support\InternCompliance;
 use App\Support\InternshipHandbook;
+use App\Support\InternshipRubric;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -113,13 +115,15 @@ class InternshipStudentController extends Controller
         $stepProgress = $assignment->stepProgress();
         $supervisors = $this->service->studentSupervisors($assignment->enrolment);
         $gradeSummary = $this->service->studentGradeSummary($assignment);
+        $criteria = InternshipRubric::criteria($assignment->task);
 
         return view('internship.student.task', compact(
             'assignment',
             'hasHandbook',
             'stepProgress',
             'supervisors',
-            'gradeSummary'
+            'gradeSummary',
+            'criteria'
         ));
     }
 
@@ -230,10 +234,12 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $file = \App\InternshipSubmissionFile::with('submission.assignment.enrolment')->findOrFail($fileId);
-        if ((int) $file->submission->assignment->enrolment->student_user_id !== (int) Auth::id()
-            && Auth::user()->role_id > 2
-            && ! in_array('internship.submissions.view', $this->all_permission, true)) {
-            abort(403);
+        $enrolment = $file->submission->assignment->enrolment;
+        $isOwner = (int) $enrolment->student_user_id === (int) Auth::id();
+        if (! $isOwner
+            && ! $enrolment->isSupervisedBy(Auth::id())
+            && ! InternCompliance::isInternshipAdmin(Auth::user())) {
+            abort(403, 'This evidence file belongs to another intern.');
         }
         if (! Storage::disk($file->disk ?: 'local')->exists($file->path)) {
             abort(404);

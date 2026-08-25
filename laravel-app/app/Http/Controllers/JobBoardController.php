@@ -308,6 +308,11 @@ class JobBoardController extends Controller
             'mark_selected' => 'nullable|boolean',
         ]);
 
+        if (! $this->applications->assignableProgram($data['program_id'])) {
+            return back()->withInput()->with('not_permitted',
+                'That programme is not published and active, so nobody can be placed on it. Publish it first under Internships → Programs.');
+        }
+
         $result = $this->applications->assignApplicantsToInternship($data['application_ids'], [
             'program_id' => $data['program_id'],
             'supervisor_refs' => $data['supervisor_ids'] ?? [],
@@ -392,6 +397,11 @@ class JobBoardController extends Controller
             'next_curriculum_day' => 'nullable|integer|min:1|max:180',
             'notes' => 'nullable|string|max:2000',
         ]);
+
+        if (! $this->applications->assignableProgram($data['program_id'])) {
+            return back()->withInput()->with('not_permitted',
+                'That programme is not published and active, so nobody can be placed on it. Publish it first under Internships → Programs.');
+        }
 
         try {
             $enrolment = $this->findEnrolmentForApplication($application);
@@ -598,6 +608,11 @@ class JobBoardController extends Controller
                 .($data['notify']
                     ? 'The offer link was sent again on WhatsApp — mark Hired once it is signed.'
                     : 'Use Save & Notify to send the offer link, then mark Hired once it is signed.'));
+        }
+
+        $enrolmentIssue = $this->applications->lastEnrolmentIssue();
+        if ($enrolmentIssue) {
+            return back()->with('not_permitted', 'Status saved, but the internship placement was not created. '.$enrolmentIssue);
         }
 
         return back()->with('message', $data['notify']

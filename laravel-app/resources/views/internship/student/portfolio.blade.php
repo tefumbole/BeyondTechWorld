@@ -36,7 +36,7 @@
                             <td>
                                 @if($grade)
                                     {{ $grade->score }}/100
-                                    · {{ $grade->decision === 'pass' ? 'Accepted' : str_replace('_', ' ', $grade->decision) }}
+                                    · {{ $a->status === 'passed' ? 'Accepted' : 'Revision required' }}
                                     @if($grade->auto_accepted)<span class="ip-badge warn">Auto</span>@endif
                                 @else
                                     —

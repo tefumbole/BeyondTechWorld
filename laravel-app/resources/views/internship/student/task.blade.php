@@ -97,6 +97,21 @@
                 <h5 style="font-weight:700;color:#0b3f90;">Submission requirements</h5>
                 <p>{{ $task->submission_requirements }}</p>
             @endif
+
+            <h5 style="font-weight:700;color:#0b3f90;">How your supervisor marks this task</h5>
+            <p class="ip-meta mb-2">You need {{ $task->pass_mark }}/100 to pass. Cover all five points below in your report and evidence.</p>
+            <table class="table ip-table mb-0">
+                <thead><tr><th style="width:28%;">Criterion</th><th>What earns the marks</th><th class="text-right" style="width:80px;">Marks</th></tr></thead>
+                <tbody>
+                    @foreach(($criteria ?? []) as $c)
+                        <tr>
+                            <td><strong>{{ $c['label'] }}</strong></td>
+                            <td class="ip-meta">{{ $c['guide'] }}</td>
+                            <td class="text-right">{{ $c['max'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
 
         @if(in_array($assignment->status, ['available', 'revision_required'], true))
@@ -161,9 +176,18 @@
                             @endforeach
                         </div>
                         @foreach($sub->grades as $g)
+                            @php $breakdown = \App\Support\InternshipRubric::breakdown($g, $task); @endphp
                             <div class="mt-2 p-2" style="background:#f8fafc;border-radius:8px;">
-                                <strong>Grade:</strong> {{ $g->score }}/100 — {{ str_replace('_',' ', $g->decision) }}
+                                <strong>Grade:</strong> {{ $g->score }}/100 —
+                                {{ $sub->status === 'passed' ? 'accepted' : str_replace('_', ' ', $sub->status) }}
                                 @if($g->auto_accepted)<span class="ip-badge warn">Auto-accepted</span>@endif
+                                @if(!empty($breakdown['rows']))
+                                    <ul class="ip-file-list">
+                                        @foreach($breakdown['rows'] as $row)
+                                            <li>{{ $row['label'] }}: {{ $row['score'] }}@if(!is_null($row['max']))/{{ $row['max'] }}@endif</li>
+                                        @endforeach
+                                    </ul>
+                                @endif
                                 @if($g->feedback)<div class="mt-1">{{ $g->feedback }}</div>@endif
                             </div>
                         @endforeach

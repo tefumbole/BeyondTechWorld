@@ -17,9 +17,29 @@
             <div class="text-right">
                 <div class="ip-meta">Score</div>
                 <strong style="font-size:1.4rem;color:#0b3f90;">{{ $g['score'] }}/100</strong>
+                @if(!empty($g['pass_mark']))
+                    <div class="ip-meta">pass mark {{ $g['pass_mark'] }}</div>
+                @endif
             </div>
         @endif
     </div>
+    @php $rubric = $g['rubric'] ?? ['rows' => []]; @endphp
+    @if(!empty($rubric['rows']))
+        <table class="table ip-table mt-2 mb-1">
+            <thead><tr><th>Marking criterion</th><th class="text-right">Mark</th></tr></thead>
+            <tbody>
+                @foreach($rubric['rows'] as $row)
+                    <tr>
+                        <td>{{ $row['label'] }}</td>
+                        <td class="text-right">{{ $row['score'] }}@if(!is_null($row['max']))/{{ $row['max'] }}@endif</td>
+                    </tr>
+                @endforeach
+            </tbody>
+            @if(!is_null($rubric['earned']) && !empty($rubric['possible']))
+                <tfoot><tr><th>Total</th><th class="text-right">{{ $rubric['earned'] }}/{{ $rubric['possible'] }}</th></tr></tfoot>
+            @endif
+        </table>
+    @endif
     @if($status === 'submitted' && !empty($g['deadline']))
         <p class="ip-meta mb-0 mt-2">
             Supervisor review due by {{ $g['deadline']->format('D d M Y H:i') }}

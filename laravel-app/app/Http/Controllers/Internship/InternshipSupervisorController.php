@@ -8,6 +8,8 @@ use App\InternshipSubmission;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
 use App\Support\InternCompliance;
+use App\Support\InternshipRubric;
+use App\TimesheetEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -145,53 +147,49 @@ class InternshipSupervisorController extends Controller
         ])->findOrFail($id);
 
         $enrolment = $submission->assignment->enrolment;
-        $isAssignedSupervisor = $enrolment->isSupervisedBy(Auth::id());
-        if (Auth::user()->role_id > 2
-            && ! $isAssignedSupervisor
-            && ! in_array('internship.submissions.grade', $this->all_permission, true)) {
-            if (! in_array('internship.programs.view', $this->all_permission, true)) {
-                abort(403);
-            }
-        }
-        if (Auth::user()->role_id > 2
-            && ! $isAssignedSupervisor
-            && ! in_array('internship.enrolments.create', $this->all_permission, true)
-            && ! in_array('internship.programs.import', $this->all_permission, true)) {
-            if (! in_array('internship.submissions.grade', $this->all_permission, true)
-                || ! in_array('internship.dashboard.view', $this->all_permission, true)) {
-                abort(403);
-            }
-        }
+        $this->assertCanReview($enrolment);
 
-        $rubric = $submission->assignment->task->rubric();
+        $task = $submission->assignment->task;
+        $criteria = InternshipRubric::criteria($task);
+        $rubricTotal = InternshipRubric::totalPoints($criteria);
         $sla = $this->service->reviewSlaStatus($submission);
         $slaDays = $this->service->reviewSlaWorkingDays();
 
-        return view('internship.supervisor.show', compact('submission', 'rubric', 'sla', 'slaDays'));
+        $history = InternshipSubmission::with(['grades.grader', 'files'])
+            ->where('assignment_id', $submission->assignment_id)
+            ->where('id', '!=', $submission->id)
+            ->orderByDesc('attempt_no')
+            ->get();
+
+        $hours = TimesheetEntry::where('assignment_id', $submission->assignment_id)
+            ->orderBy('entry_date')
+            ->get();
+
+        return view('internship.supervisor.show', compact(
+            'submission', 'task', 'criteria', 'rubricTotal', 'sla', 'slaDays', 'history', 'hours'
+        ));
     }
 
     public function grade(Request $request, $id)
     {
         $this->allow();
         $submission = InternshipSubmission::with('assignment.enrolment', 'assignment.task')->findOrFail($id);
-        if (Auth::user()->role_id > 2
-            && ! $submission->assignment->enrolment->isSupervisedBy(Auth::id())
-            && ! in_array('internship.programs.import', $this->all_permission, true)
-            && ! in_array('internship.enrolments.create', $this->all_permission, true)) {
-            if (! in_array('internship.submissions.request_revision', $this->all_permission, true)) {
-                abort(403);
-            }
-        }
+        $this->assertCanReview($submission->assignment->enrolment, true);
 
         $data = $request->validate([
             'decision' => 'required|in:pass,revision_required',
             'feedback' => 'nullable|string|max:5000',
             'score' => 'nullable|integer|min:0|max:100',
             'rubric_scores' => 'nullable|array',
-            'rubric_scores.*' => 'nullable|integer|min:0|max:40',
+            'rubric_scores.*' => 'nullable|integer|min:0|max:100',
+            'accept_below_pass' => 'nullable|boolean',
         ]);
 
-        $this->service->gradeSubmission($submission, Auth::user(), $data);
+        try {
+            $this->service->gradeSubmission($submission, Auth::user(), $data);
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('not_permitted', $e->getMessage());
+        }
 
         $enrolment = $submission->assignment->enrolment->fresh();
         $accepted = $submission->assignment->fresh()->status === 'passed';
@@ -199,7 +197,8 @@ class InternshipSupervisorController extends Controller
             $message = 'Submission accepted. The next task is scheduled for '
                 .\Carbon\Carbon::parse($enrolment->next_release_date)->format('D d M Y').'.';
         } elseif ($accepted) {
-            $message = 'Submission accepted. The next task releases on the student’s next working day.';
+            $message = 'Submission accepted. The next task releases on the student’s next working day '
+                .'(the student must have saved their working week).';
         } else {
             $message = 'Revision requested. The student keeps this task and no new task is released.';
         }
@@ -207,16 +206,30 @@ class InternshipSupervisorController extends Controller
         return redirect()->route('internship.supervisor.index')->with('message', $message);
     }
 
+    /**
+     * Reviewing and grading follow the same rule as the queue listing: internship
+     * admins see everything, everyone else only the interns assigned to them.
+     */
+    protected function assertCanReview(InternshipEnrolment $enrolment, $forGrading = false)
+    {
+        $user = Auth::user();
+        if ((int) $user->role_id <= 2 || InternCompliance::isInternshipAdmin($user)) {
+            return;
+        }
+        if ($enrolment->isSupervisedBy($user->id)) {
+            return;
+        }
+
+        abort(403, $forGrading
+            ? 'You can only grade submissions for interns assigned to you.'
+            : 'You can only open submissions for interns assigned to you.');
+    }
+
     public function downloadFile($fileId)
     {
         $this->allow();
         $file = \App\InternshipSubmissionFile::with('submission.assignment.enrolment')->findOrFail($fileId);
-        $enrolment = $file->submission->assignment->enrolment;
-        if (Auth::user()->role_id > 2
-            && ! $enrolment->isSupervisedBy(Auth::id())
-            && ! in_array('internship.submissions.view', $this->all_permission, true)) {
-            abort(403);
-        }
+        $this->assertCanReview($file->submission->assignment->enrolment);
         if (! Storage::disk($file->disk ?: 'local')->exists($file->path)) {
             abort(404);
         }

@@ -13,6 +13,7 @@ use App\Services\Messaging\NotificationRouter;
 use App\Services\TimesheetService;
 use App\Support\InternCompliance;
 use App\Support\InternshipHandbook;
+use App\Support\InternshipRubric;
 use App\Support\WhatsAppMessage;
 use App\User;
 use App\WorkingWeek;
@@ -24,6 +25,9 @@ use Illuminate\Support\Facades\Storage;
 
 class InternshipProgramService
 {
+    /** Delivery attempts allowed per notification before it is left alone. */
+    const MAX_NOTIFICATION_ATTEMPTS = 5;
+
     protected $timesheets;
 
     public function __construct(TimesheetService $timesheets)
@@ -658,36 +662,75 @@ class InternshipProgramService
         return $submission;
     }
 
+    /**
+     * Record a supervisor decision against the task's marking rubric.
+     *
+     * The stored decision always matches what actually happened to the task, so
+     * a score below the pass mark can never be filed as an acceptance. When the
+     * supervisor asks to accept below the pass mark they must say so explicitly
+     * (`accept_below_pass`), which is recorded as a waiver.
+     *
+     * @throws \RuntimeException when the submission is not reviewable or the marks are inconsistent with the decision
+     */
     public function gradeSubmission(InternshipSubmission $submission, User $grader, array $data)
     {
-        $decision = $data['decision'] === 'revision_required' ? 'revision_required' : 'pass';
-        $score = (int) ($data['score'] ?? 0);
-        $rubric = $data['rubric_scores'] ?? [];
-        if (! empty($rubric) && is_array($rubric)) {
-            $score = array_sum(array_map('intval', $rubric));
+        $assignment = $submission->assignment;
+        $enrolment = $assignment ? $assignment->enrolment : null;
+        if (! $assignment || ! $enrolment) {
+            throw new \RuntimeException('This submission is no longer linked to a task.');
+        }
+        if ($submission->status !== 'submitted' || $assignment->status !== 'submitted') {
+            throw new \RuntimeException('This submission has already been reviewed. Reload the queue to see the current decision.');
+        }
+
+        $criteria = InternshipRubric::criteria($assignment->task);
+        $marking = InternshipRubric::marks($criteria, (array) ($data['rubric_scores'] ?? []));
+        if ($marking['errors']) {
+            throw new \RuntimeException(implode(' ', $marking['errors']));
+        }
+
+        $score = $marking['total'] === null ? (int) ($data['score'] ?? 0) : $marking['total'];
+        $score = max(0, min(100, $score));
+        $passMark = (int) (optional($assignment->task)->pass_mark ?: 60);
+        $wantsPass = ($data['decision'] ?? 'pass') !== 'revision_required';
+        $waived = $wantsPass && $score < $passMark && ! empty($data['accept_below_pass']);
+
+        if ($wantsPass && $score < $passMark && ! $waived) {
+            throw new \RuntimeException(
+                'Total score '.$score.'/100 is below the '.$passMark.' pass mark, so this cannot be accepted. '
+                .'Raise the marks, choose "Request revision", or tick "Accept below the pass mark" to record a waiver.'
+            );
+        }
+
+        $decision = $wantsPass ? 'pass' : 'revision_required';
+        $feedback = trim((string) ($data['feedback'] ?? ''));
+        if (! $wantsPass && $feedback === '') {
+            throw new \RuntimeException('Write feedback saying what the student must fix before they resubmit.');
+        }
+        if ($waived) {
+            $feedback = trim($feedback."\n\nAccepted below the pass mark ({$score}/100 against a pass mark of {$passMark}) by "
+                .$grader->name.'.');
         }
 
         $grade = InternshipGrade::create([
             'submission_id' => $submission->id,
             'grader_id' => $grader->id,
-            'score' => max(0, min(100, $score)),
-            'rubric_scores_json' => json_encode($rubric),
-            'feedback' => $data['feedback'] ?? null,
+            'score' => $score,
+            'rubric_scores_json' => json_encode($marking['stored']),
+            'feedback' => $feedback !== '' ? $feedback : null,
             'decision' => $decision,
             'graded_at' => now(),
         ]);
 
-        $assignment = $submission->assignment;
-        $enrolment = $assignment->enrolment;
-        $passMark = (int) ($assignment->task->pass_mark ?? 60);
-
-        if ($decision === 'pass' && $grade->score >= $passMark) {
+        if ($decision === 'pass') {
             $this->applyAcceptance($submission, $assignment, $enrolment, $grade);
         } else {
-            $submission->status = 'revision_required';
-            $submission->save();
-            $assignment->status = 'revision_required';
-            $assignment->save();
+            DB::transaction(function () use ($submission, $assignment) {
+                $submission->status = 'revision_required';
+                $submission->save();
+                $assignment->status = 'revision_required';
+                $assignment->save();
+            });
             $this->notifyRevision($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $grade);
         }
 
@@ -695,6 +738,8 @@ class InternshipProgramService
             'submission_id' => $submission->id,
             'decision' => $decision,
             'score' => $grade->score,
+            'rubric' => $marking['stored'] ?: null,
+            'below_pass_waiver' => $waived,
         ]);
 
         return $grade;
@@ -711,33 +756,62 @@ class InternshipProgramService
         InternshipEnrolment $enrolment,
         InternshipGrade $grade
     ) {
-        $submission->status = 'passed';
-        $submission->save();
-        $assignment->status = 'passed';
-        $assignment->save();
+        DB::transaction(function () use ($submission, $assignment, $enrolment) {
+            $submission->status = 'passed';
+            $submission->save();
+            $assignment->status = 'passed';
+            $assignment->save();
 
-        $enrolment->completed_count = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-            ->where('status', 'passed')
-            ->count();
-        if ($enrolment->completed_count >= $enrolment->plannedDurationDays()) {
-            $enrolment->status = 'completed';
-            $enrolment->completed_at = now();
-            $enrolment->next_release_date = null;
-        } else {
-            // Acceptance schedules the next task for the student's next working day;
-            // the hourly cron delivers it once that day's start time arrives.
-            $student = $enrolment->student;
-            $next = $student ? $this->nextWorkingDate($student, Carbon::tomorrow()) : null;
-            $enrolment->next_release_date = $next ? $next->toDateString() : null;
-        }
-        $enrolment->save();
+            $enrolment->completed_count = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+                ->where('status', 'passed')
+                ->count();
+            if ($enrolment->completed_count >= $enrolment->plannedDurationDays()) {
+                $enrolment->status = 'completed';
+                $enrolment->completed_at = now();
+                $enrolment->next_release_date = null;
+            } else {
+                // Acceptance schedules the next task for the student's next working day;
+                // the hourly cron delivers it once that day's start time arrives.
+                $student = $enrolment->student;
+                $next = $student ? $this->nextWorkingDate($student, Carbon::tomorrow()) : null;
+                $enrolment->next_release_date = $next ? $next->toDateString() : null;
+            }
+            $enrolment->save();
+        });
 
         $this->notifyPassed($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $grade);
         if ($enrolment->status === 'completed') {
             $this->notifyCompleted($enrolment);
+        } else {
+            $this->nudgeWorkingWeekIfBlocking($enrolment);
         }
 
         return $enrolment;
+    }
+
+    /**
+     * A student with no saved working week has no next working day, so the
+     * accepted task is their last one until they set the timetable. Ask them,
+     * at most once a day, instead of letting the placement stall in silence.
+     */
+    protected function nudgeWorkingWeekIfBlocking(InternshipEnrolment $enrolment)
+    {
+        $student = $enrolment->student ?: optional($enrolment->fresh(['student']))->student;
+        if (! $student || $enrolment->next_release_date || InternCompliance::workingWeekConfigured($student)) {
+            return;
+        }
+
+        $key = 'working_week_required:'.$enrolment->id.':'.Carbon::today()->toDateString();
+        if ($this->alreadyNotified($key)) {
+            return;
+        }
+
+        $msg = WhatsAppMessage::internshipWorkingWeekRequest(
+            $student->name,
+            url('/login'),
+            url('/admin/timesheet/working-week')
+        );
+        $this->sendWhatsApp($student, $msg, $key, 'working_week_required');
     }
 
     public function reviewSlaWorkingDays()
@@ -1274,6 +1348,8 @@ class InternshipProgramService
             'auto_accepted' => false,
             'deadline' => null,
             'waiting_hours' => null,
+            'pass_mark' => null,
+            'rubric' => ['rows' => [], 'earned' => null, 'possible' => null, 'percent' => null],
         ];
         if (! $assignment) {
             return $empty;
@@ -1304,22 +1380,23 @@ class InternshipProgramService
         }
 
         if ($grade) {
-            $decision = (string) $grade->decision;
-            $passed = $decision === 'pass' || $assignment->status === 'passed';
+            // The task status is the source of truth: a legacy grade can carry
+            // decision 'pass' on a task that was actually sent back for revision.
+            $passed = $assignment->status === 'passed';
 
-            return [
+            return array_merge($empty, [
                 'status' => $passed ? 'passed' : 'revision_required',
                 'label' => $passed
                     ? ($grade->auto_accepted ? 'Accepted (auto-accepted)' : 'Accepted by supervisor')
                     : 'Revision required',
                 'score' => $grade->score,
-                'decision' => $decision,
+                'decision' => $passed ? 'pass' : 'revision_required',
                 'feedback' => $grade->feedback,
                 'grader' => optional($grade->grader)->name,
                 'auto_accepted' => (bool) $grade->auto_accepted,
-                'deadline' => null,
-                'waiting_hours' => null,
-            ];
+                'pass_mark' => (int) (optional($assignment->task)->pass_mark ?: 60),
+                'rubric' => InternshipRubric::breakdown($grade, $assignment->task),
+            ]);
         }
 
         if ($assignment->status === 'revision_required') {
@@ -1687,6 +1764,66 @@ class InternshipProgramService
     }
 
     /**
+     * Take ownership of a notification key before sending.
+     *
+     * The key is unique, so the insert doubles as the duplicate guard. A row
+     * that was never delivered (failed, skipped because WhatsApp was switched
+     * off, or abandoned mid-flight) is reclaimed so the message can still go
+     * out — otherwise one bad attempt would suppress it forever.
+     *
+     * @return bool false when the message was already delivered or another send is in flight
+     */
+    protected function claimNotification(array $row)
+    {
+        $key = $row['idempotency_key'];
+        try {
+            DB::table('internship_notification_logs')->insert($row);
+
+            return true;
+        } catch (\Throwable $e) {
+            $existing = DB::table('internship_notification_logs')->where('idempotency_key', $key)->first();
+            if (! $existing || $existing->status === 'sent') {
+                return false;
+            }
+            // Give up eventually so a permanently bad number is not retried every hour.
+            if ($existing->status === 'failed' && (int) $existing->attempts >= self::MAX_NOTIFICATION_ATTEMPTS) {
+                return false;
+            }
+            // Leave a recent 'pending' row alone: a concurrent run may still be sending it.
+            if ($existing->status === 'pending'
+                && $existing->updated_at
+                && Carbon::parse($existing->updated_at)->greaterThan(now()->subMinutes(15))) {
+                return false;
+            }
+
+            DB::table('internship_notification_logs')->where('idempotency_key', $key)->update([
+                'event' => $row['event'],
+                'user_id' => $row['user_id'],
+                'channel' => $row['channel'],
+                'phone' => $row['phone'],
+                'status' => 'pending',
+                'attempts' => ((int) $existing->attempts) + 1,
+                'error' => null,
+                'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+    }
+
+    /**
+     * 'skipped' (WhatsApp switched off) stays retryable; only a real delivery is 'sent'.
+     */
+    protected function notificationOutcome(array $result)
+    {
+        if (! empty($result['skipped'])) {
+            return 'skipped';
+        }
+
+        return ! empty($result['success']) ? 'sent' : 'failed';
+    }
+
+    /**
      * When ERP user.phone is empty, recover WhatsApp number from the linked application.
      */
     protected function resolveFallbackPhoneForUser(User $user)
@@ -1738,10 +1875,7 @@ class InternshipProgramService
             'created_at' => now(),
             'updated_at' => now(),
         ];
-        try {
-            DB::table('internship_notification_logs')->insert($row);
-        } catch (\Throwable $e) {
-            // duplicate key — already attempted
+        if (! $this->claimNotification($row)) {
             return ['success' => false, 'error' => 'duplicate'];
         }
 
@@ -1758,7 +1892,7 @@ class InternshipProgramService
         try {
             $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $message);
             DB::table('internship_notification_logs')->where('idempotency_key', $idempotencyKey)->update([
-                'status' => ! empty($result['success']) ? 'sent' : 'failed',
+                'status' => $this->notificationOutcome($result),
                 'provider_message_id' => $result['sid'] ?? $result['provider_sid'] ?? null,
                 'error' => $result['error'] ?? null,
                 'updated_at' => now(),
@@ -1783,6 +1917,9 @@ class InternshipProgramService
         }
 
         $phone = $user->phone ?? $user->phone_number ?? null;
+        if (! $phone) {
+            $phone = $this->resolveFallbackPhoneForUser($user);
+        }
         $row = [
             'idempotency_key' => $idempotencyKey,
             'event' => $event,
@@ -1794,9 +1931,7 @@ class InternshipProgramService
             'created_at' => now(),
             'updated_at' => now(),
         ];
-        try {
-            DB::table('internship_notification_logs')->insert($row);
-        } catch (\Throwable $e) {
+        if (! $this->claimNotification($row)) {
             return ['success' => false, 'error' => 'duplicate'];
         }
 
@@ -1815,7 +1950,7 @@ class InternshipProgramService
             usleep(5500000);
             $result = app(NotificationRouter::class)->sendWhatsAppDocument($phone, $localPath, $fileName, $caption);
             DB::table('internship_notification_logs')->where('idempotency_key', $idempotencyKey)->update([
-                'status' => ! empty($result['success']) ? 'sent' : 'failed',
+                'status' => $this->notificationOutcome($result),
                 'provider_message_id' => $result['msg_id'] ?? $result['sid'] ?? null,
                 'error' => $result['error'] ?? null,
                 'updated_at' => now(),

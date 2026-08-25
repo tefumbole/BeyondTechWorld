@@ -98,6 +98,9 @@
                                     <div class="ip-meta">{{ $enrolment->completed_count }}/{{ $enrolment->plannedDurationDays() }} days</div>
                                     @if($enrolment->supervisor)
                                         <div class="ip-meta">Sup: {{ $enrolment->supervisor->name }}</div>
+                                    @else
+                                        <div><span class="ip-badge warn">No supervisor</span></div>
+                                        <div class="ip-meta">Nobody is notified of submissions — work is auto-accepted after the review window.</div>
                                     @endif
                                 @else
                                     <span class="ip-meta">Not placed</span>

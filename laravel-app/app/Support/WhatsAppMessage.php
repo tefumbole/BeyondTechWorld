@@ -570,6 +570,21 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function internshipPlacementIssueAdmin($adminName, $applicantName, $reference, $reason, $loginUrl)
+    {
+        $msg = self::statusBlock('⚠️', 'Placement Needs Attention');
+        $msg .= self::greeting($adminName ?: 'Admin');
+        $msg .= "An internship candidate accepted the offer but *no placement was created*, so they will not receive any task.\n\n";
+        $msg .= self::bullet('Candidate', $applicantName ?: '—');
+        $msg .= self::bullet('Reference', $reference ?: '—');
+        $msg .= self::bullet('Reason', $reason);
+        $msg .= self::actionLink('Login to fix the placement', $loginUrl);
+        $msg .= "\nOpen the application, then place the candidate from Internships → Interns.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function applicationSelected($name, $jobTitle, $reference, $agreementUrl, $isInternship = false, $offerPortal = false)
     {
         $kind = $isInternship ? 'Internship' : 'Employment';

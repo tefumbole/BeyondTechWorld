@@ -136,6 +136,54 @@ class ApplicationNotifier
         return ['sent' => $sent];
     }
 
+    /**
+     * Tell admins a signed candidate ended up without a placement, so nobody is
+     * left waiting for tasks that will never be released.
+     *
+     * @return array{sent:int}
+     */
+    public function notifyAdminsOfPlacementIssue(Application $application, $reason)
+    {
+        $path = route('jobs.applications.show', $application->id, false);
+        $loginUrl = url('/login?redirect='.rawurlencode($path));
+
+        $admins = \App\User::where('is_deleted', false)
+            ->where('is_active', 1)
+            ->where('role_id', '<=', 2)
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->orderBy('id')
+            ->get(['id', 'name', 'phone']);
+
+        $sent = 0;
+        foreach ($admins as $admin) {
+            $message = WhatsAppMessage::internshipPlacementIssueAdmin(
+                $admin->name,
+                $application->full_name,
+                $application->reference_number,
+                $reason,
+                $loginUrl
+            );
+            usleep(5500000);
+            $send = $this->router->sendWhatsAppText(trim((string) $admin->phone), $message, [
+                'title' => 'Placement needs attention',
+                'message' => ($application->full_name ?: 'Applicant').' signed the offer but has no placement.',
+                'details' => $application->reference_number ?: '-',
+            ]);
+            if (! empty($send['success'])) {
+                $sent++;
+            } else {
+                Log::warning('Placement-issue admin WhatsApp failed', [
+                    'application_id' => $application->id,
+                    'admin_id' => $admin->id,
+                    'error' => $send['error'] ?? 'unknown',
+                ]);
+            }
+        }
+
+        return ['sent' => $sent];
+    }
+
     public function selected(Application $application, JobPosting $job, $agreementUrl)
     {
         $offerPortal = $job->isInternship() && $application->needsOfferPortal();
