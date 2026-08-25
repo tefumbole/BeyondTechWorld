@@ -184,6 +184,13 @@
     }
     .ip-evidence-row h6 { margin: 0 0 8px; color: #0b3f90; font-weight: 700; font-size: 14px; }
     .ip-evidence-preview { margin-top: 8px; font-size: 12px; color: #64748b; }
+    .ip-evidence-staged {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+        background: #ecfdf5; border: 1px solid #a7f3d0;
+    }
+    .ip-evidence-row.is-staged .ip-evidence-file { display: none; }
+    .ip-draft-count { font-weight: 700; color: #047857; }
     .ip-shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
     .ip-shot-card {
         border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff;

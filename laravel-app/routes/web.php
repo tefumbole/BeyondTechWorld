@@ -511,6 +511,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/internship/student/task/{id}/start', 'Internship\InternshipStudentController@start')->name('internship.student.start');
     Route::post('/admin/internship/student/task/{id}/steps', 'Internship\InternshipStudentController@updateStepProgress')->name('internship.student.steps');
     Route::post('/admin/internship/student/task/{id}/submit', 'Internship\InternshipStudentController@submit')->name('internship.student.submit');
+    Route::post('/admin/internship/student/task/{id}/draft', 'Internship\InternshipStudentController@storeDraft')->name('internship.student.draft.store');
+    Route::post('/admin/internship/student/task/{id}/draft/{draftId}', 'Internship\InternshipStudentController@updateDraft')->name('internship.student.draft.update');
+    Route::delete('/admin/internship/student/task/{id}/draft/{draftId}', 'Internship\InternshipStudentController@destroyDraft')->name('internship.student.draft.destroy');
+    Route::get('/admin/internship/student/drafts/{draftId}', 'Internship\InternshipStudentController@downloadDraft')->name('internship.student.draft');
     Route::get('/admin/internship/student/files/{fileId}', 'Internship\InternshipStudentController@downloadFile')->name('internship.student.file');
     Route::get('/admin/internship/supervisor', 'Internship\InternshipSupervisorController@dashboard')->name('internship.supervisor.dashboard');
     Route::get('/admin/internship/supervisor/queue', 'Internship\InternshipSupervisorController@index')->name('internship.supervisor.index');

@@ -5,6 +5,7 @@ namespace App\Services\Internship;
 use App\Application;
 use App\BeyondProfile;
 use App\BeyondUser;
+use App\InternshipDraftFile;
 use App\InternshipEnrolment;
 use App\InternshipGrade;
 use App\InternshipSubmission;
@@ -111,6 +112,16 @@ class InternAccountPurge
     {
         $assignments = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)->get();
         foreach ($assignments as $assignment) {
+            if (Schema::hasTable('internship_draft_files')) {
+                $drafts = InternshipDraftFile::where('assignment_id', $assignment->id)->get();
+                foreach ($drafts as $draft) {
+                    try {
+                        Storage::disk($draft->disk ?: 'local')->delete($draft->path);
+                    } catch (\Throwable $e) {
+                    }
+                    $draft->delete();
+                }
+            }
             $submissions = InternshipSubmission::where('assignment_id', $assignment->id)->get();
             foreach ($submissions as $submission) {
                 $files = InternshipSubmissionFile::where('submission_id', $submission->id)->get();

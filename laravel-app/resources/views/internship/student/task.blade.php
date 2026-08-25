@@ -127,9 +127,9 @@
                 <ol class="ip-ol">
                     <li>Finish the work using the handbook and the checklist above. Tick each step as you go.</li>
                     <li>Write a short report in the first box (at least 20 characters): what you did, how you checked it, and any problem you solved.</li>
-                    <li>Upload a file for <strong>each evidence slot this task lists</strong>. Click the dashed box and <strong>paste</strong> (Ctrl+V / ⌘V), drop a file, or choose any file. Add a short note so your supervisor knows what they are looking at.</li>
-                    <li>Need more files? Click <strong>Add another file</strong>. Any file or image type is allowed. Large images are compressed in your browser before upload (about 20&nbsp;MB each after compress, up to 40 files).</li>
-                    <li>Click <strong>Submit for grading</strong>. Your supervisor is notified on WhatsApp.</li>
+                    <li>Add a file for <strong>each evidence slot</strong>. Each file <strong>uploads immediately</strong> and waits here until you submit. Paste (Ctrl+V / ⌘V), drop, or choose any format. Large images are compressed first.</li>
+                    <li>Need more files? Click <strong>Add another file</strong>. You do not have to wait and send everything at once.</li>
+                    <li>When all needed files show <strong>Uploaded — awaiting submission</strong>, write your report and click <strong>Submit for grading</strong>. That step is quick because the files are already on the server.</li>
                     <li>Then fill your timesheet for this day. The next task is released on your next working day after they accept this one.</li>
                 </ol>
                 @if($assignment->status === 'revision_required')
@@ -147,30 +147,59 @@
                     </div>
                     <div class="form-group mb-2">
                         <label>2. Files for this task ({{ count($evidenceSlots ?? []) }} listed — add more if you need)</label>
-                        <p class="ip-meta mb-2">One file per box, matching the evidence this task asked for. Paste an image (Ctrl+V / ⌘V), drop a file, or choose any format. Large images are compressed automatically.</p>
+                        <p class="ip-meta mb-2">Each file uploads as soon as you add it and sits in <strong>awaiting submission</strong>. Paste, drop, or choose any format. Large images are compressed first.</p>
+                        <p class="ip-draft-count mb-2" id="ip-draft-count"></p>
                         <div id="ip-evidence-list">
                             @foreach(($evidenceSlots ?? [['label' => 'File 1 — finished work', 'required' => true]]) as $i => $slot)
-                                <div class="ip-evidence-row" data-index="{{ $i }}">
+                                @php $draft = isset($draftsBySlot) ? $draftsBySlot->get($i) : null; @endphp
+                                <div class="ip-evidence-row {{ $draft ? 'is-staged' : '' }}" data-index="{{ $i }}" @if($draft) data-draft-id="{{ $draft->id }}" @endif>
                                     <h6>{{ $slot['label'] }}@if(!empty($slot['required'])) <span class="ip-badge warn">Required</span>@endif</h6>
-                                    <input type="file"
-                                           name="evidence[{{ $i }}][file]"
-                                           class="form-control ip-evidence-file">
+                                    <input type="file" class="form-control ip-evidence-file" @if(!$draft) name="evidence[{{ $i }}][file]" @endif>
                                     <input type="text"
-                                           name="evidence[{{ $i }}][caption]"
-                                           class="form-control mt-2"
+                                           class="form-control mt-2 ip-evidence-caption"
                                            maxlength="400"
-                                           value="{{ old('evidence.'.$i.'.caption') }}"
+                                           name="draft_captions[{{ $draft->id ?? 'new'.$i }}]"
+                                           value="{{ old('draft_captions.'.($draft->id ?? ''), $draft->caption ?? '') }}"
                                            placeholder="Short note — what this file shows">
                                     <div class="ip-evidence-preview"></div>
+                                    <div class="ip-evidence-staged" @if(!$draft) hidden @endif>
+                                        <span class="ip-badge active">Uploaded — awaiting submission</span>
+                                        @if($draft)
+                                            <a class="ip-draft-name" href="{{ route('internship.student.draft', $draft->id) }}" target="_blank">{{ $draft->original_name }}</a>
+                                            <span class="ip-meta">({{ number_format(((int) $draft->size) / 1048576, 2) }} MB)</span>
+                                        @else
+                                            <a class="ip-draft-name" href="#" target="_blank"></a>
+                                            <span class="ip-meta ip-draft-size"></span>
+                                        @endif
+                                        <button type="button" class="ip-btn ip-btn-outline ip-btn-sm ip-draft-remove">Remove</button>
+                                    </div>
                                 </div>
                             @endforeach
+                            @if(!empty($drafts))
+                                @foreach($drafts as $draft)
+                                    @if((int) $draft->slot_index >= count($evidenceSlots ?? []))
+                                        <div class="ip-evidence-row is-staged" data-index="{{ $draft->slot_index }}" data-draft-id="{{ $draft->id }}">
+                                            <h6>Extra file {{ (int) $draft->slot_index + 1 }}</h6>
+                                            <input type="file" class="form-control ip-evidence-file">
+                                            <input type="text" class="form-control mt-2 ip-evidence-caption" maxlength="400" name="draft_captions[{{ $draft->id }}]" value="{{ $draft->caption }}" placeholder="Short note — what this file shows">
+                                            <div class="ip-evidence-preview"></div>
+                                            <div class="ip-evidence-staged">
+                                                <span class="ip-badge active">Uploaded — awaiting submission</span>
+                                                <a class="ip-draft-name" href="{{ route('internship.student.draft', $draft->id) }}" target="_blank">{{ $draft->original_name }}</a>
+                                                <span class="ip-meta">({{ number_format(((int) $draft->size) / 1048576, 2) }} MB)</span>
+                                                <button type="button" class="ip-btn ip-btn-outline ip-btn-sm ip-draft-remove">Remove</button>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            @endif
                         </div>
                         <button type="button" class="ip-btn ip-btn-outline ip-btn-sm" id="ip-add-evidence">
                             <i class="dripicons-plus"></i> Add another file
                         </button>
-                        <small class="ip-meta d-block mt-1">Any file or image format · large images compressed on this page · max 40 files · 20 MB each</small>
+                        <small class="ip-meta d-block mt-1">Files save one by one · any format · large images compressed · max 40 files · 20 MB each</small>
                     </div>
-                    <button class="ip-btn" type="submit"><i class="dripicons-cloud-upload"></i> 3. Submit for grading</button>
+                    <button class="ip-btn" type="submit"><i class="dripicons-checkmark"></i> 3. Submit for grading</button>
                 </form>
             </div>
         @elseif($assignment->status === 'submitted')
@@ -224,6 +253,10 @@
 (function () {
     var MAX_FILES = 40;
     var MAX_BYTES = 20 * 1048576;
+    var token = document.querySelector('meta[name="csrf-token"]');
+    token = token ? token.getAttribute('content') : '';
+    var draftStoreUrl = @json(route('internship.student.draft.store', $assignment->id));
+    var draftUpdateTpl = @json(url('/admin/internship/student/task/'.$assignment->id.'/draft/__ID__'));
     var desc = document.getElementById('ip-desc');
     var count = document.getElementById('ip-desc-count');
     if (desc && count) {
@@ -234,6 +267,18 @@
     var list = document.getElementById('ip-evidence-list');
     var addBtn = document.getElementById('ip-add-evidence');
     var form = list ? list.closest('form') : null;
+    var countEl = document.getElementById('ip-draft-count');
+
+    function stagedCount() {
+        return list ? list.querySelectorAll('.ip-evidence-row[data-draft-id]').length : 0;
+    }
+    function refreshCount() {
+        if (!countEl) return;
+        var n = stagedCount();
+        countEl.textContent = n
+            ? n + (n === 1 ? ' file uploaded — awaiting submission.' : ' files uploaded — awaiting submission.')
+            : 'No files uploaded yet. Add one and it will save immediately.';
+    }
 
     function setPreview(row, file, note) {
         var preview = row.querySelector('.ip-evidence-preview');
@@ -244,57 +289,142 @@
         }
         var mb = (file.size / 1048576).toFixed(2);
         preview.textContent = file.name + ' (' + mb + ' MB)' + (note ? ' — ' + note : '');
-        preview.style.color = file.size > MAX_BYTES ? '#b91c1c' : '#64748b';
-        if (file.size > MAX_BYTES) {
-            preview.textContent += ' — too large (max 20 MB)';
-        }
-        var img = row.querySelector('input.ip-evidence-file');
-        if (img && img.__ipPrev) {
-            if (file.type && file.type.indexOf('image/') === 0) {
-                var r = new FileReader();
-                r.onload = function (ev) { img.__ipPrev.src = ev.target.result; img.__ipPrev.style.display = ''; };
-                r.readAsDataURL(file);
-            } else {
-                img.__ipPrev.style.display = 'none';
+        preview.style.color = file.size > MAX_BYTES ? '#b91c1c' : '#047857';
+    }
+
+    function markStaged(row, data) {
+        row.setAttribute('data-draft-id', data.id);
+        row.classList.add('is-staged');
+        var cap = row.querySelector('.ip-evidence-caption');
+        if (cap) cap.setAttribute('name', 'draft_captions[' + data.id + ']');
+        var box = row.querySelector('.ip-evidence-staged');
+        if (box) {
+            box.hidden = false;
+            var name = box.querySelector('.ip-draft-name');
+            if (name) {
+                name.textContent = data.name;
+                name.href = data.url || '#';
+            }
+            var size = box.querySelector('.ip-draft-size') || box.querySelector('.ip-meta');
+            if (size && !size.classList.contains('ip-draft-name')) {
+                size.textContent = '(' + data.size_mb + ' MB)';
             }
         }
+        var input = row.querySelector('.ip-evidence-file');
+        if (input) {
+            try { input.value = ''; } catch (e) {}
+            input.removeAttribute('name');
+        }
+        refreshCount();
+    }
+
+    function uploadFile(row, file) {
+        var input = row.querySelector('.ip-evidence-file');
+        var preview = row.querySelector('.ip-evidence-preview');
+        var fd = new FormData();
+        fd.append('_token', token);
+        fd.append('file', file, file.name || 'upload');
+        fd.append('slot', row.getAttribute('data-index') || '0');
+        var cap = row.querySelector('.ip-evidence-caption');
+        if (cap) fd.append('caption', cap.value || '');
+        if (preview) preview.textContent = 'Uploading ' + file.name + '…';
+        fetch(draftStoreUrl, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+            body: fd
+        }).then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+            .then(function (out) {
+                if (input) input.__ipBusy = false;
+                if (!out.ok || !out.body || !out.body.success) {
+                    setPreview(row, file, (out.body && out.body.error) ? out.body.error : 'upload failed');
+                    if (preview) preview.style.color = '#b91c1c';
+                    return;
+                }
+                markStaged(row, out.body);
+                if (preview) preview.textContent = '';
+            })
+            .catch(function () {
+                if (input) input.__ipBusy = false;
+                setPreview(row, file, 'upload failed — try again');
+                if (preview) preview.style.color = '#b91c1c';
+            });
     }
 
     function bindRow(row) {
         var input = row.querySelector('.ip-evidence-file');
-        if (!input || input.__ipBound) return;
-        input.__ipBound = true;
-        input.addEventListener('change', function () {
-            var f = input.files && input.files[0];
-            if (!f || input.__ipBusy) return;
-            input.__ipBusy = true;
-            setPreview(row, f, 'checking size…');
-            var done = function (out) {
-                var used = f;
-                if (out && out !== f) {
-                    try {
-                        var dt = new DataTransfer();
-                        dt.items.add(out);
-                        input.files = dt.files;
-                        used = out;
-                    } catch (e) {}
+        if (input && !input.__ipBound) {
+            input.__ipBound = true;
+            input.addEventListener('change', function () {
+                var f = input.files && input.files[0];
+                if (!f || input.__ipBusy) return;
+                input.__ipBusy = true;
+                setPreview(row, f, 'preparing…');
+                input.__ipOrig = f.size;
+                var after = function (out) {
+                    var used = out || f;
+                    if (used.size > MAX_BYTES) {
+                        input.__ipBusy = false;
+                        setPreview(row, used, 'too large (max 20 MB)');
+                        return;
+                    }
+                    setPreview(row, used, used.size < input.__ipOrig ? 'compressed — uploading…' : 'uploading…');
+                    uploadFile(row, used);
+                };
+                if (typeof window.compressStudentEvidence === 'function') {
+                    window.compressStudentEvidence(f, after);
+                } else {
+                    after(f);
                 }
-                input.__ipBusy = false;
-                var note = (used && input.__ipOrig && used.size < input.__ipOrig) ? 'compressed for upload' : '';
-                setPreview(row, used, note);
-            };
-            input.__ipOrig = f.size;
-            if (typeof window.compressStudentEvidence === 'function') {
-                window.compressStudentEvidence(f, done);
-            } else {
-                done(f);
-            }
-        });
+            });
+        }
+        var remove = row.querySelector('.ip-draft-remove');
+        if (remove && !remove.__ipBound) {
+            remove.__ipBound = true;
+            remove.addEventListener('click', function () {
+                var id = row.getAttribute('data-draft-id');
+                if (!id) return;
+                var del = new FormData();
+                del.append('_token', token);
+                del.append('_method', 'DELETE');
+                fetch(draftUpdateTpl.replace('__ID__', id), {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                    body: del
+                }).then(function () {
+                    row.removeAttribute('data-draft-id');
+                    row.classList.remove('is-staged');
+                    var box = row.querySelector('.ip-evidence-staged');
+                    if (box) box.hidden = true;
+                    var cap = row.querySelector('.ip-evidence-caption');
+                    if (cap) cap.setAttribute('name', 'draft_captions[new' + (row.getAttribute('data-index') || '0') + ']');
+                    refreshCount();
+                });
+            });
+        }
+        var cap = row.querySelector('.ip-evidence-caption');
+        if (cap && !cap.__ipBound) {
+            cap.__ipBound = true;
+            cap.addEventListener('blur', function () {
+                var id = row.getAttribute('data-draft-id');
+                if (!id) return;
+                var body = new FormData();
+                body.append('_token', token);
+                body.append('caption', cap.value || '');
+                fetch(draftUpdateTpl.replace('__ID__', id), {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                    body: body
+                });
+            });
+        }
     }
 
     function addSlot() {
-        var next = list.querySelectorAll('.ip-evidence-row').length;
-        if (next >= MAX_FILES) {
+        var next = 0;
+        Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-row'), function (el) {
+            next = Math.max(next, parseInt(el.getAttribute('data-index'), 10) + 1);
+        });
+        if (list.querySelectorAll('.ip-evidence-row').length >= MAX_FILES) {
             addBtn.disabled = true;
             return;
         }
@@ -302,17 +432,23 @@
         row.className = 'ip-evidence-row';
         row.setAttribute('data-index', next);
         row.innerHTML = '<h6>Extra file ' + (next + 1) + '</h6>'
-            + '<input type="file" name="evidence[' + next + '][file]" class="form-control ip-evidence-file">'
-            + '<input type="text" name="evidence[' + next + '][caption]" class="form-control mt-2" maxlength="400" placeholder="Short note — what this file shows">'
-            + '<div class="ip-evidence-preview"></div>';
+            + '<input type="file" class="form-control ip-evidence-file" name="evidence[' + next + '][file]">'
+            + '<input type="text" class="form-control mt-2 ip-evidence-caption" maxlength="400" placeholder="Short note — what this file shows">'
+            + '<div class="ip-evidence-preview"></div>'
+            + '<div class="ip-evidence-staged" hidden>'
+            + '<span class="ip-badge active">Uploaded — awaiting submission</span> '
+            + '<a class="ip-draft-name" href="#" target="_blank"></a> '
+            + '<span class="ip-meta ip-draft-size"></span> '
+            + '<button type="button" class="ip-btn ip-btn-outline ip-btn-sm ip-draft-remove">Remove</button>'
+            + '</div>';
         list.appendChild(row);
         bindRow(row);
         if (window.__imagePasteScan) window.__imagePasteScan(row);
-        if (next + 1 >= MAX_FILES) addBtn.disabled = true;
     }
 
     if (list) {
         Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-row'), bindRow);
+        refreshCount();
     }
     if (list && addBtn) {
         addBtn.addEventListener('click', addSlot);
@@ -324,7 +460,13 @@
             Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-file'), function (inp) {
                 if (inp.__ipBusy) stillBusy = true;
             });
-            if (!stillBusy) return;
+            if (!stillBusy) {
+                if (stagedCount() < 1) {
+                    e.preventDefault();
+                    alert('Upload at least one file first. Each file saves as soon as you add it.');
+                }
+                return;
+            }
             e.preventDefault();
             var wait = setInterval(function () {
                 var waiting = false;

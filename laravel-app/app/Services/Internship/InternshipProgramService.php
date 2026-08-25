@@ -2,6 +2,7 @@
 
 namespace App\Services\Internship;
 
+use App\InternshipDraftFile;
 use App\InternshipEnrolment;
 use App\InternshipGrade;
 use App\InternshipProgram;
@@ -624,7 +625,12 @@ class InternshipProgramService
         }
 
         $items = $this->normalizeEvidenceItems($uploadedFiles);
-        if (count($items) < 1) {
+        $drafts = InternshipDraftFile::where('assignment_id', $assignment->id)
+            ->where('student_user_id', $user->id)
+            ->orderBy('slot_index')
+            ->orderBy('id')
+            ->get();
+        if (count($items) < 1 && $drafts->isEmpty()) {
             throw new \RuntimeException('Attach at least one file of the finished work.');
         }
 
@@ -640,7 +646,12 @@ class InternshipProgramService
 
         $dir = 'internship/submissions/'.$submission->id;
         $hasCaption = Schema::hasColumn('internship_submission_files', 'caption');
-        foreach ($items as $index => $item) {
+        $index = 0;
+        foreach ($drafts as $draft) {
+            $this->copyDraftToSubmission($draft, $submission, $dir, $hasCaption, $index);
+            $index++;
+        }
+        foreach ($items as $item) {
             $file = $item['file'];
             $path = $file->store($dir, 'local');
             $row = [
@@ -657,7 +668,9 @@ class InternshipProgramService
                 $row['sort_order'] = $index;
             }
             InternshipSubmissionFile::create($row);
+            $index++;
         }
+        $this->clearDrafts($assignment, $user);
 
         $assignment->attempt_count = $attempt;
         $assignment->status = 'submitted';
@@ -707,6 +720,133 @@ class InternshipProgramService
         }
 
         return $items;
+    }
+
+    public function storeDraftFile(InternshipTaskAssignment $assignment, User $user, UploadedFile $file, $slotIndex, $caption = '')
+    {
+        if ((int) $assignment->enrolment->student_user_id !== (int) $user->id) {
+            abort(403);
+        }
+        if (! in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true)) {
+            throw new \RuntimeException('This task cannot accept files right now.');
+        }
+        if (! $file->isValid()) {
+            throw new \RuntimeException('That file did not finish uploading. Try again.');
+        }
+        if ((int) $file->getSize() > 20 * 1024 * 1024) {
+            throw new \RuntimeException('Each file must be 20 MB or smaller.');
+        }
+
+        $slotIndex = max(0, (int) $slotIndex);
+        $existing = InternshipDraftFile::where('assignment_id', $assignment->id)
+            ->where('student_user_id', $user->id)
+            ->where('slot_index', $slotIndex)
+            ->get();
+        foreach ($existing as $old) {
+            $this->deleteDraftFile($old, $user);
+        }
+
+        $count = InternshipDraftFile::where('assignment_id', $assignment->id)
+            ->where('student_user_id', $user->id)
+            ->count();
+        if ($count >= 40) {
+            throw new \RuntimeException('You already have 40 files waiting. Remove one before adding another.');
+        }
+
+        $path = $file->store('internship/drafts/'.$assignment->id, 'local');
+        $row = InternshipDraftFile::create([
+            'assignment_id' => $assignment->id,
+            'student_user_id' => $user->id,
+            'slot_index' => $slotIndex,
+            'disk' => 'local',
+            'path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime' => $file->getMimeType(),
+            'size' => $file->getSize() ?: 0,
+            'checksum' => @hash_file('sha256', $file->getRealPath()) ?: null,
+            'caption' => $caption !== '' ? substr($caption, 0, 400) : null,
+        ]);
+
+        if ($assignment->status === 'available') {
+            try {
+                $this->startAssignment($assignment, $user);
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return $row;
+    }
+
+    public function deleteDraftFile(InternshipDraftFile $draft, User $user)
+    {
+        if ((int) $draft->student_user_id !== (int) $user->id) {
+            abort(403);
+        }
+        try {
+            Storage::disk($draft->disk ?: 'local')->delete($draft->path);
+        } catch (\Throwable $e) {
+        }
+        $draft->delete();
+    }
+
+    public function updateDraftCaption(InternshipDraftFile $draft, User $user, $caption)
+    {
+        if ((int) $draft->student_user_id !== (int) $user->id) {
+            abort(403);
+        }
+        $draft->caption = $caption !== '' ? substr(trim((string) $caption), 0, 400) : null;
+        $draft->save();
+
+        return $draft;
+    }
+
+    public function assignmentDrafts(InternshipTaskAssignment $assignment, User $user)
+    {
+        return InternshipDraftFile::where('assignment_id', $assignment->id)
+            ->where('student_user_id', $user->id)
+            ->orderBy('slot_index')
+            ->orderBy('id')
+            ->get();
+    }
+
+    protected function copyDraftToSubmission(InternshipDraftFile $draft, InternshipSubmission $submission, $dir, $hasCaption, $index)
+    {
+        $disk = Storage::disk($draft->disk ?: 'local');
+        $name = basename($draft->path);
+        $dest = $dir.'/'.$name;
+        if ($disk->exists($draft->path)) {
+            $disk->copy($draft->path, $dest);
+        } else {
+            $dest = $draft->path;
+        }
+        $row = [
+            'submission_id' => $submission->id,
+            'disk' => $draft->disk ?: 'local',
+            'path' => $dest,
+            'original_name' => $draft->original_name,
+            'mime' => $draft->mime,
+            'size' => $draft->size ?: 0,
+            'checksum' => $draft->checksum,
+        ];
+        if ($hasCaption) {
+            $row['caption'] = $draft->caption;
+            $row['sort_order'] = $index;
+        }
+        InternshipSubmissionFile::create($row);
+    }
+
+    protected function clearDrafts(InternshipTaskAssignment $assignment, User $user)
+    {
+        $drafts = InternshipDraftFile::where('assignment_id', $assignment->id)
+            ->where('student_user_id', $user->id)
+            ->get();
+        foreach ($drafts as $draft) {
+            try {
+                Storage::disk($draft->disk ?: 'local')->delete($draft->path);
+            } catch (\Throwable $e) {
+            }
+            $draft->delete();
+        }
     }
 
     /**

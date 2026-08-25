@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internship;
 
 use App\Http\Controllers\Controller;
+use App\InternshipDraftFile;
 use App\InternshipEnrolment;
 use App\InternshipSupervisorMessage;
 use App\InternshipTaskAssignment;
@@ -206,6 +207,8 @@ class InternshipStudentController extends Controller
         $gradeSummary = $this->service->studentGradeSummary($assignment);
         $criteria = InternshipRubric::criteria($assignment->task);
         $evidenceSlots = $assignment->task ? $assignment->task->evidenceSlots() : [];
+        $drafts = $this->service->assignmentDrafts($assignment, Auth::user());
+        $draftsBySlot = $drafts->keyBy('slot_index');
 
         return view('internship.student.task', compact(
             'assignment',
@@ -214,7 +217,9 @@ class InternshipStudentController extends Controller
             'supervisors',
             'gradeSummary',
             'criteria',
-            'evidenceSlots'
+            'evidenceSlots',
+            'drafts',
+            'draftsBySlot'
         ));
     }
 
@@ -282,6 +287,98 @@ class InternshipStudentController extends Controller
         return redirect()->route('internship.student.task', $id)->with('message', 'Task started. Complete the work and submit evidence.');
     }
 
+    public function storeDraft(Request $request, $id)
+    {
+        $this->allowStudent();
+        $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
+        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+        $data = $request->validate([
+            'file' => 'required',
+            'slot' => 'nullable|integer|min:0|max:39',
+            'caption' => 'nullable|string|max:400',
+        ]);
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile) {
+            return response()->json(['success' => false, 'error' => 'Choose or paste a file first.'], 422);
+        }
+
+        try {
+            $draft = $this->service->storeDraftFile(
+                $assignment,
+                Auth::user(),
+                $file,
+                $data['slot'] ?? 0,
+                $data['caption'] ?? ''
+            );
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'id' => $draft->id,
+            'name' => $draft->original_name,
+            'size' => (int) $draft->size,
+            'size_mb' => number_format(((int) $draft->size) / 1048576, 2),
+            'is_image' => $draft->isImage(),
+            'caption' => $draft->caption,
+            'url' => route('internship.student.draft', $draft->id),
+        ]);
+    }
+
+    public function destroyDraft($id, $draftId)
+    {
+        $this->allowStudent();
+        $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
+        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+        $draft = InternshipDraftFile::where('id', $draftId)
+            ->where('assignment_id', $assignment->id)
+            ->firstOrFail();
+        $this->service->deleteDraftFile($draft, Auth::user());
+
+        return response()->json(['success' => true]);
+    }
+
+    public function updateDraft(Request $request, $id, $draftId)
+    {
+        $this->allowStudent();
+        $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
+        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+        $data = $request->validate([
+            'caption' => 'nullable|string|max:400',
+        ]);
+        $draft = InternshipDraftFile::where('id', $draftId)
+            ->where('assignment_id', $assignment->id)
+            ->firstOrFail();
+        $this->service->updateDraftCaption($draft, Auth::user(), $data['caption'] ?? '');
+
+        return response()->json(['success' => true]);
+    }
+
+    public function downloadDraft($draftId)
+    {
+        $this->allowStudent();
+        $draft = InternshipDraftFile::with('assignment.enrolment')->findOrFail($draftId);
+        $enrolment = $draft->assignment->enrolment;
+        $isOwner = (int) $draft->student_user_id === (int) Auth::id();
+        if (! $isOwner
+            && ! $enrolment->isSupervisedBy(Auth::id())
+            && ! InternCompliance::isInternshipAdmin(Auth::user())) {
+            abort(403);
+        }
+        if (! Storage::disk($draft->disk ?: 'local')->exists($draft->path)) {
+            abort(404);
+        }
+
+        return Storage::disk($draft->disk ?: 'local')->download($draft->path, $draft->original_name);
+    }
+
     public function submit(Request $request, $id)
     {
         $this->allowStudent();
@@ -290,16 +387,28 @@ class InternshipStudentController extends Controller
             'description' => 'required|string|min:20',
             'evidence' => 'nullable|array|max:40',
             'evidence.*.caption' => 'nullable|string|max:400',
+            'draft_captions' => 'nullable|array',
+            'draft_captions.*' => 'nullable|string|max:400',
         ]);
+
+        foreach ((array) ($data['draft_captions'] ?? []) as $draftId => $caption) {
+            $draft = InternshipDraftFile::where('id', (int) $draftId)
+                ->where('assignment_id', $assignment->id)
+                ->first();
+            if ($draft) {
+                $this->service->updateDraftCaption($draft, Auth::user(), $caption);
+            }
+        }
 
         $collected = $this->collectEvidenceUploads($request, $data);
         if (! empty($collected['error'])) {
             return back()->withInput()->withErrors(['evidence' => $collected['error']]);
         }
         $items = $collected['items'];
-        if (count($items) < 1) {
+        $draftCount = $this->service->assignmentDrafts($assignment, Auth::user())->count();
+        if (count($items) < 1 && $draftCount < 1) {
             return back()->withInput()->withErrors([
-                'evidence' => 'Attach at least one file. Use Add another file if this task needs more than the slots shown.',
+                'evidence' => 'Upload at least one file. Each file is saved as soon as you add it — then click Submit for grading.',
             ]);
         }
 
