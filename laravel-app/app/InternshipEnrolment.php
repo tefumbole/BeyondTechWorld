@@ -129,6 +129,11 @@ class InternshipEnrolment extends Model
         return $this->belongsTo(User::class, 'student_user_id');
     }
 
+    public function application()
+    {
+        return $this->belongsTo(Application::class, 'application_id');
+    }
+
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');

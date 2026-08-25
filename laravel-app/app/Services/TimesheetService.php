@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\BeyondUser;
+use App\InternshipEnrolment;
+use App\Support\InternshipReportQr;
 use App\TimesheetActivity;
 use App\TimesheetCategory;
 use App\TimesheetEntry;
@@ -642,6 +644,304 @@ class TimesheetService
         ];
     }
 
+    /**
+     * Summary + detailed timesheet report for one person or everyone in a period.
+     */
+    public function fullReport($from, $to, $userId = null)
+    {
+        $from = Carbon::parse($from)->toDateString();
+        $to = Carbon::parse($to)->toDateString();
+        $q = TimesheetEntry::query()
+            ->with(['assignment.task'])
+            ->whereBetween('entry_date', [$from, $to])
+            ->orderBy('entry_date')
+            ->orderBy('created_at');
+        $this->applyEmployeeFilter($q, $userId);
+        $rows = $q->get();
+
+        $identities = [];
+        if ($userId && $userId !== 'all') {
+            $identities[] = $this->normalizeIdentity($userId);
+        } else {
+            foreach ($rows as $row) {
+                $id = $this->entryIdentity($row);
+                if ($id) {
+                    $identities[$id] = $id;
+                }
+            }
+            $identities = array_values($identities);
+        }
+
+        $people = [];
+        $byActivity = [];
+        $bucketLogged = [];
+        $bucketExpected = [];
+        $useWeeks = Carbon::parse($from)->diffInDays(Carbon::parse($to)) > 45;
+
+        foreach ($identities as $identity) {
+            $personRows = $rows->filter(function ($row) use ($identity) {
+                return $this->entryIdentity($row) === $identity;
+            })->values();
+            $profile = $this->personProfile($identity, optional($personRows->first())->employee_name);
+            $days = $this->periodDaySeries($identity, $from, $to);
+            $logged = round((float) $personRows->sum('hours'), 2);
+            $expected = round((float) collect($days)->sum('expected'), 2);
+            $personActivities = [];
+            foreach ($personRows as $entry) {
+                $act = $entry->activity_name ?: 'Uncategorized';
+                $personActivities[$act] = round(($personActivities[$act] ?? 0) + (float) $entry->hours, 2);
+                $byActivity[$act] = round(($byActivity[$act] ?? 0) + (float) $entry->hours, 2);
+            }
+            arsort($personActivities);
+
+            foreach ($days as $day) {
+                $key = $useWeeks
+                    ? Carbon::parse($day['date'])->startOfWeek(Carbon::MONDAY)->format('M j')
+                    : $day['label'];
+                $bucketLogged[$key] = round(($bucketLogged[$key] ?? 0) + $day['logged'], 2);
+                $bucketExpected[$key] = round(($bucketExpected[$key] ?? 0) + $day['expected'], 2);
+            }
+
+            $duration = $profile['duration'];
+            $verifyUrl = InternshipReportQr::url([
+                'name' => $profile['name'],
+                'duration' => $duration['label'] ?? ($from.' – '.$to),
+                'matricule' => $profile['matricule'],
+            ]);
+
+            $people[] = [
+                'identity' => $identity,
+                'user_id' => $profile['user_id'],
+                'is_intern' => $profile['is_intern'],
+                'name' => $profile['name'],
+                'matricule' => $profile['matricule'],
+                'program' => $profile['program'],
+                'duration' => $duration,
+                'logged' => $logged,
+                'expected' => $expected,
+                'remaining' => max(0, round($expected - $logged, 2)),
+                'overtime' => max(0, round($logged - $expected, 2)),
+                'activity_count' => count($personActivities),
+                'entry_count' => $personRows->count(),
+                'by_activity' => $personActivities,
+                'days' => $days,
+                'rows' => $personRows,
+                'verify_url' => $verifyUrl,
+            ];
+        }
+
+        usort($people, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        arsort($byActivity);
+
+        $chartPeople = ['labels' => [], 'logged' => [], 'expected' => []];
+        foreach ($people as $person) {
+            $chartPeople['labels'][] = $person['name'];
+            $chartPeople['logged'][] = $person['logged'];
+            $chartPeople['expected'][] = $person['expected'];
+        }
+
+        return [
+            'from' => $from,
+            'to' => $to,
+            'scope' => ($userId && $userId !== 'all') ? 'one' : 'all',
+            'total_logged' => round((float) $rows->sum('hours'), 2),
+            'total_expected' => round((float) collect($people)->sum('expected'), 2),
+            'total_activities' => count($byActivity),
+            'total_entries' => $rows->count(),
+            'people_count' => count($people),
+            'by_activity' => $byActivity,
+            'chart_hours' => [
+                'labels' => array_keys($bucketLogged),
+                'logged' => array_values($bucketLogged),
+                'expected' => array_values($bucketExpected),
+            ],
+            'chart_people' => $chartPeople,
+            'people' => $people,
+            'interns' => array_values(array_filter($people, function ($p) {
+                return ! empty($p['is_intern']);
+            })),
+            'rows' => $rows,
+            'by_employee' => collect($people)->mapWithKeys(function ($p) {
+                return [$p['name'] => ['hours' => $p['logged'], 'entries' => $p['entry_count']]];
+            }),
+            'total_hours' => round((float) $rows->sum('hours'), 2),
+        ];
+    }
+
+    protected function normalizeIdentity($userId)
+    {
+        if (strpos((string) $userId, 'be:') === 0 || strpos((string) $userId, 'pos:') === 0) {
+            return (string) $userId;
+        }
+
+        return 'pos:'.(int) $userId;
+    }
+
+    protected function entryIdentity($entry)
+    {
+        if (! empty($entry->user_id)) {
+            return 'pos:'.$entry->user_id;
+        }
+        if (! empty($entry->be_user_id)) {
+            return 'be:'.$entry->be_user_id;
+        }
+
+        return null;
+    }
+
+    protected function personProfile($identity, $hintName = null)
+    {
+        $name = $hintName ?: 'Unknown';
+        $userId = null;
+        $isIntern = false;
+        $enrolment = null;
+        $program = null;
+        $beyond = null;
+        $user = null;
+
+        if (strpos($identity, 'be:') === 0) {
+            $beyond = BeyondUser::find(substr($identity, 3));
+            if ($beyond) {
+                $name = $beyond->name ?: ($beyond->email ?: $name);
+            }
+        } else {
+            $userId = (int) (strpos($identity, 'pos:') === 0 ? substr($identity, 4) : $identity);
+            $user = User::find($userId);
+            if ($user) {
+                $name = $user->name ?: $name;
+            }
+            if ($user && Schema::hasTable('internship_enrolments')) {
+                $enrolment = InternshipEnrolment::with(['program', 'application'])
+                    ->where('student_user_id', $user->id)
+                    ->orderByDesc('id')
+                    ->first();
+                if ($enrolment) {
+                    $isIntern = true;
+                    $program = optional($enrolment->program)->displayName();
+                    $appName = trim((string) optional($enrolment->application)->full_name);
+                    if ($appName !== '') {
+                        $name = $appName;
+                    }
+                }
+            }
+        }
+
+        return [
+            'user_id' => $userId,
+            'name' => $name,
+            'is_intern' => $isIntern,
+            'matricule' => $this->matriculeFor($user, $beyond, $enrolment),
+            'program' => $program,
+            'duration' => $this->internshipDuration($enrolment),
+            'enrolment' => $enrolment,
+        ];
+    }
+
+    protected function matriculeFor($user, $beyond, $enrolment)
+    {
+        if ($enrolment) {
+            $year = $enrolment->start_date
+                ? Carbon::parse($enrolment->start_date)->format('Y')
+                : date('Y');
+
+            return 'BTW-'.$year.'-'.str_pad((string) $enrolment->id, 5, '0', STR_PAD_LEFT);
+        }
+        if ($user) {
+            return 'BTW-EMP-'.str_pad((string) $user->id, 5, '0', STR_PAD_LEFT);
+        }
+        if ($beyond) {
+            return 'BTW-PRT-'.strtoupper(substr((string) $beyond->id, 0, 8));
+        }
+
+        return '—';
+    }
+
+    protected function internshipDuration($enrolment)
+    {
+        if (! $enrolment) {
+            return null;
+        }
+        $start = $enrolment->start_date
+            ? Carbon::parse($enrolment->start_date)
+            : Carbon::today();
+        $days = $enrolment->plannedDurationDays();
+        $end = $start->copy()->addDays(max(0, $days - 1));
+
+        return [
+            'days' => $days,
+            'start' => $start->toDateString(),
+            'end' => $end->toDateString(),
+            'label' => $days.' day'.($days === 1 ? '' : 's')
+                .' ('.$start->format('j M Y').' – '.$end->format('j M Y').')',
+        ];
+    }
+
+    protected function periodDaySeries($identity, $from, $to)
+    {
+        $loggedMap = $this->hoursByDateForIdentity($identity, $from, $to);
+        $start = Carbon::parse($from)->startOfDay();
+        $end = Carbon::parse($to)->startOfDay();
+        $days = [];
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            $date = $d->toDateString();
+            $days[] = [
+                'date' => $date,
+                'label' => $d->format('M j'),
+                'expected' => $this->expectedHoursForIdentity($identity, $date),
+                'logged' => $loggedMap[$date] ?? 0.0,
+            ];
+        }
+
+        return $days;
+    }
+
+    protected function hoursByDateForIdentity($identity, $from, $to)
+    {
+        $q = TimesheetEntry::query()->whereBetween('entry_date', [$from, $to]);
+        $this->applyEmployeeFilter($q, $identity);
+        $map = [];
+        foreach ($q->get(['entry_date', 'hours']) as $entry) {
+            $date = Carbon::parse($entry->entry_date)->toDateString();
+            $map[$date] = round(($map[$date] ?? 0) + (float) $entry->hours, 2);
+        }
+
+        return $map;
+    }
+
+    protected function workingWeekForIdentity($identity)
+    {
+        if (strpos((string) $identity, 'be:') === 0) {
+            return WorkingWeek::where('be_user_id', substr($identity, 3))->first();
+        }
+        $userId = strpos((string) $identity, 'pos:') === 0
+            ? (int) substr($identity, 4)
+            : (int) $identity;
+
+        return WorkingWeek::where('user_id', $userId)->first();
+    }
+
+    public function expectedHoursForIdentity($identity, $date)
+    {
+        $day = strtolower(Carbon::parse($date)->format('l'));
+        $ww = $this->workingWeekForIdentity($identity);
+        if (! $ww) {
+            return in_array($day, ['saturday', 'sunday'], true) ? 0.0 : 8.0;
+        }
+
+        return $this->dayHours($ww, $day);
+    }
+
+    protected function hoursLoggedOnIdentityDate($identity, $date)
+    {
+        $q = TimesheetEntry::whereDate('entry_date', $date);
+        $this->applyEmployeeFilter($q, $identity);
+
+        return round((float) $q->sum('hours'), 2);
+    }
+
     public function overtimeReport($from, $to, $userId = null)
     {
         $q = TimesheetEntry::query()->whereBetween('entry_date', [$from, $to]);
@@ -723,11 +1023,25 @@ class TimesheetService
     public function employeeOptions()
     {
         $out = collect();
-        User::where('is_deleted', false)->orderBy('name')->limit(200)->get(['id', 'name'])
-            ->each(function ($u) use ($out) {
+        $internIds = [];
+        if (Schema::hasTable('internship_enrolments')) {
+            $internIds = InternshipEnrolment::query()
+                ->whereNotNull('student_user_id')
+                ->pluck('student_user_id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->unique()
+                ->flip()
+                ->all();
+        }
+
+        User::where('is_deleted', false)->orderBy('name')->limit(300)->get(['id', 'name'])
+            ->each(function ($u) use ($out, $internIds) {
+                $kind = isset($internIds[(int) $u->id]) ? 'Student' : 'Staff';
                 $out->push((object) [
                     'id' => 'pos:'.$u->id,
-                    'name' => $u->name.' (Admin)',
+                    'name' => $u->name.' ('.$kind.')',
                 ]);
             });
 
@@ -738,7 +1052,7 @@ class TimesheetService
                     $label = $u->name ?: $u->email ?: substr($u->id, 0, 8);
                     $out->push((object) [
                         'id' => 'be:'.$u->id,
-                        'name' => $label.' (Portal)',
+                        'name' => $label.' (Staff)',
                     ]);
                 });
         }

@@ -1589,7 +1589,7 @@
                             @if(in_array($role->id, [1, 2]) || in_array('timesheets.admin', $all_permission ?? []) || in_array('timesheets.manage', $all_permission ?? []))
                             <li><a href="#timesheet-admin-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-graph-bar"></i><span>TimeSheet Admin</span></a>
                                 <ul id="timesheet-admin-module" class="collapse list-unstyled ">
-                                    <li id="tsa-report-menu"><a href="{{ route('timesheet.admin.report') }}">TimeSheet Report</a></li>
+                                    <li id="tsa-report-menu"><a href="{{ route('timesheet.admin.report') }}">Reports</a></li>
                                     <li id="tsa-ot-menu"><a href="{{ route('timesheet.admin.overtime') }}">Overtime Report</a></li>
                                     <li id="tsa-manage-menu"><a href="{{ route('timesheet.admin.manage') }}">Manage All</a></li>
                                     <li id="tsa-cat-menu"><a href="{{ route('timesheet.admin.categories') }}">Categories</a></li>

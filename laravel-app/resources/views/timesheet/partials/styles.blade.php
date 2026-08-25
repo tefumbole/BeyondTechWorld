@@ -178,4 +178,50 @@
     .ts-week-bar.is-met { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
     .ts-week-bar.is-ot { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
     .ts-week-bar.is-short { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+
+    .ts-shell-wide { max-width: 1180px; }
+    .ts-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .ts-kpi {
+        background: #fff; border: 1px solid #eef2f7; border-radius: 14px;
+        padding: 1rem 1.1rem; box-shadow: 0 1px 3px rgba(15,23,42,.05);
+    }
+    .ts-kpi .ts-kpi-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #64748b; text-transform: uppercase; }
+    .ts-kpi .ts-kpi-value { font-size: 1.65rem; font-weight: 800; color: #0b3f90; line-height: 1.15; margin-top: 4px; }
+    .ts-kpi .ts-kpi-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .ts-kpi.is-gold .ts-kpi-value { color: #b8860b; }
+    .ts-kpi.is-green .ts-kpi-value { color: #047857; }
+    .ts-kpi.is-orange .ts-kpi-value { color: #c2410c; }
+    .ts-view-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 1rem; }
+    .ts-view-tabs a, .ts-view-tabs button {
+        border: 1px solid #d7deea; background: #fff; color: #475569;
+        border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 13px;
+        cursor: pointer; text-decoration: none !important;
+    }
+    .ts-view-tabs a.is-active, .ts-view-tabs button.is-active {
+        background: #0b3f90; border-color: #0b3f90; color: #fff;
+    }
+    .ts-chart-box { position: relative; height: 280px; }
+    .ts-person-head {
+        display: flex; justify-content: space-between; align-items: flex-start;
+        flex-wrap: wrap; gap: 10px 16px; margin-bottom: 12px;
+    }
+    .ts-person-name { font-size: 1.15rem; font-weight: 800; color: #0b3f90; margin: 0; }
+    .ts-matricule {
+        display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 700;
+        letter-spacing: .06em; color: #8a7424; background: #f8efc8; border-radius: 6px; padding: 3px 8px;
+    }
+    .ts-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ts-btn-outline {
+        background: #fff; border: 1px solid #0b3f90; color: #0b3f90;
+        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 13px;
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none !important;
+    }
+    .ts-btn-outline:hover { background: #eff6ff; color: #0b3f90; }
+    .ts-btn-gold {
+        background: #c6ab47; border: 1px solid #c6ab47; color: #10213d;
+        border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 13px;
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none !important;
+    }
+    .ts-progress { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+    .ts-progress > span { display: block; height: 100%; background: linear-gradient(90deg, #0b3f90, #c6ab47); }
 </style>

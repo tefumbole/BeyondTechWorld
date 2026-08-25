@@ -148,6 +148,11 @@ Route::redirect('/share-purchase', '/shares');
 // Public payslip verification (QR / reference lookup)
 Route::get('/verify/payslip/{code}', 'PayslipVerifyController@show')->name('payslip.verify');
 
+// Public internship timesheet report verification (QR on printed report)
+Route::get('/verify/internship/{token}', 'InternshipReportVerifyController@show')
+    ->where('token', '[A-Za-z0-9._\-]+')
+    ->name('internship.report.verify');
+
 // Public sales invoice verification (QR scan)
 Route::get('/verify/invoice/{id}/{token}', 'SaleInvoiceVerifyController@show')->name('sale.invoice.verify');
 
@@ -467,6 +472,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     // Timesheet — Admin
     Route::get('/admin/timesheet-admin/report', 'TimesheetAdminController@report')->name('timesheet.admin.report');
+    Route::get('/admin/timesheet-admin/report/print', 'TimesheetAdminController@reportPrint')->name('timesheet.admin.report.print');
     Route::get('/admin/timesheet-admin/overtime', 'TimesheetAdminController@overtime')->name('timesheet.admin.overtime');
     Route::get('/admin/timesheet-admin/manage', 'TimesheetAdminController@manage')->name('timesheet.admin.manage');
     Route::post('/admin/timesheet-admin/entries/{id}/status', 'TimesheetAdminController@updateEntryStatus')->name('timesheet.admin.entries.status');

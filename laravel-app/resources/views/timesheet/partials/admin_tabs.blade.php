@@ -2,7 +2,7 @@
 @php
     $tsaTab = $tsaTab ?? '';
     $tabs = [
-        ['timesheet.admin.report', 'TimeSheet Report', 'dripicons-document', 'tone-blue'],
+        ['timesheet.admin.report', 'Reports', 'dripicons-document', 'tone-blue'],
         ['timesheet.admin.overtime', 'Overtime Report', 'dripicons-clock', 'tone-orange'],
         ['timesheet.admin.manage', 'Manage All', 'dripicons-user-group', 'tone-purple'],
         ['timesheet.admin.categories', 'Categories', 'dripicons-tags', 'tone-teal'],

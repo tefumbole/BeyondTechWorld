@@ -45,16 +45,38 @@ class TimesheetAdminController extends Controller
     public function report(Request $request)
     {
         $this->authorizeAdmin();
-        $from = $request->get('from', now()->toDateString());
+        $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
         $userId = $request->get('user_id', 'all');
-        $employees = $this->timesheet->employeeOptions();
-        $report = null;
-        if ($request->has('generate') || $request->has('from')) {
-            $report = $this->timesheet->report($from, $to, $userId);
+        $view = $request->get('view', 'summary');
+        if (! in_array($view, ['summary', 'detailed', 'internship'], true)) {
+            $view = 'summary';
         }
+        $employees = $this->timesheet->employeeOptions();
+        $report = $this->timesheet->fullReport($from, $to, $userId);
 
-        return view('timesheet.admin.report', compact('from', 'to', 'userId', 'employees', 'report'));
+        return view('timesheet.admin.report', compact('from', 'to', 'userId', 'employees', 'report', 'view'));
+    }
+
+    public function reportPrint(Request $request)
+    {
+        $this->authorizeAdmin();
+        $from = $request->get('from', now()->startOfMonth()->toDateString());
+        $to = $request->get('to', now()->toDateString());
+        $userId = $request->get('user_id', 'all');
+        $kind = $request->get('kind', 'summary');
+        if (! in_array($kind, ['summary', 'detailed', 'internship'], true)) {
+            $kind = 'summary';
+        }
+        $report = $this->timesheet->fullReport($from, $to, $userId);
+        $letterhead = \App\Support\Letterhead::viewVars();
+        $signer = Auth::user();
+        $sign = \App\Support\LetterSignature::invoiceSignatureForUser($signer, now());
+        $adminName = $signer ? $signer->name : optional(\App\Support\LetterSignature::adminWithSignature())->name;
+
+        return view('timesheet.admin.report_print', array_merge($letterhead, compact(
+            'from', 'to', 'userId', 'kind', 'report', 'sign', 'adminName'
+        )));
     }
 
     public function overtime(Request $request)
