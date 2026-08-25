@@ -56,14 +56,9 @@ $(document).ready(function () {
         });
     }
 
-    $(document).scroll(function() {
-        var y = $(this).scrollTop();
-        if (y > 65) {
-            $('nav.side-navbar').css("top","0");
-        } else {
-            $('nav.side-navbar').css("top","63px");
-        }
-    });
+    // Keep the sidebar flush with the viewport. The old 63px offset pushed
+    // Sign Out below the fold for short menus (intern / student).
+    $('nav.side-navbar').css({ top: '0', height: '100vh' });
 
 
     // ------------------------------------------------------- //

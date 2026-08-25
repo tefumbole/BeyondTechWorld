@@ -113,9 +113,11 @@
                 background: var(--beyond-primary);
                 box-shadow: 2px 0 14px rgba(5, 28, 64, 0.25);
                 position: fixed;
-                top: 0;
+                top: 0 !important;
                 left: 0;
-                height: 100vh;
+                bottom: 0 !important;
+                height: 100vh !important;
+                max-height: 100vh !important;
                 z-index: 1030;
             }
 
@@ -253,8 +255,15 @@
                 color: #fff;
             }
 
-            .sidebar-user-link.logout-link {
+            .sidebar-user-link.logout-link,
+            button.sidebar-user-link.logout-link {
                 color: #ffb4b4;
+                width: 100%;
+                background: none;
+                border: 0;
+                cursor: pointer;
+                text-align: left;
+                font-family: inherit;
             }
 
             .sidebar-user-link.logout-link i {
@@ -2730,12 +2739,11 @@
                     <a href="{{route('user.profile', ['id' => Auth::id()])}}" class="sidebar-user-link">
                         <i class="dripicons-user"></i> My Profile
                     </a>
-                    <a href="{{ route('logout') }}" class="sidebar-user-link logout-link"
-                       onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
-                        <i class="dripicons-power"></i> Sign Out
-                    </a>
-                    <form id="sidebar-logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">
+                    <form action="{{ route('logout') }}" method="POST">
                         @csrf
+                        <button type="submit" class="sidebar-user-link logout-link">
+                            <i class="dripicons-power"></i> Sign Out
+                        </button>
                     </form>
                 </div>
             </div>

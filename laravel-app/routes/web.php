@@ -278,7 +278,9 @@ Route::get('/beyond/login', function () {
 
 Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 // Portal logout must NOT share POST /logout with Auth::routes (admin POS logout).
-Route::post('/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
+// GET is allowed so a clipped/JS-blocked Sign Out link still signs the student out.
+Route::match(['get', 'post'], '/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
+Route::get('/logout', 'Auth\LoginController@logout');
 
 Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');

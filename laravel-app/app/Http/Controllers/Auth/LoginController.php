@@ -59,27 +59,11 @@ class LoginController extends Controller
     }
 
     /**
-     * Admin/POS logout. Clears web OTP flag and any bridged Beyond portal session.
-     * Portal users must POST to /portal/logout (beyond.logout) instead.
+     * Admin/POS/intern logout. Clears both guards and destroys the session
+     * so showLogin cannot bounce an intern back to their dashboard.
      */
     public function logout(Request $request)
     {
-        if (Auth::guard('web')->check()) {
-            \App\Services\ActivityLogService::log([
-                'action' => 'logout',
-                'entity' => 'auth',
-                'summary' => 'Logged out',
-                'method' => 'POST',
-                'path' => '/logout',
-            ], $request);
-            Auth::guard('web')->user()->update(['otp_verify' => '0']);
-            Auth::guard('web')->logout();
-        }
-        if (Auth::guard('beyond')->check()) {
-            Auth::guard('beyond')->logout();
-        }
-        $request->session()->forget(['beyond_otp_verified', 'beyond_masked_phone', 'password_reset_phone']);
-
-        return redirect()->route('login');
+        return \App\Support\AuthLogout::perform($request);
     }
 }

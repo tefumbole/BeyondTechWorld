@@ -504,13 +504,7 @@ class BeyondAuthController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::guard('beyond')->logout();
-        if (Auth::guard('web')->check()) {
-            Auth::guard('web')->logout();
-        }
-        $request->session()->forget(['beyond_otp_verified', 'beyond_masked_phone', 'password_reset_phone']);
-
-        return redirect('/login');
+        return \App\Support\AuthLogout::perform($request);
     }
 
     public function showForgotPassword(Request $request)

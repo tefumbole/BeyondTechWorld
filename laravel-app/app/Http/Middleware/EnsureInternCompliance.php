@@ -48,7 +48,9 @@ class EnsureInternCompliance
     protected function isExemptPath($request)
     {
         return $request->is('logout')
+            || $request->is('logout/*')
             || $request->is('portal/logout')
+            || $request->is('portal/logout/*')
             || $request->is('otp/*')
             || $request->is('staff-set-password')
             || $request->is('staff-otp-login*');

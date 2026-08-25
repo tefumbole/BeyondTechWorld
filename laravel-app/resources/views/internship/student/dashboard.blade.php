@@ -3,8 +3,18 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <h1 class="ip-title"><i class="dripicons-graduation"></i> My Internship</h1>
-        <p class="ip-meta mb-3">See your current task, your supervisors, and how that task was graded. If today’s task has not arrived, request it here. After you finish, upload your work from the task page.</p>
+        <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:12px;">
+            <div>
+                <h1 class="ip-title"><i class="dripicons-graduation"></i> My Internship</h1>
+                <p class="ip-meta mb-3">See your current task, your supervisors, and how that task was graded. If today’s task has not arrived, request it here. After you finish, upload your work from the task page.</p>
+            </div>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="ip-btn ip-btn-outline ip-btn-danger">
+                    <i class="dripicons-power"></i> Logout
+                </button>
+            </form>
+        </div>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
