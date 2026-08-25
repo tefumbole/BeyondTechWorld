@@ -6,7 +6,7 @@
     @php
         $siteLogoUrl = \App\Support\SiteBrand::logoUrl($general_setting ?? null);
         $siteTitle = \App\Support\SiteBrand::siteTitle($general_setting ?? null);
-        $sitePhone = \App\Support\SiteContent::text('contact.phone', '+237 675 321 739');
+        $developerPhone = '+237675321739';
         $versionLabel = \App\Support\AppVersion::label();
     @endphp
     <title>@yield('title', 'Sign in') | {{ $siteTitle }}</title>
@@ -57,6 +57,7 @@
             padding: 4px;
             background: linear-gradient(180deg, #f0d36a 0%, #c9a227 55%, #8a6d12 100%);
             box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.18), 0 0 28px rgba(212, 175, 55, 0.38);
+            animation: authLogoGlow 3.2s ease-in-out infinite;
         }
         .auth-logo-ring img {
             width: 100%;
@@ -65,6 +66,31 @@
             object-fit: contain;
             background: #fff;
             display: block;
+            animation: authLogoSpin 8s linear infinite, authLogoMetal 5s ease-in-out infinite;
+        }
+        @keyframes authLogoSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes authLogoMetal {
+            0%, 100% {
+                filter: sepia(1) saturate(4.2) hue-rotate(2deg) brightness(1.12) contrast(1.05);
+            }
+            50% {
+                filter: grayscale(1) brightness(1.45) contrast(1.15) saturate(0.2);
+            }
+        }
+        @keyframes authLogoGlow {
+            0%, 100% {
+                box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.18), 0 0 28px rgba(212, 175, 55, 0.38);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(220, 220, 230, 0.22), 0 0 36px rgba(220, 220, 230, 0.55);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .auth-logo-ring,
+            .auth-logo-ring img { animation: none; }
         }
         .auth-title {
             margin: 0;
@@ -177,10 +203,10 @@
         .auth-screen-footer {
             margin-top: 28px;
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px 14px;
+            gap: 10px;
             text-align: center;
         }
         .auth-credit {
@@ -230,7 +256,7 @@
     </div>
 
     <div class="auth-screen-footer">
-        <div class="auth-credit">Developed By | Sr. Engr. Tefu R. Mbole ({{ $sitePhone }})</div>
+        <div class="auth-credit">Developed By | Sr. Engr. Tefu R. Mbole ({{ $developerPhone }})</div>
         <div class="auth-version">BCL V.{{ $versionLabel }}</div>
     </div>
 </div>
