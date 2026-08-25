@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Services\TimesheetService;
+use App\TimesheetEntry;
 use App\Support\InternCompliance;
+use App\User;
 use App\Support\InternshipHandbook;
 use App\Support\InternshipRubric;
 use Illuminate\Http\Request;
@@ -44,6 +47,79 @@ class InternshipStudentController extends Controller
             return;
         }
         abort(403, 'Student internship access denied.');
+    }
+
+    /**
+     * Intern home shown at /admin (and after login). Sales dashboard is empty for Interns.
+     */
+    public function renderHome(User $user)
+    {
+        $pending = $this->service->pendingForStudent($user);
+        $enrolment = $pending['enrolment'] ?? null;
+        $assignment = $pending['assignment'] ?? null;
+        $lastPassed = $pending['last_passed'] ?? null;
+        $isWorkingToday = $enrolment
+            ? $this->service->isWorkingDate($user, now())
+            : false;
+        $supervisors = $enrolment ? $this->service->studentSupervisors($enrolment) : [];
+        $requestState = $enrolment
+            ? $this->service->studentTaskRequestState($enrolment, $user)
+            : null;
+        $gradeSummary = $this->service->studentGradeSummary($assignment ?: $lastPassed);
+
+        $timesheet = app(TimesheetService::class);
+        $weekScore = $timesheet->weekScore($user->id);
+        $dayBalance = $timesheet->dayBalance($user->id, date('Y-m-d'));
+        $totalHours = round((float) TimesheetEntry::where('user_id', $user->id)->sum('hours'), 2);
+
+        $openStatuses = ['available', 'in_progress', 'revision_required', 'submitted'];
+        $currentTaskCount = 0;
+        if ($enrolment) {
+            $currentTaskCount = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+                ->whereIn('status', $openStatuses)
+                ->count();
+        }
+
+        $byActivity = [];
+        $byCategory = [];
+        $entries = TimesheetEntry::with('activity.categoryRel')->where('user_id', $user->id)->get();
+        foreach ($entries as $entry) {
+            $actName = $entry->activity_name ?: optional($entry->activity)->name ?: 'Uncategorized';
+            $byActivity[$actName] = ($byActivity[$actName] ?? 0) + (float) $entry->hours;
+            $cat = optional(optional($entry->activity)->categoryRel)->name
+                ?: (optional($entry->activity)->category ?: 'Uncategorized');
+            $byCategory[$cat] = ($byCategory[$cat] ?? 0) + (float) $entry->hours;
+        }
+        arsort($byActivity);
+        arsort($byCategory);
+
+        $dowShort = [
+            'monday' => 'Mon', 'tuesday' => 'Tue', 'wednesday' => 'Wed',
+            'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun',
+        ];
+        $weekChart = ['labels' => [], 'logged' => [], 'expected' => []];
+        foreach ($weekScore['days'] as $day) {
+            $weekChart['labels'][] = $dowShort[$day['day']] ?? $day['day'];
+            $weekChart['logged'][] = $day['logged'];
+            $weekChart['expected'][] = $day['expected'];
+        }
+
+        return view('internship.student.home', compact(
+            'enrolment',
+            'assignment',
+            'lastPassed',
+            'isWorkingToday',
+            'supervisors',
+            'requestState',
+            'gradeSummary',
+            'weekScore',
+            'dayBalance',
+            'totalHours',
+            'currentTaskCount',
+            'byActivity',
+            'byCategory',
+            'weekChart'
+        ));
     }
 
     public function dashboard()

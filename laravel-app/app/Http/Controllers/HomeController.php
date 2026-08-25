@@ -367,6 +367,10 @@ echo $response;
     {
         $this->manageBooking();
         $role = Role::find(Auth::user()->role_id);
+        if (Auth::user() && \App\Support\InternCompliance::appliesTo(Auth::user())) {
+            return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
+                ->renderHome(Auth::user());
+        }
         $role->revokePermissionTo('search_all_products');
         if (! \App\Support\LocalDevAuth::skipStaffOtp() && $role->hasPermissionTo('one_time_otp')) {
             if (Auth::user()->otp_verify == 0) {

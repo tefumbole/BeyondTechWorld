@@ -310,7 +310,7 @@ class InternCompliance
             return route('timesheet.fill', ['date' => $missing, 'intern' => 1]);
         }
 
-        return route('internship.student.dashboard');
+        return url('/admin');
     }
 
     /** Owner/Admin or staff who manage all internship programmes/enrolments. */
