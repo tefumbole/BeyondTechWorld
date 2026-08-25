@@ -252,6 +252,8 @@ class CreateInternshipProgramModule extends Migration
             'internship.submissions.request_revision',
             'internship.enrolments.view',
             'internship.reports.view',
+            'timesheets_module',
+            'timesheets.employee',
         ];
         $supervisor = $this->ensureRole('Internship Supervisor');
         foreach ($supervisorPerms as $name) {

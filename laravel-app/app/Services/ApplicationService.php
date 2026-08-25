@@ -773,45 +773,47 @@ class ApplicationService
     }
 
     /**
-     * Enrolment exists with at least one supervisor (primary or JSON refs).
-     * Used to decide if a selected intern still needs assignment.
+     * True placement: an active/paused/completed enrolment linked by application
+     * id or by the intern's ERP user email. Supervisor is not required — auto-enrol
+     * on select already counts as placed.
+     */
+    public function applyHasPlacement($query)
+    {
+        return $query->whereExists(function ($w) {
+            $this->placementExistsConstraint($w);
+        });
+    }
+
+    /**
+     * @deprecated Use applyHasPlacement(). Kept so older callers keep working.
      */
     public function applyHasSupervisedPlacement($query)
     {
-        return $query->whereExists(function ($w) {
-            $w->select(DB::raw(1))
-                ->from('internship_enrolments as ie')
-                ->whereColumn('ie.application_id', 'applications.id')
-                ->whereIn('ie.status', ['active', 'paused', 'completed'])
-                ->where(function ($s) {
-                    $s->whereNotNull('ie.supervisor_id')
-                        ->orWhere(function ($j) {
-                            $j->whereNotNull('ie.supervisors_json')
-                                ->where('ie.supervisors_json', '!=', '')
-                                ->where('ie.supervisors_json', '!=', '[]')
-                                ->where('ie.supervisors_json', '!=', 'null');
-                        });
-                });
-        });
+        return $this->applyHasPlacement($query);
     }
 
     public function applyNeedsAssignment($query)
     {
         return $query->whereNotExists(function ($w) {
-            $w->select(DB::raw(1))
-                ->from('internship_enrolments as ie')
-                ->whereColumn('ie.application_id', 'applications.id')
-                ->whereIn('ie.status', ['active', 'paused', 'completed'])
-                ->where(function ($s) {
-                    $s->whereNotNull('ie.supervisor_id')
-                        ->orWhere(function ($j) {
-                            $j->whereNotNull('ie.supervisors_json')
-                                ->where('ie.supervisors_json', '!=', '')
-                                ->where('ie.supervisors_json', '!=', '[]')
-                                ->where('ie.supervisors_json', '!=', 'null');
-                        });
-                });
+            $this->placementExistsConstraint($w);
         });
+    }
+
+    protected function placementExistsConstraint($w)
+    {
+        $w->select(DB::raw(1))
+            ->from('internship_enrolments as ie')
+            ->whereIn('ie.status', ['active', 'paused', 'completed'])
+            ->where(function ($m) {
+                $m->whereColumn('ie.application_id', 'applications.id')
+                    ->orWhereExists(function ($u) {
+                        $u->select(DB::raw(1))
+                            ->from('users')
+                            ->whereColumn('users.id', 'ie.student_user_id')
+                            ->where('users.is_deleted', 0)
+                            ->whereRaw('LOWER(TRIM(users.email)) = LOWER(TRIM(applications.email))');
+                    });
+            });
     }
 
     /**
@@ -846,16 +848,16 @@ class ApplicationService
         }
 
         $all = (clone $base)->count();
-        $hired = (clone $base)->where('applications.status', Application::STATUS_HIRED)->count();
-        $placed = $this->applyHasSupervisedPlacement(clone $base)->count();
-        $selected = (clone $base)
-            ->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
-            ->count();
-        // Ready = selected/shortlisted still missing supervisor assignment
-        // (auto-enrol on select alone does not count as assigned).
-        $ready = $this->applyNeedsAssignment(
+        $placed = $this->applyHasPlacement(clone $base)->count();
+        // Selected / Hired tabs are exclusive of already-placed people so the
+        // same intern is not listed under three headings.
+        $selected = $this->applyNeedsAssignment(
             (clone $base)->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted'])
         )->count();
+        $hired = $this->applyNeedsAssignment(
+            (clone $base)->where('applications.status', Application::STATUS_HIRED)
+        )->count();
+        $ready = $this->applyNeedsAssignment(clone $base)->count();
 
         return [
             'ready' => $ready,
@@ -1271,6 +1273,8 @@ class ApplicationService
             'internship.submissions.request_revision',
             'internship.enrolments.view',
             'internship.reports.view',
+            'timesheets_module',
+            'timesheets.employee',
         ];
 
         $supervisorRole = \App\Roles::where('is_active', true)->where('name', 'Internship Supervisor')->first()

@@ -970,4 +970,23 @@ class WhatsAppMessage
 
         return $msg;
     }
+
+    /**
+     * Admin asks an intern to (re)configure their working week.
+     */
+    public static function internshipWorkingWeekRequest($name, $loginUrl = null, $timesheetUrl = null)
+    {
+        $loginUrl = $loginUrl ?: url('/login');
+        $timesheetUrl = $timesheetUrl ?: url('/admin/timesheet/working-week');
+
+        $msg = self::statusBlock('📅', 'Set your working week');
+        $msg .= self::greeting($name ?: 'Intern');
+        $msg .= "Please open *Timesheets → Working Week* and save the days and hours you work. Daily internship tasks cannot be released until this is saved.\n";
+        $msg .= self::actionLink('Sign in', $loginUrl);
+        $msg .= self::actionLink('Open Working Week', $timesheetUrl);
+        $msg .= "If you already saved a week and need to change it, open the same link and save again.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
 }

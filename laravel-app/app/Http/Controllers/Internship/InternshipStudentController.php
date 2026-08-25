@@ -50,18 +50,58 @@ class InternshipStudentController extends Controller
         $pending = $this->service->pendingForStudent(Auth::user());
         $enrolment = $pending['enrolment'] ?? null;
         $assignment = $pending['assignment'] ?? null;
+        $lastPassed = $pending['last_passed'] ?? null;
         $isWorkingToday = $enrolment
             ? $this->service->isWorkingDate(Auth::user(), now())
             : false;
+        $supervisors = $enrolment ? $this->service->studentSupervisors($enrolment) : [];
+        $requestState = $enrolment
+            ? $this->service->studentTaskRequestState($enrolment, Auth::user())
+            : null;
+        $gradeSummary = $this->service->studentGradeSummary($assignment ?: $lastPassed);
 
-        return view('internship.student.dashboard', compact('enrolment', 'assignment', 'isWorkingToday'));
+        return view('internship.student.dashboard', compact(
+            'enrolment',
+            'assignment',
+            'lastPassed',
+            'isWorkingToday',
+            'supervisors',
+            'requestState',
+            'gradeSummary'
+        ));
+    }
+
+    public function requestTask()
+    {
+        $this->allowStudent();
+        $pending = $this->service->pendingForStudent(Auth::user());
+        $enrolment = $pending['enrolment'] ?? null;
+        if (! $enrolment) {
+            return redirect()->route('internship.student.dashboard')
+                ->with('not_permitted', 'You are not enrolled in an internship program yet.');
+        }
+
+        try {
+            $assignment = $this->service->requestNextTaskForStudent($enrolment, Auth::user());
+        } catch (\Throwable $e) {
+            return redirect()->route('internship.student.dashboard')
+                ->with('not_permitted', $e->getMessage());
+        }
+
+        return redirect()->route('internship.student.task', $assignment->id)
+            ->with('message', 'Task #'.$assignment->progression_day.' is ready. Read the instructions, then upload your work when you finish.');
     }
 
     public function task($id)
     {
         $this->allowStudent();
-        $assignment = InternshipTaskAssignment::with(['task', 'enrolment.program', 'submissions.files', 'submissions.grades'])
-            ->findOrFail($id);
+        $assignment = InternshipTaskAssignment::with([
+            'task',
+            'enrolment.program',
+            'enrolment.supervisor',
+            'submissions.files',
+            'submissions.grades.grader',
+        ])->findOrFail($id);
         if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
             abort(403);
         }
@@ -71,8 +111,16 @@ class InternshipStudentController extends Controller
             : null;
         $hasHandbook = (bool) $handbookPath;
         $stepProgress = $assignment->stepProgress();
+        $supervisors = $this->service->studentSupervisors($assignment->enrolment);
+        $gradeSummary = $this->service->studentGradeSummary($assignment);
 
-        return view('internship.student.task', compact('assignment', 'hasHandbook', 'stepProgress'));
+        return view('internship.student.task', compact(
+            'assignment',
+            'hasHandbook',
+            'stepProgress',
+            'supervisors',
+            'gradeSummary'
+        ));
     }
 
     public function updateStepProgress(Request $request, $id)
@@ -168,13 +216,14 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $enrolment = InternshipEnrolment::with(['program', 'assignments' => function ($q) {
-            $q->where('status', 'passed')->orderBy('progression_day');
-        }, 'assignments.task', 'assignments.latestSubmission'])
+            $q->orderBy('progression_day');
+        }, 'assignments.task', 'assignments.latestSubmission.grades.grader'])
             ->where('student_user_id', Auth::id())
             ->orderByDesc('id')
             ->first();
+        $supervisors = $enrolment ? $this->service->studentSupervisors($enrolment) : [];
 
-        return view('internship.student.portfolio', compact('enrolment'));
+        return view('internship.student.portfolio', compact('enrolment', 'supervisors'));
     }
 
     public function downloadFile($fileId)

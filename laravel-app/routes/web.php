@@ -474,6 +474,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     // 180-day Internship Program (additive)
     Route::get('/admin/internship', 'Internship\InternshipAdminController@dashboard')->name('internship.dashboard');
     Route::get('/admin/internship/interns', 'Internship\InternshipAdminController@interns')->name('internship.interns');
+    Route::post('/admin/internship/interns/{id}/request-week', 'Internship\InternshipAdminController@requestWorkingWeek')->name('internship.interns.request_week');
     Route::get('/admin/internship/supervisors', 'Internship\InternshipAdminController@supervisors')->name('internship.supervisors');
     Route::get('/admin/internship/programs', 'Internship\InternshipAdminController@programs')->name('internship.programs');
     Route::get('/admin/internship/programs/{id}', 'Internship\InternshipAdminController@programShow')->name('internship.programs.show');
@@ -493,6 +494,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/internship/tasks', 'Internship\InternshipAdminController@taskManager')->name('internship.tasks');
     Route::post('/admin/internship/tasks/{id}/resend', 'Internship\InternshipAdminController@resendTask')->name('internship.tasks.resend');
     Route::get('/admin/internship/student', 'Internship\InternshipStudentController@dashboard')->name('internship.student.dashboard');
+    Route::post('/admin/internship/student/request-task', 'Internship\InternshipStudentController@requestTask')->name('internship.student.request');
     Route::get('/admin/internship/student/portfolio', 'Internship\InternshipStudentController@portfolio')->name('internship.student.portfolio');
     Route::get('/admin/internship/student/task/{id}', 'Internship\InternshipStudentController@task')->name('internship.student.task');
     Route::get('/admin/internship/student/task/{id}/handbook', 'Internship\InternshipStudentController@downloadHandbook')->name('internship.student.handbook');

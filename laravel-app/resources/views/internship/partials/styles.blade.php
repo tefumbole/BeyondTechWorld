@@ -185,4 +185,22 @@
     .ip-stat-orange { background: linear-gradient(135deg, #c2410c, #f59e0b); }
     .ip-chart-title { color: #0b3f90; font-weight: 800; font-size: 1rem; margin: 0 0 .75rem; }
     .ip-chart-box { position: relative; height: 240px; }
+    .ip-supervisor {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: .75rem 0; border-top: 1px solid #eef2f7;
+    }
+    .ip-supervisor:first-of-type { border-top: 0; padding-top: 0; }
+    .ip-supervisor-avatar {
+        width: 40px; height: 40px; border-radius: 999px; flex-shrink: 0;
+        background: #0b3f90; color: #fff; font-weight: 800;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .ip-grade-box {
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 12px; padding: 1rem 1.1rem;
+    }
+    .ip-grade-submitted { border-color: #fdba74; background: #fff7ed; }
+    .ip-grade-revision_required { border-color: #fca5a5; background: #fef2f2; }
+    .ip-grade-passed { border-color: #6ee7b7; background: #ecfdf5; }
+    .ip-file-list { margin: .5rem 0 0; padding-left: 1.1rem; font-size: 13px; color: #334155; }
 </style>

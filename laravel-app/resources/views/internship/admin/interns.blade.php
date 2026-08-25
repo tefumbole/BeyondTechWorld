@@ -9,7 +9,7 @@
     <div class="container-fluid ip-shell" style="max-width:1400px;">
         <a href="{{ route('internship.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Internships</a>
         <h1 class="ip-title">Interns</h1>
-        <p class="ip-meta mb-3">Accepted or hired internship applicants. <strong>Ready to assign</strong> lists selected interns who still need a supervisor (program alone is not enough). Working weeks saved on application sync to the ERP when the intern is placed. Daily tasks also go out on WhatsApp with a Word handbook (student + supervisor).</p>
+        <p class="ip-meta mb-3">Accepted or hired internship applicants. <strong>Already placed</strong> is anyone with an enrolment (program assigned). <strong>Ready to assign</strong>, <strong>Selected</strong>, and <strong>Hired</strong> only list people who are not placed yet, so the same intern does not appear in three tabs. If a working week is missing, send them the setup link again from the Working week column.</p>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -110,11 +110,26 @@
                                 @elseif($wwOnApp)
                                     <span class="ip-badge blue">Saved on application</span>
                                     <div class="ip-meta">{{ $wwDetail ?: 'Pending sync' }}</div>
+                                    @if($enrolment)
+                                        <form method="POST" action="{{ route('internship.interns.request_week', $app->id) }}" class="mt-1"
+                                              onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
+                                            @csrf
+                                            <button type="submit" class="ip-btn ip-btn-sm">Request week again</button>
+                                        </form>
+                                    @endif
                                 @elseif(! $enrolment)
                                     <span class="ip-meta">—</span>
                                 @else
                                     <span class="ip-badge warn">Missing</span>
                                     <div class="ip-meta">Tasks will not release</div>
+                                    <div class="mt-1 d-flex flex-wrap" style="gap:6px;">
+                                        <a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ url('/admin/timesheet/working-week') }}" target="_blank" rel="noopener">Open link</a>
+                                        <form method="POST" action="{{ route('internship.interns.request_week', $app->id) }}" class="d-inline"
+                                              onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
+                                            @csrf
+                                            <button type="submit" class="ip-btn ip-btn-sm">Request week</button>
+                                        </form>
+                                    </div>
                                 @endif
                             </td>
                             <td>
@@ -143,7 +158,12 @@
                                     </div>
                                 @elseif(! $wwConfigured && ! $wwOnApp)
                                     <span class="ip-badge warn">No WW</span>
-                                    <div class="ip-meta">Configure working week</div>
+                                    <div class="ip-meta">Ask them to save Working Week</div>
+                                    <form method="POST" action="{{ route('internship.interns.request_week', $app->id) }}" class="mt-1"
+                                          onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
+                                        @csrf
+                                        <button type="submit" class="ip-btn ip-btn-sm">Request week</button>
+                                    </form>
                                 @elseif(! $isWorkingToday)
                                     <span class="ip-meta">Not a working day</span>
                                     <div><a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ route('internship.tasks', ['status' => 'today']) }}">Task board</a></div>

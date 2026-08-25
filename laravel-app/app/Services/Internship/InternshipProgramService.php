@@ -1028,13 +1028,353 @@ class InternshipProgramService
         }
         $open = $enrolment->currentOpenAssignment();
         if ($open) {
-            $open->load('task', 'latestSubmission');
+            $open->load(['task', 'latestSubmission.grades.grader', 'latestSubmission.files']);
         }
+
+        $last = InternshipTaskAssignment::with(['task', 'latestSubmission.grades.grader'])
+            ->where('enrolment_id', $enrolment->id)
+            ->where('status', 'passed')
+            ->orderByDesc('progression_day')
+            ->first();
 
         return [
             'enrolment' => $enrolment,
             'assignment' => $open,
+            'last_passed' => $last,
         ];
+    }
+
+    /**
+     * Supervisors the intern should see (primary + extra refs), with contact details.
+     *
+     * @return array<int, array{name:string,email:string,phone:string,source:string}>
+     */
+    public function studentSupervisors(InternshipEnrolment $enrolment)
+    {
+        $people = [];
+        $seen = [];
+        $push = function ($name, $email, $phone, $source) use (&$people, &$seen) {
+            $name = trim((string) $name);
+            $email = trim((string) $email);
+            $phone = trim((string) $phone);
+            if ($name === '' && $email === '' && $phone === '') {
+                return;
+            }
+            $key = $email !== ''
+                ? 'e:'.strtolower($email)
+                : ($phone !== '' ? 'p:'.preg_replace('/\D+/', '', $phone) : 'n:'.strtolower($name));
+            if (isset($seen[$key])) {
+                return;
+            }
+            $seen[$key] = true;
+            $people[] = [
+                'name' => $name !== '' ? $name : 'Supervisor',
+                'email' => $email,
+                'phone' => $phone,
+                'source' => $source,
+            ];
+        };
+
+        $primary = $enrolment->relationLoaded('supervisor')
+            ? $enrolment->supervisor
+            : ($enrolment->supervisor_id
+                ? User::where('is_deleted', false)->find($enrolment->supervisor_id)
+                : null);
+        if ($primary) {
+            $push(
+                $primary->name,
+                $primary->email,
+                $primary->phone ?: ($primary->additional_phone ?? ''),
+                'Primary supervisor'
+            );
+        }
+
+        foreach ($enrolment->supervisorRefs() as $ref) {
+            if (strpos($ref, 'user:') === 0) {
+                $user = User::where('is_deleted', false)->find((int) substr($ref, 5));
+                if ($user) {
+                    $push(
+                        $user->name,
+                        $user->email,
+                        $user->phone ?: ($user->additional_phone ?? ''),
+                        'Supervisor'
+                    );
+                }
+            } elseif (strpos($ref, 'customer:') === 0) {
+                $customer = \App\Customer::find((int) substr($ref, 9));
+                if ($customer) {
+                    $push(
+                        $customer->name ?: $customer->company_name,
+                        $customer->email,
+                        $customer->phone_number,
+                        'Supervisor'
+                    );
+                }
+            }
+        }
+
+        return $people;
+    }
+
+    /**
+     * Whether the intern may pull the next curriculum task themselves.
+     * They may request only the task they should have received and do not already hold.
+     *
+     * @return array{can_request:bool,reason:string,message:string,next_day:?int,task_title:?string}
+     */
+    public function studentTaskRequestState(InternshipEnrolment $enrolment, User $user)
+    {
+        $empty = [
+            'can_request' => false,
+            'reason' => 'none',
+            'message' => '',
+            'next_day' => null,
+            'task_title' => null,
+        ];
+
+        if (! $enrolment || (int) $enrolment->student_user_id !== (int) $user->id) {
+            $empty['reason'] = 'not_yours';
+            $empty['message'] = 'This placement is not yours.';
+
+            return $empty;
+        }
+
+        if ($enrolment->status !== 'active') {
+            $empty['reason'] = 'not_active';
+            $empty['message'] = $enrolment->status === 'completed'
+                ? 'Your internship is complete.'
+                : 'Your placement is paused. Ask your supervisor to resume it.';
+
+            return $empty;
+        }
+
+        $open = $enrolment->currentOpenAssignment();
+        if ($open) {
+            $empty['reason'] = 'already_has_task';
+            $empty['message'] = 'You already have Task #'.$open->progression_day
+                .' — '.(optional($open->task)->title ?: 'your current task').'. Open it to continue.';
+
+            return $empty;
+        }
+
+        if ($enrolment->releaseHeldUntil()) {
+            $empty['reason'] = 'held';
+            $empty['message'] = 'Your supervisor accepted your last submission. The next task is scheduled for '
+                .$enrolment->releaseHeldUntil()->format('D d M Y').' at your working-day start time.';
+
+            return $empty;
+        }
+
+        $nextDay = $enrolment->nextCurriculumDay();
+        if (! $nextDay) {
+            $empty['reason'] = 'complete';
+            $empty['message'] = 'There is no further task in your placement.';
+
+            return $empty;
+        }
+
+        $task = InternshipProgramTask::where('program_id', $enrolment->program_id)
+            ->where('day_number', $nextDay)
+            ->where('is_active', true)
+            ->first();
+        $title = $task ? $task->title : null;
+
+        $releasedCount = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+            ->whereNotNull('released_at')
+            ->count();
+        $isFirstTask = $releasedCount === 0;
+
+        if (! $isFirstTask && ! InternCompliance::workingWeekConfigured($user)) {
+            $empty['reason'] = 'no_week';
+            $empty['message'] = 'Set your Working Week first, then you can request today’s task.';
+            $empty['next_day'] = $nextDay;
+            $empty['task_title'] = $title;
+
+            return $empty;
+        }
+
+        if (! $isFirstTask && ! $this->isWorkingDate($user, Carbon::today())) {
+            $empty['reason'] = 'not_working_day';
+            $empty['message'] = 'Today is not one of your working days, so today’s task cannot be requested yet.';
+            $empty['next_day'] = $nextDay;
+            $empty['task_title'] = $title;
+
+            return $empty;
+        }
+
+        if ($task) {
+            $existing = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+                ->where('program_task_id', $task->id)
+                ->first();
+            if ($existing && in_array($existing->status, ['passed', 'skipped', 'available', 'in_progress', 'submitted', 'revision_required'], true)) {
+                $empty['reason'] = 'already_received';
+                $empty['message'] = 'You have already received Task #'.$nextDay.'.';
+                $empty['next_day'] = $nextDay;
+                $empty['task_title'] = $title;
+
+                return $empty;
+            }
+        }
+
+        return [
+            'can_request' => true,
+            'reason' => 'ready',
+            'message' => $isFirstTask
+                ? 'Your first task has not been released yet. Request it to start.'
+                : 'You have not received today’s task yet. Request it now.',
+            'next_day' => $nextDay,
+            'task_title' => $title,
+        ];
+    }
+
+    /**
+     * Intern pulls the next curriculum task they should have received (not a different one).
+     *
+     * @return InternshipTaskAssignment
+     */
+    public function requestNextTaskForStudent(InternshipEnrolment $enrolment, User $user)
+    {
+        if ((int) $enrolment->student_user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $state = $this->studentTaskRequestState($enrolment, $user);
+        if (empty($state['can_request'])) {
+            throw new \RuntimeException($state['message'] ?: 'You cannot request a task right now.');
+        }
+
+        $ok = $this->tryReleaseNext($enrolment, Carbon::today(), true);
+        if (! $ok) {
+            throw new \RuntimeException('Could not release your next task. Try again shortly or ask your supervisor.');
+        }
+
+        $enrolment->refresh();
+        $assignment = $enrolment->currentOpenAssignment();
+        if (! $assignment) {
+            throw new \RuntimeException('The task was released but could not be loaded. Refresh this page.');
+        }
+
+        return $assignment;
+    }
+
+    /**
+     * Latest grade + review SLA for the intern’s current or last assignment.
+     *
+     * @return array{status:string,label:string,score:?int,decision:?string,feedback:?string,grader:?string,auto_accepted:bool,deadline:?\Carbon\Carbon,waiting_hours:?int}
+     */
+    public function studentGradeSummary(InternshipTaskAssignment $assignment = null)
+    {
+        $empty = [
+            'status' => 'none',
+            'label' => 'No submission yet',
+            'score' => null,
+            'decision' => null,
+            'feedback' => null,
+            'grader' => null,
+            'auto_accepted' => false,
+            'deadline' => null,
+            'waiting_hours' => null,
+        ];
+        if (! $assignment) {
+            return $empty;
+        }
+
+        $assignment->loadMissing(['latestSubmission.grades.grader', 'task']);
+        $submission = $assignment->latestSubmission;
+        $grade = $submission ? $submission->grades->first() : null;
+
+        if ($assignment->status === 'available' || $assignment->status === 'in_progress') {
+            return array_merge($empty, [
+                'status' => $assignment->status,
+                'label' => $assignment->status === 'available'
+                    ? 'Ready — not submitted yet'
+                    : 'In progress — not submitted yet',
+            ]);
+        }
+
+        if ($assignment->status === 'submitted') {
+            $sla = $submission ? $this->reviewSlaStatus($submission) : ['deadline' => null, 'waiting_hours' => null];
+
+            return array_merge($empty, [
+                'status' => 'submitted',
+                'label' => 'Waiting for supervisor review',
+                'deadline' => $sla['deadline'] ?? null,
+                'waiting_hours' => $sla['waiting_hours'] ?? null,
+            ]);
+        }
+
+        if ($grade) {
+            $decision = (string) $grade->decision;
+            $passed = $decision === 'pass' || $assignment->status === 'passed';
+
+            return [
+                'status' => $passed ? 'passed' : 'revision_required',
+                'label' => $passed
+                    ? ($grade->auto_accepted ? 'Accepted (auto-accepted)' : 'Accepted by supervisor')
+                    : 'Revision required',
+                'score' => $grade->score,
+                'decision' => $decision,
+                'feedback' => $grade->feedback,
+                'grader' => optional($grade->grader)->name,
+                'auto_accepted' => (bool) $grade->auto_accepted,
+                'deadline' => null,
+                'waiting_hours' => null,
+            ];
+        }
+
+        if ($assignment->status === 'revision_required') {
+            return array_merge($empty, [
+                'status' => 'revision_required',
+                'label' => 'Revision required',
+            ]);
+        }
+
+        if ($assignment->status === 'passed') {
+            return array_merge($empty, [
+                'status' => 'passed',
+                'label' => 'Accepted',
+            ]);
+        }
+
+        return array_merge($empty, [
+            'status' => $assignment->status,
+            'label' => ucfirst(str_replace('_', ' ', $assignment->status)),
+        ]);
+    }
+
+    /**
+     * WhatsApp the intern a login + Working Week link they can open immediately.
+     *
+     * @return array{success:bool,error?:string,url:string}
+     */
+    public function requestWorkingWeekSetup(User $user = null, $name = null, $phone = null)
+    {
+        $weekUrl = url('/admin/timesheet/working-week');
+        $loginUrl = url('/login');
+        $displayName = $name ?: ($user ? $user->name : 'Intern');
+        $msg = WhatsAppMessage::internshipWorkingWeekRequest($displayName, $loginUrl, $weekUrl);
+
+        if ($user) {
+            $key = 'ww_request:'.$user->id.':'.now()->format('YmdHis');
+            $result = $this->sendWhatsApp($user, $msg, $key, 'working_week_request');
+            $result['url'] = $weekUrl;
+
+            return $result;
+        }
+
+        $phone = trim((string) $phone);
+        if ($phone === '') {
+            return ['success' => false, 'error' => 'No intern user or phone number to message.', 'url' => $weekUrl];
+        }
+
+        try {
+            $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $msg);
+            $result['url'] = $weekUrl;
+
+            return $result;
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage(), 'url' => $weekUrl];
+        }
     }
 
     protected function notifyTaskReleased(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment)

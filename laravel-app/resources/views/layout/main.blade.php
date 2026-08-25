@@ -1484,6 +1484,8 @@
                                         <li id="ip-my-students"><a href="{{ route('internship.supervisor.students') }}">My Interns</a></li>
                                         <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Tasks</a></li>
                                         <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
+                                        <li id="ip-sup-timesheet"><a href="{{ route('timesheet.fill') }}">Fill Time Sheet</a></li>
+                                        <li id="ip-sup-week"><a href="{{ route('timesheet.working-week') }}">Working Week</a></li>
                                     </ul>
                                 </li>
                             @elseif($internship_is_admin)
@@ -1492,7 +1494,7 @@
                             <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
                                 <ul id="internship-module" class="collapse list-unstyled ">
                                     @if($internship_student_active || in_array($role->id, [1,2]))
-                                        <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Placement (student)</a></li>
+                                        <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Task</a></li>
                                         <li id="ip-student-portfolio"><a href="{{ route('internship.student.portfolio') }}">Portfolio</a></li>
                                         <li id="ip-student-timesheet"><a href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}">Fill Time Sheet</a></li>
                                     @endif

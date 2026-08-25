@@ -12,13 +12,16 @@
     <div class="container-fluid ip-shell">
         <a href="{{ route('internship.student.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Dashboard</a>
         <h1 class="ip-title">Task #{{ $assignment->progression_day }} — {{ $task->title }}</h1>
-        <p class="ip-meta">{{ optional($assignment->enrolment->program)->name }} · {{ str_replace('_',' ', $assignment->status) }}</p>
+        <p class="ip-meta">{{ optional($assignment->enrolment->program)->displayName() ?? optional($assignment->enrolment->program)->name }} · {{ str_replace('_',' ', $assignment->status) }}</p>
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if($errors->any())
             <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
         @endif
+
+        @include('internship.student.partials.grade-status', ['gradeSummary' => $gradeSummary ?? []])
+        @include('internship.student.partials.supervisors', ['supervisors' => $supervisors ?? []])
 
         <div class="ip-card ip-pending">
             <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
@@ -104,21 +107,42 @@
         @endif
 
         @if(in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true))
-            <div class="ip-card">
-                <h5 style="font-weight:700;color:#0b3f90;">Submit evidence</h5>
-                <p class="ip-meta">Upload screenshots and/or PDF (max 10 files, 10MB each). Your supervisor will be notified on WhatsApp.</p>
+            <div class="ip-card ip-pending" id="ip-upload">
+                <h5 style="font-weight:700;color:#0b3f90;">How to upload this task</h5>
+                <ol class="ip-ol">
+                    <li>Finish the work using the handbook and the checklist above. Tick each step as you go.</li>
+                    <li>Write a short report in the box below (at least 20 characters): what you did, how you checked it, and any problem you solved.</li>
+                    <li>Attach <strong>1 to 10 files</strong>. Allowed types: <strong>JPG, PNG, GIF, WEBP, or PDF</strong>. Each file must be under <strong>10&nbsp;MB</strong>.</li>
+                    <li>Use screenshots of the finished work, or a PDF report. Name files so your supervisor can tell them apart (for example <code>step-3-screenshot.png</code>).</li>
+                    <li>Click <strong>Submit for grading</strong>. Your supervisor is notified on WhatsApp.</li>
+                    <li>Then fill your timesheet for this day. The next task is released on your next working day after they accept this one.</li>
+                </ol>
+                @if($assignment->status === 'revision_required')
+                    <div class="alert alert-warning">Your supervisor asked for a revision. Upload a <strong>new</strong> set of files that addresses the feedback above. The previous attempt stays in your history.</div>
+                @endif
+                @if($task->submission_requirements)
+                    <p class="mb-2"><strong>This day’s required evidence:</strong> {{ $task->submission_requirements }}</p>
+                @endif
                 <form method="POST" action="{{ route('internship.student.submit', $assignment->id) }}" enctype="multipart/form-data">
                     @csrf
                     <div class="form-group">
-                        <label>Description *</label>
-                        <textarea name="description" class="form-control" rows="6" required minlength="20" placeholder="Describe what you did, how you verified it, and any issues you solved.">{{ old('description') }}</textarea>
+                        <label>1. What you did (required)</label>
+                        <textarea name="description" id="ip-desc" class="form-control" rows="6" required minlength="20" placeholder="Example: I completed the lab steps, captured the output screenshot, and verified the result against the handbook.">{{ old('description') }}</textarea>
+                        <small class="ip-meta"><span id="ip-desc-count">0</span> / 20 characters minimum</small>
                     </div>
                     <div class="form-group">
-                        <label>Screenshots / PDF *</label>
-                        <input type="file" name="files[]" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" multiple required>
+                        <label>2. Attach screenshots or PDF (required)</label>
+                        <input type="file" name="files[]" id="ip-files" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" multiple required>
+                        <small class="ip-meta">JPG, PNG, GIF, WEBP, PDF · max 10 files · 10 MB each</small>
+                        <ul id="ip-file-list" class="ip-file-list"></ul>
                     </div>
-                    <button class="ip-btn" type="submit"><i class="dripicons-cloud-upload"></i> Submit for grading</button>
+                    <button class="ip-btn" type="submit"><i class="dripicons-cloud-upload"></i> 3. Submit for grading</button>
                 </form>
+            </div>
+        @elseif($assignment->status === 'submitted')
+            <div class="ip-card">
+                <h5 style="font-weight:700;color:#0b3f90;">Upload is locked</h5>
+                <p class="mb-0">You already submitted this task. Wait for your supervisor to accept it or request a revision. You will see the grade here and on your dashboard.</p>
             </div>
         @endif
 
@@ -149,6 +173,34 @@
         @endif
     </div>
 </section>
+<script>
+(function () {
+    var desc = document.getElementById('ip-desc');
+    var count = document.getElementById('ip-desc-count');
+    if (desc && count) {
+        var tick = function () { count.textContent = (desc.value || '').length; };
+        desc.addEventListener('input', tick);
+        tick();
+    }
+    var input = document.getElementById('ip-files');
+    var list = document.getElementById('ip-file-list');
+    if (input && list) {
+        input.addEventListener('change', function () {
+            list.innerHTML = '';
+            Array.prototype.forEach.call(input.files || [], function (f) {
+                var li = document.createElement('li');
+                var mb = (f.size / 1048576).toFixed(2);
+                li.textContent = f.name + ' (' + mb + ' MB)';
+                if (f.size > 10 * 1048576) {
+                    li.style.color = '#b91c1c';
+                    li.textContent += ' — too large (max 10 MB)';
+                }
+                list.appendChild(li);
+            });
+        });
+    }
+})();
+</script>
 @if($canEditSteps)
 <script>
 (function () {

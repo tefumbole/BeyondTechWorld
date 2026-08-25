@@ -130,18 +130,17 @@ class InternshipAdminController extends Controller
         $status = $request->get('status', 'ready');
         $q = $this->acceptedInternsQuery();
 
+        $appService = app(ApplicationService::class);
         if ($status === 'hired') {
             $q->where('applications.status', Application::STATUS_HIRED);
+            $appService->applyNeedsAssignment($q);
         } elseif ($status === 'selected') {
             $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted']);
+            $appService->applyNeedsAssignment($q);
         } elseif ($status === 'placed') {
-            // Fully assigned: enrolment with at least one supervisor.
-            app(\App\Services\ApplicationService::class)->applyHasSupervisedPlacement($q);
+            $appService->applyHasPlacement($q);
         } elseif ($status === 'ready') {
-            // Selected / shortlisted still needing supervisor assignment
-            // (program-only auto-enrol does not count as assigned).
-            $q->whereIn('applications.status', [Application::STATUS_SELECTED, 'shortlisted']);
-            app(\App\Services\ApplicationService::class)->applyNeedsAssignment($q);
+            $appService->applyNeedsAssignment($q);
         }
 
         if ($request->filled('q')) {
@@ -158,11 +157,43 @@ class InternshipAdminController extends Controller
 
         $enrolmentsByApp = InternshipEnrolment::with(['student', 'supervisor', 'program'])
             ->whereIn('application_id', $interns->pluck('id')->filter())
+            ->whereIn('status', ['active', 'paused', 'completed'])
+            ->orderByDesc('id')
             ->get()
             ->keyBy('application_id');
 
+        $unlinked = $interns->filter(function ($app) use ($enrolmentsByApp) {
+            return ! isset($enrolmentsByApp[$app->id]);
+        });
+        if ($unlinked->isNotEmpty()) {
+            $emails = $unlinked->pluck('email')->map(function ($e) {
+                return strtolower(trim((string) $e));
+            })->filter()->unique()->values()->all();
+            if ($emails) {
+                $placeholders = implode(',', array_fill(0, count($emails), '?'));
+                $users = \App\User::where('is_deleted', false)
+                    ->whereRaw('LOWER(TRIM(email)) IN ('.$placeholders.')', $emails)
+                    ->get()
+                    ->keyBy(function ($u) {
+                        return strtolower(trim((string) $u->email));
+                    });
+                $byStudent = InternshipEnrolment::with(['student', 'supervisor', 'program'])
+                    ->whereIn('student_user_id', $users->pluck('id')->filter())
+                    ->whereIn('status', ['active', 'paused', 'completed'])
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy('student_user_id');
+                foreach ($unlinked as $app) {
+                    $user = $users[strtolower(trim((string) $app->email))] ?? null;
+                    if (! $user || ! isset($byStudent[$user->id])) {
+                        continue;
+                    }
+                    $enrolmentsByApp[$app->id] = $byStudent[$user->id]->first();
+                }
+            }
+        }
+
         // Sync application Working Week → be_working_week for placed interns who never synced.
-        $appService = app(ApplicationService::class);
         foreach ($interns as $app) {
             $enrolment = $enrolmentsByApp[$app->id] ?? null;
             $student = $enrolment ? $enrolment->student : null;
@@ -755,5 +786,64 @@ class InternshipAdminController extends Controller
             : ' Text + Word handbook sent to student.';
 
         return back()->with('message', 'Task WhatsApp sent to '.$name.'.'.$extra);
+    }
+
+    /**
+     * Send (or re-send) the Working Week setup link to an intern via WhatsApp.
+     * $id is an application UUID from Interns, or an enrolment id from Task Manager.
+     */
+    public function requestWorkingWeek(Request $request, $id)
+    {
+        if (Auth::user()->role_id > 2
+            && ! in_array('internship.enrolments.update', $this->all_permission, true)
+            && ! in_array('internship.notifications.retry', $this->all_permission, true)) {
+            abort(403, 'Not allowed to request a working week.');
+        }
+
+        $user = null;
+        $name = null;
+        $phone = null;
+
+        if (ctype_digit((string) $id)) {
+            $enrolment = InternshipEnrolment::with('student')->findOrFail((int) $id);
+            $user = $enrolment->student;
+            $name = $user ? $user->name : null;
+            $phone = $user ? ($user->phone ?: $user->additional_phone) : null;
+        } else {
+            $application = Application::findOrFail($id);
+            $name = $application->full_name;
+            $phone = $application->whatsapp_number ?: $application->phone;
+            $enrolment = InternshipEnrolment::with('student')
+                ->where('application_id', $application->id)
+                ->whereIn('status', ['active', 'paused', 'completed'])
+                ->orderByDesc('id')
+                ->first();
+            if (! $enrolment && $application->email) {
+                $erp = \App\User::where('is_deleted', false)
+                    ->whereRaw('LOWER(TRIM(email)) = ?', [strtolower(trim($application->email))])
+                    ->first();
+                if ($erp) {
+                    $enrolment = InternshipEnrolment::with('student')
+                        ->where('student_user_id', $erp->id)
+                        ->whereIn('status', ['active', 'paused', 'completed'])
+                        ->orderByDesc('id')
+                        ->first();
+                }
+            }
+            $user = $enrolment ? $enrolment->student : null;
+            if ($user) {
+                $name = $user->name ?: $name;
+                $phone = $user->phone ?: $phone;
+            }
+        }
+
+        $result = $this->service->requestWorkingWeekSetup($user, $name, $phone);
+        $weekUrl = $result['url'] ?? url('/admin/timesheet/working-week');
+
+        if (empty($result['success'])) {
+            return back()->with('not_permitted', ($result['error'] ?? 'Could not send WhatsApp.').' Working Week link: '.$weekUrl);
+        }
+
+        return back()->with('message', 'Working Week request sent to '.($name ?: 'the intern').'. Link: '.$weekUrl);
     }
 }

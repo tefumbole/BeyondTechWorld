@@ -78,8 +78,14 @@
                                 <td>{{ optional($e->program)->displayName() ?: '—' }}</td>
                                 <td><span class="ip-badge warn">Missing</span></td>
                                 <td class="ip-meta">{{ optional($e->supervisor)->name ?: '—' }}</td>
-                                <td>
-                                    <a class="ip-btn ip-btn-sm" href="{{ route('internship.enrol.edit', $e->id) }}">Edit placement</a>
+                                <td class="text-nowrap">
+                                    <a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ url('/admin/timesheet/working-week') }}" target="_blank" rel="noopener">Open link</a>
+                                    <form method="POST" action="{{ route('internship.interns.request_week', $e->id) }}" class="d-inline"
+                                          onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
+                                        @csrf
+                                        <button type="submit" class="ip-btn ip-btn-sm">Request week</button>
+                                    </form>
+                                    <a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ route('internship.enrol.edit', $e->id) }}">Edit placement</a>
                                 </td>
                             </tr>
                         @empty
