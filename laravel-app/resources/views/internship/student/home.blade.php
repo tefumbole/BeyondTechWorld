@@ -13,21 +13,7 @@
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
 
-        <div class="ip-nav mb-3">
-            @if(!empty($assignment))
-                <a class="ip-btn" href="{{ route('internship.student.task', $assignment->id) }}">
-                    <i class="dripicons-document-edit"></i>
-                    @if($assignment->status === 'submitted') View submission
-                    @elseif($assignment->status === 'revision_required') Fix and re-upload
-                    @else Open task &amp; submit
-                    @endif
-                </a>
-            @endif
-            <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.dashboard') }}"><i class="dripicons-graduation"></i> My Task</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}"><i class="dripicons-clock"></i> Log hours</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.working-week') }}"><i class="dripicons-calendar"></i> Working Week</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.portfolio') }}"><i class="dripicons-folder"></i> Portfolio</a>
-        </div>
+        @include('internship.student.partials.student-nav')
 
         @if($enrolment)
             <div class="ip-card">
@@ -54,6 +40,13 @@
                 </div>
             </div>
             <div class="col-md-4 col-lg-2 mb-3">
+                <a href="{{ route('internship.student.upload') }}" class="ip-stat-tile ip-stat-orange" style="display:block;text-decoration:none;color:#fff;">
+                    <div class="ip-meta">Awaiting grading</div>
+                    <strong>{{ (int) ($awaitingGradingCount ?? 0) }}</strong>
+                    <div class="ip-meta">{{ ($awaitingGradingCount ?? 0) === 1 ? 'submission with supervisor' : 'submissions with supervisor' }}</div>
+                </a>
+            </div>
+            <div class="col-md-4 col-lg-2 mb-3">
                 <div class="ip-stat-tile ip-stat-green">
                     <div class="ip-meta">Hours this week</div>
                     <strong>{{ number_format($weekScore['logged'], 1) }}</strong>
@@ -66,14 +59,14 @@
                     <strong>{{ number_format($totalHours, 1) }}</strong>
                 </div>
             </div>
-            <div class="col-md-4 col-lg-3 mb-3">
+            <div class="col-md-4 col-lg-2 mb-3">
                 <div class="ip-stat-tile ip-stat-orange">
                     <div class="ip-meta">Undertime (week)</div>
                     <strong>{{ number_format($weekScore['remaining'], 1) }}h</strong>
                     <div class="ip-meta">Today: {{ number_format($dayBalance['remaining'], 1) }}h remaining</div>
                 </div>
             </div>
-            <div class="col-md-4 col-lg-3 mb-3">
+            <div class="col-md-4 col-lg-2 mb-3">
                 <div class="ip-stat-tile {{ $weekScore['overtime'] > 0 || $dayBalance['overtime'] > 0 ? 'ip-stat-orange' : 'ip-stat-green' }}">
                     <div class="ip-meta">Overtime</div>
                     <strong>{{ number_format($weekScore['overtime'], 1) }}h</strong>
@@ -87,6 +80,21 @@
                 </div>
             </div>
         </div>
+
+        @if(!empty($awaiting) && $awaiting->count())
+            <div class="ip-card ip-pending">
+                <h5 style="font-weight:700;color:#c2410c;">Awaiting grading</h5>
+                @foreach($awaiting as $row)
+                    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;padding:.5rem 0;">
+                        <div>
+                            <strong>Task #{{ $row->progression_day }} — {{ optional($row->task)->title ?: 'Task' }}</strong>
+                            <div class="ip-meta">Submitted — your supervisor has not graded this yet</div>
+                        </div>
+                        <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.task', $row->id) }}">View submission</a>
+                    </div>
+                @endforeach
+            </div>
+        @endif
 
         <div class="row">
             <div class="col-lg-7 mb-3">

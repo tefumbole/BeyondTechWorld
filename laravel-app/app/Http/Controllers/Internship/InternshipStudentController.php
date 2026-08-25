@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Internship;
 
 use App\Http\Controllers\Controller;
 use App\InternshipEnrolment;
+use App\InternshipSupervisorMessage;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Services\Internship\InternSupervisorChat;
 use App\Services\TimesheetService;
 use App\TimesheetEntry;
 use App\Support\InternCompliance;
@@ -54,7 +56,7 @@ class InternshipStudentController extends Controller
      */
     public function renderHome(User $user)
     {
-        $pending = $this->service->pendingForStudent($user);
+        $pending = $this->service->pendingForStudent($user) ?: [];
         $enrolment = $pending['enrolment'] ?? null;
         $assignment = $pending['assignment'] ?? null;
         $lastPassed = $pending['last_passed'] ?? null;
@@ -74,10 +76,14 @@ class InternshipStudentController extends Controller
 
         $openStatuses = ['available', 'in_progress', 'revision_required', 'submitted'];
         $currentTaskCount = 0;
+        $awaiting = collect();
+        $awaitingGradingCount = 0;
         if ($enrolment) {
             $currentTaskCount = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
                 ->whereIn('status', $openStatuses)
                 ->count();
+            $awaiting = $this->awaitingAssignments($enrolment);
+            $awaitingGradingCount = $awaiting->count();
         }
 
         $byActivity = [];
@@ -116,6 +122,8 @@ class InternshipStudentController extends Controller
             'dayBalance',
             'totalHours',
             'currentTaskCount',
+            'awaiting',
+            'awaitingGradingCount',
             'byActivity',
             'byCategory',
             'weekChart'
@@ -125,7 +133,7 @@ class InternshipStudentController extends Controller
     public function dashboard()
     {
         $this->allowStudent();
-        $pending = $this->service->pendingForStudent(Auth::user());
+        $pending = $this->service->pendingForStudent(Auth::user()) ?: [];
         $enrolment = $pending['enrolment'] ?? null;
         $assignment = $pending['assignment'] ?? null;
         $lastPassed = $pending['last_passed'] ?? null;
@@ -137,6 +145,8 @@ class InternshipStudentController extends Controller
             ? $this->service->studentTaskRequestState($enrolment, Auth::user())
             : null;
         $gradeSummary = $this->service->studentGradeSummary($assignment ?: $lastPassed);
+        $awaiting = $this->awaitingAssignments($enrolment);
+        $awaitingGradingCount = $awaiting->count();
 
         return view('internship.student.dashboard', compact(
             'enrolment',
@@ -145,7 +155,9 @@ class InternshipStudentController extends Controller
             'isWorkingToday',
             'supervisors',
             'requestState',
-            'gradeSummary'
+            'gradeSummary',
+            'awaiting',
+            'awaitingGradingCount'
         ));
     }
 
@@ -318,6 +330,76 @@ class InternshipStudentController extends Controller
             ->with('message', 'Submission sent. Your supervisor reviews it, and your next task arrives on your next working day once accepted. Please log today’s hours.');
     }
 
+    public function upload()
+    {
+        $this->allowStudent();
+        $enrolment = InternshipEnrolment::with(['program', 'assignments.task'])
+            ->where('student_user_id', Auth::id())
+            ->orderByDesc('id')
+            ->first();
+        $supervisors = $enrolment ? $this->service->studentSupervisors($enrolment) : [];
+        $assignments = $enrolment ? $enrolment->assignments->sortBy('progression_day') : collect();
+        $uploadable = $assignments->whereIn('status', ['available', 'in_progress', 'revision_required'])->values();
+        $awaiting = $assignments->where('status', 'submitted')->values();
+        $awaitingGradingCount = $awaiting->count();
+
+        return view('internship.student.upload', compact(
+            'enrolment',
+            'supervisors',
+            'uploadable',
+            'awaiting',
+            'awaitingGradingCount'
+        ));
+    }
+
+    public function messages()
+    {
+        $this->allowStudent();
+        $enrolment = InternshipEnrolment::with('program')->where('student_user_id', Auth::id())->orderByDesc('id')->first();
+        $supervisors = $enrolment ? $this->service->studentSupervisors($enrolment) : [];
+        $threads = $enrolment
+            ? InternshipSupervisorMessage::where('enrolment_id', $enrolment->id)->latest()->limit(40)->get()
+            : collect();
+        $awaiting = $this->awaitingAssignments($enrolment);
+        $awaitingGradingCount = $awaiting->count();
+        $selectedPhone = preg_replace('/\D+/', '', (string) request('phone', ''));
+
+        return view('internship.student.messages', compact(
+            'enrolment',
+            'supervisors',
+            'threads',
+            'awaiting',
+            'awaitingGradingCount',
+            'selectedPhone'
+        ));
+    }
+
+    public function sendMessage(Request $request, InternSupervisorChat $chat)
+    {
+        $this->allowStudent();
+        $enrolment = InternshipEnrolment::with('program')->where('student_user_id', Auth::id())->orderByDesc('id')->firstOrFail();
+        $data = $request->validate([
+            'supervisor_phone' => 'required|string|max:40',
+            'body' => 'required|string|min:2|max:2000',
+        ]);
+
+        $wanted = preg_replace('/\D+/', '', $data['supervisor_phone']);
+        $match = collect($this->service->studentSupervisors($enrolment))->first(function ($row) use ($wanted) {
+            return preg_replace('/\D+/', '', (string) ($row['phone'] ?? '')) === $wanted;
+        });
+        if (! $match) {
+            return back()->withInput()->with('not_permitted', 'Choose a supervisor from your assigned list.');
+        }
+
+        try {
+            $chat->sendFromStudent(Auth::user(), $enrolment, $match, $data['body']);
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('not_permitted', $e->getMessage());
+        }
+
+        return back()->with('message', 'Message sent. You and your supervisor both received a WhatsApp copy. They reply from the link, and you will receive their reply here on WhatsApp.');
+    }
+
     public function portfolio()
     {
         $this->allowStudent();
@@ -348,5 +430,21 @@ class InternshipStudentController extends Controller
         }
 
         return Storage::disk($file->disk ?: 'local')->download($file->path, $file->original_name);
+    }
+
+    protected function awaitingAssignments($enrolment)
+    {
+        if (! $enrolment) {
+            return collect();
+        }
+        if ($enrolment->relationLoaded('assignments')) {
+            return $enrolment->assignments->where('status', 'submitted')->sortBy('progression_day')->values();
+        }
+
+        return InternshipTaskAssignment::with('task')
+            ->where('enrolment_id', $enrolment->id)
+            ->where('status', 'submitted')
+            ->orderBy('progression_day')
+            ->get();
     }
 }

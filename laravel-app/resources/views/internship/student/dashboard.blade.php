@@ -30,14 +30,7 @@
             Schedule: <a href="{{ route('timesheet.working-week') }}">Working Week</a>.
         </div>
 
-        <div class="ip-nav">
-            @if($assignment)
-                <a class="ip-btn" href="{{ route('internship.student.task', $assignment->id) }}"><i class="dripicons-document-edit"></i> Open my task</a>
-            @endif
-            <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.portfolio') }}"><i class="dripicons-folder"></i> Portfolio</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}"><i class="dripicons-clock"></i> Fill timesheet</a>
-            <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.working-week') }}"><i class="dripicons-calendar"></i> Working Week</a>
-        </div>
+        @include('internship.student.partials.student-nav', ['activeNav' => 'task'])
 
         @if(!$enrolment)
             <div class="ip-card">
@@ -61,6 +54,25 @@
             </div>
 
             @include('internship.student.partials.supervisors', ['supervisors' => $supervisors ?? []])
+
+            @if(!empty($awaiting) && $awaiting->count())
+                <div class="ip-card ip-pending">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:8px;">
+                        <div>
+                            <span class="ip-badge warn">Awaiting grading</span>
+                            <h3 class="mt-2 mb-1" style="color:#c2410c;font-weight:800;">{{ $awaiting->count() }} {{ $awaiting->count() === 1 ? 'submission' : 'submissions' }} with your supervisor</h3>
+                            <p class="ip-meta mb-0">These uploads are waiting for review. The next task arrives after they accept.</p>
+                        </div>
+                        <a class="ip-btn ip-btn-outline" href="{{ route('internship.student.upload') }}">View uploads</a>
+                    </div>
+                    @foreach($awaiting as $row)
+                        <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #fde68a;">
+                            <strong>Task #{{ $row->progression_day }} — {{ optional($row->task)->title ?: 'Task' }}</strong>
+                            <a href="{{ route('internship.student.task', $row->id) }}">View submission</a>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
 
             @if($assignment)
                 @php $dayProgress = $assignment->stepProgress(); @endphp

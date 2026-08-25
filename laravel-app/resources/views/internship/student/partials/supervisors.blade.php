@@ -20,6 +20,13 @@
                         · Email: <a href="mailto:{{ $s['email'] }}">{{ $s['email'] }}</a>
                     @endif
                 </div>
+                @if(!empty($s['phone']) && strlen(preg_replace('/\D+/', '', $s['phone'])) >= 8)
+                    <div class="mt-2">
+                        <a class="ip-btn ip-btn-outline ip-btn-sm" href="{{ route('internship.student.messages', ['phone' => preg_replace('/\D+/', '', $s['phone'])]) }}">
+                            <i class="dripicons-message"></i> Send message
+                        </a>
+                    </div>
+                @endif
             </div>
         </div>
     @empty

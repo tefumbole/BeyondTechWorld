@@ -134,6 +134,9 @@ Route::get('/task-invite/{token}', 'TaskInviteController@show')->name('task.invi
 Route::post('/task-invite/{token}/accept', 'TaskInviteController@accept')->name('task.invite.accept');
 Route::post('/task-invite/{token}/decline', 'TaskInviteController@decline')->name('task.invite.decline');
 
+Route::get('/internship/supervisor-reply/{token}', 'Internship\InternshipSupervisorReplyController@show')->name('internship.supervisor.reply');
+Route::post('/internship/supervisor-reply/{token}', 'Internship\InternshipSupervisorReplyController@store')->name('internship.supervisor.reply.store');
+
 Route::get('/shareholders', 'ShareholderController@landing')->name('shareholders.landing');
 Route::post('/shareholders/accept', 'ShareholderController@acceptTerms')->name('shareholders.accept');
 Route::get('/shares', 'ShareholderController@shares')->name('shareholders.shares');
@@ -499,6 +502,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/internship/tasks/{id}/resend', 'Internship\InternshipAdminController@resendTask')->name('internship.tasks.resend');
     Route::get('/admin/internship/student', 'Internship\InternshipStudentController@dashboard')->name('internship.student.dashboard');
     Route::post('/admin/internship/student/request-task', 'Internship\InternshipStudentController@requestTask')->name('internship.student.request');
+    Route::get('/admin/internship/student/upload', 'Internship\InternshipStudentController@upload')->name('internship.student.upload');
+    Route::get('/admin/internship/student/messages', 'Internship\InternshipStudentController@messages')->name('internship.student.messages');
+    Route::post('/admin/internship/student/messages', 'Internship\InternshipStudentController@sendMessage')->name('internship.student.messages.send');
     Route::get('/admin/internship/student/portfolio', 'Internship\InternshipStudentController@portfolio')->name('internship.student.portfolio');
     Route::get('/admin/internship/student/task/{id}', 'Internship\InternshipStudentController@task')->name('internship.student.task');
     Route::get('/admin/internship/student/task/{id}/handbook', 'Internship\InternshipStudentController@downloadHandbook')->name('internship.student.handbook');
