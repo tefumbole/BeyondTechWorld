@@ -39,10 +39,10 @@ class InternshipProgramTask extends Model
     }
 
     /**
-     * Screenshot / evidence slots the student must fill when submitting.
+     * Evidence slots the student should fill when submitting.
      *
-     * Each item is [label, required]. Admin-defined lines win; otherwise we
-     * split submission_requirements; otherwise three generic screenshot slots.
+     * Admin-defined lines win, then submission requirements, then instruction
+     * steps that ask for a file. Students can always add extra slots.
      *
      * @return array<int, array{label:string,required:bool}>
      */
@@ -54,15 +54,39 @@ class InternshipProgramTask extends Model
         }
 
         $fromRequirements = $this->parseSlotLines($this->submission_requirements);
-        if (count($fromRequirements) >= 2) {
+        if ($fromRequirements) {
             return $fromRequirements;
         }
 
+        $fromInstructions = $this->slotsFromInstructions();
+        if ($fromInstructions) {
+            return $fromInstructions;
+        }
+
         return [
-            ['label' => 'Screenshot 1 — finished work', 'required' => true],
-            ['label' => 'Screenshot 2 — verification or second view', 'required' => false],
-            ['label' => 'Screenshot 3 — extra evidence if needed', 'required' => false],
+            ['label' => 'File 1 — finished work', 'required' => true],
         ];
+    }
+
+    /**
+     * @return array<int, array{label:string,required:bool}>
+     */
+    protected function slotsFromInstructions()
+    {
+        $slots = [];
+        foreach ($this->instructions() as $line) {
+            $label = trim(is_string($line) ? $line : (string) ($line['text'] ?? $line['label'] ?? ''));
+            $label = preg_replace('/^\s*(\d+[\.\)]\s*|[-*•]\s+)/', '', $label);
+            if ($label === '' || strlen($label) > 240 || str_word_count($label) > 22) {
+                continue;
+            }
+            if (! preg_match('/screenshot|screen\s*shot|upload|attach|photo|capture|evidence|notebook|pdf|report file|save (as|the) file/i', $label)) {
+                continue;
+            }
+            $slots[] = ['label' => $label, 'required' => empty($slots)];
+        }
+
+        return $slots;
     }
 
     /**
@@ -74,7 +98,12 @@ class InternshipProgramTask extends Model
             $lines = $raw;
         } else {
             $decoded = json_decode((string) $raw, true);
-            $lines = is_array($decoded) ? $decoded : preg_split('/\r\n|\r|\n/', (string) $raw);
+            if (is_array($decoded)) {
+                $lines = $decoded;
+            } else {
+                $text = trim((string) $raw);
+                $lines = preg_split('/\r\n|\r|\n|;/', $text);
+            }
         }
 
         $slots = [];

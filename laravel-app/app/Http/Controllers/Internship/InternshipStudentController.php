@@ -15,6 +15,7 @@ use App\User;
 use App\Support\InternshipHandbook;
 use App\Support\InternshipRubric;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
@@ -287,30 +288,18 @@ class InternshipStudentController extends Controller
         $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
         $data = $request->validate([
             'description' => 'required|string|min:20',
-            'evidence' => 'required|array|min:1|max:15',
-            'evidence.*.file' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,pdf|max:10240',
+            'evidence' => 'nullable|array|max:40',
             'evidence.*.caption' => 'nullable|string|max:400',
-            'files' => 'nullable|array|max:15',
-            'files.*' => 'file|mimes:jpg,jpeg,png,gif,webp,pdf|max:10240',
         ]);
 
-        $items = [];
-        foreach ((array) $request->file('evidence', []) as $index => $row) {
-            $file = is_array($row) ? ($row['file'] ?? null) : $row;
-            if (! $file) {
-                continue;
-            }
-            $caption = trim((string) data_get($data, 'evidence.'.$index.'.caption', ''));
-            $items[] = ['file' => $file, 'caption' => $caption];
+        $collected = $this->collectEvidenceUploads($request, $data);
+        if (! empty($collected['error'])) {
+            return back()->withInput()->withErrors(['evidence' => $collected['error']]);
         }
-        foreach ((array) $request->file('files', []) as $file) {
-            if ($file) {
-                $items[] = ['file' => $file, 'caption' => ''];
-            }
-        }
+        $items = $collected['items'];
         if (count($items) < 1) {
             return back()->withInput()->withErrors([
-                'evidence' => 'Attach at least one screenshot or PDF. Use Add another screenshot if you need more than the slots shown.',
+                'evidence' => 'Attach at least one file. Use Add another file if this task needs more than the slots shown.',
             ]);
         }
 
@@ -446,5 +435,51 @@ class InternshipStudentController extends Controller
             ->where('status', 'submitted')
             ->orderBy('progression_day')
             ->get();
+    }
+
+    /**
+     * Pull uploaded evidence without mime/type rules so any file the intern
+     * attaches can be submitted. Empty unused slots are ignored.
+     *
+     * @return array{items:array<int,array{file:UploadedFile,caption:string}>,error:?string}
+     */
+    protected function collectEvidenceUploads(Request $request, array $data)
+    {
+        $maxBytes = 20 * 1024 * 1024;
+        $items = [];
+
+        $push = function ($file, $caption) use (&$items, $maxBytes) {
+            if (! $file instanceof UploadedFile || $file->getError() === UPLOAD_ERR_NO_FILE) {
+                return null;
+            }
+            if (! $file->isValid()) {
+                return 'One of the files did not finish uploading. Try a smaller file or paste the screenshot again.';
+            }
+            if ((int) $file->getSize() > $maxBytes) {
+                return 'Each file must be 20 MB or smaller after compression.';
+            }
+            $items[] = [
+                'file' => $file,
+                'caption' => trim((string) $caption),
+            ];
+
+            return null;
+        };
+
+        foreach ((array) $request->file('evidence', []) as $index => $row) {
+            $file = is_array($row) ? ($row['file'] ?? null) : $row;
+            $error = $push($file, data_get($data, 'evidence.'.$index.'.caption', ''));
+            if ($error) {
+                return ['items' => [], 'error' => $error];
+            }
+        }
+        foreach ((array) $request->file('files', []) as $file) {
+            $error = $push($file, '');
+            if ($error) {
+                return ['items' => [], 'error' => $error];
+            }
+        }
+
+        return ['items' => $items, 'error' => null];
     }
 }

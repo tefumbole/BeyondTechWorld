@@ -625,7 +625,7 @@ class InternshipProgramService
 
         $items = $this->normalizeEvidenceItems($uploadedFiles);
         if (count($items) < 1) {
-            throw new \RuntimeException('Attach at least one screenshot or PDF of the finished work.');
+            throw new \RuntimeException('Attach at least one file of the finished work.');
         }
 
         $attempt = ((int) $assignment->attempt_count) + 1;

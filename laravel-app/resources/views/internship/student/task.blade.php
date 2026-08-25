@@ -127,8 +127,8 @@
                 <ol class="ip-ol">
                     <li>Finish the work using the handbook and the checklist above. Tick each step as you go.</li>
                     <li>Write a short report in the first box (at least 20 characters): what you did, how you checked it, and any problem you solved.</li>
-                    <li>Upload <strong>every screenshot this task asks for</strong>. Each screenshot has its own short-note box so your supervisor knows what they are looking at.</li>
-                    <li>Need more than the slots shown? Click <strong>Add another screenshot</strong>. Allowed types: <strong>JPG, PNG, GIF, WEBP, or PDF</strong>, under <strong>10&nbsp;MB</strong> each, up to 15 files.</li>
+                    <li>Upload a file for <strong>each evidence slot this task lists</strong>. Click the dashed box and <strong>paste</strong> (Ctrl+V / ⌘V), drop a file, or choose any file. Add a short note so your supervisor knows what they are looking at.</li>
+                    <li>Need more files? Click <strong>Add another file</strong>. Any file or image type is allowed. Large images are compressed in your browser before upload (about 20&nbsp;MB each after compress, up to 40 files).</li>
                     <li>Click <strong>Submit for grading</strong>. Your supervisor is notified on WhatsApp.</li>
                     <li>Then fill your timesheet for this day. The next task is released on your next working day after they accept this one.</li>
                 </ol>
@@ -146,31 +146,29 @@
                         <small class="ip-meta"><span id="ip-desc-count">0</span> / 20 characters minimum</small>
                     </div>
                     <div class="form-group mb-2">
-                        <label>2. Screenshots and short notes (at least one required)</label>
-                        <p class="ip-meta mb-2">One file per box. Add a short note so your supervisor can tell the shots apart. You can add more boxes if this task needs extra evidence.</p>
+                        <label>2. Files for this task ({{ count($evidenceSlots ?? []) }} listed — add more if you need)</label>
+                        <p class="ip-meta mb-2">One file per box, matching the evidence this task asked for. Paste an image (Ctrl+V / ⌘V), drop a file, or choose any format. Large images are compressed automatically.</p>
                         <div id="ip-evidence-list">
-                            @foreach(($evidenceSlots ?? [['label' => 'Screenshot 1 — finished work', 'required' => true]]) as $i => $slot)
+                            @foreach(($evidenceSlots ?? [['label' => 'File 1 — finished work', 'required' => true]]) as $i => $slot)
                                 <div class="ip-evidence-row" data-index="{{ $i }}">
                                     <h6>{{ $slot['label'] }}@if(!empty($slot['required'])) <span class="ip-badge warn">Required</span>@endif</h6>
                                     <input type="file"
                                            name="evidence[{{ $i }}][file]"
-                                           class="form-control ip-evidence-file"
-                                           accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
-                                           @if(!empty($slot['required'])) required @endif>
+                                           class="form-control ip-evidence-file">
                                     <input type="text"
                                            name="evidence[{{ $i }}][caption]"
                                            class="form-control mt-2"
                                            maxlength="400"
                                            value="{{ old('evidence.'.$i.'.caption') }}"
-                                           placeholder="Short note — what this screenshot shows">
+                                           placeholder="Short note — what this file shows">
                                     <div class="ip-evidence-preview"></div>
                                 </div>
                             @endforeach
                         </div>
                         <button type="button" class="ip-btn ip-btn-outline ip-btn-sm" id="ip-add-evidence">
-                            <i class="dripicons-plus"></i> Add another screenshot
+                            <i class="dripicons-plus"></i> Add another file
                         </button>
-                        <small class="ip-meta d-block mt-1">JPG, PNG, GIF, WEBP, PDF · max 15 files · 10 MB each</small>
+                        <small class="ip-meta d-block mt-1">Any file or image format · large images compressed on this page · max 40 files · 20 MB each</small>
                     </div>
                     <button class="ip-btn" type="submit"><i class="dripicons-cloud-upload"></i> 3. Submit for grading</button>
                 </form>
@@ -221,8 +219,11 @@
         @endif
     </div>
 </section>
+@include('internship.student.partials.evidence_compress_script')
 <script>
 (function () {
+    var MAX_FILES = 40;
+    var MAX_BYTES = 20 * 1048576;
     var desc = document.getElementById('ip-desc');
     var count = document.getElementById('ip-desc-count');
     if (desc && count) {
@@ -232,44 +233,110 @@
     }
     var list = document.getElementById('ip-evidence-list');
     var addBtn = document.getElementById('ip-add-evidence');
-    function bindPreview(row) {
-        var input = row.querySelector('.ip-evidence-file');
+    var form = list ? list.closest('form') : null;
+
+    function setPreview(row, file, note) {
         var preview = row.querySelector('.ip-evidence-preview');
-        if (!input || !preview) return;
-        input.addEventListener('change', function () {
+        if (!preview) return;
+        if (!file) {
             preview.textContent = '';
-            var f = input.files && input.files[0];
-            if (!f) return;
-            var mb = (f.size / 1048576).toFixed(2);
-            preview.textContent = f.name + ' (' + mb + ' MB)';
-            if (f.size > 10 * 1048576) {
-                preview.style.color = '#b91c1c';
-                preview.textContent += ' — too large (max 10 MB)';
+            return;
+        }
+        var mb = (file.size / 1048576).toFixed(2);
+        preview.textContent = file.name + ' (' + mb + ' MB)' + (note ? ' — ' + note : '');
+        preview.style.color = file.size > MAX_BYTES ? '#b91c1c' : '#64748b';
+        if (file.size > MAX_BYTES) {
+            preview.textContent += ' — too large (max 20 MB)';
+        }
+        var img = row.querySelector('input.ip-evidence-file');
+        if (img && img.__ipPrev) {
+            if (file.type && file.type.indexOf('image/') === 0) {
+                var r = new FileReader();
+                r.onload = function (ev) { img.__ipPrev.src = ev.target.result; img.__ipPrev.style.display = ''; };
+                r.readAsDataURL(file);
             } else {
-                preview.style.color = '#64748b';
+                img.__ipPrev.style.display = 'none';
+            }
+        }
+    }
+
+    function bindRow(row) {
+        var input = row.querySelector('.ip-evidence-file');
+        if (!input || input.__ipBound) return;
+        input.__ipBound = true;
+        input.addEventListener('change', function () {
+            var f = input.files && input.files[0];
+            if (!f || input.__ipBusy) return;
+            input.__ipBusy = true;
+            setPreview(row, f, 'checking size…');
+            var done = function (out) {
+                var used = f;
+                if (out && out !== f) {
+                    try {
+                        var dt = new DataTransfer();
+                        dt.items.add(out);
+                        input.files = dt.files;
+                        used = out;
+                    } catch (e) {}
+                }
+                input.__ipBusy = false;
+                var note = (used && input.__ipOrig && used.size < input.__ipOrig) ? 'compressed for upload' : '';
+                setPreview(row, used, note);
+            };
+            input.__ipOrig = f.size;
+            if (typeof window.compressStudentEvidence === 'function') {
+                window.compressStudentEvidence(f, done);
+            } else {
+                done(f);
             }
         });
     }
+
+    function addSlot() {
+        var next = list.querySelectorAll('.ip-evidence-row').length;
+        if (next >= MAX_FILES) {
+            addBtn.disabled = true;
+            return;
+        }
+        var row = document.createElement('div');
+        row.className = 'ip-evidence-row';
+        row.setAttribute('data-index', next);
+        row.innerHTML = '<h6>Extra file ' + (next + 1) + '</h6>'
+            + '<input type="file" name="evidence[' + next + '][file]" class="form-control ip-evidence-file">'
+            + '<input type="text" name="evidence[' + next + '][caption]" class="form-control mt-2" maxlength="400" placeholder="Short note — what this file shows">'
+            + '<div class="ip-evidence-preview"></div>';
+        list.appendChild(row);
+        bindRow(row);
+        if (window.__imagePasteScan) window.__imagePasteScan(row);
+        if (next + 1 >= MAX_FILES) addBtn.disabled = true;
+    }
+
     if (list) {
-        Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-row'), bindPreview);
+        Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-row'), bindRow);
     }
     if (list && addBtn) {
-        addBtn.addEventListener('click', function () {
-            var next = list.querySelectorAll('.ip-evidence-row').length;
-            if (next >= 15) {
-                addBtn.disabled = true;
-                return;
-            }
-            var row = document.createElement('div');
-            row.className = 'ip-evidence-row';
-            row.setAttribute('data-index', next);
-            row.innerHTML = '<h6>Extra screenshot ' + (next + 1) + '</h6>'
-                + '<input type="file" name="evidence[' + next + '][file]" class="form-control ip-evidence-file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf">'
-                + '<input type="text" name="evidence[' + next + '][caption]" class="form-control mt-2" maxlength="400" placeholder="Short note — what this screenshot shows">'
-                + '<div class="ip-evidence-preview"></div>';
-            list.appendChild(row);
-            bindPreview(row);
-            if (next + 1 >= 15) addBtn.disabled = true;
+        addBtn.addEventListener('click', addSlot);
+    }
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (form.__ipReady) return;
+            var stillBusy = false;
+            Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-file'), function (inp) {
+                if (inp.__ipBusy) stillBusy = true;
+            });
+            if (!stillBusy) return;
+            e.preventDefault();
+            var wait = setInterval(function () {
+                var waiting = false;
+                Array.prototype.forEach.call(list.querySelectorAll('.ip-evidence-file'), function (inp) {
+                    if (inp.__ipBusy) waiting = true;
+                });
+                if (!waiting) {
+                    clearInterval(wait);
+                    form.__ipReady = true;
+                    form.submit();
+                }
+            }, 80);
         });
     }
 })();

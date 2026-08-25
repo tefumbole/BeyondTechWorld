@@ -15,8 +15,10 @@
         if (!inp || inp.type !== 'file') return false;
         var accept = (inp.getAttribute('accept') || '').toLowerCase();
         if (accept.indexOf('image') >= 0) return true;
+        if (/\.(jpe?g|png|gif|webp)/.test(accept)) return true;
         var name = (inp.getAttribute('name') || '').toLowerCase().replace('[]', '');
-        return IMG_NAMES.indexOf(name) >= 0;
+        if (IMG_NAMES.indexOf(name) >= 0) return true;
+        return name.indexOf('[file]') >= 0 && (name.indexOf('evidence') >= 0 || name.indexOf('screenshot') >= 0);
     }
 
     function showFile(inp, file) {
@@ -29,6 +31,7 @@
     function assign(inp, file) {
         try { var dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files; } catch (e) {}
         showFile(inp, file);
+        try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
     }
 
     function enhance(inp) {
@@ -38,7 +41,10 @@
         var hint = document.createElement('div');
         hint.tabIndex = 0;
         hint.style.cssText = 'margin-top:6px;border:1px dashed #b5b5b5;border-radius:6px;padding:6px 10px;text-align:center;color:#777;font-size:12px;cursor:pointer;background:#fafafa;';
-        hint.innerHTML = 'Click here, then paste an image (Ctrl+V / \u2318V) \u2014 or drop a file';
+        var evidenceField = (inp.getAttribute('name') || '').indexOf('evidence') >= 0;
+        hint.innerHTML = evidenceField
+            ? 'Click here, then paste an image (Ctrl+V / \u2318V) \u2014 or drop / choose any file'
+            : 'Click here, then paste an image (Ctrl+V / \u2318V) \u2014 or drop a file';
 
         var prev = document.createElement('img');
         prev.style.cssText = 'margin-top:8px;max-height:90px;border-radius:6px;border:1px solid #eee;display:none;';
@@ -90,5 +96,7 @@
             active = e.target;
         }
     });
+
+    window.__imagePasteScan = scan;
 })();
 </script>

@@ -4,7 +4,7 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <h1 class="ip-title"><i class="dripicons-upload"></i> Upload Task</h1>
-        <p class="ip-meta mb-3">Open a task below, attach your screenshots or PDF, then submit. Work already sent sits in Awaiting grading until your supervisor reviews it.</p>
+        <p class="ip-meta mb-3">Open a task below, attach a file for each evidence slot (any format), then submit. Large images are compressed on the task page. Work already sent sits in Awaiting grading until your supervisor reviews it.</p>
 
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
