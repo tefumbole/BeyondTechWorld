@@ -97,20 +97,11 @@ class InternAccountPurge
 
             $this->wipeBeyondAccount($user);
 
-            if (Schema::hasTable('model_has_roles')) {
-                DB::table('model_has_roles')
-                    ->where('model_id', $user->id)
-                    ->where('model_type', User::class)
-                    ->delete();
-            }
-            if (Schema::hasTable('model_has_permissions')) {
-                DB::table('model_has_permissions')
-                    ->where('model_id', $user->id)
-                    ->where('model_type', User::class)
-                    ->delete();
-            }
-
-            $user->delete();
+            // SalePro uses users.role_id + role_has_permissions. Spatie's
+            // HasRoles trait still tries to detach model_has_roles on
+            // $user->delete(), and that table is not in this database.
+            $this->forgetSpatieAssignments($user->id);
+            DB::table('users')->where('id', $user->id)->delete();
         });
 
         return $name;
@@ -150,6 +141,22 @@ class InternAccountPurge
         if ($jobId && Schema::hasTable('job_postings')) {
             try {
                 DB::table('job_postings')->where('id', $jobId)->where('current_applicants', '>', 0)->decrement('current_applicants');
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    protected function forgetSpatieAssignments($userId)
+    {
+        foreach (['model_has_roles', 'model_has_permissions'] as $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+            try {
+                DB::table($table)
+                    ->where('model_id', $userId)
+                    ->where('model_type', User::class)
+                    ->delete();
             } catch (\Throwable $e) {
             }
         }
