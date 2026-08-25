@@ -224,6 +224,11 @@ class InternshipRubric
             }
         }
 
+        $guides = [];
+        foreach (self::criteria($task) as $c) {
+            $guides[$c['key']] = $c['guide'] ?? null;
+        }
+
         $rows = [];
         $earned = 0;
         $possible = 0;
@@ -235,6 +240,7 @@ class InternshipRubric
                 'label' => self::label($key),
                 'score' => (int) $mark,
                 'max' => isset($max[$key]) ? (int) $max[$key] : null,
+                'guide' => $guides[$key] ?? null,
             ];
             $earned += (int) $mark;
             $possible += isset($max[$key]) ? (int) $max[$key] : 0;
@@ -250,6 +256,32 @@ class InternshipRubric
             'possible' => $possible ?: null,
             'percent' => isset($stored['percent']) ? (int) $stored['percent'] : ($possible ? (int) round($earned / $possible * 100) : null),
         ];
+    }
+
+    /**
+     * WhatsApp lines for the intern: each criterion and the total.
+     */
+    public static function whatsAppBreakdown($grade, $task = null)
+    {
+        $breakdown = self::breakdown($grade, $task);
+        if (empty($breakdown['rows'])) {
+            return '';
+        }
+
+        $out = "\n*Results breakdown:*\n";
+        foreach ($breakdown['rows'] as $row) {
+            $mark = $row['score'].(! is_null($row['max']) ? '/'.$row['max'] : '');
+            $out .= WhatsAppMessage::bullet($row['label'], $mark);
+        }
+        if (! is_null($breakdown['earned']) && ! empty($breakdown['possible'])) {
+            $out .= WhatsAppMessage::bullet(
+                'Total',
+                $breakdown['earned'].'/'.$breakdown['possible']
+                .(! is_null($breakdown['percent']) ? ' ('.$breakdown['percent'].'%)' : '')
+            );
+        }
+
+        return $out;
     }
 
     /**

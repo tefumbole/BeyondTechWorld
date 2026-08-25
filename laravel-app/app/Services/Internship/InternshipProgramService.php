@@ -1886,11 +1886,12 @@ class InternshipProgramService
         $msg .= WhatsAppMessage::greeting($student->name);
         $msg .= "Your supervisor requested a revision on your internship task.\n\n";
         $msg .= WhatsAppMessage::bullet('Task', '#'.$assignment->progression_day.' — '.optional($assignment->task)->title);
-        $msg .= WhatsAppMessage::bullet('Score', (string) $grade->score);
+        $msg .= WhatsAppMessage::bullet('Score', $grade->score.'/100');
+        $msg .= InternshipRubric::whatsAppBreakdown($grade, $assignment->task);
         if ($grade->feedback) {
             $msg .= "\n*Feedback:*\n".$grade->feedback."\n";
         }
-        $msg .= WhatsAppMessage::actionLink('Update and resubmit', $url);
+        $msg .= WhatsAppMessage::actionLink('See results and resubmit', $url);
         $msg .= WhatsAppMessage::footer();
         $this->sendWhatsApp($student, $msg, $key, 'revision_requested');
     }
@@ -1912,6 +1913,7 @@ class InternshipProgramService
             : "Great work — your supervisor accepted your internship task.\n\n";
         $msg .= WhatsAppMessage::bullet('Task', '#'.$assignment->progression_day.' — '.optional($assignment->task)->title);
         $msg .= WhatsAppMessage::bullet('Score', $grade->score.'/100');
+        $msg .= InternshipRubric::whatsAppBreakdown($grade, $assignment->task);
         $msg .= WhatsAppMessage::bullet('Progress', $enrolment->completed_count.'/'.$enrolment->plannedDurationDays());
         if ($enrolment->completed_count < $enrolment->plannedDurationDays()) {
             if ($enrolment->next_release_date) {
@@ -1921,6 +1923,10 @@ class InternshipProgramService
                 $msg .= "\nYour next task will be released on your next configured working day.";
             }
         }
+        if ($grade->feedback) {
+            $msg .= "\n*Feedback:*\n".$grade->feedback."\n";
+        }
+        $msg .= WhatsAppMessage::actionLink('See results in your portal', url('/admin/internship/student/task/'.$assignment->id));
         $msg .= WhatsAppMessage::footer();
         $this->sendWhatsApp($student, $msg, $key, 'task_passed');
     }

@@ -96,6 +96,19 @@
             </div>
         @endif
 
+        @if(!empty($gradeSummary) && (!empty($gradeSummary['score']) || !empty($gradeSummary['rubric']['rows'])))
+            <div class="ip-card">
+                <h5 style="font-weight:700;color:#0b3f90;">Latest results</h5>
+                @if(!empty($assignment) || !empty($lastPassed))
+                    <p class="ip-meta mb-2">
+                        Task #{{ optional($assignment ?: $lastPassed)->progression_day }}
+                        — {{ optional(optional($assignment ?: $lastPassed)->task)->title }}
+                    </p>
+                @endif
+                @include('internship.student.partials.grade-status', ['gradeSummary' => $gradeSummary])
+            </div>
+        @endif
+
         <div class="row">
             <div class="col-lg-7 mb-3">
                 <div class="ip-card mb-0">

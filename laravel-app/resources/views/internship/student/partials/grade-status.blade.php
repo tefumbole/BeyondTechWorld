@@ -25,18 +25,24 @@
     </div>
     @php $rubric = $g['rubric'] ?? ['rows' => []]; @endphp
     @if(!empty($rubric['rows']))
-        <table class="table ip-table mt-2 mb-1">
-            <thead><tr><th>Marking criterion</th><th class="text-right">Mark</th></tr></thead>
+        <h6 class="mt-3 mb-2" style="color:#0b3f90;font-weight:800;">Results breakdown</h6>
+        <table class="table ip-table mt-0 mb-1">
+            <thead><tr><th>Criterion</th><th class="text-right">Mark</th></tr></thead>
             <tbody>
                 @foreach($rubric['rows'] as $row)
                     <tr>
-                        <td>{{ $row['label'] }}</td>
-                        <td class="text-right">{{ $row['score'] }}@if(!is_null($row['max']))/{{ $row['max'] }}@endif</td>
+                        <td>
+                            {{ $row['label'] }}
+                            @if(!empty($row['guide']))
+                                <div class="ip-meta">{{ $row['guide'] }}</div>
+                            @endif
+                        </td>
+                        <td class="text-right" style="white-space:nowrap;font-weight:700;">{{ $row['score'] }}@if(!is_null($row['max']))/{{ $row['max'] }}@endif</td>
                     </tr>
                 @endforeach
             </tbody>
             @if(!is_null($rubric['earned']) && !empty($rubric['possible']))
-                <tfoot><tr><th>Total</th><th class="text-right">{{ $rubric['earned'] }}/{{ $rubric['possible'] }}</th></tr></tfoot>
+                <tfoot><tr><th>Total</th><th class="text-right">{{ $rubric['earned'] }}/{{ $rubric['possible'] }}@if(!is_null($rubric['percent'])) ({{ $rubric['percent'] }}%)@endif</th></tr></tfoot>
             @endif
         </table>
     @endif
