@@ -120,6 +120,10 @@
     $chartProfit = (float) $profit;
     $chartPurchase = (float) $purchase;
     $chartExpense = (float) $expense;
+    $workOps = $workOps ?? [];
+    $taskOps = $workOps['tasks'] ?? ['open' => 0, 'overdue' => 0, 'pending' => 0, 'in_progress' => 0, 'completed' => 0, 'total' => 0, 'recent' => []];
+    $internOps = $workOps['interns'] ?? ['active' => 0, 'paused' => 0, 'pending' => 0, 'completed' => 0, 'review' => 0, 'recent' => []];
+    $quoteOps = $workOps['quotes'] ?? ['awaiting' => 0, 'awaiting_value' => 0, 'approved' => 0, 'rejected' => 0, 'quoted' => 0, 'recent' => []];
 @endphp
 <div class="beyond-dashboard">
   <div class="beyond-dashboard-hero">
@@ -144,9 +148,7 @@
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-xl-9">
-      <div class="beyond-stat-grid">
+  <div class="beyond-stat-grid">
         <a href="{{ route('sales.index') }}" class="beyond-stat-card" title="Open Sale List">
           <div>
             <div class="label">{{ trans('file.revenue') }}</div>
@@ -178,6 +180,33 @@
             <div class="value">{{ number_format($totalCustomers) }}</div>
           </div>
           <div class="beyond-stat-icon purple"><i class="dripicons-user-group"></i></div>
+        </a>
+      </div>
+
+      <div class="beyond-stat-grid beyond-stat-grid-ops">
+        <a href="{{ route('tasks.dashboard') }}" class="beyond-stat-card" title="Open Task Manager">
+          <div>
+            <div class="label">Open Tasks</div>
+            <div class="value">{{ number_format((int) ($taskOps['open'] ?? 0)) }}</div>
+            <div class="hint">{{ number_format((int) ($taskOps['overdue'] ?? 0)) }} overdue · {{ number_format((int) ($taskOps['total'] ?? 0)) }} total</div>
+          </div>
+          <div class="beyond-stat-icon orange"><i class="dripicons-checklist"></i></div>
+        </a>
+        <a href="{{ route('internship.dashboard') }}" class="beyond-stat-card" title="Open Internship Dashboard">
+          <div>
+            <div class="label">Active Interns</div>
+            <div class="value">{{ number_format((int) ($internOps['active'] ?? 0)) }}</div>
+            <div class="hint">{{ number_format((int) ($internOps['review'] ?? 0)) }} awaiting review · {{ number_format((int) ($internOps['pending'] ?? 0)) }} pending</div>
+          </div>
+          <div class="beyond-stat-icon teal"><i class="dripicons-user-id"></i></div>
+        </a>
+        <a href="{{ route('quotations.index', ['tab' => 'awaiting']) }}" class="beyond-stat-card" title="Quotations awaiting signature">
+          <div>
+            <div class="label">Awaiting Signatures</div>
+            <div class="value">{{ number_format((int) ($quoteOps['awaiting'] ?? 0)) }}</div>
+            <div class="hint">{{ number_format((float) ($quoteOps['awaiting_value'] ?? 0), 2, '.', ',') }} value pending</div>
+          </div>
+          <div class="beyond-stat-icon rose"><i class="dripicons-document-edit"></i></div>
         </a>
       </div>
 
@@ -215,6 +244,143 @@
         </div>
       </div>
 
+      <div class="beyond-section-head">
+        <div>
+          <h3>Work operations</h3>
+          <p>Tasks, internships, and quotations waiting for client signature</p>
+        </div>
+      </div>
+
+      <div class="beyond-chart-grid beyond-ops-charts">
+        <div class="beyond-chart-panel">
+          <h5><i class="dripicons-checklist"></i> Task status</h5>
+          <div class="beyond-chart-canvas-wrap is-sm">
+            <canvas id="beyond-task-pie"
+              data-pending="{{ (int) ($taskOps['pending'] ?? 0) }}"
+              data-progress="{{ (int) ($taskOps['in_progress'] ?? 0) }}"
+              data-completed="{{ (int) ($taskOps['completed'] ?? 0) }}"
+              data-overdue="{{ (int) ($taskOps['overdue'] ?? 0) }}"></canvas>
+          </div>
+          <div class="beyond-chart-legend">
+            <span><i style="background:#f59e0b;"></i> Pending ({{ (int) ($taskOps['pending'] ?? 0) }})</span>
+            <span><i style="background:#0b3f90;"></i> In progress ({{ (int) ($taskOps['in_progress'] ?? 0) }})</span>
+            <span><i style="background:#22c55e;"></i> Completed ({{ (int) ($taskOps['completed'] ?? 0) }})</span>
+            <span><i style="background:#e11d48;"></i> Overdue ({{ (int) ($taskOps['overdue'] ?? 0) }})</span>
+          </div>
+        </div>
+        <div class="beyond-chart-panel">
+          <h5><i class="dripicons-user-id"></i> Intern placements</h5>
+          <div class="beyond-chart-canvas-wrap is-sm">
+            <canvas id="beyond-intern-pie"
+              data-active="{{ (int) ($internOps['active'] ?? 0) }}"
+              data-paused="{{ (int) ($internOps['paused'] ?? 0) }}"
+              data-pending="{{ (int) ($internOps['pending'] ?? 0) }}"
+              data-completed="{{ (int) ($internOps['completed'] ?? 0) }}"></canvas>
+          </div>
+          <div class="beyond-chart-legend">
+            <span><i style="background:#0d9488;"></i> Active ({{ (int) ($internOps['active'] ?? 0) }})</span>
+            <span><i style="background:#f59e0b;"></i> Paused ({{ (int) ($internOps['paused'] ?? 0) }})</span>
+            <span><i style="background:#94a3b8;"></i> Pending ({{ (int) ($internOps['pending'] ?? 0) }})</span>
+            <span><i style="background:#22c55e;"></i> Completed ({{ (int) ($internOps['completed'] ?? 0) }})</span>
+          </div>
+        </div>
+        <div class="beyond-chart-panel">
+          <h5><i class="dripicons-document-edit"></i> Quotation pipeline</h5>
+          <div class="beyond-chart-canvas-wrap is-sm">
+            <canvas id="beyond-quote-pie"
+              data-awaiting="{{ (int) ($quoteOps['awaiting'] ?? 0) }}"
+              data-approved="{{ (int) ($quoteOps['approved'] ?? 0) }}"
+              data-rejected="{{ (int) ($quoteOps['rejected'] ?? 0) }}"
+              data-quoted="{{ (int) ($quoteOps['quoted'] ?? 0) }}"></canvas>
+          </div>
+          <div class="beyond-chart-legend">
+            <span><i style="background:#e11d48;"></i> Awaiting ({{ (int) ($quoteOps['awaiting'] ?? 0) }})</span>
+            <span><i style="background:#22c55e;"></i> Approved ({{ (int) ($quoteOps['approved'] ?? 0) }})</span>
+            <span><i style="background:#64748b;"></i> Rejected ({{ (int) ($quoteOps['rejected'] ?? 0) }})</span>
+            <span><i style="background:#7b61ff;"></i> Client quote ({{ (int) ($quoteOps['quoted'] ?? 0) }})</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="beyond-ops-feeds">
+        <div class="beyond-panel beyond-feed-panel">
+          <div class="beyond-panel-header beyond-feed-header">
+            <div>
+              <h4>Recent tasks</h4>
+              <p>Latest assignments across the team</p>
+            </div>
+            <a href="{{ route('tasks.index') }}" class="beyond-feed-link">View all</a>
+          </div>
+          <div class="beyond-feed-list">
+            @forelse(($taskOps['recent'] ?? []) as $taskRow)
+              @php
+                $taskStatus = strtolower((string) ($taskRow['status'] ?? ''));
+                $taskBadge = (strpos($taskStatus, 'complete') !== false) ? 'ok' : ((strpos($taskStatus, 'overdue') !== false) ? 'warn' : 'info');
+              @endphp
+              <a class="beyond-feed-row" href="{{ route('tasks.index') }}">
+                <div>
+                  <strong>{{ $taskRow['title'] }}</strong>
+                  <span>Due {{ $taskRow['deadline'] }}@if(!empty($taskRow['priority'])) · {{ $taskRow['priority'] }}@endif</span>
+                </div>
+                <span class="beyond-status-badge {{ $taskBadge }}">{{ $taskRow['status'] }}</span>
+              </a>
+            @empty
+              <div class="beyond-feed-empty">No tasks recorded yet.</div>
+            @endforelse
+          </div>
+        </div>
+        <div class="beyond-panel beyond-feed-panel">
+          <div class="beyond-panel-header beyond-feed-header">
+            <div>
+              <h4>Interns</h4>
+              <p>{{ (int) ($internOps['review'] ?? 0) }} submissions awaiting review</p>
+            </div>
+            <a href="{{ (int) ($internOps['review'] ?? 0) > 0 ? route('internship.supervisor.index') : route('internship.interns') }}" class="beyond-feed-link">View all</a>
+          </div>
+          <div class="beyond-feed-list">
+            @forelse(($internOps['recent'] ?? []) as $internRow)
+              @php
+                $internStatus = strtolower((string) ($internRow['status'] ?? ''));
+                $internBadge = $internStatus === 'active' ? 'ok' : ($internStatus === 'paused' ? 'warn' : 'info');
+              @endphp
+              <a class="beyond-feed-row" href="{{ !empty($internRow['application_id']) ? route('internship.interns.working_week', $internRow['application_id']) : route('internship.interns') }}">
+                <div>
+                  <strong>{{ $internRow['name'] }}</strong>
+                  <span>{{ $internRow['program'] }} · {{ (int) $internRow['completed'] }} tasks done</span>
+                </div>
+                <span class="beyond-status-badge {{ $internBadge }}">{{ ucfirst($internRow['status']) }}</span>
+              </a>
+            @empty
+              <div class="beyond-feed-empty">No active or pending internships.</div>
+            @endforelse
+          </div>
+        </div>
+        <div class="beyond-panel beyond-feed-panel">
+          <div class="beyond-panel-header beyond-feed-header">
+            <div>
+              <h4>Awaiting signatures</h4>
+              <p>Quotations still waiting for the client</p>
+            </div>
+            <a href="{{ route('quotations.index', ['tab' => 'awaiting']) }}" class="beyond-feed-link">View all</a>
+          </div>
+          <div class="beyond-feed-list">
+            @forelse(($quoteOps['recent'] ?? []) as $quoteRow)
+              <a class="beyond-feed-row" href="{{ route('quotations.show', $quoteRow['id']) }}">
+                <div>
+                  <strong>{{ $quoteRow['reference'] }}</strong>
+                  <span>{{ $quoteRow['customer'] }} · {{ $quoteRow['date'] }}</span>
+                </div>
+                <span class="beyond-status-badge warn">{{ $quoteRow['total'] }}</span>
+              </a>
+            @empty
+              <div class="beyond-feed-empty">No quotations awaiting signature.</div>
+            @endforelse
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+    <div class="col-xl-9">
       <div class="beyond-panel">
         <div class="beyond-panel-header">
           <h4>Quick Access</h4>
@@ -230,6 +396,27 @@
             </div>
           </a>
           @endif
+          <a href="{{ route('tasks.dashboard') }}" class="beyond-quick-card">
+            <div class="icon-wrap" style="background:rgba(245,158,11,.14);color:#b45309;"><i class="dripicons-checklist"></i></div>
+            <div>
+              <h5>Task Manager</h5>
+              <p>Assign work, track progress, and chase overdue items</p>
+            </div>
+          </a>
+          <a href="{{ route('internship.dashboard') }}" class="beyond-quick-card">
+            <div class="icon-wrap" style="background:rgba(13,148,136,.12);color:#0d9488;"><i class="dripicons-user-id"></i></div>
+            <div>
+              <h5>Interns</h5>
+              <p>Placements, submissions, and supervisor review</p>
+            </div>
+          </a>
+          <a href="{{ route('quotations.index', ['tab' => 'awaiting']) }}" class="beyond-quick-card">
+            <div class="icon-wrap" style="background:rgba(225,29,72,.12);color:#be123c;"><i class="dripicons-document-edit"></i></div>
+            <div>
+              <h5>Awaiting Signatures</h5>
+              <p>Quotations waiting for client approval</p>
+            </div>
+          </a>
           <a href="{{ route('products.index') }}" class="beyond-quick-card">
             <div class="icon-wrap" style="background:rgba(0,168,107,.12);color:#00a86b;"><i class="dripicons-list"></i></div>
             <div>
@@ -751,6 +938,49 @@
                 }
             });
         }
+
+        function doughnutFromCanvas(el, keys, labels, colors) {
+            if (!el) return;
+            var values = keys.map(function (key) {
+                return parseInt(el.getAttribute('data-' + key) || '0', 10);
+            });
+            var sum = values.reduce(function (a, b) { return a + b; }, 0);
+            if (sum === 0) {
+                values = values.map(function (_, i) { return i === 0 ? 1 : 0; });
+            }
+            new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutoutPercentage: 58,
+                    legend: { display: false }
+                }
+            });
+        }
+
+        doughnutFromCanvas(
+            document.getElementById('beyond-task-pie'),
+            ['pending', 'progress', 'completed', 'overdue'],
+            ['Pending', 'In progress', 'Completed', 'Overdue'],
+            ['#f59e0b', '#0b3f90', '#22c55e', '#e11d48']
+        );
+        doughnutFromCanvas(
+            document.getElementById('beyond-intern-pie'),
+            ['active', 'paused', 'pending', 'completed'],
+            ['Active', 'Paused', 'Pending', 'Completed'],
+            ['#0d9488', '#f59e0b', '#94a3b8', '#22c55e']
+        );
+        doughnutFromCanvas(
+            document.getElementById('beyond-quote-pie'),
+            ['awaiting', 'approved', 'rejected', 'quoted'],
+            ['Awaiting signature', 'Approved', 'Rejected', 'Client quote'],
+            ['#e11d48', '#22c55e', '#64748b', '#7b61ff']
+        );
     })();
 </script>
 @endsection

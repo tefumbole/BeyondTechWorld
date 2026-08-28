@@ -138,11 +138,7 @@ class TaskService
             $sendMode = ($row['send_mode'] ?? 'now') === 'schedule' ? 'schedule' : 'now';
             $scheduledFor = null;
             if ($sendMode === 'schedule' && ! empty($row['schedule_at'])) {
-                try {
-                    $scheduledFor = Carbon::parse($row['schedule_at']);
-                } catch (\Exception $e) {
-                    $scheduledFor = null;
-                }
+                $scheduledFor = $this->parseKigaliDateTime($row['schedule_at']);
             }
 
             $taskId = (string) Str::uuid();
@@ -184,13 +180,13 @@ class TaskService
                 ]);
             }
 
+            $nowKigali = Carbon::now('Africa/Kigali');
             foreach ((array) ($row['reminders'] ?? []) as $reminderAt) {
                 if (! $reminderAt) {
                     continue;
                 }
-                try {
-                    $rt = Carbon::parse($reminderAt);
-                } catch (\Exception $e) {
+                $rt = $this->parseKigaliDateTime($reminderAt);
+                if (! $rt || $rt->lte($nowKigali)) {
                     continue;
                 }
                 TaskReminder::create([
@@ -275,6 +271,9 @@ class TaskService
     public function processReminders()
     {
         $notifier = app(TaskNotificationService::class);
+        $tz = 'Africa/Kigali';
+        $nowKigali = Carbon::now($tz);
+        $startOfToday = $nowKigali->copy()->startOfDay();
         $due = TaskReminder::with('task')
             ->where('is_sent', false)
             ->where('reminder_time', '<=', now())
@@ -282,15 +281,83 @@ class TaskService
 
         $count = 0;
         foreach ($due as $reminder) {
+            $rt = $reminder->reminder_time
+                ? $reminder->reminder_time->copy()->timezone($tz)
+                : null;
+            // Skip leftovers whose calendar date has already passed.
+            if (! $rt || $rt->lt($startOfToday)) {
+                $reminder->delete();
+                continue;
+            }
             if ($reminder->task) {
                 $notifier->notifyReminder($reminder->task);
+                $count++;
             }
-            $reminder->is_sent = true;
-            $reminder->save();
-            $count++;
+            $reminder->delete();
         }
 
         return $count;
+    }
+
+    /**
+     * Compose datetimes are Africa/Kigali wall-clock (datetime-local has no zone).
+     *
+     * @return \Carbon\Carbon|null
+     */
+    public function parseKigaliDateTime($value)
+    {
+        $value = trim(str_replace(' ', 'T', (string) $value));
+        if ($value === '') {
+            return null;
+        }
+        $tz = 'Africa/Kigali';
+        foreach (['Y-m-d\TH:i:s', 'Y-m-d\TH:i'] as $fmt) {
+            try {
+                $dt = Carbon::createFromFormat($fmt, $value, $tz);
+                if ($dt instanceof Carbon) {
+                    return $dt;
+                }
+            } catch (\Exception $e) {
+            }
+        }
+        try {
+            return Carbon::parse($value, $tz);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Queue WhatsApp again for every assignee and CC on an existing task.
+     * Actual sends are paced by tasks:process so Wasender does not drop recipients.
+     */
+    public function resendTask($taskId)
+    {
+        $task = Task::find($taskId);
+        if (! $task) {
+            return false;
+        }
+
+        if (Schema::hasColumn('task_assignments', 'whatsapp_sent')) {
+            TaskAssignment::where('task_id', $taskId)->update(['whatsapp_sent' => false]);
+        }
+        if (Schema::hasColumn('task_cc', 'whatsapp_sent')) {
+            TaskCc::where('task_id', $taskId)->update(['whatsapp_sent' => false]);
+        }
+
+        $task->notifications_sent = false;
+        $task->is_scheduled = false;
+        $task->scheduled_for = null;
+        $task->save();
+
+        $task->refresh();
+        try {
+            app(TaskNotificationService::class)->dispatchPending($task, 8);
+        } catch (\Throwable $e) {
+            \Log::warning('Task resend dispatch failed: '.$e->getMessage());
+        }
+
+        return true;
     }
 
     public function myTasks($userId, $statusFilter = 'All', $categoryFilter = 'All')

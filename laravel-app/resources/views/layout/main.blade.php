@@ -10,7 +10,7 @@
               <title>Customer Name: {{ $customer_name }}</title>
           @endif
         <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="robots" content="all,follow">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <link rel="manifest" href="{{url('manifest.json')}}">
@@ -64,7 +64,7 @@
         <script type="text/javascript" src="<?php echo asset('public/vendor/jquery-validation/jquery.validate.min.js') ?>"></script>
         <script type="text/javascript" src="<?php echo asset('public/vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js')?>"></script>
 
-        <script type="text/javascript" src="<?php echo asset('public/js/front.js') ?>"></script>
+        <script type="text/javascript" src="<?php echo asset('public/js/front.js') ?>?v={{ \App\Support\AppVersion::erp() }}"></script>
 
         @if(Route::current()->getName() != '/')
         <script type="text/javascript" src="<?php echo asset('public/vendor/daterange/js/moment.min.js') ?>"></script>
@@ -757,6 +757,24 @@
                 }
             }
 
+            .beyond-stat-grid-ops {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            @media (max-width: 991px) {
+                .beyond-stat-grid-ops {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .beyond-stat-card .hint {
+                margin-top: 6px;
+                color: var(--beyond-muted);
+                font-size: 12px;
+                font-weight: 600;
+                line-height: 1.35;
+            }
+
             .beyond-stat-card {
                 background: #fff;
                 border: 1px solid #e3e9f4;
@@ -804,6 +822,12 @@
             @media (max-width: 991px) {
                 .beyond-chart-grid { grid-template-columns: 1fr; }
             }
+            .beyond-chart-grid.beyond-ops-charts {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            @media (max-width: 1199px) {
+                .beyond-chart-grid.beyond-ops-charts { grid-template-columns: 1fr; }
+            }
             .beyond-chart-panel {
                 background: #fff;
                 border: 1px solid #e3e9f4;
@@ -824,6 +848,9 @@
             .beyond-chart-canvas-wrap {
                 height: 260px;
                 position: relative;
+            }
+            .beyond-chart-canvas-wrap.is-sm {
+                height: 200px;
             }
             .beyond-chart-legend {
                 display: flex;
@@ -861,6 +888,96 @@
             .beyond-stat-icon.green { background: rgba(0, 198, 137, 0.12); color: #00a86b; }
             .beyond-stat-icon.gold { background: rgba(198, 171, 71, 0.18); color: #9a7b1a; }
             .beyond-stat-icon.purple { background: rgba(115, 54, 134, 0.12); color: #733686; }
+            .beyond-stat-icon.orange { background: rgba(245, 158, 11, 0.16); color: #b45309; }
+            .beyond-stat-icon.teal { background: rgba(13, 148, 136, 0.14); color: #0d9488; }
+            .beyond-stat-icon.rose { background: rgba(225, 29, 72, 0.12); color: #be123c; }
+
+            .beyond-section-head {
+                display: flex;
+                align-items: flex-end;
+                justify-content: space-between;
+                gap: 12px;
+                margin: 4px 0 14px;
+            }
+            .beyond-section-head h3 {
+                margin: 0 0 4px;
+                color: var(--beyond-primary);
+                font-size: 18px;
+                font-weight: 800;
+            }
+            .beyond-section-head p {
+                margin: 0;
+                color: var(--beyond-muted);
+                font-size: 13px;
+            }
+
+            .beyond-ops-feeds {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+            @media (max-width: 1199px) {
+                .beyond-ops-feeds { grid-template-columns: 1fr; }
+            }
+            .beyond-feed-panel { margin-bottom: 0; }
+            .beyond-feed-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            .beyond-feed-link {
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--beyond-primary);
+                white-space: nowrap;
+                padding-top: 4px;
+            }
+            .beyond-feed-list {
+                padding: 0 8px 12px;
+            }
+            .beyond-feed-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 12px 12px;
+                border-bottom: 1px solid #eef2f8;
+                text-decoration: none !important;
+                color: inherit;
+            }
+            .beyond-feed-row:last-child { border-bottom: 0; }
+            .beyond-feed-row:hover {
+                background: #f8fafc;
+                border-radius: 10px;
+            }
+            .beyond-feed-row > div {
+                min-width: 0;
+                flex: 1;
+            }
+            .beyond-feed-row strong {
+                display: block;
+                color: var(--beyond-text);
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.3;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .beyond-feed-row > div span {
+                color: var(--beyond-muted);
+                font-size: 12px;
+            }
+            .beyond-feed-row .beyond-status-badge {
+                flex-shrink: 0;
+            }
+            .beyond-feed-empty {
+                padding: 18px 20px 22px;
+                color: var(--beyond-muted);
+                font-size: 13px;
+            }
 
             .beyond-panel {
                 background: #fff;
@@ -983,6 +1100,11 @@
                 color: var(--beyond-primary);
             }
 
+            .beyond-status-badge.warn {
+                background: rgba(245, 158, 11, 0.16);
+                color: #b45309;
+            }
+
             .beyond-profile-cta {
                 margin: 0 20px 20px;
                 padding: 16px;
@@ -1016,6 +1138,199 @@
                 border-color: var(--beyond-primary) !important;
                 color: #fff !important;
             }
+
+            .sidebar-backdrop {
+                display: none;
+            }
+            .sidebar-close-btn {
+                display: none;
+            }
+
+            /* Off-canvas sidebar + full-width content on phones/tablets */
+            @media (max-width: 1199.98px) {
+                html, body {
+                    overflow-x: hidden;
+                    max-width: 100%;
+                }
+                body.sidebar-open {
+                    overflow: hidden;
+                }
+                .page {
+                    margin-left: 0 !important;
+                    width: 100% !important;
+                    max-width: 100%;
+                }
+                header.header {
+                    position: sticky;
+                    top: 0;
+                    z-index: 1040;
+                    width: 100%;
+                    margin-left: 0;
+                }
+                nav.side-navbar,
+                nav.side-navbar.shrink {
+                    top: 63px !important;
+                    height: calc(100vh - 63px) !important;
+                    height: calc(100dvh - 63px) !important;
+                    max-height: calc(100vh - 63px) !important;
+                    max-height: calc(100dvh - 63px) !important;
+                    width: min(280px, 86vw) !important;
+                    max-width: 280px !important;
+                    left: 0 !important;
+                    transform: translateX(-110%);
+                    opacity: 1 !important;
+                    visibility: hidden;
+                    pointer-events: none;
+                    overflow: hidden;
+                    transition: transform 0.22s ease, visibility 0.22s;
+                    z-index: 1035;
+                }
+                nav.side-navbar.is-open {
+                    transform: translateX(0);
+                    visibility: visible;
+                    pointer-events: auto;
+                }
+                .sidebar-backdrop {
+                    display: none;
+                    position: fixed;
+                    top: 63px;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(4, 20, 48, 0.52);
+                    z-index: 1032;
+                }
+                .sidebar-backdrop.is-visible {
+                    display: block;
+                }
+                .sidebar-close-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 36px;
+                    height: 36px;
+                    margin-left: auto;
+                    border: 1px solid rgba(255, 255, 255, 0.28);
+                    border-radius: 8px;
+                    background: rgba(255, 255, 255, 0.08);
+                    color: #fff;
+                    font-size: 22px;
+                    line-height: 1;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                }
+                .header #toggle-btn,
+                .header .menu-btn {
+                    position: relative;
+                    z-index: 1041;
+                }
+                .header .nav-menu {
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    max-width: calc(100vw - 64px);
+                    margin: 0;
+                }
+                .header .nav-menu .nav-item {
+                    flex-shrink: 0;
+                }
+                .header .btn-pos span {
+                    display: none;
+                }
+                .content-inner > .page-content,
+                .page .container-fluid {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                }
+                .beyond-dashboard-hero h1 {
+                    font-size: 24px;
+                }
+                .beyond-stat-card .value {
+                    font-size: 22px;
+                }
+                .beyond-module-tabs-nav,
+                .qt-nav {
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .table-responsive,
+                div.dataTables_wrapper {
+                    width: 100%;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+            }
+
+            @media (max-width: 767.98px) {
+                .beyond-dashboard-hero {
+                    gap: 10px;
+                    margin-bottom: 16px;
+                }
+                .beyond-dashboard-hero h1 {
+                    font-size: 20px;
+                }
+                .beyond-dashboard-actions {
+                    width: 100%;
+                    flex-wrap: wrap;
+                }
+                .beyond-stat-card {
+                    padding: 14px 12px;
+                }
+                nav.navbar a {
+                    padding: 0 6px;
+                    line-height: 48px;
+                }
+                .header .navbar,
+                .header .navbar .container-fluid,
+                .header .navbar-holder {
+                    min-height: 56px;
+                }
+                nav.side-navbar,
+                nav.side-navbar.shrink {
+                    top: 56px !important;
+                    height: calc(100vh - 56px) !important;
+                    height: calc(100dvh - 56px) !important;
+                    max-height: calc(100vh - 56px) !important;
+                    max-height: calc(100dvh - 56px) !important;
+                }
+                .sidebar-backdrop {
+                    top: 56px;
+                }
+                .card-body,
+                .card-header {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                }
+                .btn-group,
+                .dropdown-menu {
+                    max-width: calc(100vw - 24px);
+                }
+                section {
+                    padding-top: 12px;
+                }
+            }
+
+            @media (min-width: 1200px) {
+                .sidebar-backdrop,
+                .sidebar-close-btn {
+                    display: none !important;
+                }
+                nav.side-navbar {
+                    transform: none;
+                    visibility: visible;
+                    pointer-events: auto;
+                }
+            }
+
+            body.app-focus-mode nav.side-navbar,
+            body.app-focus-mode .sidebar-backdrop {
+                display: none !important;
+            }
+            body.app-focus-mode .page {
+                margin-left: 0 !important;
+                width: 100% !important;
+            }
         </style>
       </head>
 
@@ -1033,6 +1348,7 @@
                       <div class="sidebar-brand-text">
                           <a href="{{ url('/admin') }}" class="sidebar-brand-title" style="text-decoration:none; display:block;">{{ $brandTitle }}</a>
                       </div>
+                      <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu">&times;</button>
                   </div>
               </div>
                 <div class="main-menu">
@@ -2749,12 +3065,13 @@
                 </div>
             </div>
           </nav>
+          <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
         <!-- End Side Navbar -->
           <header class="header">
             <nav class="navbar">
               <div class="container-fluid">
                 <div class="navbar-holder d-flex align-items-center justify-content-between">
-                  <a id="toggle-btn" href="#" class="menu-btn"><i class="fa fa-bars"> </i></a>
+                  <a id="toggle-btn" href="#" class="menu-btn" aria-label="Open menu" aria-expanded="false"><i class="fa fa-bars"> </i></a>
                   <span class="brand-big">
                       <a href="{{url('/')}}"><h1 class="d-inline">{{$general_setting->site_title}}</h1></a>
                   </span>
@@ -3271,7 +3588,13 @@
           var alert_product = <?php echo json_encode($alert_product) ?>;
 
           if ($(window).outerWidth() > 1199) {
-              $('nav.side-navbar').removeClass('shrink');
+              $('nav.side-navbar').removeClass('shrink is-open');
+              $('#sidebar-backdrop').removeClass('is-visible');
+              $('body').removeClass('sidebar-open');
+          } else {
+              $('nav.side-navbar').removeClass('is-open');
+              $('#sidebar-backdrop').removeClass('is-visible');
+              $('body').removeClass('sidebar-open');
           }
           function myFunction() {
               setTimeout(showPage, 150);

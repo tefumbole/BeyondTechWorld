@@ -21,6 +21,11 @@ use App\Payment;
 use App\Account;
 use App\Product_Sale;
 use App\Customer;
+use App\InternshipEnrolment;
+use App\InternshipTaskAssignment;
+use App\Task;
+use App\Services\TaskService;
+use Illuminate\Support\Facades\Schema;
 use DB;
 use Auth;
 use Printing;
@@ -541,7 +546,114 @@ echo $response;
             $yearly_purchase_amount[] = number_format((float)$purchase_amount, 2, '.', '');
             $start = strtotime("+1 month", $start);
         }
-        return view('index', compact('revenue', 'purchase', 'expense', 'return', 'purchase_return', 'profit', 'payment_recieved', 'payment_sent', 'month', 'yearly_sale_amount', 'yearly_purchase_amount', 'recent_sale', 'recent_purchase', 'recent_quotation', 'recent_payment', 'best_selling_qty', 'yearly_best_selling_qty', 'yearly_best_selling_price'));
+        $workOps = $this->workOpsSnapshot();
+        return view('index', compact('revenue', 'purchase', 'expense', 'return', 'purchase_return', 'profit', 'payment_recieved', 'payment_sent', 'month', 'yearly_sale_amount', 'yearly_purchase_amount', 'recent_sale', 'recent_purchase', 'recent_quotation', 'recent_payment', 'best_selling_qty', 'yearly_best_selling_qty', 'yearly_best_selling_price', 'workOps'));
+    }
+
+    /**
+     * Live operations snapshot: tasks, internships, quotations awaiting signature.
+     */
+    protected function workOpsSnapshot()
+    {
+        $snapshot = [
+            'tasks' => [
+                'total' => 0, 'pending' => 0, 'in_progress' => 0, 'completed' => 0,
+                'overdue' => 0, 'open' => 0, 'recent' => [],
+            ],
+            'interns' => [
+                'active' => 0, 'paused' => 0, 'pending' => 0, 'completed' => 0,
+                'review' => 0, 'recent' => [],
+            ],
+            'quotes' => [
+                'awaiting' => 0, 'awaiting_value' => 0, 'approved' => 0,
+                'rejected' => 0, 'quoted' => 0, 'recent' => [],
+            ],
+        ];
+
+        try {
+            if (Schema::hasTable('tasks') && Schema::hasTable('task_assignments')) {
+                $stats = app(TaskService::class)->dashboardStats();
+                $snapshot['tasks'] = array_merge($snapshot['tasks'], $stats);
+                $snapshot['tasks']['recent'] = Task::query()
+                    ->orderByDesc('created_at')
+                    ->take(6)
+                    ->get()
+                    ->map(function ($task) {
+                        return [
+                            'id' => $task->id,
+                            'title' => $task->title,
+                            'status' => $task->status ?: 'Open',
+                            'deadline' => $task->deadline ? $task->deadline->format('d-m-Y') : '—',
+                            'priority' => $task->priority ?: '',
+                        ];
+                    })
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Dashboard task snapshot failed: '.$e->getMessage());
+        }
+
+        try {
+            if (Schema::hasTable('internship_enrolments')) {
+                $snapshot['interns']['active'] = InternshipEnrolment::where('status', 'active')->count();
+                $snapshot['interns']['paused'] = InternshipEnrolment::where('status', 'paused')->count();
+                $snapshot['interns']['pending'] = InternshipEnrolment::where('status', 'pending')->count();
+                $snapshot['interns']['completed'] = InternshipEnrolment::where('status', 'completed')->count();
+                if (Schema::hasTable('internship_task_assignments')) {
+                    $snapshot['interns']['review'] = InternshipTaskAssignment::where('status', 'submitted')->count();
+                }
+                $snapshot['interns']['recent'] = InternshipEnrolment::with(['student', 'program'])
+                    ->whereIn('status', ['active', 'paused', 'pending'])
+                    ->orderByDesc('id')
+                    ->take(6)
+                    ->get()
+                    ->map(function ($row) {
+                        return [
+                            'id' => $row->id,
+                            'application_id' => $row->application_id,
+                            'name' => optional($row->student)->name ?: 'Intern',
+                            'program' => optional($row->program)->name ?: 'Program',
+                            'status' => $row->status,
+                            'completed' => (int) $row->completed_count,
+                        ];
+                    })
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Dashboard intern snapshot failed: '.$e->getMessage());
+        }
+
+        try {
+            if (Schema::hasTable('quotations')) {
+                if (method_exists(Quotation::class, 'promoteSignedAwaitingToApproved')) {
+                    Quotation::promoteSignedAwaitingToApproved();
+                }
+                $awaitingQuery = Quotation::awaitingClientSignature();
+                $snapshot['quotes']['awaiting'] = (clone $awaitingQuery)->count();
+                $snapshot['quotes']['awaiting_value'] = (float) (clone $awaitingQuery)->sum('grand_total');
+                $snapshot['quotes']['approved'] = Quotation::whereIn('quotation_status', Quotation::saleReadyStatuses())->count();
+                $snapshot['quotes']['rejected'] = Quotation::where('quotation_status', Quotation::STATUS_REJECTED)->count();
+                $snapshot['quotes']['quoted'] = Quotation::where('quotation_status', Quotation::STATUS_CLIENT_QUOTE)->count();
+                $snapshot['quotes']['recent'] = (clone $awaitingQuery)->with('customer')
+                    ->orderByDesc('id')
+                    ->take(6)
+                    ->get()
+                    ->map(function ($q) {
+                        return [
+                            'id' => $q->id,
+                            'reference' => $q->reference_no,
+                            'customer' => optional($q->customer)->name ?: 'Client',
+                            'total' => number_format((float) $q->grand_total, 2),
+                            'date' => $q->created_at ? $q->created_at->format('d-m-Y') : '',
+                        ];
+                    })
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Dashboard quotation snapshot failed: '.$e->getMessage());
+        }
+
+        return $snapshot;
     }
 
     public function dashboardFilter($start_date, $end_date)

@@ -331,8 +331,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/tasks/list', 'TaskManagerController@index')->name('tasks.index');
     Route::get('/admin/tasks/scheduled', 'TaskManagerController@scheduled')->name('tasks.scheduled');
     Route::get('/admin/tasks/reminders', 'TaskManagerController@reminders')->name('tasks.reminders');
+    Route::post('/admin/tasks/reminders/delete-selected', 'TaskManagerController@deleteReminders')->name('tasks.reminders.delete_selected');
     Route::post('/admin/tasks/reminders/{id}/delete', 'TaskManagerController@deleteReminder')->name('tasks.reminders.delete');
     Route::get('/admin/tasks/pending-acceptances', 'TaskManagerController@pendingAcceptances')->name('tasks.pending');
+    Route::post('/admin/tasks/{id}/resend', 'TaskManagerController@resend')->name('tasks.resend');
     Route::post('/admin/tasks/{id}/delete', 'TaskManagerController@destroy')->name('tasks.destroy');
     Route::get('/admin/tasks/settings', 'TaskManagerController@settings')->name('tasks.settings');
     Route::post('/admin/tasks/settings/categories', 'TaskManagerController@storeCategory')->name('tasks.settings.categories.store');

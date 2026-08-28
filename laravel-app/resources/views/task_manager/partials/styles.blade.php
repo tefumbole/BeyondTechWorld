@@ -103,4 +103,22 @@
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); padding: 1.25rem;
         margin-bottom: 1rem;
     }
+    .tm-toolbar {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+        margin-bottom: 12px;
+    }
+    .tm-row-actions { display: inline-flex; align-items: center; gap: 6px; }
+    .tm-btn-resend {
+        border: 1px solid #0b3f90; background: #fff; color: #0b3f90;
+        border-radius: 8px; padding: 4px 8px; line-height: 1;
+    }
+    .tm-btn-resend:hover { background: #0b3f90; color: #fff; }
+    .tm-btn-danger {
+        border: 1px solid #ef4444; background: #fff; color: #ef4444;
+        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px;
+        display: inline-flex; align-items: center; gap: 6px;
+    }
+    .tm-btn-danger:hover { background: #ef4444; color: #fff; }
+    .tm-btn-danger:disabled { opacity: .45; cursor: not-allowed; }
+    .tm-check { width: 16px; height: 16px; cursor: pointer; }
 </style>

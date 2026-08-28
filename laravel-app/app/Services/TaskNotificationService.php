@@ -278,9 +278,11 @@ class TaskNotificationService extends Controller
             $deadline = $task->deadline
                 ? $task->deadline->format('d M Y') . ($task->deadline_time ? ' ' . substr((string) $task->deadline_time, 0, 5) : '')
                 : '—';
+            $desc = TaskPersonalization::personalize($task->description ?: '', TaskPersonalization::userVars($user));
+            $descBlock = trim($desc) !== '' ? "\n{$desc}\n" : '';
             $this->sendPhone(
                 $phone,
-                "⏰ *TASK REMINDER*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'Team Member') . "*,\n\nReminder for your task:\n\n▪️ *Task:* {$task->title}\n▪️ *Deadline:* {$deadline}\n\n👉 Update progress:\n" . url('/user/tasks') . "\n\n_Beyond Enterprise_"
+                "⏰ *TASK REMINDER*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'Team Member') . "*,\n\nReminder for your task:\n\n▪️ *Task:* {$task->title}\n▪️ *Deadline:* {$deadline}\n{$descBlock}\n👉 Update progress:\n" . url('/user/tasks') . "\n\n_Beyond Enterprise_"
             );
         }
     }

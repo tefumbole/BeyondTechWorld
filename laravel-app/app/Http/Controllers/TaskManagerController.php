@@ -170,17 +170,49 @@ class TaskManagerController extends Controller
     public function reminders()
     {
         $this->authorizeTasks('tasks.view');
-        $reminders = TaskReminder::with('task')->orderByDesc('reminder_time')->paginate(40);
+        TaskReminder::query()
+            ->where(function ($q) {
+                $q->where('is_sent', 1)->orWhere('is_sent', true);
+            })
+            ->delete();
+        $reminders = TaskReminder::with('task')
+            ->where(function ($q) {
+                $q->where('is_sent', 0)->orWhereNull('is_sent');
+            })
+            ->orderByDesc('reminder_time')
+            ->paginate(40);
 
         return view('task_manager.reminders', compact('reminders'));
     }
 
     public function deleteReminder($id)
     {
-        $this->authorizeTasks('tasks.update');
+        $this->authorizeTasks('tasks.view');
         TaskReminder::where('id', $id)->delete();
 
         return back()->with('message', 'Reminder deleted.');
+    }
+
+    public function deleteReminders(Request $request)
+    {
+        $this->authorizeTasks('tasks.view');
+        $ids = array_values(array_filter((array) $request->input('ids', [])));
+        if (! count($ids)) {
+            return back()->with('not_permitted', 'Select at least one reminder to delete.');
+        }
+        $deleted = TaskReminder::whereIn('id', $ids)->delete();
+
+        return back()->with('message', $deleted.' reminder'.($deleted === 1 ? '' : 's').' deleted.');
+    }
+
+    public function resend($id)
+    {
+        $this->authorizeTasks('tasks.create');
+        if (! $this->tasks->resendTask($id)) {
+            return back()->with('not_permitted', 'Task not found.');
+        }
+
+        return back()->with('message', 'Task queued to resend WhatsApp to every assignee and CC.');
     }
 
     public function pendingAcceptances()

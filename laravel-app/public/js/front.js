@@ -9,6 +9,11 @@ $(document).ready(function () {
 
     function toggleFullscreen(elem) {
         elem = elem || document.documentElement;
+        var canNative = elem.requestFullscreen || elem.msRequestFullscreen || elem.mozRequestFullScreen || elem.webkitRequestFullscreen;
+        if (!canNative) {
+            document.body.classList.toggle('app-focus-mode');
+            return;
+        }
         if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
                 if (elem.requestFullscreen) {
                     elem.requestFullscreen();
@@ -31,8 +36,9 @@ $(document).ready(function () {
             }
         }
     }
-    if(('#btnFullscreen').length > 0) {
-        document.getElementById('btnFullscreen').addEventListener('click', function() {
+    if ($('#btnFullscreen').length > 0) {
+        $('#btnFullscreen').on('click', function (e) {
+            e.preventDefault();
             toggleFullscreen();
         });
     }
@@ -49,32 +55,83 @@ $(document).ready(function () {
     // Custom Scrollbar
     // ------------------------------------------------------ //
 
-    if ($(window).outerWidth() > 992) {
+    if ($(window).outerWidth() > 1199) {
         $("nav.side-navbar,.table-container,.transaction-list,.right-sidebar").mCustomScrollbar({
             theme: "light",
             scrollInertia: 200
         });
     }
 
-    // Keep the sidebar flush with the viewport. The old 63px offset pushed
-    // Sign Out below the fold for short menus (intern / student).
-    $('nav.side-navbar').css({ top: '0', height: '100vh' });
-
+    // Desktop: sidebar flush with the viewport. Mobile CSS overrides top/height
+    // so the hamburger in the header stays tappable.
+    if ($(window).outerWidth() > 1199) {
+        $('nav.side-navbar').css({ top: '0', height: '100vh' });
+    }
 
     // ------------------------------------------------------- //
-    // Side Navbar Functionality
+    // Side Navbar Functionality (drawer on phones / tablets)
     // ------------------------------------------------------ //
-    
+
+    function isMobileNav() {
+        return $(window).outerWidth() <= 1199;
+    }
+
+    function closeMobileSidebar() {
+        $('nav.side-navbar').removeClass('is-open show-sm');
+        $('#sidebar-backdrop, .sidebar-backdrop').removeClass('is-visible');
+        $('body').removeClass('sidebar-open');
+        $('#toggle-btn').attr('aria-expanded', 'false');
+    }
+
+    function openMobileSidebar() {
+        $('nav.side-navbar').addClass('is-open').removeClass('shrink');
+        $('#sidebar-backdrop, .sidebar-backdrop').addClass('is-visible');
+        $('body').addClass('sidebar-open');
+        $('#toggle-btn').attr('aria-expanded', 'true');
+    }
+
     $('#toggle-btn').on('click', function (e) {
-
         e.preventDefault();
+        e.stopPropagation();
 
-        if ($(window).outerWidth() > 1199) {
+        if (!isMobileNav()) {
             $('nav.side-navbar').toggleClass('shrink');
             $('.page').toggleClass('active');
+            return;
+        }
+
+        if ($('nav.side-navbar').hasClass('is-open')) {
+            closeMobileSidebar();
         } else {
-            $('nav.side-navbar').toggleClass('shrink');
-            $('.page').toggleClass('active-sm');
+            openMobileSidebar();
+        }
+    });
+
+    $(document).on('click', '#sidebar-backdrop, .sidebar-backdrop, #sidebar-close-btn', function (e) {
+        e.preventDefault();
+        closeMobileSidebar();
+    });
+
+    $(document).on('click', 'nav.side-navbar a[href]', function () {
+        if (!isMobileNav()) {
+            return;
+        }
+        var href = $(this).attr('href') || '';
+        if (!href || href === '#' || href.indexOf('javascript:') === 0) {
+            return;
+        }
+        closeMobileSidebar();
+    });
+
+    $(window).on('resize', function () {
+        if (!isMobileNav()) {
+            closeMobileSidebar();
+            $('nav.side-navbar').css({ top: '0', height: '100vh' });
+        } else {
+            $('nav.side-navbar').css({ top: '', height: '' });
+            if (!$('nav.side-navbar').hasClass('is-open')) {
+                closeMobileSidebar();
+            }
         }
     });
     

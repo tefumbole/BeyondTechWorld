@@ -61,6 +61,35 @@
     }
     .tm-field:focus { outline: none; border-color: #0b3f90; box-shadow: 0 0 0 3px rgba(11,63,144,.12); }
     textarea.tm-field { min-height: 88px; resize: vertical; }
+    textarea.tm-field.tm-desc {
+        min-height: 220px; height: 220px; line-height: 1.5;
+        font-size: 15px;
+    }
+    .tm-fmt-bar {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+        margin-bottom: 8px;
+    }
+    .tm-fmt-btn {
+        border: 1px solid #d7deea; background: #fff; color: #334155;
+        border-radius: 7px; padding: 5px 10px; font-size: 13px; font-weight: 700;
+        cursor: pointer; line-height: 1.2; min-width: 34px;
+    }
+    .tm-fmt-btn:hover, .tm-fmt-btn.is-open { background: #eef4ff; border-color: #0b3f90; color: #0b3f90; }
+    .tm-fmt-btn em { font-style: italic; font-weight: 700; }
+    .tm-emoji-wrap { position: relative; display: inline-block; }
+    .tm-emoji-panel {
+        display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 20;
+        width: 280px; max-height: 200px; overflow: auto;
+        background: #fff; border: 1px solid #d7deea; border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(15,23,42,.12); padding: 8px;
+        grid-template-columns: repeat(8, 1fr); gap: 4px;
+    }
+    .tm-emoji-panel.is-open { display: grid; }
+    .tm-emoji-panel button {
+        border: 0; background: transparent; font-size: 20px; line-height: 1.3;
+        cursor: pointer; border-radius: 6px; padding: 4px;
+    }
+    .tm-emoji-panel button:hover { background: #f1f5f9; }
     .tm-main-grid {
         display: grid; grid-template-columns: 1fr 168px; gap: 1rem; margin-bottom: 1rem;
     }
@@ -219,6 +248,66 @@ window.TM_CSRF = @json(csrf_token());
             date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
             time: pad(d.getHours()) + ':' + pad(d.getMinutes())
         };
+    }
+    function localDateTimeValue(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function insertAtCursor(ta, text) {
+        if (!ta) return;
+        var start = ta.selectionStart || 0;
+        var end = ta.selectionEnd || 0;
+        var val = ta.value || '';
+        ta.value = val.slice(0, start) + text + val.slice(end);
+        var pos = start + text.length;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+    }
+    function wrapSelection(ta, left, right) {
+        if (!ta) return;
+        var start = ta.selectionStart || 0;
+        var end = ta.selectionEnd || 0;
+        var val = ta.value || '';
+        var selected = val.slice(start, end) || 'text';
+        ta.value = val.slice(0, start) + left + selected + right + val.slice(end);
+        ta.focus();
+        ta.setSelectionRange(start + left.length, start + left.length + selected.length);
+    }
+    var TM_EMOJIS = ['😀','🙂','😂','🙏','👍','👏','🎉','✅','❌','⚠️','📌','📋','⏰','📅','🚀','💼','🛠️','👷','📍','⭐','🔥','💡','📎','📞','✉️','🔴','🟡','🟢','💙','🤍'];
+
+    function bindComposer(wrap) {
+        var ta = wrap.querySelector('.tm-desc');
+        wrap.querySelector('.tm-fmt-bold').addEventListener('click', function () {
+            wrapSelection(ta, '*', '*');
+        });
+        wrap.querySelector('.tm-fmt-italic').addEventListener('click', function () {
+            wrapSelection(ta, '_', '_');
+        });
+        var emojiBtn = wrap.querySelector('.tm-fmt-emoji');
+        var panel = wrap.querySelector('.tm-emoji-panel');
+        TM_EMOJIS.forEach(function (emo) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = emo;
+            b.addEventListener('click', function () {
+                insertAtCursor(ta, emo);
+                panel.classList.remove('is-open');
+                emojiBtn.classList.remove('is-open');
+            });
+            panel.appendChild(b);
+        });
+        emojiBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var open = panel.classList.toggle('is-open');
+            emojiBtn.classList.toggle('is-open', open);
+            document.querySelectorAll('.tm-emoji-panel').forEach(function (p) {
+                if (p !== panel) p.classList.remove('is-open');
+            });
+            document.querySelectorAll('.tm-fmt-emoji').forEach(function (b) {
+                if (b !== emojiBtn) b.classList.remove('is-open');
+            });
+        });
+        panel.addEventListener('click', function (e) { e.stopPropagation(); });
     }
 
     function mergeUsers(list) {
@@ -470,7 +559,16 @@ window.TM_CSRF = @json(csrf_token());
             + '      </div>'
             + '      <div>'
             + '        <label class="tm-label">Description</label>'
-            + '        <textarea name="tasks['+i+'][description]" class="tm-field tm-desc" rows="3" placeholder="Describe the task…"></textarea>'
+            + '        <div class="tm-fmt-bar">'
+            + '          <button type="button" class="tm-fmt-btn tm-fmt-bold" title="Bold">B</button>'
+            + '          <button type="button" class="tm-fmt-btn tm-fmt-italic" title="Italic"><em>I</em></button>'
+            + '          <div class="tm-emoji-wrap">'
+            + '            <button type="button" class="tm-fmt-btn tm-fmt-emoji" title="Emoji">😊</button>'
+            + '            <div class="tm-emoji-panel"></div>'
+            + '          </div>'
+            + '          <span class="tm-hint" style="margin:0;">WhatsApp: *bold* and _italic_</span>'
+            + '        </div>'
+            + '        <textarea name="tasks['+i+'][description]" class="tm-field tm-desc" rows="10" placeholder="Describe the task…"></textarea>'
             + '        <div class="mt-2" style="font-size:12px;color:#9ca3af;">Insert: '
             + '          <span class="tm-ph" data-token="{Name}">{Name}</span>'
             + '          <span class="tm-ph" data-token="{Phone}">{Phone}</span>'
@@ -564,7 +662,7 @@ window.TM_CSRF = @json(csrf_token());
             + '  </div>'
             + '  <div class="tm-section">'
             + '    <div class="tm-section-title"><i class="dripicons-clock"></i> Reminders</div>'
-            + '    <p class="tm-hint">Multiple reminders before deadline — message shows time remaining.</p>'
+            + '    <p class="tm-hint">Add future reminder times (Africa/Kigali). Past dates are ignored and will not be sent.</p>'
             + '    <div class="tm-reminders"></div>'
             + '    <button type="button" class="tm-pill-outline tm-add-reminder">+ Add reminder</button>'
             + '  </div>'
@@ -761,11 +859,10 @@ window.TM_CSRF = @json(csrf_token());
         });
         wrap.querySelectorAll('.tm-ph').forEach(function (ph) {
             ph.addEventListener('click', function () {
-                var ta = wrap.querySelector('.tm-desc');
-                ta.value = (ta.value || '') + ph.getAttribute('data-token');
-                ta.focus();
+                insertAtCursor(wrap.querySelector('.tm-desc'), ph.getAttribute('data-token'));
             });
         });
+        bindComposer(wrap);
         wrap.querySelector('.tm-subject').addEventListener('blur', function () {
             var sub = wrap.querySelector('.tm-subject');
             sub.value = (sub.value || '').toUpperCase();
@@ -779,7 +876,11 @@ window.TM_CSRF = @json(csrf_token());
             row.className = 'd-flex mb-2';
             row.style.gap = '8px';
             row.style.alignItems = 'center';
-            row.innerHTML = '<input type="datetime-local" name="tasks['+i+'][reminders][]" class="tm-field" style="max-width:280px;">'
+            var soon = new Date();
+            soon.setMinutes(soon.getMinutes() + 60);
+            var minVal = localDateTimeValue(new Date());
+            var defVal = localDateTimeValue(soon);
+            row.innerHTML = '<input type="datetime-local" name="tasks['+i+'][reminders][]" class="tm-field tm-reminder-at" min="'+minVal+'" value="'+defVal+'" style="max-width:280px;">'
                 + '<button type="button" class="tm-task-remove" style="display:inline;">×</button>';
             row.querySelector('button').addEventListener('click', function () { row.remove(); });
             box.appendChild(row);
@@ -800,8 +901,13 @@ window.TM_CSRF = @json(csrf_token());
     }
 
     document.getElementById('tm-add-task').addEventListener('click', addTaskCard);
+    document.addEventListener('click', function () {
+        document.querySelectorAll('.tm-emoji-panel.is-open').forEach(function (p) { p.classList.remove('is-open'); });
+        document.querySelectorAll('.tm-fmt-emoji.is-open').forEach(function (b) { b.classList.remove('is-open'); });
+    });
     document.getElementById('tm-create-form').addEventListener('submit', function (e) {
         var ok = true;
+        var skippedPast = 0;
         container.querySelectorAll('.tm-task-card').forEach(function (card) {
             var hid = card.querySelectorAll('.tm-ahiddens input');
             var err = card.querySelector('.tm-aerr');
@@ -811,10 +917,22 @@ window.TM_CSRF = @json(csrf_token());
             }
             var sub = card.querySelector('.tm-subject');
             if (sub) sub.value = (sub.value || '').toUpperCase();
+            card.querySelectorAll('.tm-reminder-at').forEach(function (inp) {
+                if (!inp.value) return;
+                var when = new Date(inp.value);
+                if (!isNaN(when.getTime()) && when.getTime() <= Date.now()) {
+                    inp.value = '';
+                    skippedPast += 1;
+                }
+            });
         });
         if (!ok) {
             e.preventDefault();
             alert('Each task needs at least one assignee.');
+            return;
+        }
+        if (skippedPast) {
+            alert(skippedPast + ' reminder' + (skippedPast === 1 ? '' : 's') + ' in the past were ignored and will not be sent.');
         }
     });
 

@@ -18,6 +18,9 @@
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
 
         <form method="GET" class="form-inline mb-3">
             <input type="text" name="q" value="{{ request('q') }}" class="form-control mr-2 mb-2" placeholder="Search subject…">
@@ -62,12 +65,22 @@
                                 <td>{{ $task->ccRecipients->count() }}</td>
                                 <td>{{ $task->status }}</td>
                                 <td class="text-right">
-                                    @if(in_array('tasks.delete', $all_permission ?? []))
-                                        <form method="POST" action="{{ route('tasks.destroy', $task->id) }}" class="d-inline" onsubmit="return confirm('Delete this task?');">
-                                            @csrf
-                                            <button class="btn btn-sm btn-outline-danger"><i class="dripicons-trash"></i></button>
-                                        </form>
-                                    @endif
+                                    <div class="tm-row-actions">
+                                        @if(in_array('tasks.create', $all_permission ?? []) || in_array('tasks_module', $all_permission ?? []))
+                                            <form method="POST" action="{{ route('tasks.resend', $task->id) }}" class="d-inline" onsubmit="return confirm('Resend this task on WhatsApp to all assignees and CC?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm tm-btn-resend" title="Resend task">
+                                                    <i class="dripicons-return"></i> Resend
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if(in_array('tasks.delete', $all_permission ?? []))
+                                            <form method="POST" action="{{ route('tasks.destroy', $task->id) }}" class="d-inline" onsubmit="return confirm('Delete this task?');">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete task"><i class="dripicons-trash"></i></button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
