@@ -55,6 +55,17 @@ class QuotationApprovalController extends Controller
         $quotation->client_approval_token = null;
         $quotation->save();
 
+        // Force persist in case PDO string status comparisons left the row on awaiting.
+        \DB::table('quotations')->where('id', $quotation->id)->update([
+            'quotation_status' => Quotation::STATUS_APPROVED,
+            'client_signature_path' => $sigPath,
+            'client_signed_at' => now(),
+            'client_responded_at' => now(),
+            'client_comment' => $data['client_comment'] ?? null,
+            'client_approval_token' => null,
+            'updated_at' => now(),
+        ]);
+
         $quotation = $quotation->fresh(['customer', 'biller', 'user']);
         $this->notifyStakeholders($quotation, 'approved');
 

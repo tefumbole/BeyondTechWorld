@@ -132,10 +132,10 @@ class WhatsAppMessage
     /**
      * Client-facing quotation WhatsApp.
      *
-     * Never lists undiscounted line prices when a discount applies — clients see
-     * subtotal / discount / final total (or final total only).
+     * Line items show net unit price × qty. Order-level discount (if any) stays
+     * in the Amount block so clients see subtotal / discount / total due.
      *
-     * @param  array  $options  products [['name','qty']], subtotal, order_discount,
+     * @param  array  $options  products [['name','qty','unit_price']], subtotal, order_discount,
      *                          order_tax, shipping_cost, show_discount (bool)
      */
     public static function quotationApprovalRequest($customerName, $referenceNo, $grandTotal, $approvalUrl, array $options = [])
@@ -298,9 +298,9 @@ class WhatsAppMessage
     }
 
     /**
-     * Product lines as name × qty only (no misleading pre-discount amounts).
+     * Product lines as name @ unit price × qty (net unit price).
      *
-     * @param  array  $products  [['name'=>,'qty'=>], ...]
+     * @param  array  $products  [['name'=>,'qty'=>,'unit_price'=>], ...]
      */
     public static function quotationProductsBlock(array $products)
     {
@@ -312,7 +312,11 @@ class WhatsAppMessage
         foreach ($products as $index => $line) {
             $name = $line['name'] ?? (is_string($line) ? $line : 'Item');
             $qty = $line['qty'] ?? '';
+            $unitPrice = $line['unit_price'] ?? $line['net_unit_price'] ?? $line['price'] ?? null;
             $msg .= ($index + 1).") {$name}";
+            if ($unitPrice !== '' && $unitPrice !== null && is_numeric($unitPrice)) {
+                $msg .= ' @ '.number_format((float) $unitPrice, 2);
+            }
             if ($qty !== '' && $qty !== null) {
                 $msg .= " × {$qty}";
             }

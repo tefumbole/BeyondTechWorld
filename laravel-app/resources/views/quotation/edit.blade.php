@@ -523,8 +523,8 @@ $('select[name="biller_id"]').val($('input[name="biller_id_hidden"]').val());
 $('select[name="order_tax_rate"]').val($('input[name="order_tax_rate_hidden"]').val());
 (function () {
     var st = parseInt($('input[name="quotation_status_hidden"]').val(), 10);
-    // Prefer “Send for Signature” after edit for awaiting / rejected / approved
-    if (st === 2 || st === 3 || st === 4) {
+    // Re-open awaiting / rejected for signature. Never auto-reopen an already-signed quote.
+    if (st === 2 || st === 4) {
         $('select[name="quotation_status"]').val('2');
     } else {
         $('select[name="quotation_status"]').val(String(st));

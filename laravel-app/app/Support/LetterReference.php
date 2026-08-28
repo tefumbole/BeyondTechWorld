@@ -122,23 +122,57 @@ class LetterReference
     }
 
     /**
-     * Ensure a WhatsApp body starts with the same Ref line letters use.
+     * Stamp a shared letter serial on a WhatsApp body.
+     * Subject stays first; Ref sits immediately above the italic company title.
      * Reuses an existing letter-style serial instead of allocating a second one.
      */
     public static function applyToMessage($body, $source = 'whatsapp'): string
     {
         $body = (string) $body;
-        if (self::extractFromText($body)) {
-            return $body;
-        }
-        try {
-            $ref = self::next($source);
-        } catch (\Throwable $e) {
-            \Log::warning('LetterReference WhatsApp serial failed: '.$e->getMessage());
-
+        if (trim($body) === '') {
             return $body;
         }
 
-        return self::label($ref)."\n".$body;
+        $ref = self::extractFromText($body);
+        if (! $ref) {
+            try {
+                $ref = self::next($source);
+            } catch (\Throwable $e) {
+                \Log::warning('LetterReference WhatsApp serial failed: '.$e->getMessage());
+
+                return $body;
+            }
+        }
+
+        $body = self::stripRefLines($body);
+
+        return self::insertBeforeFooter($body, self::label($ref));
+    }
+
+    /** Remove "Ref: PREFIX/yy/NNNNNNN" lines so they can be placed before the footer. */
+    public static function stripRefLines(string $body): string
+    {
+        $prefix = preg_quote(rtrim(self::prefix(), '/'), '#');
+        $stripped = preg_replace('#(?:^|\n)Ref:\s*'.$prefix.'/\d{2}/\d{1,7}[ \t]*#i', "\n", $body);
+
+        return ltrim((string) $stripped, "\n");
+    }
+
+    /** Place the Ref line immediately above the italic company footer. */
+    public static function insertBeforeFooter(string $body, string $label): string
+    {
+        $body = rtrim($body);
+        if ($label === '') {
+            return $body;
+        }
+        if (preg_match('#(\n*_[^_\n]+_)$#u', $body, $m, PREG_OFFSET_CAPTURE)) {
+            $pos = $m[1][1];
+            $before = rtrim(substr($body, 0, $pos));
+            $footer = ltrim($m[1][0], "\n");
+
+            return $before."\n\n".$label."\n".$footer;
+        }
+
+        return $body."\n\n".$label;
     }
 }

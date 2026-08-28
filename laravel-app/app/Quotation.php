@@ -52,6 +52,10 @@ class Quotation extends Model
         'approval_sent_at',
     ];
 
+    protected $casts = [
+        'quotation_status' => 'integer',
+    ];
+
     public static function statusLabel($status)
     {
         $map = [
@@ -72,9 +76,60 @@ class Quotation extends Model
         return [self::STATUS_APPROVED, self::STATUS_NO_SIGNATURE];
     }
 
+    public function hasClientSignature()
+    {
+        return ! empty($this->client_signed_at) || ! empty($this->client_signature_path);
+    }
+
+    /** Still waiting for the client to sign — exclude already-signed rows. */
+    public function scopeAwaitingClientSignature($query)
+    {
+        return $query->where('quotation_status', self::STATUS_AWAITING)
+            ->whereNull('client_signed_at')
+            ->where(function ($q) {
+                $q->whereNull('client_signature_path')
+                    ->orWhere('client_signature_path', '');
+            });
+    }
+
+    public function scopeApprovedOrSigned($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereIn('quotation_status', self::saleReadyStatuses())
+                ->orWhereNotNull('client_signed_at')
+                ->orWhere(function ($q2) {
+                    $q2->whereNotNull('client_signature_path')
+                        ->where('client_signature_path', '!=', '');
+                });
+        });
+    }
+
+    /**
+     * If a client already signed but status was left (or reverted) to awaiting,
+     * move those quotations onto Approved so they leave the awaiting list.
+     */
+    public static function promoteSignedAwaitingToApproved()
+    {
+        try {
+            self::query()
+                ->where('quotation_status', self::STATUS_AWAITING)
+                ->where(function ($q) {
+                    $q->whereNotNull('client_signed_at')
+                        ->orWhere(function ($q2) {
+                            $q2->whereNotNull('client_signature_path')
+                                ->where('client_signature_path', '!=', '');
+                        });
+                })
+                ->update(['quotation_status' => self::STATUS_APPROVED]);
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation signed-status heal failed: '.$e->getMessage());
+        }
+    }
+
     public function isSaleReady()
     {
-        return in_array((int) $this->quotation_status, self::saleReadyStatuses(), true);
+        return in_array((int) $this->quotation_status, self::saleReadyStatuses(), true)
+            || $this->hasClientSignature();
     }
 
     public function statusLabelText()
@@ -101,11 +156,18 @@ class Quotation extends Model
 
     public function ensureApprovalToken()
     {
-        if (empty($this->client_approval_token)) {
-            return $this->rotateApprovalToken();
+        if (! empty($this->client_approval_token)) {
+            return $this->client_approval_token;
+        }
+        // Do not reopen a quotation the client already signed or responded to.
+        if ($this->hasClientSignature()
+            || ! empty($this->client_responded_at)
+            || ! in_array((int) $this->quotation_status, [self::STATUS_AWAITING, self::STATUS_PENDING], true)
+        ) {
+            return $this->client_approval_token;
         }
 
-        return $this->client_approval_token;
+        return $this->rotateApprovalToken();
     }
 
     /**
@@ -134,7 +196,8 @@ class Quotation extends Model
     {
         return (int) $this->quotation_status === self::STATUS_AWAITING
             && ! empty($this->client_approval_token)
-            && empty($this->client_responded_at);
+            && empty($this->client_responded_at)
+            && ! $this->hasClientSignature();
     }
 
     public function approvalUrl()

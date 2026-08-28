@@ -72,9 +72,11 @@ class QuotationController extends Controller
                 $tab = 'awaiting';
             }
 
+            Quotation::promoteSignedAwaitingToApproved();
+
             $query = Quotation::with('biller', 'customer', 'supplier', 'user', 'pendingQuote')->orderBy('id', 'desc');
             if ($tab === 'approved') {
-                $query->whereIn('quotation_status', Quotation::saleReadyStatuses());
+                $query->approvedOrSigned();
             } elseif ($tab === 'draft') {
                 $query->where('quotation_status', Quotation::STATUS_PENDING);
             } elseif ($tab === 'rejected') {
@@ -82,7 +84,7 @@ class QuotationController extends Controller
             } elseif ($tab === 'quoted') {
                 $query->where('quotation_status', Quotation::STATUS_CLIENT_QUOTE);
             } else {
-                $query->where('quotation_status', Quotation::STATUS_AWAITING);
+                $query->awaitingClientSignature();
             }
 
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
@@ -96,8 +98,8 @@ class QuotationController extends Controller
                 $baseCounts->where('user_id', Auth::id());
             }
             $tabCounts = [
-                'awaiting' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_AWAITING)->count(),
-                'approved' => (clone $baseCounts)->whereIn('quotation_status', Quotation::saleReadyStatuses())->count(),
+                'awaiting' => (clone $baseCounts)->awaitingClientSignature()->count(),
+                'approved' => (clone $baseCounts)->approvedOrSigned()->count(),
                 'rejected' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_REJECTED)->count(),
                 'draft' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_PENDING)->count(),
                 'quoted' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_CLIENT_QUOTE)->count(),
@@ -487,7 +489,10 @@ class QuotationController extends Controller
                 $message = 'Mail sent successfully';
                 // Never downgrade a quotation the client already approved or rejected;
                 // only (re)open the approval window for pending/awaiting quotations.
-                if (!in_array($lims_quotation_data->quotation_status, [Quotation::STATUS_APPROVED, Quotation::STATUS_REJECTED], true)) {
+                $status = (int) $lims_quotation_data->quotation_status;
+                if (! $lims_quotation_data->hasClientSignature()
+                    && ! in_array($status, [Quotation::STATUS_APPROVED, Quotation::STATUS_REJECTED, Quotation::STATUS_NO_SIGNATURE], true)
+                ) {
                     $lims_quotation_data->quotation_status = Quotation::STATUS_AWAITING;
                     $lims_quotation_data->rotateApprovalToken();
                     $lims_quotation_data->save();
@@ -575,6 +580,9 @@ class QuotationController extends Controller
     }
 
     public function sendWhatsappMsg($lims_customer_data, $lims_quotation_data, $mail_data, $biller, $net_unit_price){
+        if (is_array($net_unit_price) && empty($mail_data['net_unit_price'])) {
+            $mail_data['net_unit_price'] = $net_unit_price;
+        }
         $approvalUrl = $lims_quotation_data->approvalUrl();
         $products = $this->quotationWhatsAppProducts($lims_quotation_data, $mail_data);
         $pricing = $this->quotationWhatsAppPricing($lims_quotation_data, $mail_data);
@@ -834,36 +842,40 @@ class QuotationController extends Controller
     }
 
     /**
-     * Item lines for WhatsApp: name × qty only (never undiscounted line totals).
+     * Item lines for WhatsApp: name @ net unit price × qty.
      */
     protected function quotationWhatsAppProducts(Quotation $quotation, array $mail_data = [])
     {
         $lines = [];
-        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
-            foreach ($mail_data['products'] as $key => $product) {
+        $rows = ProductQuotation::where('quotation_id', $quotation->id)->get();
+        if ($rows->isNotEmpty()) {
+            foreach ($rows as $row) {
+                $product = Product::find($row->product_id);
+                $name = $product ? $product->name : 'Item';
+                if ($row->variant_id) {
+                    $variant = Variant::find($row->variant_id);
+                    if ($variant) {
+                        $name .= ' ['.$variant->name.']';
+                    }
+                }
                 $lines[] = [
-                    'name' => $product,
-                    'qty' => $mail_data['qty'][$key] ?? '',
+                    'name' => $name,
+                    'qty' => $row->qty,
+                    'unit_price' => $row->net_unit_price,
                 ];
             }
 
             return $lines;
         }
 
-        $rows = ProductQuotation::where('quotation_id', $quotation->id)->get();
-        foreach ($rows as $row) {
-            $product = Product::find($row->product_id);
-            $name = $product ? $product->name : 'Item';
-            if ($row->variant_id) {
-                $variant = Variant::find($row->variant_id);
-                if ($variant) {
-                    $name .= ' ['.$variant->name.']';
-                }
+        if (! empty($mail_data['products']) && is_array($mail_data['products'])) {
+            foreach ($mail_data['products'] as $key => $product) {
+                $lines[] = [
+                    'name' => $product,
+                    'qty' => $mail_data['qty'][$key] ?? '',
+                    'unit_price' => $mail_data['net_unit_price'][$key] ?? $mail_data['unit_price'][$key] ?? null,
+                ];
             }
-            $lines[] = [
-                'name' => $name,
-                'qty' => $row->qty,
-            ];
         }
 
         return $lines;
@@ -1201,9 +1213,16 @@ class QuotationController extends Controller
         }
         $lims_quotation_data = Quotation::find($id);
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
-        // When re-sending a rejected/draft quotation, reset client response fields
+        // When re-sending a rejected/draft quotation, reset client response fields.
+        // Never wipe a completed client signature from a routine edit.
         $newStatus = (int) ($data['quotation_status'] ?? $lims_quotation_data->quotation_status);
-        if ($newStatus === Quotation::STATUS_AWAITING) {
+        $alreadySigned = $lims_quotation_data->hasClientSignature()
+            || (int) $lims_quotation_data->quotation_status === Quotation::STATUS_APPROVED;
+        if ($alreadySigned && $newStatus === Quotation::STATUS_AWAITING) {
+            $data['quotation_status'] = Quotation::STATUS_APPROVED;
+            unset($data['client_comment'], $data['client_signed_at'], $data['client_signature_path'], $data['client_responded_at']);
+            $newStatus = Quotation::STATUS_APPROVED;
+        } elseif ($newStatus === Quotation::STATUS_AWAITING) {
             $data['client_comment'] = null;
             $data['client_signed_at'] = null;
             $data['client_signature_path'] = null;
@@ -1361,11 +1380,14 @@ class QuotationController extends Controller
     public function resendApproval($id)
     {
         $quotation = Quotation::findOrFail($id);
+        if ($quotation->hasClientSignature() || (int) $quotation->quotation_status === Quotation::STATUS_APPROVED) {
+            return redirect()->route('quotations.index', ['tab' => 'approved'])
+                ->with('not_permitted', 'This quotation is already signed. Clone it if you need to send a new one.');
+        }
         if (! in_array((int) $quotation->quotation_status, [
             Quotation::STATUS_AWAITING,
             Quotation::STATUS_REJECTED,
             Quotation::STATUS_PENDING,
-            Quotation::STATUS_APPROVED,
             Quotation::STATUS_NO_SIGNATURE,
         ], true)) {
             return back()->with('not_permitted', 'This quotation cannot be sent for signature.');
