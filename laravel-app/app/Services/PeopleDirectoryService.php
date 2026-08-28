@@ -7,6 +7,8 @@ use App\BeyondUser;
 use App\Customer;
 use App\CustomerGroup;
 use App\Support\WhatsAppPhone;
+use App\TaskAssignment;
+use App\TaskCc;
 use App\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -25,40 +27,29 @@ class PeopleDirectoryService
     {
         $out = collect();
         $term = trim((string) $search);
-        $like = '%' . $term . '%';
+        $searching = $term !== '';
+
+        // Always surface people who already received (or were CC'd on) a task.
+        $prior = collect();
+        $priorIds = $this->previousTaskUserIds();
+        if ($priorIds->isNotEmpty()) {
+            $this->pushBeyondUsers(
+                $prior,
+                BeyondUser::query()->whereIn('id', $priorIds),
+                $filter,
+                $term,
+                null
+            );
+        }
 
         if ($filter === 'all' || $filter === 'staff') {
-            BeyondUser::query()
-                ->when($filter === 'staff', function ($q) {
-                    $q->whereIn('role', ['staff', 'admin', 'super_admin', 'task_assignee']);
-                })
-                // Applicants appear only via application rows (Applicants filter), not portal leftovers.
-                ->when($filter === 'all', function ($q) {
-                    $q->where(function ($w) {
-                        $w->whereNull('role')->orWhere('role', '!=', 'applicant');
-                    });
-                })
-                ->when($term !== '', function ($q) use ($like) {
-                    $q->where(function ($w) use ($like) {
-                        $w->where('name', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('phone', 'like', $like);
-                    });
-                })
-                ->orderBy('name')
-                ->limit(150)
-                ->get(['id', 'name', 'email', 'phone', 'address', 'role'])
-                ->each(function ($u) use ($out) {
-                    $out->push([
-                        'id' => 'beyond:' . $u->id,
-                        'name' => $u->name ?: 'Untitled',
-                        'email' => $u->email,
-                        'phone' => $u->phone,
-                        'address' => $u->address,
-                        'role' => $u->role ?: 'staff',
-                        'source' => 'Portal',
-                    ]);
-                });
+            $this->pushBeyondUsers(
+                $out,
+                BeyondUser::query(),
+                $filter,
+                $term,
+                $searching ? 800 : 400
+            );
 
             User::query()
                 ->where(function ($q) {
@@ -67,15 +58,11 @@ class PeopleDirectoryService
                 ->where(function ($q) {
                     $q->where('is_active', true)->orWhereNull('is_active');
                 })
-                ->when($term !== '', function ($q) use ($like) {
-                    $q->where(function ($w) use ($like) {
-                        $w->where('name', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('phone', 'like', $like);
-                    });
+                ->when($searching, function ($q) use ($term) {
+                    $this->applyPersonSearch($q, $term, ['name', 'email', 'phone']);
                 })
                 ->orderBy('name')
-                ->limit(200)
+                ->limit($searching ? 800 : 400)
                 ->get(['id', 'name', 'email', 'phone', 'role_id'])
                 ->each(function ($u) use ($out) {
                     $out->push([
@@ -91,18 +78,12 @@ class PeopleDirectoryService
         }
 
         if ($filter === 'all' || $filter === 'applicants') {
-            // All existing applications (any status). Deleted apps disappear; one row per person.
             $apps = Application::query()
-                ->when($term !== '', function ($q) use ($like) {
-                    $q->where(function ($w) use ($like) {
-                        $w->where('full_name', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('phone', 'like', $like)
-                            ->orWhere('whatsapp_number', 'like', $like);
-                    });
+                ->when($searching, function ($q) use ($term) {
+                    $this->applyPersonSearch($q, $term, ['full_name', 'email', 'phone', 'whatsapp_number']);
                 })
                 ->orderByDesc('submitted_at')
-                ->limit(500)
+                ->limit($searching ? 800 : 500)
                 ->get(['id', 'full_name', 'email', 'phone', 'whatsapp_number', 'user_id']);
 
             $seen = [];
@@ -128,18 +109,13 @@ class PeopleDirectoryService
         }
 
         if ($filter === 'all' || $filter === 'customers') {
-            // Newest customers first so POS-created contacts are not truncated off the list.
-            $customerLimit = $term !== '' ? 200 : ($filter === 'customers' ? 500 : 250);
+            $customerLimit = $searching ? 800 : ($filter === 'customers' ? 500 : 400);
             Customer::query()
-                ->where('is_active', true)
-                ->when($term !== '', function ($q) use ($like) {
-                    $q->where(function ($w) use ($like) {
-                        $w->where('name', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('phone_number', 'like', $like)
-                            ->orWhere('company_name', 'like', $like)
-                            ->orWhere('address', 'like', $like);
-                    });
+                ->when(! $searching, function ($q) {
+                    $q->where('is_active', true);
+                })
+                ->when($searching, function ($q) use ($term) {
+                    $this->applyPersonSearch($q, $term, ['name', 'email', 'phone_number', 'company_name', 'address']);
                 })
                 ->orderByDesc('id')
                 ->limit($customerLimit)
@@ -158,16 +134,118 @@ class PeopleDirectoryService
                 });
         }
 
-        $combined = $out->unique('id')->values();
-        // Searches must return all matches; only cap the unfiltered preload list.
-        if ($term !== '') {
-            return $combined->take(300);
+        $combined = $prior->concat($out)->unique('id')->values();
+        if ($searching) {
+            return $combined->take(1500);
         }
         if ($filter === 'customers') {
-            return $combined->take(500);
+            return $this->capKeepingPrior($combined, $prior, 500);
         }
 
-        return $combined->take(600);
+        return $this->capKeepingPrior($combined, $prior, 800);
+    }
+
+    /**
+     * Portal users who already appear on a task (assignee or CC), so they never drop off Assign To.
+     */
+    protected function previousTaskUserIds()
+    {
+        $assignees = TaskAssignment::query()->whereNotNull('user_id')->distinct()->pluck('user_id');
+        $ccs = TaskCc::query()->whereNotNull('user_id')->distinct()->pluck('user_id');
+
+        return $assignees->merge($ccs)->unique()->filter()->values();
+    }
+
+    protected function pushBeyondUsers($out, $query, $filter, $term, $limit = null)
+    {
+        $q = $query
+            ->when($filter === 'staff', function ($q) {
+                $q->whereIn('role', ['staff', 'admin', 'super_admin', 'task_assignee']);
+            })
+            ->when($filter === 'customers', function ($q) {
+                $q->whereIn('role', ['customer', 'client']);
+            })
+            ->when($term !== '', function ($q) use ($term) {
+                $this->applyPersonSearch($q, $term, ['name', 'email', 'phone']);
+            })
+            ->orderBy('name');
+
+        if ($limit) {
+            $q->limit($limit);
+        }
+
+        $q->get(['id', 'name', 'email', 'phone', 'address', 'role'])
+            ->each(function ($u) use ($out) {
+                $out->push([
+                    'id' => 'beyond:' . $u->id,
+                    'name' => $u->name ?: 'Untitled',
+                    'email' => $u->email,
+                    'phone' => $u->phone,
+                    'address' => $u->address,
+                    'role' => $u->role ?: 'staff',
+                    'source' => 'Portal',
+                ]);
+            });
+    }
+
+    /**
+     * Match name tokens and phone last 9 digits so +237 / 237 / local numbers all find the same person.
+     */
+    protected function applyPersonSearch($q, $term, array $columns)
+    {
+        $allowed = ['name', 'email', 'phone', 'address', 'full_name', 'phone_number', 'company_name', 'whatsapp_number'];
+        $columns = array_values(array_intersect($columns, $allowed));
+        if (empty($columns)) {
+            return;
+        }
+
+        $tokens = preg_split('/\s+/', trim((string) $term), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $digits = preg_replace('/\D+/', '', (string) $term);
+        $phoneCols = array_values(array_filter($columns, function ($col) {
+            return stripos($col, 'phone') !== false || $col === 'whatsapp_number';
+        }));
+
+        $q->where(function ($outer) use ($tokens, $digits, $columns, $phoneCols) {
+            if (! empty($tokens)) {
+                $outer->where(function ($andTokens) use ($tokens, $columns) {
+                    foreach ($tokens as $token) {
+                        $like = '%' . $token . '%';
+                        $andTokens->where(function ($w) use ($like, $columns) {
+                            foreach ($columns as $i => $col) {
+                                if ($i === 0) {
+                                    $w->where($col, 'like', $like);
+                                } else {
+                                    $w->orWhere($col, 'like', $like);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            if (strlen($digits) >= 6 && ! empty($phoneCols)) {
+                $tail = substr($digits, -9);
+                $outer->orWhere(function ($w) use ($tail, $phoneCols) {
+                    foreach ($phoneCols as $i => $col) {
+                        $sql = "REPLACE(REPLACE(REPLACE(REPLACE(COALESCE({$col}, ''), '+', ''), ' ', ''), '-', ''), '.', '') LIKE ?";
+                        if ($i === 0) {
+                            $w->whereRaw($sql, ['%' . $tail . '%']);
+                        } else {
+                            $w->orWhereRaw($sql, ['%' . $tail . '%']);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    protected function capKeepingPrior($combined, $prior, $cap)
+    {
+        $prior = $prior->unique('id')->values();
+        $rest = $combined->reject(function ($row) use ($prior) {
+            return $prior->contains('id', $row['id']);
+        })->values();
+
+        return $prior->concat($rest->take(max(0, $cap - $prior->count())))->values();
     }
 
     /**
@@ -334,13 +412,20 @@ class PeopleDirectoryService
             throw new \RuntimeException('No customer group found. Create one under Customers first.');
         }
 
-        // Prefer exact phone match, then exact email — avoid loose matches creating surprises.
-        $existing = Customer::where('is_active', true)
-            ->where('phone_number', $phone)
-            ->first();
+        // Prefer phone match (including inactive / last-9-digit variants), then exact email.
+        $existing = Customer::where('phone_number', $phone)->first();
+        if (! $existing) {
+            $tail = substr(preg_replace('/\D+/', '', $phone), -9);
+            if (strlen($tail) >= 9) {
+                $existing = Customer::whereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone_number, ''), '+', ''), ' ', ''), '-', ''), '.', '') LIKE ?",
+                    ['%' . $tail . '%']
+                )->orderByDesc('is_active')->orderByDesc('id')->first();
+            }
+        }
         if (! $existing && $email !== '') {
-            $existing = Customer::where('is_active', true)
-                ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            $existing = Customer::whereRaw('LOWER(email) = ?', [strtolower($email)])
+                ->orderByDesc('is_active')
                 ->first();
         }
 

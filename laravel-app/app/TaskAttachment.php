@@ -16,4 +16,27 @@ class TaskAttachment extends Model
     {
         return $this->belongsTo(Task::class, 'task_id', 'id');
     }
+
+    public function href()
+    {
+        $url = ltrim((string) $this->file_url, '/');
+        if ($url === '') {
+            return '#';
+        }
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+        if (strpos($url, 'public/') === 0) {
+            return url($url);
+        }
+
+        return url('public/'.$url);
+    }
+
+    public function isImage()
+    {
+        $name = strtolower((string) $this->file_name.' '.$this->file_url);
+
+        return (bool) preg_match('/\.(jpe?g|png|gif|webp|bmp)$/i', $name);
+    }
 }

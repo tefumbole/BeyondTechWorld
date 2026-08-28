@@ -12,6 +12,7 @@ use App\TaskReminder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class TaskService
@@ -101,7 +102,6 @@ class TaskService
     public function createTasks(array $rows, $adminId = null)
     {
         $created = [];
-        $notifier = app(TaskNotificationService::class);
 
         foreach ($rows as $row) {
             $title = mb_strtoupper(trim((string) ($row['subject'] ?? '')), 'UTF-8');
@@ -201,42 +201,75 @@ class TaskService
                 ]);
             }
 
-            if (! empty($row['pdf_path'])) {
+            $attachments = [];
+            if (! empty($row['attachments']) && is_array($row['attachments'])) {
+                $attachments = $row['attachments'];
+            } elseif (! empty($row['pdf_path'])) {
+                $attachments[] = [
+                    'file_name' => $row['pdf_name'] ?? 'document.pdf',
+                    'file_url' => $row['pdf_path'],
+                ];
+            }
+            foreach ($attachments as $att) {
+                $path = $att['file_url'] ?? ($att['path'] ?? null);
+                if (! $path) {
+                    continue;
+                }
                 TaskAttachment::create([
                     'id' => (string) Str::uuid(),
                     'task_id' => $taskId,
-                    'file_name' => $row['pdf_name'] ?? 'document.pdf',
-                    'file_url' => $row['pdf_path'],
+                    'file_name' => $att['file_name'] ?? ($att['name'] ?? basename($path)),
+                    'file_url' => $path,
                     'attachment_type' => 'source',
                 ]);
             }
 
-            if (! $task->is_scheduled) {
-                $notifier->dispatchTaskNotifications($task->fresh(['assignments', 'ccRecipients']));
-            }
-
+            // WhatsApp is sent by `tasks:process` so Wasender rate limits do not
+            // drop assignees or CCs during the HTTP request.
             $created[] = $task;
         }
 
         return $created;
     }
 
-    public function processScheduledSends()
+    public function processScheduledSends($maxSends = 8)
     {
         $notifier = app(TaskNotificationService::class);
-        $due = Task::where('is_scheduled', true)
-            ->where('notifications_sent', false)
-            ->whereNotNull('scheduled_for')
-            ->where('scheduled_for', '<=', now())
+        $hasSentFlag = Schema::hasColumn('task_assignments', 'whatsapp_sent');
+
+        $due = Task::with(['assignments', 'ccRecipients'])
+            ->where(function ($q) {
+                $q->where('is_scheduled', false)
+                    ->orWhereNull('is_scheduled')
+                    ->orWhere(function ($q2) {
+                        $q2->where('is_scheduled', true)
+                            ->whereNotNull('scheduled_for')
+                            ->where('scheduled_for', '<=', now());
+                    });
+            })
+            ->where(function ($q) use ($hasSentFlag) {
+                $q->where('notifications_sent', false);
+                if ($hasSentFlag) {
+                    $q->orWhereHas('assignments', function ($a) {
+                        $a->where('whatsapp_sent', false);
+                    })->orWhereHas('ccRecipients', function ($c) {
+                        $c->where('whatsapp_sent', false);
+                    });
+                }
+            })
+            ->orderBy('created_at')
+            ->limit(30)
             ->get();
 
-        $count = 0;
+        $sent = 0;
         foreach ($due as $task) {
-            $notifier->dispatchTaskNotifications($task);
-            $count++;
+            if ($sent >= $maxSends) {
+                break;
+            }
+            $sent += $notifier->dispatchPending($task, $maxSends - $sent);
         }
 
-        return $count;
+        return $sent;
     }
 
     public function processReminders()
@@ -262,7 +295,7 @@ class TaskService
 
     public function myTasks($userId, $statusFilter = 'All', $categoryFilter = 'All')
     {
-        $query = TaskAssignment::with(['task.category'])
+        $query = TaskAssignment::with(['task.category', 'task.attachments'])
             ->where('user_id', $userId)
             ->orderByDesc('created_at');
 
@@ -293,7 +326,7 @@ class TaskService
 
     public function pendingAcceptances($userId)
     {
-        return TaskAssignment::with(['task.category'])
+        return TaskAssignment::with(['task.category', 'task.attachments'])
             ->where('user_id', $userId)
             ->where('status', 'Pending')
             ->orderByDesc('created_at')
@@ -313,7 +346,7 @@ class TaskService
 
     public function findByInviteToken($token)
     {
-        return TaskAssignment::with('task')->where('invite_token', $token)->first();
+        return TaskAssignment::with(['task.attachments'])->where('invite_token', $token)->first();
     }
 
     public function accept(TaskAssignment $assignment, $signature)
@@ -344,6 +377,12 @@ class TaskService
         $assignment->declined_at = now();
         $assignment->last_update_at = now();
         $assignment->save();
+
+        try {
+            app(TaskNotificationService::class)->notifyDeclined($assignment);
+        } catch (\Exception $e) {
+            // non-blocking
+        }
 
         return $assignment;
     }

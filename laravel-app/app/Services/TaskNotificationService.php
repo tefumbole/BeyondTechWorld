@@ -10,26 +10,39 @@ use App\TaskCc;
 use App\User;
 use App\Support\TaskPersonalization;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Sends WhatsApp notifications for task assignment, CC, accept, progress, complete, reminders.
+ * Sends WhatsApp notifications for task assignment, CC, accept, decline, progress, complete, reminders.
  */
 class TaskNotificationService extends Controller
 {
+    /**
+     * @return string sent|skip|retry
+     */
     protected function sendPhone($phone, $message)
     {
         if (empty(trim((string) $phone))) {
-            return false;
+            return 'skip';
         }
         try {
             $this->sendWhatsAppToPhone($phone, $message);
 
-            return true;
+            return 'sent';
         } catch (\Exception $e) {
-            Log::warning('Task WhatsApp failed: ' . $e->getMessage());
+            $err = $e->getMessage();
+            Log::warning('Task WhatsApp failed: ' . $err);
+            if (preg_match('/rate|protection|429|timeout|temporar|try again/i', $err)) {
+                return 'retry';
+            }
 
-            return false;
+            return 'skip';
         }
+    }
+
+    protected function phoneForUser(BeyondUser $user)
+    {
+        return $this->resolveBeyondUserPhone($user);
     }
 
     public function notifyAssignment(TaskAssignment $assignment)
@@ -38,7 +51,7 @@ class TaskNotificationService extends Controller
         $task = $assignment->task;
         $user = BeyondUser::find($assignment->user_id);
         if (! $task || ! $user) {
-            return false;
+            return 'skip';
         }
 
         $link = url('/task-invite/' . $assignment->invite_token);
@@ -51,9 +64,7 @@ class TaskNotificationService extends Controller
         ]);
         $message = TaskPersonalization::personalize($template, $vars);
 
-        $phone = $this->resolveBeyondUserPhone($user);
-
-        return $this->sendPhone($phone, $message);
+        return $this->sendPhone($this->phoneForUser($user), $message);
     }
 
     /**
@@ -97,39 +108,50 @@ class TaskNotificationService extends Controller
         return $phone;
     }
 
-    public function notifyCcOnAssignment(Task $task)
+    public function notifyCcRecipient(Task $task, TaskCc $cc)
     {
-        $task->load(['assignments', 'ccRecipients']);
+        $task->loadMissing('assignments');
         $assigneeNames = BeyondUser::whereIn('id', $task->assignments->pluck('user_id'))
             ->pluck('name')->filter()->implode(', ') ?: 'the assignee(s)';
 
+        $user = BeyondUser::find($cc->user_id);
+        if (! $user) {
+            return 'skip';
+        }
+        $phone = $this->phoneForUser($user);
+        if ($phone === '') {
+            return 'skip';
+        }
+
+        $start = $task->start_date
+            ? $task->start_date->format('d M Y') . ($task->start_time ? ' ' . substr((string) $task->start_time, 0, 5) : '')
+            : '—';
+        $deadline = $task->deadline
+            ? $task->deadline->format('d M Y') . ($task->deadline_time ? ' ' . substr((string) $task->deadline_time, 0, 5) : '')
+            : '—';
+        $desc = TaskPersonalization::personalize($task->description ?: '', TaskPersonalization::userVars($user));
+        $msg = "📋 *TASK CC NOTIFICATION*\n━━━━━━━━━━━━━━━\n\n";
+        $msg .= "Hello *" . ($user->name ?: 'Team Member') . "*,\n\n";
+        $msg .= "You have been CC'd on a task assigned to *{$assigneeNames}*:\n\n";
+        $msg .= "▪️ *Task:* {$task->title}\n";
+        $msg .= "▪️ *Priority:* " . ($task->priority ?: 'Medium') . "\n";
+        $msg .= "▪️ *Start:* {$start}\n";
+        $msg .= "▪️ *Deadline:* {$deadline}\n";
+        if (trim($desc) !== '') {
+            $msg .= "\n{$desc}\n";
+        }
+        $msg .= "\nYou will receive progress updates on this task.\n\n";
+        $msg .= "👉 View tasks:\n" . url('/user/tasks') . "\n\n_Beyond Enterprise_";
+
+        return $this->sendPhone($phone, $msg);
+    }
+
+    public function notifyCcOnAssignment(Task $task)
+    {
+        $task->load(['assignments', 'ccRecipients']);
         $sent = 0;
         foreach ($task->ccRecipients as $cc) {
-            $user = BeyondUser::find($cc->user_id);
-            if (! $user || empty($user->phone)) {
-                continue;
-            }
-            $start = $task->start_date
-                ? $task->start_date->format('d M Y') . ($task->start_time ? ' ' . substr((string) $task->start_time, 0, 5) : '')
-                : '—';
-            $deadline = $task->deadline
-                ? $task->deadline->format('d M Y') . ($task->deadline_time ? ' ' . substr((string) $task->deadline_time, 0, 5) : '')
-                : '—';
-            $desc = TaskPersonalization::personalize($task->description ?: '', TaskPersonalization::userVars($user));
-            $msg = "📋 *TASK CC NOTIFICATION*\n━━━━━━━━━━━━━━━\n\n";
-            $msg .= "Hello *" . ($user->name ?: 'Team Member') . "*,\n\n";
-            $msg .= "You have been CC'd on a task assigned to *{$assigneeNames}*:\n\n";
-            $msg .= "▪️ *Task:* {$task->title}\n";
-            $msg .= "▪️ *Priority:* " . ($task->priority ?: 'Medium') . "\n";
-            $msg .= "▪️ *Start:* {$start}\n";
-            $msg .= "▪️ *Deadline:* {$deadline}\n";
-            if (trim($desc) !== '') {
-                $msg .= "\n{$desc}\n";
-            }
-            $msg .= "\nYou will receive progress updates on this task.\n\n";
-            $msg .= "👉 View tasks:\n" . url('/user/tasks') . "\n\n_Beyond Enterprise_";
-
-            if ($this->sendPhone($user->phone, $msg)) {
+            if ($this->notifyCcRecipient($task, $cc) === 'sent') {
                 $sent++;
             }
         }
@@ -139,6 +161,16 @@ class TaskNotificationService extends Controller
 
     public function notifyAccepted(TaskAssignment $assignment)
     {
+        $this->notifyStatusChange($assignment, 'accepted');
+    }
+
+    public function notifyDeclined(TaskAssignment $assignment)
+    {
+        $this->notifyStatusChange($assignment, 'declined');
+    }
+
+    protected function notifyStatusChange(TaskAssignment $assignment, $action)
+    {
         $assignment->load('task');
         $task = $assignment->task;
         $assignee = BeyondUser::find($assignment->user_id);
@@ -147,22 +179,33 @@ class TaskNotificationService extends Controller
         }
 
         $assigneeName = $assignee->name ?: 'Assignee';
+        $accepted = $action === 'accepted';
+        $adminTitle = $accepted ? '📊 *TASK ACCEPTED*' : '❌ *TASK DECLINED*';
+        $adminLine = $accepted
+            ? "*{$assigneeName}* has accepted the task:"
+            : "*{$assigneeName}* has declined the task:";
+        $ccTitle = $accepted ? '📊 *TASK CC — ACCEPTED*' : '❌ *TASK CC — DECLINED*';
+        $ccLine = $accepted
+            ? "*{$assigneeName}* has accepted the task you are CC'd on:"
+            : "*{$assigneeName}* has declined the task you are CC'd on:";
 
-        // Admin / creator
         $admin = $task->created_by_admin_id ? User::find($task->created_by_admin_id) : null;
         if ($admin && ! empty($admin->phone)) {
-            $this->sendPhone($admin->phone, "📊 *TASK ACCEPTED*\n━━━━━━━━━━━━━━━\n\n*{$assigneeName}* has accepted the task:\n\n▪️ *Task:* {$task->title}\n\n_Beyond Enterprise_");
+            $this->sendPhone($admin->phone, "{$adminTitle}\n━━━━━━━━━━━━━━━\n\n{$adminLine}\n\n▪️ *Task:* {$task->title}\n\n_Beyond Enterprise_");
         }
 
-        // CC recipients
         foreach (TaskCc::where('task_id', $task->id)->get() as $cc) {
             $user = BeyondUser::find($cc->user_id);
-            if (! $user || empty($user->phone)) {
+            if (! $user) {
+                continue;
+            }
+            $phone = $this->phoneForUser($user);
+            if ($phone === '') {
                 continue;
             }
             $this->sendPhone(
-                $user->phone,
-                "📊 *TASK CC — ACCEPTED*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'CC') . "*,\n\n*{$assigneeName}* has accepted the task you are CC'd on:\n\n▪️ *Task:* {$task->title}\n\n_Beyond Enterprise_"
+                $phone,
+                "{$ccTitle}\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'CC') . "*,\n\n{$ccLine}\n\n▪️ *Task:* {$task->title}\n\n_Beyond Enterprise_"
             );
         }
     }
@@ -185,11 +228,15 @@ class TaskNotificationService extends Controller
             }
             foreach (TaskCc::where('task_id', $task->id)->get() as $cc) {
                 $user = BeyondUser::find($cc->user_id);
-                if (! $user || empty($user->phone)) {
+                if (! $user) {
+                    continue;
+                }
+                $phone = $this->phoneForUser($user);
+                if ($phone === '') {
                     continue;
                 }
                 $this->sendPhone(
-                    $user->phone,
+                    $phone,
                     "✅ *TASK CC — COMPLETED*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'CC') . "*,\n\n*{$assigneeName}* completed the task you are CC'd on:\n\n▪️ *Task:* {$task->title}\n\n_Beyond Enterprise_"
                 );
             }
@@ -199,11 +246,15 @@ class TaskNotificationService extends Controller
 
         foreach (TaskCc::where('task_id', $task->id)->get() as $cc) {
             $user = BeyondUser::find($cc->user_id);
-            if (! $user || empty($user->phone)) {
+            if (! $user) {
+                continue;
+            }
+            $phone = $this->phoneForUser($user);
+            if ($phone === '') {
                 continue;
             }
             $this->sendPhone(
-                $user->phone,
+                $phone,
                 "📋 *TASK CC — PROGRESS UPDATE*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'CC') . "*,\n\nYou are CC on a task assigned to *{$assigneeName}*:\n\n▪️ *Task:* {$task->title}\n▪️ *Realization:* {$progress}%\n▪️ *Status:* {$status}{$commentBlock}\n\n_Beyond Enterprise_"
             );
         }
@@ -217,27 +268,111 @@ class TaskNotificationService extends Controller
                 continue;
             }
             $user = BeyondUser::find($assignment->user_id);
-            if (! $user || empty($user->phone)) {
+            if (! $user) {
+                continue;
+            }
+            $phone = $this->phoneForUser($user);
+            if ($phone === '') {
                 continue;
             }
             $deadline = $task->deadline
                 ? $task->deadline->format('d M Y') . ($task->deadline_time ? ' ' . substr((string) $task->deadline_time, 0, 5) : '')
                 : '—';
             $this->sendPhone(
-                $user->phone,
+                $phone,
                 "⏰ *TASK REMINDER*\n━━━━━━━━━━━━━━━\n\nHello *" . ($user->name ?: 'Team Member') . "*,\n\nReminder for your task:\n\n▪️ *Task:* {$task->title}\n▪️ *Deadline:* {$deadline}\n\n👉 Update progress:\n" . url('/user/tasks') . "\n\n_Beyond Enterprise_"
             );
         }
     }
 
-    public function dispatchTaskNotifications(Task $task)
+    /**
+     * Send outstanding assignment + CC WhatsApps for one task, respecting a send budget
+     * so Wasender rate limits do not drop the rest of the list.
+     *
+     * @return int number of API send attempts that succeeded
+     */
+    public function dispatchPending(Task $task, $budget = 8)
     {
         $task->load(['assignments', 'ccRecipients']);
+        $sent = 0;
+        $track = $this->tracksWhatsappSent();
+        $paused = false;
+
         foreach ($task->assignments as $assignment) {
-            $this->notifyAssignment($assignment);
+            if ($sent >= $budget) {
+                break;
+            }
+            if ($track && $assignment->whatsapp_sent) {
+                continue;
+            }
+            $outcome = $this->notifyAssignment($assignment);
+            if ($outcome === 'retry') {
+                $paused = true;
+                break;
+            }
+            if ($track) {
+                $assignment->whatsapp_sent = true;
+                $assignment->save();
+            }
+            if ($outcome === 'sent') {
+                $sent++;
+            }
         }
-        $this->notifyCcOnAssignment($task);
-        $task->notifications_sent = true;
-        $task->save();
+
+        if (! $paused && $sent < $budget) {
+            foreach ($task->ccRecipients as $cc) {
+                if ($sent >= $budget) {
+                    break;
+                }
+                if ($track && $cc->whatsapp_sent) {
+                    continue;
+                }
+                $outcome = $this->notifyCcRecipient($task, $cc);
+                if ($outcome === 'retry') {
+                    break;
+                }
+                if ($track) {
+                    $cc->whatsapp_sent = true;
+                    $cc->save();
+                }
+                if ($outcome === 'sent') {
+                    $sent++;
+                }
+            }
+        }
+
+        if ($track) {
+            $task->unsetRelation('assignments');
+            $task->unsetRelation('ccRecipients');
+            $task->load(['assignments', 'ccRecipients']);
+            $pendingAssignees = $task->assignments->filter(function ($a) {
+                return empty($a->whatsapp_sent);
+            })->count();
+            $pendingCc = $task->ccRecipients->filter(function ($c) {
+                return empty($c->whatsapp_sent);
+            })->count();
+            if ($pendingAssignees === 0 && $pendingCc === 0) {
+                $task->notifications_sent = true;
+                $task->is_scheduled = false;
+                $task->save();
+            }
+        } else {
+            $task->notifications_sent = true;
+            $task->is_scheduled = false;
+            $task->save();
+        }
+
+        return $sent;
+    }
+
+    public function dispatchTaskNotifications(Task $task)
+    {
+        return $this->dispatchPending($task, 500);
+    }
+
+    protected function tracksWhatsappSent()
+    {
+        return Schema::hasColumn('task_assignments', 'whatsapp_sent')
+            && Schema::hasColumn('task_cc', 'whatsapp_sent');
     }
 }

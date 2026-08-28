@@ -7,14 +7,23 @@ use Illuminate\Console\Command;
 
 class ProcessTaskSchedules extends Command
 {
-    protected $signature = 'tasks:process';
-    protected $description = 'Send scheduled task notifications and due reminders';
+    protected $signature = 'tasks:process {--flush : Keep sending until pending assignee/CC WhatsApps are drained}';
+    protected $description = 'Send scheduled/queued task WhatsApp notifications and due reminders';
 
     public function handle(TaskService $tasks)
     {
-        $sent = $tasks->processScheduledSends();
+        $started = time();
+        $sent = 0;
+        do {
+            $n = $tasks->processScheduledSends(8);
+            $sent += $n;
+            if (! $this->option('flush') || $n < 1) {
+                break;
+            }
+        } while ((time() - $started) < 600);
+
         $reminders = $tasks->processReminders();
-        $this->info("Scheduled sends: {$sent}; reminders: {$reminders}");
+        $this->info("WhatsApp sends: {$sent}; reminders: {$reminders}");
 
         return 0;
     }

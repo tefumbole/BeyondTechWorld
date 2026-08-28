@@ -59,6 +59,7 @@
                         </div>
                         <h3 class="font-bold text-lg text-gray-900">{{ $task->title }}</h3>
                         <p class="text-sm text-gray-500 mt-1 mb-4">{{ $task->description }}</p>
+                        @include('beyond.tasks.partials.attachments', ['task' => $task])
                         <div class="flex gap-2 justify-end">
                             <button type="button" @click="signFor = '{{ $a->id }}'" class="bg-brand-blue text-white hover:bg-brand-dark text-sm font-semibold px-5 py-2 rounded-md inline-flex items-center gap-2">
                                 <i data-lucide="check-circle" class="w-4 h-4"></i> Accept &amp; Sign

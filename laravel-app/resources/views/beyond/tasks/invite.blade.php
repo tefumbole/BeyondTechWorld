@@ -30,6 +30,8 @@
                     <p class="text-gray-600 text-sm">{{ $task->description }}</p>
                 @endif
 
+                @include('beyond.tasks.partials.attachments', ['task' => $task])
+
                 @if ($assignment->status !== 'Pending')
                     <div class="rounded-lg bg-gray-50 border border-gray-200 p-4 text-center">
                         <p class="text-gray-700">This task is already <strong>{{ $assignment->status }}</strong>.</p>

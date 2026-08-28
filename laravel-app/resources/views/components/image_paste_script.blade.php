@@ -13,6 +13,9 @@
 
     function isImageInput(inp) {
         if (!inp || inp.type !== 'file') return false;
+        if (inp.getAttribute('data-skip-image-paste') === '1' || (inp.classList && inp.classList.contains('js-no-image-paste'))) {
+            return false;
+        }
         var accept = (inp.getAttribute('accept') || '').toLowerCase();
         if (accept.indexOf('image') >= 0) return true;
         if (/\.(jpe?g|png|gif|webp)/.test(accept)) return true;

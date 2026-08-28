@@ -6,6 +6,21 @@ use App\Support\WhatsAppPhone;
 
 class BeyondWasenderService
 {
+    /** Wasender account protection: one outbound message every ~5.5s per PHP process. */
+    private static $lastSendAt = 0.0;
+
+    protected function throttleSend()
+    {
+        $interval = 5.5;
+        if (self::$lastSendAt > 0) {
+            $wait = $interval - (microtime(true) - self::$lastSendAt);
+            if ($wait > 0) {
+                usleep((int) round($wait * 1000000));
+            }
+        }
+        self::$lastSendAt = microtime(true);
+    }
+
     public function isConfigured()
     {
         $key = config('services.whatsapp.wasender_api_key');
@@ -57,6 +72,8 @@ class BeyondWasenderService
             if (! $to) {
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
+
+            $this->throttleSend();
 
             $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
             $url = $base.'/send-message';
@@ -171,6 +188,8 @@ class BeyondWasenderService
             if (! $to) {
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
+
+            $this->throttleSend();
 
             $publicUrl = $this->uploadLocalFile($localPath);
             if (empty($publicUrl)) {

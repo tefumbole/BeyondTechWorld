@@ -108,6 +108,7 @@
                         </div>
                         <div class="px-5 pb-4 flex-1">
                             <p class="text-sm text-gray-500 line-clamp-2 mb-4">{{ $task->description }}</p>
+                            @include('beyond.tasks.partials.attachments', ['task' => $task])
 
                             @if (! $isPending && ! $isDeclined)
                                 <form method="POST" action="{{ route('user.tasks.update', $a->id) }}"

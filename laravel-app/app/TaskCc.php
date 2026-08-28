@@ -10,7 +10,11 @@ class TaskCc extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['id', 'task_id', 'user_id'];
+    protected $fillable = ['id', 'task_id', 'user_id', 'whatsapp_sent'];
+
+    protected $casts = [
+        'whatsapp_sent' => 'boolean',
+    ];
 
     public function task()
     {

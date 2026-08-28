@@ -23,7 +23,7 @@
         @include('task_manager.partials.tabs')
         <div class="mb-4">
             <h1 class="tm-title">Create Task</h1>
-            <p class="tm-subtitle">Each task can have its own color, period, assignees, PDF, and schedule. Timezone: Africa/Kigali.</p>
+            <p class="tm-subtitle">Each task can have its own color, period, assignees, files, and schedule. Timezone: Africa/Kigali.</p>
         </div>
 
         @if(session('not_permitted'))
@@ -108,7 +108,24 @@
         padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: #334155;
     }
     .tm-browse-pdf:hover { background: #f8fafc; }
-    .tm-pdf-name { font-size: 13px; color: #475569; margin-left: 8px; }
+    .tm-files-zone {
+        border: 1px dashed #9bb6e0; border-radius: 10px; background: #f8fbff;
+        padding: 12px 14px; cursor: pointer; outline: none;
+    }
+    .tm-files-zone:focus, .tm-files-zone.is-active { border-color: #0b3f90; box-shadow: 0 0 0 3px rgba(11,63,144,.12); }
+    .tm-files-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 8px; }
+    .tm-file-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        border: 1px solid #d7deea; background: #fff; border-radius: 8px;
+        padding: 4px 8px 4px 4px; font-size: 12px; font-weight: 600; color: #334155;
+    }
+    .tm-file-thumb, .tm-file-icon {
+        width: 36px; height: 36px; border-radius: 6px; background: #eef4ff center/cover no-repeat;
+        display: inline-flex; align-items: center; justify-content: center; color: #0b3f90; flex-shrink: 0;
+    }
+    .tm-file-remove {
+        border: 0; background: transparent; color: #e11d48; font-weight: 800; cursor: pointer; line-height: 1; padding: 0 2px;
+    }
     .tm-user-list {
         max-height: 180px; overflow: auto; border: 1px solid #e3e9f4; border-radius: 10px; background: #fff;
     }
@@ -211,26 +228,38 @@ window.TM_CSRF = @json(csrf_token());
         window.TM_USERS = Object.keys(map).map(function (k) { return map[k]; });
     }
 
-    function filterUsersLocal(query, roleFilter) {
-        var q = (query || '').toLowerCase();
-        return (window.TM_USERS || []).filter(function (u) {
+    function filterByRole(users, roleFilter) {
+        return (users || []).filter(function (u) {
             var role = (u.role || '').toLowerCase();
             var source = (u.source || '').toLowerCase();
             if (roleFilter === 'staff' && role === 'customer' && source !== 'user' && source !== 'portal') return false;
             if (roleFilter === 'staff' && source === 'customer') return false;
             if (roleFilter === 'customers' && source !== 'customer' && role !== 'customer' && role !== 'client') return false;
-            if (!q) return true;
-            return (u.name||'').toLowerCase().indexOf(q) !== -1
-                || (u.email||'').toLowerCase().indexOf(q) !== -1
-                || (u.phone||'').toLowerCase().indexOf(q) !== -1
-                || (u.address||'').toLowerCase().indexOf(q) !== -1
-                || (u.source||'').toLowerCase().indexOf(q) !== -1;
+            return true;
+        });
+    }
+
+    function personMatchesQuery(u, query) {
+        var q = (query || '').trim().toLowerCase();
+        if (!q) return true;
+        var hay = [(u.name || ''), (u.email || ''), (u.phone || ''), (u.address || ''), (u.source || '')].join(' ').toLowerCase();
+        var tokens = q.split(/\s+/);
+        var tokenMatch = tokens.every(function (t) { return hay.indexOf(t) !== -1; });
+        var digits = q.replace(/\D+/g, '');
+        var phoneDigits = String(u.phone || '').replace(/\D+/g, '');
+        var phoneMatch = digits.length >= 6 && phoneDigits.indexOf(digits.slice(-9)) !== -1;
+        return tokenMatch || phoneMatch;
+    }
+
+    function filterUsersLocal(query, roleFilter) {
+        return filterByRole(window.TM_USERS || [], roleFilter).filter(function (u) {
+            return personMatchesQuery(u, query);
         });
     }
 
     function searchUsers(query, roleFilter, done) {
         var q = (query || '').trim();
-        if (!q || q.length < 2 || !window.TM_USERS_SEARCH) {
+        if (!q || !window.TM_USERS_SEARCH) {
             done(filterUsersLocal(query, roleFilter));
             return;
         }
@@ -239,8 +268,13 @@ window.TM_CSRF = @json(csrf_token());
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin'
         }).then(function (r) { return r.json(); }).then(function (rows) {
-            mergeUsers(rows);
-            done(filterUsersLocal(query, roleFilter));
+            var list = Array.isArray(rows) ? rows : [];
+            mergeUsers(list);
+            var map = {};
+            filterByRole(list, roleFilter).concat(filterUsersLocal(query, roleFilter)).forEach(function (u) {
+                if (u && u.id) map[u.id] = u;
+            });
+            done(Object.keys(map).map(function (k) { return map[k]; }));
         }).catch(function () {
             done(filterUsersLocal(query, roleFilter));
         });
@@ -306,6 +340,111 @@ window.TM_CSRF = @json(csrf_token());
         });
     }
 
+    function bindAttachments(wrap, i) {
+        var MAX = 20;
+        var files = [];
+        var input = wrap.querySelector('.tm-files-input');
+        var list = wrap.querySelector('.tm-files-list');
+        var zone = wrap.querySelector('.tm-files-zone');
+        var browse = wrap.querySelector('.tm-browse-files');
+        if (!input || !list || !zone || !browse) return;
+
+        function syncInput() {
+            try {
+                var dt = new DataTransfer();
+                files.forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            } catch (e) {}
+            render();
+        }
+
+        function addFile(file) {
+            if (!file || files.length >= MAX) return;
+            var finish = function (ready) {
+                if (!ready) return;
+                files.push(ready);
+                syncInput();
+            };
+            if (window.compressStudentEvidence && (file.type || '').indexOf('image/') === 0) {
+                window.compressStudentEvidence(file, finish);
+            } else {
+                finish(file);
+            }
+        }
+
+        function render() {
+            if (!files.length) {
+                list.innerHTML = '';
+                return;
+            }
+            list.innerHTML = files.map(function (f, idx) {
+                var isImg = (f.type || '').indexOf('image/') === 0;
+                var thumb = isImg
+                    ? '<span class="tm-file-thumb" data-i="'+idx+'"></span>'
+                    : '<span class="tm-file-icon"><i class="dripicons-document"></i></span>';
+                return '<div class="tm-file-chip">'+thumb
+                    + '<span class="tm-file-label">'+esc(f.name || 'file')+'</span>'
+                    + '<button type="button" class="tm-file-remove" data-i="'+idx+'" title="Remove">×</button></div>';
+            }).join('');
+            list.querySelectorAll('.tm-file-remove').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    files.splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+                    syncInput();
+                });
+            });
+            list.querySelectorAll('.tm-file-thumb').forEach(function (el) {
+                var f = files[parseInt(el.getAttribute('data-i'), 10)];
+                if (!f) return;
+                var r = new FileReader();
+                r.onload = function (ev) { el.style.backgroundImage = 'url('+ev.target.result+')'; };
+                r.readAsDataURL(f);
+            });
+        }
+
+        browse.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            input.click();
+        });
+        zone.addEventListener('click', function () {
+            zone.focus();
+            zone.classList.add('is-active');
+        });
+        input.addEventListener('change', function () {
+            Array.prototype.slice.call(input.files || []).forEach(addFile);
+        });
+        zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('is-active'); });
+        zone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            Array.prototype.slice.call((e.dataTransfer && e.dataTransfer.files) || []).forEach(addFile);
+        });
+        zone.addEventListener('paste', function (e) {
+            var cd = e.clipboardData || window.clipboardData;
+            if (!cd) return;
+            var added = false;
+            if (cd.files && cd.files.length) {
+                Array.prototype.slice.call(cd.files).forEach(addFile);
+                added = true;
+            } else if (cd.items) {
+                for (var n = 0; n < cd.items.length; n++) {
+                    if (cd.items[n].type && cd.items[n].type.indexOf('image/') === 0) {
+                        var pasted = cd.items[n].getAsFile();
+                        if (pasted) {
+                            if (!pasted.name) {
+                                pasted = new File([pasted], 'pasted-image.png', { type: pasted.type || 'image/png' });
+                            }
+                            addFile(pasted);
+                            added = true;
+                        }
+                    }
+                }
+            }
+            if (added) e.preventDefault();
+        });
+    }
+
     function addTaskCard() {
         var i = taskIndex++;
         var assignees = [];
@@ -367,10 +506,14 @@ window.TM_CSRF = @json(csrf_token());
             + '    <div><label class="tm-label">End Time</label><input type="time" name="tasks['+i+'][end_time]" class="tm-field" value="'+now.time+'"></div>'
             + '  </div>'
             + '  <div class="tm-section">'
-            + '    <label class="tm-label">PDF (optional)</label>'
-            + '    <input type="file" name="tasks['+i+'][pdf]" class="tm-pdf-input d-none" accept="application/pdf">'
-            + '    <button type="button" class="tm-browse-pdf"><i class="dripicons-document"></i> Browse PDF</button>'
-            + '    <span class="tm-pdf-name">No file selected</span>'
+            + '    <label class="tm-label">Attachments (optional)</label>'
+            + '    <p class="tm-hint">PDFs, pictures, or other files. Click the box and paste (Ctrl+V / ⌘V), drop files, or browse. You can add more than one.</p>'
+            + '    <input type="file" name="tasks['+i+'][files][]" class="tm-files-input d-none" multiple data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip">'
+            + '    <div class="tm-files-zone" tabindex="0">'
+            + '      <button type="button" class="tm-browse-pdf tm-browse-files"><i class="dripicons-document"></i> Browse files</button>'
+            + '      <span class="tm-hint" style="margin:0 0 0 8px;display:inline;">or paste / drop pictures here</span>'
+            + '      <div class="tm-files-list"></div>'
+            + '    </div>'
             + '  </div>'
             + '  <div class="tm-section">'
             + '    <div class="tm-section-title">Assign To <span class="req">*</span></div>'
@@ -380,7 +523,7 @@ window.TM_CSRF = @json(csrf_token());
             + '      <button type="button" class="tm-pill tm-af" data-role="customers">Customers</button>'
             + '    </div>'
             + '    <div class="d-flex mb-2" style="gap:8px;flex-wrap:wrap;">'
-            + '      <div class="tm-search-wrap"><input type="search" class="tm-field tm-asearch" placeholder="Search…"></div>'
+            + '      <div class="tm-search-wrap"><input type="search" class="tm-field tm-asearch" placeholder="Search name or phone…"></div>'
             + '      <button type="button" class="tm-pill-outline tm-aselect-all">Select everyone</button>'
             + '      <button type="button" class="tm-pill-outline tm-add-new">+ Add new</button>'
             + '    </div>'
@@ -628,12 +771,7 @@ window.TM_CSRF = @json(csrf_token());
             sub.value = (sub.value || '').toUpperCase();
         });
 
-        var pdfInput = wrap.querySelector('.tm-pdf-input');
-        var pdfName = wrap.querySelector('.tm-pdf-name');
-        wrap.querySelector('.tm-browse-pdf').addEventListener('click', function () { pdfInput.click(); });
-        pdfInput.addEventListener('change', function () {
-            pdfName.textContent = pdfInput.files && pdfInput.files[0] ? pdfInput.files[0].name : 'No file selected';
-        });
+        bindAttachments(wrap, i);
 
         wrap.querySelector('.tm-add-reminder').addEventListener('click', function () {
             var box = wrap.querySelector('.tm-reminders');
@@ -683,4 +821,5 @@ window.TM_CSRF = @json(csrf_token());
     addTaskCard();
 })();
 </script>
+@include('internship.student.partials.evidence_compress_script')
 @endsection

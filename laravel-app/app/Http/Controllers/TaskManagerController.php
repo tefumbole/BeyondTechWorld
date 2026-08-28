@@ -84,19 +84,42 @@ class TaskManagerController extends Controller
 
         $rows = [];
         foreach ($payload as $index => $row) {
-            $pdfPath = null;
-            $pdfName = null;
-            $fileKey = 'tasks.' . $index . '.pdf';
-            if ($request->hasFile($fileKey)) {
-                $file = $request->file($fileKey);
+            $attachments = [];
+            $uploaded = $request->file('tasks.'.$index.'.files');
+            if ($uploaded) {
+                $list = is_array($uploaded) ? $uploaded : [$uploaded];
                 $dir = public_path('images/task');
                 if (! is_dir($dir)) {
                     @mkdir($dir, 0775, true);
                 }
-                $name = 'task_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+                foreach ($list as $file) {
+                    if (! $file || ! $file->isValid()) {
+                        continue;
+                    }
+                    $ext = strtolower((string) $file->getClientOriginalExtension());
+                    if ($ext === '') {
+                        $ext = 'bin';
+                    }
+                    $name = 'task_'.time().'_'.Str::random(6).'.'.$ext;
+                    $file->move($dir, $name);
+                    $attachments[] = [
+                        'file_name' => $file->getClientOriginalName() ?: $name,
+                        'file_url' => 'images/task/'.$name,
+                    ];
+                }
+            }
+            if (! $attachments && $request->hasFile('tasks.'.$index.'.pdf')) {
+                $file = $request->file('tasks.'.$index.'.pdf');
+                $dir = public_path('images/task');
+                if (! is_dir($dir)) {
+                    @mkdir($dir, 0775, true);
+                }
+                $name = 'task_'.time().'_'.Str::random(6).'.'.$file->getClientOriginalExtension();
                 $file->move($dir, $name);
-                $pdfPath = 'images/task/' . $name;
-                $pdfName = $file->getClientOriginalName();
+                $attachments[] = [
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_url' => 'images/task/'.$name,
+                ];
             }
 
             $rows[] = [
@@ -114,8 +137,9 @@ class TaskManagerController extends Controller
                 'reminders' => $row['reminders'] ?? [],
                 'send_mode' => $row['send_mode'] ?? 'now',
                 'schedule_at' => $row['schedule_at'] ?? null,
-                'pdf_path' => $pdfPath,
-                'pdf_name' => $pdfName,
+                'attachments' => $attachments,
+                'pdf_path' => ! empty($attachments[0]['file_url']) ? $attachments[0]['file_url'] : null,
+                'pdf_name' => ! empty($attachments[0]['file_name']) ? $attachments[0]['file_name'] : null,
             ];
         }
 
@@ -124,7 +148,7 @@ class TaskManagerController extends Controller
             return back()->withInput()->with('not_permitted', 'Could not create tasks. Ensure each task has a subject and at least one assignee.');
         }
 
-        return redirect()->route('tasks.index')->with('message', count($created) . ' task(s) created successfully.');
+        return redirect()->route('tasks.index')->with('message', count($created) . ' task(s) created. WhatsApp is sending to every assignee and CC (paced so nobody is dropped).');
     }
 
     public function index(Request $request)
