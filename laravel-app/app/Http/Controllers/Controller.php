@@ -538,6 +538,8 @@ class Controller extends BaseController
             return true;
         }
 
+        $msg = \App\Support\LetterReference::applyToMessage((string) $msg, 'whatsapp');
+
         $router = app(\App\Services\Messaging\NotificationRouter::class);
         $result = $router->sendWhatsAppText($number, $msg);
 

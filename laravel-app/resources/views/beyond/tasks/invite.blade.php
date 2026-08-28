@@ -40,13 +40,66 @@
                         @endauth
                     </div>
                 @elseif (! $loggedIn)
-                    <div class="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-900">
-                        Please sign in to accept or decline this task. We'll bring you right back here.
+                    @if(session('success') || session('status'))
+                        <div class="rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">{{ session('success') ?: session('status') }}</div>
+                    @endif
+                    <div class="rounded-lg border border-blue-100 bg-blue-50 p-4 space-y-3">
+                        <p class="text-sm font-semibold text-brand-blue">Create a username and password to accept this task</p>
+                        <p class="text-sm text-blue-900">
+                            You do not need an account yet. We will send a code to
+                            <strong>{{ $maskedPhone ?: 'your WhatsApp' }}</strong>, then you choose a username and password.
+                            We will WhatsApp those details to you.
+                        </p>
+                        @if (! ($otpSent ?? false))
+                            <form method="POST" action="{{ route('task.invite.setup.otp', $token) }}">
+                                @csrf
+                                <button type="submit" class="w-full bg-brand-blue text-white font-semibold py-2.5 rounded-md hover:bg-brand-dark">
+                                    Send WhatsApp code
+                                </button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('task.invite.setup', $token) }}" class="space-y-3">
+                                @csrf
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-700">Verification code</label>
+                                    <input type="text" name="otp" maxlength="6" required inputmode="numeric" autocomplete="one-time-code"
+                                           value="{{ old('otp') }}"
+                                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-700">Username</label>
+                                    <input type="text" name="username" required minlength="3" maxlength="100"
+                                           value="{{ old('username') }}"
+                                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                                           placeholder="e.g. gracious.chia">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-700">Password</label>
+                                    <input type="password" name="password" required minlength="8" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-semibold text-gray-700">Confirm password</label>
+                                    <input type="password" name="password_confirmation" required minlength="8" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
+                                </div>
+                                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-md">
+                                    Save login and continue
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('task.invite.setup.otp', $token) }}" class="text-center">
+                                @csrf
+                                <button type="submit" class="text-sm text-brand-blue font-semibold hover:underline">Resend code</button>
+                            </form>
+                        @endif
                     </div>
-                    <a href="{{ url('/login?redirect='.urlencode('/task-invite/'.$token)) }}"
-                       class="block w-full text-center bg-brand-blue text-white font-semibold py-2.5 rounded-md hover:bg-brand-dark">
-                        Sign in to respond
-                    </a>
+                    <div class="text-center text-sm space-y-2">
+                        <a href="{{ url('/login?redirect='.urlencode('/task-invite/'.$token)) }}" class="block text-brand-blue font-semibold hover:underline">
+                            Already have a login? Sign in
+                        </a>
+                        <a href="{{ url('/forgot-password?redirect='.urlencode('/task-invite/'.$token).(! empty($assignee->phone) ? '&phone='.urlencode($assignee->phone) : '')) }}"
+                           class="block text-gray-600 hover:underline">
+                            Forgot password? Reset with a WhatsApp OTP
+                        </a>
+                    </div>
                 @elseif (! $isOwner)
                     <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
                         This task invite belongs to a different account. Please sign in with the invited account.

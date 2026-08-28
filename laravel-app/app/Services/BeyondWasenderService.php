@@ -75,6 +75,8 @@ class BeyondWasenderService
 
             $this->throttleSend();
 
+            $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
+
             $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
             $url = $base.'/send-message';
             $payload = json_encode(['to' => $to, 'text' => $message]);
@@ -195,6 +197,11 @@ class BeyondWasenderService
             if (empty($publicUrl)) {
                 return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
             }
+
+            $caption = \App\Support\LetterReference::applyToMessage(
+                (string) ($caption !== null && $caption !== '' ? $caption : $fileName),
+                'whatsapp'
+            );
 
             $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
             $url = $base.'/send-message';

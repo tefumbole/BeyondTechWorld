@@ -6,9 +6,10 @@ use App\GeneralSetting;
 use App\Letter;
 use App\WaAnnouncement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
- * Shared document references for Letters and Announcements.
+ * Shared document references for Letters, Announcements, and WhatsApp.
  * Format: {letter_serial_no}/{yy}/{NNNNNNN} e.g. BCL/L-/26/0000005
  */
 class LetterReference
@@ -31,33 +32,53 @@ class LetterReference
     }
 
     /**
-     * Allocate the next shared serial (letters + announcements) for the current year.
+     * Allocate the next shared serial (letters + announcements + WhatsApp) for the current year.
      */
-    public static function next(): string
+    public static function next($source = 'document'): string
     {
-        return DB::transaction(function () {
+        return DB::transaction(function () use ($source) {
             $prefix = self::prefix();
             $year = self::yearToken();
-            $pattern = $prefix.'/'.$year.'/';
+            $pattern = rtrim($prefix, '/').'/'.$year.'/';
 
-            // Lock announcement settings row lightly so concurrent creates serialize.
+            try {
+                DB::table('general_settings')->lockForUpdate()->first();
+            } catch (\Throwable $e) {
+            }
             try {
                 DB::table('wa_announcement_settings')->lockForUpdate()->first();
             } catch (\Throwable $e) {
-                // table may not exist in odd environments — continue
             }
 
             $max = 0;
             foreach (Letter::query()->where('reference', 'like', $pattern.'%')->pluck('reference') as $ref) {
                 $max = max($max, self::serialFromReference((string) $ref));
             }
-            foreach (WaAnnouncement::query()->where('reference', 'like', $pattern.'%')->pluck('reference') as $ref) {
-                $max = max($max, self::serialFromReference((string) $ref));
+            try {
+                foreach (WaAnnouncement::query()->where('reference', 'like', $pattern.'%')->pluck('reference') as $ref) {
+                    $max = max($max, self::serialFromReference((string) $ref));
+                }
+            } catch (\Throwable $e) {
+            }
+            if (Schema::hasTable('shared_message_serials')) {
+                foreach (DB::table('shared_message_serials')->where('reference', 'like', $pattern.'%')->pluck('reference') as $ref) {
+                    $max = max($max, self::serialFromReference((string) $ref));
+                }
             }
 
             $next = $max + 1;
+            $reference = self::format($prefix, $year, $next);
 
-            return self::format($prefix, $year, $next);
+            if (Schema::hasTable('shared_message_serials')) {
+                DB::table('shared_message_serials')->insert([
+                    'reference' => $reference,
+                    'source' => substr((string) $source, 0, 40),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $reference;
         });
     }
 
@@ -84,5 +105,40 @@ class LetterReference
         }
 
         return 'Ref: '.$reference;
+    }
+
+    public static function extractFromText($text): ?string
+    {
+        $text = (string) $text;
+        if ($text === '') {
+            return null;
+        }
+        $prefix = preg_quote(rtrim(self::prefix(), '/'), '#');
+        if (preg_match('#'.$prefix.'/\d{2}/\d{1,7}#i', $text, $m)) {
+            return $m[0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Ensure a WhatsApp body starts with the same Ref line letters use.
+     * Reuses an existing letter-style serial instead of allocating a second one.
+     */
+    public static function applyToMessage($body, $source = 'whatsapp'): string
+    {
+        $body = (string) $body;
+        if (self::extractFromText($body)) {
+            return $body;
+        }
+        try {
+            $ref = self::next($source);
+        } catch (\Throwable $e) {
+            \Log::warning('LetterReference WhatsApp serial failed: '.$e->getMessage());
+
+            return $body;
+        }
+
+        return self::label($ref)."\n".$body;
     }
 }

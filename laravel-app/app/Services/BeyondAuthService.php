@@ -46,13 +46,39 @@ class BeyondAuthService
             return null;
         }
         $digits = preg_replace('/\D/', '', $formatted);
+        $tail = substr($digits, -9);
+        if (strlen($tail) < 8) {
+            return BeyondUser::where('status', 'active')
+                ->where(function ($q) use ($formatted, $digits) {
+                    $q->where('phone', $formatted)
+                        ->orWhere('phone', $digits)
+                        ->orWhere('phone', '+'.$digits);
+                })
+                ->first();
+        }
 
         return BeyondUser::where('status', 'active')
-            ->where(function ($q) use ($formatted, $digits) {
+            ->where(function ($q) use ($formatted, $digits, $tail) {
                 $q->where('phone', $formatted)
-                    ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', '') = ?", [$digits]);
+                    ->orWhere('phone', $digits)
+                    ->orWhere('phone', '+'.$digits)
+                    ->orWhereRaw(
+                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                        [$tail]
+                    );
             })
             ->first();
+    }
+
+    public function sendLoginDetails($phone, $name, $username, $password)
+    {
+        $phone = trim((string) $phone);
+        if ($phone === '' || $username === '' || $password === '') {
+            return ['success' => false, 'error' => 'Missing login details'];
+        }
+        $body = \App\Support\WhatsAppMessage::loginDetails($name, $username, $password, url('/login'));
+
+        return $this->whatsapp->sendText($phone, $body);
     }
 
     public function syncProfile(BeyondUser $user)

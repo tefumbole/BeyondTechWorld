@@ -473,6 +473,8 @@ class BeyondAuthController extends Controller
 
     public function showForgotPassword(Request $request)
     {
+        \App\Support\AuthIntended::rememberFromRequest($request);
+
         return view('beyond.auth.forgot-password', [
             'prefillPhone' => $request->get('phone', ''),
             'countryCodes' => CountryDialCodes::all(),
@@ -600,6 +602,37 @@ class BeyondAuthController extends Controller
             'password_reset_accounts',
             'password_reset_current_username',
         ]);
+
+        $beyondUser = ! empty($ids['beyond']) ? BeyondUser::find($ids['beyond']) : null;
+        if ($beyondUser) {
+            if (Auth::guard('web')->check()) {
+                Auth::guard('web')->logout();
+            }
+            Auth::guard('beyond')->login($beyondUser);
+            session(['beyond_otp_verified' => true]);
+            $this->auth->sendLoginDetails(
+                $phone,
+                $beyondUser->name,
+                $username,
+                $request->password
+            );
+        } elseif (! empty($ids['web'])) {
+            $staff = User::find($ids['web']);
+            if ($staff) {
+                $this->auth->sendLoginDetails(
+                    $phone,
+                    $staff->name,
+                    $username,
+                    $request->password
+                );
+            }
+        }
+
+        $intended = \App\Support\AuthIntended::pull();
+        if ($intended) {
+            return redirect($intended)
+                ->with('status', 'Username and password saved. We sent them to your WhatsApp.');
+        }
 
         return redirect('/forgot-password')
             ->with('reset_complete', true)

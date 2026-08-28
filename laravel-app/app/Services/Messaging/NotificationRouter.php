@@ -4,6 +4,7 @@ namespace App\Services\Messaging;
 
 use App\Services\BeyondWasenderService;
 use App\Services\TwilioWhatsAppService;
+use App\Support\LetterReference;
 use App\Support\WhatsAppMessage;
 use Clickatell\ClickatellException;
 use Twilio\Rest\Client;
@@ -51,12 +52,18 @@ class NotificationRouter
         }
 
         if ($this->whatsappProvider() === 'TWILIO') {
+            $body = LetterReference::applyToMessage($body, 'whatsapp');
+            $extracted = LetterReference::extractFromText($body);
+            if ($extracted && (empty($statusVars['reference']) || ! LetterReference::extractFromText((string) $statusVars['reference']))) {
+                $statusVars['reference'] = $extracted;
+            }
             $result = $this->sendTwilioStatusTemplate($phone, $body, $statusVars);
             if ($result !== null) {
                 return $result;
             }
         }
 
+        $body = LetterReference::applyToMessage($body, 'whatsapp');
         $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
@@ -78,6 +85,8 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
+        $message = LetterReference::applyToMessage($message, 'whatsapp');
+        $serial = LetterReference::extractFromText($message) ?: WhatsAppMessage::otpPurposeLabel($purpose);
         $purposeLabel = WhatsAppMessage::otpPurposeLabel($purpose);
         $minutes = max(1, (int) $expiresMinutes);
 
@@ -89,7 +98,7 @@ class NotificationRouter
                     'title' => 'Verification code',
                     'name' => 'Client',
                     'message' => 'Your one-time passcode (OTP) is '.$otp.'. It expires in '.$minutes.' minutes. Do not share this code.',
-                    'reference' => $purposeLabel,
+                    'reference' => $serial,
                     'details' => 'Expires in '.$minutes.' minutes',
                 ]);
 
@@ -133,6 +142,7 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
+        $caption = LetterReference::applyToMessage((string) ($caption ?: $fileName ?: 'Document'), 'whatsapp');
         $result = $this->wasender->sendDocument($phone, $localPath, $fileName, $caption);
         $result['provider'] = 'wasender';
 
@@ -153,12 +163,18 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
+        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        $extracted = LetterReference::extractFromText($body);
+        if ($extracted) {
+            $statusVars['reference'] = $extracted;
+        }
+
         if ($this->whatsappProvider() === 'TWILIO') {
             $result = $this->sendTwilioStatusTemplate($phone, $body, array_merge([
                 'title' => 'Announcement',
                 'name' => 'Client',
                 'message' => $this->truncate((string) $body, 800),
-                'reference' => 'Announcement',
+                'reference' => $extracted ?: 'Announcement',
                 'details' => '-',
             ], $statusVars));
             if ($result !== null) {

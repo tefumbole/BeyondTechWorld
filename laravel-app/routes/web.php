@@ -131,6 +131,8 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
 
 // Public task invite (actions require login, enforced in controller)
 Route::get('/task-invite/{token}', 'TaskInviteController@show')->name('task.invite');
+Route::post('/task-invite/{token}/setup-otp', 'TaskInviteController@sendSetupOtp')->name('task.invite.setup.otp');
+Route::post('/task-invite/{token}/setup', 'TaskInviteController@storeSetup')->name('task.invite.setup');
 Route::post('/task-invite/{token}/accept', 'TaskInviteController@accept')->name('task.invite.accept');
 Route::post('/task-invite/{token}/decline', 'TaskInviteController@decline')->name('task.invite.decline');
 

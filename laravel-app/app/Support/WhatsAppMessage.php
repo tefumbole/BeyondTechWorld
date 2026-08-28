@@ -534,6 +534,25 @@ class WhatsAppMessage
         return $msg;
     }
 
+    /**
+     * After a task assignee (or forgot-password) chooses a username and password.
+     */
+    public static function loginDetails($name, $username, $password, $loginUrl = null)
+    {
+        $loginUrl = $loginUrl ?: url('/login');
+        $msg = self::statusBlock('🔑', 'Your login details');
+        $msg .= self::greeting($name ?: 'Team Member');
+        $msg .= "Your username and password for *" . self::companyName() . "* are ready. Keep this message private.\n\n";
+        $msg .= self::bullet('Username', $username ?: '—');
+        $msg .= self::bullet('Password', $password ?: '—');
+        $msg .= "_You can also sign in with your WhatsApp number or email._\n";
+        $msg .= self::actionLink('Sign in', $loginUrl);
+        $msg .= self::actionLink('Forgot password (OTP)', url('/forgot-password'));
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function applicationUnderReview($name, $jobTitle, $reference, $isInternship = false)
     {
         $kind = $isInternship ? 'Internship' : 'Job';
