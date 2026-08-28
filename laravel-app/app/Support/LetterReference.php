@@ -123,12 +123,13 @@ class LetterReference
 
     /**
      * Stamp a shared letter serial on a WhatsApp body.
-     * Subject stays first; Ref sits immediately above the italic company title.
+     * Subject / heading always stays first (chat preview).
+     * Ref sits immediately above the italic system title (company name).
      * Reuses an existing letter-style serial instead of allocating a second one.
      */
     public static function applyToMessage($body, $source = 'whatsapp'): string
     {
-        $body = (string) $body;
+        $body = str_replace(["\r\n", "\r"], "\n", (string) $body);
         if (trim($body) === '') {
             return $body;
         }
@@ -140,39 +141,69 @@ class LetterReference
             } catch (\Throwable $e) {
                 \Log::warning('LetterReference WhatsApp serial failed: '.$e->getMessage());
 
-                return $body;
+                return rtrim($body);
             }
         }
 
         $body = self::stripRefLines($body);
+        $body = self::stripTrailingSystemTitle($body);
 
         return self::insertBeforeFooter($body, self::label($ref));
     }
 
-    /** Remove "Ref: PREFIX/yy/NNNNNNN" lines so they can be placed before the footer. */
-    public static function stripRefLines(string $body): string
+    /** Italic company line used as the WhatsApp system title. */
+    public static function systemTitleLine(): string
     {
-        $prefix = preg_quote(rtrim(self::prefix(), '/'), '#');
-        $stripped = preg_replace('#(?:^|\n)Ref:\s*'.$prefix.'/\d{2}/\d{1,7}[ \t]*#i', "\n", $body);
+        $name = '';
+        try {
+            $name = trim((string) WhatsAppMessage::companyName());
+        } catch (\Throwable $e) {
+            $name = '';
+        }
+        if ($name === '') {
+            $name = 'Beyond Enterprise';
+        }
 
-        return ltrim((string) $stripped, "\n");
+        return '_'.$name.'_';
     }
 
-    /** Place the Ref line immediately above the italic company footer. */
+    /** Remove "Ref: PREFIX/yy/NNNNNNN" lines so they can be placed before the title. */
+    public static function stripRefLines(string $body): string
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", $body);
+        $prefix = preg_quote(rtrim(self::prefix(), '/'), '#');
+        $stripped = preg_replace('#(?:^|\n)[ \t]*Ref:\s*'.$prefix.'/\d{2}/\d{1,7}[ \t]*#i', "\n", $body);
+
+        return trim((string) $stripped, "\n");
+    }
+
+    /** Remove a trailing italic company title so we can re-attach it after Ref. */
+    public static function stripTrailingSystemTitle(string $body): string
+    {
+        $body = rtrim(str_replace(["\r\n", "\r"], "\n", $body));
+        $title = preg_quote(self::systemTitleLine(), '#');
+        $stripped = preg_replace('#(?:\n+'.$title.')+\s*$#u', '', $body);
+        $stripped = preg_replace('#(?:\n+_[^_\n]+_)\s*$#u', '', (string) $stripped);
+
+        return rtrim((string) $stripped);
+    }
+
+    /**
+     * Place Ref immediately above the italic system title at the bottom.
+     * Never prepends Ref — the subject block must remain the first lines.
+     */
     public static function insertBeforeFooter(string $body, string $label): string
     {
-        $body = rtrim($body);
+        $body = self::stripTrailingSystemTitle($body);
+        $title = self::systemTitleLine();
         if ($label === '') {
-            return $body;
-        }
-        if (preg_match('#(\n*_[^_\n]+_)$#u', $body, $m, PREG_OFFSET_CAPTURE)) {
-            $pos = $m[1][1];
-            $before = rtrim(substr($body, 0, $pos));
-            $footer = ltrim($m[1][0], "\n");
-
-            return $before."\n\n".$label."\n".$footer;
+            return $body === '' ? $title : $body."\n\n".$title;
         }
 
-        return $body."\n\n".$label;
+        if ($body === '') {
+            return $label."\n".$title;
+        }
+
+        return $body."\n\n".$label."\n".$title;
     }
 }
