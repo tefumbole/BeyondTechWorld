@@ -46,9 +46,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('announcements:process')->everyMinute();
         $schedule->command('contracts:process-reminders')->everyMinute();
         $schedule->command('contracts:expiry-alerts')->dailyAt('08:00');
-        $schedule->command('internship:reconcile-releases')->hourly();
-        $schedule->command('internship:timesheet-reminders')->hourly()->withoutOverlapping();
-        $schedule->command('internship:review-sla')->hourly()->withoutOverlapping();
+        // Stagger internship WhatsApp so the three hourly jobs do not start together.
+        $schedule->command('internship:reconcile-releases')->hourlyAt(5);
+        $schedule->command('internship:review-sla')->hourlyAt(20)->withoutOverlapping();
+        $schedule->command('internship:timesheet-reminders')->hourlyAt(35)->withoutOverlapping();
         $schedule->command('online-invitations:send-reminders')->everyMinute();
     }
 

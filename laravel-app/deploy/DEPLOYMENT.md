@@ -124,15 +124,26 @@ This app writes uploads under `public/uploads/...` (single-folder layout), so no
 
 ## 7. Scheduler (cron) — required
 
-The app schedules reminders and announcement/letter sends every minute. Add ONE
-cron entry so Laravel's scheduler runs:
+The app schedules reminders, WhatsApp sends, internships, and related jobs in
+`app/Console/Kernel.php`. Add **one** cron entry as **www-data** (not root) so
+Laravel's scheduler runs every minute. Point it at `laravel-app`, not the repo root.
 
 ```cron
-* * * * * cd /var/www/beyondtechworld && php artisan schedule:run >> /dev/null 2>&1
+APP=/var/www/beyondtechworld/laravel-app
+* * * * * cd $APP && /usr/bin/php artisan schedule:run >> $APP/storage/logs/scheduler.log 2>&1
 ```
 
-Scheduled jobs: `reminder:cron`, `announcements:send-scheduled`,
-`letters:send-scheduled`, `rental:return-reminders`, `bookings:send-reminders`.
+Install with:
+
+```bash
+sudo crontab -u www-data -e
+```
+
+Do **not** also cron individual artisan commands (`tasks:process`, internship jobs,
+etc.) or they will run twice.
+
+Scheduled jobs include: `tasks:process`, `reminder:cron`, announcements and letters,
+bookings, events, contracts, internship hourly jobs, and online invitations.
 
 ---
 
