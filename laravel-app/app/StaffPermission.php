@@ -21,7 +21,7 @@ class StaffPermission extends Model
 
     protected $fillable = [
         'id', 'user_id', 'full_name', 'email', 'phone', 'company_role',
-        'from_at', 'to_at', 'reason', 'status', 'admin_note', 'instructions',
+        'from_at', 'to_at', 'reason', 'subject', 'status', 'admin_note', 'instructions',
         'letter_footer', 'reviewed_by', 'reviewed_at', 'reference_number', 'letter_id',
     ];
 

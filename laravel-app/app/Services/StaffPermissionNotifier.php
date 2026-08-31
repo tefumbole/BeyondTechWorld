@@ -27,8 +27,11 @@ class StaffPermissionNotifier
         $loginUrl = url('/login?redirect='.rawurlencode($path));
         $from = $permission->from_at ? $permission->from_at->format('D d M Y H:i') : '—';
         $to = $permission->to_at ? $permission->to_at->format('D d M Y H:i') : '—';
-        $reason = trim((string) $permission->reason) !== '' ? trim($permission->reason) : '—';
-        $bellMessage = ($permission->full_name ?: 'Someone').' requested permission ('.$permission->reference_number.')';
+        $subject = trim((string) $permission->subject) !== '' ? trim($permission->subject) : '—';
+        $reason = trim((string) $permission->reason);
+        $bellMessage = ($permission->full_name ?: 'Someone').' requested permission'
+            .($subject !== '—' ? ': '.$subject : '')
+            .' ('.$permission->reference_number.')';
 
         $admins = User::where('is_deleted', false)
             ->where('is_active', 1)
@@ -63,6 +66,7 @@ class StaffPermissionNotifier
                 $permission->company_role,
                 $from,
                 $to,
+                $subject,
                 $reason,
                 $loginUrl
             );

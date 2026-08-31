@@ -99,4 +99,39 @@ class CountryDialCodes
 
         return $code.$digits;
     }
+
+    /**
+     * Split an E.164-ish number into [dial code, national digits].
+     *
+     * @return array{0:string,1:string}
+     */
+    public static function split($full)
+    {
+        $digits = preg_replace('/\D/', '', (string) $full);
+        $codes = array_keys(self::all());
+        usort($codes, function ($a, $b) {
+            return strlen(preg_replace('/\D/', '', $b)) - strlen(preg_replace('/\D/', '', $a));
+        });
+        foreach ($codes as $code) {
+            $prefix = preg_replace('/\D/', '', $code);
+            if ($prefix !== '' && strpos($digits, $prefix) === 0) {
+                return [$code, substr($digits, strlen($prefix))];
+            }
+        }
+
+        return ['+237', ltrim($digits, '0')];
+    }
+
+    /**
+     * @return array<int, array{code:string,label:string}>
+     */
+    public static function list()
+    {
+        $out = [];
+        foreach (self::all() as $code => $label) {
+            $out[] = ['code' => $code, 'label' => $label];
+        }
+
+        return $out;
+    }
 }

@@ -48,7 +48,8 @@
                                 <td>
                                     <strong>{{ $item->full_name }}</strong><br>
                                     <span class="text-muted small">{{ $item->email }} · {{ $item->phone }}</span>
-                                    @if($item->reason)<br><span class="small">{{ \Illuminate\Support\Str::limit($item->reason, 80) }}</span>@endif
+                                    @if($item->subject)<br><span class="small font-semibold">{{ \Illuminate\Support\Str::limit($item->subject, 80) }}</span>@endif
+                                    @if($item->reason)<br><span class="small text-muted">{{ \Illuminate\Support\Str::limit($item->reason, 80) }}</span>@endif
                                 </td>
                                 <td>{{ $item->company_role }}</td>
                                 <td class="small">

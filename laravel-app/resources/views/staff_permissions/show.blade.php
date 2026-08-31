@@ -26,13 +26,14 @@
             <p class="mb-1"><strong>{{ $item->full_name }}</strong>
                 <span class="badge badge-secondary ml-1">{{ $item->statusLabel() }}</span>
             </p>
-            <p class="text-muted mb-2">{{ $item->email }} · {{ $item->phone }} · {{ $item->company_role }}</p>
+            <p class="text-muted mb-2">{{ $item->phone }} · {{ $item->company_role }}</p>
             <p class="mb-1"><strong>Reference:</strong> <code>{{ $item->reference_number }}</code></p>
             <p class="mb-1"><strong>Period:</strong>
                 {{ $item->from_at ? $item->from_at->format('D d M Y H:i') : '—' }}
                 → {{ $item->to_at ? $item->to_at->format('D d M Y H:i') : '—' }}
             </p>
-            <p class="mb-0"><strong>Reason:</strong> {{ $item->reason ?: '—' }}</p>
+            <p class="mb-1"><strong>Subject:</strong> {{ $item->subject ?: '—' }}</p>
+            <p class="mb-0"><strong>Explanation:</strong> {{ $item->reason ?: '—' }}</p>
             @if($item->letter_id)
                 <p class="mt-2 mb-0 small">Letter #{{ $item->letter_id }}
                     @if($item->letter)

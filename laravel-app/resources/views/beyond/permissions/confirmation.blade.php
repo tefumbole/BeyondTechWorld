@@ -18,9 +18,10 @@
                 <div><span class="text-gray-500">Reference:</span> <strong>{{ $permission->reference_number }}</strong></div>
                 <div><span class="text-gray-500">Name:</span> {{ $permission->full_name }}</div>
                 <div><span class="text-gray-500">Role:</span> {{ $permission->company_role }}</div>
+                <div><span class="text-gray-500">Subject:</span> {{ $permission->subject }}</div>
                 <div><span class="text-gray-500">From:</span> {{ $permission->from_at ? $permission->from_at->format('M j, Y H:i') : '—' }}</div>
                 <div><span class="text-gray-500">To:</span> {{ $permission->to_at ? $permission->to_at->format('M j, Y H:i') : '—' }}</div>
-                <div><span class="text-gray-500">Reason:</span> {{ $permission->reason }}</div>
+                <div><span class="text-gray-500">Explanation:</span> {{ $permission->reason }}</div>
             </div>
         @else
             <p class="text-sm text-gray-500 mb-6">Reference: <strong>{{ $reference }}</strong></p>

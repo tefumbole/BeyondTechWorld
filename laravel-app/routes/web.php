@@ -86,7 +86,7 @@ Route::post('/rentals', 'PublicRentalController@store')->name('beyond.rentals.st
 Route::get('/rentals/confirmation/{reference}', 'PublicRentalController@confirmation')->name('beyond.rentals.confirmation');
 
 Route::get('/permissions', 'PublicPermissionController@index')->name('beyond.permissions');
-Route::get('/permissions/name-search', 'PublicPermissionController@searchNames')->name('beyond.permissions.search');
+Route::get('/permissions/account-lookup', 'PublicPermissionController@lookupAccount')->name('beyond.permissions.lookup');
 Route::post('/permissions', 'PublicPermissionController@store')->name('beyond.permissions.store');
 Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('beyond.permissions.verify');
 Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');

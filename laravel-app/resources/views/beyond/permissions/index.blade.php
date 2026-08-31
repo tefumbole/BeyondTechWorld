@@ -4,11 +4,11 @@
 @section('meta_description', 'Request time-off permission from Beyond Enterprise.')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 pb-20" x-data="permissionApply()">
+<div class="min-h-screen bg-gray-50 pb-20" x-data="permissionApply()" x-init="if ((phoneLocal || '').trim().length >= 6) lookupPhone()">
     <div class="bg-gradient-to-r from-brand-blue via-[#004e9a] to-brand-dark text-white py-16 px-4">
         <div class="max-w-4xl mx-auto text-center">
             <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Apply for Permission</h1>
-            <p class="text-lg text-blue-100">Request leave for a date and time range. Available for staff from any country — verify with WhatsApp OTP.</p>
+            <p class="text-lg text-blue-100">For existing accounts only. Enter your WhatsApp number to load your name, then verify with OTP.</p>
         </div>
     </div>
 
@@ -26,7 +26,7 @@
             @if($verifyStep)
                 <div class="mb-8 border border-brand-gold/40 bg-amber-50 rounded-lg p-5">
                     <h2 class="text-lg font-bold text-brand-blue mb-1">Verify WhatsApp OTP</h2>
-                    <p class="text-sm text-gray-600 mb-4">Enter the code sent to <strong>{{ $maskedPhone }}</strong> to create/confirm your account and submit this request.</p>
+                    <p class="text-sm text-gray-600 mb-4">Enter the code sent to <strong>{{ $maskedPhone }}</strong> to submit this request.</p>
                     <form method="POST" action="{{ route('beyond.permissions.verify') }}" class="space-y-3">
                         @csrf
                         <input type="text" name="otp" maxlength="6" required inputmode="numeric" autocomplete="one-time-code"
@@ -43,69 +43,62 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('beyond.permissions.store') }}" class="space-y-4" @submit="onSubmit">
+            <form method="POST" action="{{ route('beyond.permissions.store') }}" class="space-y-4">
                 @csrf
                 <input type="hidden" name="existing_user_id" x-model="existingUserId">
-
-                <div class="relative">
-                    <label class="text-sm font-semibold text-gray-700">Full Name *</label>
-                    <input required name="full_name" x-model="fullName" @input.debounce.300ms="searchNames"
-                           autocomplete="off"
-                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                           placeholder="Start typing your name…">
-                    <div x-show="suggestions.length" x-cloak
-                         class="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-auto">
-                        <template x-for="item in suggestions" :key="item.id">
-                            <button type="button" @click="selectPerson(item)"
-                                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-50 last:border-0">
-                                <div class="font-semibold text-gray-800" x-text="item.name"></div>
-                                <div class="text-xs text-gray-500">
-                                    <span x-text="item.phone_masked || 'No phone on file'"></span>
-                                    <span x-show="item.email"> · <span x-text="item.email"></span></span>
-                                    <span x-show="item.has_account" class="text-green-700 font-semibold"> · Account found</span>
-                                </div>
-                            </button>
-                        </template>
-                    </div>
-                </div>
-
-                <div x-show="matchNotice" x-cloak class="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-900">
-                    <p class="font-semibold mb-1">We found a matching profile</p>
-                    <p class="mb-2" x-text="matchNotice"></p>
-                    <div class="flex flex-wrap gap-3">
-                        <a :href="loginUrl" class="text-brand-blue font-bold underline">Sign in</a>
-                        <a :href="resetUrl" class="text-brand-blue font-bold underline">Forgot password? Reset via WhatsApp OTP</a>
-                    </div>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-sm font-semibold text-gray-700">Email</label>
-                        <input type="email" name="email" x-model="email"
-                               class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="text-sm font-semibold text-gray-700">Your role in the company *</label>
-                        <input required name="company_role"
-                               value="{{ old('company_role', $draft['company_role'] ?? '') }}"
-                               class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                               placeholder="e.g. Technician, Engineer, Admin">
-                    </div>
-                </div>
 
                 <div>
                     <label class="text-sm font-semibold text-gray-700">WhatsApp number *</label>
                     <div class="flex gap-2 mt-1">
-                        <select name="country_code" class="rounded-md border border-gray-200 px-2 py-2 w-44 shrink-0">
-                            @foreach($countryCodes as $code => $label)
-                                <option value="{{ $code }}" @if(old('country_code', $draft['country_code'] ?? '+237') === $code) selected @endif>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <input required name="phone" x-model="phoneLocal"
+                        <div class="relative w-52 shrink-0" @click.away="ccOpen = false">
+                            <input type="hidden" name="country_code" :value="countryCode">
+                            <button type="button" @click="ccOpen = !ccOpen; $nextTick(() => { if (ccOpen && $refs.ccSearch) $refs.ccSearch.focus(); })"
+                                    class="w-full rounded-md border border-gray-200 px-2 py-2 text-left text-sm bg-white truncate">
+                                <span x-text="ccLabel()"></span>
+                            </button>
+                            <div x-show="ccOpen" x-cloak
+                                 class="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden">
+                                <input type="search" x-model="ccQuery" x-ref="ccSearch"
+                                       @click.stop placeholder="Search country…"
+                                       class="w-full border-0 border-b border-gray-100 px-3 py-2 text-sm outline-none">
+                                <div class="max-h-56 overflow-auto">
+                                    <template x-for="c in filteredCountries()" :key="c.code">
+                                        <button type="button" @click="selectCountry(c)"
+                                                class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
+                                                :class="c.code === countryCode ? 'bg-blue-50 font-semibold' : ''"
+                                                x-text="c.label"></button>
+                                    </template>
+                                    <p class="px-3 py-2 text-xs text-gray-500" x-show="filteredCountries().length === 0">No matches.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <input required name="phone" x-model="phoneLocal" @input.debounce.400ms="lookupPhone"
                                class="flex-1 rounded-md border border-gray-200 px-3 py-2"
-                               placeholder="Phone number (any country)">
+                               placeholder="Phone number">
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">We use this number for OTP verification and status updates.</p>
+                    <p class="text-xs text-gray-500 mt-1">We look up your account from this number, then send a WhatsApp OTP.</p>
+                </div>
+
+                <div x-show="lookupMessage" x-cloak
+                     class="rounded-lg px-4 py-3 text-sm"
+                     :class="accountFound ? 'bg-blue-50 border border-blue-200 text-blue-900' : 'bg-red-50 border border-red-200 text-red-800'">
+                    <p x-text="lookupMessage"></p>
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Full Name *</label>
+                    <input required name="full_name" x-model="fullName" :readonly="accountFound"
+                           autocomplete="off"
+                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                           :class="accountFound ? 'bg-gray-50' : ''"
+                           placeholder="Enter your WhatsApp number to load your name">
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Your role in the company *</label>
+                    <input required name="company_role" x-model="companyRole"
+                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                           placeholder="e.g. Technician, Engineer, Admin">
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
@@ -124,36 +117,29 @@
                 </div>
 
                 <div>
+                    <label class="text-sm font-semibold text-gray-700">Subject *</label>
+                    <input required name="subject" maxlength="255"
+                           value="{{ old('subject', $draft['subject'] ?? '') }}"
+                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                           placeholder="Short title for this permission">
+                    <p class="text-xs text-gray-500 mt-1">This becomes the letter subject, e.g. Permission Approved… your subject.</p>
+                </div>
+
+                <div>
                     <label class="text-sm font-semibold text-gray-700">Reason for permission *</label>
                     <textarea required name="reason" rows="4"
                               class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                              placeholder="Why do you need this permission?">{{ old('reason', $draft['reason'] ?? '') }}</textarea>
+                              placeholder="Explain why you need this permission.">{{ old('reason', $draft['reason'] ?? '') }}</textarea>
                 </div>
 
-                <div class="border-t border-gray-100 pt-4" x-show="!otpAlreadyOk" x-cloak>
-                    <p class="text-sm font-semibold text-gray-700 mb-2">New account password <span class="font-normal text-gray-500">(optional — if you don’t have an account yet)</span></p>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div>
-                            <input type="password" name="password" minlength="8"
-                                   class="w-full rounded-md border border-gray-200 px-3 py-2" placeholder="Password (min 8 chars)">
-                        </div>
-                        <div>
-                            <input type="password" name="password_confirmation" minlength="8"
-                                   class="w-full rounded-md border border-gray-200 px-3 py-2" placeholder="Confirm password">
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">Leave blank to receive a temporary password on WhatsApp after OTP verification.</p>
-                </div>
-
-                <button type="submit" class="w-full bg-brand-gold hover:bg-[#b5952f] text-brand-blue font-bold py-3 rounded-md">
+                <button type="submit" class="w-full bg-brand-gold hover:bg-[#b5952f] text-brand-blue font-bold py-3 rounded-md disabled:opacity-50"
+                        :disabled="!accountFound">
                     {{ $otpOk ? 'Submit Permission Request' : 'Continue with WhatsApp OTP' }}
                 </button>
 
                 <p class="text-center text-sm text-gray-600">
                     Already have an account?
                     <a href="{{ url('/login?redirect=/permissions') }}" class="text-brand-blue font-semibold hover:underline">Sign in</a>
-                    ·
-                    <a href="{{ url('/login?tab=signup&redirect=/permissions') }}" class="text-brand-blue font-semibold hover:underline">Sign up</a>
                     ·
                     <a href="{{ url('/forgot-password') }}" class="text-brand-blue font-semibold hover:underline">Reset password</a>
                 </p>
@@ -166,52 +152,63 @@
 <script>
 function permissionApply() {
     return {
+        countries: @json($countries),
+        countryCode: @json($countryCode),
+        ccQuery: '',
+        ccOpen: false,
+        phoneLocal: @json(old('phone', $phoneLocal)),
         fullName: @json(old('full_name', $draft['full_name'] ?? optional($user)->name ?? '')),
-        email: @json(old('email', $draft['email'] ?? optional($user)->email ?? '')),
-        phoneLocal: @json(old('phone', $draft['phone'] ?? '')),
-        existingUserId: @json(old('existing_user_id', $draft['existing_user_id'] ?? '')),
-        suggestions: [],
-        matchNotice: '',
+        companyRole: @json(old('company_role', $draft['company_role'] ?? optional($user)->role ?? '')),
+        existingUserId: @json(old('existing_user_id', $draft['existing_user_id'] ?? optional($user)->id ?? '')),
+        accountFound: @json((bool) ($user || old('existing_user_id', $draft['existing_user_id'] ?? ''))),
+        lookupMessage: '',
         otpAlreadyOk: @json((bool) $otpOk),
-        loginUrl: '{{ url('/login?redirect=/permissions') }}',
-        resetUrl: '{{ url('/forgot-password') }}',
-        searchNames() {
-            this.existingUserId = '';
-            this.matchNotice = '';
-            const q = (this.fullName || '').trim();
-            if (q.length < 2) {
-                this.suggestions = [];
+        ccLabel() {
+            const hit = this.countries.find(c => c.code === this.countryCode);
+            return hit ? hit.label : this.countryCode;
+        },
+        filteredCountries() {
+            const q = (this.ccQuery || '').trim().toLowerCase();
+            if (!q) return this.countries;
+            return this.countries.filter(c => (c.label + ' ' + c.code).toLowerCase().indexOf(q) !== -1);
+        },
+        selectCountry(c) {
+            this.countryCode = c.code;
+            this.ccOpen = false;
+            this.ccQuery = '';
+            this.lookupPhone();
+        },
+        lookupPhone() {
+            const local = (this.phoneLocal || '').trim();
+            if (local.length < 6) {
+                this.accountFound = false;
+                this.existingUserId = '';
+                this.lookupMessage = '';
                 return;
             }
-            fetch('{{ route('beyond.permissions.search') }}?q=' + encodeURIComponent(q), {
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-            })
+            const url = '{{ route('beyond.permissions.lookup') }}'
+                + '?country_code=' + encodeURIComponent(this.countryCode)
+                + '&phone=' + encodeURIComponent(local);
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(r => r.json())
-                .then(data => { this.suggestions = data.results || []; })
-                .catch(() => { this.suggestions = []; });
-        },
-        selectPerson(item) {
-            this.fullName = item.name || '';
-            this.email = item.email || this.email;
-            this.existingUserId = item.source === 'beyond' ? item.id : '';
-            this.suggestions = [];
-            if (item.phone) {
-                // Best-effort local digits (strip country code guesses)
-                const digits = String(item.phone).replace(/\D/g, '');
-                this.phoneLocal = digits.length > 9 ? digits.slice(-9) : digits;
-            }
-            if (item.has_account) {
-                this.matchNotice = (item.name || 'This person') + ' already has an account'
-                    + (item.phone_masked ? ' (' + item.phone_masked + ')' : '')
-                    + '. Select Continue to verify by OTP, or sign in / reset password.';
-                this.resetUrl = '{{ url('/forgot-password') }}' + (item.phone ? ('?phone=' + encodeURIComponent(item.phone)) : '');
-                this.loginUrl = '{{ url('/login?redirect=/permissions') }}' + (item.email ? ('&u=' + encodeURIComponent(item.email)) : '');
-            } else {
-                this.matchNotice = 'Name found in company records. Enter your WhatsApp number to verify and create a portal account if needed.';
-            }
-        },
-        onSubmit() {
-            this.suggestions = [];
+                .then(data => {
+                    if (data.found) {
+                        this.accountFound = true;
+                        this.existingUserId = data.id || '';
+                        this.fullName = data.name || this.fullName;
+                        if (data.role && !this.companyRole) this.companyRole = data.role;
+                        this.lookupMessage = 'Account found: ' + (data.name || 'staff')
+                            + (data.phone_masked ? ' (' + data.phone_masked + ')' : '') + '.';
+                    } else {
+                        this.accountFound = false;
+                        this.existingUserId = '';
+                        this.lookupMessage = data.message || 'No account is linked to this WhatsApp number.';
+                    }
+                })
+                .catch(() => {
+                    this.accountFound = false;
+                    this.lookupMessage = 'Could not look up this number. Try again.';
+                });
         }
     }
 }

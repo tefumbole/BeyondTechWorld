@@ -593,7 +593,7 @@ class WhatsAppMessage
         return $msg;
     }
 
-    public static function permissionRequestAdmin($adminName, $staffName, $reference, $role, $from, $to, $reason, $loginUrl)
+    public static function permissionRequestAdmin($adminName, $staffName, $reference, $role, $from, $to, $subject, $reason, $loginUrl)
     {
         $msg = self::statusBlock('🗓️', 'Permission Request');
         $msg .= self::greeting($adminName ?: 'Admin');
@@ -601,9 +601,12 @@ class WhatsAppMessage
         $msg .= self::bullet('Name', $staffName ?: '—');
         $msg .= self::bullet('Role', $role ?: '—');
         $msg .= self::bullet('Reference', $reference ?: '—');
+        $msg .= self::bullet('Subject', $subject ?: '—');
         $msg .= self::bullet('From', $from ?: '—');
         $msg .= self::bullet('To', $to ?: '—');
-        $msg .= self::bullet('Reason', $reason ?: '—');
+        if ($reason) {
+            $msg .= self::bullet('Explanation', $reason);
+        }
         $msg .= self::actionLink('Login to review this request', $loginUrl);
         $msg .= "\nTap the link, sign in, and you will open Awaiting Approval for this request.";
         $msg .= self::footer();

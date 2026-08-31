@@ -62,6 +62,8 @@ class StaffPermissionLetterService
         $name = $approved ? self::APPROVED_TEMPLATE : self::DENIED_TEMPLATE;
         $existing = LetterTemplate::where('name', $name)->first();
         if ($existing) {
+            $this->syncTemplateDefaults($existing, $approved);
+
             return $existing;
         }
 
@@ -84,14 +86,33 @@ class StaffPermissionLetterService
         ]);
     }
 
+    protected function syncTemplateDefaults(LetterTemplate $template, $approved)
+    {
+        $body = (string) $template->body;
+        $dirty = false;
+        if (stripos($body, '[Column4]') === false || stripos($body, 'Subject:') === false) {
+            $template->body = $approved ? $this->approvedBodyHtml() : $this->deniedBodyHtml();
+            $dirty = true;
+        }
+        $want = $approved ? 'Permission Approved... [Column3]' : 'Permission Denied... [Column3]';
+        if (trim((string) $template->subject) === '' || stripos((string) $template->subject, '[Column3]') === false) {
+            $template->subject = $want;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $template->save();
+        }
+    }
+
     public function approvedBodyHtml()
     {
         return <<<'HTML'
 <p>This letter confirms that your permission request has been <strong>approved</strong>.</p>
+<p><strong>Subject:</strong> [Column3]</p>
 <p><strong>Period:</strong> [start_date] to [end_date]</p>
 <p><strong>Role:</strong> [program]</p>
 <p><strong>Reference:</strong> [Column1]</p>
-<p><strong>Reason:</strong> [Column3]</p>
+<p><strong>Explanation:</strong> [Column4]</p>
 <p>[Column2]</p>
 HTML;
     }
@@ -100,10 +121,11 @@ HTML;
     {
         return <<<'HTML'
 <p>This letter confirms that your permission request has been <strong>denied</strong>.</p>
+<p><strong>Subject:</strong> [Column3]</p>
 <p><strong>Period requested:</strong> [start_date] to [end_date]</p>
 <p><strong>Role:</strong> [program]</p>
 <p><strong>Reference:</strong> [Column1]</p>
-<p><strong>Reason:</strong> [Column3]</p>
+<p><strong>Explanation:</strong> [Column4]</p>
 <p>[Column2]</p>
 HTML;
     }
@@ -140,10 +162,10 @@ HTML;
         ]);
 
         $recipientObj = (object) $payload;
-        $reason = trim((string) $permission->reason);
+        $topic = $this->letterTopic($permission);
         $subject = $approved
-            ? 'Permission Approved... '.$reason
-            : 'Permission Denied... '.$reason;
+            ? 'Permission Approved... '.$topic
+            : 'Permission Denied... '.$topic;
         $subject = trim(preg_replace('/^Subject:\s*/i', '', $subject));
 
         $body = LetterPlaceholders::replace($template->body, $recipientObj);
@@ -250,6 +272,7 @@ HTML;
         $phone = $permission->phone ? WhatsAppPhone::display($permission->phone) : '';
         $instructions = trim((string) $permission->instructions);
         $reason = trim((string) $permission->reason);
+        $topic = $this->letterTopic($permission);
         $setting = GeneralSetting::first();
 
         return [
@@ -264,7 +287,19 @@ HTML;
             'duration' => $from.' — '.$to,
             'column1' => (string) $permission->reference_number,
             'column2' => $instructions,
-            'column3' => $reason,
+            'column3' => $topic,
+            'column4' => $reason,
         ];
+    }
+
+    protected function letterTopic(StaffPermission $permission)
+    {
+        $topic = trim((string) $permission->subject);
+        if ($topic !== '') {
+            return $topic;
+        }
+        $reason = trim((string) $permission->reason);
+
+        return $reason !== '' ? $reason : 'Permission';
     }
 }

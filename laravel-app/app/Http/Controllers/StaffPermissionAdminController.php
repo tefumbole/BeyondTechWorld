@@ -103,7 +103,8 @@ class StaffPermissionAdminController extends Controller
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('company_role', 'like', "%{$search}%")
                     ->orWhere('reference_number', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%");
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhere('subject', 'like', "%{$search}%");
             });
         }
 
