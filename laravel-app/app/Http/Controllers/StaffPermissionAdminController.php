@@ -103,8 +103,10 @@ class StaffPermissionAdminController extends Controller
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('company_role', 'like', "%{$search}%")
                     ->orWhere('reference_number', 'like', "%{$search}%")
-                    ->orWhere('reason', 'like', "%{$search}%")
-                    ->orWhere('subject', 'like', "%{$search}%");
+                    ->orWhere('reason', 'like', "%{$search}%");
+                if (\Illuminate\Support\Facades\Schema::hasColumn('staff_permissions', 'subject')) {
+                    $w->orWhere('subject', 'like', "%{$search}%");
+                }
             });
         }
 
