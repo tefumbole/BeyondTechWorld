@@ -48,6 +48,24 @@
                 <input type="hidden" name="existing_user_id" x-model="existingUserId">
 
                 <div>
+                    <label class="text-sm font-semibold text-gray-700">Full Name *</label>
+                    <input required name="full_name" x-model="fullName" :readonly="accountFound"
+                           autocomplete="off"
+                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                           :class="accountFound ? 'bg-gray-50' : ''"
+                           placeholder="Your full name">
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Subject *</label>
+                    <input required name="subject" maxlength="255"
+                           value="{{ old('subject', $draft['subject'] ?? '') }}"
+                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
+                           placeholder="Short title for this permission">
+                    <p class="text-xs text-gray-500 mt-1">This becomes the letter subject, e.g. Permission Approved… your subject.</p>
+                </div>
+
+                <div>
                     <label class="text-sm font-semibold text-gray-700">WhatsApp number *</label>
                     <div class="flex gap-2 mt-1">
                         <div class="relative w-52 shrink-0" @click.away="ccOpen = false">
@@ -86,15 +104,6 @@
                 </div>
 
                 <div>
-                    <label class="text-sm font-semibold text-gray-700">Full Name *</label>
-                    <input required name="full_name" x-model="fullName" :readonly="accountFound"
-                           autocomplete="off"
-                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                           :class="accountFound ? 'bg-gray-50' : ''"
-                           placeholder="Enter your WhatsApp number to load your name">
-                </div>
-
-                <div>
                     <label class="text-sm font-semibold text-gray-700">Your role in the company *</label>
                     <input required name="company_role" x-model="companyRole"
                            class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
@@ -114,15 +123,6 @@
                                value="{{ old('to_at', $draft['to_at'] ?? '') }}"
                                class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
                     </div>
-                </div>
-
-                <div>
-                    <label class="text-sm font-semibold text-gray-700">Subject *</label>
-                    <input required name="subject" maxlength="255"
-                           value="{{ old('subject', $draft['subject'] ?? '') }}"
-                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2"
-                           placeholder="Short title for this permission">
-                    <p class="text-xs text-gray-500 mt-1">This becomes the letter subject, e.g. Permission Approved… your subject.</p>
                 </div>
 
                 <div>
