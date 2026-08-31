@@ -500,11 +500,23 @@ class PeopleDirectoryService
             $email = 'c' . $customer->id . '@customers.beyondtechworld.com';
         }
 
-        $existing = BeyondUser::where('email', $email)->first();
+        $existing = BeyondUser::whereRaw('LOWER(email) = ?', [strtolower($email)])->first();
         if (! $existing && ! empty($customer->phone_number)) {
             $existing = BeyondUser::where('phone', $customer->phone_number)->first();
         }
+        if (! $existing && ! empty($customer->phone_number)) {
+            try {
+                $existing = app(BeyondAuthService::class)->findByPhone($customer->phone_number);
+            } catch (\Throwable $e) {
+                $existing = null;
+            }
+        }
         if ($existing) {
+            if (empty($existing->phone) && ! empty($customer->phone_number)) {
+                $existing->phone = $customer->phone_number;
+                $existing->save();
+            }
+
             return $existing;
         }
 

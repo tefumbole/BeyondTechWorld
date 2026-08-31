@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\BeyondUser;
+use App\Customer;
 use App\Services\BeyondAuthService;
 use App\Services\BeyondWasenderService;
+use App\Services\PeopleDirectoryService;
 use App\StaffPermission;
 use App\Support\CountryDialCodes;
 use App\Support\WhatsAppMessage;
@@ -222,8 +224,7 @@ class PublicPermissionController extends Controller
     }
 
     /**
-     * Portal account (BeyondUser) matching this WhatsApp number.
-     * ERP User phones are also checked so staff logins without a portal row can be named in the error.
+     * Portal account matching this WhatsApp number: be_users, ERP staff, or customers.
      *
      * @return BeyondUser|null
      */
@@ -234,45 +235,75 @@ class PublicPermissionController extends Controller
             return $beyond;
         }
 
-        return $this->findBeyondUserViaErpPhone($phone);
-    }
+        $directory = app(PeopleDirectoryService::class);
 
-    protected function findBeyondUserViaErpPhone($phone)
-    {
         $erp = $this->findErpUserByPhone($phone);
-        if (! $erp) {
-            return null;
+        if ($erp) {
+            return $directory->ensureBeyondFromPosUser($erp);
         }
-        if ($erp->email) {
-            $byEmail = BeyondUser::where('status', 'active')
-                ->whereRaw('LOWER(email) = ?', [strtolower($erp->email)])
-                ->first();
-            if ($byEmail) {
-                return $byEmail;
-            }
+
+        $customer = $this->findCustomerByPhone($phone);
+        if ($customer) {
+            return $directory->ensureBeyondFromCustomer($customer);
         }
 
         return null;
     }
 
-    protected function findErpUserByPhone($phone)
+    protected function phoneLookupParts($phone)
     {
-        $formatted = $this->whatsapp->formatPhone($phone);
+        try {
+            $formatted = $this->whatsapp->formatPhone($phone);
+        } catch (\Throwable $e) {
+            $formatted = null;
+        }
         $digits = preg_replace('/\D/', '', (string) ($formatted ?: $phone));
         $tail = substr($digits, -9);
+
+        return [$formatted, $digits, $tail];
+    }
+
+    protected function wherePhoneColumn($q, $column, $formatted, $digits, $tail)
+    {
+        if ($formatted) {
+            $q->orWhere($column, $formatted);
+        }
+        $q->orWhere($column, $digits)
+            ->orWhere($column, '+'.$digits);
+        if (strlen($tail) >= 8) {
+            $q->orWhereRaw(
+                "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(".$column.",''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                [$tail]
+            );
+        }
+    }
+
+    protected function findCustomerByPhone($phone)
+    {
+        list($formatted, $digits, $tail) = $this->phoneLookupParts($phone);
+        if (strlen($digits) < 8) {
+            return null;
+        }
+
+        return Customer::where(function ($q) use ($formatted, $digits, $tail) {
+            $this->wherePhoneColumn($q, 'phone_number', $formatted, $digits, $tail);
+        })
+            ->orderByDesc('is_active')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findErpUserByPhone($phone)
+    {
+        list($formatted, $digits, $tail) = $this->phoneLookupParts($phone);
         if (strlen($tail) < 8) {
             return null;
         }
 
         return User::where('is_active', 1)->where('is_deleted', 0)
             ->where(function ($q) use ($formatted, $digits, $tail) {
-                $q->where('phone', $formatted)
-                    ->orWhere('phone', $digits)
-                    ->orWhere('phone', '+'.$digits)
-                    ->orWhereRaw(
-                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
-                        [$tail]
-                    );
+                $this->wherePhoneColumn($q, 'phone', $formatted, $digits, $tail);
+                $this->wherePhoneColumn($q, 'additional_phone', $formatted, $digits, $tail);
             })
             ->orderBy('id')
             ->first();
