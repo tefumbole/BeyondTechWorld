@@ -74,13 +74,26 @@ return [
 
         'campay' => [
             'token' => env('CAMPAY_TOKEN', env('MOMO_TOKEN')),
+            'username' => env('CAMPAY_USERNAME'),
+            'password' => env('CAMPAY_PASSWORD'),
+            'app_id' => env('CAMPAY_APP_ID'),
+            'webhook_secret' => env('CAMPAY_WEBHOOK_SECRET'),
             'base_url' => env('CAMPAY_BASE_URL', 'https://www.campay.net/api'),
         ],
 
         'pawapay' => [
             'api_token' => env('PAWAPAY_API_TOKEN'),
+            'username' => env('PAWAPAY_USERNAME'),
+            'password' => env('PAWAPAY_PASSWORD'),
+            'webhook_secret' => env('PAWAPAY_WEBHOOK_SECRET'),
             'environment' => env('PAWAPAY_ENVIRONMENT', 'production'),
             'live_base_url' => env('PAWAPAY_LIVE_BASE_URL', 'https://api.pawapay.io'),
+            'callbacks' => [
+                'checkout' => env('PAWAPAY_CHECKOUT_CALLBACK_URL'),
+                'deposit' => env('PAWAPAY_DEPOSIT_CALLBACK_URL'),
+                'payout' => env('PAWAPAY_PAYOUT_CALLBACK_URL'),
+                'refund' => env('PAWAPAY_REFUND_CALLBACK_URL'),
+            ],
         ],
 
 ];
