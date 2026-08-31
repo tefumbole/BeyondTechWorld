@@ -6,11 +6,11 @@ use App\BeyondUser;
 use App\Customer;
 use App\Services\BeyondAuthService;
 use App\Services\BeyondWasenderService;
+use App\Services\MobileMoneyHolderService;
 use App\Services\PeopleDirectoryService;
 use App\StaffPermission;
 use App\Support\CountryDialCodes;
 use App\Support\WhatsAppMessage;
-use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -67,26 +67,52 @@ class PublicPermissionController extends Controller
             return response()->json(['found' => false]);
         }
 
-        $account = $this->findAccountByPhone($phone);
-        if (! $account) {
+        $hit = $this->matchCustomerOrPortal($phone);
+        if ($hit) {
+            return response()->json([
+                'found' => true,
+                'will_create' => false,
+                'id' => $hit['id'],
+                'name' => $hit['name'],
+                'source' => $hit['source'],
+                'phone_masked' => $this->whatsapp->maskPhone($phone),
+            ]);
+        }
+
+        $momo = ['name' => null, 'source' => null];
+        try {
+            $momo = app(MobileMoneyHolderService::class)->lookup($phone);
+        } catch (\Throwable $e) {
+            Log::info('Permission MoMo name lookup failed: '.$e->getMessage());
+        }
+
+        if (! empty($momo['name'])) {
             return response()->json([
                 'found' => false,
-                'message' => 'No account is linked to this WhatsApp number. Permission is only for existing accounts.',
+                'will_create' => true,
+                'id' => '',
+                'name' => $momo['name'],
+                'source' => $momo['source'] ?: 'momo',
+                'phone_masked' => $this->whatsapp->maskPhone($phone),
+                'message' => 'Name found on this mobile-money number. We will create your account after WhatsApp verification.',
             ]);
         }
 
         return response()->json([
-            'found' => true,
-            'id' => $account->id,
-            'name' => $account->name,
-            'role' => $account->role,
+            'found' => false,
+            'will_create' => true,
+            'id' => '',
+            'name' => '',
+            'source' => null,
             'phone_masked' => $this->whatsapp->maskPhone($phone),
+            'message' => 'No customer or portal account yet. Enter your name on the next step and we will create one after OTP.',
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
+            'full_name' => 'required|string|max:255',
             'country_code' => 'required|string|max:10',
             'phone' => 'required|string|max:40',
             'company_role' => 'required|string|max:150',
@@ -107,20 +133,14 @@ class PublicPermissionController extends Controller
         }
 
         $existing = $this->resolveExistingUser($data['existing_user_id'] ?? null, $phone);
-        if (! $existing) {
-            return back()->withInput()->withErrors([
-                'phone' => 'No account is linked to this WhatsApp number. Permission is only for people who already have an account.',
-            ]);
-        }
-
-        $data['full_name'] = $existing->name;
-        $data['email'] = $existing->email;
+        $data['email'] = $existing ? $existing->email : null;
 
         $sessionUser = Auth::guard('beyond')->user();
-        if ($sessionUser && $request->session()->get('beyond_otp_verified')) {
+        if ($existing && $sessionUser && $request->session()->get('beyond_otp_verified')) {
             if ((string) $sessionUser->id !== (string) $existing->id) {
                 Auth::guard('beyond')->login($existing);
             }
+            $this->applyEditedName($existing, $data['full_name']);
             $permission = $this->createPermission($existing, $data, $phone);
             $this->notifyPermission($permission);
 
@@ -128,15 +148,19 @@ class PublicPermissionController extends Controller
         }
 
         if ($this->auth->shouldSkipOtp()) {
-            Auth::guard('beyond')->login($existing);
+            $user = $this->provisionApplicant($data['full_name'], $phone, $existing);
+            Auth::guard('beyond')->login($user);
             $request->session()->put('beyond_otp_verified', true);
-            $permission = $this->createPermission($existing, $data, $phone);
+            $permission = $this->createPermission($user, $data, $phone);
             $this->notifyPermission($permission);
 
             return redirect()->route('beyond.permissions.confirmation', $permission->reference_number);
         }
 
-        $draft = array_merge($data, ['phone_full' => $phone, 'existing_user_id' => $existing->id]);
+        $draft = array_merge($data, [
+            'phone_full' => $phone,
+            'existing_user_id' => $existing ? $existing->id : '',
+        ]);
         $request->session()->put('permission_draft', $draft);
 
         $otp = $this->auth->createOtp($phone, 'permission_apply');
@@ -166,10 +190,10 @@ class PublicPermissionController extends Controller
             return redirect()->route('beyond.permissions')->withErrors(['otp' => $result['error'] ?? 'Invalid code.']);
         }
 
-        $user = $this->resolveExistingUser($draft['existing_user_id'] ?? null, $phone);
+        $user = $this->provisionApplicant($draft['full_name'] ?? '', $phone, $this->resolveExistingUser($draft['existing_user_id'] ?? null, $phone));
         if (! $user) {
             return redirect()->route('beyond.permissions')->withErrors([
-                'otp' => 'No account is linked to this WhatsApp number. Permission is only for existing accounts.',
+                'otp' => 'Could not create your account. Please try again.',
             ]);
         }
 
@@ -217,6 +241,26 @@ class PublicPermissionController extends Controller
         return view('beyond.permissions.confirmation', compact('permission', 'reference'));
     }
 
+    /**
+     * Customer directory or portal (be_users) only — never ERP staff users.
+     *
+     * @return array{id:string,name:string,source:string}|null
+     */
+    protected function matchCustomerOrPortal($phone)
+    {
+        $portal = $this->auth->findByPhone($phone);
+        if ($portal) {
+            return ['id' => (string) $portal->id, 'name' => $portal->name, 'source' => 'portal'];
+        }
+
+        $customer = $this->findCustomerByPhone($phone);
+        if ($customer) {
+            return ['id' => '', 'name' => $customer->name, 'source' => 'customer'];
+        }
+
+        return null;
+    }
+
     protected function resolveExistingUser($existingId, $phone)
     {
         if ($existingId && strpos((string) $existingId, ':') === false) {
@@ -226,31 +270,62 @@ class PublicPermissionController extends Controller
             }
         }
 
-        return $this->findAccountByPhone($phone);
+        return $this->auth->findByPhone($phone);
     }
 
     /**
-     * Portal account matching this WhatsApp number: be_users, ERP staff, or customers.
-     *
+     * @param  BeyondUser|null  $existing
      * @return BeyondUser|null
      */
-    protected function findAccountByPhone($phone)
+    protected function provisionApplicant($name, $phone, $existing = null)
     {
-        $beyond = $this->auth->findByPhone($phone);
-        if ($beyond) {
-            return $beyond;
+        $name = trim((string) $name);
+        if ($existing) {
+            $this->applyEditedName($existing, $name);
+
+            return $existing;
         }
 
-        $directory = app(PeopleDirectoryService::class);
+        try {
+            $bundle = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick([
+                'name' => $name !== '' ? $name : 'WhatsApp user',
+                'phone' => $phone,
+            ]);
 
-        $erp = $this->findErpUserByPhone($phone);
-        if ($erp) {
-            return $directory->ensureBeyondFromPosUser($erp);
+            return app(PeopleDirectoryService::class)->ensureBeyondFromCustomer($bundle['customer']);
+        } catch (\Throwable $e) {
+            Log::warning('Permission account create failed: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    protected function applyEditedName(BeyondUser $user, $name)
+    {
+        $name = trim((string) $name);
+        if ($name === '' || $name === $user->name) {
+            return;
+        }
+        $user->name = $name;
+        $user->save();
+        $this->auth->syncProfile($user);
+        $customer = $this->findCustomerByPhone($user->phone ?: '');
+        if ($customer && $customer->name !== $name) {
+            $customer->name = $name;
+            $customer->save();
+        }
+    }
+
+    protected function findAccountByPhone($phone)
+    {
+        $portal = $this->auth->findByPhone($phone);
+        if ($portal) {
+            return $portal;
         }
 
         $customer = $this->findCustomerByPhone($phone);
         if ($customer) {
-            return $directory->ensureBeyondFromCustomer($customer);
+            return app(PeopleDirectoryService::class)->ensureBeyondFromCustomer($customer);
         }
 
         return null;
@@ -296,22 +371,6 @@ class PublicPermissionController extends Controller
         })
             ->orderByDesc('is_active')
             ->orderByDesc('id')
-            ->first();
-    }
-
-    protected function findErpUserByPhone($phone)
-    {
-        list($formatted, $digits, $tail) = $this->phoneLookupParts($phone);
-        if (strlen($tail) < 8) {
-            return null;
-        }
-
-        return User::where('is_active', 1)->where('is_deleted', 0)
-            ->where(function ($q) use ($formatted, $digits, $tail) {
-                $this->wherePhoneColumn($q, 'phone', $formatted, $digits, $tail);
-                $this->wherePhoneColumn($q, 'additional_phone', $formatted, $digits, $tail);
-            })
-            ->orderBy('id')
             ->first();
     }
 

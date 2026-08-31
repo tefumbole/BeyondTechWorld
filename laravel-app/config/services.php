@@ -63,13 +63,24 @@ return [
         'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
     ],
 
-    'sms' => [
-        'enabled' => env('MESSAGING_SMS_ENABLED', true),
-        'gateway' => env('SMS_GATEWAY', 'twilio'),
-        'account_sid' => env('ACCOUNT_SID', env('TWILIO_SID')),
-        'auth_token' => env('AUTH_TOKEN', env('TWILIO_AUTH_TOKEN')),
-        'twilio_number' => env('TWILIO_NUMBER', env('Twilio_Number')),
-        'clickatell_api_key' => env('CLICKATELL_API_KEY'),
-    ],
+        'sms' => [
+            'enabled' => env('MESSAGING_SMS_ENABLED', true),
+            'gateway' => env('SMS_GATEWAY', 'twilio'),
+            'account_sid' => env('ACCOUNT_SID', env('TWILIO_SID')),
+            'auth_token' => env('AUTH_TOKEN', env('TWILIO_AUTH_TOKEN')),
+            'twilio_number' => env('TWILIO_NUMBER', env('Twilio_Number')),
+            'clickatell_api_key' => env('CLICKATELL_API_KEY'),
+        ],
+
+        'campay' => [
+            'token' => env('CAMPAY_TOKEN', env('MOMO_TOKEN')),
+            'base_url' => env('CAMPAY_BASE_URL', 'https://www.campay.net/api'),
+        ],
+
+        'pawapay' => [
+            'api_token' => env('PAWAPAY_API_TOKEN'),
+            'environment' => env('PAWAPAY_ENVIRONMENT', 'production'),
+            'live_base_url' => env('PAWAPAY_LIVE_BASE_URL', 'https://api.pawapay.io'),
+        ],
 
 ];

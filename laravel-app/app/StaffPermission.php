@@ -27,6 +27,35 @@ class StaffPermission extends Model
 
     protected $dates = ['from_at', 'to_at', 'reviewed_at'];
 
+    /**
+     * datetime-local posts "Y-m-d\TH:i" which Carbon cannot parse via Eloquent's date format.
+     */
+    public function setFromAtAttribute($value)
+    {
+        $this->attributes['from_at'] = $this->serializeFlexibleDate($value);
+    }
+
+    public function setToAtAttribute($value)
+    {
+        $this->attributes['to_at'] = $this->serializeFlexibleDate($value);
+    }
+
+    protected function serializeFlexibleDate($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($this->getDateFormat());
+        }
+        $raw = trim(str_replace('T', ' ', (string) $value));
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $raw)) {
+            $raw .= ':00';
+        }
+
+        return \Carbon\Carbon::parse($raw)->format($this->getDateFormat());
+    }
+
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
