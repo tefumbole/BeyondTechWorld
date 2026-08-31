@@ -48,6 +48,6 @@ class AuthLogout
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        return redirect()->route('beyond.home');
     }
 }

@@ -63,7 +63,25 @@
         padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     .perm-sheet-handle { width: 2.4rem; height: .28rem; border-radius: 999px; background: #cbd5e1; margin: .55rem auto .15rem; }
-    .perm-inline-submit { margin-top: 1.1rem; }
+    .perm-compare {
+        display: grid; gap: .65rem; margin-top: .85rem;
+        grid-template-columns: 1fr;
+    }
+    @media (min-width: 520px) {
+        .perm-compare { grid-template-columns: 1fr 1fr; }
+    }
+    .perm-compare-item {
+        border: 1px solid #e2e8f0; border-radius: .9rem; padding: .7rem .85rem; background: #fff;
+    }
+    .perm-compare-item p { margin: 0; }
+    .perm-actions { display: flex; gap: .65rem; align-items: stretch; margin-top: 1.1rem; }
+    .perm-actions .perm-back {
+        flex: 0 0 auto; min-width: 6.5rem; display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+        border: 1.5px solid #cbd5e1; background: #fff; color: #0b3f90; font-weight: 800;
+        border-radius: .9rem; min-height: 3.1rem; padding: 0 1rem; text-decoration: none;
+    }
+    .perm-actions .perm-back:hover { border-color: #0b3f90; background: #f8fafc; }
+    .perm-actions .perm-go { flex: 1; margin-top: 0 !important; }
     .perm-sticky { display: none; }
     .perm-sticky.perm-sticky-hide { display: none !important; }
     @media (max-width: 640px) {
@@ -163,9 +181,12 @@
                                    autocomplete="one-time-code" enterkeyhint="done"
                                    class="apply-field text-center text-2xl tracking-[0.35em] font-extrabold"
                                    placeholder="••••••">
-                            <button type="submit" class="w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 min-h-[3.1rem]">
-                                <i data-lucide="shield-check" class="w-5 h-5"></i> Verify &amp; submit
-                            </button>
+                            <div class="perm-actions" style="margin-top:0">
+                                <a href="{{ url('/') }}" class="perm-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</a>
+                                <button type="submit" class="perm-go w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 min-h-[3.1rem]">
+                                    <i data-lucide="shield-check" class="w-5 h-5"></i> Verify &amp; submit
+                                </button>
+                            </div>
                         </form>
                         <form method="POST" action="{{ route('beyond.permissions.resend') }}" class="mt-3 text-center">
                             @csrf
@@ -235,32 +256,57 @@
                             <i data-lucide="loader" class="w-4 h-4 mt-0.5 shrink-0 animate-spin"></i>
                             <p class="m-0">Checking this number…</p>
                         </div>
+                        <div x-show="!lookingUp && lookupDone && digitsOnly(phoneLocal).length >= 8" x-cloak class="perm-compare">
+                            <div class="perm-compare-item">
+                                <p class="perm-kicker">Registered in the system</p>
+                                <p class="font-extrabold text-brand-blue mt-1" x-text="systemName || 'Not in the system yet'"></p>
+                            </div>
+                            <div class="perm-compare-item">
+                                <p class="perm-kicker">Original name on that number</p>
+                                <p class="font-extrabold text-brand-blue mt-1" x-text="originalName || 'Not found on mobile money'"></p>
+                            </div>
+                        </div>
                         <div x-show="!lookingUp && lookupMessage" x-cloak class="perm-status"
                              :class="accountFound ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-amber-50 border border-amber-200 text-amber-900'">
                             <p class="m-0" x-text="lookupMessage"></p>
                         </div>
 
-                        <button type="button"
-                                class="perm-inline-submit w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 min-h-[3.1rem]"
-                                :disabled="!canContinuePhone()"
-                                @click="goName()">
-                            Continue
-                        </button>
+                        <div class="perm-actions perm-inline-submit">
+                            <a href="{{ url('/') }}" class="perm-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</a>
+                            <button type="button"
+                                    class="perm-go w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 min-h-[3.1rem]"
+                                    :disabled="!canContinuePhone()"
+                                    @click="goName()">
+                                Continue
+                            </button>
+                        </div>
                     </div>
 
                     <div x-show="step === 'name'" x-cloak>
                         <div class="perm-section">
                             <h3><i data-lucide="user" class="w-4 h-4 text-brand-gold"></i> Your name</h3>
-                            <p class="text-sm text-slate-500 m-0 mb-3" x-text="nameHint()"></p>
-                            <label class="perm-label" for="perm-name">Full name *</label>
+                            <div class="perm-compare" style="margin-top:0;margin-bottom:.85rem">
+                                <div class="perm-compare-item">
+                                    <p class="perm-kicker">Registered in the system</p>
+                                    <p class="font-extrabold text-brand-blue mt-1" x-text="systemName || 'Not in the system yet'"></p>
+                                </div>
+                                <div class="perm-compare-item">
+                                    <p class="perm-kicker">Original name on that number</p>
+                                    <p class="font-extrabold text-brand-blue mt-1" x-text="originalName || 'Not found on mobile money'"></p>
+                                </div>
+                            </div>
+                            <label class="perm-label" for="perm-name">Name to use on the letter *</label>
                             <input id="perm-name" x-model="fullName" class="apply-field" autocomplete="name"
-                                   placeholder="Edit if this is not right">
+                                   placeholder="Type or edit the name">
                             <p class="perm-hint" x-show="willCreate" x-cloak>No portal account yet — we will create one after you verify WhatsApp.</p>
                         </div>
-                        <button type="button"
-                                class="perm-inline-submit w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] disabled:opacity-50"
-                                :disabled="!(fullName || '').trim()"
-                                @click="goDetails()">Continue</button>
+                        <div class="perm-actions perm-inline-submit">
+                            <button type="button" class="perm-back" @click="goBack()"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+                            <button type="button"
+                                    class="perm-go w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] disabled:opacity-50"
+                                    :disabled="!(fullName || '').trim()"
+                                    @click="goDetails()">Continue</button>
+                        </div>
                     </div>
 
                     <div x-show="step === 'details'" x-cloak>
@@ -315,10 +361,13 @@
                             </div>
                         </div>
 
-                        <button type="submit"
-                                class="perm-inline-submit w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem]">
-                            {{ $otpOk ? 'Submit request' : 'Send WhatsApp code' }}
-                        </button>
+                        <div class="perm-actions perm-inline-submit">
+                            <button type="button" class="perm-back" @click="goBack()"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+                            <button type="submit"
+                                    class="perm-go w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem]">
+                                {{ $otpOk ? 'Submit request' : 'Send WhatsApp code' }}
+                            </button>
+                        </div>
                     </div>
 
                     <p class="text-center text-sm text-slate-500 mt-4 mb-0">
@@ -333,18 +382,22 @@
     </div>
 
     <div class="perm-sticky" :class="(kbOpen || step === 'otp') ? 'perm-sticky-hide' : ''">
-        <button type="button" x-show="step === 'phone'" x-cloak
-                class="w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base disabled:opacity-50"
-                :disabled="!canContinuePhone()"
-                @click="goName()">Continue</button>
-        <button type="button" x-show="step === 'name'" x-cloak
-                class="w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base disabled:opacity-50"
-                :disabled="!(fullName || '').trim()"
-                @click="goDetails()">Continue</button>
-        <button type="submit" form="perm-form" x-show="step === 'details'" x-cloak
-                class="w-full bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base">
-            {{ $otpOk ? 'Submit request' : 'Send WhatsApp code' }}
-        </button>
+        <div class="perm-actions" style="margin:0">
+            <a href="{{ url('/') }}" x-show="step === 'phone'" x-cloak class="perm-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</a>
+            <button type="button" x-show="step !== 'phone'" x-cloak class="perm-back" @click="goBack()"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+            <button type="button" x-show="step === 'phone'" x-cloak
+                    class="perm-go bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base disabled:opacity-50"
+                    :disabled="!canContinuePhone()"
+                    @click="goName()">Continue</button>
+            <button type="button" x-show="step === 'name'" x-cloak
+                    class="perm-go bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base disabled:opacity-50"
+                    :disabled="!(fullName || '').trim()"
+                    @click="goDetails()">Continue</button>
+            <button type="submit" form="perm-form" x-show="step === 'details'" x-cloak
+                    class="perm-go bg-brand-gold hover:bg-[#c6ab47] text-brand-dark font-extrabold py-3.5 rounded-xl min-h-[3.1rem] text-base">
+                {{ $otpOk ? 'Submit request' : 'Send WhatsApp code' }}
+            </button>
+        </div>
     </div>
 </div>
 
@@ -361,6 +414,8 @@ function permissionApply() {
         lookupTimer: null,
         lookupDone: false,
         willCreate: false,
+        systemName: '',
+        originalName: '',
         stages: [
             { id: 'phone', n: 1, title: 'WhatsApp', hint: 'Choose your country and enter the number.' },
             { id: 'name', n: 2, title: 'Find your name', hint: 'From customer, portal, or mobile money — you can edit it.' },
@@ -376,6 +431,8 @@ function permissionApply() {
         lookupMessage: '',
         otpAlreadyOk: @json((bool) $otpOk),
         boot() {
+            if (!this.countryCode || this.countryCode === '237') this.countryCode = '+237';
+            if (this.countryCode.charAt(0) !== '+') this.countryCode = '+' + this.countryCode;
             this.phoneLocal = this.nationalDigits(this.phoneLocal);
             if ((this.phoneLocal || '').length >= 8) this.lookupPhone();
             var self = this;
@@ -418,6 +475,13 @@ function permissionApply() {
             window.scrollTo(0, 0);
             this.$nextTick(function () { if (window.lucide) lucide.createIcons(); });
         },
+        goBack() {
+            if (this.step === 'otp') this.step = 'details';
+            else if (this.step === 'details') this.step = 'name';
+            else if (this.step === 'name') this.step = 'phone';
+            window.scrollTo(0, 0);
+            this.$nextTick(function () { if (window.lucide) lucide.createIcons(); });
+        },
         canContinuePhone() {
             return !this.lookingUp && this.digitsOnly(this.phoneLocal).length >= 8 && this.lookupDone;
         },
@@ -457,6 +521,8 @@ function permissionApply() {
             this.phoneLocal = this.nationalDigits(this.phoneLocal);
             this.accountFound = false;
             this.willCreate = false;
+            this.systemName = '';
+            this.originalName = '';
             this.existingUserId = '';
             this.lookupMessage = '';
             this.lookupDone = false;
@@ -476,6 +542,8 @@ function permissionApply() {
             if (local.length < 8) {
                 this.accountFound = false;
                 this.willCreate = false;
+                this.systemName = '';
+                this.originalName = '';
                 this.existingUserId = '';
                 this.lookupMessage = '';
                 this.lookingUp = false;
@@ -492,17 +560,19 @@ function permissionApply() {
                 .then(function (data) {
                     this.lookingUp = false;
                     this.lookupDone = true;
+                    this.systemName = data.system_name || '';
+                    this.originalName = data.original_name || '';
                     if (data.found) {
                         this.accountFound = true;
                         this.willCreate = false;
                         this.existingUserId = data.id || '';
-                        if (data.name) this.fullName = data.name;
+                        this.fullName = data.name || this.systemName || this.fullName;
                         this.lookupMessage = data.message || 'We found your name. Continue to confirm it.';
                     } else {
                         this.accountFound = false;
                         this.willCreate = !!data.will_create;
                         this.existingUserId = '';
-                        if (data.name) this.fullName = data.name;
+                        this.fullName = data.name || this.originalName || this.fullName;
                         this.lookupMessage = data.message || 'Enter your name on the next step.';
                     }
                     if (window.lucide) lucide.createIcons();

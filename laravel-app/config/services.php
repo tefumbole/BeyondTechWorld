@@ -82,7 +82,7 @@ return [
         ],
 
         'pawapay' => [
-            'api_token' => env('PAWAPAY_API_TOKEN'),
+            'api_token' => env('PAWAPAY_API_TOKEN', env('PAWAPAY_TOKEN')),
             'username' => env('PAWAPAY_USERNAME'),
             'password' => env('PAWAPAY_PASSWORD'),
             'webhook_secret' => env('PAWAPAY_WEBHOOK_SECRET'),

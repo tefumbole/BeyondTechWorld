@@ -33,9 +33,14 @@ class PublicPermissionController extends Controller
         $draft = $request->session()->get('permission_draft', []);
 
         $countryCode = old('country_code', $draft['country_code'] ?? '+237');
+        $countryCode = $this->normalizeDialCode($countryCode);
         $phoneLocal = old('phone', $draft['phone'] ?? '');
         if ($user && $user->phone && $phoneLocal === '') {
-            list($countryCode, $phoneLocal) = CountryDialCodes::split($user->phone);
+            list($userCode, $userLocal) = CountryDialCodes::split($user->phone);
+            $phoneLocal = $userLocal;
+            if (! old('country_code') && empty($draft['country_code'])) {
+                $countryCode = $this->normalizeDialCode($userCode ?: '+237');
+            }
         }
 
         return view('beyond.permissions.index', [
@@ -68,17 +73,6 @@ class PublicPermissionController extends Controller
         }
 
         $hit = $this->matchCustomerOrPortal($phone);
-        if ($hit) {
-            return response()->json([
-                'found' => true,
-                'will_create' => false,
-                'id' => $hit['id'],
-                'name' => $hit['name'],
-                'source' => $hit['source'],
-                'phone_masked' => $this->whatsapp->maskPhone($phone),
-            ]);
-        }
-
         $momo = ['name' => null, 'source' => null];
         try {
             $momo = app(MobileMoneyHolderService::class)->lookup($phone);
@@ -86,15 +80,39 @@ class PublicPermissionController extends Controller
             Log::info('Permission MoMo name lookup failed: '.$e->getMessage());
         }
 
-        if (! empty($momo['name'])) {
+        $systemName = $hit ? trim((string) $hit['name']) : '';
+        $originalName = ! empty($momo['name']) ? trim((string) $momo['name']) : '';
+        $useName = $systemName !== '' ? $systemName : $originalName;
+
+        if ($hit) {
+            return response()->json([
+                'found' => true,
+                'will_create' => false,
+                'id' => $hit['id'],
+                'name' => $useName,
+                'system_name' => $systemName,
+                'original_name' => $originalName,
+                'source' => $hit['source'],
+                'momo_source' => $momo['source'] ?: null,
+                'phone_masked' => $this->whatsapp->maskPhone($phone),
+                'message' => $originalName !== ''
+                    ? 'We found this number in the system and on mobile money.'
+                    : 'We found this number in the system.',
+            ]);
+        }
+
+        if ($originalName !== '') {
             return response()->json([
                 'found' => false,
                 'will_create' => true,
                 'id' => '',
-                'name' => $momo['name'],
+                'name' => $originalName,
+                'system_name' => '',
+                'original_name' => $originalName,
                 'source' => $momo['source'] ?: 'momo',
+                'momo_source' => $momo['source'] ?: null,
                 'phone_masked' => $this->whatsapp->maskPhone($phone),
-                'message' => 'Name found on this mobile-money number. We will create your account after WhatsApp verification.',
+                'message' => 'Original name found on this mobile-money number. Not in the system yet — we will create an account after WhatsApp verification.',
             ]);
         }
 
@@ -103,10 +121,26 @@ class PublicPermissionController extends Controller
             'will_create' => true,
             'id' => '',
             'name' => '',
+            'system_name' => '',
+            'original_name' => '',
             'source' => null,
+            'momo_source' => null,
             'phone_masked' => $this->whatsapp->maskPhone($phone),
-            'message' => 'No customer or portal account yet. Enter your name on the next step and we will create one after OTP.',
+            'message' => 'No customer or portal account, and no name on this mobile-money number. Enter your name on the next step.',
         ]);
+    }
+
+    protected function normalizeDialCode($code)
+    {
+        $code = trim((string) $code);
+        if ($code === '' || $code === '237') {
+            return '+237';
+        }
+        if ($code[0] !== '+') {
+            $code = '+'.$code;
+        }
+
+        return $code;
     }
 
     public function store(Request $request)
