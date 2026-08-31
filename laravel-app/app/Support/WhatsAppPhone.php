@@ -111,7 +111,7 @@ class WhatsAppPhone
 
     /**
      * Combine country-code select + local input into E.164 (+…).
-     * If the local part already includes a country code, that wins.
+     * The selected country always wins; a polluted +237 local prefix is stripped.
      */
     public static function combine($countryCode, $localNumber)
     {
@@ -120,17 +120,7 @@ class WhatsAppPhone
             return '';
         }
 
-        $localDigits = preg_replace('/\D/', '', $local);
-        if ($localDigits !== '' && self::looksInternational($localDigits)) {
-            return self::forWasender($local);
-        }
-
-        $code = preg_replace('/\D/', '', (string) $countryCode);
-        if ($code === '') {
-            $code = self::countryCode();
-        }
-
-        return self::forWasender($code.$localDigits);
+        return self::forWasender(CountryDialCodes::combine($countryCode, $localNumber));
     }
 
     private static function looksInternational($digits)

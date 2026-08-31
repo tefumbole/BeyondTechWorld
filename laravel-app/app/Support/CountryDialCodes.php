@@ -90,14 +90,32 @@ class CountryDialCodes
 
     public static function combine($code, $number)
     {
+        $codeDigits = preg_replace('/\D/', '', (string) $code);
         $digits = preg_replace('/\D/', '', (string) $number);
-        $digits = ltrim($digits, '0');
-        $code = trim((string) $code);
-        if ($code !== '' && strpos($code, '+') !== 0) {
-            $code = '+'.$code;
+        if ($digits !== '' && $digits[0] === '0') {
+            $digits = ltrim($digits, '0');
         }
 
-        return $code.$digits;
+        if ($codeDigits !== '' && $digits !== '' && strpos($digits, $codeDigits) === 0) {
+            $rest = substr($digits, strlen($codeDigits));
+            if (strlen($rest) >= 7) {
+                $digits = $rest;
+            }
+        }
+
+        // A local field polluted with default Cameroon (+237) must not beat the selected country.
+        if ($codeDigits !== '' && $codeDigits !== '237' && strpos($digits, '237') === 0) {
+            $rest = substr($digits, 3);
+            if (strlen($rest) >= 7 && strlen($rest) <= 10) {
+                $digits = $rest;
+            }
+        }
+
+        if ($codeDigits === '') {
+            $codeDigits = '237';
+        }
+
+        return '+'.$codeDigits.$digits;
     }
 
     /**

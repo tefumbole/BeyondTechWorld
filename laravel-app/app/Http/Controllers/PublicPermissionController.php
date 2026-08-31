@@ -58,7 +58,11 @@ class PublicPermissionController extends Controller
             return response()->json(['found' => false]);
         }
 
-        $phone = CountryDialCodes::combine($code, $local);
+        try {
+            $phone = \App\Support\WhatsAppPhone::combine($code, $local);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['found' => false]);
+        }
         if (strlen(preg_replace('/\D/', '', $phone)) < 8) {
             return response()->json(['found' => false]);
         }
@@ -76,15 +80,13 @@ class PublicPermissionController extends Controller
             'id' => $account->id,
             'name' => $account->name,
             'role' => $account->role,
-            'phone' => $account->phone,
-            'phone_masked' => $this->whatsapp->maskPhone($account->phone),
+            'phone_masked' => $this->whatsapp->maskPhone($phone),
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'full_name' => 'required|string|max:255',
             'country_code' => 'required|string|max:10',
             'phone' => 'required|string|max:40',
             'company_role' => 'required|string|max:150',
@@ -95,7 +97,11 @@ class PublicPermissionController extends Controller
             'existing_user_id' => 'nullable|string|max:80',
         ]);
 
-        $phone = CountryDialCodes::combine($data['country_code'], $data['phone']);
+        try {
+            $phone = \App\Support\WhatsAppPhone::combine($data['country_code'], $data['phone']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['phone' => 'Enter a valid WhatsApp number for your country.']);
+        }
         if (strlen(preg_replace('/\D/', '', $phone)) < 8) {
             return back()->withInput()->withErrors(['phone' => 'Enter a valid WhatsApp number for your country.']);
         }
@@ -107,7 +113,7 @@ class PublicPermissionController extends Controller
             ]);
         }
 
-        $data['full_name'] = $existing->name ?: $data['full_name'];
+        $data['full_name'] = $existing->name;
         $data['email'] = $existing->email;
 
         $sessionUser = Auth::guard('beyond')->user();
