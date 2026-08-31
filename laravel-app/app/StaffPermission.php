@@ -21,8 +21,8 @@ class StaffPermission extends Model
 
     protected $fillable = [
         'id', 'user_id', 'full_name', 'email', 'phone', 'company_role',
-        'from_at', 'to_at', 'reason', 'status', 'admin_note', 'reviewed_by',
-        'reviewed_at', 'reference_number',
+        'from_at', 'to_at', 'reason', 'status', 'admin_note', 'instructions',
+        'letter_footer', 'reviewed_by', 'reviewed_at', 'reference_number', 'letter_id',
     ];
 
     protected $dates = ['from_at', 'to_at', 'reviewed_at'];
@@ -40,5 +40,23 @@ class StaffPermission extends Model
     public function isPending()
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    public function letter()
+    {
+        return $this->belongsTo(Letter::class, 'letter_id');
+    }
+
+    /**
+     * @return array<string,int>
+     */
+    public static function tabCounts()
+    {
+        return [
+            'permissions.requests' => (int) static::where('status', self::STATUS_PENDING)->count(),
+            'permissions.approved' => (int) static::where('status', self::STATUS_APPROVED)->count(),
+            'permissions.denied' => (int) static::where('status', self::STATUS_REJECTED)->count(),
+            'permissions.index' => (int) static::count(),
+        ];
     }
 }

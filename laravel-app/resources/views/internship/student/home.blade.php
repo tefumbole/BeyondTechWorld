@@ -122,7 +122,7 @@
                     @if(count($byActivity))
                         <div class="ip-chart-box"><canvas id="ip-activity-chart"></canvas></div>
                     @else
-                        <p class="text-muted mb-0">No hours logged yet. <a href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}">Fill your timesheet</a>.</p>
+                        <p class="text-muted mb-0">No hours logged yet. <a href="{{ route('timesheet.fill', ['date' => \App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d'), 'intern' => 1]) }}">Fill your timesheet</a> on a working day.</p>
                     @endif
                 </div>
             </div>
@@ -149,7 +149,7 @@
                             @else Submit evidence
                             @endif
                         </a>
-                        <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1, 'assignment' => $assignment->id]) }}">
+                        <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => optional($assignment->scheduled_work_date)->toDateString() ?: (\App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d')), 'intern' => 1, 'assignment' => $assignment->id]) }}">
                             <i class="dripicons-clock"></i> Log hours for this task
                         </a>
                     @elseif(!empty($requestState['can_request']))

@@ -1633,11 +1633,12 @@
                             <li><a href="#staff-permissions" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-checkmark"></i><span>Permissions</span></a>
                                 <ul id="staff-permissions" class="collapse list-unstyled ">
                                     <li id="perm-requests-menu">
-                                        <a href="{{ route('permissions.requests') }}">Permission Request
+                                        <a href="{{ route('permissions.requests') }}">Awaiting Approval
                                             @if($perm_pending_count > 0)<span class="beyond-attention-badge" data-count="{{ $perm_pending_count }}">{{ $perm_pending_count > 99 ? '99+' : $perm_pending_count }}</span>@endif
                                         </a>
                                     </li>
                                     <li id="perm-approved-menu"><a href="{{ route('permissions.approved') }}">Approved Permissions</a></li>
+                                    <li id="perm-denied-menu"><a href="{{ route('permissions.denied') }}">Denied Permissions</a></li>
                                     <li id="perm-list-menu"><a href="{{ route('permissions.index') }}">Permissions Listings</a></li>
                                 </ul>
                             </li>

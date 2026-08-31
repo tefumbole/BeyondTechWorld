@@ -373,5 +373,17 @@ class PublicPermissionController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Permission request WhatsApp failed: '.$e->getMessage());
         }
+
+        $permissionId = $permission->id;
+        app()->terminating(function () use ($permissionId) {
+            try {
+                $row = StaffPermission::find($permissionId);
+                if ($row) {
+                    app(\App\Services\StaffPermissionNotifier::class)->notifyAdminsOfNewRequest($row);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Permission admin notify failed: '.$e->getMessage());
+            }
+        });
     }
 }

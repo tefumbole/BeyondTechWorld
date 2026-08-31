@@ -12,8 +12,8 @@
         <a href="{{ route('internship.supervisor.index') }}" class="ip-btn ip-btn-outline mb-3">&larr; Queue</a>
         <h1 class="ip-title">Review submission</h1>
         <p class="ip-meta mb-3">
-            Mark the work against the rubric below. Accepting it releases the next task on the student’s next working day;
-            requesting a revision keeps them on this task until they resubmit.
+            Mark the work against the rubric below. Accepting it releases the next task immediately so faster students can continue;
+            timesheets stay due on the intern’s next working day. Requesting a revision keeps them on this task until they resubmit.
         </p>
 
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -225,7 +225,7 @@
                             <input type="radio" name="decision" value="pass" {{ old('decision', 'pass') === 'pass' ? 'checked' : '' }}>
                             <span class="ip-check-text">
                                 <strong>Accept submission</strong><br>
-                                <span class="ip-meta">Task is marked passed and the next task is scheduled for the student’s next working day.</span>
+                                <span class="ip-meta">Task is marked passed and the next task is released immediately. Hours for that new task are logged on the next working day.</span>
                             </span>
                         </label>
                     </div>

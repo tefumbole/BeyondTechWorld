@@ -8,15 +8,20 @@
             <p class="text-muted mb-0">Staff permission requests from the public Permissions page.</p>
         </div>
 
+        @include('staff_permissions.partials.tabs')
+
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
+        @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
 
         <form method="GET" class="card card-body mb-3">
             <div class="row align-items-end">
                 <div class="col-md-8">
                     <label>Search</label>
-                    <input type="search" name="q" value="{{ $q }}" class="form-control" placeholder="Name, role, reference…">
+                    <input type="search" name="q" value="{{ $q }}" class="form-control" placeholder="Name, role, reference, reason…">
                 </div>
                 <div class="col-md-4">
                     <button class="btn btn-primary btn-block">Filter</button>
@@ -34,7 +39,7 @@
                             <th>Period</th>
                             <th>Reference</th>
                             <th>Status</th>
-                            <th class="text-right">Update</th>
+                            <th class="text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -51,18 +56,19 @@
                                     → {{ $item->to_at ? $item->to_at->format('M j, Y H:i') : '—' }}
                                 </td>
                                 <td><code>{{ $item->reference_number }}</code></td>
-                                <td><span class="badge badge-secondary">{{ $item->statusLabel() }}</span></td>
+                                <td>
+                                    @if($item->status === 'pending')
+                                        <span class="badge badge-warning">Awaiting approval</span>
+                                    @elseif($item->status === 'approved')
+                                        <span class="badge badge-success">Approved</span>
+                                    @else
+                                        <span class="badge badge-danger">{{ $item->statusLabel() }}</span>
+                                    @endif
+                                </td>
                                 <td class="text-right">
-                                    <form method="POST" action="{{ route('permissions.update', $item->id) }}" class="d-inline-flex flex-column align-items-end" style="gap:6px;min-width:170px;">
-                                        @csrf
-                                        <select name="status" class="form-control form-control-sm">
-                                            @foreach(['pending','approved','rejected'] as $st)
-                                                <option value="{{ $st }}" @if($item->status===$st) selected @endif>{{ ucfirst($st) }}</option>
-                                            @endforeach
-                                        </select>
-                                        <input type="text" name="admin_note" class="form-control form-control-sm" placeholder="Note" value="{{ $item->admin_note }}">
-                                        <button class="btn btn-sm btn-primary">Save</button>
-                                    </form>
+                                    <a class="btn btn-sm {{ $item->isPending() ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('permissions.show', $item->id) }}">
+                                        {{ $item->isPending() ? 'Review' : 'View' }}
+                                    </a>
                                 </td>
                             </tr>
                         @empty

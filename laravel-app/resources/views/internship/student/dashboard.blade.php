@@ -25,8 +25,9 @@
         <div class="alert alert-info">
             <strong>How it works:</strong>
             Open your task → follow the checklist → <strong>upload your evidence</strong> →
-            <a href="{{ route('timesheet.fill', ['date' => date('Y-m-d'), 'intern' => 1]) }}">fill your timesheet</a>.
-            Your supervisor reviews the upload. The next task arrives on your next working day after they accept it.
+            <a href="{{ route('timesheet.fill', ['date' => \App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d'), 'intern' => 1]) }}">fill your timesheet</a>
+            (working days only).
+            Your supervisor reviews the upload. The next task is released as soon as they accept it.
             Schedule: <a href="{{ route('timesheet.working-week') }}">Working Week</a>.
         </div>
 
@@ -136,12 +137,11 @@
                         @if($enrolment->status === 'completed')
                             <p class="mb-0 text-muted">Congratulations — your program is complete. View your portfolio.</p>
                         @elseif($enrolment->releaseHeldUntil())
-                            <p class="mb-0 text-muted">Your supervisor accepted your last task. The next one arrives on
-                                <strong>{{ $enrolment->releaseHeldUntil()->format('D d M Y') }}</strong>, at your working-day start time.</p>
+                            <p class="mb-0 text-muted">Your supervisor accepted your last task. The next one should appear shortly — refresh this page if it is not here yet.</p>
                         @elseif(!$isWorkingToday)
                             <p class="mb-0 text-muted">Today is not one of your configured working days. Set your week under <strong>TimeSheets → Working Week</strong>.</p>
                         @else
-                            <p class="mb-0 text-muted">{{ $requestState['message'] ?? 'Your next task arrives once your supervisor accepts your last submission, on your next working day.' }}</p>
+                            <p class="mb-0 text-muted">{{ $requestState['message'] ?? 'Your next task is released as soon as your supervisor accepts your last submission.' }}</p>
                         @endif
                         @if(($requestState['reason'] ?? '') === 'no_week')
                             <p class="mt-2 mb-0"><a href="{{ route('timesheet.working-week') }}">Set your Working Week</a> so tasks can be released.</p>

@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\BeyondWasenderService;
+use App\Services\StaffPermissionLetterService;
 use App\StaffPermission;
-use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -43,9 +42,16 @@ class StaffPermissionAdminController extends Controller
         abort(403, 'You are not allowed to access Permissions.');
     }
 
+    protected function canManage()
+    {
+        return in_array('permissions.manage', $this->all_permission, true)
+            || in_array('permissions_module', $this->all_permission, true)
+            || in_array('hrm', $this->all_permission, true);
+    }
+
     public function requests(Request $request)
     {
-        return $this->list($request, StaffPermission::STATUS_PENDING, 'Permission Requests', 'permissions.requests');
+        return $this->list($request, StaffPermission::STATUS_PENDING, 'Awaiting Approval', 'permissions.requests');
     }
 
     public function approved(Request $request)
@@ -53,9 +59,34 @@ class StaffPermissionAdminController extends Controller
         return $this->list($request, StaffPermission::STATUS_APPROVED, 'Approved Permissions', 'permissions.approved');
     }
 
+    public function denied(Request $request)
+    {
+        return $this->list($request, StaffPermission::STATUS_REJECTED, 'Denied Permissions', 'permissions.denied');
+    }
+
     public function index(Request $request)
     {
         return $this->list($request, 'all', 'Permissions Listings', 'permissions.index');
+    }
+
+    public function show($id)
+    {
+        $this->authorizePerms();
+        $item = StaffPermission::with('reviewer', 'letter')->findOrFail($id);
+
+        return view('staff_permissions.show', [
+            'item' => $item,
+            'pageTitle' => $item->isPending() ? 'Review permission' : 'Permission '.$item->statusLabel(),
+            'permTab' => $item->status === StaffPermission::STATUS_PENDING
+                ? 'permissions.requests'
+                : ($item->status === StaffPermission::STATUS_APPROVED
+                    ? 'permissions.approved'
+                    : ($item->status === StaffPermission::STATUS_REJECTED
+                        ? 'permissions.denied'
+                        : 'permissions.index')),
+            'defaultFooter' => StaffPermissionLetterService::defaultFooter(Auth::user()),
+            'canManage' => $this->canManage(),
+        ]);
     }
 
     protected function list(Request $request, $status, $title, $tab)
@@ -71,7 +102,8 @@ class StaffPermissionAdminController extends Controller
                 $w->where('full_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('company_role', 'like', "%{$search}%")
-                    ->orWhere('reference_number', 'like', "%{$search}%");
+                    ->orWhere('reference_number', 'like', "%{$search}%")
+                    ->orWhere('reason', 'like', "%{$search}%");
             });
         }
 
@@ -81,52 +113,67 @@ class StaffPermissionAdminController extends Controller
             'statusFilter' => $status,
             'q' => $request->get('q'),
             'permTab' => $tab,
+            'canManage' => $this->canManage(),
         ]);
     }
 
-    public function update(Request $request, $id, BeyondWasenderService $whatsapp)
+    public function update(Request $request, $id, StaffPermissionLetterService $letters)
     {
         $this->authorizePerms();
-        if (! in_array('permissions.manage', $this->all_permission, true)
-            && ! in_array('permissions_module', $this->all_permission, true)
-            && ! in_array('hrm', $this->all_permission, true)) {
+        if (! $this->canManage()) {
             abort(403);
         }
 
         $data = $request->validate([
-            'status' => 'required|in:pending,approved,rejected',
+            'status' => 'required|in:approved,rejected',
             'admin_note' => 'nullable|string|max:2000',
+            'instructions' => 'nullable|string|max:5000',
+            'letter_footer' => 'nullable|string|max:2000',
         ]);
 
         $item = StaffPermission::findOrFail($id);
-        $previous = $item->status;
+        if (! $item->isPending()) {
+            return redirect()->route('permissions.show', $item->id)
+                ->with('not_permitted', 'This request has already been reviewed.');
+        }
+
+        $approved = $data['status'] === StaffPermission::STATUS_APPROVED;
+        $footer = trim((string) ($data['letter_footer'] ?? ''));
+        if ($approved && $footer === '') {
+            return back()->withInput()->withErrors([
+                'letter_footer' => 'Add footer information (name, title, company) so it prints on the letter.',
+            ]);
+        }
+        if ($footer === '') {
+            $footer = StaffPermissionLetterService::defaultFooter(Auth::user());
+        }
+
         $item->status = $data['status'];
         $item->admin_note = $data['admin_note'] ?? $item->admin_note;
-        if ($data['status'] !== StaffPermission::STATUS_PENDING) {
-            $item->reviewed_by = Auth::id();
-            $item->reviewed_at = now();
-        }
+        $item->instructions = $data['instructions'] ?? null;
+        $item->letter_footer = $footer;
+        $item->reviewed_by = Auth::id();
+        $item->reviewed_at = now();
         $item->save();
 
-        if ($previous !== $item->status && $item->phone) {
-            try {
-                $heading = $item->status === StaffPermission::STATUS_APPROVED ? 'Permission Approved' : 'Permission Update';
-                $emoji = $item->status === StaffPermission::STATUS_APPROVED ? '✅' : 'ℹ️';
-                $msg = WhatsAppMessage::statusBlock($emoji, $heading)
-                    .WhatsAppMessage::greeting($item->full_name)
-                    ."Your permission request *{$item->reference_number}* is now *{$item->status}*.\n\n"
-                    .WhatsAppMessage::bullet('From', $item->from_at->format('Y-m-d H:i'))
-                    .WhatsAppMessage::bullet('To', $item->to_at->format('Y-m-d H:i'));
-                if ($item->admin_note) {
-                    $msg .= WhatsAppMessage::bullet('Note', $item->admin_note);
-                }
-                $msg .= WhatsAppMessage::footer();
-                $whatsapp->sendText($item->phone, $msg);
-            } catch (\Throwable $e) {
-                Log::warning('Permission status WhatsApp failed: '.$e->getMessage());
-            }
+        $issued = $letters->issueDecisionLetter($item, Auth::user(), $approved);
+        $flash = $approved
+            ? 'Permission approved. The letter is being sent.'
+            : 'Permission denied. The letter is being sent.';
+        if (! empty($issued['warnings'])) {
+            $flash .= ' '.implode(' ', $issued['warnings']);
+        }
+        if (empty($issued['ok'])) {
+            Log::warning('Permission letter was not queued', [
+                'permission_id' => $item->id,
+                'error' => $issued['error'] ?? 'unknown',
+            ]);
+            $flash = ($approved ? 'Permission approved' : 'Permission denied')
+                .', but the letter could not be queued: '.($issued['error'] ?: 'unknown error');
         }
 
-        return back()->with('message', 'Permission updated.');
+        $tab = $approved ? 'permissions.approved' : 'permissions.denied';
+
+        return redirect()->route($tab)->with('message', $flash);
     }
 }

@@ -400,7 +400,10 @@ class InternshipProgramService
         $released = 0;
         foreach ($q->get() as $enrolment) {
             try {
-                if ($this->tryReleaseNext($enrolment, $today)) {
+                // Leftover next-working-day holds (from before immediate post-grade
+                // release) should catch up now so the intern does not miss a day.
+                $unstick = (bool) $enrolment->next_release_date;
+                if ($this->tryReleaseNext($enrolment, $today, $unstick, $unstick)) {
                     $released++;
                 }
             } catch (\Throwable $e) {
@@ -473,9 +476,10 @@ class InternshipProgramService
         return $sent;
     }
 
-    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false)
+    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false, $immediate = false)
     {
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
+        $forceSameDay = $forceSameDay || $immediate;
         $student = $enrolment->student;
         if (! $student) {
             return false;
@@ -492,7 +496,7 @@ class InternshipProgramService
             return false;
         }
 
-        $result = DB::transaction(function () use ($enrolment, $student, $today, $forceSameDay, $isFirstTask) {
+        $result = DB::transaction(function () use ($enrolment, $student, $today, $forceSameDay, $immediate, $isFirstTask) {
             $enrolment = InternshipEnrolment::where('id', $enrolment->id)->lockForUpdate()->first();
             if (! $enrolment || $enrolment->status !== 'active') {
                 return null;
@@ -513,13 +517,15 @@ class InternshipProgramService
             }
 
             // A scheduled hold from an accepted submission is honoured even by
-            // same-day paths, so nothing arrives before the planned working day.
-            if ($enrolment->next_release_date
+            // same-day paths, so nothing arrives before the planned working day —
+            // unless this is an immediate post-grading release (supervisor delay
+            // must not make the intern miss a curriculum day).
+            if (! $immediate && $enrolment->next_release_date
                 && Carbon::parse($enrolment->next_release_date)->startOfDay()->greaterThan($today)) {
                 return null;
             }
 
-            if (! $isFirstTask && ! $this->isWorkingDate($student, $today)) {
+            if (! $isFirstTask && ! $immediate && ! $this->isWorkingDate($student, $today)) {
                 return null;
             }
 
@@ -540,6 +546,17 @@ class InternshipProgramService
                 return null;
             }
 
+            // Faster students may start the next task now; hours are still due
+            // on the next working day (not today, and never on a day off).
+            $timesheetDate = $today->copy();
+            if ($immediate && ! $isFirstTask) {
+                $nextTs = $this->nextWorkingDate($student, $today->copy()->addDay());
+                if ($nextTs) {
+                    $timesheetDate = $nextTs;
+                }
+            }
+            $workDateStr = $timesheetDate->toDateString();
+
             $existing = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
                 ->where('program_task_id', $task->id)
                 ->first();
@@ -549,7 +566,7 @@ class InternshipProgramService
                 }
                 if ($existing->status === 'locked') {
                     $existing->status = 'available';
-                    $existing->scheduled_work_date = $today->toDateString();
+                    $existing->scheduled_work_date = $workDateStr;
                     $existing->released_at = now();
                     $existing->save();
                     $enrolment->current_task_order = $nextDay;
@@ -567,7 +584,7 @@ class InternshipProgramService
                 'enrolment_id' => $enrolment->id,
                 'program_task_id' => $task->id,
                 'progression_day' => $nextDay,
-                'scheduled_work_date' => $today->toDateString(),
+                'scheduled_work_date' => $workDateStr,
                 'released_at' => now(),
                 'status' => 'available',
                 'attempt_count' => 0,
@@ -933,9 +950,9 @@ class InternshipProgramService
     }
 
     /**
-     * Mark an accepted submission passed, count progress, and schedule the next
-     * task for the student's next working day. Shared by supervisor acceptance
-     * and the review-SLA auto-acceptance.
+     * Mark an accepted submission passed, count progress, and release the next
+     * curriculum task immediately so a late grade does not skip a day.
+     * Shared by supervisor acceptance and the review-SLA auto-acceptance.
      */
     protected function applyAcceptance(
         InternshipSubmission $submission,
@@ -955,25 +972,36 @@ class InternshipProgramService
             if ($enrolment->completed_count >= $enrolment->plannedDurationDays()) {
                 $enrolment->status = 'completed';
                 $enrolment->completed_at = now();
-                $enrolment->next_release_date = null;
-            } else {
-                // Acceptance schedules the next task for the student's next working day;
-                // the hourly cron delivers it once that day's start time arrives.
-                $student = $enrolment->student;
-                $next = $student ? $this->nextWorkingDate($student, Carbon::tomorrow()) : null;
-                $enrolment->next_release_date = $next ? $next->toDateString() : null;
             }
+            $enrolment->next_release_date = null;
             $enrolment->save();
         });
 
-        $this->notifyPassed($enrolment->fresh(['student', 'program']), $assignment->fresh(['task']), $grade);
+        $enrolment = $enrolment->fresh(['student', 'program']);
+        $timesheetLabel = null;
         if ($enrolment->status === 'completed') {
+            $this->notifyPassed($enrolment, $assignment->fresh(['task']), $grade, null);
             $this->notifyCompleted($enrolment);
         } else {
-            $this->nudgeWorkingWeekIfBlocking($enrolment);
+            try {
+                $this->tryReleaseNext($enrolment, Carbon::today(), true, true);
+            } catch (\Throwable $e) {
+                Log::warning('Immediate next-task release after acceptance failed for enrolment '.$enrolment->id.': '.$e->getMessage());
+            }
+            $enrolment = $enrolment->fresh(['student', 'program']);
+            $nextAssignment = $enrolment->currentOpenAssignment();
+            if ($nextAssignment && $nextAssignment->scheduled_work_date) {
+                try {
+                    $timesheetLabel = Carbon::parse($nextAssignment->scheduled_work_date)->format('D d M Y');
+                } catch (\Throwable $e) {
+                    $timesheetLabel = (string) $nextAssignment->scheduled_work_date;
+                }
+            }
+            $this->notifyPassed($enrolment, $assignment->fresh(['task']), $grade, $timesheetLabel);
+            $this->nudgeWorkingWeekIfBlocking($enrolment->fresh(['student']));
         }
 
-        return $enrolment;
+        return $enrolment->fresh();
     }
 
     /**
@@ -1247,9 +1275,7 @@ class InternshipProgramService
                 optional($enrolment->student)->name,
                 $taskLabel,
                 $slaDays,
-                optional($enrolment->next_release_date)
-                    ? Carbon::parse($enrolment->next_release_date)->format('D d M Y')
-                    : null,
+                'released now',
                 $url
             );
             $this->sendWhatsApp($supervisor, $msg, $key, 'review_sla_breached');
@@ -1420,8 +1446,7 @@ class InternshipProgramService
 
         if ($enrolment->releaseHeldUntil()) {
             $empty['reason'] = 'held';
-            $empty['message'] = 'Your supervisor accepted your last submission. The next task is scheduled for '
-                .$enrolment->releaseHeldUntil()->format('D d M Y').' at your working-day start time.';
+            $empty['message'] = 'Your supervisor accepted your last submission. The next task should appear shortly. Refresh this page if it is not here yet.';
 
             return $empty;
         }
@@ -1697,14 +1722,26 @@ class InternshipProgramService
         $handbookName = $program ? InternshipHandbook::downloadName($program, $task) : null;
         $hasHandbook = $handbookPath && is_file($handbookPath);
 
+        $workDateLabel = (string) $assignment->scheduled_work_date;
+        $availableNow = false;
+        try {
+            if ($assignment->scheduled_work_date
+                && Carbon::parse($assignment->scheduled_work_date)->startOfDay()->greaterThan(Carbon::today())) {
+                $availableNow = true;
+                $workDateLabel = Carbon::parse($assignment->scheduled_work_date)->format('D d M Y');
+            }
+        } catch (\Throwable $e) {
+        }
+
         $msg = WhatsAppMessage::internshipDailyTask(
             $student->name,
             optional($program)->displayName() ?? '',
             $taskLabel,
-            (string) $assignment->scheduled_work_date,
+            $workDateLabel,
             $url,
             $task->instructions(),
-            $hasHandbook
+            $hasHandbook,
+            $availableNow
         );
 
         $result = $this->sendWhatsApp($student, $msg, $key, $forceResend ? 'task_released_resend' : 'task_released');
@@ -1896,7 +1933,7 @@ class InternshipProgramService
         $this->sendWhatsApp($student, $msg, $key, 'revision_requested');
     }
 
-    protected function notifyPassed(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment, InternshipGrade $grade)
+    protected function notifyPassed(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment, InternshipGrade $grade, $timesheetDateLabel = null)
     {
         $student = $enrolment->student;
         if (! $student) {
@@ -1906,7 +1943,7 @@ class InternshipProgramService
         if ($this->alreadyNotified($key)) {
             return;
         }
-        $msg = WhatsAppMessage::statusBlock('✅', 'Submission Accepted');
+        $msg = WhatsAppMessage::statusBlock('✅', 'Submission Grades');
         $msg .= WhatsAppMessage::greeting($student->name);
         $msg .= $grade->auto_accepted
             ? "Your task was accepted so your placement keeps moving — your supervisor may still send feedback.\n\n"
@@ -1916,11 +1953,12 @@ class InternshipProgramService
         $msg .= InternshipRubric::whatsAppBreakdown($grade, $assignment->task);
         $msg .= WhatsAppMessage::bullet('Progress', $enrolment->completed_count.'/'.$enrolment->plannedDurationDays());
         if ($enrolment->completed_count < $enrolment->plannedDurationDays()) {
-            if ($enrolment->next_release_date) {
-                $msg .= WhatsAppMessage::bullet('Next task', Carbon::parse($enrolment->next_release_date)->format('D d M Y'));
-                $msg .= "\nYour next task arrives on that working day, at your start time.";
+            $msg .= WhatsAppMessage::bullet('Next task', 'Available now');
+            if ($timesheetDateLabel) {
+                $msg .= WhatsAppMessage::bullet('Timesheet', $timesheetDateLabel);
+                $msg .= "\nYour next task is ready now. Log hours on that working day, at your start time.";
             } else {
-                $msg .= "\nYour next task will be released on your next configured working day.";
+                $msg .= "\nYour next task is ready now. Timesheets are only due on your working days.";
             }
         }
         if ($grade->feedback) {

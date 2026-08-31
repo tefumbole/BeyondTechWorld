@@ -348,6 +348,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/permissions', 'StaffPermissionAdminController@index')->name('permissions.index');
     Route::get('/admin/permissions/requests', 'StaffPermissionAdminController@requests')->name('permissions.requests');
     Route::get('/admin/permissions/approved', 'StaffPermissionAdminController@approved')->name('permissions.approved');
+    Route::get('/admin/permissions/denied', 'StaffPermissionAdminController@denied')->name('permissions.denied');
+    Route::get('/admin/permissions/{id}', 'StaffPermissionAdminController@show')->name('permissions.show');
     Route::post('/admin/permissions/{id}', 'StaffPermissionAdminController@update')->name('permissions.update');
 
     // Contracts Module

@@ -32,7 +32,7 @@
                 <div class="alert alert-warning">
                     <strong>Internship setup required.</strong>
                     Choose the days and hours you will work each week, then click <strong>Save Changes</strong>.
-                    Daily internship tasks are released on your working days, and you must fill a timesheet at the end of each working day.
+                    Daily internship tasks can be released as soon as a submission is accepted. Fill a timesheet at the end of each <strong>working day</strong> only — not on days off.
                 </div>
             @endif
 

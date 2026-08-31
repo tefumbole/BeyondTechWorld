@@ -274,6 +274,60 @@ class InternCompliance
         return null;
     }
 
+    /**
+     * Date the intern should open on the fill form: overdue working day, today
+     * if it is a working day, otherwise the next working day. Never a day off.
+     *
+     * @return string|null Y-m-d
+     */
+    public static function timesheetFillDate(User $user)
+    {
+        $missing = self::missingTimesheetDate($user);
+        if ($missing) {
+            return $missing;
+        }
+
+        if (! self::workingWeekConfigured($user)) {
+            return null;
+        }
+
+        $ww = WorkingWeek::where('user_id', $user->id)->first();
+        if (! $ww) {
+            return null;
+        }
+
+        $day = Carbon::today();
+        for ($i = 0; $i < 14; $i++) {
+            if (self::isWorkingDayOnWeek($ww, $day)) {
+                return $day->toDateString();
+            }
+            $day->addDay();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  string|\Carbon\Carbon|null  $date
+     */
+    public static function isUserWorkingDate(User $user, $date)
+    {
+        if (! $date || ! self::workingWeekConfigured($user)) {
+            return false;
+        }
+        $ww = WorkingWeek::where('user_id', $user->id)->first();
+        if (! $ww) {
+            return false;
+        }
+        try {
+            $carbon = $date instanceof Carbon ? $date : Carbon::parse($date);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return self::isWorkingDayOnWeek($ww, $carbon);
+    }
+
     public static function isWorkingDayOnWeek(WorkingWeek $ww, Carbon $date)
     {
         $day = strtolower($date->format('l'));

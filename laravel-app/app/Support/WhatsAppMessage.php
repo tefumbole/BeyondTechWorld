@@ -593,6 +593,24 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function permissionRequestAdmin($adminName, $staffName, $reference, $role, $from, $to, $reason, $loginUrl)
+    {
+        $msg = self::statusBlock('🗓️', 'Permission Request');
+        $msg .= self::greeting($adminName ?: 'Admin');
+        $msg .= "A staff member has applied for permission and is awaiting your approval.\n\n";
+        $msg .= self::bullet('Name', $staffName ?: '—');
+        $msg .= self::bullet('Role', $role ?: '—');
+        $msg .= self::bullet('Reference', $reference ?: '—');
+        $msg .= self::bullet('From', $from ?: '—');
+        $msg .= self::bullet('To', $to ?: '—');
+        $msg .= self::bullet('Reason', $reason ?: '—');
+        $msg .= self::actionLink('Login to review this request', $loginUrl);
+        $msg .= "\nTap the link, sign in, and you will open Awaiting Approval for this request.";
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function internshipPlacementIssueAdmin($adminName, $applicantName, $reference, $reason, $loginUrl)
     {
         $msg = self::statusBlock('⚠️', 'Placement Needs Attention');
@@ -866,14 +884,20 @@ class WhatsAppMessage
      *
      * @param  array  $instructionSteps
      */
-    public static function internshipDailyTask($studentName, $program, $taskLabel, $workDate, $url, array $instructionSteps = [], $handbookAttached = false)
+    public static function internshipDailyTask($studentName, $program, $taskLabel, $workDate, $url, array $instructionSteps = [], $handbookAttached = false, $availableNow = false)
     {
         $msg = self::statusBlock('📚', 'Internship Task');
         $msg .= self::greeting($studentName ?: 'Intern');
-        $msg .= "Your internship task for today is ready.\n\n";
+        $msg .= $availableNow
+            ? "Your next internship task is ready now so you can keep moving.\n\n"
+            : "Your internship task for today is ready.\n\n";
         $msg .= self::bullet('Program', $program ?: '—');
         $msg .= self::bullet('Task', $taskLabel ?: '—');
-        $msg .= self::bullet('Date', $workDate ?: '—');
+        if ($availableNow) {
+            $msg .= self::bullet('Timesheet', $workDate ?: 'next working day');
+        } else {
+            $msg .= self::bullet('Date', $workDate ?: '—');
+        }
 
         $steps = array_values(array_filter(array_map(function ($line) {
             return trim(is_string($line) ? $line : json_encode($line));
@@ -898,7 +922,9 @@ class WhatsAppMessage
         }
 
         $msg .= self::actionLink('Open internship dashboard', $url);
-        $msg .= 'Complete each checklist item, then submit evidence from your dashboard. Only one task is released per working day.';
+        $msg .= $availableNow
+            ? 'Complete each checklist item, then submit evidence from your dashboard. Log hours on the timesheet date above (working days only).'
+            : 'Complete each checklist item, then submit evidence from your dashboard. Timesheets are due on your working days.';
         $msg .= self::footer();
 
         return $msg;

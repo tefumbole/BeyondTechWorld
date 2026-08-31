@@ -101,8 +101,8 @@
         @elseif($isUpcoming)
             <div class="alert alert-info">
                 Day tasks for <strong>{{ \Carbon\Carbon::parse($targetDate)->format('l, d M Y') }}</strong> — one row per student.
-                <em>Scheduled</em> = predicted release on that student’s working day (not sent yet).
-                <em>Released</em> = already assigned for that day.
+                <em>Scheduled</em> = predicted release (not sent yet).
+                <em>Released</em> = already assigned. After a supervisor accepts a submission, the next task is released immediately; that task’s timesheet is due on the intern’s next working day.
             </div>
             <div class="ip-card">
                 <div class="table-responsive">

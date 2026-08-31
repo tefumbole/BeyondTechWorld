@@ -421,11 +421,15 @@ class InternshipStudentController extends Controller
         try {
             $date = \Carbon\Carbon::parse($assignment->scheduled_work_date)->toDateString();
         } catch (\Throwable $e) {
-            $date = date('Y-m-d');
+            $date = \App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d');
         }
 
+        $hoursHint = $date === date('Y-m-d')
+            ? 'Please log today’s hours if this is a working day.'
+            : 'Please log hours on '.$date.' (that task’s working day).';
+
         return redirect()->route('timesheet.fill', ['date' => $date, 'intern' => 1, 'assignment' => $assignment->id])
-            ->with('message', 'Submission sent. Your supervisor reviews it, and your next task arrives on your next working day once accepted. Please log today’s hours.');
+            ->with('message', 'Submission sent. Your supervisor will review it, and the next task is released as soon as they accept this one. '.$hoursHint);
     }
 
     public function upload()
