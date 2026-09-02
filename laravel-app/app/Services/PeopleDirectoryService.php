@@ -390,6 +390,101 @@ class PeopleDirectoryService
     }
 
     /**
+     * Resolve a typed phone to system customer + mobile-money holder (Campay/PawaPay).
+     *
+     * @return array{ok:bool,found:bool,name:string,address:string,system_name:string,system_address:string,original_name:string,original_address:string,source:?string}
+     */
+    public function lookupPhoneForForm($raw)
+    {
+        $empty = [
+            'ok' => true,
+            'found' => false,
+            'name' => '',
+            'address' => '',
+            'system_name' => '',
+            'system_address' => '',
+            'original_name' => '',
+            'original_address' => '',
+            'source' => null,
+        ];
+
+        try {
+            $phone = WhatsAppPhone::sanitizeForStorage($raw);
+        } catch (\Throwable $e) {
+            $phone = preg_replace('/\D/', '', (string) $raw);
+        }
+        if (strlen(preg_replace('/\D/', '', (string) $phone)) < 8) {
+            $empty['ok'] = false;
+
+            return $empty;
+        }
+
+        $customer = $this->findCustomerByLoosePhone($phone);
+        $momo = ['name' => null, 'address' => null, 'source' => null];
+        try {
+            $momo = app(MobileMoneyHolderService::class)->lookup($phone);
+        } catch (\Throwable $e) {
+            // Keep directory match even if MoMo is down.
+        }
+
+        $systemName = $customer ? trim((string) $customer->name) : '';
+        $systemAddress = $customer ? $this->usableAddress($customer->address) : '';
+        $originalName = ! empty($momo['name']) ? trim((string) $momo['name']) : '';
+        $originalAddress = ! empty($momo['address']) ? $this->usableAddress($momo['address']) : '';
+
+        return [
+            'ok' => true,
+            'found' => (bool) $customer,
+            'name' => $systemName !== '' ? $systemName : $originalName,
+            'address' => $systemAddress !== '' ? $systemAddress : $originalAddress,
+            'system_name' => $systemName,
+            'system_address' => $systemAddress,
+            'original_name' => $originalName,
+            'original_address' => $originalAddress,
+            'source' => $customer ? 'system' : ($momo['source'] ?? null),
+        ];
+    }
+
+    protected function usableAddress($value)
+    {
+        $val = trim((string) $value);
+        if ($val === '' || strtoupper($val) === 'N/A' || strtoupper($val) === 'NAN') {
+            return '';
+        }
+
+        return $val;
+    }
+
+    public function findCustomerByLoosePhone($phone)
+    {
+        try {
+            $normalized = WhatsAppPhone::sanitizeForStorage($phone);
+        } catch (\Throwable $e) {
+            $normalized = preg_replace('/\D/', '', (string) $phone);
+        }
+        $digits = preg_replace('/\D/', '', (string) $normalized);
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        $tail = substr($digits, -9);
+
+        $existing = Customer::where('phone_number', $normalized)->first()
+            ?: Customer::where('phone_number', $digits)->first()
+            ?: Customer::where('phone_number', '+'.$digits)->first();
+        if ($existing) {
+            return $existing;
+        }
+        if (strlen($tail) >= 8) {
+            return Customer::whereRaw(
+                "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone_number,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                [$tail]
+            )->orderByDesc('is_active')->orderByDesc('id')->first();
+        }
+
+        return null;
+    }
+
+    /**
      * Create or reuse a real POS Customer row (People → Customers) from a quick-add form.
      * Used by Announcements, Job Board supervisors, etc. so the contact is system-wide.
      *

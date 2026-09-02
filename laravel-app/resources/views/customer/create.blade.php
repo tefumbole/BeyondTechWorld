@@ -45,7 +45,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>{{trans('file.Phone Number')}} *</label>
-                                    <input type="text" name="phone_number" required class="form-control"  value="237">
+                                    <input type="text" name="phone_number" required class="form-control js-phone-holder"  value="237">
                                     @if($errors->has('phone_number'))
                                    <span>
                                        <strong>{{ $errors->first('phone_number') }}</strong>

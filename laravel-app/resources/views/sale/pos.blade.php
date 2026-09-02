@@ -1989,7 +1989,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label>{{trans('file.Phone Number')}} *</label>
-                                    <input type="text" name="phone_number" required class="form-control" value="237">
+                                    <input type="text" name="phone_number" required class="form-control js-phone-holder" value="237">
                                 </div>
                                 <div class="form-group">
                                     <label>{{trans('file.Email')}}</label>

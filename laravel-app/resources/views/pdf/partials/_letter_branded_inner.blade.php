@@ -69,8 +69,23 @@
     $signPath = LetterSignature::path($data->sign_signature)
         ?: ($signUser && $signUser->sign && is_file(public_path('images/user/'.$signUser->sign))
             ? public_path('images/user/'.$signUser->sign) : null);
-    // Prefer letter PNG signature (transparent ink). Fall back to account file path for DomPDF.
-    $signSrc = $signPath;
+    $signDate = $data->sign_signed_at ?? null;
+    $signSrc = $signPath
+        ? (LetterSignature::stampedDataUriFromPath($signPath, $signDate ?: now()) ?: $signPath)
+        : null;
+    $fmtLetterStamp = function ($d) {
+        if (! $d) {
+            return '';
+        }
+        try {
+            return \Carbon\Carbon::parse($d)->format('M d, Y H:i');
+        } catch (\Throwable $e) {
+            return '';
+        }
+    };
+    $editStamp = $fmtLetterStamp($data->edit_signed_at ?? null);
+    $approveStamp = $fmtLetterStamp($data->approve_signed_at ?? null);
+    $signStamp = $fmtLetterStamp($data->sign_signed_at ?? null);
 
     $recipientName = trim((string) (optional($user_to)->name ?? ''));
     $recipientAddress = trim((string) (optional($user_to)->address ?? ''));
@@ -89,11 +104,17 @@
     @if($data->is_edit == 1 && $editSrc)
         <div class="letter-corner-stamp">
             <img src="{{ $editSrc }}" alt="Comment" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
+            @if($editStamp !== '')
+                <span class="letter-sign-stamp">{{ $editStamp }}</span>
+            @endif
         </div>
     @endif
     @if($data->is_approve == 1 && $approveSrc)
         <div class="letter-corner-stamp">
             <img src="{{ $approveSrc }}" alt="Approve" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
+            @if($approveStamp !== '')
+                <span class="letter-sign-stamp">{{ $approveStamp }}</span>
+            @endif
         </div>
     @endif
 </div>
@@ -144,6 +165,9 @@
         <p class="letter-sincerely">Sincerely,</p>
         @if($data->is_sign == 1 && $signSrc)
             <img class="letter-sign-img" src="{{ $signSrc }}" alt="Signature">
+            @if($signStamp !== '')
+                <span class="letter-sign-stamp">{{ $signStamp }}</span>
+            @endif
         @endif
         <div class="letter-closing">
             @if($hasFooterHtml)

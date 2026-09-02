@@ -629,7 +629,7 @@ window.TM_CSRF = @json(csrf_token());
             + '      <p class="tm-hint mb-2">Create a guest assignee with name + WhatsApp. They are saved as a Customer and can be selected again later.</p>'
             + '      <div class="row">'
             + '        <div class="col-md-6 mb-2"><input type="text" class="tm-field tm-new-name" placeholder="Full name *"></div>'
-            + '        <div class="col-md-6 mb-2"><input type="tel" class="tm-field tm-new-phone" placeholder="WhatsApp / phone *"></div>'
+            + '        <div class="col-md-6 mb-2"><input type="tel" class="tm-field tm-new-phone js-phone-holder" placeholder="WhatsApp / phone *"></div>'
             + '        <div class="col-md-6 mb-2"><input type="email" class="tm-field tm-new-email" placeholder="Email (optional)"></div>'
             + '        <div class="col-md-6 mb-2"><input type="text" class="tm-field tm-new-address" placeholder="Address (optional)"></div>'
             + '      </div>'

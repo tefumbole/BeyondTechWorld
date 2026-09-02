@@ -72,8 +72,13 @@
     }
     .perm-compare-item {
         border: 1px solid #e2e8f0; border-radius: .9rem; padding: .7rem .85rem; background: #fff;
+        text-align: left; width: 100%; cursor: default;
     }
+    .perm-compare-item.is-pickable { cursor: pointer; }
+    .perm-compare-item.is-pickable:hover { border-color: rgba(11,63,144,.35); }
+    .perm-compare-item.is-on { border-color: #0b3f90; background: #eef4ff; box-shadow: 0 0 0 1px #0b3f90; }
     .perm-compare-item p { margin: 0; }
+    .perm-compare-item .perm-pick-hint { font-size: .68rem; font-weight: 700; color: #0b3f90; margin-top: .35rem; }
     .perm-actions { display: flex; gap: .65rem; align-items: stretch; margin-top: 1.1rem; }
     .perm-actions .perm-back {
         flex: 0 0 auto; min-width: 6.5rem; display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
@@ -205,9 +210,9 @@
 
                     <div x-show="step === 'phone'" x-cloak>
                         <div class="perm-section">
-                            <h3><i data-lucide="smartphone" class="w-4 h-4 text-brand-gold"></i> Your WhatsApp number</h3>
-                            <p class="text-sm text-slate-500 m-0 mb-3">Pick any country, then enter the number — customer or portal accounts, or mobile money (MTN / Orange).</p>
-                            <label class="perm-label" for="perm-phone">WhatsApp number *</label>
+                            <h3><i data-lucide="smartphone" class="w-4 h-4 text-brand-gold"></i> Phone Number</h3>
+                            <p class="text-sm text-slate-500 m-0 mb-3">Pick a Country and put the phone number.</p>
+                            <label class="perm-label" for="perm-phone">Phone number *</label>
                             <div class="apply-phone-row">
                                 <div class="relative shrink-0" @click.away="ccOpen = false" @keydown.escape.window="ccOpen = false">
                                     <button type="button"
@@ -256,14 +261,25 @@
                             <i data-lucide="loader" class="w-4 h-4 mt-0.5 shrink-0 animate-spin"></i>
                             <p class="m-0">Checking this number…</p>
                         </div>
-                        <div x-show="!lookingUp && lookupDone && digitsOnly(phoneLocal).length >= 8" x-cloak class="perm-compare">
-                            <div class="perm-compare-item">
-                                <p class="perm-kicker">Registered in the system</p>
-                                <p class="font-extrabold text-brand-blue mt-1" x-text="systemName || 'Not in the system yet'"></p>
-                            </div>
-                            <div class="perm-compare-item">
-                                <p class="perm-kicker">Original name on that number</p>
-                                <p class="font-extrabold text-brand-blue mt-1" x-text="originalName || 'Not found on mobile money'"></p>
+                        <div x-show="!lookingUp && lookupDone && digitsOnly(phoneLocal).length >= 8" x-cloak>
+                            <p class="perm-hint" x-show="systemName || originalName" x-cloak>Select the name to use on the permission letter.</p>
+                            <div class="perm-compare">
+                                <button type="button" class="perm-compare-item"
+                                        :class="{ 'is-pickable': !!systemName, 'is-on': nameSource === 'system' && !!systemName }"
+                                        :disabled="!systemName"
+                                        @click="chooseName('system')">
+                                    <p class="perm-kicker">System name</p>
+                                    <p class="font-extrabold text-brand-blue mt-1" x-text="systemName || 'Not in the system yet'"></p>
+                                    <p class="perm-pick-hint" x-show="nameSource === 'system' && systemName" x-cloak>Selected for the letter</p>
+                                </button>
+                                <button type="button" class="perm-compare-item"
+                                        :class="{ 'is-pickable': !!originalName, 'is-on': nameSource === 'register' && !!originalName }"
+                                        :disabled="!originalName"
+                                        @click="chooseName('register')">
+                                    <p class="perm-kicker">Actual register name</p>
+                                    <p class="font-extrabold text-brand-blue mt-1" x-text="originalName || 'Not found on mobile money'"></p>
+                                    <p class="perm-pick-hint" x-show="nameSource === 'register' && originalName" x-cloak>Selected for the letter</p>
+                                </button>
                             </div>
                         </div>
                         <div x-show="!lookingUp && lookupMessage" x-cloak class="perm-status"
@@ -286,15 +302,24 @@
                         <div class="perm-section">
                             <h3><i data-lucide="user" class="w-4 h-4 text-brand-gold"></i> Your name</h3>
                             <div class="perm-compare" style="margin-top:0;margin-bottom:.85rem">
-                                <div class="perm-compare-item">
-                                    <p class="perm-kicker">Registered in the system</p>
+                                <button type="button" class="perm-compare-item"
+                                        :class="{ 'is-pickable': !!systemName, 'is-on': nameSource === 'system' && !!systemName }"
+                                        :disabled="!systemName"
+                                        @click="chooseName('system')">
+                                    <p class="perm-kicker">System name</p>
                                     <p class="font-extrabold text-brand-blue mt-1" x-text="systemName || 'Not in the system yet'"></p>
-                                </div>
-                                <div class="perm-compare-item">
-                                    <p class="perm-kicker">Original name on that number</p>
+                                    <p class="perm-pick-hint" x-show="nameSource === 'system' && systemName" x-cloak>Selected for the letter</p>
+                                </button>
+                                <button type="button" class="perm-compare-item"
+                                        :class="{ 'is-pickable': !!originalName, 'is-on': nameSource === 'register' && !!originalName }"
+                                        :disabled="!originalName"
+                                        @click="chooseName('register')">
+                                    <p class="perm-kicker">Actual register name</p>
                                     <p class="font-extrabold text-brand-blue mt-1" x-text="originalName || 'Not found on mobile money'"></p>
-                                </div>
+                                    <p class="perm-pick-hint" x-show="nameSource === 'register' && originalName" x-cloak>Selected for the letter</p>
+                                </button>
                             </div>
+                            <p class="perm-hint" x-show="systemName && originalName" x-cloak>Tap one name above, or type a different one below.</p>
                             <label class="perm-label" for="perm-name">Name to use on the letter *</label>
                             <input id="perm-name" x-model="fullName" class="apply-field" autocomplete="name"
                                    placeholder="Type or edit the name">
@@ -416,6 +441,7 @@ function permissionApply() {
         willCreate: false,
         systemName: '',
         originalName: '',
+        nameSource: '',
         stages: [
             { id: 'phone', n: 1, title: 'WhatsApp', hint: 'Choose your country and enter the number.' },
             { id: 'name', n: 2, title: 'Find your name', hint: 'From customer, portal, or mobile money — you can edit it.' },
@@ -487,9 +513,43 @@ function permissionApply() {
         },
         goName() {
             if (!this.canContinuePhone()) return;
+            this.applyChosenName();
             this.step = 'name';
             window.scrollTo(0, 0);
             this.$nextTick(function () { if (window.lucide) lucide.createIcons(); });
+        },
+        chooseName(source) {
+            var n = source === 'register' ? this.originalName : this.systemName;
+            if (!n) return;
+            this.nameSource = source;
+            this.fullName = n;
+        },
+        applyChosenName() {
+            if (this.nameSource === 'register' && this.originalName) {
+                this.fullName = this.originalName;
+                return;
+            }
+            if (this.nameSource === 'system' && this.systemName) {
+                this.fullName = this.systemName;
+                return;
+            }
+            if (this.systemName && this.originalName) {
+                this.nameSource = 'system';
+                this.fullName = this.systemName;
+                return;
+            }
+            if (this.systemName) {
+                this.nameSource = 'system';
+                this.fullName = this.systemName;
+                return;
+            }
+            if (this.originalName) {
+                this.nameSource = 'register';
+                this.fullName = this.originalName;
+                return;
+            }
+            this.nameSource = '';
+            this.fullName = '';
         },
         nameHint() {
             if (this.accountFound) return 'We found this name on your account. You can edit it.';
@@ -523,6 +583,7 @@ function permissionApply() {
             this.willCreate = false;
             this.systemName = '';
             this.originalName = '';
+            this.nameSource = '';
             this.existingUserId = '';
             this.lookupMessage = '';
             this.lookupDone = false;
@@ -544,6 +605,7 @@ function permissionApply() {
                 this.willCreate = false;
                 this.systemName = '';
                 this.originalName = '';
+                this.nameSource = '';
                 this.existingUserId = '';
                 this.lookupMessage = '';
                 this.lookingUp = false;
@@ -562,19 +624,19 @@ function permissionApply() {
                     this.lookupDone = true;
                     this.systemName = data.system_name || '';
                     this.originalName = data.original_name || '';
+                    this.nameSource = '';
                     if (data.found) {
                         this.accountFound = true;
                         this.willCreate = false;
                         this.existingUserId = data.id || '';
-                        this.fullName = data.name || this.systemName || this.fullName;
                         this.lookupMessage = data.message || 'We found your name. Continue to confirm it.';
                     } else {
                         this.accountFound = false;
                         this.willCreate = !!data.will_create;
                         this.existingUserId = '';
-                        this.fullName = data.name || this.originalName || this.fullName;
                         this.lookupMessage = data.message || 'Enter your name on the next step.';
                     }
+                    this.applyChosenName();
                     if (window.lucide) lucide.createIcons();
                 }.bind(this))
                 .catch(function () {

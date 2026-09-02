@@ -18,7 +18,7 @@ class MobileMoneyHolderService
     {
         $digits = preg_replace('/\D/', '', (string) $phone);
         if (strlen($digits) < 8) {
-            return ['name' => null, 'source' => null];
+            return ['name' => null, 'address' => null, 'source' => null];
         }
 
         $cc = $this->guessCountry($digits);
@@ -28,7 +28,7 @@ class MobileMoneyHolderService
                 return $hit;
             }
 
-            return $this->pawapay($digits) ?: ['name' => null, 'source' => null];
+            return $this->pawapay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
         }
 
         $hit = $this->pawapay($digits);
@@ -36,7 +36,7 @@ class MobileMoneyHolderService
             return $hit;
         }
 
-        return $this->campay($digits) ?: ['name' => null, 'source' => null];
+        return $this->campay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
     }
 
     protected function guessCountry($digits)
@@ -69,8 +69,9 @@ class MobileMoneyHolderService
             'Accept: application/json',
         ], 12);
         $name = $this->extractName($body);
-        if ($name) {
-            return ['name' => $name, 'source' => 'campay'];
+        $address = $this->extractAddress($body);
+        if ($name || $address) {
+            return ['name' => $name, 'address' => $address, 'source' => 'campay'];
         }
 
         return null;
@@ -112,8 +113,9 @@ class MobileMoneyHolderService
         foreach ($attempts as $pair) {
             $body = $this->httpPost($pair[0], $headers, $pair[1], 15);
             $name = $this->extractName($body);
-            if ($name) {
-                return ['name' => $name, 'source' => 'pawapay'];
+            $address = $this->extractAddress($body);
+            if ($name || $address) {
+                return ['name' => $name, 'address' => $address, 'source' => 'pawapay'];
             }
         }
 
@@ -155,6 +157,42 @@ class MobileMoneyHolderService
         }
 
         return null;
+    }
+
+    protected function extractAddress($decoded)
+    {
+        if (! is_array($decoded)) {
+            return null;
+        }
+        $nested = [];
+        foreach (['data', 'result', 'output', 'accountHolder'] as $key) {
+            if (isset($decoded[$key]) && is_array($decoded[$key])) {
+                $nested[] = $decoded[$key];
+            }
+        }
+        $bags = array_merge([$decoded], $nested);
+        $keys = ['address', 'full_address', 'fullAddress', 'location', 'town', 'city', 'quartier', 'region'];
+        $parts = [];
+        foreach ($bags as $bag) {
+            foreach ($keys as $key) {
+                $raw = $bag[$key] ?? null;
+                if (! is_string($raw)) {
+                    continue;
+                }
+                $val = trim($raw);
+                if ($val === '' || strtoupper($val) === 'N/A' || strtoupper($val) === 'NAN' || preg_match('/^\+?\d{8,}$/', $val)) {
+                    continue;
+                }
+                if (! in_array($val, $parts, true)) {
+                    $parts[] = $val;
+                }
+            }
+            if ($parts) {
+                break;
+            }
+        }
+
+        return $parts ? implode(', ', $parts) : null;
     }
 
     protected function httpGet($url, array $headers, $timeout)

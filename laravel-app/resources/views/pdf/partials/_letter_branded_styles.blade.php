@@ -151,8 +151,20 @@
         display: block;
         max-height: 52px;
         width: auto;
-        margin: 0 0 2px;
+        margin: 0 0 1px;
         background: transparent;
+    }
+    .letter-sign-stamp {
+        display: block;
+        font-size: 7px;
+        line-height: 1.15;
+        color: #555555;
+        margin: 0 0 3px;
+        font-weight: normal;
+    }
+    .letter-corner-stamp .letter-sign-stamp {
+        font-size: 6px;
+        margin: 0;
     }
     .letter-closing {
         margin: 0;

@@ -33,6 +33,13 @@
         display: block;
         background: transparent;
     }
+    .letter-preview-stamp-date {
+        display: block;
+        font-size: 7px;
+        line-height: 1.1;
+        color: #555;
+        margin-top: 1px;
+    }
     .letter-preview-sign {
         display: block;
         max-height: 56px;
@@ -138,6 +145,16 @@
     $editSrc = LetterSignature::resolveEditSrc($data, $editUser);
     $approveSrc = LetterSignature::resolveApproveSrc($data, $approveUser);
     $signSrc = LetterSignature::resolveSignSrc($data, $signUser);
+    $fmtPreviewStamp = function ($d) {
+        if (! $d) {
+            return '';
+        }
+        try {
+            return \Carbon\Carbon::parse($d)->format('M d, Y H:i');
+        } catch (\Throwable $e) {
+            return '';
+        }
+    };
 @endphp
 
 <div class="letter-preview-top-right">
@@ -145,10 +162,20 @@
         <div class="letter-preview-corner-header">{!! $data->header !!}</div>
     @endif
     @if($data->is_edit == 1 && $editSrc)
-        <div class="letter-preview-stamp"><img src="{{ $editSrc }}" alt="Comment" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;"></div>
+        <div class="letter-preview-stamp">
+            <img src="{{ $editSrc }}" alt="Comment" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
+            @if($fmtPreviewStamp($data->edit_signed_at ?? null) !== '')
+                <span class="letter-preview-stamp-date">{{ $fmtPreviewStamp($data->edit_signed_at) }}</span>
+            @endif
+        </div>
     @endif
     @if($data->is_approve == 1 && $approveSrc)
-        <div class="letter-preview-stamp"><img src="{{ $approveSrc }}" alt="Approve" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;"></div>
+        <div class="letter-preview-stamp">
+            <img src="{{ $approveSrc }}" alt="Approve" height="14" style="height:14px;max-height:14px;max-width:48px;width:auto;">
+            @if($fmtPreviewStamp($data->approve_signed_at ?? null) !== '')
+                <span class="letter-preview-stamp-date">{{ $fmtPreviewStamp($data->approve_signed_at) }}</span>
+            @endif
+        </div>
     @endif
 </div>
 
@@ -183,6 +210,9 @@
 <p style="margin-bottom:2px;">Sincerely,</p>
 @if($data->is_sign == 1 && $signSrc)
     <img class="letter-preview-sign" src="{{ $signSrc }}" alt="Signer signature">
+    @if($fmtPreviewStamp($data->sign_signed_at ?? null) !== '')
+        <span class="letter-preview-stamp-date">{{ $fmtPreviewStamp($data->sign_signed_at) }}</span>
+    @endif
 @endif
 <div class="letter-preview-closing">
 @if($data->footer != null)

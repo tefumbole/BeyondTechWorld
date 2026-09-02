@@ -25,7 +25,7 @@
                 </div>
                 <div class="form-group">
                     <label>Phone *</label>
-                    <input type="text" id="ct-qc-phone" class="form-control phone-sanitize" required>
+                                    <input type="text" id="ct-qc-phone" class="form-control phone-sanitize js-phone-holder" required>
                 </div>
                 <div class="form-group">
                     <label>Email</label>

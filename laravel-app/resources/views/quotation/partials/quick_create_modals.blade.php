@@ -32,7 +32,7 @@
                 </div>
                 <div class="form-group">
                     <label>{{trans('file.Phone Number')}} *</label>
-                    <input type="text" id="qc_customer_phone" required class="form-control">
+                    <input type="text" id="qc_customer_phone" required class="form-control js-phone-holder">
                 </div>
                 <div class="form-group">
                     <label>{{trans('file.Address')}}</label>

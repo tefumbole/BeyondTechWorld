@@ -693,6 +693,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     Route::get('customer/payment_check', 'CustomerController@CustomerPayemntCheck')->name('customer.payment_check');
 	Route::post('importcustomer', 'CustomerController@importCustomer')->name('customer.import');
+    Route::get('people/phone-lookup', 'PeoplePhoneLookupController@lookup')->name('people.phone-lookup');
     Route::get('people/transfer', 'PeopleTransferController@index')->name('people.transfer');
     Route::get('people/export/customers', 'PeopleTransferController@exportCustomers')->name('people.export.customers');
     Route::get('people/export/users', 'PeopleTransferController@exportUsers')->name('people.export.users');

@@ -3939,5 +3939,11 @@
               $(document).ready(buildModuleTabs);
           })();
         </script>
+        <script>
+            window.PEOPLE_PHONE_LOOKUP = @json(auth()->check() ? route('people.phone-lookup') : '');
+        </script>
+        @if(auth()->check())
+            <script src="{{ asset('public/js/phone-holder-lookup.js') }}"></script>
+        @endif
       </body>
     </html>
