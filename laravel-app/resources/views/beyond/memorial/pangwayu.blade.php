@@ -11,11 +11,13 @@
         :root {
             --gold: #d4af37;
             --gold-2: #f0d57a;
-            --ink: #f7f1e4;
-            --muted: #c9c0b0;
-            --bg: #121018;
-            --card: rgba(16, 14, 22, 0.78);
-            --line: rgba(212, 175, 55, 0.35);
+            --ink: #1c160e;
+            --paper: #f7f1e4;
+            --muted: #5c5348;
+            --bg: #1a1410;
+            --card: #fffdf8;
+            --line: #e4d3a4;
+            --soft: #2a2118;
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; min-height: 100%; }
@@ -24,81 +26,114 @@
             color: var(--ink);
             background: var(--bg);
         }
-        .bg {
-            position: fixed; inset: 0; z-index: 0;
+        .shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(260px, 38%) 1fr;
         }
-        .bg img {
+        .portrait {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            background: #0d0a08;
+            overflow: hidden;
+        }
+        .portrait img {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            object-fit: cover; object-position: center 18%;
+            object-fit: cover; object-position: center 15%;
             opacity: 0; transition: opacity 1.4s ease;
         }
-        .bg img.on { opacity: 1; }
-        .bg .wash {
+        .portrait img.on { opacity: 1; }
+        .portrait .wash {
             position: absolute; inset: 0;
             background:
-                linear-gradient(180deg, rgba(18, 12, 8, .35) 0%, rgba(18, 12, 8, .2) 35%, rgba(10, 8, 14, .88) 100%),
-                linear-gradient(120deg, rgba(232, 150, 60, .22), rgba(20, 24, 60, .28));
+                linear-gradient(180deg, rgba(232,150,60,.18) 0%, transparent 40%, rgba(10,8,14,.55) 100%),
+                linear-gradient(90deg, transparent 70%, rgba(26,20,16,.35) 100%);
         }
-        .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 22px 16px 48px; }
-        .kicker { letter-spacing: .28em; text-transform: uppercase; color: var(--gold); font-size: 11px; margin: 0 0 6px; }
+        .portrait .caption {
+            position: absolute; left: 18px; right: 18px; bottom: 20px;
+            color: #f7f1e4;
+            text-shadow: 0 2px 12px rgba(0,0,0,.55);
+        }
+        .portrait .caption strong {
+            display: block;
+            font-family: "Cormorant Garamond", serif;
+            font-size: 28px;
+        }
+        .main {
+            background: var(--paper);
+            padding: 22px 28px 36px;
+            overflow: auto;
+        }
+        .kicker { letter-spacing: .22em; text-transform: uppercase; color: #8a6d1a; font-size: 11px; margin: 0 0 6px; font-weight: 700; }
         h1 {
             font-family: "Cormorant Garamond", serif;
-            font-size: clamp(34px, 8vw, 52px);
-            line-height: 1.05; margin: 0 0 6px; font-weight: 700;
+            font-size: clamp(28px, 4vw, 42px);
+            line-height: 1.08; margin: 0 0 4px; font-weight: 700; color: #1a1408;
         }
-        .meta { color: var(--muted); margin: 0 0 22px; font-size: 15px; }
-        .rings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
+        .meta { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
+        .rings { display: grid; grid-template-columns: repeat(4, 72px); gap: 10px; margin-bottom: 16px; }
         .ring {
-            aspect-ratio: 1; border-radius: 50%;
+            width: 72px; height: 72px; border-radius: 50%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: radial-gradient(circle at center, rgba(18,16,24,.75) 58%, transparent 59%),
-                        conic-gradient(var(--gold) var(--p, 0%), rgba(255,255,255,.12) 0);
+            background: radial-gradient(circle at center, #fffdf8 56%, transparent 57%),
+                        conic-gradient(var(--gold) var(--p, 0%), #efe4c6 0);
             border: 1px solid var(--line);
         }
-        .ring b { font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--gold-2); }
-        .ring span { font-size: 10px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
-        .progress { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; }
+        .ring b { font-family: "Cormorant Garamond", serif; font-size: 20px; color: #6d5410; line-height: 1; }
+        .ring span { font-size: 9px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+        .progress { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
         .progress-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-        .raised { color: #f3a6a0; font-weight: 700; }
-        .target { color: var(--ink); }
-        .bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.12); margin: 10px 0 6px; overflow: hidden; }
-        .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e85d4c, #f0b429); }
-        .pct { font-size: 12px; color: #f3a6a0; }
-        .filters { display: flex; gap: 8px; margin: 0 0 16px; }
+        .raised { color: #b23b32; font-weight: 700; }
+        .target { color: var(--ink); font-weight: 600; }
+        .bar { height: 9px; border-radius: 999px; background: #efe6d2; margin: 8px 0 6px; overflow: hidden; }
+        .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e85d4c, #d4af37); }
+        .pct { font-size: 12px; color: #b23b32; }
+        .filters { display: flex; gap: 8px; margin: 0 0 12px; }
         .filters button {
-            border: 1px solid var(--line); background: transparent; color: var(--ink);
-            border-radius: 999px; padding: 7px 14px; font-weight: 600; cursor: pointer;
+            border: 1px solid #c9b36a; background: #fff; color: var(--ink);
+            border-radius: 999px; padding: 6px 13px; font-weight: 700; cursor: pointer;
         }
         .filters button.on { background: var(--gold); color: #1a1408; border-color: var(--gold); }
-        .group { margin: 22px 0 10px; color: var(--gold); letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
-        .grid { display: grid; gap: 10px; }
+        .group { margin: 16px 0 8px; color: #8a6d1a; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; font-weight: 700; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .card {
             text-align: left; width: 100%;
-            background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-            padding: 13px 14px; color: inherit; cursor: pointer;
+            background: #fff; border: 1px solid var(--line); border-radius: 12px;
+            padding: 10px 12px; color: inherit; cursor: pointer;
         }
-        .card[disabled] { opacity: .72; cursor: default; }
-        .card h3 { margin: 0 0 4px; font-size: 17px; }
-        .card .amt { color: var(--gold-2); font-size: 13px; }
-        .mini { height: 5px; background: rgba(255,255,255,.1); border-radius: 99px; margin: 8px 0; overflow: hidden; }
+        .card[disabled] { opacity: .7; cursor: default; }
+        .card h3 { margin: 0 0 3px; font-size: 15px; }
+        .card .amt { color: #6d5410; font-size: 12px; font-weight: 600; }
+        .mini { height: 4px; background: #efe6d2; border-radius: 99px; margin: 7px 0; overflow: hidden; }
         .mini > i { display: block; height: 100%; background: var(--gold); }
         .who { font-size: 12px; color: var(--muted); }
-        .taken { color: #9be7b0; font-size: 12px; font-weight: 700; }
-        .flash { background: rgba(80, 160, 90, .2); border: 1px solid #6fbf7a; color: #d8ffd8; padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; }
-        .flash.bad { background: rgba(160, 60, 50, .2); border-color: #e07a6a; color: #ffd4cc; }
+        .taken { color: #1d7a45; font-size: 12px; font-weight: 700; }
+        .flash { background: #e8f6ea; border: 1px solid #8dca98; color: #1d5c2c; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
+        .flash.bad { background: #fdecea; border-color: #e7a399; color: #8a2a20; }
+        .foot { margin-top: 22px; text-align: center; color: var(--muted); font-size: 13px; }
+        @media (max-width: 860px) {
+            .shell { grid-template-columns: 1fr; }
+            .portrait { position: relative; min-height: 220px; height: 38vw; max-height: 280px; }
+            .portrait .caption { display: none; }
+            .main { padding: 16px 14px 28px; }
+            .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+            .ring { width: 100%; height: auto; aspect-ratio: 1; }
+            .grid { grid-template-columns: 1fr; }
+        }
         .modal {
             display: none; position: fixed; inset: 0; z-index: 20;
             background: rgba(8, 6, 10, .72); padding: 18px 12px; overflow: auto;
         }
         .modal.on { display: block; }
         .sheet {
-            max-width: 440px; margin: 24px auto; background: #1b1722; border: 1px solid var(--line);
+            max-width: 440px; margin: 24px auto; background: #fffdf8; border: 1px solid var(--line);
             border-radius: 18px; padding: 18px 16px 16px; color: var(--ink);
         }
         .sheet h2 { font-family: "Cormorant Garamond", serif; margin: 0 0 12px; }
-        label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+        label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; font-weight: 700; }
         input, select {
-            width: 100%; border: 1px solid var(--line); background: #120f16; color: var(--ink);
+            width: 100%; border: 1px solid #d8c89a; background: #fff; color: var(--ink);
             border-radius: 10px; padding: 11px 12px; font-size: 16px;
         }
         .phone-row { display: grid; grid-template-columns: 118px 1fr; gap: 8px; }
@@ -108,7 +143,7 @@
         }
         .btn-gold { background: linear-gradient(180deg, #f0d57a, #d4af37); color: #1a1408; }
         .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-        .err { color: #ffb4a8; font-size: 13px; min-height: 18px; margin-top: 8px; }
+        .err { color: #b23b32; font-size: 13px; min-height: 18px; margin-top: 8px; }
         .close { float: right; background: none; border: 0; color: var(--muted); font-size: 22px; cursor: pointer; }
         @media (max-width: 420px) {
             .ring b { font-size: 18px; }
@@ -117,14 +152,19 @@
     </style>
 </head>
 <body>
-<div class="bg" id="bg">
+<div class="shell">
+<aside class="portrait" id="bg">
     @foreach($photos as $i => $src)
-        <img src="{{ $src }}" alt="" class="{{ $i === 0 ? 'on' : '' }}">
+        <img src="{{ $src }}" alt="Pa Ngwayu Francis" class="{{ $i === 0 ? 'on' : '' }}">
     @endforeach
     <div class="wash"></div>
-</div>
+    <div class="caption">
+        <strong>Pa Ngwayu Francis</strong>
+        <span>73 years</span>
+    </div>
+</aside>
 
-<div class="wrap">
+<main class="main">
     @if($flashPay === 'ok')
         <div class="flash">Payment received. Thank you.</div>
     @elseif($flashPay === 'failed')
@@ -159,7 +199,8 @@
     </div>
 
     <div id="list"></div>
-    <p class="meta" style="margin-top:28px;text-align:center;">for the Ngwayu's Family<br>Pa Ngwayu Richard</p>
+    <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard</p>
+</main>
 </div>
 
 <div class="modal" id="modal">
