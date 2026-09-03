@@ -186,4 +186,19 @@
     document.addEventListener('blur', function (e) {
         if (isPhoneInput(e.target)) lookup(e.target);
     }, true);
+
+    function focusPhone(root) {
+        var phone = root && root.querySelector && root.querySelector('.js-phone-holder');
+        if (phone) {
+            try { phone.focus(); } catch (err) {}
+        }
+    }
+    if (window.jQuery) {
+        window.jQuery(document).on('shown.bs.modal', function (e) {
+            var id = (e.target && e.target.id) || '';
+            if (id === 'addCustomer' || id === 'addBookingCustomer' || id === 'ct-add-customer-modal') {
+                focusPhone(e.target);
+            }
+        });
+    }
 })();

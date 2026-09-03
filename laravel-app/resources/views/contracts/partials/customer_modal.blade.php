@@ -8,6 +8,14 @@
             <div class="modal-body">
                 <input type="hidden" id="ct-qc-target-prefix" value="">
                 <div class="form-group">
+                    <label>Phone *</label>
+                    <input type="text" id="ct-qc-phone" class="form-control phone-sanitize js-phone-holder" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" id="ct-qc-name" class="form-control" required>
+                </div>
+                <div class="form-group">
                     <label>Customer group</label>
                     <select id="ct-qc-group" class="form-control">
                         @foreach($customerGroups ?? [] as $g)
@@ -16,16 +24,8 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Name *</label>
-                    <input type="text" id="ct-qc-name" class="form-control" required>
-                </div>
-                <div class="form-group">
                     <label>Company name</label>
                     <input type="text" id="ct-qc-company" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>Phone *</label>
-                                    <input type="text" id="ct-qc-phone" class="form-control phone-sanitize js-phone-holder" required>
                 </div>
                 <div class="form-group">
                     <label>Email</label>

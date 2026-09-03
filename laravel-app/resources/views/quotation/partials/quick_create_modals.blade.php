@@ -15,6 +15,14 @@
             <div class="modal-body">
                 <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                 <div class="form-group">
+                    <label>{{trans('file.Phone Number')}} *</label>
+                    <input type="text" id="qc_customer_phone" required class="form-control js-phone-holder" autofocus>
+                </div>
+                <div class="form-group">
+                    <label>{{trans('file.name')}} *</label>
+                    <input type="text" id="qc_customer_name" required class="form-control">
+                </div>
+                <div class="form-group">
                     <label>{{trans('file.Customer Group')}} *</label>
                     <select required class="form-control" name="qc_customer_group_id" id="qc_customer_group_id">
                         @foreach($lims_customer_group_all as $customer_group)
@@ -23,16 +31,8 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>{{trans('file.name')}} *</label>
-                    <input type="text" id="qc_customer_name" required class="form-control">
-                </div>
-                <div class="form-group">
                     <label>{{trans('file.Email')}}</label>
                     <input type="email" id="qc_customer_email" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>{{trans('file.Phone Number')}} *</label>
-                    <input type="text" id="qc_customer_phone" required class="form-control js-phone-holder">
                 </div>
                 <div class="form-group">
                     <label>{{trans('file.Address')}}</label>

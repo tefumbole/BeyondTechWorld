@@ -1056,4 +1056,74 @@ class WhatsAppMessage
 
         return $msg;
     }
+
+    public static function funeralFooter()
+    {
+        return "\n_for the Ngwayu's Family_\n_Pa Ngwayu Richard_";
+    }
+
+    public static function funeralHeader($subjectEn, $subjectFr)
+    {
+        $line = '🌅 *PA NGWAYU FRANCIS*'."\n";
+        $line .= '💌 *'.strtoupper($subjectEn).' / '.strtoupper($subjectFr)."*\n";
+        $line .= "━━━━━━━━━━━━━━━━\n\n";
+
+        return $line;
+    }
+
+    public static function funeralPledgeThanks($name, $itemName, $amount, $remainingLabel, $funeralDate, $pageUrl)
+    {
+        $amountLabel = number_format((int) $amount).' XAF';
+        $msg = self::funeralHeader('New pledge', 'Nouvel engagement');
+        $msg .= self::greeting($name ?: 'Family');
+        $msg .= "Thank you for selecting *{$itemName}* for Pa Ngwayu's funeral.\n";
+        $msg .= "Merci d'avoir pris *{$itemName}* pour les obsèques de Pa Ngwayu.\n\n";
+        $msg .= self::bullet('Item / Article', $itemName);
+        $msg .= self::bullet('Amount / Montant', $amountLabel);
+        $msg .= self::bullet('Remaining / Reste', $remainingLabel);
+        $msg .= self::bullet('Funeral / Obsèques', $funeralDate);
+        $msg .= self::actionLink('View the programme / Voir le programme', $pageUrl);
+        $msg .= self::funeralFooter();
+
+        return $msg;
+    }
+
+    public static function funeralPledgePaid($name, $itemName, $amount, $remainingLabel, $funeralDate, $pageUrl)
+    {
+        $amountLabel = number_format((int) $amount).' XAF';
+        $msg = self::funeralHeader('Payment received', 'Paiement reçu');
+        $msg .= self::greeting($name ?: 'Family');
+        $msg .= "Your payment for *{$itemName}* is confirmed. Thank you.\n";
+        $msg .= "Votre paiement pour *{$itemName}* est confirmé. Merci.\n\n";
+        $msg .= self::bullet('Item / Article', $itemName);
+        $msg .= self::bullet('Paid / Payé', $amountLabel);
+        $msg .= self::bullet('Remaining / Reste', $remainingLabel);
+        $msg .= self::bullet('Funeral / Obsèques', $funeralDate);
+        $msg .= self::actionLink('View the programme / Voir le programme', $pageUrl);
+        $msg .= self::funeralFooter();
+
+        return $msg;
+    }
+
+    public static function funeralPledgeAdmin($name, $phone, $itemName, $amount, $kind, $pageUrl)
+    {
+        $paid = $kind === 'paid';
+        $subjectEn = $paid ? 'New payment' : 'New pledge';
+        $subjectFr = $paid ? 'Nouveau paiement' : 'Nouvel engagement';
+        $amountLabel = number_format((int) $amount).' XAF';
+        $msg = self::funeralHeader($subjectEn, $subjectFr);
+        $msg .= self::greeting('Pa Ngwayu Richard');
+        $msg .= $paid
+            ? "A family member has *paid* toward Pa Ngwayu's funeral.\nUn membre de la famille a *payé* pour les obsèques.\n\n"
+            : "A family member has *pledged* toward Pa Ngwayu's funeral.\nUn membre de la famille s'est *engagé* pour les obsèques.\n\n";
+        $msg .= self::bullet('Name / Nom', $name);
+        $msg .= self::bullet('Phone / Téléphone', $phone);
+        $msg .= self::bullet('Item / Article', $itemName);
+        $msg .= self::bullet('Amount / Montant', $amountLabel);
+        $msg .= self::bullet('Status / Statut', $paid ? 'Paid / Payé' : 'Pledged / Engagé');
+        $msg .= self::actionLink('Open programme / Ouvrir le programme', $pageUrl);
+        $msg .= self::funeralFooter();
+
+        return $msg;
+    }
 }

@@ -101,12 +101,12 @@
                         <p class="text-muted small mb-2">Add someone who is not listed. They are saved in <strong>People → Customers</strong> (system-wide) and selected automatically.</p>
                         <div class="row">
                             <div class="col-md-6 mb-2">
-                                <label class="small font-weight-bold">Name *</label>
-                                <input type="text" class="jb-field" id="jb-new-sup-name" placeholder="Full name">
-                            </div>
-                            <div class="col-md-6 mb-2">
                                 <label class="small font-weight-bold">Phone / WhatsApp *</label>
                                 <input type="tel" class="jb-field js-phone-holder" id="jb-new-sup-phone" placeholder="675321739 or +237…">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="small font-weight-bold">Name *</label>
+                                <input type="text" class="jb-field" id="jb-new-sup-name" placeholder="Full name">
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="small font-weight-bold">Email (optional)</label>

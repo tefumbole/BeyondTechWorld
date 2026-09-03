@@ -884,20 +884,20 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Customer Group *</label>
-                        <select id="quick_customer_group_id" class="form-control">
-                            @foreach($lims_customer_group_all as $customer_group)
-                                <option value="{{ $customer_group->id }}">{{ $customer_group->name }}</option>
-                            @endforeach
-                        </select>
+                        <label>Phone Number *</label>
+                        <input type="text" id="quick_customer_phone" class="form-control phone-sanitize js-phone-holder" required autofocus>
                     </div>
                     <div class="form-group">
                         <label>Name *</label>
                         <input type="text" id="quick_customer_name" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label>Phone Number *</label>
-                        <input type="text" id="quick_customer_phone" class="form-control phone-sanitize js-phone-holder" required>
+                        <label>Customer Group *</label>
+                        <select id="quick_customer_group_id" class="form-control">
+                            @foreach($lims_customer_group_all as $customer_group)
+                                <option value="{{ $customer_group->id }}">{{ $customer_group->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Email</label>

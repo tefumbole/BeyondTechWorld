@@ -92,6 +92,11 @@ Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('b
 Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');
 Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@confirmation')->name('beyond.permissions.confirmation');
 
+Route::get('/pangwayu', 'PublicFuneralPledgeController@index')->name('funeral.pangwayu');
+Route::get('/pangwayu/lookup', 'PublicFuneralPledgeController@lookup')->name('funeral.pangwayu.lookup');
+Route::post('/pangwayu/pledge', 'PublicFuneralPledgeController@store')->name('funeral.pangwayu.store');
+Route::get('/pangwayu/payment/check', 'PublicFuneralPledgeController@payment')->name('funeral.pangwayu.payment');
+
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::get('/student/dashboard', 'StudentDashboardController@dashboard')->name('student.dashboard');
@@ -345,6 +350,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/tasks/users/quick', 'TaskManagerController@quickAssignee')->name('tasks.users.quick');
 
     // Job Board admin
+    Route::get('/admin/funeral-pledges', 'AdminFuneralPledgeController@index')->name('funeral.pledges.admin');
+
     Route::get('/admin/permissions', 'StaffPermissionAdminController@index')->name('permissions.index');
     Route::get('/admin/permissions/requests', 'StaffPermissionAdminController@requests')->name('permissions.requests');
     Route::get('/admin/permissions/approved', 'StaffPermissionAdminController@approved')->name('permissions.approved');

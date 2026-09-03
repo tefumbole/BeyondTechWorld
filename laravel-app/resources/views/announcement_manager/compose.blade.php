@@ -131,12 +131,12 @@
                             <p class="text-muted small mb-2">Add someone who is not in the list yet. They are saved as a customer and selected automatically.</p>
                             <div class="row">
                                 <div class="col-md-6 mb-2">
-                                    <label class="small font-weight-bold">Name *</label>
-                                    <input type="text" class="an-field" id="an-new-name" placeholder="Full name">
-                                </div>
-                                <div class="col-md-6 mb-2">
                                     <label class="small font-weight-bold">WhatsApp / Phone *</label>
                                     <input type="tel" class="an-field js-phone-holder" id="an-new-phone" placeholder="675321739 or +237…">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="small font-weight-bold">Name *</label>
+                                    <input type="text" class="an-field" id="an-new-name" placeholder="Full name">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <label class="small font-weight-bold">Email (optional)</label>

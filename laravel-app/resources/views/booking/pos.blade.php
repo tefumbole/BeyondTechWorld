@@ -1670,6 +1670,14 @@
                     <div class="modal-body">
                       <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                         <div class="form-group">
+                            <label>{{trans('file.Phone Number')}} *</label>
+                            <input type="text" name="phone_number" required class="form-control js-phone-holder" autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label>{{trans('file.name')}} *</strong> </label>
+                            <input type="text" name="customer_name" required class="form-control">
+                        </div>
+                        <div class="form-group">
                             <label>{{trans('file.Customer Group')}} *</strong> </label>
                             <select required class="form-control selectpicker" name="customer_group_id">
                                 @foreach($lims_customer_group_all as $customer_group)
@@ -1678,16 +1686,8 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>{{trans('file.name')}} *</strong> </label>
-                            <input type="text" name="customer_name" required class="form-control">
-                        </div>
-                        <div class="form-group">
                             <label>{{trans('file.Email')}}</label>
                             <input type="text" name="email" placeholder="example@example.com" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label>{{trans('file.Phone Number')}} *</label>
-                            <input type="text" name="phone_number" required class="form-control js-phone-holder">
                         </div>
                         <div class="form-group">
                             <label>{{trans('file.Address')}} *</label>

@@ -16,18 +16,29 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.Customer Group')}} *</strong> </label>
-                                    <select required class="form-control selectpicker" id="customer-group-id" name="customer_group_id" onchange='saveValue(this);'>
-                                        @foreach($lims_customer_group_all as $customer_group)
-                                            <option value="{{$customer_group->id}}">{{$customer_group->name}}</option>
-                                        @endforeach
-                                    </select>
+                                    <label>{{trans('file.Phone Number')}} *</label>
+                                    <input type="text" name="phone_number" required class="form-control js-phone-holder" value="237" autofocus>
+                                    @if($errors->has('phone_number'))
+                                   <span>
+                                       <strong>{{ $errors->first('phone_number') }}</strong>
+                                    </span>
+                                    @endif
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>{{trans('file.name')}} *</strong> </label>
                                     <input type="text" id="name" name="customer_name" required class="form-control" onkeyup='saveValue(this);'>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{trans('file.Customer Group')}} *</strong> </label>
+                                    <select required class="form-control selectpicker" id="customer-group-id" name="customer_group_id" onchange='saveValue(this);'>
+                                        @foreach($lims_customer_group_all as $customer_group)
+                                            <option value="{{$customer_group->id}}">{{$customer_group->name}}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -40,17 +51,6 @@
                                 <div class="form-group">
                                     <label>{{trans('file.Email')}}</label>
                                     <input type="email" name="email" placeholder="example@example.com" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>{{trans('file.Phone Number')}} *</label>
-                                    <input type="text" name="phone_number" required class="form-control js-phone-holder"  value="237">
-                                    @if($errors->has('phone_number'))
-                                   <span>
-                                       <strong>{{ $errors->first('phone_number') }}</strong>
-                                    </span>
-                                    @endif
                                 </div>
                             </div>
                             <div class="col-md-6">

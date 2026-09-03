@@ -16,6 +16,23 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
+                                    <label>{{trans('file.Phone Number')}} *</label>
+                                    <input type="text" name="phone_number" required value="{{$lims_customer_data->phone_number}}" class="form-control js-phone-holder">
+                                    @if($errors->has('phone_number'))
+                                   <span>
+                                       <strong>{{ $errors->first('phone_number') }}</strong>
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{trans('file.name')}} *</strong> </label>
+                                    <input type="text" name="customer_name" value="{{$lims_customer_data->name}}" required class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <input type="hidden" name="customer_group" value="{{$lims_customer_data->customer_group_id}}">
                                     <label>{{trans('file.Customer Group')}} *</strong> </label>
                                     <select required class="form-control selectpicker" name="customer_group_id">
@@ -23,12 +40,6 @@
                                             <option value="{{$customer_group->id}}">{{$customer_group->name}}</option>
                                         @endforeach
                                     </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>{{trans('file.name')}} *</strong> </label>
-                                    <input type="text" name="customer_name" value="{{$lims_customer_data->name}}" required class="form-control">
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -41,17 +52,6 @@
                                 <div class="form-group">
                                     <label>{{trans('file.Email')}}</label>
                                     <input type="email" name="email" value="{{$lims_customer_data->email}}" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>{{trans('file.Phone Number')}} *</label>
-                                    <input type="text" name="phone_number" required value="{{$lims_customer_data->phone_number}}" class="form-control js-phone-holder">
-                                    @if($errors->has('phone_number'))
-                                   <span>
-                                       <strong>{{ $errors->first('phone_number') }}</strong>
-                                    </span>
-                                    @endif
                                 </div>
                             </div>
                             <div class="col-md-6">

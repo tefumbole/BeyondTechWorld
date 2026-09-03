@@ -72,6 +72,11 @@ return [
             'clickatell_api_key' => env('CLICKATELL_API_KEY'),
         ],
 
+        'funeral_pledge' => [
+            'enabled' => filter_var(env('FUNERAL_PLEDGE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'admin_phone' => env('FUNERAL_PLEDGE_ADMIN_PHONE', '237677318405'),
+        ],
+
         'campay' => [
             'token' => env('CAMPAY_TOKEN', env('MOMO_TOKEN')),
             'username' => env('CAMPAY_USERNAME'),
