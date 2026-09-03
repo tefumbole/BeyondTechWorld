@@ -223,7 +223,7 @@
     </div>
 
     <div id="list"></div>
-    <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard</p>
+    <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard<br><span style="display:block;margin-top:8px;">Developed By. Sr. Engr. Tefu R. Mbole</span></p>
 </main>
 </div>
 
