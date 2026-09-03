@@ -38,9 +38,9 @@ class FuneralPledgeService
         }
 
         $groups = [
-            'food' => 'Food & main service',
-            'takeaway' => 'Take-away',
-            'logistics' => 'Mortuary & logistics',
+            'food' => 'Food and main service',
+            'takeaway' => 'Take Away',
+            'logistics' => 'Mortuary and Logistics',
             'other' => 'Other',
         ];
         $items = [];

@@ -95,7 +95,29 @@
             border-radius: 999px; padding: 6px 13px; font-weight: 700; cursor: pointer;
         }
         .filters button.on { background: var(--gold); color: #1a1408; border-color: var(--gold); }
-        .group { margin: 16px 0 8px; color: #8a6d1a; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; font-weight: 700; }
+        .group {
+            margin: 18px 0 10px;
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 10px;
+            color: #fff;
+        }
+        .group h2 {
+            margin: 0;
+            font-family: "Cormorant Garamond", serif;
+            font-size: clamp(22px, 3.2vw, 30px);
+            line-height: 1.1;
+            font-weight: 700;
+        }
+        .group .tot { text-align: right; font-size: 13px; font-weight: 700; line-height: 1.35; }
+        .group .tot b { display: block; font-size: 18px; }
+        .group-food { background: linear-gradient(135deg, #c45c26, #e39b2d); }
+        .group-takeaway { background: linear-gradient(135deg, #1f7a4d, #3cb371); }
+        .group-logistics { background: linear-gradient(135deg, #1e4d8c, #3d7ad6); }
+        .group-other { background: linear-gradient(135deg, #6b2d7a, #b455c4); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .card {
             text-align: left; width: 100%;
@@ -103,7 +125,7 @@
             padding: 10px 12px; color: inherit; cursor: pointer;
         }
         .card[disabled] { opacity: .7; cursor: default; }
-        .card h3 { margin: 0 0 3px; font-size: 15px; }
+        .card h3 { margin: 0 0 3px; font-size: 18px; font-weight: 800; color: #1a1408; }
         .card .amt { color: #6d5410; font-size: 12px; font-weight: 600; }
         .mini { height: 4px; background: #efe6d2; border-radius: 99px; margin: 7px 0; overflow: hidden; }
         .mini > i { display: block; height: 100%; background: var(--gold); }
@@ -120,6 +142,8 @@
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
             .ring { width: 100%; height: auto; aspect-ratio: 1; }
             .grid { grid-template-columns: 1fr; }
+            .group { flex-direction: column; align-items: flex-start; }
+            .group .tot { text-align: left; }
         }
         .modal {
             display: none; position: fixed; inset: 0; z-index: 20;
@@ -283,7 +307,18 @@
                 return true;
             });
             if (!rows.length) return;
-            html += '<div class="group">' + GROUPS[key] + '</div><div class="grid">';
+            var allInCat = ITEMS.filter(function (it) { return it.category === key; });
+            var catTarget = 0;
+            var catRaised = 0;
+            allInCat.forEach(function (it) {
+                if (it.target) catTarget += Number(it.target);
+                catRaised += Number(it.committed || 0);
+            });
+            var totLine = catTarget
+                ? (money(catRaised) + ' / ' + money(catTarget) + ' XAF')
+                : (catRaised ? (money(catRaised) + ' XAF pledged') : 'Open');
+            html += '<div class="group group-' + key + '"><h2>' + escapeHtml(GROUPS[key]) + '</h2>'
+                + '<div class="tot">Section total<b>' + totLine + '</b></div></div><div class="grid">';
             rows.forEach(function (it) {
                 var fill = it.target ? Math.min(100, Math.round((it.committed / it.target) * 100)) : (it.committed ? 20 : 0);
                 var amt = it.is_open
