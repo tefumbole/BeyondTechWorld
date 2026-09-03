@@ -62,26 +62,26 @@
         }
         .main {
             background: var(--paper);
-            padding: 22px 28px 36px;
+            padding: 28px 32px 40px;
             overflow: auto;
         }
-        .kicker { letter-spacing: .22em; text-transform: uppercase; color: #8a6d1a; font-size: 11px; margin: 0 0 6px; font-weight: 700; }
+        .kicker { letter-spacing: .24em; text-transform: uppercase; color: #6b5410; font-size: 12px; margin: 0 0 8px; font-weight: 700; }
         h1 {
             font-family: "Cormorant Garamond", serif;
-            font-size: clamp(28px, 4vw, 42px);
-            line-height: 1.08; margin: 0 0 4px; font-weight: 700; color: #1a1408;
+            font-size: clamp(34px, 5vw, 52px);
+            line-height: 1.05; margin: 0 0 8px; font-weight: 700; color: #14100a;
         }
-        .meta { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
-        .rings { display: grid; grid-template-columns: repeat(4, 72px); gap: 10px; margin-bottom: 16px; }
+        .meta { color: #3c3428; margin: 0 0 20px; font-size: 17px; line-height: 1.45; }
+        .rings { display: grid; grid-template-columns: repeat(4, 86px); gap: 12px; margin-bottom: 22px; }
         .ring {
-            width: 72px; height: 72px; border-radius: 50%;
+            width: 86px; height: 86px; border-radius: 50%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: radial-gradient(circle at center, #fffdf8 56%, transparent 57%),
-                        conic-gradient(var(--gold) var(--p, 0%), #efe4c6 0);
-            border: 1px solid var(--line);
+                        conic-gradient(#b8860b var(--p, 0%), #efe4c6 0);
+            border: 1px solid #d4bf86;
         }
-        .ring b { font-family: "Cormorant Garamond", serif; font-size: 20px; color: #6d5410; line-height: 1; }
-        .ring span { font-size: 9px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; }
+        .ring b { font-family: "Cormorant Garamond", serif; font-size: 28px; color: #14100a; line-height: 1; }
+        .ring span { font-size: 10px; letter-spacing: .12em; color: #4a4238; text-transform: uppercase; font-weight: 700; }
         .progress { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; }
         .progress-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
         .raised { color: #b23b32; font-weight: 700; }
@@ -133,11 +133,89 @@
         .taken { color: #1d7a45; font-size: 12px; font-weight: 700; }
         .flash { background: #e8f6ea; border: 1px solid #8dca98; color: #1d5c2c; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
         .flash.bad { background: #fdecea; border-color: #e7a399; color: #8a2a20; }
-        .eulogy-box { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
-        .eulogy-box h3 { margin: 0 0 6px; font-size: 17px; }
-        .eulogy-box p { margin: 0; color: #3c3428; white-space: pre-wrap; }
-        .eulogy-box img { height: 42px; margin-top: 8px; }
-        .sig-pad { width: 100%; height: 140px; border: 1px dashed #c9b36a; border-radius: 10px; background: #fff; touch-action: none; }
+        .eulogies {
+            margin-top: 28px;
+            padding-top: 8px;
+        }
+        .eulogies-head { margin-bottom: 16px; }
+        .eulogies-title {
+            font-family: "Cormorant Garamond", serif;
+            font-size: clamp(30px, 4vw, 42px);
+            line-height: 1.1;
+            margin: 0 0 8px;
+            color: #14100a;
+            font-weight: 700;
+        }
+        .eulogies-lead {
+            margin: 0 0 16px;
+            color: #3c3428;
+            font-size: 18px;
+            line-height: 1.6;
+            max-width: 34em;
+        }
+        .eulogies-count {
+            display: inline-block;
+            margin: 0 0 16px;
+            color: #6b5410;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .eulogy-box {
+            background: #fffdf8;
+            border: 1px solid #d8c89a;
+            border-radius: 16px;
+            padding: 20px 20px 16px;
+            margin-bottom: 14px;
+        }
+        .eulogy-box p {
+            margin: 0 0 14px;
+            color: #1c160e;
+            font-size: 19px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+        .eulogy-who {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            border-top: 1px solid #efe4c6;
+            padding-top: 12px;
+        }
+        .eulogy-who cite {
+            font-family: "Cormorant Garamond", serif;
+            font-style: normal;
+            font-size: 22px;
+            font-weight: 600;
+            color: #14100a;
+        }
+        .eulogy-box img { height: 48px; max-width: 160px; object-fit: contain; }
+        .eulogies-empty {
+            background: #fffdf8;
+            border: 1px dashed #c9b36a;
+            border-radius: 16px;
+            padding: 22px 18px;
+            color: #3c3428;
+            font-size: 17px;
+            line-height: 1.55;
+        }
+        .sig-pad { width: 100%; height: 150px; border: 1px dashed #c9b36a; border-radius: 10px; background: #fff; touch-action: none; }
+        #eulogyModal .sheet { max-width: 560px; }
+        #eulogyModal textarea {
+            width: 100%;
+            min-height: 180px;
+            border: 1px solid #d8c89a;
+            border-radius: 10px;
+            padding: 14px 14px;
+            font-size: 18px;
+            line-height: 1.6;
+            font-family: inherit;
+            color: #1c160e;
+            background: #fff;
+            resize: vertical;
+        }
         .actions3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
         @media (max-width: 520px) { .actions3 { grid-template-columns: 1fr; } }
         .foot { margin-top: 22px; text-align: center; color: var(--muted); font-size: 13px; }
@@ -148,6 +226,9 @@
             .main { padding: 16px 14px 28px; }
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
             .ring { width: 100%; height: auto; aspect-ratio: 1; }
+            .ring b { font-size: 24px; }
+            .eulogy-box { padding: 16px 14px 14px; }
+            .eulogy-box p { font-size: 17px; }
             .grid { grid-template-columns: 1fr; }
             .group { flex-direction: column; align-items: flex-start; }
             .group .tot { text-align: left; }
@@ -177,7 +258,7 @@
         .err { color: #b23b32; font-size: 13px; min-height: 18px; margin-top: 8px; }
         .close { float: right; background: none; border: 0; color: var(--muted); font-size: 22px; cursor: pointer; }
         @media (max-width: 420px) {
-            .ring b { font-size: 18px; }
+            .ring b { font-size: 22px; }
             .phone-row { grid-template-columns: 1fr; }
         }
     </style>
@@ -212,10 +293,10 @@
     <p class="meta">73 years · Funeral 26 September 2026</p>
 
     <div class="rings" id="rings">
-        <div class="ring" style="--p:0%"><b id="d">0</b><span>Days</span></div>
-        <div class="ring" style="--p:0%"><b id="h">0</b><span>Hours</span></div>
-        <div class="ring" style="--p:0%"><b id="m">0</b><span>Mins</span></div>
-        <div class="ring" style="--p:0%"><b id="s">0</b><span>Secs</span></div>
+        <div class="ring" style="--p:0%"><b id="d">0</b><span id="dLabel">Days</span></div>
+        <div class="ring" style="--p:0%"><b id="h">0</b><span id="hLabel">Hours</span></div>
+        <div class="ring" style="--p:0%"><b id="m">0</b><span id="mLabel">Mins</span></div>
+        <div class="ring" style="--p:0%"><b id="s">0</b><span id="sLabel">Secs</span></div>
     </div>
 
     <div class="progress">
@@ -234,25 +315,28 @@
 
     <div id="list"></div>
 
-    <div id="eulogies">
-        <div class="group group-other" style="margin-top:22px;">
-            <h2>Eulogies</h2>
-            <div class="tot">Words for Pa Ngwayu<b>{{ count($eulogies) }} written</b></div>
+    <section class="eulogies" id="eulogies">
+        <div class="eulogies-head">
+            <p class="kicker">Words of remembrance</p>
+            <h2 class="eulogies-title">Eulogies</h2>
+            <p class="eulogies-lead">Share a few words for Pa Ngwayu Francis. Enter your phone and your name will appear, or type it yourself. You may add a signature before you submit.</p>
+            <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
         </div>
-        <p class="meta">Share a few words. Your name is found from your phone, or type it.</p>
-        <button type="button" class="btn btn-gold" id="openEulogy" style="margin-bottom:14px;">Write a eulogy</button>
+        <button type="button" class="btn btn-gold" id="openEulogy" style="margin-bottom:16px;">Leave a eulogy</button>
         @forelse($eulogies as $eu)
             <article class="eulogy-box">
-                <h3>{{ $eu['name'] }}</h3>
                 <p>{{ $eu['body'] }}</p>
-                @if($eu['has_signature'])
-                    <img src="{{ $eu['signature'] }}" alt="Signature">
-                @endif
+                <div class="eulogy-who">
+                    <cite>{{ $eu['name'] }}</cite>
+                    @if($eu['has_signature'])
+                        <img src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
+                    @endif
+                </div>
             </article>
         @empty
-            <p class="meta">Be the first to write a eulogy.</p>
+            <p class="eulogies-empty">Be the first to leave a eulogy for Pa Ngwayu Francis.</p>
         @endforelse
-    </div>
+    </section>
 
     <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard<br><span style="display:block;margin-top:8px;">Developed By. Sr. Engr. Tefu R. Mbole</span></p>
 </main>
@@ -290,7 +374,8 @@
 <div class="modal" id="eulogyModal">
     <div class="sheet">
         <button type="button" class="close" id="closeEulogy">&times;</button>
-        <h2>Write a eulogy</h2>
+        <p class="kicker">In loving memory</p>
+        <h2>Leave a eulogy</h2>
         <form id="eulogyForm">
             <label>Phone number *</label>
             <div class="phone-row">
@@ -304,7 +389,7 @@
             <label>Name *</label>
             <input type="text" name="name" id="euName" required>
             <label>Eulogy *</label>
-            <textarea name="body" id="euBody" rows="6" required placeholder="A few words for Pa Ngwayu Francis…" style="width:100%;border:1px solid #d8c89a;border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;"></textarea>
+            <textarea name="body" id="euBody" rows="7" required placeholder="A few words for Pa Ngwayu Francis…"></textarea>
             <label>Signature (optional)</label>
             <canvas id="sigPad" class="sig-pad"></canvas>
             <button type="button" class="btn btn-ghost" id="sigClear" style="margin-top:8px;">Clear signature</button>
@@ -352,6 +437,10 @@
         document.getElementById('h').textContent = h;
         document.getElementById('m').textContent = m;
         document.getElementById('s').textContent = s;
+        document.getElementById('dLabel').textContent = d === 1 ? 'Day' : 'Days';
+        document.getElementById('hLabel').textContent = h === 1 ? 'Hour' : 'Hours';
+        document.getElementById('mLabel').textContent = m === 1 ? 'Min' : 'Mins';
+        document.getElementById('sLabel').textContent = s === 1 ? 'Sec' : 'Secs';
         var rings = document.querySelectorAll('.ring');
         var parts = [d / 30, h / 24, m / 60, s / 60];
         for (var i = 0; i < rings.length; i++) {
