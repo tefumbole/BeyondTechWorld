@@ -42,8 +42,11 @@ class PublicFuneralPledgeController extends Controller
             'photos' => $photos,
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => route('funeral.pangwayu.lookup'),
+            'eulogies' => $data['eulogies'],
             'pledgeUrl' => route('funeral.pangwayu.store'),
+            'eulogyUrl' => route('funeral.pangwayu.eulogy'),
             'flashPay' => $request->get('pay'),
+            'flashEulogy' => $request->get('eulogy'),
         ]);
     }
 
@@ -68,6 +71,7 @@ class PublicFuneralPledgeController extends Controller
             'phone' => 'required|string|max:40',
             'amount' => 'required|integer|min:100',
             'action' => 'required|in:pledge,pay',
+            'pay_method' => 'nullable|in:momo,visa',
         ]);
 
         try {
@@ -95,7 +99,7 @@ class PublicFuneralPledgeController extends Controller
 
         if ($data['action'] === 'pay') {
             try {
-                $link = $this->pledges->paymentLink($pledge);
+                $link = $this->pledges->paymentLink($pledge, $data['pay_method'] ?? 'momo');
 
                 return response()->json(['ok' => true, 'redirect' => $link]);
             } catch (\Throwable $e) {
@@ -104,6 +108,50 @@ class PublicFuneralPledgeController extends Controller
         }
 
         return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    public function storeEulogy(Request $request)
+    {
+        $this->guardEnabled();
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'country_code' => 'required|string|max:10',
+            'phone' => 'required|string|max:40',
+            'body' => 'required|string|max:4000',
+            'signature' => 'nullable|string|max:900000',
+        ]);
+
+        try {
+            $phone = WhatsAppPhone::combine($data['country_code'], $data['phone']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => 'Enter a valid phone number.'], 422);
+        }
+        if (strlen(preg_replace('/\D/', '', $phone)) < 8) {
+            return response()->json(['ok' => false, 'message' => 'Enter a valid phone number.'], 422);
+        }
+
+        try {
+            $this->pledges->createEulogy([
+                'name' => trim($data['name']),
+                'phone' => $phone,
+                'body' => $data['body'],
+                'signature' => $data['signature'] ?? '',
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => 'Could not save the eulogy. Try again.'], 500);
+        }
+
+        return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    public function stripeReturn(Request $request)
+    {
+        $this->guardEnabled();
+        $result = $this->pledges->handleStripeReturn($request->get('session_id'));
+
+        return redirect()->to($result['redirect']);
     }
 
     public function payment(Request $request)

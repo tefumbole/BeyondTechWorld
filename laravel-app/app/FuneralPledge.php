@@ -23,7 +23,7 @@ class FuneralPledge extends Model
 
     protected $fillable = [
         'campaign_id', 'item_id', 'customer_id', 'name', 'phone',
-        'amount', 'kind', 'status', 'campay_reference', 'paid_at',
+        'amount', 'kind', 'status', 'campay_reference', 'stripe_session_id', 'paid_at',
     ];
 
     protected $dates = ['paid_at'];

@@ -133,6 +133,13 @@
         .taken { color: #1d7a45; font-size: 12px; font-weight: 700; }
         .flash { background: #e8f6ea; border: 1px solid #8dca98; color: #1d5c2c; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
         .flash.bad { background: #fdecea; border-color: #e7a399; color: #8a2a20; }
+        .eulogy-box { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+        .eulogy-box h3 { margin: 0 0 6px; font-size: 17px; }
+        .eulogy-box p { margin: 0; color: #3c3428; white-space: pre-wrap; }
+        .eulogy-box img { height: 42px; margin-top: 8px; }
+        .sig-pad { width: 100%; height: 140px; border: 1px dashed #c9b36a; border-radius: 10px; background: #fff; touch-action: none; }
+        .actions3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+        @media (max-width: 520px) { .actions3 { grid-template-columns: 1fr; } }
         .foot { margin-top: 22px; text-align: center; color: var(--muted); font-size: 13px; }
         @media (max-width: 860px) {
             .shell { grid-template-columns: 1fr; }
@@ -196,6 +203,9 @@
     @elseif($flashPay === 'pending')
         <div class="flash">Payment is pending. It will show once confirmed.</div>
     @endif
+    @if($flashEulogy === 'ok')
+        <div class="flash">Your eulogy was received. Thank you.</div>
+    @endif
 
     <p class="kicker">In loving memory</p>
     <h1>Pa Ngwayu Francis</h1>
@@ -223,6 +233,27 @@
     </div>
 
     <div id="list"></div>
+
+    <div id="eulogies">
+        <div class="group group-other" style="margin-top:22px;">
+            <h2>Eulogies</h2>
+            <div class="tot">Words for Pa Ngwayu<b>{{ count($eulogies) }} written</b></div>
+        </div>
+        <p class="meta">Share a few words. Your name is found from your phone, or type it.</p>
+        <button type="button" class="btn btn-gold" id="openEulogy" style="margin-bottom:14px;">Write a eulogy</button>
+        @forelse($eulogies as $eu)
+            <article class="eulogy-box">
+                <h3>{{ $eu['name'] }}</h3>
+                <p>{{ $eu['body'] }}</p>
+                @if($eu['has_signature'])
+                    <img src="{{ $eu['signature'] }}" alt="Signature">
+                @endif
+            </article>
+        @empty
+            <p class="meta">Be the first to write a eulogy.</p>
+        @endforelse
+    </div>
+
     <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard<br><span style="display:block;margin-top:8px;">Developed By. Sr. Engr. Tefu R. Mbole</span></p>
 </main>
 </div>
@@ -247,9 +278,41 @@
             <label>Amount (XAF) *</label>
             <input type="number" name="amount" id="amount" min="100" step="1" required>
             <div class="err" id="formErr"></div>
-            <div class="actions">
+            <div class="actions3">
                 <button type="submit" class="btn btn-ghost" data-action="pledge">Pledge</button>
-                <button type="submit" class="btn btn-gold" data-action="pay">Pay now</button>
+                <button type="submit" class="btn btn-gold" data-action="pay" data-pay="momo">Pay MoMo / OM</button>
+                <button type="submit" class="btn btn-gold" data-action="pay" data-pay="visa">Pay VISA</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="eulogyModal">
+    <div class="sheet">
+        <button type="button" class="close" id="closeEulogy">&times;</button>
+        <h2>Write a eulogy</h2>
+        <form id="eulogyForm">
+            <label>Phone number *</label>
+            <div class="phone-row">
+                <select name="country_code" id="euCountry">
+                    @foreach($countries as $c)
+                        <option value="{{ $c['code'] }}" {{ $c['code'] === '+237' ? 'selected' : '' }}>{{ $c['code'] }}</option>
+                    @endforeach
+                </select>
+                <input type="tel" name="phone" id="euPhone" placeholder="677318405" required>
+            </div>
+            <label>Name *</label>
+            <input type="text" name="name" id="euName" required>
+            <label>Eulogy *</label>
+            <textarea name="body" id="euBody" rows="6" required placeholder="A few words for Pa Ngwayu Francis…" style="width:100%;border:1px solid #d8c89a;border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;"></textarea>
+            <label>Signature (optional)</label>
+            <canvas id="sigPad" class="sig-pad"></canvas>
+            <button type="button" class="btn btn-ghost" id="sigClear" style="margin-top:8px;">Clear signature</button>
+            <input type="hidden" name="signature" id="euSig">
+            <div class="err" id="euErr"></div>
+            <div class="actions" style="margin-top:12px;">
+                <button type="button" class="btn btn-ghost" id="euCancel">Cancel</button>
+                <button type="submit" class="btn btn-gold">Submit eulogy</button>
             </div>
         </form>
     </div>
@@ -261,9 +324,11 @@
     var GROUPS = @json($groups);
     var LOOKUP = @json($lookupUrl);
     var POST = @json($pledgeUrl);
+    var EULOGY = @json($eulogyUrl);
     var END = new Date(@json($funeralAt)).getTime();
     var filter = 'all';
     var action = 'pledge';
+    var payMethod = 'momo';
     var current = null;
     var list = document.getElementById('list');
     var modal = document.getElementById('modal');
@@ -396,6 +461,7 @@
         err.textContent = '';
         var body = new FormData(e.target);
         body.append('action', action);
+        if (action === 'pay') body.append('pay_method', payMethod);
         fetch(POST, {
             method: 'POST',
             headers: {
@@ -418,7 +484,86 @@
           }).catch(function () { err.textContent = 'Network error. Try again.'; });
     });
     Array.prototype.forEach.call(document.querySelectorAll('#pledgeForm [data-action]'), function (btn) {
-        btn.addEventListener('click', function () { action = btn.getAttribute('data-action'); });
+        btn.addEventListener('click', function () {
+            action = btn.getAttribute('data-action');
+            payMethod = btn.getAttribute('data-pay') || 'momo';
+        });
+    });
+
+    var euModal = document.getElementById('eulogyModal');
+    var canvas = document.getElementById('sigPad');
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    function sizeCanvas() {
+        var r = canvas.getBoundingClientRect();
+        canvas.width = Math.floor(r.width);
+        canvas.height = Math.floor(r.height);
+        ctx.strokeStyle = '#1a1408';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+    }
+    function pos(ev) {
+        var r = canvas.getBoundingClientRect();
+        var t = ev.touches ? ev.touches[0] : ev;
+        return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+    canvas.addEventListener('mousedown', function (ev) { drawing = true; var p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+    canvas.addEventListener('mousemove', function (ev) { if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+    canvas.addEventListener('mouseup', function () { drawing = false; });
+    canvas.addEventListener('mouseleave', function () { drawing = false; });
+    canvas.addEventListener('touchstart', function (ev) { ev.preventDefault(); drawing = true; var p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+    canvas.addEventListener('touchmove', function (ev) { ev.preventDefault(); if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
+    canvas.addEventListener('touchend', function () { drawing = false; });
+    document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); };
+    document.getElementById('openEulogy').onclick = function () { euModal.classList.add('on'); sizeCanvas(); document.getElementById('euPhone').focus(); };
+    document.getElementById('closeEulogy').onclick = function () { euModal.classList.remove('on'); };
+    document.getElementById('euCancel').onclick = function () { euModal.classList.remove('on'); };
+    euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
+
+    var euTimer = null;
+    function lookupEu() {
+        var phone = document.getElementById('euPhone').value;
+        var code = document.getElementById('euCountry').value;
+        if (String(phone).replace(/\D/g, '').length < 8) return;
+        fetch(LOOKUP + '?country_code=' + encodeURIComponent(code) + '&phone=' + encodeURIComponent(phone), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data) return;
+            var n = data.name || data.system_name || data.original_name;
+            if (n) document.getElementById('euName').value = n;
+        }).catch(function () {});
+    }
+    document.getElementById('euPhone').addEventListener('input', function () {
+        clearTimeout(euTimer);
+        euTimer = setTimeout(lookupEu, 450);
+    });
+    document.getElementById('euPhone').addEventListener('blur', lookupEu);
+
+    document.getElementById('eulogyForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var err = document.getElementById('euErr');
+        err.textContent = '';
+        var blank = document.createElement('canvas');
+        blank.width = canvas.width; blank.height = canvas.height;
+        var signed = canvas.toDataURL() !== blank.toDataURL();
+        document.getElementById('euSig').value = signed ? canvas.toDataURL('image/png') : '';
+        var body = new FormData(e.target);
+        fetch(EULOGY, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: body
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+              if (!res.ok || !res.j.ok) {
+                  err.textContent = (res.j && res.j.message) || 'Could not save.';
+                  return;
+              }
+              window.location = window.location.pathname + '?eulogy=ok#eulogies';
+          }).catch(function () { err.textContent = 'Network error. Try again.'; });
     });
 
     render();

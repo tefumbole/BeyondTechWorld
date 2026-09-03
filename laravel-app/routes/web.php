@@ -95,7 +95,9 @@ Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@
 Route::get('/pangwayu', 'PublicFuneralPledgeController@index')->name('funeral.pangwayu');
 Route::get('/pangwayu/lookup', 'PublicFuneralPledgeController@lookup')->name('funeral.pangwayu.lookup');
 Route::post('/pangwayu/pledge', 'PublicFuneralPledgeController@store')->name('funeral.pangwayu.store');
+Route::post('/pangwayu/eulogy', 'PublicFuneralPledgeController@storeEulogy')->name('funeral.pangwayu.eulogy');
 Route::get('/pangwayu/payment/check', 'PublicFuneralPledgeController@payment')->name('funeral.pangwayu.payment');
+Route::get('/pangwayu/stripe/check', 'PublicFuneralPledgeController@stripeReturn')->name('funeral.pangwayu.stripe');
 
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {

@@ -1126,4 +1126,32 @@ class WhatsAppMessage
 
         return $msg;
     }
+
+    public static function funeralEulogyThanks($name, $excerpt, $pageUrl)
+    {
+        $msg = self::funeralHeader('Eulogy received', 'Éloge reçu');
+        $msg .= self::greeting($name ?: 'Family');
+        $msg .= "Thank you for your eulogy for *Pa Ngwayu Francis*.\n";
+        $msg .= "Merci pour votre éloge à *Pa Ngwayu Francis*.\n\n";
+        $msg .= self::bullet('Your words / Vos mots', $excerpt);
+        $msg .= self::actionLink('Read eulogies / Lire les éloges', $pageUrl);
+        $msg .= self::funeralFooter();
+
+        return $msg;
+    }
+
+    public static function funeralEulogyAdmin($name, $phone, $excerpt, $pageUrl)
+    {
+        $msg = self::funeralHeader('New eulogy', 'Nouvel éloge');
+        $msg .= self::greeting('Pa Ngwayu Richard');
+        $msg .= "A family member has written a eulogy for Pa Ngwayu Francis.\n";
+        $msg .= "Un membre de la famille a écrit un éloge.\n\n";
+        $msg .= self::bullet('Name / Nom', $name);
+        $msg .= self::bullet('Phone / Téléphone', $phone);
+        $msg .= self::bullet('Eulogy / Éloge', $excerpt);
+        $msg .= self::actionLink('Open programme / Ouvrir le programme', $pageUrl);
+        $msg .= self::funeralFooter();
+
+        return $msg;
+    }
 }

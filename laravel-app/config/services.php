@@ -77,6 +77,11 @@ return [
             'admin_phone' => env('FUNERAL_PLEDGE_ADMIN_PHONE', '237677318405'),
         ],
 
+        'stripe' => [
+            'key' => env('STRIPE_KEY'),
+            'secret' => env('STRIPE_SECRET'),
+        ],
+
         'campay' => [
             'token' => env('CAMPAY_TOKEN', env('MOMO_TOKEN')),
             'username' => env('CAMPAY_USERNAME'),
