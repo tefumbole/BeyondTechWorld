@@ -65,6 +65,21 @@
             padding: 28px 32px 40px;
             overflow: auto;
         }
+        .memorial-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 4px;
+        }
+        .memorial-head > div { min-width: 0; flex: 1; }
+        .eulogy-top {
+            flex-shrink: 0;
+            margin-top: 0;
+            padding: 10px 16px;
+            white-space: nowrap;
+            font-size: 14px;
+        }
         .kicker { letter-spacing: .24em; text-transform: uppercase; color: #6b5410; font-size: 12px; margin: 0 0 8px; font-weight: 700; }
         h1 {
             font-family: "Cormorant Garamond", serif;
@@ -229,6 +244,7 @@
             .ring b { font-size: 24px; }
             .eulogy-box { padding: 16px 14px 14px; }
             .eulogy-box p { font-size: 17px; }
+            .eulogy-top { padding: 8px 12px; font-size: 13px; }
             .grid { grid-template-columns: 1fr; }
             .group { flex-direction: column; align-items: flex-start; }
             .group .tot { text-align: left; }
@@ -288,9 +304,14 @@
         <div class="flash">Your eulogy was received. Thank you.</div>
     @endif
 
-    <p class="kicker">In loving memory</p>
-    <h1>Pa Ngwayu Francis</h1>
-    <p class="meta">73 years · Funeral 26 September 2026</p>
+    <header class="memorial-head">
+        <div>
+            <p class="kicker">In loving memory</p>
+            <h1>Pa Ngwayu Francis</h1>
+            <p class="meta">73 years · Funeral 26 September 2026</p>
+        </div>
+        <button type="button" class="btn btn-gold eulogy-top" id="openEulogy">Leave a eulogy</button>
+    </header>
 
     <div class="rings" id="rings">
         <div class="ring" style="--p:0%"><b id="d">0</b><span id="dLabel">Days</span></div>
@@ -322,7 +343,6 @@
             <p class="eulogies-lead">Share a few words for Pa Ngwayu Francis. Enter your phone and your name will appear, or type it yourself. You may add a signature before you submit.</p>
             <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
         </div>
-        <button type="button" class="btn btn-gold" id="openEulogy" style="margin-bottom:16px;">Leave a eulogy</button>
         @forelse($eulogies as $eu)
             <article class="eulogy-box">
                 <p>{{ $eu['body'] }}</p>
