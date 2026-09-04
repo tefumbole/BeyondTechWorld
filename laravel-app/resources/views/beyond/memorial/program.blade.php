@@ -176,4 +176,13 @@
             </div>
         </article>
     </div>
+
+    <div class="qr-card">
+        <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
+        <div>
+            <strong>Scan to open</strong>
+            <p>Opens the memorial page: program, hymns, and eulogies.</p>
+            <a href="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" download="pangwayu-remember-qr.png">Download QR</a>
+        </div>
+    </div>
 @endsection

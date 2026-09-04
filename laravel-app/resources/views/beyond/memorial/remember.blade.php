@@ -38,6 +38,14 @@
             </div>
         </div>
         <button type="button" class="eulogy-cta" id="openEulogyBottom">Add a Eulogy</button>
+        <div class="qr-card">
+            <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
+            <div>
+                <strong>Scan to open</strong>
+                <p>Anyone who scans this code is taken straight to this memorial page.</p>
+                <a href="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" download="pangwayu-remember-qr.png">Download QR</a>
+            </div>
+        </div>
     </div>
 
     <section class="eulogies is-hidden" id="eulogies">
@@ -338,9 +346,13 @@
             };
         }
         size();
-        for (var i = 0; i < 70; i++) stars.push(makeStar());
-        for (var j = 0; j < 28; j++) petals.push(makePetal());
-        for (var k = 0; k < 18; k++) sparks.push(makeSpark());
+        var mobile = canvas.width < 760;
+        var starN = mobile ? 28 : 70;
+        var petalN = mobile ? 12 : 28;
+        var sparkN = mobile ? 8 : 18;
+        for (var i = 0; i < starN; i++) stars.push(makeStar());
+        for (var j = 0; j < petalN; j++) petals.push(makePetal());
+        for (var k = 0; k < sparkN; k++) sparks.push(makeSpark());
         window.addEventListener('resize', size);
         function tick() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);

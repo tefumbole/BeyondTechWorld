@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+    <meta name="theme-color" content="#050403">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta property="og:title" content="@yield('title', 'Pa Ngwayu Francis · In loving memory')">
+    <meta property="og:description" content="In loving memory of Pa Ngwayu Francis. Funeral program, hymns, and eulogies.">
+    <meta property="og:image" content="{{ asset('public/memorial/pangwayu/remember-landing.jpg') }}">
+    <meta property="og:url" content="{{ route('funeral.pangwayu.remember') }}">
     <title>@yield('title', 'Pa Ngwayu Francis · In loving memory')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
@@ -19,11 +26,13 @@
             --line: #3d3118;
         }
         * { box-sizing: border-box; }
-        html, body { margin: 0; min-height: 100%; }
+        html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
         body {
             font-family: "Source Sans Pro", sans-serif;
             color: var(--ink);
             background: var(--bg);
+            -webkit-text-size-adjust: 100%;
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .shell {
             min-height: 100vh;
@@ -83,6 +92,9 @@
             cursor: pointer;
             font-family: inherit;
             box-shadow: 0 6px 18px rgba(0,0,0,.35);
+            white-space: nowrap;
+            flex: 0 0 auto;
+            min-height: 44px;
         }
         .nav a.on, .nav a:hover, .nav button:hover {
             background: var(--gold);
@@ -406,30 +418,84 @@
             letter-spacing: .04em;
             font-variant-numeric: tabular-nums;
         }
+        .qr-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            max-width: 420px;
+            margin: 22px auto 0;
+            padding: 14px 16px;
+            border: 1px solid rgba(212,175,55,.32);
+            border-radius: 18px;
+            background: rgba(20,14,8,.78);
+            text-align: left;
+        }
+        .qr-card img {
+            width: 108px;
+            height: 108px;
+            border-radius: 10px;
+            background: #fff;
+            padding: 6px;
+            flex-shrink: 0;
+        }
+        .qr-card strong {
+            display: block;
+            font-family: "Cormorant Garamond", serif;
+            font-size: 22px;
+            color: #fff8e8;
+            margin-bottom: 4px;
+        }
+        .qr-card p { margin: 0 0 8px; color: #c4b498; font-size: 13px; line-height: 1.45; }
+        .qr-card a { color: var(--gold-2); font-weight: 700; font-size: 13px; }
         @media (max-width: 420px) {
             .music-player {
-                left: 12px;
-                right: 12px;
-                bottom: 12px;
+                left: 10px;
+                right: 10px;
+                bottom: calc(10px + env(safe-area-inset-bottom));
                 min-width: 0;
+                padding: 8px 10px;
+                gap: 8px;
             }
+            .music-controls button { width: 36px; height: 36px; }
             .music-title { font-size: 11px; }
+            .qr-card { flex-direction: column; text-align: center; }
         }
         @media (max-width: 860px) {
             .shell { grid-template-columns: 1fr; }
-            .portrait { position: relative; min-height: 320px; height: 78vw; max-height: 520px; }
+            .portrait { position: relative; min-height: 0; height: auto; max-height: none; }
             .portrait img { padding: 10px 10px 12px; }
             .portrait .caption { display: none; }
-            .main { padding: 16px 14px 28px; }
+            .main { padding: 12px 12px calc(108px + env(safe-area-inset-bottom)); }
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
             .ring { width: 100%; height: auto; aspect-ratio: 1; }
             .ring b { font-size: 24px; }
-            .nav a, .nav button { padding: 12px 16px; font-size: 15px; }
-            .landing-home { min-height: auto; }
-            .landing-home .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-            .landing-home .ring b { font-size: 22px; }
-            .landing-home .ring span { font-size: 9px; }
+            .nav {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                gap: 8px;
+                margin-bottom: 16px;
+                padding-bottom: 4px;
+            }
+            .nav::-webkit-scrollbar { display: none; }
+            .nav a, .nav button { padding: 10px 14px; font-size: 14px; }
+            .landing-home { min-height: auto; padding-bottom: 12px; }
+            .landing-home .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; max-width: 100%; }
+            .landing-home .ring b { font-size: 20px; }
+            .landing-home .ring span { font-size: 9px; letter-spacing: .08em; }
             .sun-row { gap: 18px; }
+            .sheet {
+                max-width: 100%;
+                margin: 8px auto;
+                max-height: calc(100vh - 24px);
+                overflow: auto;
+                padding: 18px 14px 16px;
+            }
+            #eulogyModal .sheet { max-width: 100%; }
+            .modal { padding: 8px 8px env(safe-area-inset-bottom); }
+            .selfie-toolbar .btn { flex: 1 1 calc(50% - 8px); min-height: 42px; }
+            .foot { margin-top: 18px; font-size: 12px; }
         }
         @media (max-width: 420px) {
             .phone-row { grid-template-columns: 1fr; }
@@ -565,8 +631,15 @@
         }
         @media (max-width: 860px) {
             body.is-landing .portrait { padding: 0 8px; }
-            body.is-landing .portrait img { max-height: none; width: 100%; }
-            body.is-landing .main { padding: 12px 12px 24px; }
+            body.is-landing .portrait img {
+                width: 100%;
+                max-height: 46vh;
+                animation: none;
+            }
+            body.is-landing .main { padding: 10px 12px calc(118px + env(safe-area-inset-bottom)); }
+            body.is-landing .nav { justify-content: flex-start; }
+            body.is-landing .eulogy-cta { width: min(100%, 320px); font-size: 16px; }
+            body.is-landing .landing-home .rings { margin-bottom: 14px; }
         }
         @yield('styles')
     </style>
