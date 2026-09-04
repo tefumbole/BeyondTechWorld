@@ -449,7 +449,14 @@ class FuneralPledgeService
     public function notifyEulogy(FuneralEulogy $eulogy)
     {
         $pageUrl = route('funeral.pangwayu.remember').'#eulogies';
-        $familyMsg = WhatsAppMessage::funeralEulogyThanks($eulogy->name, $eulogy->excerpt(500), $pageUrl);
+        $familyMsg = WhatsAppMessage::funeralEulogyThanks($eulogy->name, $eulogy->body, $pageUrl);
+        if (strlen($familyMsg) > 3900) {
+            $familyMsg = WhatsAppMessage::funeralEulogyThanks(
+                $eulogy->name,
+                $eulogy->excerpt(2800)."\n\n_(Full copy attached as PDF.)_",
+                $pageUrl
+            );
+        }
         $adminMsg = WhatsAppMessage::funeralEulogyAdmin(
             $eulogy->name,
             WhatsAppPhone::display($eulogy->phone),
@@ -464,9 +471,24 @@ class FuneralPledgeService
             Log::info('Funeral eulogy WhatsApp family failed: '.$e->getMessage());
         }
 
+        $pdfPath = $this->eulogyCopyPdf($eulogy);
         $adminPhone = $this->adminPhone($this->campaign());
+        $writerPhone = $eulogy->phone;
         $id = $eulogy->id;
-        app()->terminating(function () use ($whatsapp, $adminPhone, $adminMsg, $id) {
+        app()->terminating(function () use ($whatsapp, $adminPhone, $adminMsg, $id, $pdfPath, $writerPhone) {
+            if ($pdfPath) {
+                try {
+                    usleep(5500000);
+                    $whatsapp->sendDocument(
+                        $writerPhone,
+                        $pdfPath,
+                        'Eulogy-Pa-Ngwayu-Francis.pdf',
+                        'A PDF copy of the eulogy you wrote for Pa Ngwayu Francis.'
+                    );
+                } catch (\Throwable $e) {
+                    Log::info('Funeral eulogy WhatsApp PDF copy failed: '.$e->getMessage(), ['eulogy' => $id]);
+                }
+            }
             try {
                 usleep(5500000);
                 $whatsapp->sendText($adminPhone, $adminMsg);
@@ -474,6 +496,26 @@ class FuneralPledgeService
                 Log::info('Funeral eulogy WhatsApp admin failed: '.$e->getMessage(), ['eulogy' => $id]);
             }
         });
+    }
+
+    protected function eulogyCopyPdf(FuneralEulogy $eulogy)
+    {
+        try {
+            $dir = storage_path('app/eulogies');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+            $path = $dir.'/eulogy-'.$eulogy->id.'.pdf';
+            \PDF::loadView('beyond.memorial.eulogy-pdf', ['eulogy' => $eulogy])
+                ->setPaper('a4')
+                ->save($path);
+
+            return is_file($path) ? $path : null;
+        } catch (\Throwable $e) {
+            Log::info('Funeral eulogy PDF copy failed: '.$e->getMessage(), ['eulogy' => $eulogy->id]);
+
+            return null;
+        }
     }
 
     public function handlePaymentCallback($status, $reference, $externalReference)

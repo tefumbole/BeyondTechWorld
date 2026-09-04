@@ -1140,13 +1140,16 @@ class WhatsAppMessage
         return $msg;
     }
 
-    public static function funeralEulogyThanks($name, $excerpt, $pageUrl)
+    public static function funeralEulogyThanks($name, $body, $pageUrl)
     {
-        $msg = self::funeralHeader('Eulogy received', 'Éloge reçu');
+        $copy = trim((string) $body);
+        $msg = self::funeralHeader('Your eulogy copy', 'Copie de votre éloge');
         $msg .= self::greeting($name ?: 'Family');
         $msg .= "Thank you for your eulogy for *Pa Ngwayu Francis*.\n";
-        $msg .= "Merci pour votre éloge à *Pa Ngwayu Francis*.\n\n";
-        $msg .= self::bullet('Your words / Vos mots', $excerpt);
+        $msg .= "Here is a copy of what you wrote.\n";
+        $msg .= "Voici une copie de votre éloge.\n\n";
+        $msg .= "*Your eulogy / Votre éloge*\n";
+        $msg .= $copy."\n";
         $msg .= self::actionLink('Read eulogies / Lire les éloges', $pageUrl);
         $msg .= self::funeralFooter();
 
