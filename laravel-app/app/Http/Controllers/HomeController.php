@@ -358,8 +358,15 @@ echo $response;
         $this->manageBooking();
         $role = Role::find(Auth::user()->role_id);
         if (Auth::user() && \App\Support\InternCompliance::shouldUseInternHome(Auth::user())) {
-            return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
-                ->renderHome(Auth::user());
+            try {
+                return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
+                    ->renderHome(Auth::user());
+            } catch (\Throwable $e) {
+                \Log::warning('Intern dashboard failed: '.$e->getMessage(), ['user' => Auth::id()]);
+
+                return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
+                    ->renderHomeSafe(Auth::user());
+            }
         }
         if (Auth::user() && \App\Support\InternCompliance::shouldUseSupervisorHome(Auth::user())) {
             return app(\App\Http\Controllers\Internship\InternshipSupervisorController::class)

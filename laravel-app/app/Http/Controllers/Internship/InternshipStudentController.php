@@ -106,11 +106,58 @@ class InternshipStudentController extends Controller
             'thursday' => 'Thu', 'friday' => 'Fri', 'saturday' => 'Sat', 'sunday' => 'Sun',
         ];
         $weekChart = ['labels' => [], 'logged' => [], 'expected' => []];
-        foreach ($weekScore['days'] as $day) {
+        foreach (($weekScore['days'] ?? []) as $day) {
             $weekChart['labels'][] = $dowShort[$day['day']] ?? $day['day'];
             $weekChart['logged'][] = $day['logged'];
             $weekChart['expected'][] = $day['expected'];
         }
+
+        return view('internship.student.home', compact(
+            'enrolment',
+            'assignment',
+            'lastPassed',
+            'isWorkingToday',
+            'supervisors',
+            'requestState',
+            'gradeSummary',
+            'weekScore',
+            'dayBalance',
+            'totalHours',
+            'currentTaskCount',
+            'awaiting',
+            'awaitingGradingCount',
+            'byActivity',
+            'byCategory',
+            'weekChart'
+        ));
+    }
+
+    /**
+     * Minimal intern dashboard if the full home page fails to build.
+     */
+    public function renderHomeSafe(User $user)
+    {
+        $pending = [];
+        try {
+            $pending = $this->service->pendingForStudent($user) ?: [];
+        } catch (\Throwable $e) {
+        }
+        $enrolment = $pending['enrolment'] ?? null;
+        $assignment = $pending['assignment'] ?? null;
+        $lastPassed = $pending['last_passed'] ?? null;
+        $isWorkingToday = false;
+        $supervisors = [];
+        $requestState = ['can_request' => false, 'message' => 'Open My Task from Internships if this page is incomplete.'];
+        $gradeSummary = [];
+        $weekScore = ['logged' => 0, 'expected' => 0, 'remaining' => 0, 'overtime' => 0, 'met' => false, 'days' => []];
+        $dayBalance = ['logged' => 0, 'expected' => 0, 'remaining' => 0, 'overtime' => 0];
+        $totalHours = 0;
+        $currentTaskCount = 0;
+        $awaiting = collect();
+        $awaitingGradingCount = 0;
+        $byActivity = [];
+        $byCategory = [];
+        $weekChart = ['labels' => [], 'logged' => [], 'expected' => []];
 
         return view('internship.student.home', compact(
             'enrolment',

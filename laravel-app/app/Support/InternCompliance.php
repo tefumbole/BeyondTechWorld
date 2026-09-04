@@ -36,11 +36,10 @@ class InternCompliance
         }
 
         try {
-            if (! $role->hasPermissionTo('internship.student')) {
-                return false;
+            if ($role->hasPermissionTo('internship.student')) {
+                return true;
             }
         } catch (\Throwable $e) {
-            return false;
         }
 
         return InternshipEnrolment::where('student_user_id', $user->id)
@@ -71,7 +70,22 @@ class InternCompliance
      */
     public static function shouldUseInternHome(User $user)
     {
-        return self::appliesTo($user);
+        if (self::appliesTo($user)) {
+            return true;
+        }
+        if (! $user || (int) $user->role_id <= 2) {
+            return false;
+        }
+        $role = Role::find($user->role_id);
+        $name = strtolower(trim((string) optional($role)->name));
+        if (self::roleLooksLikeSupervisor($name)) {
+            return false;
+        }
+        try {
+            return $role && $role->hasPermissionTo('internship.student');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

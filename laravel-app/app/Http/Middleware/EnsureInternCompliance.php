@@ -19,7 +19,7 @@ class EnsureInternCompliance
             return $next($request);
         }
 
-        if ($this->isExemptPath($request)) {
+        if ($this->isExemptPath($request) || $this->isInternDashboardPath($request)) {
             return $next($request);
         }
 
@@ -56,6 +56,12 @@ class EnsureInternCompliance
             || $request->is('staff-otp-login*')
             || $request->is('admin/internship')
             || $request->is('admin/internship/*');
+    }
+
+    /** Interns can open Dashboard even when a timesheet is still due. */
+    protected function isInternDashboardPath($request)
+    {
+        return $request->is('admin') || $request->path() === 'admin';
     }
 
     protected function isTimesheetPath($request)

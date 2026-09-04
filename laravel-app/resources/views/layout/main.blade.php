@@ -1362,6 +1362,9 @@
                         @endif
                         <?php
                         $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
+                        if (! $role) {
+                            $role = (object) ['id' => Auth::user()->role_id, 'name' => '', 'permissions' => collect()];
+                        }
                         if (!isset($all_permission) || !is_array($all_permission)) {
                             $all_permission = [];
                         }
@@ -1376,28 +1379,28 @@
                                 ['permissions.name', 'category'],
                                 ['role_id', $role->id] ])->first();
                         $index_permission = DB::table('permissions')->where('name', 'products-index')->first();
-                        $index_permission_active = DB::table('role_has_permissions')->where([
+                        $index_permission_active = $index_permission ? DB::table('role_has_permissions')->where([
                             ['permission_id', $index_permission->id],
                             ['role_id', $role->id]
-                        ])->first();
+                        ])->first() : null;
 
                         $print_barcode = DB::table('permissions')->where('name', 'print_barcode')->first();
-                        $print_barcode_active = DB::table('role_has_permissions')->where([
+                        $print_barcode_active = $print_barcode ? DB::table('role_has_permissions')->where([
                             ['permission_id', $print_barcode->id],
                             ['role_id', $role->id]
-                        ])->first();
+                        ])->first() : null;
 
                         $stock_count = DB::table('permissions')->where('name', 'stock_count')->first();
-                        $stock_count_active = DB::table('role_has_permissions')->where([
+                        $stock_count_active = $stock_count ? DB::table('role_has_permissions')->where([
                             ['permission_id', $stock_count->id],
                             ['role_id', $role->id]
-                        ])->first();
+                        ])->first() : null;
 
                         $adjustment = DB::table('permissions')->where('name', 'adjustment')->first();
-                        $adjustment_active = DB::table('role_has_permissions')->where([
+                        $adjustment_active = $adjustment ? DB::table('role_has_permissions')->where([
                             ['permission_id', $adjustment->id],
                             ['role_id', $role->id]
-                        ])->first();
+                        ])->first() : null;
                         ?>
                         @if($category_permission_active || $index_permission_active || $print_barcode_active || $stock_count_active || $adjustment_active)
                             <li><a href="#product" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-list"></i><span>{{__('file.product')}}</span><span></a>
