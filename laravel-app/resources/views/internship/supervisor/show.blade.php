@@ -9,6 +9,7 @@
 @endphp
 <section class="forms">
     <div class="container-fluid ip-shell">
+        @include('internship.partials.supervisor_nav', ['ipNavHere' => 'queue'])
         <a href="{{ route('internship.supervisor.index') }}" class="ip-btn ip-btn-outline mb-3">&larr; Queue</a>
         <h1 class="ip-title">Review submission</h1>
         <p class="ip-meta mb-3">

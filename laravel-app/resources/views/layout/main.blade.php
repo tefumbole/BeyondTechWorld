@@ -1354,7 +1354,7 @@
                 <div class="main-menu">
                     <ul id="side-main-menu" class="side-menu list-unstyled">
                         @if(Auth::user()->role_id != 7)
-                            <li><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
+                            <li id="sidebar-dashboard"><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
@@ -3947,11 +3947,14 @@
                   }
                   var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
                   if (path === '/admin') {
-                      $('#side-main-menu > li > a').each(function () {
-                          if (pathOf($(this).attr('href')) === '/admin') {
-                              $(this).parent('li').addClass('active');
-                          }
-                      });
+                      $('#sidebar-dashboard').addClass('active');
+                      return;
+                  }
+                  if (path.indexOf('/admin/internship/supervisor/submissions') === 0) {
+                      var $grade = $('#ip-grade-queue, #ip-admin-queue').first();
+                      if ($grade.length) {
+                          $grade.addClass('active');
+                      }
                       return;
                   }
                   var best = null;

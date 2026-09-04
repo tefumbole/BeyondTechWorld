@@ -101,6 +101,9 @@
     ['permission_id', $dashboard->id],
     ['role_id', $role->id]
     ])->first() : null;
+    if (! $dashboard_active && \App\Support\InternCompliance::shouldUseSalesDashboard(Auth::user())) {
+        $dashboard_active = true;
+    }
  @endphp
 @if($dashboard_active)
 @php

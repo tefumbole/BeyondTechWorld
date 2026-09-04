@@ -357,6 +357,7 @@ echo $response;
     {
         $this->manageBooking();
         $role = Role::find(Auth::user()->role_id);
+        // Admin / Owner / sales-dashboard roles stay on the ERP board.
         if (Auth::user() && \App\Support\InternCompliance::shouldUseInternHome(Auth::user())) {
             try {
                 return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
@@ -404,6 +405,7 @@ echo $response;
             return view('customer_index', compact('lims_sale_data', 'lims_payment_data', 'lims_quotation_data', 'lims_return_data', 'points'));
         }
 
+        try {
         $start_date = date("Y").'-'.date("m").'-'.'01';
         $end_date = date("Y").'-'.date("m").'-'.date('t', mktime(0, 0, 0, date("m"), 1, date("Y")));
         $yearly_sale_amount = [];
@@ -565,6 +567,16 @@ echo $response;
         }
         $workOps = $this->workOpsSnapshot();
         return view('index', compact('revenue', 'purchase', 'expense', 'return', 'purchase_return', 'profit', 'payment_recieved', 'payment_sent', 'month', 'yearly_sale_amount', 'yearly_purchase_amount', 'recent_sale', 'recent_purchase', 'recent_quotation', 'recent_payment', 'best_selling_qty', 'yearly_best_selling_qty', 'yearly_best_selling_price', 'workOps'));
+        } catch (\Throwable $e) {
+            \Log::warning('Sales dashboard failed: '.$e->getMessage(), ['user' => Auth::id()]);
+            $workOps = $this->workOpsSnapshot();
+            $revenue = $purchase = $expense = $return = $purchase_return = $profit = 0;
+            $payment_recieved = $payment_sent = $month = $yearly_sale_amount = $yearly_purchase_amount = [];
+            $recent_sale = $recent_purchase = $recent_quotation = $recent_payment = collect();
+            $best_selling_qty = $yearly_best_selling_qty = $yearly_best_selling_price = collect();
+
+            return view('index', compact('revenue', 'purchase', 'expense', 'return', 'purchase_return', 'profit', 'payment_recieved', 'payment_sent', 'month', 'yearly_sale_amount', 'yearly_purchase_amount', 'recent_sale', 'recent_purchase', 'recent_quotation', 'recent_payment', 'best_selling_qty', 'yearly_best_selling_qty', 'yearly_best_selling_price', 'workOps'));
+        }
     }
 
     /**

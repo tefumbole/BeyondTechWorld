@@ -66,10 +66,39 @@ class InternCompliance
     }
 
     /**
+     * Owner / Admin / anyone with the ERP "dashboard" permission.
+     * Their sidebar Dashboard must stay the sales board, never intern or supervisor homes.
+     */
+    public static function shouldUseSalesDashboard(User $user)
+    {
+        if (! $user) {
+            return false;
+        }
+        if ((int) $user->role_id <= 2) {
+            return true;
+        }
+
+        $role = Role::find($user->role_id);
+        $name = strtolower(trim((string) optional($role)->name));
+        if (in_array($name, ['admin', 'owner'], true)) {
+            return true;
+        }
+
+        try {
+            return $role && $role->hasPermissionTo('dashboard');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Staff whose /admin "Dashboard" should be the intern task home (not the sales board).
      */
     public static function shouldUseInternHome(User $user)
     {
+        if (self::shouldUseSalesDashboard($user)) {
+            return false;
+        }
         if (self::appliesTo($user)) {
             return true;
         }
@@ -93,6 +122,9 @@ class InternCompliance
      */
     public static function shouldUseSupervisorHome(User $user)
     {
+        if (self::shouldUseSalesDashboard($user)) {
+            return false;
+        }
         if (! $user || (int) $user->role_id <= 2) {
             return false;
         }
