@@ -2,43 +2,173 @@
 
 @section('title', 'Funeral program · Pa Ngwayu Francis')
 
+@section('styles')
+        .program-hero { margin: 0 0 28px; }
+        .program-hero h1 { margin-bottom: 10px; }
+        .program-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 8px;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #5a4a22;
+            background: rgba(212,175,55,.08);
+            color: var(--gold-2);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .timeline {
+            position: relative;
+            display: grid;
+            gap: 22px;
+            padding-left: 8px;
+        }
+        .timeline:before {
+            content: "";
+            position: absolute;
+            left: 27px;
+            top: 28px;
+            bottom: 28px;
+            width: 2px;
+            background: linear-gradient(180deg, #d4af37, rgba(212,175,55,.12));
+        }
+        .part {
+            position: relative;
+            display: grid;
+            grid-template-columns: 56px 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+        .part-num {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Cormorant Garamond", serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1408;
+            background: linear-gradient(180deg, #f0d57a, #d4af37);
+            box-shadow: 0 0 0 6px rgba(212,175,55,.12);
+            z-index: 1;
+        }
+        .part-card {
+            background: linear-gradient(180deg, #221a12, #16110c);
+            border: 1px solid #4a3b1c;
+            border-radius: 22px;
+            padding: 22px 22px 20px;
+            box-shadow: 0 18px 40px rgba(0,0,0,.28);
+        }
+        .part-card h2 {
+            font-size: clamp(26px, 4vw, 34px);
+            margin: 0 0 8px;
+        }
+        .part-time {
+            display: inline-block;
+            margin: 0 0 10px;
+            color: var(--gold);
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .part-card p {
+            margin: 0;
+            color: #e8dcc0;
+            font-size: 18px;
+            line-height: 1.55;
+        }
+        .venue {
+            margin-top: 12px;
+            color: var(--gold-2);
+            font-weight: 700;
+            font-size: 15px;
+        }
+        .service-list {
+            margin: 18px 0 0;
+            display: grid;
+            gap: 8px;
+        }
+        .service-row {
+            display: grid;
+            grid-template-columns: 36px 1fr;
+            gap: 10px;
+            align-items: center;
+            padding: 11px 12px;
+            border-radius: 14px;
+            background: rgba(255,248,232,.03);
+            border: 1px solid rgba(212,175,55,.12);
+            color: #f3ead6;
+            font-size: 16px;
+        }
+        .service-row b {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(212,175,55,.14);
+            color: var(--gold-2);
+            font-size: 12px;
+        }
+        .service-row a { color: var(--gold-2); }
+        @media (max-width: 520px) {
+            .timeline:before { left: 23px; }
+            .part { grid-template-columns: 48px 1fr; gap: 12px; }
+            .part-num { width: 48px; height: 48px; font-size: 18px; }
+            .part-card { padding: 16px 14px 14px; border-radius: 18px; }
+        }
+@endsection
+
 @section('content')
-    <p class="kicker">Order of service</p>
-    <h1>Funeral program</h1>
-    <p class="meta">Pa Ngwayu Francis · 1952 — 2025 · Aged 73 years<br>Saturday 26 September 2026</p>
-    <p class="lead">Cameroon Baptist Convention · Men’s Fellowship<br>Motto: Strong, Firm and Steadfast<br><em>Well done, good and faithful servant — Matthew 25:21</em></p>
+    <header class="program-hero">
+        <p class="kicker">Saturday 26 September 2026</p>
+        <h1>Funeral program</h1>
+        <div class="program-meta">
+            <span class="chip">Nkwen Baptist Church</span>
+            <span class="chip">Pa Ngwayu Francis</span>
+            <span class="chip">1952 — 2025</span>
+        </div>
+    </header>
 
-    <div class="order" style="margin-top:22px;">
-        <p class="verse">Service of thanksgiving</p>
-        <h2>At the church</h2>
-        <p class="lead" style="margin:0 0 8px;font-size:16px;">Venue and exact hour as announced by the family.</p>
-        <ol>
-            <li>Prelude and processional</li>
-            <li>Opening prayer</li>
-            <li>Hymn — see the <a href="{{ route('funeral.pangwayu.hymns') }}" style="color:#f0d57a;">hymns page</a></li>
-            <li>Scripture reading</li>
-            <li>Biography and tributes</li>
-            <li>Eulogies — you may also <a href="{{ route('funeral.pangwayu.remember') }}#eulogies" style="color:#f0d57a;">write one here</a></li>
-            <li>Sermon</li>
-            <li>Hymn</li>
-            <li>Closing prayer and benediction</li>
-            <li>Recessional</li>
-        </ol>
-    </div>
+    <div class="timeline">
+        <article class="part">
+            <div class="part-num">01</div>
+            <div class="part-card">
+                <span class="part-time">7:00 AM — 8:00 AM</span>
+                <h2>Part 1</h2>
+                <p>Removal of mortal remains and transportation to Nkwen Baptist Church.</p>
+            </div>
+        </article>
 
-    <div class="order">
-        <p class="verse">Committal</p>
-        <h2>At the graveside</h2>
-        <ol>
-            <li>Scripture and committal prayer</li>
-            <li>Hymn</li>
-            <li>Laying of wreaths, as announced</li>
-            <li>Benediction</li>
-        </ol>
-    </div>
-
-    <div class="order">
-        <p class="verse">In his honour</p>
-        <p class="lead" style="margin:0;">Pa Ngwayu Francis served with the Cameroon Baptist Convention Men’s Fellowship. The family welcomes your presence, your prayers, and a written eulogy. A quiet gift may be given from the home page without viewing family contribution totals.</p>
+        <article class="part">
+            <div class="part-num">02</div>
+            <div class="part-card">
+                <span class="part-time">Church service</span>
+                <h2>Part 2</h2>
+                <p>Church service at Nkwen Baptist Church.</p>
+                <div class="venue">Nkwen Baptist Church</div>
+                <div class="service-list">
+                    <div class="service-row"><b>01</b> Prelude and processional</div>
+                    <div class="service-row"><b>02</b> Opening prayer</div>
+                    <div class="service-row"><b>03</b> Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">see hymns</a></div>
+                    <div class="service-row"><b>04</b> Scripture reading</div>
+                    <div class="service-row"><b>05</b> Biography and tributes</div>
+                    <div class="service-row"><b>06</b> Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></div>
+                    <div class="service-row"><b>07</b> Sermon</div>
+                    <div class="service-row"><b>08</b> Hymn</div>
+                    <div class="service-row"><b>09</b> Closing prayer and benediction</div>
+                    <div class="service-row"><b>10</b> Recessional</div>
+                </div>
+            </div>
+        </article>
     </div>
 @endsection
