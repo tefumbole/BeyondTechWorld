@@ -154,7 +154,7 @@
 @endsection
 
 @section('scripts')
-<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well-instrumental.mp3') }}" loop preload="auto" playsinline autoplay></audio>
+<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well-instrumental.mp3') }}" loop preload="auto" playsinline autoplay muted></audio>
 <div class="music-player" id="musicPlayer" role="group" aria-label="Memorial music">
     <div class="music-controls">
         <button type="button" id="musicPlay" aria-label="Play">
@@ -185,7 +185,10 @@
     var curEl = document.getElementById('musicCur');
     var durEl = document.getElementById('musicDur');
     if (audio && playBtn) {
+        var userPaused = false;
+        var unlockTries = 0;
         audio.volume = 0.48;
+        audio.muted = false;
         function fmt(t) {
             if (!isFinite(t) || t < 0) return '0:00';
             var m = Math.floor(t / 60);
@@ -206,20 +209,52 @@
             if (curEl) curEl.textContent = fmt(c);
             if (durEl) durEl.textContent = fmt(d);
         }
+        function hear() {
+            audio.muted = false;
+            audio.volume = 0.48;
+            setMusicUi(!audio.paused && !audio.muted);
+        }
         function tryPlay() {
+            if (userPaused) return;
             var p = audio.play();
             if (p && p.then) {
-                p.then(function () { setMusicUi(true); }).catch(function () { setMusicUi(false); });
+                p.then(function () {
+                    hear();
+                    if (audio.muted) {
+                        audio.muted = false;
+                        audio.play().then(hear).catch(function () {});
+                    }
+                }).catch(function () {
+                    audio.muted = true;
+                    audio.play().then(function () {
+                        audio.muted = false;
+                        audio.volume = 0.48;
+                        hear();
+                    }).catch(function () { setMusicUi(false); });
+                });
             } else if (!audio.paused) {
-                setMusicUi(true);
+                hear();
             }
         }
         tryPlay();
-        setTimeout(tryPlay, 400);
-        setTimeout(tryPlay, 1200);
+        [120, 400, 900, 1800, 3000].forEach(function (ms) { setTimeout(tryPlay, ms); });
+        var retry = setInterval(function () {
+            unlockTries += 1;
+            if (!audio.paused && !audio.muted) { clearInterval(retry); return; }
+            if (unlockTries > 20 || userPaused) { clearInterval(retry); return; }
+            tryPlay();
+        }, 700);
         playBtn.addEventListener('click', function (e) {
             e.stopPropagation();
-            if (audio.paused) { tryPlay(); } else { audio.pause(); setMusicUi(false); }
+            if (audio.paused || audio.muted) {
+                userPaused = false;
+                audio.muted = false;
+                tryPlay();
+            } else {
+                userPaused = true;
+                audio.pause();
+                setMusicUi(false);
+            }
         });
         if (fwdBtn) {
             fwdBtn.addEventListener('click', function (e) {
@@ -241,15 +276,132 @@
         }
         audio.addEventListener('timeupdate', syncBar);
         audio.addEventListener('loadedmetadata', syncBar);
-        audio.addEventListener('play', function () { setMusicUi(true); });
-        audio.addEventListener('pause', function () { setMusicUi(false); });
-        ['click', 'touchstart', 'keydown'].forEach(function (evt) {
+        audio.addEventListener('play', function () { if (!audio.muted) setMusicUi(true); });
+        audio.addEventListener('pause', function () { if (userPaused) setMusicUi(false); });
+        ['pointerdown', 'touchstart', 'keydown', 'scroll', 'wheel', 'pointermove'].forEach(function (evt) {
             document.addEventListener(evt, function startOnce() {
-                if (audio.paused) tryPlay();
+                if (!userPaused) tryPlay();
                 document.removeEventListener(evt, startOnce);
             }, { once: true, passive: true });
         });
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden && !userPaused) tryPlay();
+        });
+        window.addEventListener('pageshow', function () {
+            if (!userPaused) tryPlay();
+        });
     }
+
+    (function skyCeremony() {
+        var canvas = document.getElementById('skyFx');
+        if (!canvas || !document.body.classList.contains('is-landing')) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var ctx = canvas.getContext('2d');
+        var stars = [];
+        var petals = [];
+        var sparks = [];
+        function size() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        function makeStar() {
+            return {
+                x: Math.random() * canvas.width,
+                y: -20 - Math.random() * canvas.height,
+                s: 0.6 + Math.random() * 1.8,
+                v: 0.35 + Math.random() * 1.1,
+                drift: -0.25 + Math.random() * 0.5,
+                a: 0.35 + Math.random() * 0.65,
+                tw: Math.random() * Math.PI * 2
+            };
+        }
+        function makePetal() {
+            return {
+                x: Math.random() * canvas.width,
+                y: -30 - Math.random() * 80,
+                r: 4 + Math.random() * 7,
+                v: 0.45 + Math.random() * 0.9,
+                drift: -0.4 + Math.random() * 0.8,
+                rot: Math.random() * Math.PI * 2,
+                spin: -0.02 + Math.random() * 0.04,
+                a: 0.28 + Math.random() * 0.45
+            };
+        }
+        function makeSpark() {
+            return {
+                x: (0.12 + Math.random() * 0.76) * canvas.width,
+                y: canvas.height * (0.55 + Math.random() * 0.4),
+                s: 0.8 + Math.random() * 1.6,
+                v: -0.25 - Math.random() * 0.55,
+                a: 0.2 + Math.random() * 0.45,
+                life: 80 + Math.random() * 140
+            };
+        }
+        size();
+        for (var i = 0; i < 70; i++) stars.push(makeStar());
+        for (var j = 0; j < 28; j++) petals.push(makePetal());
+        for (var k = 0; k < 18; k++) sparks.push(makeSpark());
+        window.addEventListener('resize', size);
+        function tick() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var n;
+            for (n = 0; n < stars.length; n++) {
+                var st = stars[n];
+                st.y += st.v;
+                st.x += st.drift;
+                st.tw += 0.04;
+                if (st.y > canvas.height + 12) {
+                    stars[n] = makeStar();
+                    stars[n].y = -12;
+                    continue;
+                }
+                var glow = st.a * (0.65 + 0.35 * Math.sin(st.tw));
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(255, 236, 180,' + glow + ')';
+                ctx.arc(st.x, st.y, st.s, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(240, 213, 122,' + (glow * 0.45) + ')';
+                ctx.lineWidth = 1;
+                ctx.moveTo(st.x, st.y - st.s * 5);
+                ctx.lineTo(st.x, st.y + st.s * 2);
+                ctx.stroke();
+            }
+            for (n = 0; n < petals.length; n++) {
+                var p = petals[n];
+                p.y += p.v;
+                p.x += p.drift + Math.sin(p.rot) * 0.25;
+                p.rot += p.spin;
+                if (p.y > canvas.height + 20) {
+                    petals[n] = makePetal();
+                    continue;
+                }
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillStyle = 'rgba(255, 248, 232,' + p.a + ')';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.r, p.r * 0.45, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            for (n = 0; n < sparks.length; n++) {
+                var sp = sparks[n];
+                sp.y += sp.v;
+                sp.life -= 1;
+                if (sp.life < 0 || sp.y < canvas.height * 0.2) {
+                    sparks[n] = makeSpark();
+                    continue;
+                }
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(255, 210, 120,' + sp.a + ')';
+                ctx.arc(sp.x, sp.y, sp.s, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    })();
 
     var LOOKUP = @json($lookupUrl);
     var POST = @json($pledgeUrl);

@@ -464,9 +464,46 @@
             object-position: center;
             opacity: 1 !important;
             image-rendering: auto;
+            animation: memorialKen 42s ease-in-out infinite alternate;
+            transform-origin: 48% 42%;
+            will-change: transform;
+        }
+        @keyframes memorialKen {
+            0% { transform: scale(1) translate3d(0, 0, 0); }
+            100% { transform: scale(1.055) translate3d(-1.2%, -0.8%, 0); }
         }
         body.is-landing .portrait .wash,
         body.is-landing .portrait .caption { display: none; }
+        .sky-fx {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 8;
+            pointer-events: none;
+        }
+        body.is-landing .sky-fx { display: block; }
+        body.is-landing .glow-veil {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 7;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse 70% 45% at 50% 18%, rgba(240, 200, 110, .12), transparent 62%),
+                radial-gradient(ellipse 40% 30% at 18% 78%, rgba(255, 210, 120, .08), transparent 70%),
+                radial-gradient(ellipse 36% 28% at 82% 72%, rgba(255, 190, 90, .07), transparent 70%);
+            animation: veilPulse 7s ease-in-out infinite;
+        }
+        @keyframes veilPulse {
+            0%, 100% { opacity: .7; }
+            50% { opacity: 1; }
+        }
+        .glow-veil { display: none; }
+        @media (prefers-reduced-motion: reduce) {
+            body.is-landing .portrait img { animation: none; }
+            body.is-landing .glow-veil { animation: none; }
+            body.is-landing .sky-fx { display: none; }
+        }
         body.is-landing .main {
             position: relative;
             z-index: 2;
@@ -481,7 +518,7 @@
             margin-bottom: 18px;
             position: sticky;
             top: 0;
-            z-index: 5;
+            z-index: 12;
             padding: 10px 0;
             background: linear-gradient(180deg, #050403 70%, transparent);
         }
@@ -535,6 +572,8 @@
     </style>
 </head>
 <body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}">
+<canvas class="sky-fx" id="skyFx" aria-hidden="true"></canvas>
+<div class="glow-veil" aria-hidden="true"></div>
 <div class="shell">
 <aside class="portrait" id="bg">
     @foreach($photos as $i => $src)
