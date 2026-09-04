@@ -230,37 +230,191 @@
         }
         .hymn p { margin: 0; white-space: pre-wrap; color: #e8dcc0; line-height: 1.7; }
         .verse { font-size: 13px; color: var(--gold); letter-spacing: .08em; text-transform: uppercase; font-weight: 700; margin: 0 0 6px; }
-        .sig-pad { width: 100%; height: 150px; border: 1px dashed #6a5420; border-radius: 10px; background: #fffdf8; touch-action: none; }
+        .sig-pad {
+            width: 100%; height: 150px; border: 1px solid rgba(212,175,55,.35);
+            border-radius: 14px; background: #fffdf8; touch-action: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+        }
+        .sig-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .foot { margin-top: 28px; text-align: center; color: #8a7b62; font-size: 13px; }
         .modal {
             display: none; position: fixed; inset: 0; z-index: 20;
-            background: rgba(8, 6, 10, .82); padding: 18px 12px; overflow: auto;
+            background: rgba(4, 3, 2, .78);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 18px 12px; overflow: auto;
         }
         .modal.on { display: block; }
         .sheet {
-            max-width: 440px; margin: 24px auto; background: #1c160f; border: 1px solid var(--line);
-            border-radius: 18px; padding: 18px 16px 16px; color: var(--ink);
+            max-width: 440px; margin: 24px auto;
+            background: linear-gradient(165deg, #221a12 0%, #14100c 55%, #100c09 100%);
+            border: 1px solid rgba(212,175,55,.32);
+            border-radius: 22px; padding: 22px 18px 18px; color: var(--ink);
+            box-shadow: 0 28px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03) inset;
         }
         #eulogyModal .sheet { max-width: 560px; }
-        .sheet h2 { font-family: "Cormorant Garamond", serif; margin: 0 0 12px; color: #fff8e8; }
-        label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; font-weight: 700; }
+        .sheet h2 { font-family: "Cormorant Garamond", serif; margin: 0 0 12px; color: #fff8e8; font-size: clamp(28px, 4vw, 34px); }
+        label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; font-weight: 700; letter-spacing: .04em; }
         input, select, textarea {
-            width: 100%; border: 1px solid #6a5420; background: #0d0a08; color: #fff8e8;
-            border-radius: 10px; padding: 11px 12px; font-size: 16px; font-family: inherit;
+            width: 100%; border: 1px solid rgba(212,175,55,.28); background: rgba(8,6,4,.72); color: #fff8e8;
+            border-radius: 12px; padding: 12px 14px; font-size: 16px; font-family: inherit;
+            transition: border-color .2s ease, box-shadow .2s ease;
         }
-        textarea { min-height: 180px; resize: vertical; line-height: 1.6; }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: rgba(240,213,122,.75);
+            box-shadow: 0 0 0 3px rgba(212,175,55,.18);
+        }
+        textarea { min-height: 160px; resize: vertical; line-height: 1.6; }
         .phone-row { display: grid; grid-template-columns: 118px 1fr; gap: 8px; }
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
         .actions3 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
         .btn {
             border: 0; border-radius: 12px; padding: 12px 10px; font-weight: 700; cursor: pointer; font-size: 15px;
+            font-family: inherit;
         }
         .btn-gold { background: linear-gradient(180deg, #f0d57a, #d4af37); color: #1a1408; }
-        .btn-ghost { background: transparent; color: var(--gold-2); border: 1px solid var(--line); }
+        .btn-ghost { background: transparent; color: var(--gold-2); border: 1px solid rgba(212,175,55,.28); }
+        .btn-sm { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
         .err { color: #e7a399; font-size: 13px; min-height: 18px; margin-top: 8px; }
-        .hint { color: #8a7b62; font-size: 12px; margin: 4px 0 0; }
-        .close { float: right; background: none; border: 0; color: var(--muted); font-size: 22px; cursor: pointer; }
-        .selfie-preview { display: none; margin-top: 8px; width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
+        .hint { color: #8a7b62; font-size: 12px; margin: 6px 0 0; line-height: 1.45; }
+        .close {
+            float: right; background: rgba(255,255,255,.04); border: 1px solid rgba(212,175,55,.22);
+            color: var(--muted); width: 34px; height: 34px; border-radius: 50%;
+            font-size: 20px; line-height: 1; cursor: pointer;
+        }
+        .close:hover { color: #fff8e8; border-color: var(--gold); }
+
+        /* Selfie camera */
+        .selfie-box {
+            border: 1px solid rgba(212,175,55,.28);
+            border-radius: 16px;
+            background: rgba(8,6,4,.55);
+            padding: 12px;
+            margin-top: 4px;
+        }
+        .selfie-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 280px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #0a0806;
+            display: none;
+        }
+        .selfie-stage.on { display: block; }
+        .selfie-stage video,
+        .selfie-stage img.selfie-shot {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .selfie-stage video { transform: scaleX(-1); }
+        .selfie-stage img.selfie-shot { display: none; }
+        .selfie-stage img.selfie-shot.on { display: block; }
+        .selfie-stage video.is-hidden { display: none; }
+        .selfie-toolbar {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+        }
+        .selfie-toolbar .btn { flex: 1 1 120px; }
+        .selfie-preview-row {
+            display: none; align-items: center; gap: 12px; margin-top: 12px;
+        }
+        .selfie-preview-row.on { display: flex; }
+        .selfie-preview {
+            width: 72px; height: 72px; border-radius: 50%;
+            object-fit: cover; border: 2px solid var(--gold);
+        }
+        .selfie-preview-row span { color: #c4b498; font-size: 13px; }
+        input#euSelfie { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+        /* Music player */
+        .music-player {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: min(320px, calc(100vw - 32px));
+            padding: 10px 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(212,175,55,.4);
+            background: rgba(10, 8, 6, .92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 12px 36px rgba(0,0,0,.45);
+            font-family: inherit;
+        }
+        .music-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .music-controls button {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 1px solid rgba(212,175,55,.45);
+            background: rgba(212,175,55,.12);
+            color: #f0d57a;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .music-controls button:hover {
+            background: linear-gradient(180deg, #f0d57a, #d4af37);
+            color: #1a1408;
+            border-color: transparent;
+        }
+        .music-controls button svg { width: 18px; height: 18px; fill: currentColor; }
+        .music-controls #musicPlay svg { width: 16px; height: 16px; }
+        .music-meta { flex: 1; min-width: 0; }
+        .music-title {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff8e8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 6px;
+        }
+        .music-bar {
+            position: relative;
+            height: 5px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            cursor: pointer;
+            touch-action: none;
+        }
+        .music-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #d4af37, #f0d57a);
+            pointer-events: none;
+        }
+        .music-time {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 10px;
+            color: #a89878;
+            letter-spacing: .04em;
+            font-variant-numeric: tabular-nums;
+        }
+        @media (max-width: 420px) {
+            .music-player {
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                min-width: 0;
+            }
+            .music-title { font-size: 11px; }
+        }
         @media (max-width: 860px) {
             .shell { grid-template-columns: 1fr; }
             .portrait { position: relative; min-height: 320px; height: 78vw; max-height: 520px; }
@@ -372,21 +526,6 @@
             padding: 20px 18px;
             margin-top: 18px;
         }
-        .music-btn {
-            position: fixed;
-            right: 16px;
-            bottom: 16px;
-            z-index: 40;
-            border: 2px solid #d4af37;
-            background: rgba(13,10,8,.92);
-            color: #f0d57a;
-            border-radius: 999px;
-            padding: 10px 16px;
-            font-weight: 800;
-            font-size: 14px;
-            cursor: pointer;
-            font-family: inherit;
-        }
         @media (max-width: 860px) {
             body.is-landing .portrait { padding: 0 8px; }
             body.is-landing .portrait img { max-height: none; width: 100%; }
@@ -404,7 +543,7 @@
     <div class="wash"></div>
     <div class="caption">
         <strong>Pa Ngwayu Francis</strong>
-        <span>1952 — 2025 · 73 years</span>
+        <span>1953 — 2026 · 73 years</span>
     </div>
 </aside>
 <main class="main">

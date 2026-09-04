@@ -140,7 +140,7 @@
         <div class="program-meta">
             <span class="chip">Nkwen Baptist Church</span>
             <span class="chip">Pa Ngwayu Francis</span>
-            <span class="chip">1952 — 2025</span>
+            <span class="chip">1953 — 2026</span>
         </div>
     </header>
 

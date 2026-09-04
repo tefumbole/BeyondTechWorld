@@ -30,11 +30,11 @@
         <div class="sun-row">
             <div class="sun-item">
                 <span>Sunrise</span>
-                <strong>1952</strong>
+                <strong>1953</strong>
             </div>
             <div class="sun-item">
                 <span>Sunset</span>
-                <strong>2025</strong>
+                <strong>2026</strong>
             </div>
         </div>
         <button type="button" class="eulogy-cta" id="openEulogyBottom">Add a Eulogy</button>
@@ -120,12 +120,29 @@
             <textarea name="body" id="euBody" rows="7" required placeholder="A few words for Pa Ngwayu Francis…"></textarea>
             <label>Signature *</label>
             <canvas id="sigPad" class="sig-pad"></canvas>
-            <button type="button" class="btn btn-ghost" id="sigClear" style="margin-top:8px;">Clear signature</button>
+            <div class="sig-actions">
+                <button type="button" class="btn btn-ghost btn-sm" id="sigClear">Clear signature</button>
+            </div>
             <input type="hidden" name="signature" id="euSig">
             <label>Selfie (optional)</label>
-            <input type="file" id="euSelfie" accept="image/jpeg,image/png,image/webp" capture="user">
-            <p class="hint">Optional. We resize every selfie to 256 KB or less.</p>
-            <img id="selfiePreview" class="selfie-preview" alt="Selfie preview">
+            <div class="selfie-box">
+                <div class="selfie-stage" id="selfieStage">
+                    <video id="selfieVideo" playsinline autoplay muted></video>
+                    <img id="selfieShot" class="selfie-shot" alt="Captured selfie">
+                </div>
+                <div class="selfie-toolbar">
+                    <button type="button" class="btn btn-gold btn-sm" id="selfieCamBtn">Enable camera</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="selfieCaptureBtn" style="display:none;">Take photo</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="selfieRetakeBtn" style="display:none;">Retake</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="selfieUploadBtn">Choose photo</button>
+                </div>
+                <input type="file" id="euSelfie" accept="image/jpeg,image/png,image/webp" capture="user">
+                <div class="selfie-preview-row" id="selfiePreviewRow">
+                    <img id="selfiePreview" class="selfie-preview" alt="Selfie preview">
+                    <span>Ready to submit · max 256 KB</span>
+                </div>
+                <p class="hint">Turn on your camera for a live selfie, or choose a photo from your device. We resize every selfie to 256 KB or less.</p>
+            </div>
             <div class="err" id="euErr"></div>
             <div class="actions" style="margin-top:12px;">
                 <button type="button" class="btn btn-ghost" id="euCancel">Cancel</button>
@@ -138,15 +155,56 @@
 
 @section('scripts')
 <audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well-instrumental.mp3') }}" loop preload="auto" playsinline autoplay></audio>
-<button type="button" class="music-btn" id="musicBtn">Play music</button>
+<div class="music-player" id="musicPlayer" role="group" aria-label="Memorial music">
+    <div class="music-controls">
+        <button type="button" id="musicPlay" aria-label="Play">
+            <svg id="iconPlay" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iconPause" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        </button>
+        <button type="button" id="musicFwd" aria-label="Forward 10 seconds" title="Forward 10 seconds">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v14l8.5-7L4 5zm9 0v14l8.5-7L13 5z"/></svg>
+        </button>
+    </div>
+    <div class="music-meta">
+        <span class="music-title">It Is Well With My Soul · piano</span>
+        <div class="music-bar" id="musicBar" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+            <div class="music-fill" id="musicFill"></div>
+        </div>
+        <div class="music-time"><span id="musicCur">0:00</span><span id="musicDur">0:00</span></div>
+    </div>
+</div>
 <script>
 (function () {
     var audio = document.getElementById('ceremonyAudio');
-    var musicBtn = document.getElementById('musicBtn');
-    if (audio && musicBtn) {
+    var playBtn = document.getElementById('musicPlay');
+    var fwdBtn = document.getElementById('musicFwd');
+    var iconPlay = document.getElementById('iconPlay');
+    var iconPause = document.getElementById('iconPause');
+    var fill = document.getElementById('musicFill');
+    var bar = document.getElementById('musicBar');
+    var curEl = document.getElementById('musicCur');
+    var durEl = document.getElementById('musicDur');
+    if (audio && playBtn) {
         audio.volume = 0.48;
+        function fmt(t) {
+            if (!isFinite(t) || t < 0) return '0:00';
+            var m = Math.floor(t / 60);
+            var s = Math.floor(t % 60);
+            return m + ':' + (s < 10 ? '0' : '') + s;
+        }
         function setMusicUi(on) {
-            musicBtn.textContent = on ? 'Pause music' : 'Play music';
+            iconPlay.style.display = on ? 'none' : 'block';
+            iconPause.style.display = on ? 'block' : 'none';
+            playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
+        }
+        function syncBar() {
+            var d = audio.duration || 0;
+            var c = audio.currentTime || 0;
+            var pct = d ? Math.min(100, (c / d) * 100) : 0;
+            fill.style.width = pct + '%';
+            if (bar) bar.setAttribute('aria-valuenow', String(Math.round(pct)));
+            if (curEl) curEl.textContent = fmt(c);
+            if (durEl) durEl.textContent = fmt(d);
         }
         function tryPlay() {
             var p = audio.play();
@@ -159,10 +217,32 @@
         tryPlay();
         setTimeout(tryPlay, 400);
         setTimeout(tryPlay, 1200);
-        musicBtn.addEventListener('click', function (e) {
+        playBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             if (audio.paused) { tryPlay(); } else { audio.pause(); setMusicUi(false); }
         });
+        if (fwdBtn) {
+            fwdBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var d = audio.duration || 0;
+                audio.currentTime = Math.min(d, (audio.currentTime || 0) + 10);
+                syncBar();
+            });
+        }
+        if (bar) {
+            function seekFromEvent(ev) {
+                var r = bar.getBoundingClientRect();
+                var x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+                var pct = Math.max(0, Math.min(1, x / r.width));
+                if (audio.duration) audio.currentTime = pct * audio.duration;
+                syncBar();
+            }
+            bar.addEventListener('click', seekFromEvent);
+        }
+        audio.addEventListener('timeupdate', syncBar);
+        audio.addEventListener('loadedmetadata', syncBar);
+        audio.addEventListener('play', function () { setMusicUi(true); });
+        audio.addEventListener('pause', function () { setMusicUi(false); });
         ['click', 'touchstart', 'keydown'].forEach(function (evt) {
             document.addEventListener(evt, function startOnce() {
                 if (audio.paused) tryPlay();
@@ -296,6 +376,17 @@
     var canvas = document.getElementById('sigPad');
     var ctx = canvas.getContext('2d');
     var drawing = false;
+    var cameraStream = null;
+    var videoEl = document.getElementById('selfieVideo');
+    var shotEl = document.getElementById('selfieShot');
+    var stageEl = document.getElementById('selfieStage');
+    var camBtn = document.getElementById('selfieCamBtn');
+    var captureBtn = document.getElementById('selfieCaptureBtn');
+    var retakeBtn = document.getElementById('selfieRetakeBtn');
+    var uploadBtn = document.getElementById('selfieUploadBtn');
+    var previewRow = document.getElementById('selfiePreviewRow');
+    var preview = document.getElementById('selfiePreview');
+
     function sizeCanvas() {
         var r = canvas.getBoundingClientRect();
         canvas.width = Math.floor(r.width);
@@ -317,6 +408,115 @@
     canvas.addEventListener('touchmove', function (ev) { ev.preventDefault(); if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
     canvas.addEventListener('touchend', function () { drawing = false; });
     document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); };
+
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(function (t) { t.stop(); });
+            cameraStream = null;
+        }
+        if (videoEl) videoEl.srcObject = null;
+    }
+    function resetSelfieUi(keepBlob) {
+        if (!keepBlob) {
+            selfieBlob = null;
+            if (preview) preview.removeAttribute('src');
+            if (previewRow) previewRow.classList.remove('on');
+            if (shotEl) {
+                shotEl.classList.remove('on');
+                shotEl.removeAttribute('src');
+            }
+        }
+        if (stageEl) stageEl.classList.remove('on');
+        if (videoEl) videoEl.classList.remove('is-hidden');
+        if (captureBtn) captureBtn.style.display = 'none';
+        if (retakeBtn) retakeBtn.style.display = 'none';
+        if (camBtn) {
+            camBtn.style.display = '';
+            camBtn.textContent = 'Enable camera';
+        }
+        stopCamera();
+    }
+    function showSelfiePreview(blob) {
+        selfieBlob = blob;
+        if (preview) {
+            preview.src = URL.createObjectURL(blob);
+        }
+        if (previewRow) previewRow.classList.add('on');
+    }
+    function setSelfieFromBlob(blob, err) {
+        if (err) {
+            document.getElementById('euErr').textContent = err;
+            return;
+        }
+        document.getElementById('euErr').textContent = '';
+        showSelfiePreview(blob);
+    }
+    async function startCamera() {
+        document.getElementById('euErr').textContent = '';
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            document.getElementById('euErr').textContent = 'Camera is not supported in this browser. Choose a photo instead.';
+            return;
+        }
+        try {
+            stopCamera();
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 720 } }
+            });
+            videoEl.srcObject = cameraStream;
+            await videoEl.play();
+            stageEl.classList.add('on');
+            videoEl.classList.remove('is-hidden');
+            shotEl.classList.remove('on');
+            captureBtn.style.display = '';
+            retakeBtn.style.display = 'none';
+            camBtn.textContent = 'Camera on';
+        } catch (err) {
+            document.getElementById('euErr').textContent = 'Could not open the camera. Allow camera access, or choose a photo.';
+        }
+    }
+    function captureSelfie() {
+        if (!videoEl || !cameraStream) return;
+        var w = videoEl.videoWidth || 640;
+        var h = videoEl.videoHeight || 480;
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(videoEl, 0, 0, w, h);
+        c.toBlob(function (blob) {
+            if (!blob) {
+                document.getElementById('euErr').textContent = 'Could not capture photo.';
+                return;
+            }
+            compressSelfie(blob, function (out, err) {
+                setSelfieFromBlob(out, err);
+                if (!err && out) {
+                    shotEl.src = URL.createObjectURL(out);
+                    shotEl.classList.add('on');
+                    videoEl.classList.add('is-hidden');
+                    captureBtn.style.display = 'none';
+                    retakeBtn.style.display = '';
+                    stopCamera();
+                    camBtn.textContent = 'Enable camera';
+                }
+            });
+        }, 'image/jpeg', 0.92);
+    }
+    if (camBtn) camBtn.addEventListener('click', startCamera);
+    if (captureBtn) captureBtn.addEventListener('click', captureSelfie);
+    if (retakeBtn) retakeBtn.addEventListener('click', function () {
+        selfieBlob = null;
+        if (previewRow) previewRow.classList.remove('on');
+        shotEl.classList.remove('on');
+        startCamera();
+    });
+    if (uploadBtn) uploadBtn.addEventListener('click', function () {
+        document.getElementById('euSelfie').click();
+    });
+
+    function closeEulogyModal() {
+        euModal.classList.remove('on');
+        stopCamera();
+    }
     function openEulogyModal() {
         euModal.classList.add('on');
         sizeCanvas();
@@ -325,9 +525,9 @@
     document.getElementById('openEulogy').onclick = openEulogyModal;
     var openBottom = document.getElementById('openEulogyBottom');
     if (openBottom) openBottom.onclick = openEulogyModal;
-    document.getElementById('closeEulogy').onclick = function () { euModal.classList.remove('on'); };
-    document.getElementById('euCancel').onclick = function () { euModal.classList.remove('on'); };
-    euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
+    document.getElementById('closeEulogy').onclick = closeEulogyModal;
+    document.getElementById('euCancel').onclick = closeEulogyModal;
+    euModal.addEventListener('click', function (e) { if (e.target === euModal) closeEulogyModal(); });
 
     var euTimer = null;
     document.getElementById('euPhone').addEventListener('input', function () {
@@ -382,20 +582,20 @@
 
     document.getElementById('euSelfie').addEventListener('change', function (e) {
         var file = e.target.files && e.target.files[0];
-        selfieBlob = null;
-        var preview = document.getElementById('selfiePreview');
-        preview.style.display = 'none';
         document.getElementById('euErr').textContent = '';
         if (!file) return;
+        stopCamera();
+        if (stageEl) stageEl.classList.remove('on');
+        if (captureBtn) captureBtn.style.display = 'none';
+        if (retakeBtn) retakeBtn.style.display = 'none';
+        if (camBtn) camBtn.textContent = 'Enable camera';
         compressSelfie(file, function (blob, err) {
             if (err) {
                 document.getElementById('euErr').textContent = err;
                 e.target.value = '';
                 return;
             }
-            selfieBlob = blob;
-            preview.src = URL.createObjectURL(blob);
-            preview.style.display = 'block';
+            showSelfiePreview(blob);
         });
     });
 
@@ -430,6 +630,7 @@
                   err.textContent = (res.j && res.j.message) || 'Could not save.';
                   return;
               }
+              stopCamera();
               window.location = window.location.pathname + '?eulogy=ok#eulogies';
           }).catch(function () { err.textContent = 'Network error. Try again.'; });
     });
