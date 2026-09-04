@@ -39,15 +39,16 @@
         }
         .portrait img {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            object-fit: cover; object-position: center 18%;
+            object-fit: contain;
+            object-position: center;
+            padding: 18px 18px 78px;
             opacity: 0; transition: opacity 1.4s ease;
         }
         .portrait img.on { opacity: 1; }
         .portrait .wash {
             position: absolute; inset: 0;
-            background:
-                linear-gradient(180deg, rgba(212,175,55,.12) 0%, transparent 38%, rgba(5,4,3,.62) 100%),
-                linear-gradient(90deg, transparent 68%, rgba(13,10,8,.4) 100%);
+            pointer-events: none;
+            background: linear-gradient(180deg, transparent 72%, rgba(5,4,3,.72) 100%);
         }
         .portrait .caption {
             position: absolute; left: 18px; right: 18px; bottom: 20px;
@@ -261,7 +262,8 @@
         .selfie-preview { display: none; margin-top: 8px; width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
         @media (max-width: 860px) {
             .shell { grid-template-columns: 1fr; }
-            .portrait { position: relative; min-height: 280px; height: 62vw; max-height: 420px; }
+            .portrait { position: relative; min-height: 320px; height: 78vw; max-height: 520px; }
+            .portrait img { padding: 10px 10px 12px; }
             .portrait .caption { display: none; }
             .main { padding: 16px 14px 28px; }
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -278,10 +280,66 @@
             .phone-row { grid-template-columns: 1fr; }
             .actions3 { grid-template-columns: 1fr; }
         }
+        body.is-landing { background: #000; }
+        body.is-landing .shell {
+            display: block;
+            min-height: 100vh;
+            position: relative;
+        }
+        body.is-landing .portrait {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: #000;
+        }
+        body.is-landing .portrait img {
+            padding: 0;
+            object-fit: contain;
+            object-position: center;
+        }
+        body.is-landing .portrait .wash,
+        body.is-landing .portrait .caption { display: none; }
+        body.is-landing .main {
+            position: relative;
+            z-index: 2;
+            min-height: 100vh;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+        }
+        body.is-landing .landing-home h1 { display: none; }
+        body.is-landing .landing-home {
+            flex: 1;
+            min-height: 0;
+            justify-content: flex-end;
+        }
+        body.is-landing .eulogies:not(.is-hidden) {
+            background: rgba(8,6,4,.9);
+            border: 1px solid #4a3b1c;
+            border-radius: 18px;
+            padding: 20px 18px;
+        }
+        .music-btn {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 40;
+            border: 1px solid #d4af37;
+            background: rgba(13,10,8,.82);
+            color: #f0d57a;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: inherit;
+        }
         @yield('styles')
     </style>
 </head>
-<body>
+<body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}">
 <div class="shell">
 <aside class="portrait" id="bg">
     @foreach($photos as $i => $src)
@@ -313,6 +371,7 @@
 @yield('modals')
 <script>
 (function () {
+    if (document.body.classList.contains('is-landing')) return;
     var imgs = document.querySelectorAll('#bg img');
     var idx = 0;
     function nextPhoto() {

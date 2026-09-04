@@ -136,8 +136,34 @@
 @endsection
 
 @section('scripts')
+<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/ceremony.mp3') }}" loop preload="auto"></audio>
+<button type="button" class="music-btn" id="musicBtn">Play music</button>
 <script>
 (function () {
+    var audio = document.getElementById('ceremonyAudio');
+    var musicBtn = document.getElementById('musicBtn');
+    if (audio && musicBtn) {
+        audio.volume = 0.42;
+        function setMusicUi(on) {
+            musicBtn.textContent = on ? 'Pause music' : 'Play music';
+        }
+        function tryPlay() {
+            var p = audio.play();
+            if (p && p.then) {
+                p.then(function () { setMusicUi(true); }).catch(function () { setMusicUi(false); });
+            }
+        }
+        tryPlay();
+        musicBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (audio.paused) { tryPlay(); } else { audio.pause(); setMusicUi(false); }
+        });
+        document.addEventListener('click', function startOnce() {
+            if (audio.paused) tryPlay();
+            document.removeEventListener('click', startOnce);
+        });
+    }
+
     var LOOKUP = @json($lookupUrl);
     var POST = @json($pledgeUrl);
     var EULOGY = @json($eulogyUrl);

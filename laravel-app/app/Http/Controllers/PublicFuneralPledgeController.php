@@ -63,7 +63,7 @@ class PublicFuneralPledgeController extends Controller
             'navActive' => 'remember',
             'campaign' => $data['campaign'],
             'funeralAt' => $data['funeral_at'],
-            'photos' => $this->pledges->rememberPhotos(),
+            'photos' => [$this->pledges->rememberPhotos()[0]],
             'eulogies' => $data['eulogies'],
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => route('funeral.pangwayu.lookup'),
