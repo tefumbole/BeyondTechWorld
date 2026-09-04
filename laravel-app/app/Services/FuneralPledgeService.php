@@ -431,12 +431,19 @@ class FuneralPledgeService
 
     public function rememberPhotos()
     {
-        return [
-            asset('public/memorial/pangwayu/remember-landing.jpg'),
-            asset('public/memorial/pangwayu/remember-red.jpg'),
-            asset('public/memorial/pangwayu/remember-cbc-heaven.jpg'),
-            asset('public/memorial/pangwayu/remember-jesus.jpg'),
+        $files = [
+            'memorial/pangwayu/remember-landing.jpg',
+            'memorial/pangwayu/remember-red.jpg',
+            'memorial/pangwayu/remember-cbc-heaven.jpg',
+            'memorial/pangwayu/remember-jesus.jpg',
         ];
+
+        return array_map(function ($rel) {
+            $path = public_path($rel);
+            $ver = is_file($path) ? filemtime($path) : time();
+
+            return asset('public/'.$rel).'?v='.$ver;
+        }, $files);
     }
 
     public function notifyEulogy(FuneralEulogy $eulogy)
