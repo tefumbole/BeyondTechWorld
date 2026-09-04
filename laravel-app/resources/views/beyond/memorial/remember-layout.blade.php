@@ -249,7 +249,9 @@
         @yield('nav_extra')
     </nav>
     @yield('content')
-    <p class="foot">for the Ngwayu's Family<br>Pa Ngwayu Richard<br><span style="display:block;margin-top:8px;">Developed By. Sr. Engr. Tefu R. Mbole</span></p>
+    <p class="foot">Developed by
+        <a href="https://wa.me/237675321739" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">+237 675321739</a>
+    </p>
 </main>
 </div>
 @yield('modals')
