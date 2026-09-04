@@ -67,9 +67,9 @@ class QuotationController extends Controller
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
 
-            $tab = $request->get('tab', 'awaiting');
-            if (! in_array($tab, ['awaiting', 'approved', 'rejected', 'draft', 'quoted'], true)) {
-                $tab = 'awaiting';
+            $tab = $request->get('tab', 'all');
+            if (! in_array($tab, ['all', 'awaiting', 'approved', 'rejected', 'draft', 'quoted'], true)) {
+                $tab = 'all';
             }
 
             Quotation::promoteSignedAwaitingToApproved();
@@ -83,7 +83,7 @@ class QuotationController extends Controller
                 $query->where('quotation_status', Quotation::STATUS_REJECTED);
             } elseif ($tab === 'quoted') {
                 $query->where('quotation_status', Quotation::STATUS_CLIENT_QUOTE);
-            } else {
+            } elseif ($tab === 'awaiting') {
                 $query->awaitingClientSignature();
             }
 
@@ -98,6 +98,7 @@ class QuotationController extends Controller
                 $baseCounts->where('user_id', Auth::id());
             }
             $tabCounts = [
+                'all' => (clone $baseCounts)->count(),
                 'awaiting' => (clone $baseCounts)->awaitingClientSignature()->count(),
                 'approved' => (clone $baseCounts)->approvedOrSigned()->count(),
                 'rejected' => (clone $baseCounts)->where('quotation_status', Quotation::STATUS_REJECTED)->count(),

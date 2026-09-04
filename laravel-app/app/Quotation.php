@@ -81,11 +81,12 @@ class Quotation extends Model
         return ! empty($this->client_signed_at) || ! empty($this->client_signature_path);
     }
 
-    /** Still waiting for the client to sign — exclude already-signed rows. */
+    /** Still waiting for the client to sign — exclude already-signed or responded rows. */
     public function scopeAwaitingClientSignature($query)
     {
         return $query->where('quotation_status', self::STATUS_AWAITING)
             ->whereNull('client_signed_at')
+            ->whereNull('client_responded_at')
             ->where(function ($q) {
                 $q->whereNull('client_signature_path')
                     ->orWhere('client_signature_path', '');
@@ -120,7 +121,10 @@ class Quotation extends Model
                                 ->where('client_signature_path', '!=', '');
                         });
                 })
-                ->update(['quotation_status' => self::STATUS_APPROVED]);
+                ->update([
+                    'quotation_status' => self::STATUS_APPROVED,
+                    'client_approval_token' => null,
+                ]);
         } catch (\Throwable $e) {
             \Log::warning('Quotation signed-status heal failed: '.$e->getMessage());
         }
