@@ -27,6 +27,16 @@
             <div class="ring" style="--p:0%"><b id="m">0</b><span id="mLabel">Mins</span></div>
             <div class="ring" style="--p:0%"><b id="s">0</b><span id="sLabel">Secs</span></div>
         </div>
+        <div class="sun-row">
+            <div class="sun-item">
+                <span>Sunrise</span>
+                <strong>1952</strong>
+            </div>
+            <div class="sun-item">
+                <span>Sunset</span>
+                <strong>2025</strong>
+            </div>
+        </div>
     </div>
 
     <section class="eulogies is-hidden" id="eulogies">

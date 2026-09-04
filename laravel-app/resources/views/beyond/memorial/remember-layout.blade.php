@@ -115,8 +115,8 @@
             min-height: calc(100vh - 220px);
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            padding-bottom: 24px;
+            justify-content: flex-start;
+            padding-bottom: 8px;
         }
         .landing-home h1 {
             font-size: clamp(40px, 6.4vw, 68px);
@@ -124,17 +124,42 @@
             max-width: 14em;
         }
         .landing-home .rings {
-            grid-template-columns: repeat(2, minmax(140px, 220px));
-            gap: 22px;
-            margin: 0;
+            grid-template-columns: repeat(4, minmax(72px, 1fr));
+            gap: 14px;
+            margin: 0 0 28px;
+            max-width: 560px;
         }
         .landing-home .ring {
             width: 100%;
             height: auto;
             aspect-ratio: 1;
         }
-        .landing-home .ring b { font-size: clamp(42px, 8vw, 72px); }
-        .landing-home .ring span { font-size: 14px; letter-spacing: .16em; }
+        .landing-home .ring b { font-size: clamp(28px, 5vw, 48px); }
+        .landing-home .ring span { font-size: 12px; letter-spacing: .14em; }
+        .sun-row {
+            display: flex;
+            gap: 28px;
+            align-items: flex-end;
+            margin-top: auto;
+            padding-top: 18px;
+        }
+        .sun-item span {
+            display: block;
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .sun-item strong {
+            display: block;
+            font-family: "Cormorant Garamond", serif;
+            font-size: clamp(32px, 5vw, 44px);
+            font-weight: 700;
+            color: #fff8e8;
+            line-height: 1;
+        }
         .eulogies.is-hidden { display: none; }
         .flash { background: #1d3a22; border: 1px solid #4a9a5c; color: #d8f5de; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
         .flash.bad { background: #3a1612; border-color: #a85a4c; color: #f3cfc8; }
@@ -244,7 +269,10 @@
             .ring b { font-size: 24px; }
             .nav a, .nav button { padding: 12px 16px; font-size: 15px; }
             .landing-home { min-height: auto; }
-            .landing-home .rings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+            .landing-home .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+            .landing-home .ring b { font-size: 22px; }
+            .landing-home .ring span { font-size: 9px; }
+            .sun-row { gap: 18px; }
         }
         @media (max-width: 420px) {
             .phone-row { grid-template-columns: 1fr; }
