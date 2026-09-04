@@ -137,7 +137,7 @@
 @endsection
 
 @section('scripts')
-<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well.mp3') }}" loop preload="auto" playsinline autoplay></audio>
+<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well-instrumental.mp3') }}" loop preload="auto" playsinline autoplay></audio>
 <button type="button" class="music-btn" id="musicBtn">Play music</button>
 <script>
 (function () {
