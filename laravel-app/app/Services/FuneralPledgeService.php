@@ -74,6 +74,8 @@ class FuneralPledgeService
                     'body' => $row->body,
                     'has_signature' => ! empty($row->signature_path),
                     'signature' => $row->signature_path ? asset($row->signature_path) : '',
+                    'has_selfie' => ! empty($row->selfie_path),
+                    'selfie' => $row->selfie_path ? asset($row->selfie_path) : '',
                     'when' => $row->created_at ? $row->created_at->format('d M Y') : '',
                 ];
             })
@@ -134,16 +136,25 @@ class FuneralPledgeService
         return $pledge;
     }
 
-    public function paymentLink(FuneralPledge $pledge, $method = 'momo')
+    public function paymentLink(FuneralPledge $pledge, $method = 'momo', $back = null)
     {
         if ($method === 'visa' || $method === 'stripe') {
-            return $this->stripeCheckout($pledge);
+            return $this->stripeCheckout($pledge, $back);
         }
 
-        return $this->campayMomoLink($pledge);
+        return $this->campayMomoLink($pledge, $back);
     }
 
-    protected function campayMomoLink(FuneralPledge $pledge)
+    protected function publicPayUrl($status, $back = null)
+    {
+        if ($back === 'remember') {
+            return route('funeral.pangwayu.remember', ['pay' => $status]);
+        }
+
+        return route('funeral.pangwayu', ['pay' => $status]);
+    }
+
+    protected function campayMomoLink(FuneralPledge $pledge, $back = null)
     {
         $token = config('services.campay.token') ?: getenv('CAMPAY_TOKEN') ?: getenv('MOMO_TOKEN');
         if (! $token) {
@@ -152,12 +163,12 @@ class FuneralPledgeService
 
         $phone = preg_replace('/\D/', '', (string) $pledge->phone);
         $callback = route('funeral.pangwayu.payment');
-        $fail = route('funeral.pangwayu', ['pay' => 'failed']);
+        $fail = $this->publicPayUrl('failed', $back);
         $payload = json_encode([
             'amount' => (string) $pledge->amount,
             'from' => $phone,
             'currency' => 'XAF',
-            'external_reference' => $pledge->id.','.$fail,
+            'external_reference' => $pledge->id.','.$fail.','.($back ?: ''),
             'redirect_url' => $callback,
             'payment_options' => 'MOMO',
             'failure_redirect_url' => $callback,
@@ -192,7 +203,7 @@ class FuneralPledgeService
         return $decoded['link'];
     }
 
-    protected function stripeCheckout(FuneralPledge $pledge)
+    protected function stripeCheckout(FuneralPledge $pledge, $back = null)
     {
         $secret = config('services.stripe.secret') ?: getenv('STRIPE_SECRET');
         if (! $secret) {
@@ -215,11 +226,12 @@ class FuneralPledgeService
                 ],
                 'quantity' => 1,
             ]],
-            'success_url' => route('funeral.pangwayu.stripe', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('funeral.pangwayu', ['pay' => 'failed'], true),
+            'success_url' => route('funeral.pangwayu.stripe', [], true).'?session_id={CHECKOUT_SESSION_ID}&back='.urlencode((string) $back),
+            'cancel_url' => $this->publicPayUrl('failed', $back),
             'metadata' => [
                 'pledge_id' => (string) $pledge->id,
                 'module' => 'pangwayu',
+                'back' => (string) $back,
             ],
         ]);
 
@@ -229,11 +241,11 @@ class FuneralPledgeService
         return $session->url;
     }
 
-    public function handleStripeReturn($sessionId)
+    public function handleStripeReturn($sessionId, $back = null)
     {
         $secret = config('services.stripe.secret') ?: getenv('STRIPE_SECRET');
         if (! $secret || ! $sessionId) {
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'failed'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('failed', $back)];
         }
 
         Stripe::setApiKey($secret);
@@ -242,7 +254,7 @@ class FuneralPledgeService
         } catch (\Throwable $e) {
             Log::info('Funeral Stripe retrieve failed: '.$e->getMessage());
 
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'failed'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('failed', $back)];
         }
 
         $pledge = FuneralPledge::with(['item', 'campaign'])
@@ -251,13 +263,16 @@ class FuneralPledgeService
         if (! $pledge && ! empty($session->metadata->pledge_id)) {
             $pledge = FuneralPledge::with(['item', 'campaign'])->find((int) $session->metadata->pledge_id);
         }
+        if (! $back && ! empty($session->metadata->back)) {
+            $back = (string) $session->metadata->back;
+        }
         if (! $pledge) {
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'failed'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('failed', $back)];
         }
 
         $paid = ($session->payment_status === 'paid') || ($session->status === 'complete');
         if (! $paid) {
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'pending'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('pending', $back)];
         }
 
         $pledge->status = FuneralPledge::STATUS_PAID;
@@ -267,7 +282,7 @@ class FuneralPledgeService
         $pledge->save();
         $this->notifyPledge($pledge->fresh(['item', 'campaign']));
 
-        return ['ok' => true, 'redirect' => route('funeral.pangwayu', ['pay' => 'ok'])];
+        return ['ok' => true, 'redirect' => $this->publicPayUrl('ok', $back)];
     }
 
     public function createEulogy(array $data)
@@ -288,6 +303,10 @@ class FuneralPledgeService
         ]);
 
         $sigPath = $this->storeSignature($data['signature'] ?? '');
+        if (! empty($data['require_signature']) && ! $sigPath) {
+            throw new \InvalidArgumentException('Please sign the eulogy before submitting.');
+        }
+        $selfiePath = $this->storeSelfie($data['selfie'] ?? null);
         $eulogy = FuneralEulogy::create([
             'campaign_id' => $campaign->id,
             'customer_id' => $customer['customer']->id,
@@ -295,6 +314,7 @@ class FuneralPledgeService
             'phone' => $data['phone'],
             'body' => $body,
             'signature_path' => $sigPath,
+            'selfie_path' => $selfiePath,
         ]);
 
         $this->notifyEulogy($eulogy->fresh());
@@ -325,9 +345,103 @@ class FuneralPledgeService
         return 'public/memorial/pangwayu/eulogies/'.$name;
     }
 
+    /**
+     * Store a eulogy selfie as JPEG, never larger than 256 KB.
+     *
+     * @param  \Illuminate\Http\UploadedFile|null  $file
+     */
+    public function storeSelfie($file)
+    {
+        if (! $file || ! is_object($file) || ! method_exists($file, 'isValid') || ! $file->isValid()) {
+            return null;
+        }
+
+        $bin = @file_get_contents($file->getRealPath());
+        if ($bin === false || strlen($bin) < 80) {
+            return null;
+        }
+
+        $maxBytes = 256 * 1024;
+        if (function_exists('imagecreatefromstring')) {
+            $img = @imagecreatefromstring($bin);
+            if ($img) {
+                $w = imagesx($img);
+                $h = imagesy($img);
+                $maxSide = 960;
+                if ($w > $maxSide || $h > $maxSide) {
+                    $scale = $maxSide / max($w, $h);
+                    $nw = max(1, (int) round($w * $scale));
+                    $nh = max(1, (int) round($h * $scale));
+                    $dst = imagecreatetruecolor($nw, $nh);
+                    imagecopyresampled($dst, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+                    imagedestroy($img);
+                    $img = $dst;
+                }
+                $out = null;
+                for ($q = 80; $q >= 38; $q -= 8) {
+                    ob_start();
+                    imagejpeg($img, null, $q);
+                    $try = ob_get_clean();
+                    $out = $try;
+                    if (strlen($try) <= $maxBytes) {
+                        break;
+                    }
+                }
+                imagedestroy($img);
+                if ($out) {
+                    $bin = $out;
+                }
+            }
+        }
+
+        if (strlen($bin) > $maxBytes) {
+            throw new \InvalidArgumentException('Selfie must be 256 KB or smaller.');
+        }
+
+        $dir = public_path('memorial/pangwayu/eulogies');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $name = 'selfie_'.date('YmdHis').'_'.substr(md5($bin), 0, 8).'.jpg';
+        file_put_contents($dir.'/'.$name, $bin);
+
+        return 'public/memorial/pangwayu/eulogies/'.$name;
+    }
+
+    public function openGiftItem()
+    {
+        $campaign = $this->campaign();
+        if (! $campaign) {
+            return null;
+        }
+
+        $other = FuneralItem::where('campaign_id', $campaign->id)
+            ->where('is_open', 1)
+            ->where('name', 'Other')
+            ->first();
+        if ($other) {
+            return $other;
+        }
+
+        return FuneralItem::where('campaign_id', $campaign->id)
+            ->where('is_open', 1)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    public function rememberPhotos()
+    {
+        return [
+            asset('public/memorial/pangwayu/remember-landing.jpg'),
+            asset('public/memorial/pangwayu/remember-red.jpg'),
+            asset('public/memorial/pangwayu/remember-cbc-heaven.jpg'),
+            asset('public/memorial/pangwayu/remember-jesus.jpg'),
+        ];
+    }
+
     public function notifyEulogy(FuneralEulogy $eulogy)
     {
-        $pageUrl = route('funeral.pangwayu').'#eulogies';
+        $pageUrl = route('funeral.pangwayu.remember').'#eulogies';
         $familyMsg = WhatsAppMessage::funeralEulogyThanks($eulogy->name, $eulogy->excerpt(500), $pageUrl);
         $adminMsg = WhatsAppMessage::funeralEulogyAdmin(
             $eulogy->name,
@@ -359,9 +473,10 @@ class FuneralPledgeService
     {
         $parts = explode(',', (string) $externalReference);
         $pledgeId = isset($parts[0]) ? (int) $parts[0] : 0;
+        $back = isset($parts[2]) && $parts[2] === 'remember' ? 'remember' : null;
         $pledge = FuneralPledge::with(['item', 'campaign'])->find($pledgeId);
         if (! $pledge) {
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'failed'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('failed', $back)];
         }
 
         $status = strtoupper((string) $status);
@@ -373,21 +488,21 @@ class FuneralPledgeService
             $pledge->save();
             $this->notifyPledge($pledge->fresh(['item', 'campaign']));
 
-            return ['ok' => true, 'redirect' => route('funeral.pangwayu', ['pay' => 'ok'])];
+            return ['ok' => true, 'redirect' => $this->publicPayUrl('ok', $back)];
         }
 
         if ($status === 'PENDING') {
             $pledge->campay_reference = $reference;
             $pledge->save();
 
-            return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'pending'])];
+            return ['ok' => false, 'redirect' => $this->publicPayUrl('pending', $back)];
         }
 
         $pledge->status = FuneralPledge::STATUS_FAILED;
         $pledge->campay_reference = $reference;
         $pledge->save();
 
-        return ['ok' => false, 'redirect' => route('funeral.pangwayu', ['pay' => 'failed'])];
+        return ['ok' => false, 'redirect' => $this->publicPayUrl('failed', $back)];
     }
 
     public function notifyPledge(FuneralPledge $pledge)

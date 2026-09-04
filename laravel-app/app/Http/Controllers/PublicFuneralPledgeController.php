@@ -50,6 +50,64 @@ class PublicFuneralPledgeController extends Controller
         ]);
     }
 
+    public function remember(Request $request)
+    {
+        $this->guardEnabled();
+        $data = $this->pledges->pageData();
+        if (! $data) {
+            abort(404);
+        }
+        $gift = $this->pledges->openGiftItem();
+
+        return view('beyond.memorial.remember', [
+            'navActive' => 'remember',
+            'campaign' => $data['campaign'],
+            'funeralAt' => $data['funeral_at'],
+            'photos' => $this->pledges->rememberPhotos(),
+            'eulogies' => $data['eulogies'],
+            'countries' => CountryDialCodes::list(),
+            'lookupUrl' => route('funeral.pangwayu.lookup'),
+            'eulogyUrl' => route('funeral.pangwayu.eulogy'),
+            'pledgeUrl' => route('funeral.pangwayu.store'),
+            'giftItemId' => $gift ? $gift->id : null,
+            'flashEulogy' => $request->get('eulogy'),
+            'flashPay' => $request->get('pay'),
+        ]);
+    }
+
+    public function program()
+    {
+        $this->guardEnabled();
+
+        $data = $this->pledges->pageData();
+        if (! $data) {
+            abort(404);
+        }
+
+        return view('beyond.memorial.program', [
+            'navActive' => 'program',
+            'photos' => $this->pledges->rememberPhotos(),
+            'funeralAt' => $data['funeral_at'],
+            'campaign' => $data['campaign'],
+        ]);
+    }
+
+    public function hymns()
+    {
+        $this->guardEnabled();
+        $data = $this->pledges->pageData();
+        if (! $data) {
+            abort(404);
+        }
+
+        return view('beyond.memorial.hymns', [
+            'navActive' => 'hymns',
+            'photos' => $this->pledges->rememberPhotos(),
+            'funeralAt' => $data['funeral_at'],
+            'campaign' => $data['campaign'],
+        ]);
+    }
+
     public function lookup(Request $request)
     {
         $this->guardEnabled();
@@ -99,7 +157,11 @@ class PublicFuneralPledgeController extends Controller
 
         if ($data['action'] === 'pay') {
             try {
-                $link = $this->pledges->paymentLink($pledge, $data['pay_method'] ?? 'momo');
+                $link = $this->pledges->paymentLink(
+                    $pledge,
+                    $data['pay_method'] ?? 'momo',
+                    $request->get('back') === 'remember' ? 'remember' : null
+                );
 
                 return response()->json(['ok' => true, 'redirect' => $link]);
             } catch (\Throwable $e) {
@@ -118,7 +180,9 @@ class PublicFuneralPledgeController extends Controller
             'country_code' => 'required|string|max:10',
             'phone' => 'required|string|max:40',
             'body' => 'required|string|max:4000',
-            'signature' => 'nullable|string|max:900000',
+            'signature' => $request->get('from') === 'remember' ? 'required|string|max:900000' : 'nullable|string|max:900000',
+            'selfie' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'from' => 'nullable|in:remember',
         ]);
 
         try {
@@ -136,6 +200,8 @@ class PublicFuneralPledgeController extends Controller
                 'phone' => $phone,
                 'body' => $data['body'],
                 'signature' => $data['signature'] ?? '',
+                'selfie' => $request->file('selfie'),
+                'require_signature' => ($data['from'] ?? '') === 'remember',
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -149,7 +215,7 @@ class PublicFuneralPledgeController extends Controller
     public function stripeReturn(Request $request)
     {
         $this->guardEnabled();
-        $result = $this->pledges->handleStripeReturn($request->get('session_id'));
+        $result = $this->pledges->handleStripeReturn($request->get('session_id'), $request->get('back'));
 
         return redirect()->to($result['redirect']);
     }

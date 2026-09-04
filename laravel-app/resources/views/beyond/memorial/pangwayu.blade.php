@@ -354,7 +354,12 @@
             <article class="eulogy-box">
                 <p>{{ $eu['body'] }}</p>
                 <div class="eulogy-who">
-                    <cite>{{ $eu['name'] }}</cite>
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                        @if(!empty($eu['has_selfie']))
+                            <img src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}" style="height:48px;width:48px;border-radius:50%;object-fit:cover;">
+                        @endif
+                        <cite>{{ $eu['name'] }}</cite>
+                    </div>
                     @if($eu['has_signature'])
                         <img src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
                     @endif

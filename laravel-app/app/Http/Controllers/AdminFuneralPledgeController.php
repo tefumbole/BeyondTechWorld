@@ -22,6 +22,7 @@ class AdminFuneralPledgeController extends Controller
             'pledges' => $pledges,
             'eulogies' => $eulogies,
             'publicUrl' => route('funeral.pangwayu'),
+            'rememberUrl' => route('funeral.pangwayu.remember'),
         ]);
     }
 }

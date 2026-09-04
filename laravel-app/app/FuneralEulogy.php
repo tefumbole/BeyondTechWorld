@@ -14,7 +14,7 @@ class FuneralEulogy extends Model
     protected $table = 'funeral_eulogies';
 
     protected $fillable = [
-        'campaign_id', 'customer_id', 'name', 'phone', 'body', 'signature_path',
+        'campaign_id', 'customer_id', 'name', 'phone', 'body', 'signature_path', 'selfie_path',
     ];
 
     public function campaign()

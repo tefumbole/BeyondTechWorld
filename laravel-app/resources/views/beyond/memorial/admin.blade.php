@@ -5,8 +5,10 @@
     <div class="container-fluid" style="max-width:1100px;margin:0 auto;">
         <div class="mb-3">
             <h3 style="color:#0b3f90;font-weight:800;">Pa Ngwayu funeral pledges</h3>
-            <p class="text-muted mb-1">Admin: Pa Ngwayu Richard · public page
+            <p class="text-muted mb-1">Admin: Pa Ngwayu Richard · family budget
                 <a href="{{ $publicUrl }}" target="_blank">{{ $publicUrl }}</a>
+                · church program &amp; eulogies
+                <a href="{{ $rememberUrl }}" target="_blank">{{ $rememberUrl }}</a>
             </p>
             @if($data)
                 <p class="mb-0"><strong>{{ number_format($data['raised']) }}</strong> of
@@ -80,12 +82,19 @@
             <h5>Eulogies</h5>
             @forelse($eulogies as $e)
                 <div class="mb-3 pb-3" style="border-bottom:1px solid #eee;">
+                    <div style="display:flex;gap:10px;align-items:flex-start;">
+                        @if($e->selfie_path)
+                            <img src="{{ asset($e->selfie_path) }}" alt="{{ $e->name }}" style="height:56px;width:56px;border-radius:50%;object-fit:cover;">
+                        @endif
+                        <div>
                     <strong>{{ $e->name }}</strong>
                     <span class="text-muted small"> · {{ $e->phone }} · {{ $e->created_at }}</span>
                     <p class="mb-1">{{ $e->body }}</p>
                     @if($e->signature_path)
                         <img src="{{ asset($e->signature_path) }}" alt="Signature" style="height:48px;background:#fff;">
                     @endif
+                        </div>
+                    </div>
                 </div>
             @empty
                 <p class="text-muted mb-0">No eulogies yet.</p>
