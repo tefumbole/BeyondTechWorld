@@ -68,20 +68,21 @@
         .nav {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
             margin: 0 0 28px;
         }
         .nav a, .nav button {
-            border: 1px solid #5a4a22;
-            background: transparent;
-            color: var(--gold-2);
+            border: 2px solid #d4af37;
+            background: rgba(20, 14, 8, .92);
+            color: #fff8e8;
             border-radius: 999px;
             padding: 14px 22px;
-            font-weight: 700;
-            font-size: 17px;
+            font-weight: 800;
+            font-size: 16px;
             text-decoration: none;
             cursor: pointer;
             font-family: inherit;
+            box-shadow: 0 6px 18px rgba(0,0,0,.35);
         }
         .nav a.on, .nav a:hover, .nav button:hover {
             background: var(--gold);
@@ -280,61 +281,116 @@
             .phone-row { grid-template-columns: 1fr; }
             .actions3 { grid-template-columns: 1fr; }
         }
-        body.is-landing { background: #000; }
+        body.is-landing { background: #050403; }
         body.is-landing .shell {
             display: block;
             min-height: 100vh;
             position: relative;
         }
         body.is-landing .portrait {
-            position: fixed;
-            inset: 0;
+            position: relative;
             width: 100%;
-            height: 100%;
-            z-index: 0;
-            background: #000;
+            height: auto;
+            min-height: 0;
+            max-height: none;
+            background: #050403;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 16px;
         }
         body.is-landing .portrait img {
+            position: relative;
+            inset: auto;
+            width: min(1100px, 100%);
+            height: auto;
+            max-height: 72vh;
             padding: 0;
             object-fit: contain;
             object-position: center;
+            opacity: 1 !important;
+            image-rendering: auto;
         }
         body.is-landing .portrait .wash,
         body.is-landing .portrait .caption { display: none; }
         body.is-landing .main {
             position: relative;
             z-index: 2;
-            min-height: 100vh;
-            background: transparent;
+            min-height: auto;
+            background: #050403;
             display: flex;
             flex-direction: column;
+            padding: 18px 20px 28px;
+        }
+        body.is-landing .nav {
+            justify-content: center;
+            margin-bottom: 18px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            padding: 10px 0;
+            background: linear-gradient(180deg, #050403 70%, transparent);
         }
         body.is-landing .landing-home h1 { display: none; }
         body.is-landing .landing-home {
-            flex: 1;
+            flex: 0 0 auto;
             min-height: 0;
-            justify-content: flex-end;
+            justify-content: flex-start;
+            align-items: center;
+            text-align: center;
+            padding: 8px 0 0;
+        }
+        body.is-landing .landing-home .rings {
+            margin: 0 auto 18px;
+            max-width: 520px;
+        }
+        body.is-landing .sun-row {
+            justify-content: center;
+            margin-top: 0;
+            padding-top: 0;
+        }
+        body.is-landing .eulogy-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 22px auto 8px;
+            padding: 14px 28px;
+            border-radius: 999px;
+            border: 2px solid #d4af37;
+            background: linear-gradient(180deg, #f0d57a, #d4af37);
+            color: #1a1408;
+            font-weight: 800;
+            font-size: 17px;
+            text-decoration: none;
+            cursor: pointer;
+            font-family: inherit;
         }
         body.is-landing .eulogies:not(.is-hidden) {
-            background: rgba(8,6,4,.9);
+            background: rgba(8,6,4,.95);
             border: 1px solid #4a3b1c;
             border-radius: 18px;
             padding: 20px 18px;
+            margin-top: 18px;
         }
         .music-btn {
             position: fixed;
             right: 16px;
             bottom: 16px;
             z-index: 40;
-            border: 1px solid #d4af37;
-            background: rgba(13,10,8,.82);
+            border: 2px solid #d4af37;
+            background: rgba(13,10,8,.92);
             color: #f0d57a;
             border-radius: 999px;
             padding: 10px 16px;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 14px;
             cursor: pointer;
             font-family: inherit;
+        }
+        @media (max-width: 860px) {
+            body.is-landing .portrait { padding: 0 8px; }
+            body.is-landing .portrait img { max-height: none; width: 100%; }
+            body.is-landing .main { padding: 12px 12px 24px; }
         }
         @yield('styles')
     </style>

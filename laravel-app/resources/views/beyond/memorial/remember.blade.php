@@ -37,6 +37,7 @@
                 <strong>2025</strong>
             </div>
         </div>
+        <button type="button" class="eulogy-cta" id="openEulogyBottom">Add a Eulogy</button>
     </div>
 
     <section class="eulogies is-hidden" id="eulogies">
@@ -136,14 +137,14 @@
 @endsection
 
 @section('scripts')
-<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/ceremony.mp3') }}" loop preload="auto"></audio>
+<audio id="ceremonyAudio" src="{{ asset('public/memorial/pangwayu/audio/it-is-well.mp3') }}" loop preload="auto" playsinline autoplay></audio>
 <button type="button" class="music-btn" id="musicBtn">Play music</button>
 <script>
 (function () {
     var audio = document.getElementById('ceremonyAudio');
     var musicBtn = document.getElementById('musicBtn');
     if (audio && musicBtn) {
-        audio.volume = 0.42;
+        audio.volume = 0.48;
         function setMusicUi(on) {
             musicBtn.textContent = on ? 'Pause music' : 'Play music';
         }
@@ -151,16 +152,22 @@
             var p = audio.play();
             if (p && p.then) {
                 p.then(function () { setMusicUi(true); }).catch(function () { setMusicUi(false); });
+            } else if (!audio.paused) {
+                setMusicUi(true);
             }
         }
         tryPlay();
+        setTimeout(tryPlay, 400);
+        setTimeout(tryPlay, 1200);
         musicBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             if (audio.paused) { tryPlay(); } else { audio.pause(); setMusicUi(false); }
         });
-        document.addEventListener('click', function startOnce() {
-            if (audio.paused) tryPlay();
-            document.removeEventListener('click', startOnce);
+        ['click', 'touchstart', 'keydown'].forEach(function (evt) {
+            document.addEventListener(evt, function startOnce() {
+                if (audio.paused) tryPlay();
+                document.removeEventListener(evt, startOnce);
+            }, { once: true, passive: true });
         });
     }
 
