@@ -124,7 +124,7 @@
             min-width: 0;
             line-height: 1.45;
         }
-        .service-row a { color: var(--gold-2); white-space: nowrap; }
+        .service-row a { color: var(--gold-2); }
         @media (max-width: 520px) {
             .timeline:before { left: 23px; }
             .part { grid-template-columns: 48px 1fr; gap: 12px; }
@@ -164,12 +164,12 @@
                 <div class="service-list">
                     <div class="service-row"><b>01</b><span>Prelude and processional</span></div>
                     <div class="service-row"><b>02</b><span>Opening prayer</span></div>
-                    <div class="service-row"><b>03</b><span>Opening hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">Amazing Grace</a></span></div>
+                    <div class="service-row"><b>03</b><span>Opening hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">When the Trumpet of the Lord Shall Sound</a></span></div>
                     <div class="service-row"><b>04</b><span>Scripture reading</span></div>
                     <div class="service-row"><b>05</b><span>Biography and tributes</span></div>
                     <div class="service-row"><b>06</b><span>Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></span></div>
                     <div class="service-row"><b>07</b><span>Sermon</span></div>
-                    <div class="service-row"><b>08</b><span>Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></span></div>
+                    <div class="service-row"><b>08</b><span>Closing hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></span></div>
                     <div class="service-row"><b>09</b><span>Closing prayer and benediction</span></div>
                     <div class="service-row"><b>10</b><span>Recessional</span></div>
                 </div>
