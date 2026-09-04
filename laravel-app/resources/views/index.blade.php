@@ -97,10 +97,10 @@
 @php
     $role = DB::table('roles')->find(Auth::user()->role_id);
     $dashboard = DB::table('permissions')->where('name', 'dashboard')->first();
-    $dashboard_active = DB::table('role_has_permissions')->where([
+    $dashboard_active = ($role && $dashboard) ? DB::table('role_has_permissions')->where([
     ['permission_id', $dashboard->id],
     ['role_id', $role->id]
-    ])->first();
+    ])->first() : null;
  @endphp
 @if($dashboard_active)
 @php

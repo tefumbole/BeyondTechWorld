@@ -32,7 +32,7 @@
         <!-- Custom Scrollbar-->
         <link rel="stylesheet" href="<?php echo asset('public/vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css') ?>" type="text/css">
 
-        @if(Route::current()->getName() != '/')
+        @if(optional(Route::current())->getName() != '/')
         <!-- date range stylesheet-->
         <link rel="stylesheet" href="<?php echo asset('public/vendor/daterange/css/daterangepicker.min.css') ?>" type="text/css">
         <!-- table sorter stylesheet-->
@@ -66,7 +66,7 @@
 
         <script type="text/javascript" src="<?php echo asset('public/js/front.js') ?>?v={{ \App\Support\AppVersion::erp() }}"></script>
 
-        @if(Route::current()->getName() != '/')
+        @if(optional(Route::current())->getName() != '/')
         <script type="text/javascript" src="<?php echo asset('public/vendor/daterange/js/moment.min.js') ?>"></script>
         <script type="text/javascript" src="<?php echo asset('public/vendor/daterange/js/knockout-3.4.2.js') ?>"></script>
         <script type="text/javascript" src="<?php echo asset('public/vendor/daterange/js/daterangepicker.min.js') ?>"></script>
@@ -1335,7 +1335,7 @@
       </head>
 
       <body onload="myFunction()">
-        <div id="loader"></div>
+        <div id="loader" style="display:none"></div>
           <!-- Side Navbar -->
           <nav class="side-navbar">
             <div class="side-navbar-wrapper">
@@ -3543,7 +3543,7 @@
           </div>
           <!-- end supplier modal -->
 
-          <div style="display:none" id="content" class="animate-bottom">
+          <div id="content" class="animate-bottom">
               <div class="container-fluid">
                   <div id="beyond-module-tabs" class="beyond-module-tabs">
                       <div id="beyond-module-tabs-label" class="beyond-module-tabs-label"></div>

@@ -167,48 +167,57 @@
         </div>
     </div>
 </section>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+@endsection
+@section('scripts')
 <script>
 (function () {
+    if (typeof Chart === 'undefined') return;
     var week = @json($weekChart);
     var byActivity = @json($byActivity);
     var byCategory = @json($byCategory);
 
-    if (document.getElementById('ip-week-chart')) {
-        new Chart(document.getElementById('ip-week-chart'), {
-            type: 'bar',
-            data: {
-                labels: week.labels || [],
-                datasets: [
-                    { label: 'Logged', data: week.logged || [], backgroundColor: '#0b3f90' },
-                    { label: 'Expected', data: week.expected || [], backgroundColor: '#c6ab47' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-                scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return v + 'h'; } } } }
-            }
-        });
-    }
+    try {
+        var weekEl = document.getElementById('ip-week-chart');
+        if (weekEl) {
+            new Chart(weekEl, {
+                type: 'bar',
+                data: {
+                    labels: (week && week.labels) ? week.labels : [],
+                    datasets: [
+                        { label: 'Logged', data: (week && week.logged) ? week.logged : [], backgroundColor: '#0b3f90' },
+                        { label: 'Expected', data: (week && week.expected) ? week.expected : [], backgroundColor: '#c6ab47' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { position: 'bottom' },
+                    scales: {
+                        yAxes: [{ ticks: { beginAtZero: true, callback: function (v) { return v + 'h'; } } }],
+                        xAxes: [{ gridLines: { display: false } }]
+                    }
+                }
+            });
+        }
+    } catch (e) {}
 
     function doughnut(id, map, colors) {
         var el = document.getElementById(id);
         if (!el || !map || !Object.keys(map).length) return;
-        new Chart(el, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(map),
-                datasets: [{ data: Object.values(map), backgroundColor: colors, borderWidth: 0 }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
+        try {
+            new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(map),
+                    datasets: [{ data: Object.values(map), backgroundColor: colors, borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: { position: 'bottom' }
+                }
+            });
+        } catch (e) {}
     }
 
     doughnut('ip-activity-chart', byActivity, ['#0b3f90', '#2563eb', '#c6ab47', '#14b8a6', '#f59e0b', '#8b5cf6', '#e11d48']);
