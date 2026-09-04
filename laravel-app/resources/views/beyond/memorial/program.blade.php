@@ -159,12 +159,12 @@
                 <div class="service-list">
                     <div class="service-row"><b>01</b> Prelude and processional</div>
                     <div class="service-row"><b>02</b> Opening prayer</div>
-                    <div class="service-row"><b>03</b> Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">see hymns</a></div>
+                    <div class="service-row"><b>03</b> Opening hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">Amazing Grace</a></div>
                     <div class="service-row"><b>04</b> Scripture reading</div>
                     <div class="service-row"><b>05</b> Biography and tributes</div>
                     <div class="service-row"><b>06</b> Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></div>
                     <div class="service-row"><b>07</b> Sermon</div>
-                    <div class="service-row"><b>08</b> Hymn</div>
+                    <div class="service-row"><b>08</b> Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></div>
                     <div class="service-row"><b>09</b> Closing prayer and benediction</div>
                     <div class="service-row"><b>10</b> Recessional</div>
                 </div>
