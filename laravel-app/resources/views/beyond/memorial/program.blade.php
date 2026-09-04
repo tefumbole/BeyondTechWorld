@@ -97,10 +97,9 @@
             gap: 8px;
         }
         .service-row {
-            display: grid;
-            grid-template-columns: 36px 1fr;
-            gap: 10px;
+            display: flex;
             align-items: center;
+            gap: 10px;
             padding: 11px 12px;
             border-radius: 14px;
             background: rgba(255,248,232,.03);
@@ -109,6 +108,7 @@
             font-size: 16px;
         }
         .service-row b {
+            flex: 0 0 28px;
             width: 28px;
             height: 28px;
             border-radius: 8px;
@@ -119,7 +119,12 @@
             color: var(--gold-2);
             font-size: 12px;
         }
-        .service-row a { color: var(--gold-2); }
+        .service-row span {
+            flex: 1;
+            min-width: 0;
+            line-height: 1.45;
+        }
+        .service-row a { color: var(--gold-2); white-space: nowrap; }
         @media (max-width: 520px) {
             .timeline:before { left: 23px; }
             .part { grid-template-columns: 48px 1fr; gap: 12px; }
@@ -157,16 +162,16 @@
                 <p>Church service at Nkwen Baptist Church.</p>
                 <div class="venue">Nkwen Baptist Church</div>
                 <div class="service-list">
-                    <div class="service-row"><b>01</b> Prelude and processional</div>
-                    <div class="service-row"><b>02</b> Opening prayer</div>
-                    <div class="service-row"><b>03</b> Opening hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">Amazing Grace</a></div>
-                    <div class="service-row"><b>04</b> Scripture reading</div>
-                    <div class="service-row"><b>05</b> Biography and tributes</div>
-                    <div class="service-row"><b>06</b> Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></div>
-                    <div class="service-row"><b>07</b> Sermon</div>
-                    <div class="service-row"><b>08</b> Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></div>
-                    <div class="service-row"><b>09</b> Closing prayer and benediction</div>
-                    <div class="service-row"><b>10</b> Recessional</div>
+                    <div class="service-row"><b>01</b><span>Prelude and processional</span></div>
+                    <div class="service-row"><b>02</b><span>Opening prayer</span></div>
+                    <div class="service-row"><b>03</b><span>Opening hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">Amazing Grace</a></span></div>
+                    <div class="service-row"><b>04</b><span>Scripture reading</span></div>
+                    <div class="service-row"><b>05</b><span>Biography and tributes</span></div>
+                    <div class="service-row"><b>06</b><span>Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></span></div>
+                    <div class="service-row"><b>07</b><span>Sermon</span></div>
+                    <div class="service-row"><b>08</b><span>Hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></span></div>
+                    <div class="service-row"><b>09</b><span>Closing prayer and benediction</span></div>
+                    <div class="service-row"><b>10</b><span>Recessional</span></div>
                 </div>
             </div>
         </article>
