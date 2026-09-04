@@ -169,7 +169,7 @@
                     <div class="service-row"><b>05</b><span>Biography and tributes</span></div>
                     <div class="service-row"><b>06</b><span>Eulogies — <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">write one here</a></span></div>
                     <div class="service-row"><b>07</b><span>Sermon</span></div>
-                    <div class="service-row"><b>08</b><span>Closing hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">It Is Well With My Soul</a></span></div>
+                    <div class="service-row"><b>08</b><span>Closing hymn — <a href="{{ route('funeral.pangwayu.hymns') }}">Farther Along</a></span></div>
                     <div class="service-row"><b>09</b><span>Closing prayer and benediction</span></div>
                     <div class="service-row"><b>10</b><span>Recessional</span></div>
                 </div>

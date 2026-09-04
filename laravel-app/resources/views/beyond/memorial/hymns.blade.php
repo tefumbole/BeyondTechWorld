@@ -97,34 +97,60 @@ When the roll is called up yonder, I’ll be there.</p>
 
     <article class="hymn-card">
         <span class="hymn-label">Closing hymn</span>
-        <h2>It Is Well With My Soul</h2>
+        <h2>Farther Along</h2>
 
-        <p class="hymn-verse">When peace, like a river, attendeth my way,
-When sorrows like sea billows roll;
-Whatever my lot, Thou hast taught me to say,
-It is well, it is well with my soul.</p>
-        <p class="hymn-chorus"><strong>Chorus</strong>It is well with my soul,
-It is well, it is well with my soul.</p>
+        <p class="hymn-verse">Tempted and tried, we’re oft made to wonder
+Why it should be thus all the day long;
+While there are others living about us,
+Never molested, though in the wrong.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
 
-        <p class="hymn-verse">Though Satan should buffet, though trials should come,
-Let this blest assurance control,
-That Christ hath regarded my helpless estate,
-And hath shed His own blood for my soul.</p>
-        <p class="hymn-chorus"><strong>Chorus</strong>It is well with my soul,
-It is well, it is well with my soul.</p>
+        <p class="hymn-verse">Sometimes I wonder why I must suffer,
+Go in the rain, the cold, and the snow,
+When there are many living in comfort,
+Giving no heed to all I can do.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
 
-        <p class="hymn-verse">My sin—oh, the bliss of this glorious thought—
-My sin, not in part but the whole,
-Is nailed to the cross, and I bear it no more,
-Praise the Lord, praise the Lord, O my soul!</p>
-        <p class="hymn-chorus"><strong>Chorus</strong>It is well with my soul,
-It is well, it is well with my soul.</p>
+        <p class="hymn-verse">Tempted and tried, how often we question
+Why we must suffer year after year,
+Being accused by those of our loved ones,
+E’en though we’ve walked in God’s holy fear.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
 
-        <p class="hymn-verse">And Lord, haste the day when the faith shall be sight,
-The clouds be rolled back as a scroll;
-The trump shall resound, and the Lord shall descend,
-Even so, it is well with my soul.</p>
-        <p class="hymn-chorus"><strong>Chorus</strong>It is well with my soul,
-It is well, it is well with my soul.</p>
+        <p class="hymn-verse">Often when death has taken our loved ones,
+Leaving our home so lone and so drear,
+Then do we wonder why others prosper,
+Living so wicked year after year.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
+
+        <p class="hymn-verse">Faithful till death, saith our loving Master;
+Short is our time to labor and wait;
+Then will our toiling seem to be nothing,
+When we shall pass the heavenly gate.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
+
+        <p class="hymn-verse">Soon we will see our dear, loving Savior,
+Hear the last trumpet sound through the sky;
+Then we will meet those gone on before us,
+Then we shall know and understand why.</p>
+        <p class="hymn-chorus"><strong>Refrain</strong>Farther along we’ll know more about it,
+Farther along we’ll understand why;
+Cheer up, my brother, live in the sunshine,
+We’ll understand it all by and by.</p>
     </article>
 @endsection
