@@ -1125,7 +1125,7 @@ class WhatsAppMessage
         $subjectFr = $paid ? 'Nouveau paiement' : 'Nouvel engagement';
         $amountLabel = number_format((int) $amount).' XAF';
         $msg = self::funeralHeader($subjectEn, $subjectFr);
-        $msg .= self::greeting('Pa Ngwayu Richard');
+        $msg .= self::greeting('Family');
         $msg .= $paid
             ? "A family member has *paid* toward Pa Ngwayu's funeral.\nUn membre de la famille a *payé* pour les obsèques.\n\n"
             : "A family member has *pledged* toward Pa Ngwayu's funeral.\nUn membre de la famille s'est *engagé* pour les obsèques.\n\n";
@@ -1159,7 +1159,7 @@ class WhatsAppMessage
     public static function funeralEulogyAdmin($name, $phone, $excerpt, $pageUrl)
     {
         $msg = self::funeralHeader('New eulogy', 'Nouvel éloge');
-        $msg .= self::greeting('Pa Ngwayu Richard');
+        $msg .= self::greeting('Family');
         $msg .= "A family member has written a eulogy for Pa Ngwayu Francis.\n";
         $msg .= "Un membre de la famille a écrit un éloge.\n\n";
         $msg .= self::bullet('Name / Nom', $name);

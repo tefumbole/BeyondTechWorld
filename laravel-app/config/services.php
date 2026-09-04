@@ -75,6 +75,7 @@ return [
         'funeral_pledge' => [
             'enabled' => filter_var(env('FUNERAL_PLEDGE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
             'admin_phone' => env('FUNERAL_PLEDGE_ADMIN_PHONE', '237677318405'),
+            'cc_phones' => env('FUNERAL_PLEDGE_CC_PHONES', '237677124575'),
         ],
 
         'stripe' => [

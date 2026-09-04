@@ -472,10 +472,10 @@ class FuneralPledgeService
         }
 
         $pdfPath = $this->eulogyCopyPdf($eulogy);
-        $adminPhone = $this->adminPhone($this->campaign());
+        $staffPhones = $this->staffPhones($this->campaign());
         $writerPhone = $eulogy->phone;
         $id = $eulogy->id;
-        app()->terminating(function () use ($whatsapp, $adminPhone, $adminMsg, $id, $pdfPath, $writerPhone) {
+        app()->terminating(function () use ($whatsapp, $staffPhones, $adminMsg, $id, $pdfPath, $writerPhone) {
             if ($pdfPath) {
                 try {
                     usleep(5500000);
@@ -489,12 +489,7 @@ class FuneralPledgeService
                     Log::info('Funeral eulogy WhatsApp PDF copy failed: '.$e->getMessage(), ['eulogy' => $id]);
                 }
             }
-            try {
-                usleep(5500000);
-                $whatsapp->sendText($adminPhone, $adminMsg);
-            } catch (\Throwable $e) {
-                Log::info('Funeral eulogy WhatsApp admin failed: '.$e->getMessage(), ['eulogy' => $id]);
-            }
+            $this->sendStaffCopies($whatsapp, $staffPhones, $adminMsg, ['eulogy' => $id]);
         });
     }
 
@@ -601,15 +596,10 @@ class FuneralPledgeService
             Log::info('Funeral pledge WhatsApp family failed: '.$e->getMessage());
         }
 
-        $adminPhone = $this->adminPhone($campaign);
+        $staffPhones = $this->staffPhones($campaign);
         $pledgeId = $pledge->id;
-        app()->terminating(function () use ($whatsapp, $adminPhone, $adminMsg, $pledgeId) {
-            try {
-                usleep(5500000);
-                $whatsapp->sendText($adminPhone, $adminMsg);
-            } catch (\Throwable $e) {
-                Log::info('Funeral pledge WhatsApp admin failed: '.$e->getMessage(), ['pledge' => $pledgeId]);
-            }
+        app()->terminating(function () use ($whatsapp, $staffPhones, $adminMsg, $pledgeId) {
+            $this->sendStaffCopies($whatsapp, $staffPhones, $adminMsg, ['pledge' => $pledgeId]);
         });
     }
 
@@ -634,5 +624,31 @@ class FuneralPledgeService
         }
 
         return '237677318405';
+    }
+
+    public function staffPhones($campaign = null)
+    {
+        $phones = [$this->adminPhone($campaign)];
+        $raw = config('services.funeral_pledge.cc_phones', '237677124575');
+        foreach (preg_split('/[,\s]+/', (string) $raw) as $phone) {
+            $digits = preg_replace('/\D/', '', $phone);
+            if ($digits !== '') {
+                $phones[] = $digits;
+            }
+        }
+
+        return array_values(array_unique($phones));
+    }
+
+    protected function sendStaffCopies($whatsapp, array $phones, $message, array $context = [])
+    {
+        foreach ($phones as $phone) {
+            try {
+                usleep(5500000);
+                $whatsapp->sendText($phone, $message);
+            } catch (\Throwable $e) {
+                Log::info('Funeral WhatsApp staff copy failed: '.$e->getMessage(), $context + ['phone' => $phone]);
+            }
+        }
     }
 }
