@@ -370,8 +370,8 @@
         @endforelse
     </section>
 
-    <p class="foot">Developed by
-        <a href="https://wa.me/237675321739" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">+237 675321739</a>
+    <p class="foot">Developed By: Sr. Engr. Tefu R. Mbole |
+        <a href="https://wa.me/237675321739" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">+237 675-321-739</a>
     </p>
 </main>
 </div>

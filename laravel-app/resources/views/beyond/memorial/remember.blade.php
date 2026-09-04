@@ -19,20 +19,18 @@
         <div class="flash">Your eulogy was received. Thank you.</div>
     @endif
 
-    <p class="kicker">In loving memory</p>
-    <h1>Pa Ngwayu Francis</h1>
-    <p class="meta">Sun rise 1952 · Sun set 2025 · Aged 73 years<br>Funeral 26 September 2026</p>
-    <p class="lead">A faithful servant until the end. You are welcome to read the funeral program, sing the hymns, leave a signed eulogy, and give a gift. Contribution totals stay with the family.</p>
-
-    <div class="rings" id="rings">
-        <div class="ring" style="--p:0%"><b id="d">0</b><span id="dLabel">Days</span></div>
-        <div class="ring" style="--p:0%"><b id="h">0</b><span id="hLabel">Hours</span></div>
-        <div class="ring" style="--p:0%"><b id="m">0</b><span id="mLabel">Mins</span></div>
-        <div class="ring" style="--p:0%"><b id="s">0</b><span id="sLabel">Secs</span></div>
+    <div class="landing-home" id="landingHome">
+        <h1>In memory of Pa Ngwayu Francis</h1>
+        <div class="rings" id="rings">
+            <div class="ring" style="--p:0%"><b id="d">0</b><span id="dLabel">Days</span></div>
+            <div class="ring" style="--p:0%"><b id="h">0</b><span id="hLabel">Hours</span></div>
+            <div class="ring" style="--p:0%"><b id="m">0</b><span id="mLabel">Mins</span></div>
+            <div class="ring" style="--p:0%"><b id="s">0</b><span id="sLabel">Secs</span></div>
+        </div>
     </div>
 
-    <section class="eulogies" id="eulogies">
-        <p class="kicker">Words of remembrance</p>
+    <section class="eulogies is-hidden" id="eulogies">
+        <p class="kicker">Eulogies</p>
         <h2>Eulogies</h2>
         <p class="lead">Enter your phone number and your name will appear from our records, or type it yourself. Sign your eulogy, and you may add a selfie before you submit.</p>
         <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
@@ -137,6 +135,24 @@
     var END = new Date(@json($funeralAt)).getTime();
     var payMethod = 'momo';
     var selfieBlob = null;
+    var eulogySection = document.getElementById('eulogies');
+    function showEulogies() {
+        if (!eulogySection) return;
+        eulogySection.classList.remove('is-hidden');
+        eulogySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (window.location.hash === '#eulogies' || window.location.search.indexOf('eulogy=ok') !== -1) {
+        eulogySection.classList.remove('is-hidden');
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('a[href*="#eulogies"]'), function (link) {
+        link.addEventListener('click', function (e) {
+            if (eulogySection) {
+                e.preventDefault();
+                history.replaceState(null, '', '#eulogies');
+                showEulogies();
+            }
+        });
+    });
 
     function tick() {
         var left = Math.max(0, END - Date.now());

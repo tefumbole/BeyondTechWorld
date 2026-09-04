@@ -67,17 +67,17 @@
         .nav {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin: 0 0 22px;
+            gap: 12px;
+            margin: 0 0 28px;
         }
         .nav a, .nav button {
             border: 1px solid #5a4a22;
             background: transparent;
             color: var(--gold-2);
             border-radius: 999px;
-            padding: 8px 14px;
+            padding: 14px 22px;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 17px;
             text-decoration: none;
             cursor: pointer;
             font-family: inherit;
@@ -111,6 +111,31 @@
         }
         .ring b { font-family: "Cormorant Garamond", serif; font-size: 28px; color: #fff8e8; line-height: 1; }
         .ring span { font-size: 10px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+        .landing-home {
+            min-height: calc(100vh - 220px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-bottom: 24px;
+        }
+        .landing-home h1 {
+            font-size: clamp(40px, 6.4vw, 68px);
+            margin: 0 0 28px;
+            max-width: 14em;
+        }
+        .landing-home .rings {
+            grid-template-columns: repeat(2, minmax(140px, 220px));
+            gap: 22px;
+            margin: 0;
+        }
+        .landing-home .ring {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+        }
+        .landing-home .ring b { font-size: clamp(42px, 8vw, 72px); }
+        .landing-home .ring span { font-size: 14px; letter-spacing: .16em; }
+        .eulogies.is-hidden { display: none; }
         .flash { background: #1d3a22; border: 1px solid #4a9a5c; color: #d8f5de; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
         .flash.bad { background: #3a1612; border-color: #a85a4c; color: #f3cfc8; }
         .eulogies { margin-top: 28px; padding-top: 8px; }
@@ -211,12 +236,15 @@
         .selfie-preview { display: none; margin-top: 8px; width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
         @media (max-width: 860px) {
             .shell { grid-template-columns: 1fr; }
-            .portrait { position: relative; min-height: 240px; height: 48vw; max-height: 340px; }
+            .portrait { position: relative; min-height: 280px; height: 62vw; max-height: 420px; }
             .portrait .caption { display: none; }
             .main { padding: 16px 14px 28px; }
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
             .ring { width: 100%; height: auto; aspect-ratio: 1; }
             .ring b { font-size: 24px; }
+            .nav a, .nav button { padding: 12px 16px; font-size: 15px; }
+            .landing-home { min-height: auto; }
+            .landing-home .rings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
         }
         @media (max-width: 420px) {
             .phone-row { grid-template-columns: 1fr; }
@@ -249,8 +277,8 @@
         @yield('nav_extra')
     </nav>
     @yield('content')
-    <p class="foot">Developed by
-        <a href="https://wa.me/237675321739" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">+237 675321739</a>
+    <p class="foot">Developed By: Sr. Engr. Tefu R. Mbole |
+        <a href="https://wa.me/237675321739" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">+237 675-321-739</a>
     </p>
 </main>
 </div>
@@ -259,12 +287,16 @@
 (function () {
     var imgs = document.querySelectorAll('#bg img');
     var idx = 0;
-    setInterval(function () {
+    function nextPhoto() {
         if (!imgs.length) return;
         imgs[idx].classList.remove('on');
         idx = (idx + 1) % imgs.length;
         imgs[idx].classList.add('on');
-    }, 8000);
+    }
+    setTimeout(function () {
+        nextPhoto();
+        setInterval(nextPhoto, 15000);
+    }, 15000);
 })();
 </script>
 @yield('scripts')
