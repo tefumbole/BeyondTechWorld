@@ -27,11 +27,11 @@ class InternCompliance
         }
 
         $name = strtolower(trim((string) $role->name));
-        if (in_array($name, ['internship supervisor', 'internship administrator', 'admin', 'owner'], true)) {
+        if (self::roleLooksLikeSupervisor($name) || in_array($name, ['admin', 'owner'], true)) {
             return false;
         }
 
-        if ($name === 'intern') {
+        if (self::hasInternRoleName($name)) {
             return true;
         }
 
@@ -46,6 +46,60 @@ class InternCompliance
         return InternshipEnrolment::where('student_user_id', $user->id)
             ->whereIn('status', ['active', 'paused'])
             ->exists();
+    }
+
+    protected static function hasInternRoleName($name)
+    {
+        $name = strtolower(trim((string) $name));
+
+        return $name === 'intern' || $name === 'student' || $name === 'internship student';
+    }
+
+    protected static function roleLooksLikeSupervisor($name)
+    {
+        $name = strtolower(trim((string) $name));
+        if ($name === '') {
+            return false;
+        }
+
+        return strpos($name, 'supervisor') !== false
+            || $name === 'internship administrator';
+    }
+
+    /**
+     * Staff whose /admin "Dashboard" should be the intern task home (not the sales board).
+     */
+    public static function shouldUseInternHome(User $user)
+    {
+        return self::appliesTo($user);
+    }
+
+    /**
+     * Staff whose /admin "Dashboard" should be the supervisor intern home.
+     */
+    public static function shouldUseSupervisorHome(User $user)
+    {
+        if (! $user || (int) $user->role_id <= 2) {
+            return false;
+        }
+        if (self::appliesTo($user)) {
+            return false;
+        }
+
+        return self::canSuperviseInternships($user);
+    }
+
+    /** URL for the sidebar Dashboard item. */
+    public static function dashboardUrl(User $user)
+    {
+        if (self::shouldUseInternHome($user)) {
+            return url('/admin');
+        }
+        if (self::shouldUseSupervisorHome($user)) {
+            return route('internship.supervisor.dashboard');
+        }
+
+        return url('/admin');
     }
 
     public static function workingWeekConfigured(User $user)

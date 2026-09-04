@@ -20,7 +20,7 @@ class TimesheetEmployeeController extends Controller
             if (Auth::check()) {
                 $role = Role::find(Auth::user()->role_id);
                 if ($role) {
-                    foreach (Role::findByName($role->name)->permissions as $permission) {
+                    foreach ($role->permissions as $permission) {
                         $this->all_permission[] = $permission->name;
                     }
                 }

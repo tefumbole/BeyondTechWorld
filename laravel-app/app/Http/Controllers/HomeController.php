@@ -357,11 +357,20 @@ echo $response;
     {
         $this->manageBooking();
         $role = Role::find(Auth::user()->role_id);
-        if (Auth::user() && \App\Support\InternCompliance::appliesTo(Auth::user())) {
+        if (Auth::user() && \App\Support\InternCompliance::shouldUseInternHome(Auth::user())) {
             return app(\App\Http\Controllers\Internship\InternshipStudentController::class)
                 ->renderHome(Auth::user());
         }
-        $role->revokePermissionTo('search_all_products');
+        if (Auth::user() && \App\Support\InternCompliance::shouldUseSupervisorHome(Auth::user())) {
+            return redirect()->route('internship.supervisor.dashboard');
+        }
+        if (! $role) {
+            abort(403, 'Your account has no role assigned. Ask an administrator to set it.');
+        }
+        try {
+            $role->revokePermissionTo('search_all_products');
+        } catch (\Throwable $e) {
+        }
         if (! \App\Support\LocalDevAuth::skipStaffOtp() && $role->hasPermissionTo('one_time_otp')) {
             if (Auth::user()->otp_verify == 0) {
                 return redirect()->route('check.otp');

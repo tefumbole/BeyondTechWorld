@@ -1354,7 +1354,7 @@
                 <div class="main-menu">
                     <ul id="side-main-menu" class="side-menu list-unstyled">
                         @if(Auth::user()->role_id != 7)
-                            <li><a href="{{ url('/admin') }}"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
+                            <li><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
@@ -1832,15 +1832,13 @@
                                     </ul>
                                 </li>
                             @endif
-                            @if(! $internship_is_admin && ! $internship_show_supervisor_menu)
+                            @if($internship_student_active && ! $internship_is_admin)
                             <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
                                 <ul id="internship-module" class="collapse list-unstyled ">
-                                    @if($internship_student_active || in_array($role->id, [1,2]))
                                         <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Task</a></li>
                                         <li id="ip-student-upload"><a href="{{ route('internship.student.upload') }}">Upload Task</a></li>
                                         <li id="ip-student-messages"><a href="{{ route('internship.student.messages') }}">Message Supervisor</a></li>
                                         <li id="ip-student-portfolio"><a href="{{ route('internship.student.portfolio') }}">Portfolio</a></li>
-                                    @endif
                                 </ul>
                             </li>
                             @endif

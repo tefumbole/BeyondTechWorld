@@ -53,7 +53,9 @@ class EnsureInternCompliance
             || $request->is('portal/logout/*')
             || $request->is('otp/*')
             || $request->is('staff-set-password')
-            || $request->is('staff-otp-login*');
+            || $request->is('staff-otp-login*')
+            || $request->is('admin/internship')
+            || $request->is('admin/internship/*');
     }
 
     protected function isTimesheetPath($request)

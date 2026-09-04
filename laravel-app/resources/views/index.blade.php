@@ -811,6 +811,22 @@
       </section>
   </div>
 </div>
+@else
+<section class="forms">
+    <div class="container-fluid" style="max-width:720px;padding-top:24px;">
+        <div class="alert alert-info">
+            <h4 style="margin-top:0;">Welcome, {{ Auth::user()->name }}</h4>
+            <p class="mb-3">This account does not use the sales dashboard. Open your internship or timesheet tools from the menu.</p>
+            @if(\App\Support\InternCompliance::canSuperviseInternships(Auth::user()))
+                <a class="btn btn-primary mr-2" href="{{ route('internship.supervisor.dashboard') }}">Supervisor home</a>
+            @endif
+            @if(\App\Support\InternCompliance::appliesTo(Auth::user()))
+                <a class="btn btn-primary mr-2" href="{{ route('internship.student.dashboard') }}">My internship task</a>
+            @endif
+            <a class="btn btn-outline-secondary" href="{{ route('timesheet.fill') }}">Fill time sheet</a>
+        </div>
+    </div>
+</section>
 @endif
 
 <script type="text/javascript">

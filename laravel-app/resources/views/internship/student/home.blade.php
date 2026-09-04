@@ -12,6 +12,7 @@
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
+        @include('internship.student.partials.timesheet-reminder')
 
         @include('internship.student.partials.student-nav')
 
