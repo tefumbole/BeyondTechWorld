@@ -3,7 +3,6 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <a href="{{ route('internship.student.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Dashboard</a>
         <h1 class="ip-title">Internship Portfolio</h1>
         @include('internship.student.partials.student-nav', ['activeNav' => 'portfolio', 'hideOpenTask' => true])
         @if(!$enrolment)

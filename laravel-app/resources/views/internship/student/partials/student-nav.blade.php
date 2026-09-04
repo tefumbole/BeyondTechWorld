@@ -28,3 +28,23 @@
         <i class="dripicons-folder"></i> Portfolio
     </a>
 </div>
+@php
+    $studentActiveMap = [
+        'task' => ['ip-student-dash'],
+        'upload' => ['ip-student-upload'],
+        'messages' => ['ip-student-messages'],
+        'portfolio' => ['ip-student-portfolio'],
+    ];
+    $studentActiveIds = $studentActiveMap[$nav] ?? [];
+@endphp
+@if(count($studentActiveIds))
+<script>
+(function () {
+    var ids = @json($studentActiveIds);
+    ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add('active');
+    });
+})();
+</script>
+@endif

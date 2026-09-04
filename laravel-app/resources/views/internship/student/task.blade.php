@@ -10,9 +10,9 @@
 @endphp
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <a href="{{ route('internship.student.dashboard') }}" class="ip-btn ip-btn-outline mb-3">&larr; Dashboard</a>
         <h1 class="ip-title">Task #{{ $assignment->progression_day }} — {{ $task->title }}</h1>
         <p class="ip-meta">{{ optional($assignment->enrolment->program)->displayName() ?? optional($assignment->enrolment->program)->name }} · {{ str_replace('_',' ', $assignment->status) }}</p>
+        @include('internship.student.partials.student-nav', ['activeNav' => 'task'])
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -130,7 +130,7 @@
                     <li>Add a file for <strong>each evidence slot</strong>. Each file <strong>uploads immediately</strong> and waits here until you submit. Paste (Ctrl+V / ⌘V), drop, or choose any format. Large images are compressed first.</li>
                     <li>Need more files? Click <strong>Add another file</strong>. You do not have to wait and send everything at once.</li>
                     <li>When all needed files show <strong>Uploaded — awaiting submission</strong>, write your report and click <strong>Submit for grading</strong>. That step is quick because the files are already on the server.</li>
-                    <li>Then fill your timesheet for this day. The next task is released on your next working day after they accept this one.</li>
+                    <li>Then fill your timesheet for this day. The next task is released as soon as your supervisor accepts this one.</li>
                 </ol>
                 @if($assignment->status === 'revision_required')
                     <div class="alert alert-warning">Your supervisor asked for a revision. Upload a <strong>new</strong> set of files that addresses the feedback above. The previous attempt stays in your history.</div>

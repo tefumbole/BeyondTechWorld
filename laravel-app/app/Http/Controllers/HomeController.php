@@ -362,7 +362,8 @@ echo $response;
                 ->renderHome(Auth::user());
         }
         if (Auth::user() && \App\Support\InternCompliance::shouldUseSupervisorHome(Auth::user())) {
-            return redirect()->route('internship.supervisor.dashboard');
+            return app(\App\Http\Controllers\Internship\InternshipSupervisorController::class)
+                ->renderPersonalHome(Auth::user());
         }
         if (! $role) {
             abort(403, 'Your account has no role assigned. Ask an administrator to set it.');

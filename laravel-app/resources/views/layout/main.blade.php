@@ -1827,13 +1827,11 @@
                                         @endif
                                         <li id="ip-tasks-sup"><a href="{{ route('internship.tasks') }}">Tasks</a></li>
                                         <li id="ip-grade-queue"><a href="{{ route('internship.supervisor.index') }}">Grade Queue</a></li>
-                                        <li id="ip-sup-timesheet"><a href="{{ route('timesheet.fill') }}">Fill Time Sheet</a></li>
-                                        <li id="ip-sup-week"><a href="{{ route('timesheet.working-week') }}">My Working Week</a></li>
                                     </ul>
                                 </li>
                             @endif
                             @if($internship_student_active && ! $internship_is_admin)
-                            <li><a href="#internship-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
+                            <li><a href="#internship-module" data-nav-key="internship" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-graduation-cap"></i><span>Internships</span></a>
                                 <ul id="internship-module" class="collapse list-unstyled ">
                                         <li id="ip-student-dash"><a href="{{ route('internship.student.dashboard') }}">My Task</a></li>
                                         <li id="ip-student-upload"><a href="{{ route('internship.student.upload') }}">Upload Task</a></li>
@@ -1894,7 +1892,7 @@
                             ])->first() : null;
                         @endphp
                         @if($timesheets_module_active)
-                            <li><a href="#timesheets-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-clock"></i><span>TimeSheets (Employee)</span></a>
+                            <li><a href="#timesheets-module" data-nav-key="timesheets" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-clock"></i><span>TimeSheets (Employee)</span></a>
                                 <ul id="timesheets-module" class="collapse list-unstyled ">
                                     <li id="ts-activities-menu"><a href="{{ route('timesheet.activities') }}">Create Activity</a></li>
                                     <li id="ts-fill-menu"><a href="{{ route('timesheet.fill') }}">Fill Time Sheet</a></li>
@@ -3933,6 +3931,48 @@
               });
 
               window.beyondBuildModuleTabs = buildModuleTabs;
+              (function markSidebarFromLocation() {
+                  function pathOf(href) {
+                      if (!href) return '';
+                      try {
+                          var a = document.createElement('a');
+                          a.href = href;
+                          return (a.pathname || '').replace(/\/+$/, '') || '/';
+                      } catch (e) {
+                          return '';
+                      }
+                  }
+                  var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                  if (path === '/admin') {
+                      $('#side-main-menu > li > a').each(function () {
+                          if (pathOf($(this).attr('href')) === '/admin') {
+                              $(this).parent('li').addClass('active');
+                          }
+                      });
+                      return;
+                  }
+                  var best = null;
+                  var bestLen = -1;
+                  $('#side-main-menu ul.collapse > li > a[href]').each(function () {
+                      var href = $(this).attr('href') || '';
+                      if (!href || href.charAt(0) === '#' || href.indexOf('javascript') === 0) {
+                          return;
+                      }
+                      var p = pathOf(href);
+                      if (!p || p === '/admin') {
+                          return;
+                      }
+                      if (path === p || path.indexOf(p + '/') === 0) {
+                          if (p.length > bestLen) {
+                              bestLen = p.length;
+                              best = this;
+                          }
+                      }
+                  });
+                  if (best) {
+                      $(best).closest('li').addClass('active');
+                  }
+              })();
               buildModuleTabs();
               $(document).ready(buildModuleTabs);
           })();

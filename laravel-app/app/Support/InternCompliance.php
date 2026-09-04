@@ -89,16 +89,9 @@ class InternCompliance
         return self::canSuperviseInternships($user);
     }
 
-    /** URL for the sidebar Dashboard item. */
+    /** URL for the sidebar Dashboard item — always the /admin home, never a module. */
     public static function dashboardUrl(User $user)
     {
-        if (self::shouldUseInternHome($user)) {
-            return url('/admin');
-        }
-        if (self::shouldUseSupervisorHome($user)) {
-            return route('internship.supervisor.dashboard');
-        }
-
         return url('/admin');
     }
 
@@ -470,7 +463,7 @@ class InternCompliance
             return null;
         }
         if (self::canSuperviseInternships($user) && ! self::isInternshipAdmin($user)) {
-            return route('internship.supervisor.dashboard');
+            return url('/admin');
         }
 
         return null;

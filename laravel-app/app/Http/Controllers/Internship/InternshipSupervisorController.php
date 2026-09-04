@@ -7,9 +7,10 @@ use App\InternshipEnrolment;
 use App\InternshipSubmission;
 use App\InternshipTaskAssignment;
 use App\Services\Internship\InternshipProgramService;
+use App\Services\TimesheetService;
+use App\TimesheetEntry;
 use App\Support\InternCompliance;
 use App\Support\InternshipRubric;
-use App\TimesheetEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -45,6 +46,48 @@ class InternshipSupervisorController extends Controller
             return;
         }
         abort(403, 'Supervisor access denied.');
+    }
+
+    /**
+     * Personal /admin home for supervisors (not the intern-management Supervisor module).
+     */
+    public function renderPersonalHome(\App\User $user)
+    {
+        $uid = (int) $user->id;
+        $scopeOwn = InternCompliance::shouldScopeSupervisees($user);
+
+        $enrolmentQ = InternshipEnrolment::whereIn('status', ['pending', 'active', 'paused']);
+        if ($scopeOwn) {
+            $enrolmentQ->where(function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+        $internCount = (clone $enrolmentQ)->count();
+        $activeCount = (clone $enrolmentQ)->where('status', 'active')->count();
+
+        $pendingGradeQ = InternshipSubmission::where('status', 'submitted');
+        if ($scopeOwn) {
+            $pendingGradeQ->whereHas('assignment.enrolment', function ($w) use ($uid) {
+                $w->where('supervisor_id', $uid)
+                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
+            });
+        }
+        $pendingGrades = (clone $pendingGradeQ)->count();
+
+        $timesheet = app(TimesheetService::class);
+        $weekScore = $timesheet->weekScore($user->id);
+        $dayBalance = $timesheet->dayBalance($user->id, date('Y-m-d'));
+        $totalHours = round((float) TimesheetEntry::where('user_id', $user->id)->sum('hours'), 2);
+
+        return view('internship.supervisor.personal_home', compact(
+            'internCount',
+            'activeCount',
+            'pendingGrades',
+            'weekScore',
+            'dayBalance',
+            'totalHours'
+        ));
     }
 
     public function dashboard()
@@ -193,12 +236,13 @@ class InternshipSupervisorController extends Controller
 
         $enrolment = $submission->assignment->enrolment->fresh();
         $accepted = $submission->assignment->fresh()->status === 'passed';
-        if ($accepted && $enrolment && $enrolment->next_release_date) {
-            $message = 'Submission accepted. The next task is scheduled for '
-                .\Carbon\Carbon::parse($enrolment->next_release_date)->format('D d M Y').'.';
+        if ($accepted && $enrolment && $enrolment->status === 'completed') {
+            $message = 'Submission accepted. The internship is complete.';
+        } elseif ($accepted && $enrolment && $enrolment->currentOpenAssignment()) {
+            $next = $enrolment->currentOpenAssignment();
+            $message = 'Submission accepted. Task #'.$next->progression_day.' has been released to the student now.';
         } elseif ($accepted) {
-            $message = 'Submission accepted. The next task releases on the student’s next working day '
-                .'(the student must have saved their working week).';
+            $message = 'Submission accepted. The next task will appear as soon as the student has a Working Week saved.';
         } else {
             $message = 'Revision requested. The student keeps this task and no new task is released.';
         }

@@ -16,7 +16,7 @@
             <i class="dripicons-graduation"></i> My Task
         </a>
     @elseif(\App\Support\InternCompliance::canSuperviseInternships(Auth::user()) && (int) Auth::user()->role_id > 2)
-        <a href="{{ route('internship.supervisor.dashboard') }}" class="tone-blue">
+        <a href="{{ url('/admin') }}" class="tone-blue">
             <i class="dripicons-meter"></i> Dashboard
         </a>
         <a href="{{ route('internship.supervisor.students') }}" class="tone-blue">
