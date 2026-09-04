@@ -317,7 +317,14 @@
     canvas.addEventListener('touchmove', function (ev) { ev.preventDefault(); if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
     canvas.addEventListener('touchend', function () { drawing = false; });
     document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); };
-    document.getElementById('openEulogy').onclick = function () { euModal.classList.add('on'); sizeCanvas(); document.getElementById('euPhone').focus(); };
+    function openEulogyModal() {
+        euModal.classList.add('on');
+        sizeCanvas();
+        document.getElementById('euPhone').focus();
+    }
+    document.getElementById('openEulogy').onclick = openEulogyModal;
+    var openBottom = document.getElementById('openEulogyBottom');
+    if (openBottom) openBottom.onclick = openEulogyModal;
     document.getElementById('closeEulogy').onclick = function () { euModal.classList.remove('on'); };
     document.getElementById('euCancel').onclick = function () { euModal.classList.remove('on'); };
     euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
