@@ -37,6 +37,19 @@ class User extends Authenticatable
         return $this->is_active;
     }
 
+    /** First usable WhatsApp number on the staff profile. */
+    public function whatsappPhone()
+    {
+        foreach (['phone', 'additional_phone'] as $attr) {
+            $value = trim((string) $this->{$attr});
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     public function holiday() {
         return $this->hasMany('App\Holiday');
     }

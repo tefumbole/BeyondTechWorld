@@ -588,6 +588,8 @@ class QuotationController extends Controller
         $products = $this->quotationWhatsAppProducts($lims_quotation_data, $mail_data);
         $pricing = $this->quotationWhatsAppPricing($lims_quotation_data, $mail_data);
 
+        $this->rememberApprovalSender($lims_quotation_data);
+
         $msg = WhatsAppMessage::quotationApprovalRequest(
             $lims_customer_data->name,
             $lims_quotation_data->reference_no,
@@ -665,7 +667,7 @@ class QuotationController extends Controller
             $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $quotation->reference_no).'.pdf';
             $this->wpPDFMessage($pdfPath, $customer, $pdfName);
             // Staff who created the quotation gets a copy (not a broadcast to all admins).
-            $this->sendQuotationPdfCopyToCreator($quotation, $pdfPath, $pdfName, $customer);
+            $this->sendQuotationPdfCopyToStaff($quotation, $pdfPath, $pdfName, $customer);
         } catch (\Throwable $e) {
             \Log::warning('Quotation PDF WhatsApp attach failed for '.$quotation->reference_no.': '.$e->getMessage());
             return 'Quotation signed, but the PDF could not be sent: '.$e->getMessage();
@@ -677,28 +679,45 @@ class QuotationController extends Controller
     }
 
     /**
-     * WhatsApp a quotation PDF copy to the staff user who created it.
+     * Remember who last sent this quotation for signature (creator or resender).
      */
-    protected function sendQuotationPdfCopyToCreator(Quotation $quotation, $pdfPath, $pdfName, $customer = null)
+    protected function rememberApprovalSender(Quotation $quotation)
     {
-        $creator = User::find($quotation->user_id);
-        if (! $creator || empty(trim((string) $creator->phone))) {
-            return;
+        $quotation->approval_sent_at = $quotation->approval_sent_at ?: now();
+        if (Auth::check() && \Illuminate\Support\Facades\Schema::hasColumn('quotations', 'approval_sent_by')) {
+            $quotation->approval_sent_by = Auth::id();
         }
-        $creatorDigits = preg_replace('/\D/', '', (string) $creator->phone);
+        $quotation->save();
+    }
+
+    /**
+     * WhatsApp a quotation PDF copy to the creator and the staff member who sent it.
+     */
+    protected function sendQuotationPdfCopyToStaff(Quotation $quotation, $pdfPath, $pdfName, $customer = null)
+    {
         $customerDigits = $customer ? preg_replace('/\D/', '', (string) $customer->phone_number) : '';
-        if ($creatorDigits === '' || ($customerDigits !== '' && $creatorDigits === $customerDigits)) {
-            return;
-        }
-        try {
-            $this->wpMessage(
-                $creator->phone,
-                'Copy of quotation '.$quotation->reference_no.' for '
-                .($customer ? $customer->name : 'client').'.'
-            );
-            $this->sendWhatsAppDocumentToPhone($creator->phone, $pdfPath, $pdfName);
-        } catch (\Throwable $e) {
-            \Log::warning('Quotation PDF creator copy failed for '.$quotation->reference_no.': '.$e->getMessage());
+        $seen = [];
+        foreach ($quotation->staffCopyUsers(Auth::id()) as $staff) {
+            $phone = $staff->whatsappPhone();
+            $digits = preg_replace('/\D/', '', (string) $phone);
+            if ($digits === '' || isset($seen[$digits]) || ($customerDigits !== '' && $digits === $customerDigits)) {
+                continue;
+            }
+            $seen[$digits] = true;
+            try {
+                $this->wpMessage(
+                    $phone,
+                    WhatsAppMessage::quotationStaffPdfCopy(
+                        $staff->name,
+                        $quotation->reference_no,
+                        $customer ? $customer->name : 'client',
+                        $quotation->grand_total
+                    )
+                );
+                $this->sendWhatsAppDocumentToPhone($phone, $pdfPath, $pdfName);
+            } catch (\Throwable $e) {
+                \Log::warning('Quotation PDF staff copy failed for '.$quotation->reference_no.': '.$e->getMessage());
+            }
         }
     }
 
@@ -743,11 +762,15 @@ class QuotationController extends Controller
 
         $recipients = [];
 
-        $creator = User::find($quotation->user_id);
-        if ($creator && ! empty(trim((string) $creator->phone))) {
+        $extraStaffId = in_array($event, ['sent', 'quote_accepted'], true) ? Auth::id() : null;
+        foreach ($quotation->staffCopyUsers($extraStaffId) as $staff) {
+            $phone = $staff->whatsappPhone();
+            if (! $phone) {
+                continue;
+            }
             $recipients[] = [
-                'phone' => $creator->phone,
-                'name' => $creator->name,
+                'phone' => $phone,
+                'name' => $staff->name,
             ];
         }
 
@@ -804,9 +827,11 @@ class QuotationController extends Controller
         $reviewUrl = route('quotation.quote_review', $quotation->id);
 
         $recipients = [];
-        $creator = User::find($quotation->user_id);
-        if ($creator && ! empty(trim((string) $creator->phone))) {
-            $recipients[] = ['phone' => $creator->phone, 'name' => $creator->name];
+        foreach ($quotation->staffCopyUsers(Auth::id()) as $staff) {
+            $phone = $staff->whatsappPhone();
+            if ($phone) {
+                $recipients[] = ['phone' => $phone, 'name' => $staff->name];
+            }
         }
         // Also notify role_id <= 2 staff with phones when creator missing phone
         if (empty($recipients)) {

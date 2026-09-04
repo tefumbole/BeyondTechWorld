@@ -207,6 +207,19 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function quotationStaffPdfCopy($staffName, $referenceNo, $customerName, $grandTotal)
+    {
+        $msg = self::statusBlock('📄', 'Your Quotation Copy');
+        $msg .= self::greeting($staffName);
+        $msg .= "A copy of quotation *{$referenceNo}* for *{$customerName}* is attached.\n\n";
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Client', $customerName);
+        $msg .= self::bullet('Total', number_format((float) $grandTotal, 2));
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function deliverySignatureRequest($customerName, $deliveryRef, $saleRef, $signUrl)
     {
         $msg = self::statusBlock('📦', 'Confirm Delivery Receipt');

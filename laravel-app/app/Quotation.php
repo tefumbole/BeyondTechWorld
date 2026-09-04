@@ -44,6 +44,7 @@ class Quotation extends Model
         'client_comment',
         'client_responded_at',
         'approval_sent_at',
+        'approval_sent_by',
     ];
 
     protected $dates = [
@@ -79,6 +80,31 @@ class Quotation extends Model
     public function hasClientSignature()
     {
         return ! empty($this->client_signed_at) || ! empty($this->client_signature_path);
+    }
+
+    /**
+     * Staff who should get a WhatsApp copy: creator and the last person who sent it.
+     *
+     * @param  int|null  $extraUserId
+     * @return \Illuminate\Support\Collection|User[]
+     */
+    public function staffCopyUsers($extraUserId = null)
+    {
+        $ids = [(int) $this->user_id];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('quotations', 'approval_sent_by')) {
+            $ids[] = (int) $this->approval_sent_by;
+        }
+        $ids[] = (int) $extraUserId;
+        $ids = array_values(array_unique(array_filter($ids)));
+        if (! $ids) {
+            return collect();
+        }
+
+        return User::whereIn('id', $ids)
+            ->where(function ($q) {
+                $q->whereNull('is_deleted')->orWhere('is_deleted', false);
+            })
+            ->get();
     }
 
     /** Still waiting for the client to sign — exclude already-signed or responded rows. */
