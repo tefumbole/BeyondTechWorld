@@ -142,8 +142,14 @@
         .card[disabled] { opacity: .7; cursor: default; }
         .card h3 { margin: 0 0 3px; font-size: 18px; font-weight: 800; color: #1a1408; }
         .card .amt { color: #6d5410; font-size: 12px; font-weight: 600; }
-        .mini { height: 4px; background: #efe6d2; border-radius: 99px; margin: 7px 0; overflow: hidden; }
-        .mini > i { display: block; height: 100%; background: var(--gold); }
+        .mini { height: 8px; background: #efe6d2; border-radius: 99px; margin: 8px 0 6px; overflow: hidden; }
+        .mini > i {
+            display: block; height: 100%; width: 0;
+            background: linear-gradient(90deg, #4ade80, #16a34a);
+            border-radius: inherit;
+            transition: width .25s ease;
+        }
+        .mini.is-full > i { background: #16a34a; }
         .who { font-size: 12px; color: var(--muted); }
         .taken { color: #1d7a45; font-size: 12px; font-weight: 700; }
         .flash { background: #e8f6ea; border: 1px solid #8dca98; color: #1d5c2c; padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; }
@@ -332,6 +338,7 @@
     <div class="filters">
         <button type="button" class="on" data-filter="all">All items</button>
         <button type="button" data-filter="left">Remaining</button>
+        <button type="button" data-filter="taken">Taken items</button>
     </div>
 
     <div id="list"></div>
@@ -478,6 +485,7 @@
             var rows = ITEMS.filter(function (it) {
                 if (it.category !== key) return false;
                 if (filter === 'left' && it.covered) return false;
+                if (filter === 'taken' && !it.covered && !(Number(it.committed) > 0)) return false;
                 return true;
             });
             if (!rows.length) return;
@@ -494,22 +502,34 @@
             html += '<div class="group group-' + key + '"><h2>' + escapeHtml(GROUPS[key]) + '</h2>'
                 + '<div class="tot">Section total<b>' + totLine + '</b></div></div><div class="grid">';
             rows.forEach(function (it) {
-                var fill = it.target ? Math.min(100, Math.round((it.committed / it.target) * 100)) : (it.committed ? 20 : 0);
+                var committed = Number(it.committed || 0);
+                var fill = 0;
+                if (it.covered) {
+                    fill = 100;
+                } else if (it.target) {
+                    fill = Math.min(100, Math.round((committed / Number(it.target)) * 100));
+                } else if (committed > 0) {
+                    fill = 100;
+                }
                 var amt = it.is_open
-                    ? (it.committed ? ('Pledged ' + money(it.committed) + ' XAF') : 'Open amount')
-                    : (money(it.remaining) + ' of ' + money(it.target) + ' XAF left');
+                    ? (committed ? ('Pledged ' + money(committed) + ' XAF') : 'Open amount')
+                    : (money(it.remaining) + ' of ' + money(it.target) + ' XAF left'
+                        + (fill > 0 && fill < 100 ? ' · ' + fill + '% taken' : ''));
                 var who = it.names && it.names.length ? it.names.join(', ') : '';
                 html += '<button type="button" class="card" data-id="' + it.id + '"' + (it.covered ? ' disabled' : '') + '>'
                     + '<h3>' + escapeHtml(it.name) + '</h3>'
                     + '<div class="amt">' + amt + '</div>'
-                    + '<div class="mini"><i style="width:' + fill + '%"></i></div>'
+                    + '<div class="mini' + (fill >= 100 ? ' is-full' : '') + '"><i style="width:' + fill + '%"></i></div>'
                     + (it.covered ? '<div class="taken">Covered' + (who ? ' · ' + escapeHtml(who) : '') + '</div>'
                         : (who ? '<div class="who">Taken by ' + escapeHtml(who) + '</div>' : ''))
                     + '</button>';
             });
             html += '</div>';
         });
-        list.innerHTML = html || '<p class="meta">All items are covered.</p>';
+        var empty = 'No items to show.';
+        if (filter === 'left') empty = 'All items are covered.';
+        if (filter === 'taken') empty = 'No items have been taken yet.';
+        list.innerHTML = html || '<p class="meta">' + empty + '</p>';
     }
 
     function escapeHtml(s) {
