@@ -429,6 +429,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/jobs/selected', 'JobBoardController@selected')->name('jobs.selected');
     Route::get('/admin/jobs/rejected', 'JobBoardController@rejected')->name('jobs.rejected');
     Route::post('/admin/jobs/applications/delete', 'JobBoardController@deleteApplications')->name('jobs.applications.delete');
+    Route::get('/admin/jobs/applications/{id}/edit', 'JobBoardController@editApplication')->name('jobs.applications.edit');
+    Route::post('/admin/jobs/applications/{id}/details', 'JobBoardController@saveApplicationDetails')->name('jobs.applications.details');
     Route::get('/admin/jobs/applications/{id}', 'JobBoardController@showApplication')->name('jobs.applications.show');
     Route::get('/admin/jobs/applications/{id}/document/{type}', 'JobBoardController@document')->name('jobs.applications.document')
         ->where('type', 'cv|student_id|student_id_back|letter|employment_letter|official_badge|selfie');

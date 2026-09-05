@@ -5,15 +5,9 @@
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
-        <div class="d-flex justify-content-between align-items-start flex-wrap mb-4" style="gap:12px;">
-            <div>
-                <h1 class="jb-title">Job Board</h1>
-                <p class="jb-subtitle">Manage public job and internship postings shown on Apply Now.</p>
-            </div>
-            <div class="d-flex" style="gap:8px;">
-                <a href="{{ route('jobs.create') }}" class="jb-btn"><i class="dripicons-plus"></i> Add Job</a>
-                <a href="{{ route('jobs.createInternship') }}" class="jb-btn-secondary"><i class="dripicons-user"></i> Add Internship</a>
-            </div>
+        <div class="mb-4">
+            <h1 class="jb-title">Job Board</h1>
+            <p class="jb-subtitle">Manage public job and internship postings shown on Apply Now.</p>
         </div>
 
         @if(session('message'))

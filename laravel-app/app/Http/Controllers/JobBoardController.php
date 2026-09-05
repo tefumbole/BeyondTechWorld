@@ -526,6 +526,54 @@ class JobBoardController extends Controller
         return $this->applications($request);
     }
 
+    public function editApplication($id)
+    {
+        $this->authorizeJobs();
+        $app = Application::with(['job', 'internshipProgram'])->findOrFail($id);
+
+        return view('job_board.application_edit', [
+            'app' => $app,
+            'jbTab' => request()->get('from') === 'interns' ? 'jobs.applicants' : 'jobs.applications',
+        ]);
+    }
+
+    public function saveApplicationDetails(Request $request, $id)
+    {
+        $this->authorizeJobs();
+        $app = Application::findOrFail($id);
+        $data = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:40',
+            'whatsapp_number' => 'nullable|string|max:40',
+            'country' => 'nullable|string|max:80',
+            'school' => 'nullable|string|max:255',
+            'level_of_study' => 'nullable|string|max:120',
+            'cover_letter' => 'nullable|string|max:8000',
+            'expected_salary' => 'nullable|string|max:80',
+            'availability' => 'nullable|string|max:80',
+        ]);
+        $app->fill($data);
+        $app->save();
+
+        if ($app->user_id) {
+            $user = User::find($app->user_id);
+            if ($user) {
+                $user->name = $data['full_name'];
+                $user->email = $data['email'];
+                $phone = $data['whatsapp_number'] ?: $data['phone'];
+                if ($phone) {
+                    $user->phone = $phone;
+                }
+                $user->save();
+            }
+        }
+
+        return redirect()
+            ->route('jobs.applications.show', $app->id)
+            ->with('message', 'Application details saved.');
+    }
+
     public function showApplication($id)
     {
         $this->authorizeJobs();

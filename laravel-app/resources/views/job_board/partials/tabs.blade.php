@@ -1,14 +1,19 @@
 <style>
+    /* Job Board already has .jb-nav — hide the layout clone of the sidebar submenu. */
+    #beyond-module-tabs { display: none !important; }
+
     .jb-shell { max-width: 1100px; margin: 0 auto; }
 
     /* Rental-module style colored tabs */
     .jb-nav {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 10px;
         margin: 0 0 1.5rem;
-        padding: 0;
+        padding: 0 0 6px;
         border: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .jb-nav a {
         position: relative;

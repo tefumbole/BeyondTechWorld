@@ -378,9 +378,10 @@
 
             .beyond-module-tabs-nav {
                 display: flex;
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
                 gap: 8px;
-                overflow: visible;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
                 padding: 12px 10px 10px;
             }
 
@@ -1768,6 +1769,7 @@
                         @if($jobs_module_active)
                             <li><a href="#jobs-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-briefcase"></i><span>Job Board</span></a>
                                 <ul id="jobs-module" class="collapse list-unstyled ">
+                                    <li id="jobs-applicants-menu"><a href="{{ route('jobs.applicants') }}">Interns</a></li>
                                     <li id="jobs-list-menu"><a href="{{ route('jobs.index') }}">Job Postings</a></li>
                                     <li id="jobs-create-menu"><a href="{{ route('jobs.create') }}">Add Job</a></li>
                                     <li id="jobs-create-intern-menu"><a href="{{ route('jobs.createInternship') }}">Add Internship</a></li>
@@ -3829,7 +3831,15 @@
                   'sms-setting-menu': 'dripicons-message',
                   'pos-setting-menu': 'dripicons-cart',
                   'hrm-setting-menu': 'dripicons-user-group',
-                  'notification-menu': 'dripicons-bell'
+                  'notification-menu': 'dripicons-bell',
+                  'jobs-applicants-menu': 'dripicons-user',
+                  'jobs-list-menu': 'dripicons-briefcase',
+                  'jobs-create-menu': 'dripicons-plus',
+                  'jobs-create-intern-menu': 'dripicons-user',
+                  'jobs-apps-menu': 'dripicons-user-group',
+                  'jobs-awaiting-menu': 'dripicons-clock',
+                  'jobs-selected-menu': 'dripicons-checkmark',
+                  'jobs-rejected-menu': 'dripicons-wrong'
               };
 
               function resolveTabIcon($link, $parentLink) {
@@ -3852,9 +3862,15 @@
               }
 
               function buildModuleTabs() {
+                  var $tabsWrap = $('#beyond-module-tabs');
+                  if ($('.jb-nav, .an-nav, .qt-nav, .tm-nav, .cm-nav, .ct-nav, .perm-nav, .ts-nav').length) {
+                      $tabsWrap.removeClass('is-visible').hide();
+                      return;
+                  }
+
                   var $activeItem = $('#side-main-menu ul.collapse li.active').first();
                   if (!$activeItem.length) {
-                      $('#beyond-module-tabs').removeClass('is-visible');
+                      $tabsWrap.removeClass('is-visible');
                       return;
                   }
 
@@ -3863,7 +3879,6 @@
                   var $parentLi = $submenu.closest('li');
                   var parentLabel = $.trim($parentLink.find('span').first().text()) || $.trim($parentLink.text());
                   var $nav = $('#beyond-module-tabs-nav');
-                  var $tabsWrap = $('#beyond-module-tabs');
 
                   $parentLi.children('a').addClass('menu-parent-active').attr('aria-expanded', 'true');
                   $('#beyond-module-tabs-label').text(parentLabel);

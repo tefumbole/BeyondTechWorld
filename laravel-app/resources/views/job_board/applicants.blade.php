@@ -60,8 +60,8 @@
     }
     .jb-interns-table .jb-applied { width: 88px; max-width: 88px; white-space: nowrap; }
     .jb-interns-table .jb-actions {
-        width: 168px;
-        min-width: 168px;
+        width: 280px;
+        min-width: 280px;
         white-space: nowrap;
         overflow: visible;
     }
@@ -94,7 +94,8 @@
                     </div>
                     <div class="d-flex flex-wrap" style="gap:8px;">
                         <a class="jb-btn-secondary" href="{{ route('jobs.applications.show', $application->id) }}">Open application</a>
-                        <a class="jb-btn" href="{{ route('jobs.applicants.placement.edit', $application->id) }}">
+                        <a class="jb-btn" href="{{ route('jobs.applications.edit', $application->id) }}">Edit application</a>
+                        <a class="jb-btn-secondary" href="{{ route('jobs.applicants.placement.edit', $application->id) }}">
                             <i class="dripicons-document-edit"></i> Edit placement / dates / supervisors
                         </a>
                         <a class="jb-btn-secondary" href="{{ route('jobs.applicants', array_filter(['q' => $q ?? null])) }}">Close tab</a>
@@ -143,14 +144,27 @@
         @endif
 
         <div class="jb-card">
-            <form method="GET" action="{{ route('jobs.applicants') }}" class="d-flex flex-wrap align-items-center" style="gap:10px;">
+            <form method="GET" action="{{ route('jobs.applicants') }}" class="d-flex flex-wrap align-items-center" style="gap:10px;" id="jb-intern-search-form">
                 @if($openId !== '')
                     <input type="hidden" name="open" value="{{ $openId }}">
                 @endif
-                <input type="search" name="q" value="{{ $q }}" class="jb-field" placeholder="Search interns by name, email, phone…" style="max-width:360px;">
+                <input type="search" name="q" id="jb-intern-search" value="{{ $q }}" class="jb-field" placeholder="Search interns by name, email, phone…" style="max-width:360px;" autocomplete="off">
                 <button type="submit" class="jb-btn"><i class="dripicons-search"></i> Search</button>
+                <span class="text-muted small" id="jb-intern-filter-count"></span>
             </form>
         </div>
+
+        <div class="jb-card d-flex flex-wrap align-items-center" style="gap:8px;">
+            <button type="button" class="jb-btn-secondary" id="jb-select-all">Select all</button>
+            <button type="button" class="jb-btn-secondary" id="jb-clear-all">Clear</button>
+            <button type="submit" form="jb-interns-delete-form" class="btn btn-danger btn-sm" id="jb-intern-delete-btn" disabled>
+                <i class="dripicons-trash"></i> Delete selected
+            </button>
+        </div>
+
+        <form id="jb-interns-delete-form" method="POST" action="{{ route('jobs.applications.delete') }}" class="d-none">
+            @csrf
+        </form>
 
         <div class="jb-card jb-interns-card">
             <div class="jb-interns-wrap">
@@ -174,8 +188,9 @@
                             @php
                                 $pid = (string) $person['latest_application_id'];
                                 $openUrl = route('jobs.applicants', array_filter(['open' => $pid, 'q' => $q ?? null]));
+                                $hay = strtolower(trim(($person['full_name'] ?? '').' '.($person['email'] ?? '').' '.($person['phone'] ?? '').' '.($person['country'] ?? '')));
                             @endphp
-                            <tr class="jb-row-click {{ $openId === $pid ? 'is-open' : '' }}" data-open-url="{{ $openUrl }}">
+                            <tr class="jb-row-click {{ $openId === $pid ? 'is-open' : '' }}" data-open-url="{{ $openUrl }}" data-search="{{ $hay }}">
                                 <td onclick="event.stopPropagation();">
                                     <input type="checkbox" class="jb-row-check" form="assign-internship-form"
                                            name="application_ids[]"
@@ -193,16 +208,21 @@
                                 <td class="jb-actions text-right" onclick="event.stopPropagation();">
                                     <a class="jb-btn jb-act" href="{{ $openUrl }}" title="Open intern tab">Open</a>
                                     <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.show', $person['latest_application_id']) }}" title="View application">View</a>
+                                    <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.edit', $person['latest_application_id']) }}" title="Edit application">Edit</a>
                                     <a class="jb-btn jb-act" href="{{ route('jobs.applicants.placement.edit', $person['latest_application_id']) }}" title="Edit placement">
                                         <i class="dripicons-document-edit"></i>
                                     </a>
+                                    <button type="button" class="btn btn-sm btn-link text-danger jb-intern-delete-one" data-id="{{ $person['latest_application_id'] }}">Delete</button>
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="jb-intern-empty-row">
                                 <td colspan="8" class="text-center text-muted py-4">No interns found.</td>
                             </tr>
                         @endforelse
+                        <tr class="jb-intern-empty-row" id="jb-intern-no-match" style="display:none;">
+                            <td colspan="8" class="text-center text-muted py-4">No interns match this search.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -313,8 +333,8 @@
                             style="background:#e91e8c;border-color:#e91e8c;">
                         <i class="dripicons-message"></i> Notify (<span id="notify-count">0</span>)
                     </button>
-                    <button type="button" class="jb-btn-secondary" id="jb-select-all">Select all interns</button>
-                    <button type="button" class="jb-btn-secondary" id="jb-clear-all">Clear interns</button>
+                    <button type="button" class="jb-btn-secondary jb-select-visible">Select all interns</button>
+                    <button type="button" class="jb-btn-secondary jb-clear-visible">Clear interns</button>
                     <a class="jb-btn-secondary" href="{{ route('letter.template.index') }}" target="_blank" rel="noopener">
                         Edit acceptance letter template
                     </a>
@@ -618,19 +638,104 @@ window.JB_CSRF = @json(csrf_token());
     }
     if (checkAll) {
         checkAll.addEventListener('change', function () {
-            rowChecks().forEach(function (c) { c.checked = checkAll.checked; });
+            visibleRowChecks().forEach(function (c) { c.checked = checkAll.checked; });
             syncAssignBtn();
+            syncDeleteBtn();
         });
     }
-    document.getElementById('jb-select-all').addEventListener('click', function () {
-        rowChecks().forEach(function (c) { c.checked = true; });
+    function visibleRowChecks() {
+        return rowChecks().filter(function (c) {
+            var tr = c.closest('tr');
+            return tr && tr.style.display !== 'none';
+        });
+    }
+    function setVisibleChecks(on) {
+        visibleRowChecks().forEach(function (c) { c.checked = !!on; });
         syncAssignBtn();
+        syncDeleteBtn();
+    }
+    document.getElementById('jb-select-all').addEventListener('click', function () { setVisibleChecks(true); });
+    document.getElementById('jb-clear-all').addEventListener('click', function () { setVisibleChecks(false); });
+    document.querySelectorAll('.jb-select-visible').forEach(function (btn) {
+        btn.addEventListener('click', function () { setVisibleChecks(true); });
     });
-    document.getElementById('jb-clear-all').addEventListener('click', function () {
-        rowChecks().forEach(function (c) { c.checked = false; });
+    document.querySelectorAll('.jb-clear-visible').forEach(function (btn) {
+        btn.addEventListener('click', function () { setVisibleChecks(false); });
+    });
+    rowChecks().forEach(function (c) { c.addEventListener('change', function () { syncAssignBtn(); syncDeleteBtn(); }); });
+
+    var internDeleteForm = document.getElementById('jb-interns-delete-form');
+    var internDeleteBtn = document.getElementById('jb-intern-delete-btn');
+    function syncDeleteBtn() {
+        if (!internDeleteBtn) return;
+        internDeleteBtn.disabled = !rowChecks().some(function (c) { return c.checked; });
+    }
+    if (internDeleteForm) {
+        internDeleteForm.addEventListener('submit', function (e) {
+            var selected = rowChecks().filter(function (c) { return c.checked; });
+            if (!selected.length) {
+                e.preventDefault();
+                alert('Select at least one intern to delete.');
+                return;
+            }
+            if (!confirm('Delete ' + selected.length + ' selected intern application' + (selected.length === 1 ? '' : 's') + '? This cannot be undone.')) {
+                e.preventDefault();
+                return;
+            }
+            internDeleteForm.querySelectorAll('input[name="application_ids[]"]').forEach(function (el) { el.remove(); });
+            selected.forEach(function (c) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'application_ids[]';
+                input.value = c.value;
+                internDeleteForm.appendChild(input);
+            });
+        });
+    }
+    document.querySelectorAll('.jb-intern-delete-one').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!internDeleteForm) return;
+            if (!confirm('Delete this intern application? This cannot be undone.')) return;
+            internDeleteForm.querySelectorAll('input[name="application_ids[]"]').forEach(function (el) { el.remove(); });
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'application_ids[]';
+            input.value = btn.getAttribute('data-id');
+            internDeleteForm.appendChild(input);
+            internDeleteForm.submit();
+        });
+    });
+
+    var searchInput = document.getElementById('jb-intern-search');
+    var noMatch = document.getElementById('jb-intern-no-match');
+    var filterCountEl = document.getElementById('jb-intern-filter-count');
+    function filterInternRows() {
+        var q = ((searchInput && searchInput.value) || '').toLowerCase().trim();
+        var rows = document.querySelectorAll('.jb-interns-table tbody tr.jb-row-click');
+        var shown = 0;
+        rows.forEach(function (row) {
+            var hay = (row.getAttribute('data-search') || row.textContent || '').toLowerCase();
+            var match = !q || hay.indexOf(q) !== -1;
+            row.style.display = match ? '' : 'none';
+            if (match) shown++;
+        });
+        if (noMatch) noMatch.style.display = rows.length && shown === 0 ? '' : 'none';
+        if (filterCountEl) {
+            filterCountEl.textContent = q
+                ? (shown + ' of ' + rows.length + ' intern' + (rows.length === 1 ? '' : 's'))
+                : '';
+        }
         syncAssignBtn();
-    });
-    rowChecks().forEach(function (c) { c.addEventListener('change', syncAssignBtn); });
+        syncDeleteBtn();
+    }
+    if (searchInput) {
+        searchInput.addEventListener('input', filterInternRows);
+        searchInput.addEventListener('search', filterInternRows);
+        filterInternRows();
+    }
+    syncDeleteBtn();
 
     form.addEventListener('submit', function (e) {
         var n = rowChecks().filter(function (c) { return c.checked; }).length;

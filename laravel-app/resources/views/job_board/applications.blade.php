@@ -1,7 +1,7 @@
 @extends('layout.main')
 
 @section('content')
-<section class="forms">
+<section class="forms jb-apps-page">
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
 
@@ -124,40 +124,40 @@
                                 </td>
                                 <td class="jb-nav-cell"><code>{{ $app->reference_number }}</code></td>
                                 <td class="jb-nav-cell">{{ $app->submitted_at ? \Carbon\Carbon::parse($app->submitted_at)->format('M j, Y') : '—' }}</td>
-                                <td class="small jb-no-nav">
+                                <td class="small jb-no-nav jb-docs-cell">
                                     @if($app->hasIncompleteDocuments())
-                                        <span class="jb-badge jb-badge--warn" title="{{ implode(', ', $app->missingDocumentKeys()) }}">{{ $app->documentsStatusLabel() }}</span><br>
+                                        <span class="jb-badge jb-badge--warn" title="{{ implode(', ', $app->missingDocumentKeys()) }}">{{ $app->documentsStatusLabel() }}</span>
                                     @endif
                                     @if($app->cv_url || $app->cv_path)
                                         <a href="{{ route('jobs.applications.document', [$app->id, 'cv']) }}" target="_blank" rel="noopener">CV</a>
                                     @endif
                                     @if($app->student_id_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">ID Front</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'student_id']) }}" target="_blank" rel="noopener">ID Front</a>
                                     @else
-                                        <br><span class="text-danger small">ID Front missing</span>
+                                        <span class="text-danger">ID Front missing</span>
                                     @endif
                                     @if($app->student_id_back_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" target="_blank" rel="noopener">ID Back</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'student_id_back']) }}" target="_blank" rel="noopener">ID Back</a>
                                     @endif
                                     @if($app->internship_letter_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">School letter</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'letter']) }}" target="_blank" rel="noopener">School letter</a>
                                     @elseif($app->isStudentApplicant() && in_array('internship_letter', $app->deferredDocumentKeys(), true))
-                                        <br><span class="text-warning small">School letter later</span>
+                                        <span class="text-warning">School letter later</span>
                                     @endif
                                     @if($app->employment_letter_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" target="_blank" rel="noopener">Employment letter</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'employment_letter']) }}" target="_blank" rel="noopener">Employment letter</a>
                                     @elseif($app->isWorkerApplicant() && in_array('employment_letter', $app->deferredDocumentKeys(), true))
-                                        <br><span class="text-warning small">Employment letter later</span>
+                                        <span class="text-warning">Employment letter later</span>
                                     @endif
                                     @if($app->official_badge_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" target="_blank" rel="noopener">Badge</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'official_badge']) }}" target="_blank" rel="noopener">Badge</a>
                                     @elseif($app->isWorkerApplicant() && in_array('official_badge', $app->deferredDocumentKeys(), true))
-                                        <br><span class="text-warning small">Badge later</span>
+                                        <span class="text-warning">Badge later</span>
                                     @endif
                                     @if($app->selfie_path)
-                                        <br><a href="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" target="_blank" rel="noopener">Selfie</a>
+                                        <a href="{{ route('jobs.applications.document', [$app->id, 'selfie']) }}" target="_blank" rel="noopener">Selfie</a>
                                     @endif
-                                    @if($app->agreement_signed_at)<br><span class="text-success">Agreement signed</span>@endif
+                                    @if($app->agreement_signed_at)<span class="text-success">Signed</span>@endif
                                     @if(!$app->cv_url && !$app->cv_path && !$app->student_id_path && !$app->student_id_back_path && !$app->internship_letter_path && !$app->employment_letter_path && !$app->official_badge_path && !$app->selfie_path)
                                         <span class="text-muted">—</span>
                                     @endif
@@ -182,7 +182,11 @@
                                             <button type="submit" name="notify" value="1" class="btn btn-sm btn-primary" style="flex:1;">Save &amp; Notify</button>
                                         </div>
                                     </form>
-                                    <button type="button" class="btn btn-sm btn-link text-danger jb-app-delete-one mt-1" data-id="{{ $app->id }}">Delete</button>
+                                    <div class="d-flex flex-wrap justify-content-end mt-1" style="gap:8px;">
+                                        <a href="{{ $showUrl }}" class="btn btn-sm btn-outline-primary">View</a>
+                                        <a href="{{ route('jobs.applications.edit', $app->id) }}" class="btn btn-sm btn-primary">Edit</a>
+                                        <button type="button" class="btn btn-sm btn-link text-danger jb-app-delete-one" data-id="{{ $app->id }}">Delete</button>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -198,9 +202,12 @@
     </div>
 </section>
 <style>
-    .jb-apps-card { overflow: visible; }
-    .jb-apps-table-wrap { overflow: visible !important; }
-    .jb-apps-table { position: relative; }
+    .jb-apps-page .jb-shell { max-width: none; }
+    .jb-apps-card { overflow: hidden; }
+    .jb-apps-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .jb-apps-table { position: relative; min-width: 1180px; }
+    .jb-docs-cell { max-width: 180px; }
+    .jb-docs-cell a, .jb-docs-cell span { display: inline-block; margin: 0 6px 4px 0; white-space: nowrap; }
     tr.jb-row-click td.jb-nav-cell { cursor: pointer; }
     tr.jb-row-click:hover td.jb-nav-cell { background: #f8fafc; }
     td.jb-no-nav, td.jb-actions-cell, td.jb-check-cell { cursor: default; position: relative; z-index: 20; }

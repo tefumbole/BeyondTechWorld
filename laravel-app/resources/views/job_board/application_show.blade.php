@@ -20,6 +20,7 @@
             </div>
             <div class="d-flex" style="gap:8px;">
                 <a href="{{ url()->previous() ?: route('jobs.applications') }}" class="jb-btn-secondary"><i class="dripicons-arrow-left"></i> Back</a>
+                <a href="{{ route('jobs.applications.edit', $app->id) }}" class="jb-btn"><i class="dripicons-document-edit"></i> Edit application</a>
                 <a href="{{ route('jobs.awaiting') }}" class="jb-btn-secondary">Awaiting</a>
             </div>
         </div>
