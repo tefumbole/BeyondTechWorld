@@ -61,10 +61,10 @@
         .top-nav::-webkit-scrollbar { display: none; }
         .top-nav a {
             text-decoration: none; white-space: nowrap;
-            font-family: "Cormorant Garamond", serif;
-            font-size: 16px; color: #f3ead6;
+            font-size: 13px; letter-spacing: .08em; color: #f7f1e4;
+            padding-bottom: 4px;
         }
-        .top-nav a.on { color: var(--gold-2); border-bottom: 1px solid var(--gold); }
+        .top-nav a.on { color: #fff; border-bottom: 2px solid var(--gold); }
         .btn {
             display: inline-flex; align-items: center; justify-content: center;
             border-radius: 999px; padding: 12px 20px; font-weight: 700;
@@ -75,61 +75,108 @@
         .btn-ghost { background: transparent; color: #fff8e8; border-color: rgba(255,248,232,.45); }
         .btn-dark { background: rgba(8,6,4,.45); color: #fff8e8; border-color: rgba(212,175,55,.45); }
         .hero {
-            position: relative; min-height: min(92vh, 920px);
-            padding: 28px 18px 36px;
+            position: relative; min-height: min(88vh, 860px);
+            padding: 28px 28px 40px;
             overflow: hidden;
             background:
-                radial-gradient(ellipse at 20% 80%, rgba(212,175,55,.16), transparent 46%),
-                radial-gradient(ellipse at 80% 20%, rgba(232,150,60,.12), transparent 40%),
-                #080604;
+                radial-gradient(ellipse at 18% 70%, rgba(212,175,55,.12), transparent 42%),
+                radial-gradient(ellipse at 82% 30%, rgba(232,150,60,.1), transparent 38%),
+                #050403;
         }
         .hero-grid {
-            max-width: 1180px; margin: 0 auto;
-            display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.1fr) minmax(220px, .9fr);
-            gap: 22px; align-items: center;
+            max-width: 1280px; margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, .92fr) minmax(0, 1fr);
+            gap: 28px; align-items: stretch;
+            min-height: min(78vh, 740px);
         }
-        .rail {
-            writing-mode: vertical-rl; transform: rotate(180deg);
-            letter-spacing: .28em; text-transform: uppercase;
-            color: var(--gold); font-size: 11px; font-weight: 700;
-            opacity: .85; justify-self: start;
-        }
+        .hero-side { position: relative; min-height: min(72vh, 700px); }
         .hero-portrait, .hero-companion {
-            border-radius: 18px; overflow: hidden;
-            box-shadow: 0 24px 60px rgba(0,0,0,.45);
-            border: 1px solid rgba(212,175,55,.28);
-            background: #0a0806;
+            position: relative; margin: 0; height: 100%;
+            overflow: hidden; background: #050403;
         }
         .hero-portrait img, .hero-companion img {
-            width: 100%;
-            height: auto;
-            max-height: min(78vh, 740px);
-            object-fit: contain;
-            object-position: center top;
+            width: 100%; height: 100%;
+            object-fit: cover;
         }
-        .hero-copy { text-align: center; padding: 8px 8px 0; }
+        .hero-portrait img { object-position: center 10%; }
+        .hero-companion img { object-position: center 28%; }
+        .hero-portrait::after, .hero-companion::after {
+            content: ""; position: absolute; inset: 0; pointer-events: none;
+            background:
+                linear-gradient(90deg, rgba(5,4,3,.78) 0%, rgba(5,4,3,.12) 22%, transparent 42%, transparent 70%, rgba(5,4,3,.55) 100%),
+                linear-gradient(180deg, rgba(5,4,3,.28) 0%, transparent 18%, transparent 74%, rgba(5,4,3,.72) 100%);
+        }
+        .hero-companion::after {
+            background:
+                linear-gradient(90deg, rgba(5,4,3,.55) 0%, transparent 24%, transparent 72%, rgba(5,4,3,.45) 100%),
+                linear-gradient(180deg, rgba(5,4,3,.18) 0%, transparent 22%, transparent 62%, rgba(5,4,3,.78) 100%);
+        }
+        .rail {
+            position: absolute; left: 16px; top: 50%; z-index: 2;
+            transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 16px;
+            list-style: none; margin: 0; padding: 0;
+        }
+        .rail li {
+            color: #fff; font-size: 11px; font-weight: 600;
+            letter-spacing: .28em; text-transform: uppercase;
+            text-shadow: 0 2px 10px rgba(0,0,0,.55);
+        }
+        .hero-copy {
+            text-align: center; padding: 18px 8px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
         .kicker {
             letter-spacing: .24em; text-transform: uppercase; color: var(--gold);
             font-size: 12px; font-weight: 700; margin: 0 0 10px;
         }
+        .hero-copy .kicker {
+            display: flex; align-items: center; justify-content: center; gap: 16px;
+            margin: 0 0 18px; font-size: 11px; letter-spacing: .28em;
+        }
+        .hero-copy .kicker::before, .hero-copy .kicker::after {
+            content: ""; width: 42px; height: 1px; background: var(--gold); opacity: .85;
+        }
         .hero-copy h1 {
             font-family: "Cormorant Garamond", serif;
-            font-size: clamp(36px, 6vw, 64px);
-            line-height: 1.02; margin: 0 0 8px; font-weight: 700;
+            font-size: clamp(38px, 5.4vw, 68px);
+            line-height: 1.02; margin: 0 0 16px; font-weight: 700;
+            letter-spacing: .02em;
         }
-        .years { color: var(--gold-2); font-size: clamp(18px, 2.4vw, 24px); margin: 0 0 10px; letter-spacing: .08em; }
-        .hero-line { margin: 0 0 8px; color: #efe4c4; font-size: 15px; letter-spacing: .04em; }
-        .hero-faith { margin: 0 0 16px; color: #d8cba8; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
+        .years-row {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            width: min(100%, 360px); margin: 0 0 18px;
+        }
+        .years-row .line { flex: 1; height: 1px; background: rgba(212,175,55,.7); }
+        .years-row .diamond {
+            width: 7px; height: 7px; background: var(--gold);
+            transform: rotate(45deg); flex: 0 0 7px;
+        }
+        .years {
+            color: var(--gold-2); font-family: "Cormorant Garamond", serif;
+            font-size: clamp(20px, 2.4vw, 26px); margin: 0; letter-spacing: .12em;
+            white-space: nowrap;
+        }
+        .hero-faith {
+            margin: 0 0 22px; color: #f3ead6; font-size: 12px;
+            letter-spacing: .16em; text-transform: uppercase; font-weight: 600;
+        }
         .hero-quote {
             font-family: "Cormorant Garamond", serif; font-style: italic;
-            font-size: clamp(18px, 2.4vw, 24px); line-height: 1.45;
-            margin: 0 0 8px; color: #fff8e8;
+            font-size: clamp(20px, 2.5vw, 28px); line-height: 1.4;
+            margin: 0 0 10px; color: #fff8e8; max-width: 28ch;
         }
-        .hero-attr { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
-        .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .hero-attr {
+            color: #d8cba8; font-size: 12px; margin: 0 0 28px;
+            letter-spacing: .1em; text-transform: uppercase;
+        }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
         .companion-cap {
-            margin: 8px 4px 0; color: var(--gold-2); font-size: 12px;
-            letter-spacing: .08em; text-transform: uppercase; text-align: center;
+            position: absolute; left: 16px; right: 16px; bottom: 18px; z-index: 2;
+            margin: 0; color: #fff; font-size: 11px; font-weight: 600;
+            letter-spacing: .14em; text-transform: uppercase; text-align: right;
+            text-shadow: 0 2px 12px rgba(0,0,0,.65);
         }
         .subnav {
             position: sticky; top: 63px; z-index: 20;
@@ -281,10 +328,9 @@
             background: rgba(8,6,4,.7); color: #fff8e8; font-size: 22px; cursor: pointer;
         }
         @media (max-width: 980px) {
-            .hero-grid { grid-template-columns: 1fr; }
-            .rail { writing-mode: horizontal-tb; transform: none; text-align: center; letter-spacing: .16em; }
-            .hero-companion { display: none; }
-            .hero-portrait img { max-height: min(70vh, 560px); }
+            .hero-grid { grid-template-columns: 1fr; gap: 22px; min-height: 0; }
+            .hero-side { min-height: min(64vh, 560px); }
+            .companion-cap { text-align: center; }
             .split, .split.reverse, .values-grid { grid-template-columns: 1fr; }
             .masonry { columns: 2; }
             .top-nav { max-width: none; }
@@ -296,7 +342,10 @@
             .t-year { font-size: 16px; }
             .masonry { columns: 1; }
             .v-list { grid-template-columns: 1fr; }
-            .hero { min-height: auto; padding-top: 18px; }
+            .hero { min-height: auto; padding: 16px 14px 28px; }
+            .hero-side { min-height: min(58vh, 480px); }
+            .rail { left: 10px; gap: 12px; }
+            .rail li { letter-spacing: .18em; font-size: 10px; }
             .subnav { top: 108px; }
         }
     </style>
@@ -327,24 +376,35 @@
 
 <section class="hero">
     <div class="hero-grid">
-        <div class="rail">{{ implode(' · ', $bio['hero']['values_rail']) }}</div>
-        <figure class="hero-portrait">
-            <img src="{{ $photo($bio['hero']['portrait']) }}" alt="{{ $bio['hero']['portrait_alt'] }}">
-        </figure>
+        <div class="hero-side">
+            <figure class="hero-portrait">
+                <img src="{{ $photo($bio['hero']['portrait']) }}" alt="{{ $bio['hero']['portrait_alt'] }}">
+            </figure>
+            <ul class="rail" aria-label="Values">
+                @foreach($bio['hero']['values_rail'] as $value)
+                    <li>{{ $value }}</li>
+                @endforeach
+            </ul>
+        </div>
         <div class="hero-copy">
             <p class="kicker">{{ $bio['hero']['kicker'] }}</p>
             <h1>{{ $bio['hero']['name'] }}</h1>
-            <p class="years">{{ $bio['hero']['years'] }}</p>
-            <p class="hero-line">{{ $bio['hero']['line'] }}</p>
+            <div class="years-row">
+                <span class="line"></span>
+                <span class="diamond" aria-hidden="true"></span>
+                <p class="years">{{ $bio['hero']['years'] }}</p>
+                <span class="diamond" aria-hidden="true"></span>
+                <span class="line"></span>
+            </div>
             <p class="hero-faith">{{ $bio['hero']['faith_line'] }}</p>
             <p class="hero-quote">“{{ $bio['hero']['quote'] }}”</p>
             <p class="hero-attr">{{ $bio['hero']['quote_attr'] }}</p>
             <div class="hero-actions">
                 <a class="btn btn-gold" href="#story">Read His Story ↓</a>
-                <a class="btn btn-dark" href="{{ $share }}">Share a Memory</a>
+                <a class="btn btn-ghost" href="{{ $share }}">Share a Memory</a>
             </div>
         </div>
-        <div>
+        <div class="hero-side">
             <figure class="hero-companion">
                 <img src="{{ $photo($bio['hero']['companion']) }}" alt="{{ $bio['hero']['companion_alt'] }}">
             </figure>
