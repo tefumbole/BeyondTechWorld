@@ -9,7 +9,7 @@ class InternshipTimesheetReminders extends Command
 {
     protected $signature = 'internship:timesheet-reminders';
 
-    protected $description = 'Remind interns on WhatsApp about working days with no timesheet entry (idempotent)';
+    protected $description = 'Remind interns once per day on WhatsApp about a working day with no timesheet entry';
 
     public function handle(InternshipProgramService $service)
     {

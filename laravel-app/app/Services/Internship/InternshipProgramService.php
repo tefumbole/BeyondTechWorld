@@ -416,30 +416,33 @@ class InternshipProgramService
 
     /**
      * WhatsApp interns who finished a working day without logging hours.
-     * One reminder per intern per missing date (idempotency key in the notification log).
+     * At most one reminder per intern per calendar day.
      *
      * @return int reminders sent
      */
     public function remindMissingTimesheets()
     {
         $sent = 0;
+        $seenUsers = [];
+        $today = Carbon::today()->toDateString();
         $enrolments = InternshipEnrolment::with('student')
             ->whereIn('status', ['active', 'paused'])
             ->get();
 
         foreach ($enrolments as $enrolment) {
             $student = $enrolment->student;
-            if (! $student || ! InternCompliance::workingWeekConfigured($student)) {
+            if (! $student || isset($seenUsers[$student->id]) || ! InternCompliance::workingWeekConfigured($student)) {
                 continue;
             }
+            $seenUsers[$student->id] = true;
 
             $missing = InternCompliance::missingTimesheetDate($student);
             if (! $missing) {
                 continue;
             }
 
-            $key = 'timesheet_reminder:'.$student->id.':'.$missing;
-            if ($this->alreadyNotified($key)) {
+            $key = 'timesheet_reminder:'.$student->id.':'.$today;
+            if ($this->alreadyNotified($key) || $this->alreadyRemindedTimesheetToday($student->id)) {
                 continue;
             }
 
@@ -1992,6 +1995,16 @@ class InternshipProgramService
     protected function alreadyNotified($key)
     {
         return DB::table('internship_notification_logs')->where('idempotency_key', $key)->where('status', 'sent')->exists();
+    }
+
+    protected function alreadyRemindedTimesheetToday($userId)
+    {
+        return DB::table('internship_notification_logs')
+            ->where('event', 'timesheet_reminder')
+            ->where('user_id', $userId)
+            ->where('created_at', '>=', Carbon::today())
+            ->whereIn('status', ['sent', 'pending'])
+            ->exists();
     }
 
     /**
