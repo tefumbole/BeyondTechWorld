@@ -24,6 +24,7 @@ class Kernel extends ConsoleKernel
         Commands\InternshipImportCurriculum::class,
         Commands\InternshipTimesheetReminders::class,
         Commands\InternshipReviewSla::class,
+        Commands\InternshipNotifyIntern::class,
         Commands\SendOnlineInvitationReminders::class,
         Commands\FixFuneralEulogies::class,
     ];

@@ -2068,7 +2068,8 @@ class InternshipProgramService
     }
 
     /**
-     * When ERP user.phone is empty, recover WhatsApp number from the linked application.
+     * Application WhatsApp is the source of truth for interns. Never keep sending
+     * to a stale users.phone after the intern number is updated.
      */
     protected function resolveFallbackPhoneForUser(User $user)
     {
@@ -2095,19 +2096,25 @@ class InternshipProgramService
         }
     }
 
-    protected function sendWhatsApp(User $user, $message, $idempotencyKey, $event)
+    protected function resolveInternSendPhone(User $user)
     {
-        $phone = $user->phone ?? $user->phone_number ?? null;
-        if (! $phone) {
-            $phone = $this->resolveFallbackPhoneForUser($user);
-            if ($phone) {
-                try {
-                    $user->phone = $phone;
-                    $user->save();
-                } catch (\Throwable $e) {
-                }
+        $appPhone = $this->resolveFallbackPhoneForUser($user);
+        $userPhone = trim((string) ($user->phone ?? $user->phone_number ?? ''));
+        $phone = $appPhone ?: ($userPhone !== '' ? $userPhone : null);
+        if ($phone && $userPhone !== (string) $phone) {
+            try {
+                $user->phone = $phone;
+                $user->save();
+            } catch (\Throwable $e) {
             }
         }
+
+        return $phone;
+    }
+
+    protected function sendWhatsApp(User $user, $message, $idempotencyKey, $event)
+    {
+        $phone = $this->resolveInternSendPhone($user);
         $row = [
             'idempotency_key' => $idempotencyKey,
             'event' => $event,
@@ -2160,10 +2167,7 @@ class InternshipProgramService
             return ['success' => true, 'skipped' => true];
         }
 
-        $phone = $user->phone ?? $user->phone_number ?? null;
-        if (! $phone) {
-            $phone = $this->resolveFallbackPhoneForUser($user);
-        }
+        $phone = $this->resolveInternSendPhone($user);
         $row = [
             'idempotency_key' => $idempotencyKey,
             'event' => $event,

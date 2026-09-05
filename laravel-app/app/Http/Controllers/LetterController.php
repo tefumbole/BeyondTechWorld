@@ -1268,6 +1268,21 @@ class LetterController extends Controller
         $id = $id ?? $letterId;
         $saved = is_object($letter) ? $letter : Letter::find($letterId);
         $batchId = null;
+        if (app()->runningInConsole()) {
+            if ($saved) {
+                try {
+                    $batch = app(MessageDeliveryTracker::class)->queueLetter($saved, $customer);
+                    $batchId = $batch ? (int) $batch->id : null;
+                } catch (\Throwable $e) {
+                    \Log::warning('Could not create delivery batch: '.$e->getMessage(), [
+                        'letter_id' => $letterId,
+                    ]);
+                }
+            }
+            (new ProcessQueue($saved ?: $letter, $id, $customer, $batchId))->handle();
+
+            return;
+        }
         if ($saved) {
             try {
                 $batch = app(MessageDeliveryTracker::class)->queueLetter($saved, $customer);
