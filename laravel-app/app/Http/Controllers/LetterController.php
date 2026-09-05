@@ -1219,12 +1219,32 @@ class LetterController extends Controller
             $password = \App\Services\InternshipAcceptanceLetterService::DEFAULT_PASSWORD;
         }
 
+        $signUrl = trim((string) ($recipient->sign_url ?? ''));
+        if ($signUrl === '') {
+            $email = strtolower(trim((string) ($recipient->email ?? '')));
+            if ($email !== '') {
+                $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
+                if ($application && ! $application->hasSignedAcceptance()) {
+                    $signUrl = app(\App\Services\ApplicationService::class)->agreementUrl($application);
+                }
+            }
+        } else {
+            $email = strtolower(trim((string) ($recipient->email ?? '')));
+            if ($email !== '') {
+                $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
+                if ($application && $application->hasSignedAcceptance()) {
+                    $signUrl = '';
+                }
+            }
+        }
+
         $msg = \App\Support\WhatsAppMessage::internshipAdmissionLoginGuide(
             $name,
             $username,
             $password,
             url('/login'),
-            url('/admin/timesheet/working-week')
+            url('/admin/timesheet/working-week'),
+            $signUrl !== '' ? $signUrl : null
         );
 
         try {

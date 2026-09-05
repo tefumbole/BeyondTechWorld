@@ -178,6 +178,12 @@ HTML;
                 // (PDF + login text + rate-limit pauses) causes nginx 502s.
                 $controller->queueDeliveryAfterResponse($letter, $letter->id, null);
 
+                $application->agreement_sent_at = now();
+                if ((int) ($application->offer_flow_version ?? 0) < 1) {
+                    $application->offer_flow_version = 1;
+                }
+                $application->save();
+
                 $result['sent']++;
             } catch (\Throwable $e) {
                 Log::warning('Internship acceptance letter failed', [
@@ -278,12 +284,15 @@ HTML;
 
         $rawPhone = $application->whatsapp_number ?: $application->phone;
         $phone = $rawPhone ? WhatsAppPhone::display($rawPhone) : '';
+        $signUrl = app(\App\Services\ApplicationService::class)->agreementUrl($application);
 
         return [
             'name' => $application->full_name ?: 'Intern',
             'school' => $application->school ?: '—',
             'phone_number' => $phone,
             'email' => (string) ($application->email ?: ''),
+            'sign_url' => $signUrl,
+            'needs_signature' => $application->hasSignedAcceptance() ? '' : '1',
             'address' => (string) ($application->country ?: ''),
             'system_name' => $systemName,
             'program' => $program,

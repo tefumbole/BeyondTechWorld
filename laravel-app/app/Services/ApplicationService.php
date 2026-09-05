@@ -1042,7 +1042,17 @@ class ApplicationService
     protected function enrolAfterSignedOffer(Application $application)
     {
         $enrolment = $this->enrolInInternshipProgram($application);
-        if ($enrolment || ! $application->internship_program_id) {
+        if ($enrolment) {
+            try {
+                app(\App\Services\Internship\InternshipProgramService::class)
+                    ->releaseFirstTaskAfterSignature($enrolment);
+            } catch (\Throwable $e) {
+                Log::warning('Day-1 release after signature failed for application '.$application->id.': '.$e->getMessage());
+            }
+
+            return $enrolment;
+        }
+        if (! $application->internship_program_id) {
             return $enrolment;
         }
 
@@ -1440,6 +1450,7 @@ class ApplicationService
             if ($existing->fresh()->status === 'active') {
                 $service->reconcileReleases($existing->id);
             }
+            $this->sendAcceptanceLetterIfUnsigned($application);
 
             return $existing->fresh();
         }
@@ -1456,8 +1467,27 @@ class ApplicationService
             'notes' => 'Assigned from Job Board applicants · '.$application->reference_number.' ('.$duration.' days from day '.$startDay.')',
         ]);
         $service->reconcileReleases($enrolment->id);
+        $this->sendAcceptanceLetterIfUnsigned($application);
 
         return $enrolment;
+    }
+
+    /**
+     * Placement sends the acceptance letter for signature. Day 1 waits until they sign.
+     */
+    protected function sendAcceptanceLetterIfUnsigned(Application $application)
+    {
+        $application->refresh();
+        if ($application->hasSignedAcceptance() || $application->agreement_sent_at) {
+            return;
+        }
+
+        try {
+            app(\App\Services\InternshipAcceptanceLetterService::class)
+                ->notifyApplications([$application->id]);
+        } catch (\Throwable $e) {
+            Log::warning('Acceptance letter send failed for application '.$application->id.': '.$e->getMessage());
+        }
     }
 
     /**

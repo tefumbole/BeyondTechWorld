@@ -1031,14 +1031,20 @@ class WhatsAppMessage
     /**
      * Follow-up after internship admission letter PDF: login + Timesheets working week.
      */
-    public static function internshipAdmissionLoginGuide($name, $username, $password, $loginUrl = null, $timesheetUrl = null)
+    public static function internshipAdmissionLoginGuide($name, $username, $password, $loginUrl = null, $timesheetUrl = null, $signUrl = null)
     {
         $loginUrl = $loginUrl ?: url('/login');
         $timesheetUrl = $timesheetUrl ?: url('/admin/timesheet/working-week');
 
         $msg = self::statusBlock('🔑', 'Internship Login');
         $msg .= self::greeting($name ?: 'Intern');
-        $msg .= "Your internship admission letter PDF was sent above. Use these details to sign in and set your Working Week.\n\n";
+        $msg .= "Your internship acceptance letter PDF was sent above.\n\n";
+        if ($signUrl) {
+            $msg .= "Please *sign the acceptance letter* with the link below. Day 1 of your placement is sent only after you sign.\n";
+            $msg .= self::actionLink('Sign acceptance letter', $signUrl);
+            $msg .= "\n";
+        }
+        $msg .= "Use these details to sign in after you sign.\n\n";
         $msg .= self::bullet('Username', $username ?: '—');
         $msg .= self::bullet('Default password', $password ?: 'system');
         $msg .= "_Sign in with your email, WhatsApp number, or username. If you forget either, use Forgot username / password on the login page._\n";

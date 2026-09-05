@@ -20,7 +20,8 @@ class InternshipNotifyIntern extends Command
         {email : Intern email}
         {--phone= : Replacement WhatsApp number}
         {--accept-placement : Send the internship acceptance letter}
-        {--resend-tasks : Resend every open released task}';
+        {--require-signature : Clear prior acceptance and hold Day 1 until they sign}
+        {--resend-tasks : Resend every open released task (only after they have signed)}';
 
     protected $description = 'Update an intern WhatsApp number and send placement / task messages to that number only';
 
@@ -48,6 +49,22 @@ class InternshipNotifyIntern extends Command
             Auth::login($admin);
         }
 
+        $enrolment = $this->findEnrolment($application, $email);
+
+        if ($this->option('require-signature')) {
+            $application->agreement_signed_at = null;
+            $application->offer_accepted_at = null;
+            $application->agreement_signature_image = null;
+            if ((int) ($application->offer_flow_version ?? 0) < 1) {
+                $application->offer_flow_version = 1;
+            }
+            $application->save();
+            if ($enrolment && $program->withdrawUnstartedFirstTask($enrolment)) {
+                $this->info('Held Day 1 until the acceptance letter is signed.');
+            }
+            $application->refresh();
+        }
+
         if ($this->option('accept-placement')) {
             $result = app(InternshipAcceptanceLetterService::class)
                 ->notifyApplications([$application->id]);
@@ -58,16 +75,11 @@ class InternshipNotifyIntern extends Command
         }
 
         if ($this->option('resend-tasks')) {
-            $enrolment = InternshipEnrolment::where('application_id', $application->id)
-                ->orderByDesc('id')
-                ->first();
-            if (! $enrolment) {
-                $user = User::where('is_deleted', false)->whereRaw('LOWER(email) = ?', [$email])->first();
-                if ($user) {
-                    $enrolment = InternshipEnrolment::where('student_user_id', $user->id)
-                        ->orderByDesc('id')
-                        ->first();
-                }
+            $application->refresh();
+            if (! $application->hasSignedAcceptance()) {
+                $this->warn('Day 1 is not sent until the intern signs the acceptance letter.');
+
+                return 0;
             }
             if (! $enrolment) {
                 $this->error('No internship enrolment for '.$email);
@@ -104,6 +116,24 @@ class InternshipNotifyIntern extends Command
         }
 
         return 0;
+    }
+
+    protected function findEnrolment(Application $application, $email)
+    {
+        $enrolment = InternshipEnrolment::where('application_id', $application->id)
+            ->orderByDesc('id')
+            ->first();
+        if ($enrolment) {
+            return $enrolment;
+        }
+        $user = User::where('is_deleted', false)->whereRaw('LOWER(email) = ?', [$email])->first();
+        if (! $user) {
+            return null;
+        }
+
+        return InternshipEnrolment::where('student_user_id', $user->id)
+            ->orderByDesc('id')
+            ->first();
     }
 
     protected function syncInternPhone(Application $application, $new)

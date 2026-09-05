@@ -58,6 +58,12 @@ class Application extends Model
         return (int) ($this->offer_flow_version ?? 0) >= 1 && empty($this->offer_accepted_at);
     }
 
+    /** Intern has signed the acceptance letter / offer. Day 1 is released only after this. */
+    public function hasSignedAcceptance()
+    {
+        return ! empty($this->agreement_signed_at);
+    }
+
     public function workingWeekData()
     {
         return \App\Support\WorkingWeekForm::fromArray($this->working_week_json);

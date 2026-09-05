@@ -414,6 +414,74 @@ class InternshipProgramService
         return $released;
     }
 
+    public function internHasSignedAcceptance(InternshipEnrolment $enrolment)
+    {
+        $application = $enrolment->relationLoaded('application')
+            ? $enrolment->application
+            : $enrolment->application()->first();
+        if (! $application && $enrolment->application_id) {
+            $application = \App\Application::find($enrolment->application_id);
+        }
+        if (! $application) {
+            $student = $enrolment->student ?: optional($enrolment->fresh(['student']))->student;
+            $email = $student ? strtolower(trim((string) $student->email)) : '';
+            if ($email !== '') {
+                $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])
+                    ->orderByDesc('created_at')
+                    ->first();
+            }
+        }
+
+        return $application && $application->hasSignedAcceptance();
+    }
+
+    /**
+     * After the intern signs, release Day 1 (WhatsApp follows from tryReleaseNext).
+     */
+    public function releaseFirstTaskAfterSignature(InternshipEnrolment $enrolment)
+    {
+        $enrolment = $enrolment->fresh(['student', 'program', 'application']);
+        if (! $enrolment || $enrolment->status !== 'active') {
+            return false;
+        }
+        if (! $this->internHasSignedAcceptance($enrolment)) {
+            return false;
+        }
+
+        return $this->tryReleaseNext($enrolment, Carbon::today(), true, true);
+    }
+
+    /**
+     * Hold Day 1 when an intern must sign again and has not submitted anything.
+     */
+    public function withdrawUnstartedFirstTask(InternshipEnrolment $enrolment)
+    {
+        $assignment = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
+            ->where('progression_day', $enrolment->startCurriculumDay())
+            ->whereIn('status', ['available', 'in_progress'])
+            ->orderBy('id')
+            ->first();
+        if (! $assignment) {
+            return false;
+        }
+        if ((int) $assignment->attempt_count > 0) {
+            return false;
+        }
+        if (InternshipSubmission::where('assignment_id', $assignment->id)->exists()) {
+            return false;
+        }
+
+        InternshipDraftFile::where('assignment_id', $assignment->id)->delete();
+        $assignment->delete();
+
+        $enrolment->last_release_date = null;
+        $enrolment->next_release_date = null;
+        $enrolment->current_task_order = 0;
+        $enrolment->save();
+
+        return true;
+    }
+
     /**
      * WhatsApp interns who finished a working day without logging hours.
      * At most one reminder per intern per calendar day.
@@ -492,6 +560,10 @@ class InternshipProgramService
             ->whereNotNull('released_at')
             ->count();
         $isFirstTask = $releasedCount === 0;
+
+        if ($isFirstTask && ! $this->internHasSignedAcceptance($enrolment)) {
+            return false;
+        }
 
         // First task after admission: allow release even before Working Week is configured.
         // Later tasks still require a personal Working Week.
@@ -1472,6 +1544,15 @@ class InternshipProgramService
             ->whereNotNull('released_at')
             ->count();
         $isFirstTask = $releasedCount === 0;
+
+        if ($isFirstTask && ! $this->internHasSignedAcceptance($enrolment)) {
+            $empty['reason'] = 'unsigned';
+            $empty['message'] = 'Sign your Internship Acceptance letter first. Day 1 is sent only after you sign.';
+            $empty['next_day'] = $nextDay;
+            $empty['task_title'] = $title;
+
+            return $empty;
+        }
 
         if (! $isFirstTask && ! InternCompliance::workingWeekConfigured($user)) {
             $empty['reason'] = 'no_week';
