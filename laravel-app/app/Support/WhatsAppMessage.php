@@ -1029,6 +1029,24 @@ class WhatsAppMessage
     }
 
     /**
+     * Internship acceptance is a WhatsApp sign link — not a PDF.
+     */
+    public static function internshipAcceptanceSignRequest($name, $signUrl, $program = null)
+    {
+        $msg = self::statusBlock('📝', 'Sign your acceptance letter');
+        $msg .= self::greeting($name ?: 'Intern');
+        $msg .= "You have been placed on the *".self::companyName()."* Internship Programme";
+        if ($program) {
+            $msg .= " for *{$program}*";
+        }
+        $msg .= ".\n\nOpen the link below, read the letter, and *sign* it. Day 1 of your placement is sent only after you sign.\n";
+        $msg .= self::actionLink('Sign acceptance letter', $signUrl);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    /**
      * Follow-up after internship admission letter PDF: login + Timesheets working week.
      */
     public static function internshipAdmissionLoginGuide($name, $username, $password, $loginUrl = null, $timesheetUrl = null, $signUrl = null)

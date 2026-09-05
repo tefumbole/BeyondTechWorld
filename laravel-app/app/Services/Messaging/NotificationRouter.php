@@ -71,6 +71,22 @@ class NotificationRouter
     }
 
     /**
+     * Free-form text that must keep a URL visible. Twilio status templates drop links.
+     */
+    public function sendWhatsAppTextWithLink($phone, $body)
+    {
+        if (! $this->whatsappEnabled()) {
+            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
+        }
+
+        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        $result = $this->wasender->sendTextRaw($phone, $body);
+        $result['provider'] = 'wasender';
+
+        return $result;
+    }
+
+    /**
      * OTP via Twilio beyond_notice Content Template when WHATSAPP_SERVICE=TWILIO.
      * Wasender remains available as fallback when enabled.
      *

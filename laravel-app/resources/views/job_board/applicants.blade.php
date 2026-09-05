@@ -340,9 +340,7 @@
                     </a>
                 </div>
                 <p class="text-muted small mb-0 mt-2">
-                    <strong>Notify</strong> sends the Internship Acceptance letter on WhatsApp for the intern to <strong>sign</strong>.
-                    Day 1 is sent only after they sign. Assigning an intern also sends this letter.
-                    Edit the wording under Letters → Templates → <em>Internship Acceptance Letter</em>.
+                    <strong>Notify</strong> sends a WhatsApp <strong>sign link</strong> (not a PDF). Day 1 is sent only after they sign.
                 </p>
             </div>
         </form>

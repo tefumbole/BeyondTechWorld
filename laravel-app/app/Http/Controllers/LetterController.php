@@ -1131,6 +1131,12 @@ class LetterController extends Controller
         $attachment_path = public_path('letter/attachment/');
         $message = 'Letter notification sent successfully';
         try{
+            if ($this->isInternshipAcceptanceLetter($letter)
+                && $this->recipientNeedsAcceptanceSignature($lims_customer_data)) {
+                $this->sendInternshipAcceptanceSignWhatsApp($lims_customer_data);
+
+                return $message;
+            }
             $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf');
             if ($this->isInternshipAcceptanceLetter($letter)) {
                 $this->sendInternshipLoginGuideWhatsApp($lims_customer_data);
@@ -1193,6 +1199,61 @@ class LetterController extends Controller
         return false;
     }
 
+    protected function recipientNeedsAcceptanceSignature($recipient): bool
+    {
+        $email = strtolower(trim((string) ($recipient->email ?? '')));
+        if ($email === '') {
+            return ! empty($recipient->sign_url) || ! empty($recipient->needs_signature);
+        }
+        $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        return $application ? ! $application->hasSignedAcceptance() : true;
+    }
+
+    protected function resolveAcceptanceSignUrl($recipient): string
+    {
+        $signUrl = trim((string) ($recipient->sign_url ?? ''));
+        $email = strtolower(trim((string) ($recipient->email ?? '')));
+        if ($email === '') {
+            return $signUrl;
+        }
+        $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
+        if (! $application) {
+            return $signUrl;
+        }
+        if ($application->hasSignedAcceptance()) {
+            return '';
+        }
+
+        return $signUrl !== ''
+            ? $signUrl
+            : app(\App\Services\ApplicationService::class)->agreementUrl($application);
+    }
+
+    /**
+     * WhatsApp sign link only — no PDF. Twilio templates drop URLs, so this uses Wasender.
+     */
+    protected function sendInternshipAcceptanceSignWhatsApp($recipient): void
+    {
+        $phone = $recipient->phone_number ?? $recipient->phone ?? null;
+        $signUrl = $this->resolveAcceptanceSignUrl($recipient);
+        if (! $phone || $signUrl === '') {
+            throw new \RuntimeException('WhatsApp phone and sign link are required for the acceptance letter.');
+        }
+
+        $msg = \App\Support\WhatsAppMessage::internshipAcceptanceSignRequest(
+            trim((string) ($recipient->name ?? 'Intern')),
+            $signUrl,
+            trim((string) ($recipient->program ?? '')) ?: null
+        );
+
+        $result = app(\App\Services\Messaging\NotificationRouter::class)
+            ->sendWhatsAppTextWithLink($phone, $msg);
+        if (empty($result['success']) && empty($result['skipped'])) {
+            throw new \RuntimeException($result['error'] ?? 'Could not send the acceptance sign link.');
+        }
+    }
+
     /**
      * WhatsApp text after internship admission PDF: login link + Timesheets working week.
      */
@@ -1219,24 +1280,7 @@ class LetterController extends Controller
             $password = \App\Services\InternshipAcceptanceLetterService::DEFAULT_PASSWORD;
         }
 
-        $signUrl = trim((string) ($recipient->sign_url ?? ''));
-        if ($signUrl === '') {
-            $email = strtolower(trim((string) ($recipient->email ?? '')));
-            if ($email !== '') {
-                $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
-                if ($application && ! $application->hasSignedAcceptance()) {
-                    $signUrl = app(\App\Services\ApplicationService::class)->agreementUrl($application);
-                }
-            }
-        } else {
-            $email = strtolower(trim((string) ($recipient->email ?? '')));
-            if ($email !== '') {
-                $application = \App\Application::whereRaw('LOWER(email) = ?', [$email])->first();
-                if ($application && $application->hasSignedAcceptance()) {
-                    $signUrl = '';
-                }
-            }
-        }
+        $signUrl = $this->resolveAcceptanceSignUrl($recipient);
 
         $msg = \App\Support\WhatsAppMessage::internshipAdmissionLoginGuide(
             $name,
@@ -1251,7 +1295,7 @@ class LetterController extends Controller
             // Throttle is handled by Wasender account protection retries in NotificationRouter/Wasender.
             // A short pause after the PDF document is enough; long sleeps in-request caused nginx 502s.
             usleep(1500000);
-            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppText($phone, $msg);
+            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($phone, $msg);
         } catch (\Throwable $e) {
             \Log::warning('Internship login guide WhatsApp failed', [
                 'phone' => $phone,
