@@ -112,17 +112,6 @@
                 linear-gradient(90deg, rgba(5,4,3,.55) 0%, transparent 24%, transparent 72%, rgba(5,4,3,.45) 100%),
                 linear-gradient(180deg, rgba(5,4,3,.18) 0%, transparent 22%, transparent 62%, rgba(5,4,3,.78) 100%);
         }
-        .rail {
-            position: absolute; left: 16px; top: 50%; z-index: 2;
-            transform: translateY(-50%);
-            display: flex; flex-direction: column; gap: 16px;
-            list-style: none; margin: 0; padding: 0;
-        }
-        .rail li {
-            color: #fff; font-size: 11px; font-weight: 600;
-            letter-spacing: .28em; text-transform: uppercase;
-            text-shadow: 0 2px 10px rgba(0,0,0,.55);
-        }
         .hero-copy {
             text-align: center; padding: 18px 8px;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -172,12 +161,6 @@
             letter-spacing: .1em; text-transform: uppercase;
         }
         .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-        .companion-cap {
-            position: absolute; left: 16px; right: 16px; bottom: 18px; z-index: 2;
-            margin: 0; color: #fff; font-size: 11px; font-weight: 600;
-            letter-spacing: .14em; text-transform: uppercase; text-align: right;
-            text-shadow: 0 2px 12px rgba(0,0,0,.65);
-        }
         .subnav {
             position: sticky; top: 63px; z-index: 20;
             background: #0a0806; border-top: 1px solid rgba(212,175,55,.16);
@@ -330,7 +313,6 @@
         @media (max-width: 980px) {
             .hero-grid { grid-template-columns: 1fr; gap: 22px; min-height: 0; }
             .hero-side { min-height: min(64vh, 560px); }
-            .companion-cap { text-align: center; }
             .split, .split.reverse, .values-grid { grid-template-columns: 1fr; }
             .masonry { columns: 2; }
             .top-nav { max-width: none; }
@@ -344,8 +326,6 @@
             .v-list { grid-template-columns: 1fr; }
             .hero { min-height: auto; padding: 16px 14px 28px; }
             .hero-side { min-height: min(58vh, 480px); }
-            .rail { left: 10px; gap: 12px; }
-            .rail li { letter-spacing: .18em; font-size: 10px; }
             .subnav { top: 108px; }
         }
     </style>
@@ -380,11 +360,6 @@
             <figure class="hero-portrait">
                 <img src="{{ $photo($bio['hero']['portrait']) }}" alt="{{ $bio['hero']['portrait_alt'] }}">
             </figure>
-            <ul class="rail" aria-label="Values">
-                @foreach($bio['hero']['values_rail'] as $value)
-                    <li>{{ $value }}</li>
-                @endforeach
-            </ul>
         </div>
         <div class="hero-copy">
             <p class="kicker">{{ $bio['hero']['kicker'] }}</p>
@@ -408,7 +383,6 @@
             <figure class="hero-companion">
                 <img src="{{ $photo($bio['hero']['companion']) }}" alt="{{ $bio['hero']['companion_alt'] }}">
             </figure>
-            <p class="companion-cap">{{ $bio['hero']['companion_caption'] }}</p>
         </div>
     </div>
 </section>
