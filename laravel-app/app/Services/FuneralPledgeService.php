@@ -297,6 +297,15 @@ class FuneralPledgeService
             throw new \InvalidArgumentException('Please write a little more for the eulogy.');
         }
 
+        $duplicate = FuneralEulogy::where('campaign_id', $campaign->id)
+            ->where('phone', $data['phone'])
+            ->where('body', $body)
+            ->orderByDesc('id')
+            ->first();
+        if ($duplicate) {
+            return $duplicate;
+        }
+
         $customer = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick([
             'name' => $data['name'],
             'phone' => $data['phone'],
