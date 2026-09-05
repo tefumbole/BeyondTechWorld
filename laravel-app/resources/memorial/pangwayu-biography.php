@@ -36,8 +36,8 @@ return [
     'intro' => [
         'kicker' => 'A remarkable life',
         'title' => 'A man of faith, service and people',
-        'image' => 'memorial/pangwayu/bio-toghu.jpg',
-        'image_caption' => 'Pa Ngwayu Francis',
+        'image' => 'memorial/pangwayu/bio-fellowship.jpg',
+        'image_caption' => 'Pa Ngwayu Francis in Cameroon Baptist Convention Men’s Fellowship attire',
         'quote' => 'The journey is certain. Nothing shall stand in the way.',
         'quote_attr' => 'Pa Ngwayu Francis',
         'paragraphs' => [
