@@ -55,18 +55,28 @@
         <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
         @forelse($eulogies as $eu)
             <article class="eulogy-box">
-                <p>{{ $eu['body'] }}</p>
-                <div class="eulogy-who">
-                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                        @if(!empty($eu['has_selfie']))
-                            <img class="selfie" src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}">
-                        @endif
+                <header class="eulogy-head">
+                    @if(!empty($eu['has_selfie']))
+                        <img class="selfie" src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}">
+                    @endif
+                    <div class="eulogy-head-text">
                         <cite>{{ $eu['name'] }}</cite>
+                        @if(!empty($eu['when']))
+                            <span class="eulogy-date">{{ $eu['when'] }}</span>
+                        @endif
                     </div>
+                </header>
+                <div class="eulogy-body">
+                    @foreach(($eu['paragraphs'] ?? [$eu['body']]) as $para)
+                        <p>{{ $para }}</p>
+                    @endforeach
+                </div>
+                <footer class="eulogy-who">
+                    <cite>{{ $eu['name'] }}</cite>
                     @if($eu['has_signature'])
                         <img class="sig" src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
                     @endif
-                </div>
+                </footer>
             </article>
         @empty
             <p class="eulogies-empty">Be the first to leave a eulogy for Pa Ngwayu Francis.</p>
@@ -123,7 +133,9 @@
                 <input type="tel" name="phone" id="euPhone" placeholder="677318405" required>
             </div>
             <label>Name *</label>
+            <div id="euNameChoices" class="name-choices" hidden></div>
             <input type="text" name="name" id="euName" required>
+            <p class="hint" id="euNameHint">We use the Mobile Money name when we find it. You can tap the other name or edit this field.</p>
             <label>Eulogy *</label>
             <textarea name="body" id="euBody" rows="7" required placeholder="A few words for Pa Ngwayu Francis…"></textarea>
             <label>Signature *</label>
@@ -142,9 +154,9 @@
                     <button type="button" class="btn btn-gold btn-sm" id="selfieCamBtn">Enable camera</button>
                     <button type="button" class="btn btn-ghost btn-sm" id="selfieCaptureBtn" style="display:none;">Take photo</button>
                     <button type="button" class="btn btn-ghost btn-sm" id="selfieRetakeBtn" style="display:none;">Retake</button>
-                    <button type="button" class="btn btn-ghost btn-sm" id="selfieUploadBtn">Choose photo</button>
+                    <label class="btn btn-ghost btn-sm" for="euSelfie" id="selfieUploadBtn">Choose photo</label>
                 </div>
-                <input type="file" id="euSelfie" accept="image/jpeg,image/png,image/webp" capture="user">
+                <input type="file" id="euSelfie" accept="image/*" tabindex="-1">
                 <div class="selfie-preview-row" id="selfiePreviewRow">
                     <img id="selfiePreview" class="selfie-preview" alt="Selfie preview">
                     <span>Ready to submit · max 256 KB</span>
@@ -464,16 +476,46 @@
     tick();
     setInterval(tick, 1000);
 
-    function lookupInto(phoneEl, codeEl, nameEl) {
+    function applyNameLookup(data, nameEl, choicesEl) {
+        if (!data || !nameEl) return;
+        var momo = (data.original_name || '').trim();
+        var system = (data.system_name || '').trim();
+        var chosen = momo || data.name || system;
+        if (chosen) nameEl.value = chosen;
+        if (!choicesEl) return;
+        choicesEl.innerHTML = '';
+        var showMomo = !!momo;
+        var showSystem = !!system && system.toLowerCase() !== momo.toLowerCase();
+        if (!showMomo && !showSystem) {
+            choicesEl.hidden = true;
+            return;
+        }
+        function addChoice(source, label, value, on) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'name-choice' + (on ? ' on' : '');
+            btn.innerHTML = '<span>' + label + '</span><strong></strong>';
+            btn.querySelector('strong').textContent = value;
+            btn.addEventListener('click', function () {
+                nameEl.value = value;
+                Array.prototype.forEach.call(choicesEl.querySelectorAll('.name-choice'), function (el) {
+                    el.classList.toggle('on', el === btn);
+                });
+            });
+            choicesEl.appendChild(btn);
+        }
+        if (showMomo) addChoice('momo', 'Mobile Money', momo, true);
+        if (showSystem) addChoice('system', 'Our records', system, !showMomo);
+        choicesEl.hidden = false;
+    }
+    function lookupInto(phoneEl, codeEl, nameEl, choicesEl) {
         var phone = phoneEl.value;
         var code = codeEl.value;
         if (String(phone).replace(/\D/g, '').length < 8) return;
         fetch(LOOKUP + '?country_code=' + encodeURIComponent(code) + '&phone=' + encodeURIComponent(phone), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function (r) { return r.json(); }).then(function (data) {
-            if (!data) return;
-            var n = data.name || data.system_name || data.original_name;
-            if (n) nameEl.value = n;
+            applyNameLookup(data, nameEl, choicesEl);
         }).catch(function () {});
     }
 
@@ -673,9 +715,6 @@
         shotEl.classList.remove('on');
         startCamera();
     });
-    if (uploadBtn) uploadBtn.addEventListener('click', function () {
-        document.getElementById('euSelfie').click();
-    });
 
     function closeEulogyModal() {
         euModal.classList.remove('on');
@@ -697,11 +736,21 @@
     document.getElementById('euPhone').addEventListener('input', function () {
         clearTimeout(euTimer);
         euTimer = setTimeout(function () {
-            lookupInto(document.getElementById('euPhone'), document.getElementById('euCountry'), document.getElementById('euName'));
+            lookupInto(
+                document.getElementById('euPhone'),
+                document.getElementById('euCountry'),
+                document.getElementById('euName'),
+                document.getElementById('euNameChoices')
+            );
         }, 450);
     });
     document.getElementById('euPhone').addEventListener('blur', function () {
-        lookupInto(document.getElementById('euPhone'), document.getElementById('euCountry'), document.getElementById('euName'));
+        lookupInto(
+            document.getElementById('euPhone'),
+            document.getElementById('euCountry'),
+            document.getElementById('euName'),
+            document.getElementById('euNameChoices')
+        );
     });
 
     function compressSelfie(file, done) {
@@ -709,8 +758,12 @@
         var img = new Image();
         var url = URL.createObjectURL(file);
         img.onload = function () {
+            URL.revokeObjectURL(url);
+            drawAndCompress(img, img.width, img.height);
+        };
+        function drawAndCompress(source, sw, sh) {
             var max = 960;
-            var w = img.width, h = img.height;
+            var w = sw, h = sh;
             if (w > max || h > max) {
                 var scale = max / Math.max(w, h);
                 w = Math.round(w * scale);
@@ -718,8 +771,7 @@
             }
             var c = document.createElement('canvas');
             c.width = w; c.height = h;
-            c.getContext('2d').drawImage(img, 0, 0, w, h);
-            URL.revokeObjectURL(url);
+            c.getContext('2d').drawImage(source, 0, 0, w, h);
             var q = 0.82;
             function tryQ() {
                 c.toBlob(function (blob) {
@@ -729,17 +781,26 @@
                         return;
                     }
                     if (!blob || blob.size > 256 * 1024) {
-                        done(null, 'Selfie must be 256 KB or smaller.');
+                        done(file && file.size <= 512 * 1024 ? file : null, blob ? 'Selfie must be 256 KB or smaller.' : null);
                         return;
                     }
                     done(blob);
                 }, 'image/jpeg', q);
             }
             tryQ();
-        };
+        }
         img.onerror = function () {
             URL.revokeObjectURL(url);
-            done(null, 'Could not read that photo.');
+            if (window.createImageBitmap) {
+                createImageBitmap(file).then(function (bmp) {
+                    drawAndCompress(bmp, bmp.width, bmp.height);
+                    if (bmp.close) bmp.close();
+                }).catch(function () {
+                    done(file && file.size <= 512 * 1024 ? file : null, file && file.size > 512 * 1024 ? 'Could not read that photo. Try a JPEG or PNG from your gallery.' : null);
+                });
+                return;
+            }
+            done(file && file.size <= 512 * 1024 ? file : null, file && file.size > 512 * 1024 ? 'Could not read that photo. Try a JPEG or PNG from your gallery.' : null);
         };
         img.src = url;
     }

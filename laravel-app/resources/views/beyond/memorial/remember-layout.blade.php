@@ -26,6 +26,7 @@
             --line: #3d3118;
         }
         * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
         html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
         body {
             font-family: "Source Sans Pro", sans-serif;
@@ -183,38 +184,118 @@
             font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
         }
         .eulogy-box {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 20px 20px 16px;
-            margin-bottom: 14px;
+            background: linear-gradient(180deg, rgba(32,24,16,.92), rgba(16,12,10,.88));
+            border: 1px solid rgba(212,175,55,.22);
+            border-radius: 20px;
+            padding: 22px 22px 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 16px 40px rgba(0,0,0,.28);
         }
-        .eulogy-box p {
-            margin: 0 0 14px;
-            color: #f3ead6;
-            font-size: 18px;
-            line-height: 1.7;
-            white-space: pre-wrap;
+        .eulogy-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(212,175,55,.18);
+        }
+        .eulogy-head-text { min-width: 0; }
+        .eulogy-head cite {
+            display: block;
+            font-family: "Cormorant Garamond", serif;
+            font-style: normal;
+            font-size: clamp(22px, 4vw, 28px);
+            font-weight: 700;
+            color: #fff6dc;
+            letter-spacing: .01em;
+            line-height: 1.15;
+        }
+        .eulogy-date {
+            display: block;
+            margin-top: 3px;
+            color: #c4b498;
+            font-size: 12px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .eulogy-body {
+            max-width: 40em;
+        }
+        .eulogy-body p {
+            margin: 0 0 1.05em;
+            color: #f6edd8;
+            font-size: clamp(17px, 2.6vw, 19px);
+            line-height: 1.8;
+            letter-spacing: .01em;
+        }
+        .eulogy-body p:last-child { margin-bottom: 0; }
+        .eulogy-body p:first-child::first-letter {
+            font-family: "Cormorant Garamond", serif;
+            font-size: 2.55em;
+            float: left;
+            line-height: .82;
+            padding: 8px 10px 0 0;
+            color: var(--gold-2);
+            font-weight: 700;
         }
         .eulogy-who {
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
             gap: 12px;
-            border-top: 1px solid #3a2f18;
-            padding-top: 12px;
+            border-top: 1px solid rgba(212,175,55,.18);
+            margin-top: 18px;
+            padding-top: 14px;
         }
         .eulogy-who cite {
             font-family: "Cormorant Garamond", serif;
-            font-style: normal;
-            font-size: 22px;
+            font-style: italic;
+            font-size: clamp(18px, 3vw, 22px);
             font-weight: 600;
             color: #fff8e8;
         }
-        .eulogy-box .sig { height: 48px; max-width: 160px; object-fit: contain; background: #fffdf8; border-radius: 6px; padding: 2px 6px; }
+        .eulogy-box .sig {
+            height: 58px;
+            max-width: 200px;
+            object-fit: contain;
+            background: transparent;
+            filter: invert(1) sepia(.28) saturate(1.8) hue-rotate(6deg) brightness(1.2);
+        }
         .selfie {
-            height: 52px; width: 52px; border-radius: 50%;
+            height: 56px; width: 56px; border-radius: 50%;
             object-fit: cover; border: 2px solid var(--gold);
+            flex-shrink: 0;
+        }
+        .name-choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .name-choice {
+            text-align: left;
+            border: 1px solid rgba(212,175,55,.28);
+            background: rgba(8,6,4,.55);
+            color: #fff8e8;
+            border-radius: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .name-choice span {
+            display: block;
+            font-size: 11px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #c4b498;
+            font-weight: 700;
+        }
+        .name-choice strong { display: block; margin-top: 4px; font-size: 14px; line-height: 1.3; }
+        .name-choice.on {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(212,175,55,.22);
+            background: rgba(212,175,55,.12);
         }
         .eulogies-empty {
             background: var(--card);
@@ -337,7 +418,18 @@
             object-fit: cover; border: 2px solid var(--gold);
         }
         .selfie-preview-row span { color: #c4b498; font-size: 13px; }
-        input#euSelfie { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        input#euSelfie {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        label.btn { display: inline-flex; align-items: center; justify-content: center; }
 
         /* Music player */
         .music-player {
@@ -495,6 +587,8 @@
             #eulogyModal .sheet { max-width: 100%; }
             .modal { padding: 8px 8px env(safe-area-inset-bottom); }
             .selfie-toolbar .btn { flex: 1 1 calc(50% - 8px); min-height: 42px; }
+            .name-choices { grid-template-columns: 1fr; }
+            .eulogy-box { padding: 18px 16px 16px; }
             .foot { margin-top: 18px; font-size: 12px; }
         }
         @media (max-width: 420px) {

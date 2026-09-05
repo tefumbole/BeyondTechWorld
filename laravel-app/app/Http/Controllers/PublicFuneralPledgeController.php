@@ -181,7 +181,7 @@ class PublicFuneralPledgeController extends Controller
             'phone' => 'required|string|max:40',
             'body' => 'required|string|max:4000',
             'signature' => $request->get('from') === 'remember' ? 'required|string|max:900000' : 'nullable|string|max:900000',
-            'selfie' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'selfie' => 'nullable|file|max:5120',
             'from' => 'nullable|in:remember',
         ]);
 

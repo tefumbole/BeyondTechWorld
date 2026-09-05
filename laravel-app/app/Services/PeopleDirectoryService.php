@@ -434,14 +434,14 @@ class PeopleDirectoryService
 
         return [
             'ok' => true,
-            'found' => (bool) $customer,
-            'name' => $systemName !== '' ? $systemName : $originalName,
-            'address' => $systemAddress !== '' ? $systemAddress : $originalAddress,
+            'found' => (bool) $customer || $originalName !== '',
+            'name' => $originalName !== '' ? $originalName : $systemName,
+            'address' => $originalAddress !== '' ? $originalAddress : $systemAddress,
             'system_name' => $systemName,
             'system_address' => $systemAddress,
             'original_name' => $originalName,
             'original_address' => $originalAddress,
-            'source' => $customer ? 'system' : ($momo['source'] ?? null),
+            'source' => $originalName !== '' ? ($momo['source'] ?? 'momo') : ($customer ? 'system' : null),
         ];
     }
 

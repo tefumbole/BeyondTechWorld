@@ -20,6 +20,7 @@
             --soft: #2a2118;
         }
         * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
         html, body { margin: 0; min-height: 100%; }
         body {
             font-family: "Source Sans Pro", sans-serif;
@@ -186,16 +187,53 @@
         .eulogy-box {
             background: #fffdf8;
             border: 1px solid #d8c89a;
-            border-radius: 16px;
-            padding: 20px 20px 16px;
-            margin-bottom: 14px;
+            border-radius: 20px;
+            padding: 24px 22px 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 10px 28px rgba(40, 28, 8, .06);
         }
-        .eulogy-box p {
-            margin: 0 0 14px;
+        .eulogy-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #efe4c6;
+        }
+        .eulogy-head cite {
+            display: block;
+            font-family: "Cormorant Garamond", serif;
+            font-style: normal;
+            font-size: clamp(22px, 4vw, 28px);
+            font-weight: 700;
+            color: #14100a;
+            line-height: 1.15;
+        }
+        .eulogy-date {
+            display: block;
+            margin-top: 3px;
+            color: #6b5410;
+            font-size: 12px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .eulogy-body { max-width: 40em; }
+        .eulogy-body p {
+            margin: 0 0 1.05em;
             color: #1c160e;
-            font-size: 19px;
-            line-height: 1.7;
-            white-space: pre-wrap;
+            font-size: clamp(17px, 2.4vw, 19px);
+            line-height: 1.8;
+        }
+        .eulogy-body p:last-child { margin-bottom: 0; }
+        .eulogy-body p:first-child::first-letter {
+            font-family: "Cormorant Garamond", serif;
+            font-size: 2.55em;
+            float: left;
+            line-height: .82;
+            padding: 8px 10px 0 0;
+            color: #8a6d1a;
+            font-weight: 700;
         }
         .eulogy-who {
             display: flex;
@@ -203,16 +241,26 @@
             justify-content: space-between;
             gap: 12px;
             border-top: 1px solid #efe4c6;
-            padding-top: 12px;
+            margin-top: 18px;
+            padding-top: 14px;
         }
         .eulogy-who cite {
             font-family: "Cormorant Garamond", serif;
-            font-style: normal;
-            font-size: 22px;
+            font-style: italic;
+            font-size: clamp(18px, 3vw, 22px);
             font-weight: 600;
             color: #14100a;
         }
-        .eulogy-box img { height: 48px; max-width: 160px; object-fit: contain; }
+        .eulogy-box .sig { height: 58px; max-width: 200px; object-fit: contain; background: transparent; }
+        .eulogy-box .selfie { height: 56px; width: 56px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; }
+        .name-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .name-choice {
+            text-align: left; border: 1px solid #d8c89a; background: #fff; color: #14100a;
+            border-radius: 12px; padding: 10px 12px; cursor: pointer; font-family: inherit;
+        }
+        .name-choice span { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6b5410; font-weight: 700; }
+        .name-choice strong { display: block; margin-top: 4px; font-size: 14px; }
+        .name-choice.on { border-color: #d4af37; box-shadow: 0 0 0 2px rgba(212,175,55,.25); background: #fff8e0; }
         .eulogies-empty {
             background: #fffdf8;
             border: 1px dashed #c9b36a;
@@ -222,6 +270,7 @@
             font-size: 17px;
             line-height: 1.55;
         }
+        .hint { color: #6b5410; font-size: 12px; margin: 6px 0 0; line-height: 1.45; }
         .sig-pad { width: 100%; height: 150px; border: 1px dashed #c9b36a; border-radius: 10px; background: #fff; touch-action: none; }
         #eulogyModal .sheet { max-width: 560px; }
         #eulogyModal textarea {
@@ -248,8 +297,9 @@
             .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
             .ring { width: 100%; height: auto; aspect-ratio: 1; }
             .ring b { font-size: 24px; }
-            .eulogy-box { padding: 16px 14px 14px; }
-            .eulogy-box p { font-size: 17px; }
+            .eulogy-box { padding: 18px 14px 14px; }
+            .eulogy-body p { font-size: 17px; }
+            .name-choices { grid-template-columns: 1fr; }
             .eulogy-top { padding: 8px 12px; font-size: 13px; }
             .grid { grid-template-columns: 1fr; }
             .group { flex-direction: column; align-items: flex-start; }
@@ -352,18 +402,28 @@
         </div>
         @forelse($eulogies as $eu)
             <article class="eulogy-box">
-                <p>{{ $eu['body'] }}</p>
-                <div class="eulogy-who">
-                    <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                        @if(!empty($eu['has_selfie']))
-                            <img src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}" style="height:48px;width:48px;border-radius:50%;object-fit:cover;">
-                        @endif
-                        <cite>{{ $eu['name'] }}</cite>
-                    </div>
-                    @if($eu['has_signature'])
-                        <img src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
+                <header class="eulogy-head">
+                    @if(!empty($eu['has_selfie']))
+                        <img class="selfie" src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}">
                     @endif
+                    <div>
+                        <cite>{{ $eu['name'] }}</cite>
+                        @if(!empty($eu['when']))
+                            <span class="eulogy-date">{{ $eu['when'] }}</span>
+                        @endif
+                    </div>
+                </header>
+                <div class="eulogy-body">
+                    @foreach(($eu['paragraphs'] ?? [$eu['body']]) as $para)
+                        <p>{{ $para }}</p>
+                    @endforeach
                 </div>
+                <footer class="eulogy-who">
+                    <cite>{{ $eu['name'] }}</cite>
+                    @if($eu['has_signature'])
+                        <img class="sig" src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
+                    @endif
+                </footer>
             </article>
         @empty
             <p class="eulogies-empty">Be the first to leave a eulogy for Pa Ngwayu Francis.</p>
@@ -421,7 +481,9 @@
                 <input type="tel" name="phone" id="euPhone" placeholder="677318405" required>
             </div>
             <label>Name *</label>
+            <div id="euNameChoices" class="name-choices" hidden></div>
             <input type="text" name="name" id="euName" required>
+            <p class="hint">We use the Mobile Money name when we find it. You can tap the other name or edit this field.</p>
             <label>Eulogy *</label>
             <textarea name="body" id="euBody" rows="7" required placeholder="A few words for Pa Ngwayu Francis…"></textarea>
             <label>Signature (optional)</label>
@@ -581,7 +643,7 @@
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (!data) return;
-            var n = data.name || data.system_name || data.original_name;
+            var n = data.original_name || data.name || data.system_name;
             if (n) document.getElementById('name').value = n;
         }).catch(function () {});
     }
@@ -657,6 +719,38 @@
     euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
 
     var euTimer = null;
+    function applyNameLookup(data, nameEl, choicesEl) {
+        if (!data || !nameEl) return;
+        var momo = (data.original_name || '').trim();
+        var system = (data.system_name || '').trim();
+        var chosen = momo || data.name || system;
+        if (chosen) nameEl.value = chosen;
+        if (!choicesEl) return;
+        choicesEl.innerHTML = '';
+        var showMomo = !!momo;
+        var showSystem = !!system && system.toLowerCase() !== momo.toLowerCase();
+        if (!showMomo && !showSystem) {
+            choicesEl.hidden = true;
+            return;
+        }
+        function addChoice(label, value, on) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'name-choice' + (on ? ' on' : '');
+            btn.innerHTML = '<span>' + label + '</span><strong></strong>';
+            btn.querySelector('strong').textContent = value;
+            btn.addEventListener('click', function () {
+                nameEl.value = value;
+                Array.prototype.forEach.call(choicesEl.querySelectorAll('.name-choice'), function (el) {
+                    el.classList.toggle('on', el === btn);
+                });
+            });
+            choicesEl.appendChild(btn);
+        }
+        if (showMomo) addChoice('Mobile Money', momo, true);
+        if (showSystem) addChoice('Our records', system, !showMomo);
+        choicesEl.hidden = false;
+    }
     function lookupEu() {
         var phone = document.getElementById('euPhone').value;
         var code = document.getElementById('euCountry').value;
@@ -664,9 +758,7 @@
         fetch(LOOKUP + '?country_code=' + encodeURIComponent(code) + '&phone=' + encodeURIComponent(phone), {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function (r) { return r.json(); }).then(function (data) {
-            if (!data) return;
-            var n = data.name || data.system_name || data.original_name;
-            if (n) document.getElementById('euName').value = n;
+            applyNameLookup(data, document.getElementById('euName'), document.getElementById('euNameChoices'));
         }).catch(function () {});
     }
     document.getElementById('euPhone').addEventListener('input', function () {

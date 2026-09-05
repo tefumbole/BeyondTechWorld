@@ -89,9 +89,9 @@
                         <div>
                     <strong>{{ $e->name }}</strong>
                     <span class="text-muted small"> · {{ $e->phone }} · {{ $e->created_at }}</span>
-                    <p class="mb-1">{{ $e->body }}</p>
+                    <p class="mb-1" style="white-space:pre-wrap;">{{ $e->body }}</p>
                     @if($e->signature_path)
-                        <img src="{{ asset($e->signature_path) }}" alt="Signature" style="height:48px;background:#fff;">
+                        <img src="{{ asset($e->signature_path) }}" alt="Signature" style="height:52px;background:transparent;">
                     @endif
                         </div>
                     </div>

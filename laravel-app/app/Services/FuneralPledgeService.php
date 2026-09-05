@@ -72,11 +72,12 @@ class FuneralPledgeService
                     'name' => $row->name,
                     'excerpt' => $row->excerpt(240),
                     'body' => $row->body,
+                    'paragraphs' => $this->eulogyParagraphs($row->body),
                     'has_signature' => ! empty($row->signature_path),
                     'signature' => $row->signature_path ? asset($row->signature_path) : '',
                     'has_selfie' => ! empty($row->selfie_path),
                     'selfie' => $row->selfie_path ? asset($row->selfie_path) : '',
-                    'when' => $row->created_at ? $row->created_at->format('d M Y') : '',
+                    'when' => $row->created_at ? $row->created_at->timezone('Africa/Douala')->format('d M Y') : '',
                 ];
             })
             ->all();
@@ -328,13 +329,141 @@ class FuneralPledgeService
         if ($dataUri === '' || strpos($dataUri, 'data:image') !== 0) {
             return null;
         }
-        if (! preg_match('#^data:image/(png|jpeg);base64,([A-Za-z0-9+/=\s]+)$#', $dataUri, $m)) {
+        if (! preg_match('#^data:image/(png|jpeg|jpg);base64,([A-Za-z0-9+/=\s]+)$#', $dataUri, $m)) {
             return null;
         }
         $bin = base64_decode($m[2], true);
         if ($bin === false || strlen($bin) < 80 || strlen($bin) > 800000) {
             return null;
         }
+        $processed = $this->signaturePngWithTimestamp($bin);
+        if ($processed === null) {
+            return null;
+        }
+
+        return $this->writeEulogySignaturePng($processed);
+    }
+
+    /**
+     * Turn a signature into a cropped transparent PNG with a small timestamp.
+     */
+    public function signaturePngWithTimestamp($bin, $at = null)
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return $bin;
+        }
+        $src = @imagecreatefromstring($bin);
+        if (! $src) {
+            return null;
+        }
+        imagealphablending($src, true);
+        imagesavealpha($src, true);
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $minX = $w;
+        $minY = $h;
+        $maxX = -1;
+        $maxY = -1;
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                if ($this->signaturePixelIsInk($src, $x, $y)) {
+                    if ($x < $minX) {
+                        $minX = $x;
+                    }
+                    if ($y < $minY) {
+                        $minY = $y;
+                    }
+                    if ($x > $maxX) {
+                        $maxX = $x;
+                    }
+                    if ($y > $maxY) {
+                        $maxY = $y;
+                    }
+                }
+            }
+        }
+        if ($maxX < 0) {
+            imagedestroy($src);
+
+            return null;
+        }
+
+        $pad = 10;
+        $stampH = 18;
+        $cw = max(168, ($maxX - $minX + 1) + ($pad * 2));
+        $ch = ($maxY - $minY + 1) + ($pad * 2) + $stampH;
+        $dst = imagecreatetruecolor($cw, $ch);
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $cw, $ch, $transparent);
+
+        for ($y = $minY; $y <= $maxY; $y++) {
+            for ($x = $minX; $x <= $maxX; $x++) {
+                $pixel = $this->signaturePixel($src, $x, $y);
+                if ($pixel['skip']) {
+                    continue;
+                }
+                $color = imagecolorallocatealpha($dst, $pixel['r'], $pixel['g'], $pixel['b'], $pixel['a']);
+                imagesetpixel($dst, $x - $minX + $pad, $y - $minY + $pad, $color);
+            }
+        }
+
+        imagealphablending($dst, true);
+        $when = $at instanceof Carbon ? $at->copy()->timezone('Africa/Douala') : Carbon::now('Africa/Douala');
+        $stamp = $when->format('d M Y - H:i');
+        $stampColor = imagecolorallocatealpha($dst, 92, 74, 36, 15);
+        $stampX = max($pad, $cw - (imagefontwidth(2) * strlen($stamp)) - $pad);
+        imagestring($dst, 2, $stampX, $ch - 16, $stamp, $stampColor);
+
+        ob_start();
+        imagepng($dst);
+        $out = ob_get_clean();
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return $out ?: null;
+    }
+
+    public function refreshEulogySignatures()
+    {
+        $updated = 0;
+        $rows = FuneralEulogy::whereNotNull('signature_path')->orderBy('id')->get();
+        foreach ($rows as $row) {
+            $rel = ltrim((string) $row->signature_path, '/');
+            $path = public_path(preg_replace('#^public/#', '', $rel));
+            if (! is_file($path)) {
+                $path = public_path($rel);
+            }
+            if (! is_file($path)) {
+                continue;
+            }
+            $bin = @file_get_contents($path);
+            if ($bin === false || strlen($bin) < 80) {
+                continue;
+            }
+            $processed = $this->signaturePngWithTimestamp($bin, $row->created_at);
+            if ($processed === null) {
+                continue;
+            }
+            $newRel = $this->writeEulogySignaturePng($processed);
+            if ($newRel && $newRel !== $row->signature_path) {
+                $row->signature_path = $newRel;
+                $row->save();
+                $updated++;
+            }
+        }
+
+        return $updated;
+    }
+
+    public function renameEulogyAuthor($from, $to)
+    {
+        return FuneralEulogy::where('name', $from)->update(['name' => $to]);
+    }
+
+    protected function writeEulogySignaturePng($bin)
+    {
         $dir = public_path('memorial/pangwayu/eulogies');
         if (! is_dir($dir)) {
             mkdir($dir, 0775, true);
@@ -343,6 +472,56 @@ class FuneralPledgeService
         file_put_contents($dir.'/'.$name, $bin);
 
         return 'public/memorial/pangwayu/eulogies/'.$name;
+    }
+
+    protected function signaturePixelIsInk($img, $x, $y)
+    {
+        $pixel = $this->signaturePixel($img, $x, $y);
+
+        return ! $pixel['skip'];
+    }
+
+    protected function signaturePixel($img, $x, $y)
+    {
+        $rgba = imagecolorat($img, $x, $y);
+        if (imageistruecolor($img)) {
+            $a = ($rgba & 0x7F000000) >> 24;
+            $r = ($rgba >> 16) & 0xFF;
+            $g = ($rgba >> 8) & 0xFF;
+            $b = $rgba & 0xFF;
+        } else {
+            $cols = imagecolorsforindex($img, $rgba);
+            $a = isset($cols['alpha']) ? (int) $cols['alpha'] : 0;
+            $r = (int) $cols['red'];
+            $g = (int) $cols['green'];
+            $b = (int) $cols['blue'];
+        }
+        $nearWhite = $r > 236 && $g > 236 && $b > 236;
+        $skip = $a >= 118 || $nearWhite;
+
+        return [
+            'r' => $r,
+            'g' => $g,
+            'b' => $b,
+            'a' => $a,
+            'skip' => $skip,
+        ];
+    }
+
+    protected function eulogyParagraphs($body)
+    {
+        $text = trim(str_replace(["\r\n", "\r"], "\n", (string) $body));
+        if ($text === '') {
+            return [];
+        }
+        $blocks = preg_split("/\n{2,}/", $text);
+        if (count($blocks) === 1 && substr_count($text, "\n") >= 2) {
+            $blocks = preg_split("/\n/", $text);
+        }
+
+        return array_values(array_filter(array_map('trim', $blocks), function ($p) {
+            return $p !== '';
+        }));
     }
 
     /**
@@ -356,15 +535,23 @@ class FuneralPledgeService
             return null;
         }
 
+        $mime = method_exists($file, 'getMimeType') ? strtolower((string) $file->getMimeType()) : '';
+        $okMime = $mime === '' || strpos($mime, 'image/') === 0 || in_array($mime, ['application/octet-stream'], true);
+        if (! $okMime) {
+            throw new \InvalidArgumentException('Please choose a photo from your gallery.');
+        }
+
         $bin = @file_get_contents($file->getRealPath());
         if ($bin === false || strlen($bin) < 80) {
             return null;
         }
 
         $maxBytes = 256 * 1024;
+        $decoded = false;
         if (function_exists('imagecreatefromstring')) {
             $img = @imagecreatefromstring($bin);
             if ($img) {
+                $decoded = true;
                 $w = imagesx($img);
                 $h = imagesy($img);
                 $maxSide = 960;
@@ -394,7 +581,11 @@ class FuneralPledgeService
             }
         }
 
-        if (strlen($bin) > $maxBytes) {
+        if (! $decoded && strlen($bin) > 512 * 1024) {
+            throw new \InvalidArgumentException('Please choose a JPEG or PNG photo, or a smaller image from your gallery.');
+        }
+
+        if (strlen($bin) > $maxBytes && $decoded) {
             throw new \InvalidArgumentException('Selfie must be 256 KB or smaller.');
         }
 
