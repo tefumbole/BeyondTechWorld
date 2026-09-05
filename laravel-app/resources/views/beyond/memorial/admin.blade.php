@@ -9,6 +9,9 @@
                 <a href="{{ $publicUrl }}" target="_blank">{{ $publicUrl }}</a>
                 · church program &amp; eulogies
                 <a href="{{ $rememberUrl }}" target="_blank">{{ $rememberUrl }}</a>
+                · biography
+                <a href="{{ $biographyUrl ?? route('funeral.pangwayu.biography') }}" target="_blank">{{ $biographyUrl ?? route('funeral.pangwayu.biography') }}</a>
+                · <a href="{{ route('funeral.biography.admin') }}">Edit biography</a>
             </p>
             @if($data)
                 <p class="mb-0"><strong>{{ number_format($data['raised']) }}</strong> of

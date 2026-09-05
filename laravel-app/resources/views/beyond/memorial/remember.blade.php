@@ -38,6 +38,7 @@
             </div>
         </div>
         <button type="button" class="eulogy-cta" id="openEulogyBottom">Add a Eulogy</button>
+        <a class="eulogy-cta" href="{{ route('funeral.pangwayu.biography') }}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-top:10px;background:transparent;color:#f0d57a;">Read His Biography</a>
         <div class="qr-card">
             <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
             <div>
@@ -728,6 +729,9 @@
     document.getElementById('openEulogy').onclick = openEulogyModal;
     var openBottom = document.getElementById('openEulogyBottom');
     if (openBottom) openBottom.onclick = openEulogyModal;
+    if (window.location.search.indexOf('memory=1') !== -1) {
+        openEulogyModal();
+    }
     document.getElementById('closeEulogy').onclick = closeEulogyModal;
     document.getElementById('euCancel').onclick = closeEulogyModal;
     euModal.addEventListener('click', function (e) { if (e.target === euModal) closeEulogyModal(); });

@@ -38,4 +38,9 @@ class SiteSetting extends Model
         $stored = is_array($value) ? json_encode(array_values($value)) : $value;
         static::updateOrCreate(['key' => $key], ['value' => $stored]);
     }
+
+    public static function setJson($key, array $value)
+    {
+        static::updateOrCreate(['key' => $key], ['value' => json_encode($value)]);
+    }
 }

@@ -94,6 +94,7 @@ Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@
 
 Route::get('/pangwayu', 'PublicFuneralPledgeController@index')->name('funeral.pangwayu');
 Route::get('/pangwayu/remember', 'PublicFuneralPledgeController@remember')->name('funeral.pangwayu.remember');
+Route::get('/pangwayu/biography', 'PublicFuneralPledgeController@biography')->name('funeral.pangwayu.biography');
 Route::get('/pangwayu/program', 'PublicFuneralPledgeController@program')->name('funeral.pangwayu.program');
 Route::get('/pangwayu/hymns', 'PublicFuneralPledgeController@hymns')->name('funeral.pangwayu.hymns');
 Route::get('/pangwayu/lookup', 'PublicFuneralPledgeController@lookup')->name('funeral.pangwayu.lookup');
@@ -356,6 +357,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     // Job Board admin
     Route::get('/admin/funeral-pledges', 'AdminFuneralPledgeController@index')->name('funeral.pledges.admin');
+    Route::get('/admin/funeral-biography', 'AdminFuneralPledgeController@biography')->name('funeral.biography.admin');
+    Route::post('/admin/funeral-biography', 'AdminFuneralPledgeController@saveBiography')->name('funeral.biography.save');
 
     Route::get('/admin/permissions', 'StaffPermissionAdminController@index')->name('permissions.index');
     Route::get('/admin/permissions/requests', 'StaffPermissionAdminController@requests')->name('permissions.requests');

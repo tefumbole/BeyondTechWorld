@@ -755,6 +755,7 @@
 <main class="main">
     <nav class="nav" aria-label="Memorial pages">
         <a href="{{ route('funeral.pangwayu.remember') }}" class="{{ ($navActive ?? '') === 'remember' ? 'on' : '' }}">Home</a>
+        <a href="{{ route('funeral.pangwayu.biography') }}" class="{{ ($navActive ?? '') === 'biography' ? 'on' : '' }}">Biography</a>
         <a href="{{ route('funeral.pangwayu.program') }}" class="{{ ($navActive ?? '') === 'program' ? 'on' : '' }}">Funeral program</a>
         <a href="{{ route('funeral.pangwayu.hymns') }}" class="{{ ($navActive ?? '') === 'hymns' ? 'on' : '' }}">Hymns</a>
         <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">Eulogies</a>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\FuneralPledgeService;
 use App\Services\PeopleDirectoryService;
 use App\Support\CountryDialCodes;
+use App\Support\PaNgwayuBiography;
 use App\Support\WhatsAppPhone;
 use Illuminate\Http\Request;
 
@@ -72,6 +73,15 @@ class PublicFuneralPledgeController extends Controller
             'giftItemId' => $gift ? $gift->id : null,
             'flashEulogy' => $request->get('eulogy'),
             'flashPay' => $request->get('pay'),
+        ]);
+    }
+
+    public function biography()
+    {
+        $this->guardEnabled();
+
+        return view('beyond.memorial.biography', [
+            'bio' => PaNgwayuBiography::data(),
         ]);
     }
 
