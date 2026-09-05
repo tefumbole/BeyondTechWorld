@@ -98,9 +98,14 @@
             border-radius: 18px; overflow: hidden;
             box-shadow: 0 24px 60px rgba(0,0,0,.45);
             border: 1px solid rgba(212,175,55,.28);
+            background: #0a0806;
         }
         .hero-portrait img, .hero-companion img {
-            width: 100%; height: min(68vh, 620px); object-fit: cover; object-position: center 18%;
+            width: 100%;
+            height: auto;
+            max-height: min(78vh, 740px);
+            object-fit: contain;
+            object-position: center top;
         }
         .hero-copy { text-align: center; padding: 8px 8px 0; }
         .kicker {
@@ -168,15 +173,24 @@
         }
         .sub { margin: 0; color: inherit; opacity: .78; font-size: 17px; }
         .split {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start;
         }
         .split.reverse { direction: rtl; }
         .split.reverse > * { direction: ltr; }
         .photo-frame {
             border-radius: 18px; overflow: hidden;
             box-shadow: 0 18px 40px rgba(0,0,0,.18);
+            background: #0d0a08;
         }
-        .photo-frame img { width: 100%; height: min(520px, 70vw); object-fit: cover; }
+        .band-cream .photo-frame { background: #ebe4d4; }
+        .photo-frame img {
+            width: 100%;
+            height: auto;
+            max-height: min(820px, 92vh);
+            object-fit: contain;
+            object-position: center top;
+            vertical-align: top;
+        }
         .photo-cap { margin: 8px 2px 0; font-size: 13px; color: #6b5410; }
         .band-dark .photo-cap, .band-char .photo-cap { color: var(--muted); }
         .quote-band {
@@ -270,7 +284,7 @@
             .hero-grid { grid-template-columns: 1fr; }
             .rail { writing-mode: horizontal-tb; transform: none; text-align: center; letter-spacing: .16em; }
             .hero-companion { display: none; }
-            .hero-portrait img { height: min(58vh, 460px); }
+            .hero-portrait img { max-height: min(70vh, 560px); }
             .split, .split.reverse, .values-grid { grid-template-columns: 1fr; }
             .masonry { columns: 2; }
             .top-nav { max-width: none; }
