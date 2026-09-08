@@ -773,7 +773,11 @@ class InternshipProgramService
             'attempt' => $attempt,
         ]);
 
-        $this->notifySubmission($assignment->enrolment->fresh(['student', 'program', 'supervisor']), $assignment->fresh(['task']), $submission);
+        try {
+            $this->notifySubmissionReceived($submission->fresh(), false);
+        } catch (\Throwable $e) {
+            Log::warning('Internship submission WhatsApp failed for submission '.$submission->id.': '.$e->getMessage());
+        }
 
         // No task is released here: the next one is scheduled when the supervisor
         // accepts this submission (see gradeSubmission).
@@ -1959,37 +1963,94 @@ class InternshipProgramService
         return $assignment->stepProgress();
     }
 
-    protected function notifySubmission(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment, InternshipSubmission $submission)
+    /**
+     * WhatsApp the intern and every supervisor after a submission is saved.
+     * Falls back to admins when nobody is assigned, so the work can still be graded.
+     *
+     * @return array{student:bool,supervisors:int}
+     */
+    public function notifySubmissionReceived(InternshipSubmission $submission, $force = false)
     {
+        $submission->loadMissing(['student', 'assignment.task', 'assignment.enrolment.student', 'assignment.enrolment.program']);
+        $assignment = $submission->assignment;
+        $enrolment = $assignment ? $assignment->enrolment : null;
+        if (! $assignment || ! $enrolment) {
+            return ['student' => false, 'supervisors' => 0];
+        }
+
+        $taskLabel = '#'.$assignment->progression_day.' — '.(optional($assignment->task)->title ?: 'Task');
+        $submittedAt = optional($submission->submitted_at)->format('d M Y H:i') ?: now()->format('d M Y H:i');
+        $suffix = $force ? ':resend:'.now()->format('YmdHis') : '';
+
+        $student = $enrolment->student ?: $submission->student;
+        $studentOk = false;
+        if ($student) {
+            $studentKey = 'submission:'.$submission->id.':student:'.$student->id.$suffix;
+            if ($force || ! $this->alreadyNotified($studentKey)) {
+                $msg = WhatsAppMessage::internshipSubmissionReceivedStudent(
+                    $student->name,
+                    $taskLabel,
+                    url('/admin/internship/student/task/'.$assignment->id)
+                );
+                $result = $this->sendWhatsApp($student, $msg, $studentKey, $force ? 'submission_received_student_resend' : 'submission_received_student');
+                $studentOk = ! empty($result['success']);
+            } else {
+                $studentOk = true;
+            }
+        }
+
         $supervisorIds = $enrolment->supervisorUserIds();
         if (empty($supervisorIds) && $enrolment->supervisor_id) {
             $supervisorIds = [(int) $enrolment->supervisor_id];
         }
         if (empty($supervisorIds)) {
-            return;
+            $supervisorIds = User::where('is_deleted', false)
+                ->where('is_active', 1)
+                ->where('role_id', '<=', 2)
+                ->pluck('id')
+                ->map(function ($id) {
+                    return (int) $id;
+                })
+                ->all();
         }
 
-        $url = url('/admin/internship/supervisor/submissions/'.$submission->id);
+        $gradeUrl = url('/admin/internship/supervisor/submissions/'.$submission->id);
+        $sent = 0;
         foreach ($supervisorIds as $supervisorId) {
             $supervisor = User::where('is_deleted', false)->find($supervisorId);
             if (! $supervisor) {
                 continue;
             }
-            $key = 'submission:'.$submission->id.':supervisor:'.$supervisor->id;
-            if ($this->alreadyNotified($key)) {
+            $key = 'submission:'.$submission->id.':supervisor:'.$supervisor->id.$suffix;
+            if (! $force && $this->alreadyNotified($key)) {
+                $sent++;
                 continue;
             }
-            $msg = WhatsAppMessage::statusBlock('📝', 'Internship Submission');
-            $msg .= WhatsAppMessage::greeting($supervisor->name);
-            $msg .= "A student submitted internship work for review.\n\n";
-            $msg .= WhatsAppMessage::bullet('Student', optional($enrolment->student)->name);
-            $msg .= WhatsAppMessage::bullet('Program', optional($enrolment->program)->displayName());
-            $msg .= WhatsAppMessage::bullet('Task', '#'.$assignment->progression_day.' — '.optional($assignment->task)->title);
-            $msg .= WhatsAppMessage::bullet('Submitted', optional($submission->submitted_at)->format('d M Y H:i') ?: now()->format('d M Y H:i'));
-            $msg .= WhatsAppMessage::actionLink('Grade submission', $url);
-            $msg .= WhatsAppMessage::footer();
-            $this->sendWhatsApp($supervisor, $msg, $key, 'submission_received');
+            $msg = WhatsAppMessage::internshipSubmissionReceivedSupervisor(
+                $supervisor->name,
+                optional($enrolment->student)->name,
+                optional($enrolment->program)->displayName(),
+                $taskLabel,
+                $submittedAt,
+                $gradeUrl
+            );
+            $result = $this->sendWhatsApp(
+                $supervisor,
+                $msg,
+                $key,
+                $force ? 'submission_received_resend' : 'submission_received'
+            );
+            if (! empty($result['success'])) {
+                $sent++;
+            }
         }
+
+        return ['student' => $studentOk, 'supervisors' => $sent];
+    }
+
+    protected function notifySubmission(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment, InternshipSubmission $submission)
+    {
+        $this->notifySubmissionReceived($submission, false);
     }
 
     protected function notifyRevision(InternshipEnrolment $enrolment, InternshipTaskAssignment $assignment, InternshipGrade $grade)

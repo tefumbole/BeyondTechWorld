@@ -964,6 +964,33 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function internshipSubmissionReceivedStudent($studentName, $taskLabel, $url)
+    {
+        $msg = self::statusBlock('📝', 'Submission received');
+        $msg .= self::greeting($studentName ?: 'Intern');
+        $msg .= "Your internship work was received and is waiting for your supervisor to grade it.\n\n";
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        $msg .= self::actionLink('Open your task', $url);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
+    public static function internshipSubmissionReceivedSupervisor($supervisorName, $studentName, $program, $taskLabel, $submittedAt, $url)
+    {
+        $msg = self::statusBlock('📝', 'Internship Submission');
+        $msg .= self::greeting($supervisorName ?: 'Supervisor');
+        $msg .= "A student submitted internship work for review.\n\n";
+        $msg .= self::bullet('Student', $studentName ?: '—');
+        $msg .= self::bullet('Program', $program ?: '—');
+        $msg .= self::bullet('Task', $taskLabel ?: '—');
+        $msg .= self::bullet('Submitted', $submittedAt ?: '—');
+        $msg .= self::actionLink('Grade submission', $url);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     /**
      * Nudge a supervisor whose intern is waiting for a review decision.
      */
