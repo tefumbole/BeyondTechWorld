@@ -2,25 +2,24 @@
     /* Job Board already has .jb-nav — hide the layout clone of the sidebar submenu. */
     #beyond-module-tabs { display: none !important; }
 
-    .jb-shell { max-width: 1100px; margin: 0 auto; }
+    .jb-shell { max-width: none; width: 100%; margin: 0; }
 
-    /* Rental-module style colored tabs */
+    /* Rental-module style colored tabs — wrap so none are clipped */
     .jb-nav {
         display: flex;
-        flex-wrap: nowrap;
-        gap: 10px;
-        margin: 0 0 1.5rem;
-        padding: 0 0 6px;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 1.25rem;
+        padding: 0;
         border: 0;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible;
     }
     .jb-nav a {
         position: relative;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
+        gap: 6px;
+        padding: 8px 12px;
         border-radius: 10px;
         border: 2px solid #cbd5e1;
         background: #fff;
@@ -32,6 +31,7 @@
         white-space: nowrap;
         transition: all .15s ease;
         margin: 0;
+        flex: 0 0 auto;
     }
     .jb-nav a i { font-size: 15px; }
     .jb-nav a:hover {

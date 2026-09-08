@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\InternshipEnrolment;
+use App\InternshipSubmission;
+use App\InternshipTaskAssignment;
 use App\Services\TimesheetService;
 use App\User;
 use App\WorkingWeek;
@@ -500,6 +502,62 @@ class InternCompliance
     public static function shouldScopeSupervisees(User $user)
     {
         return (int) $user->role_id > 2 && ! self::isInternshipAdmin($user);
+    }
+
+    /** Safe landing page after a permission miss. */
+    public static function homeUrl(User $user = null)
+    {
+        $user = $user ?: \Illuminate\Support\Facades\Auth::user();
+        if (! $user) {
+            return url('/login');
+        }
+        if (self::shouldUseInternHome($user)) {
+            return url('/admin');
+        }
+        if (self::shouldUseSupervisorHome($user) || self::canSuperviseInternships($user)) {
+            return url('/admin/internship/supervisor');
+        }
+
+        return url('/admin');
+    }
+
+    /**
+     * Staff who open another intern’s student-task URL should review it, not see 403.
+     *
+     * @return \Illuminate\Http\RedirectResponse|null
+     */
+    public static function redirectFromForeignStudentTask(User $user, InternshipTaskAssignment $assignment)
+    {
+        $enrolment = $assignment->enrolment;
+        if (! $enrolment) {
+            return redirect(self::homeUrl($user))
+                ->with('not_permitted', 'That internship task could not be opened.');
+        }
+        if ((int) $enrolment->student_user_id === (int) $user->id) {
+            return null;
+        }
+
+        $internName = optional($enrolment->student)->name ?: 'that intern';
+        $canReview = $enrolment->isSupervisedBy($user->id)
+            || self::isInternshipAdmin($user)
+            || self::canSuperviseInternships($user)
+            || (int) $user->role_id <= 2;
+
+        if ($canReview) {
+            $submission = InternshipSubmission::where('assignment_id', $assignment->id)
+                ->orderByDesc('id')
+                ->first();
+            if ($submission) {
+                return redirect()->route('internship.supervisor.show', $submission->id)
+                    ->with('message', 'Opened '.$internName.'’s submission for review.');
+            }
+
+            return redirect()->route('internship.supervisor.dashboard')
+                ->with('message', 'That task belongs to '.$internName.'.');
+        }
+
+        return redirect(self::homeUrl($user))
+            ->with('not_permitted', 'That internship task belongs to another person.');
     }
 
     /** After login: pure supervisors land on Supervisor home (not /admin). */

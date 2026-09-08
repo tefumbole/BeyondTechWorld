@@ -3,7 +3,10 @@
 namespace App\Exceptions;
 
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class Handler extends ExceptionHandler
 {
@@ -50,6 +53,30 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
+        if (! $request->expectsJson() && ! $request->ajax() && $this->isForbidden($exception)) {
+            $message = trim((string) $exception->getMessage());
+            if ($message === '') {
+                $message = 'You do not have access to that page.';
+            }
+            if (Auth::check()) {
+                $home = \App\Support\InternCompliance::homeUrl(Auth::user());
+
+                return redirect($home)->with('not_permitted', $message);
+            }
+
+            return redirect()->guest(url('/login?redirect='.rawurlencode($request->getRequestUri())))
+                ->with('not_permitted', $message);
+        }
+
         return parent::render($request, $exception);
+    }
+
+    protected function isForbidden(Exception $exception)
+    {
+        if ($exception instanceof AuthorizationException) {
+            return true;
+        }
+
+        return $exception instanceof HttpExceptionInterface && $exception->getStatusCode() === 403;
     }
 }

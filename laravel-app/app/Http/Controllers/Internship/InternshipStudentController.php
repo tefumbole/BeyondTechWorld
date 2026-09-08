@@ -50,7 +50,21 @@ class InternshipStudentController extends Controller
             || Auth::user()->role_id <= 2) {
             return;
         }
+        if (InternCompliance::canSuperviseInternships(Auth::user())
+            || InternCompliance::isInternshipAdmin(Auth::user())) {
+            return;
+        }
         abort(403, 'Student internship access denied.');
+    }
+
+    protected function assertOwnTask(InternshipTaskAssignment $assignment)
+    {
+        $redirect = InternCompliance::redirectFromForeignStudentTask(Auth::user(), $assignment);
+        if ($redirect) {
+            return $redirect;
+        }
+
+        return null;
     }
 
     /**
@@ -241,8 +255,8 @@ class InternshipStudentController extends Controller
             'submissions.files',
             'submissions.grades.grader',
         ])->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         $program = $assignment->enrolment->program;
         $handbookPath = ($program && $assignment->task)
@@ -274,8 +288,8 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $assignment = InternshipTaskAssignment::with(['task', 'enrolment'])->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         if (! in_array($assignment->status, ['available', 'in_progress', 'revision_required'], true)) {
             if ($request->expectsJson() || $request->ajax()) {
@@ -309,8 +323,8 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $assignment = InternshipTaskAssignment::with(['task', 'enrolment.program'])->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         $program = $assignment->enrolment->program;
         $task = $assignment->task;
@@ -338,8 +352,8 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         $data = $request->validate([
             'file' => 'required',
@@ -379,8 +393,8 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         $draft = InternshipDraftFile::where('id', $draftId)
             ->where('assignment_id', $assignment->id)
@@ -394,8 +408,8 @@ class InternshipStudentController extends Controller
     {
         $this->allowStudent();
         $assignment = InternshipTaskAssignment::with('enrolment')->findOrFail($id);
-        if ((int) $assignment->enrolment->student_user_id !== (int) Auth::id()) {
-            abort(403);
+        if ($denied = $this->assertOwnTask($assignment)) {
+            return $denied;
         }
         $data = $request->validate([
             'caption' => 'nullable|string|max:400',
@@ -414,10 +428,12 @@ class InternshipStudentController extends Controller
         $draft = InternshipDraftFile::with('assignment.enrolment')->findOrFail($draftId);
         $enrolment = $draft->assignment->enrolment;
         $isOwner = (int) $draft->student_user_id === (int) Auth::id();
-        if (! $isOwner
-            && ! $enrolment->isSupervisedBy(Auth::id())
-            && ! InternCompliance::isInternshipAdmin(Auth::user())) {
-            abort(403);
+        $canReview = $enrolment->isSupervisedBy(Auth::id())
+            || InternCompliance::isInternshipAdmin(Auth::user())
+            || InternCompliance::canSuperviseInternships(Auth::user());
+        if (! $isOwner && ! $canReview) {
+            return redirect(InternCompliance::homeUrl(Auth::user()))
+                ->with('not_permitted', 'That file belongs to another intern.');
         }
         if (! Storage::disk($draft->disk ?: 'local')->exists($draft->path)) {
             abort(404);
@@ -569,10 +585,13 @@ class InternshipStudentController extends Controller
         $file = \App\InternshipSubmissionFile::with('submission.assignment.enrolment')->findOrFail($fileId);
         $enrolment = $file->submission->assignment->enrolment;
         $isOwner = (int) $enrolment->student_user_id === (int) Auth::id();
-        if (! $isOwner
-            && ! $enrolment->isSupervisedBy(Auth::id())
-            && ! InternCompliance::isInternshipAdmin(Auth::user())) {
-            abort(403, 'This evidence file belongs to another intern.');
+        $canReview = $enrolment->isSupervisedBy(Auth::id())
+            || InternCompliance::isInternshipAdmin(Auth::user())
+            || InternCompliance::canSuperviseInternships(Auth::user())
+            || (int) Auth::user()->role_id <= 2;
+        if (! $isOwner && ! $canReview) {
+            return redirect(InternCompliance::homeUrl(Auth::user()))
+                ->with('not_permitted', 'That evidence file belongs to another intern.');
         }
         if (! Storage::disk($file->disk ?: 'local')->exists($file->path)) {
             abort(404);

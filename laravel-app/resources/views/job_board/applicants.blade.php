@@ -33,7 +33,16 @@
     .jb-row-click { cursor: pointer; }
     .jb-row-click:hover { background: #f8fafc; }
     .jb-row-click.is-open { background: #eef4ff; }
-    .jb-interns-card { overflow: hidden; }
+    .jb-interns-page .jb-shell { max-width: none; }
+    .jb-interns-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+    .jb-interns-toolbar .jb-field { max-width: 360px; flex: 1 1 220px; }
+    .jb-interns-toolbar .jb-bulk { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .jb-interns-card { overflow: visible; }
     .jb-interns-wrap {
         width: 100%;
         max-width: 100%;
@@ -42,36 +51,44 @@
     }
     .jb-interns-table {
         width: 100%;
-        min-width: 780px;
-        table-layout: fixed;
         margin: 0;
+        table-layout: auto;
     }
     .jb-interns-table th, .jb-interns-table td {
-        vertical-align: middle; font-size: 13px; padding: 8px 8px;
-    }
-    .jb-interns-table th:not(.jb-actions),
-    .jb-interns-table td:not(.jb-actions) {
-        overflow: hidden; text-overflow: ellipsis;
+        vertical-align: middle; font-size: 13px; padding: 10px 8px;
     }
     .jb-interns-table th { white-space: nowrap; }
     .jb-interns-table .jb-contact {
         font-size: 12px; color: #64748b; line-height: 1.35;
-        max-width: 140px; word-break: break-all; white-space: normal;
+        min-width: 160px; word-break: break-word; white-space: normal;
     }
-    .jb-interns-table .jb-applied { width: 88px; max-width: 88px; white-space: nowrap; }
+    .jb-interns-table .jb-applied { white-space: nowrap; }
     .jb-interns-table .jb-actions {
-        width: 280px;
-        min-width: 280px;
-        white-space: nowrap;
+        width: 1%;
+        white-space: normal;
         overflow: visible;
+        text-align: right;
     }
-    .jb-interns-table .jb-actions .jb-act {
+    .jb-act-group {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+    }
+    .jb-interns-table .jb-act {
         display: inline-flex; align-items: center; justify-content: center;
-        padding: 4px 8px !important; font-size: 12px !important; gap: 0;
-        min-width: 0;
+        padding: 5px 10px !important; font-size: 12px !important; gap: 4px;
+        min-width: 0; margin: 0;
+        line-height: 1.2;
     }
+    .jb-interns-table .jb-act-danger {
+        border: 0; background: transparent; color: #dc2626;
+        font-weight: 700; font-size: 12px; padding: 5px 8px; cursor: pointer;
+    }
+    .jb-interns-table .jb-act-danger:hover { text-decoration: underline; }
 </style>
-<section class="forms">
+<section class="forms jb-interns-page">
     <div class="container-fluid jb-shell">
         @include('job_board.partials.tabs')
         <div class="mb-3">
@@ -143,23 +160,22 @@
             </div>
         @endif
 
-        <div class="jb-card">
-            <form method="GET" action="{{ route('jobs.applicants') }}" class="d-flex flex-wrap align-items-center" style="gap:10px;" id="jb-intern-search-form">
+        <div class="jb-card jb-interns-toolbar">
+            <form method="GET" action="{{ route('jobs.applicants') }}" class="d-flex flex-wrap align-items-center" style="gap:10px;flex:1 1 280px;" id="jb-intern-search-form">
                 @if($openId !== '')
                     <input type="hidden" name="open" value="{{ $openId }}">
                 @endif
-                <input type="search" name="q" id="jb-intern-search" value="{{ $q }}" class="jb-field" placeholder="Search interns by name, email, phone…" style="max-width:360px;" autocomplete="off">
+                <input type="search" name="q" id="jb-intern-search" value="{{ $q }}" class="jb-field" placeholder="Search interns by name, email, phone…" autocomplete="off">
                 <button type="submit" class="jb-btn"><i class="dripicons-search"></i> Search</button>
                 <span class="text-muted small" id="jb-intern-filter-count"></span>
             </form>
-        </div>
-
-        <div class="jb-card d-flex flex-wrap align-items-center" style="gap:8px;">
-            <button type="button" class="jb-btn-secondary" id="jb-select-all">Select all</button>
-            <button type="button" class="jb-btn-secondary" id="jb-clear-all">Clear</button>
-            <button type="submit" form="jb-interns-delete-form" class="btn btn-danger btn-sm" id="jb-intern-delete-btn" disabled>
-                <i class="dripicons-trash"></i> Delete selected
-            </button>
+            <div class="jb-bulk">
+                <button type="button" class="jb-btn-secondary" id="jb-select-all">Select all</button>
+                <button type="button" class="jb-btn-secondary" id="jb-clear-all">Clear</button>
+                <button type="submit" form="jb-interns-delete-form" class="btn btn-danger btn-sm" id="jb-intern-delete-btn" disabled>
+                    <i class="dripicons-trash"></i> Delete selected
+                </button>
+            </div>
         </div>
 
         <form id="jb-interns-delete-form" method="POST" action="{{ route('jobs.applications.delete') }}" class="d-none">
@@ -171,16 +187,16 @@
                 <table class="table table-hover jb-interns-table">
                     <thead>
                         <tr>
-                            <th style="width:34px;">
+                            <th style="width:36px;">
                                 <input type="checkbox" id="jb-check-all" title="Select all">
                             </th>
-                            <th style="width:34px;">#</th>
-                            <th style="width:18%;">Name</th>
-                            <th style="width:140px;">Contact</th>
-                            <th style="width:44px;">Apps</th>
-                            <th style="width:80px;">Status</th>
-                            <th style="width:88px;">Applied</th>
-                            <th class="jb-actions text-right">Actions</th>
+                            <th style="width:36px;">#</th>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th style="width:52px;">Apps</th>
+                            <th style="width:90px;">Status</th>
+                            <th style="width:100px;">Applied</th>
+                            <th class="jb-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -205,14 +221,14 @@
                                 <td>{{ $person['applications_count'] }}</td>
                                 <td><span class="jb-badge {{ \App\Application::badgeClassForStatus($person['latest_status'] ?? '') }}">{{ str_replace('_', ' ', $person['latest_status'] ?? '') }}</span></td>
                                 <td class="jb-applied">{{ $person['submitted_at'] ? \Carbon\Carbon::parse($person['submitted_at'])->format('Y-m-d') : '—' }}</td>
-                                <td class="jb-actions text-right" onclick="event.stopPropagation();">
-                                    <a class="jb-btn jb-act" href="{{ $openUrl }}" title="Open intern tab">Open</a>
-                                    <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.show', $person['latest_application_id']) }}" title="View application">View</a>
-                                    <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.edit', $person['latest_application_id']) }}" title="Edit application">Edit</a>
-                                    <a class="jb-btn jb-act" href="{{ route('jobs.applicants.placement.edit', $person['latest_application_id']) }}" title="Edit placement">
-                                        <i class="dripicons-document-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-link text-danger jb-intern-delete-one" data-id="{{ $person['latest_application_id'] }}">Delete</button>
+                                <td class="jb-actions" onclick="event.stopPropagation();">
+                                    <div class="jb-act-group">
+                                        <a class="jb-btn jb-act" href="{{ $openUrl }}" title="Open intern tab">Open</a>
+                                        <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.show', $person['latest_application_id']) }}" title="View application">View</a>
+                                        <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applications.edit', $person['latest_application_id']) }}" title="Edit application">Edit</a>
+                                        <a class="jb-btn-secondary jb-act" href="{{ route('jobs.applicants.placement.edit', $person['latest_application_id']) }}" title="Edit placement">Place</a>
+                                        <button type="button" class="jb-act-danger jb-intern-delete-one" data-id="{{ $person['latest_application_id'] }}">Delete</button>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

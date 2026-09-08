@@ -45,6 +45,13 @@ class InternshipSupervisorController extends Controller
             || Auth::user()->role_id <= 2) {
             return;
         }
+        if (InternCompliance::shouldUseInternHome(Auth::user())
+            || in_array('internship.student', $this->all_permission, true)) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                redirect()->route('internship.student.dashboard')
+                    ->with('not_permitted', 'Use your intern workspace for your own tasks.')
+            );
+        }
         abort(403, 'Supervisor access denied.');
     }
 
@@ -264,9 +271,11 @@ class InternshipSupervisorController extends Controller
             return;
         }
 
-        abort(403, $forGrading
-            ? 'You can only grade submissions for interns assigned to you.'
-            : 'You can only open submissions for interns assigned to you.');
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            redirect(InternCompliance::homeUrl($user))->with('not_permitted', $forGrading
+                ? 'You can only grade submissions for interns assigned to you.'
+                : 'You can only open submissions for interns assigned to you.')
+        );
     }
 
     public function downloadFile($fileId)
@@ -390,6 +399,9 @@ class InternshipSupervisorController extends Controller
         if ($enrolment->isSupervisedBy(Auth::id())) {
             return;
         }
-        abort(403, 'You can only place students assigned to you.');
+        throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            redirect(InternCompliance::homeUrl(Auth::user()))
+                ->with('not_permitted', 'You can only place students assigned to you.')
+        );
     }
 }
