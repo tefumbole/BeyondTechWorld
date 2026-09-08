@@ -4,12 +4,12 @@
 
     .jb-shell { max-width: none; width: 100%; margin: 0; }
 
-    /* Rental-module style colored tabs — wrap so none are clipped */
+    /* Compact Job Board menu — one tight row, wrap only if the window is narrow */
     .jb-nav {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin: 0 0 1.25rem;
+        gap: 6px;
+        margin: 0 0 0.65rem;
         padding: 0;
         border: 0;
         overflow: visible;
@@ -18,22 +18,22 @@
         position: relative;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border-radius: 10px;
-        border: 2px solid #cbd5e1;
+        gap: 4px;
+        padding: 5px 9px;
+        border-radius: 7px;
+        border: 1.5px solid #cbd5e1;
         background: #fff;
         color: #64748b;
         text-decoration: none !important;
         font-weight: 700;
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.2;
         white-space: nowrap;
         transition: all .15s ease;
         margin: 0;
         flex: 0 0 auto;
     }
-    .jb-nav a i { font-size: 15px; }
+    .jb-nav a i { font-size: 13px; }
     .jb-nav a:hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(15, 35, 80, 0.08);
@@ -92,24 +92,24 @@
     .jb-nav a.tone-red:hover { background: #ef4444; border-color: #ef4444; color: #fff !important; }
     .jb-nav a.tone-red:hover i { color: #fff !important; }
 
-    .jb-title { color: #0b3f90; font-weight: 800; font-size: 1.75rem; margin: 0 0 4px; }
+    .jb-title { color: #0b3f90; font-weight: 800; font-size: 1.35rem; margin: 0 0 6px; }
     .jb-subtitle { color: #6b7280; margin: 0; }
     .jb-card {
-        background: #fff; border: 1px solid #eef2f7; border-radius: 14px;
-        box-shadow: 0 1px 3px rgba(15,23,42,.06); padding: 1.25rem; margin-bottom: 1rem;
+        background: #fff; border: 1px solid #eef2f7; border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(15,23,42,.06); padding: 0.85rem 1rem; margin-bottom: 0.75rem;
     }
     .jb-btn {
         background: #0b3f90; border: 1px solid #0b3f90; color: #fff;
-        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px;
-        display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none;
+        border-radius: 7px; padding: 6px 11px; font-weight: 600; font-size: 13px;
+        display: inline-flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none;
     }
     .jb-btn:hover { background: #0a3578; color: #fff; text-decoration: none; }
     .jb-btn-secondary {
         background: #fff; border: 1px solid #0b3f90; color: #0b3f90;
-        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px;
-        display: inline-flex; align-items: center; gap: 6px; cursor: pointer; text-decoration: none;
+        border-radius: 7px; padding: 6px 11px; font-weight: 600; font-size: 13px;
+        display: inline-flex; align-items: center; gap: 5px; cursor: pointer; text-decoration: none;
     }
-    .jb-field { width: 100%; border: 1px solid #d7deea; border-radius: 8px; padding: 9px 12px; font-size: 14px; }
+    .jb-field { width: 100%; border: 1px solid #d7deea; border-radius: 7px; padding: 6px 10px; font-size: 13px; }
     .jb-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
     .jb-badge {
         display: inline-block; padding: 3px 10px; border-radius: 999px;

@@ -34,14 +34,15 @@
     .jb-row-click:hover { background: #f8fafc; }
     .jb-row-click.is-open { background: #eef4ff; }
     .jb-interns-page .jb-shell { max-width: none; }
+    .jb-interns-page .mb-3 { margin-bottom: 0.4rem !important; }
     .jb-interns-toolbar {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
     }
     .jb-interns-toolbar .jb-field { max-width: 360px; flex: 1 1 220px; }
-    .jb-interns-toolbar .jb-bulk { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .jb-interns-toolbar .jb-bulk { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .jb-interns-card { overflow: visible; }
     .jb-interns-wrap {
         width: 100%;
@@ -55,7 +56,7 @@
         table-layout: auto;
     }
     .jb-interns-table th, .jb-interns-table td {
-        vertical-align: middle; font-size: 13px; padding: 10px 8px;
+        vertical-align: middle; font-size: 13px; padding: 6px 8px;
     }
     .jb-interns-table th { white-space: nowrap; }
     .jb-interns-table .jb-contact {
@@ -64,27 +65,30 @@
     }
     .jb-interns-table .jb-applied { white-space: nowrap; }
     .jb-interns-table .jb-actions {
-        width: 1%;
-        white-space: normal;
+        width: auto;
+        min-width: 292px;
+        white-space: nowrap;
         overflow: visible;
         text-align: right;
     }
     .jb-act-group {
         display: inline-flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
     }
     .jb-interns-table .jb-act {
         display: inline-flex; align-items: center; justify-content: center;
-        padding: 5px 10px !important; font-size: 12px !important; gap: 4px;
+        padding: 4px 8px !important; font-size: 11px !important; gap: 0;
         min-width: 0; margin: 0;
         line-height: 1.2;
+        white-space: nowrap;
     }
     .jb-interns-table .jb-act-danger {
         border: 0; background: transparent; color: #dc2626;
-        font-weight: 700; font-size: 12px; padding: 5px 8px; cursor: pointer;
+        font-weight: 700; font-size: 11px; padding: 4px 6px; cursor: pointer;
+        white-space: nowrap;
     }
     .jb-interns-table .jb-act-danger:hover { text-decoration: underline; }
 </style>
