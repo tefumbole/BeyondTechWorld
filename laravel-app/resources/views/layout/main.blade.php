@@ -2207,6 +2207,7 @@
                                     @if($add_permission_active || (int) Auth::user()->role_id <= 2)
                                         <li><a id="add-expense" href=""> {{trans('file.Add Expense')}}</a></li>
                                     @endif
+                                    <li><a href="{{ route('wealth.help') }}">Help</a></li>
                                 </ul>
                             </li>
                         @endif

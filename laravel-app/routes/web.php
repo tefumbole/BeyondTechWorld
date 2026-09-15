@@ -955,6 +955,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('wealth/settings/rules', 'Wealth\WealthSettingsController@saveRules')->name('wealth.settings.rules');
 	Route::post('wealth/settings/health', 'Wealth\WealthSettingsController@saveHealth')->name('wealth.settings.health');
 	Route::post('wealth/settings/category', 'Wealth\WealthSettingsController@saveCategory')->name('wealth.settings.category');
+	Route::get('wealth/help', 'Wealth\WealthHelpController@index')->name('wealth.help');
 
 	Route::post('expenses/deletebyselection', 'ExpenseController@deleteBySelection');
 	Route::resource('expenses', 'ExpenseController');
