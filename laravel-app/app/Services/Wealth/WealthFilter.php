@@ -60,9 +60,11 @@ class WealthFilter
 
     public function periodKey()
     {
-        return $this->startDate.'_'.$this->endDate.'_'.($this->entityType ?: 'all').'_'
+        $raw = $this->startDate.'_'.$this->endDate.'_'.($this->entityType ?: 'all').'_'
             .($this->billerId ?: '0').'_'.($this->userId ?: '0').'_'.($this->employeeId ?: '0').'_'
             .($this->programId ?: '0');
+
+        return strlen($raw) <= 64 ? $raw : md5($raw);
     }
 
     public function applyIncome($query)

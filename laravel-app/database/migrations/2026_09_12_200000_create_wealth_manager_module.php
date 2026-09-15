@@ -258,7 +258,7 @@ class CreateWealthManagerModule extends Migration
         if (! Schema::hasTable('wealth_allocations')) {
             Schema::create('wealth_allocations', function (Blueprint $table) {
                 $table->increments('id');
-                $table->string('period_key', 32)->index();
+                $table->string('period_key', 191)->index();
                 $table->string('entity_type', 24)->default('all')->index();
                 $table->unsignedInteger('entity_id')->nullable()->index();
                 $table->unsignedInteger('bucket_id')->index();

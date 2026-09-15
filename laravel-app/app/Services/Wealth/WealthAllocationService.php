@@ -64,19 +64,23 @@ class WealthAllocationService
                 'remaining' => $remaining,
                 'used_pct' => WealthMoney::ratio($used, $expected),
             ];
-            WealthAllocation::updateOrCreate(
-                [
-                    'period_key' => $filter->periodKey(),
-                    'entity_type' => $filter->entityType ?: 'all',
-                    'entity_id' => $filter->billerId ?: $filter->userId ?: $filter->programId ?: 0,
-                    'bucket_id' => $line->bucket_id,
-                ],
-                [
-                    'expected_amount' => $expected,
-                    'used_amount' => $used,
-                    'remaining_amount' => $remaining,
-                ]
-            );
+            try {
+                WealthAllocation::updateOrCreate(
+                    [
+                        'period_key' => $filter->periodKey(),
+                        'entity_type' => $filter->entityType ?: 'all',
+                        'entity_id' => $filter->billerId ?: $filter->userId ?: $filter->programId ?: 0,
+                        'bucket_id' => $line->bucket_id,
+                    ],
+                    [
+                        'expected_amount' => $expected,
+                        'used_amount' => $used,
+                        'remaining_amount' => $remaining,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info('Wealth allocation snapshot skip: '.$e->getMessage());
+            }
         }
 
         return ['income' => $income, 'basis' => $rule->basis, 'rows' => $rows, 'rule' => $rule];
