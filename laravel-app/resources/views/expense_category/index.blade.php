@@ -68,7 +68,7 @@
             <div class="form-group">
                 <label>{{trans('file.Code')}} *</label>
                 <div class="input-group">
-                    {{Form::text('code',null,array('required' => 'required', 'class' => 'form-control', 'placeholder' => 'Type expense category code...'))}}
+                    {{Form::text('code', null, array('required' => 'required', 'id' => 'create-code', 'class' => 'form-control', 'readonly' => 'readonly', 'placeholder' => '001'))}}
                     <div class="input-group-append">
                         <button id="genbutton" type="button" class="btn btn-default">{{trans('file.Generate')}}</button>
                     </div>
@@ -164,10 +164,18 @@
         }
     });
 
-    $('#genbutton').on("click", function(){
-      $.get('expense_categories/gencode', function(data){
-        $("input[name='code']").val(data);
+    function fillNextExpenseCategoryCode() {
+      $.get('{{ url("expense_categories/gencode") }}', function(data){
+        $('#create-code').val(data);
       });
+    }
+
+    $('#createModal').on('shown.bs.modal', function () {
+      fillNextExpenseCategoryCode();
+    });
+
+    $('#genbutton').on("click", function(){
+      fillNextExpenseCategoryCode();
     });
 
     $(document).ready(function() {

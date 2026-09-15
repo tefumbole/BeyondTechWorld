@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\ExpenseCategory;
-use Keygen;
 use Illuminate\Validation\Rule;
 
 class ExpenseCategoryController extends Controller
@@ -22,22 +21,50 @@ class ExpenseCategoryController extends Controller
 
     public function generateCode()
     {
-        $id = Keygen::numeric(8)->generate();
-        return $id;
+        return $this->nextSequentialCode();
+    }
+
+    protected function nextSequentialCode()
+    {
+        $codes = ExpenseCategory::pluck('code');
+        $max = 0;
+        foreach ($codes as $code) {
+            $code = trim((string) $code);
+            if (! preg_match('/^\d{1,4}$/', $code)) {
+                continue;
+            }
+            $n = (int) $code;
+            if ($n > $max) {
+                $max = $n;
+            }
+        }
+
+        return str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
     }
 
     public function store(Request $request)
     {
+        $code = trim((string) $request->get('code'));
+        if ($code === '') {
+            $code = $this->nextSequentialCode();
+            $request->merge(['code' => $code]);
+        }
+
         $this->validate($request, [
             'code' => [
+                'required',
                 'max:255',
-                    Rule::unique('expense_categories')->where(function ($query) {
+                Rule::unique('expense_categories')->where(function ($query) {
                     return $query->where('is_active', 1);
                 }),
-            ]
+            ],
+            'name' => 'required|string|max:255',
         ]);
 
         $data = $request->all();
+        if (empty($data['is_active'])) {
+            $data['is_active'] = 1;
+        }
         ExpenseCategory::create($data);
         return redirect('expense_categories')->with('message', 'Data inserted successfully');
     }
