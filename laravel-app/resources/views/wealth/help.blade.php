@@ -62,7 +62,7 @@
             <h2>1. Getting started</h2>
             <p>Open <strong>Wealth Manager</strong> from the left menu. The top tabs follow that same list. Work through these five steps once, then use the module every month.</p>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-start.png') }}" alt="Getting started: five numbered steps from categories to Financial Health">
+                <img src="{{ asset('wealth/guide/wm-help-start.png') }}" alt="Getting started: five numbered steps from categories to Financial Health">
                 <figcaption>Figure 1 — Set up categories and programs, then record income and expenses, then read Overview and Financial Health.</figcaption>
             </figure>
             <ol class="wm-help-steps">
@@ -78,7 +78,7 @@
             <h2>2. The 70 / 20 / 10 rule</h2>
             <p>Every month’s posted income is split into three envelopes. These are <strong>targets</strong>, not extra journal entries in accounting.</p>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-rule.png') }}" alt="70 percent operations, 20 percent investment, 10 percent charity">
+                <img src="{{ asset('wealth/guide/wm-help-rule.png') }}" alt="70 percent operations, 20 percent investment, 10 percent charity">
                 <figcaption>Figure 2 — Income is split: 70% you may spend on operations, 20% should be invested, 10% should be given.</figcaption>
             </figure>
             <div class="wm-help-grid">
@@ -93,7 +93,7 @@
             <h2>3. Always start from the month</h2>
             <p>Wealth Manager opens on the <strong>current month</strong>. Change <em>Month</em> and <em>Year</em>, then click <strong>Show month</strong>. Health, income, spendable cash, investment due, and giving due all follow that month.</p>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-month.png') }}" alt="Select a month and year, then show that month’s figures">
+                <img src="{{ asset('wealth/guide/wm-help-month.png') }}" alt="Select a month and year, then show that month’s figures">
                 <figcaption>Figure 3 — Pick January to see January only. The current month is the default.</figcaption>
             </figure>
             <p>You can also narrow by company, user, staff, or program. Leave those on <em>All</em> for the full picture.</p>
@@ -109,7 +109,7 @@
                 <li>How much is still due for giving (10% remaining)?</li>
             </ul>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-overview.png') }}" alt="Overview cards for income, you can spend, investment due, and giving due">
+                <img src="{{ asset('wealth/guide/wm-help-overview.png') }}" alt="Overview cards for income, you can spend, investment due, and giving due">
                 <figcaption>Figure 4 — The four headline cards plus charts for income vs expenses and the 70 / 20 / 10 split.</figcaption>
             </figure>
             <p>The score strip at the top is a short Financial Health summary. Use <strong>View Full Financial Health</strong> for graphs and recommendations. Unclassified expenses show a yellow warning — assign them before you trust the envelopes.</p>
@@ -119,7 +119,7 @@
             <h2>5. Financial Health</h2>
             <p>This is an <strong>internal discipline score from 0 to 100</strong> for the selected month. It is not a bank or credit-bureau score.</p>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-health.png') }}" alt="Financial Health gauge, 12-month history, and 70 20 10 bars">
+                <img src="{{ asset('wealth/guide/wm-help-health.png') }}" alt="Financial Health gauge, 12-month history, and 70 20 10 bars">
                 <figcaption>Figure 5 — Score this month, history for the last 12 months, and how well each envelope is being kept.</figcaption>
             </figure>
             <table class="wm-help-table">
@@ -153,7 +153,7 @@
                 <li>Optional subcategory, program, company, vendor, and receipt</li>
             </ul>
             <figure class="wm-help-figure">
-                <img src="{{ asset('wealth/help/wm-help-expenses.png') }}" alt="Expense form highlighting the 70 20 10 classification dropdown">
+                <img src="{{ asset('wealth/guide/wm-help-expenses.png') }}" alt="Expense form highlighting the 70 20 10 classification dropdown">
                 <figcaption>Figure 6 — Always classify the envelope. Unclassified rows do not count toward You can spend / Due for investment / Due for giving.</figcaption>
             </figure>
             <p>Tick <em>Also create Investment register row</em> or <em>Also create Charity register row</em> when the same spend should appear on those registers.</p>
