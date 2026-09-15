@@ -21,5 +21,8 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'logout',
         'portal/logout',
+        // Public memorial form: WhatsApp / Facebook in-app browsers often drop
+        // the session cookie, so CSRF would block family members from submitting.
+        'pangwayu/eulogy',
     ];
 }

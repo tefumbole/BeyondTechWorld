@@ -189,10 +189,15 @@ class PublicFuneralPledgeController extends Controller
             'name' => 'required|string|max:255',
             'country_code' => 'required|string|max:10',
             'phone' => 'required|string|max:40',
-            'body' => 'required|string|max:4000',
-            'signature' => $request->get('from') === 'remember' ? 'required|string|max:900000' : 'nullable|string|max:900000',
+            'body' => 'required|string|min:20|max:20000',
+            'signature' => $request->get('from') === 'remember' ? 'required|string|max:2500000' : 'nullable|string|max:2500000',
             'selfie' => 'nullable|file|max:5120',
             'from' => 'nullable|in:remember',
+        ], [
+            'body.min' => 'Please write a little more for the eulogy.',
+            'body.max' => 'Please shorten the eulogy a little (maximum 20,000 characters).',
+            'signature.required' => 'Please sign the eulogy before submitting.',
+            'signature.max' => 'The signature image is too large. Clear the pad and sign again.',
         ]);
 
         try {

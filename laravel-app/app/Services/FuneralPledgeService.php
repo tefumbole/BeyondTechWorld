@@ -293,7 +293,7 @@ class FuneralPledgeService
             throw new \InvalidArgumentException('Campaign not found.');
         }
         $body = trim((string) $data['body']);
-        if (strlen($body) < 20) {
+        if (mb_strlen($body) < 20) {
             throw new \InvalidArgumentException('Please write a little more for the eulogy.');
         }
 
@@ -306,11 +306,17 @@ class FuneralPledgeService
             return $duplicate;
         }
 
-        $customer = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick([
-            'name' => $data['name'],
-            'phone' => $data['phone'],
-            'address' => '',
-        ]);
+        $customerId = null;
+        try {
+            $customer = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick([
+                'name' => $data['name'],
+                'phone' => $data['phone'],
+                'address' => '',
+            ]);
+            $customerId = $customer['customer']->id ?? null;
+        } catch (\Throwable $e) {
+            Log::info('Funeral eulogy customer skipped: '.$e->getMessage());
+        }
 
         $sigPath = $this->storeSignature($data['signature'] ?? '');
         if (! empty($data['require_signature']) && ! $sigPath) {
@@ -319,7 +325,7 @@ class FuneralPledgeService
         $selfiePath = $this->storeSelfie($data['selfie'] ?? null);
         $eulogy = FuneralEulogy::create([
             'campaign_id' => $campaign->id,
-            'customer_id' => $customer['customer']->id,
+            'customer_id' => $customerId,
             'name' => $data['name'],
             'phone' => $data['phone'],
             'body' => $body,
@@ -327,7 +333,11 @@ class FuneralPledgeService
             'selfie_path' => $selfiePath,
         ]);
 
-        $this->notifyEulogy($eulogy->fresh());
+        try {
+            $this->notifyEulogy($eulogy->fresh());
+        } catch (\Throwable $e) {
+            Log::info('Funeral eulogy notify failed: '.$e->getMessage(), ['eulogy' => $eulogy->id]);
+        }
 
         return $eulogy;
     }
@@ -335,14 +345,23 @@ class FuneralPledgeService
     protected function storeSignature($dataUri)
     {
         $dataUri = trim((string) $dataUri);
-        if ($dataUri === '' || strpos($dataUri, 'data:image') !== 0) {
+        if ($dataUri === '' || stripos($dataUri, 'data:image') !== 0) {
             return null;
         }
-        if (! preg_match('#^data:image/(png|jpeg|jpg);base64,([A-Za-z0-9+/=\s]+)$#', $dataUri, $m)) {
+        $payload = null;
+        if (preg_match('#^data:image/(png|jpeg|jpg)[^,]*,([A-Za-z0-9+/=\s]+)$#i', $dataUri, $m)) {
+            $payload = $m[2];
+        } else {
+            $comma = strpos($dataUri, ',');
+            if ($comma !== false) {
+                $payload = substr($dataUri, $comma + 1);
+            }
+        }
+        if ($payload === null || $payload === '') {
             return null;
         }
-        $bin = base64_decode($m[2], true);
-        if ($bin === false || strlen($bin) < 80 || strlen($bin) > 800000) {
+        $bin = base64_decode(preg_replace('/\s+/', '', $payload), true);
+        if ($bin === false || strlen($bin) < 80 || strlen($bin) > 2 * 1024 * 1024) {
             return null;
         }
         $processed = $this->signaturePngWithTimestamp($bin);
@@ -505,8 +524,8 @@ class FuneralPledgeService
             $g = (int) $cols['green'];
             $b = (int) $cols['blue'];
         }
-        $nearWhite = $r > 236 && $g > 236 && $b > 236;
-        $skip = $a >= 118 || $nearWhite;
+        $nearWhite = $r >= 254 && $g >= 254 && $b >= 254;
+        $skip = $a >= 124 || $nearWhite;
 
         return [
             'r' => $r,

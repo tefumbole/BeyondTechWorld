@@ -485,7 +485,8 @@
             <input type="text" name="name" id="euName" required>
             <p class="hint">We use the Mobile Money name when we find it. You can tap the other name or edit this field.</p>
             <label>Eulogy *</label>
-            <textarea name="body" id="euBody" rows="7" required placeholder="A few words for Pa Ngwayu Francis…"></textarea>
+            <textarea name="body" id="euBody" rows="7" required maxlength="20000" placeholder="A few words for Pa Ngwayu Francis…"></textarea>
+            <p class="hint">A few sentences or a full tribute — up to 20,000 characters.</p>
             <label>Signature (optional)</label>
             <canvas id="sigPad" class="sig-pad"></canvas>
             <button type="button" class="btn btn-ghost" id="sigClear" style="margin-top:8px;">Clear signature</button>
@@ -692,28 +693,70 @@
     var canvas = document.getElementById('sigPad');
     var ctx = canvas.getContext('2d');
     var drawing = false;
-    function sizeCanvas() {
-        var r = canvas.getBoundingClientRect();
-        canvas.width = Math.floor(r.width);
-        canvas.height = Math.floor(r.height);
+    function stylePen() {
         ctx.strokeStyle = '#1a1408';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+    function sizeCanvas() {
+        var cssW = Math.max(280, Math.floor(canvas.clientWidth || canvas.offsetWidth || 320));
+        var cssH = Math.max(140, Math.floor(canvas.clientHeight || canvas.offsetHeight || 150));
+        if (canvas.width === cssW && canvas.height === cssH) {
+            stylePen();
+            return;
+        }
+        canvas.width = cssW;
+        canvas.height = cssH;
+        stylePen();
     }
     function pos(ev) {
         var r = canvas.getBoundingClientRect();
-        var t = ev.touches ? ev.touches[0] : ev;
-        return { x: t.clientX - r.left, y: t.clientY - r.top };
+        var t = ev.touches && ev.touches[0] ? ev.touches[0]
+            : (ev.changedTouches && ev.changedTouches[0] ? ev.changedTouches[0] : ev);
+        var scaleX = canvas.width / Math.max(r.width, 1);
+        var scaleY = canvas.height / Math.max(r.height, 1);
+        return { x: (t.clientX - r.left) * scaleX, y: (t.clientY - r.top) * scaleY };
     }
-    canvas.addEventListener('mousedown', function (ev) { drawing = true; var p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
-    canvas.addEventListener('mousemove', function (ev) { if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); });
-    canvas.addEventListener('mouseup', function () { drawing = false; });
-    canvas.addEventListener('mouseleave', function () { drawing = false; });
-    canvas.addEventListener('touchstart', function (ev) { ev.preventDefault(); drawing = true; var p = pos(ev); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
-    canvas.addEventListener('touchmove', function (ev) { ev.preventDefault(); if (!drawing) return; var p = pos(ev); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
-    canvas.addEventListener('touchend', function () { drawing = false; });
-    document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); };
-    document.getElementById('openEulogy').onclick = function () { euModal.classList.add('on'); sizeCanvas(); document.getElementById('euPhone').focus(); };
+    function onPadDown(ev) {
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        drawing = true;
+        if (canvas.setPointerCapture && ev.pointerId != null) {
+            try { canvas.setPointerCapture(ev.pointerId); } catch (err) {}
+        }
+        if (ev.cancelable) ev.preventDefault();
+        var p = pos(ev);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+    }
+    function onPadMove(ev) {
+        if (!drawing) return;
+        if (ev.cancelable) ev.preventDefault();
+        var p = pos(ev);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+    }
+    function onPadUp() { drawing = false; }
+    if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', onPadDown);
+        canvas.addEventListener('pointermove', onPadMove);
+        canvas.addEventListener('pointerup', onPadUp);
+        canvas.addEventListener('pointercancel', onPadUp);
+    } else {
+        canvas.addEventListener('mousedown', onPadDown);
+        canvas.addEventListener('mousemove', onPadMove);
+        canvas.addEventListener('mouseup', onPadUp);
+        canvas.addEventListener('mouseleave', onPadUp);
+        canvas.addEventListener('touchstart', onPadDown, { passive: false });
+        canvas.addEventListener('touchmove', onPadMove, { passive: false });
+        canvas.addEventListener('touchend', onPadUp);
+    }
+    document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); stylePen(); };
+    document.getElementById('openEulogy').onclick = function () {
+        euModal.classList.add('on');
+        requestAnimationFrame(function () { requestAnimationFrame(sizeCanvas); });
+        document.getElementById('euPhone').focus();
+    };
     document.getElementById('closeEulogy').onclick = function () { euModal.classList.remove('on'); };
     document.getElementById('euCancel').onclick = function () { euModal.classList.remove('on'); };
     euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
@@ -767,31 +810,75 @@
     });
     document.getElementById('euPhone').addEventListener('blur', lookupEu);
 
+    function firstApiMessage(j, fallback) {
+        if (!j) return fallback;
+        if (j.errors) {
+            var keys = Object.keys(j.errors);
+            for (var i = 0; i < keys.length; i++) {
+                var msgs = j.errors[keys[i]];
+                if (msgs && msgs[0]) return msgs[0];
+            }
+        }
+        return j.message || fallback;
+    }
+    function readApi(r) {
+        return r.text().then(function (t) {
+            var j = {};
+            try { j = t ? JSON.parse(t) : {}; } catch (ex) { j = {}; }
+            if (r.status === 419) {
+                j.message = firstApiMessage(j, 'Your session expired. Please refresh the page and try again.');
+            }
+            return { ok: r.ok, status: r.status, j: j };
+        });
+    }
+    function signatureDataUrl() {
+        var out = document.createElement('canvas');
+        out.width = Math.max(1, canvas.width);
+        out.height = Math.max(1, canvas.height);
+        var octx = out.getContext('2d');
+        octx.fillStyle = '#ffffff';
+        octx.fillRect(0, 0, out.width, out.height);
+        octx.drawImage(canvas, 0, 0);
+        try {
+            return out.toDataURL('image/jpeg', 0.82);
+        } catch (ex) {
+            return canvas.toDataURL('image/png');
+        }
+    }
     document.getElementById('eulogyForm').addEventListener('submit', function (e) {
         e.preventDefault();
         var err = document.getElementById('euErr');
+        var btn = e.target.querySelector('button[type="submit"]');
         err.textContent = '';
         var blank = document.createElement('canvas');
         blank.width = canvas.width; blank.height = canvas.height;
         var signed = canvas.toDataURL() !== blank.toDataURL();
-        document.getElementById('euSig').value = signed ? canvas.toDataURL('image/png') : '';
+        document.getElementById('euSig').value = signed ? signatureDataUrl() : '';
         var body = new FormData(e.target);
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        if (csrf && csrf.content) body.append('_token', csrf.content);
+        if (btn) btn.disabled = true;
         fetch(EULOGY, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrf ? csrf.content : ''
             },
             body: body
-        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        }).then(readApi)
           .then(function (res) {
               if (!res.ok || !res.j.ok) {
-                  err.textContent = (res.j && res.j.message) || 'Could not save.';
+                  err.textContent = firstApiMessage(res.j, 'Could not save the eulogy. Try again.');
+                  if (btn) btn.disabled = false;
                   return;
               }
               window.location = window.location.pathname + '?eulogy=ok#eulogies';
-          }).catch(function () { err.textContent = 'Network error. Try again.'; });
+          }).catch(function () {
+              err.textContent = 'Network error. Check your connection and try again.';
+              if (btn) btn.disabled = false;
+          });
     });
 
     render();
