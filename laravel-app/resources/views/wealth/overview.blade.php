@@ -4,6 +4,7 @@
 <section class="forms">
     <div class="container-fluid wm-shell">
         <h1 class="wm-title">Wealth Manager</h1>
+        <p class="text-muted">{{ $filter->periodLabel() }}</p>
         @include('wealth.partials.nav')
         @include('wealth.partials.filters')
         @if(($unclassified ?? 0) > 0)
@@ -14,16 +15,15 @@
 
         <div class="wm-card wm-health">
             <div>
-                <div class="lbl" style="color:#64748b;font-size:12px;font-weight:700;">FINANCIAL HEALTH</div>
+                <div class="lbl" style="color:#64748b;font-size:12px;font-weight:700;">FINANCIAL HEALTH · {{ strtoupper($filter->periodLabel()) }}</div>
                 <div class="wm-score">{{ $health['overall_score'] }} <small style="font-size:1rem;">/ 100</small></div>
                 <div class="wm-status-{{ $health['status'] }}" style="font-weight:800;">{{ $health['status_label'] }}</div>
-                <div class="text-muted small">{{ $health['trend'] }} · prev {{ $health['previous_score'] }} ({{ $health['score_change'] >= 0 ? '+' : '' }}{{ $health['score_change'] }})</div>
+                <div class="text-muted small">{{ $health['trend'] }} vs {{ $filter->previousPeriod()->periodLabel() }} · prev {{ $health['previous_score'] }} ({{ $health['score_change'] >= 0 ? '+' : '' }}{{ $health['score_change'] }})</div>
             </div>
             <div class="small">
-                <div>Operations {{ $health['operations']['used_pct'] }}% used</div>
-                <div>Investment {{ $health['investment']['fulfillment_percentage'] }}% fulfilled</div>
-                <div>Charity {{ $health['charity']['fulfillment_percentage'] }}% fulfilled</div>
-                <div>Available cash {{ $health['cash']['ratio'] }}%</div>
+                <div>You can spend {{ number_format(max(0, (float) $ops['remaining']), 2) }}</div>
+                <div>Investment due {{ number_format(max(0, (float) $inv['remaining']), 2) }}</div>
+                <div>Giving due {{ number_format(max(0, (float) $cha['remaining']), 2) }}</div>
             </div>
             <div>
                 <a class="wm-btn wm-btn-out" href="{{ route('wealth.health', request()->query()) }}">View Full Financial Health</a>
@@ -31,16 +31,31 @@
         </div>
 
         <div class="wm-kpis mb-3">
-            <div class="wm-kpi"><div class="lbl">Total Income</div><div class="val">{{ number_format($incomeTotal, 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Total Expenses</div><div class="val">{{ number_format($expenseTotal, 2) }}</div></div>
-            <div class="wm-kpi"><div class="lbl">Net Balance</div><div class="val">{{ number_format($balance, 2) }}</div></div>
-            @foreach($snapshot['rows'] as $row)
-                <div class="wm-kpi">
-                    <div class="lbl">@include('wealth.partials.badge', ['bucket' => $row['bucket']])</div>
-                    <div class="val">{{ number_format($row['used'], 2) }}</div>
-                    <div class="small text-muted">Expected {{ number_format($row['expected'], 2) }} · Left {{ number_format($row['remaining'], 2) }}</div>
-                </div>
-            @endforeach
+            <div class="wm-kpi">
+                <div class="lbl">Income this month</div>
+                <div class="val">{{ number_format($incomeTotal, 2) }}</div>
+                <div class="small text-muted">All posted income in {{ $filter->periodLabel() }}</div>
+            </div>
+            <div class="wm-kpi">
+                <div class="lbl">You can spend</div>
+                <div class="val">{{ number_format(max(0, (float) $ops['remaining']), 2) }}</div>
+                <div class="small text-muted">70% operations · used {{ number_format($ops['used'], 2) }} of {{ number_format($ops['expected'], 2) }}@if((float)$ops['remaining'] < 0) · over by {{ number_format(abs($ops['remaining']), 2) }}@endif</div>
+            </div>
+            <div class="wm-kpi">
+                <div class="lbl">Due for investment</div>
+                <div class="val">{{ number_format(max(0, (float) $inv['remaining']), 2) }}</div>
+                <div class="small text-muted">20% of income · invested {{ number_format($inv['used'], 2) }} of {{ number_format($inv['expected'], 2) }}@if((float)$inv['remaining'] < 0) · over by {{ number_format(abs($inv['remaining']), 2) }}@endif</div>
+            </div>
+            <div class="wm-kpi">
+                <div class="lbl">Due for giving</div>
+                <div class="val">{{ number_format(max(0, (float) $cha['remaining']), 2) }}</div>
+                <div class="small text-muted">10% of income · given {{ number_format($cha['used'], 2) }} of {{ number_format($cha['expected'], 2) }}@if((float)$cha['remaining'] < 0) · over by {{ number_format(abs($cha['remaining']), 2) }}@endif</div>
+            </div>
+            <div class="wm-kpi">
+                <div class="lbl">Expenses this month</div>
+                <div class="val">{{ number_format($expenseTotal, 2) }}</div>
+                <div class="small text-muted">Net {{ number_format($balance, 2) }}</div>
+            </div>
         </div>
 
         <div class="row">

@@ -85,8 +85,8 @@ class FinancialHealthService
     public function history(WealthFilter $filter)
     {
         $points = [];
-        $cursor = strtotime(date('Y-m-01', strtotime($filter->startDate)));
         $end = strtotime(date('Y-m-01', strtotime($filter->endDate)));
+        $cursor = strtotime('-11 months', $end);
         $i = 0;
         while ($cursor <= $end && $i < 12) {
             $monthFilter = clone $filter;

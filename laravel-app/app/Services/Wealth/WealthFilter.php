@@ -24,29 +24,61 @@ class WealthFilter
         $f->userId = $request->get('user_id') ?: null;
         $f->employeeId = $request->get('employee_id') ?: null;
         $f->programId = $request->get('program_id') ?: null;
-        $f->month = $request->get('month') ?: null;
-        $f->year = $request->get('year') ?: null;
+        $f->month = $request->filled('month') ? (int) $request->get('month') : null;
+        $f->year = $request->filled('year') ? (int) $request->get('year') : null;
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
+        $customRange = $request->filled('start_date') && $request->filled('end_date') && ! $request->filled('month');
+
+        if (! $f->year) {
+            $f->year = (int) date('Y');
+        }
+
+        if (! $f->month && ! $customRange) {
+            $f->month = (int) date('n');
+        }
+
+        if ($f->month) {
+            if ($f->month < 1 || $f->month > 12) {
+                $f->month = (int) date('n');
+            }
+            $f->applyMonthYear();
+        } elseif ($customRange) {
             $f->startDate = $request->get('start_date');
             $f->endDate = $request->get('end_date');
-        } elseif ($f->month && $f->year) {
-            $f->startDate = sprintf('%04d-%02d-01', $f->year, $f->month);
-            $f->endDate = date('Y-m-t', strtotime($f->startDate));
-        } elseif ($f->year) {
-            $f->startDate = $f->year.'-01-01';
-            $f->endDate = $f->year.'-12-31';
         } else {
-            $f->startDate = date('Y-01-01');
-            $f->endDate = date('Y-m-d');
+            $f->month = (int) date('n');
+            $f->applyMonthYear();
         }
 
         return $f;
     }
 
+    public function applyMonthYear()
+    {
+        $this->startDate = sprintf('%04d-%02d-01', $this->year ?: date('Y'), $this->month);
+        $this->endDate = date('Y-m-t', strtotime($this->startDate));
+    }
+
+    public function periodLabel()
+    {
+        if ($this->month) {
+            return date('F Y', strtotime($this->startDate));
+        }
+
+        return $this->startDate.' – '.$this->endDate;
+    }
+
     public function previousPeriod()
     {
         $p = clone $this;
+        if ($this->month) {
+            $ts = strtotime($this->startDate.' -1 month');
+            $p->month = (int) date('n', $ts);
+            $p->year = (int) date('Y', $ts);
+            $p->applyMonthYear();
+
+            return $p;
+        }
         $start = strtotime($this->startDate);
         $end = strtotime($this->endDate);
         $days = max(1, (int) round(($end - $start) / 86400) + 1);

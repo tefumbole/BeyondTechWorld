@@ -31,5 +31,15 @@
     .wm-status-EXCELLENT,.wm-status-VERY_GOOD { color:#047857; }
     .wm-status-FAIR { color:#b45309; }
     .wm-status-NEEDS_ATTENTION,.wm-status-CRITICAL { color:#b91c1c; }
+    .wm-chart-title { font-size:14px; font-weight:700; color:#0b3f90; margin:0 0 10px; }
+    .wm-gauge { position:relative; height:220px; }
+    .wm-gauge-center {
+        position:absolute; left:0; right:0; top:42px; bottom:28px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        pointer-events:none; text-align:center;
+    }
+    .wm-gauge-center strong { font-size:1.8rem; color:#0b3f90; line-height:1; }
+    .wm-gauge-center span { font-size:12px; color:#64748b; font-weight:700; margin-top:4px; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>

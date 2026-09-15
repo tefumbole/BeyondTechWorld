@@ -40,10 +40,7 @@ class ExpenseController extends Controller
                 $lims_expense_all = Expense::where('user_id', Auth::id())->whereDate('created_at', '>=', $start_date)->whereDate('created_at', '<=', $end_date)->orderBy('id', 'desc')->get();
             else
                 $lims_expense_all = Expense::whereDate('created_at', '>=', $start_date)->whereDate('created_at', '<=', $end_date)->orderBy('id', 'desc')->get();
-            return redirect()->route('wealth.expenses', array_filter([
-                'start_date' => $start_date,
-                'end_date' => $end_date,
-            ]));
+            return redirect()->route('wealth.expenses');
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
