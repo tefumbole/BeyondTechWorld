@@ -40,4 +40,20 @@ class Sale extends Model
         return $this->hasMany('App\Product_Sale', 'sale_id', 'id');
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+        static::saved(function ($sale) {
+            try {
+                app(\App\Services\Wealth\WealthIncomeSync::class)->syncSale($sale);
+            } catch (\Throwable $e) {
+            }
+        });
+        static::deleted(function ($sale) {
+            try {
+                app(\App\Services\Wealth\WealthIncomeSync::class)->reverseSale($sale->id);
+            } catch (\Throwable $e) {
+            }
+        });
+    }
 }

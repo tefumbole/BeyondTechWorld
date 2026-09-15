@@ -54,7 +54,7 @@ class SiteMenu
             'order'        => 'Online Order',
             'payments'     => 'Payments',
             'letter'       => 'Letters',
-            'expense'      => 'Expense',
+            'wealth'       => 'Wealth Manager',
             'quotation'    => 'Quotation',
             'assets'       => 'Fixed Assets',
             'transfer'     => 'Transfer',
@@ -80,6 +80,9 @@ class SiteMenu
 
         $ordered = [];
         foreach ($saved as $k) {
+            if ($k === 'expense' && isset($items['wealth'])) {
+                $k = 'wealth';
+            }
             if (isset($items[$k]) && ! in_array($k, $ordered, true)) {
                 $ordered[] = $k;
             }

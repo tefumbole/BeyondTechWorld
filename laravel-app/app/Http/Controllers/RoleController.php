@@ -463,6 +463,28 @@ class RoleController extends Controller
         else
             $role->revokePermissionTo('expenses-delete');
 
+        foreach ([
+            'wealth.view', 'wealth.manage',
+            'wealth.income.view', 'wealth.income.create', 'wealth.income.edit',
+            'wealth.expenses.view', 'wealth.expenses.create', 'wealth.expenses.edit',
+            'wealth.programs.view', 'wealth.programs.manage',
+            'wealth.investments.view', 'wealth.investments.manage',
+            'wealth.charity.view', 'wealth.charity.manage',
+            'wealth.reports.view', 'wealth.settings.manage',
+        ] as $wealthPerm) {
+            try {
+                if ($request->has($wealthPerm)) {
+                    $permission = Permission::firstOrCreate(['name' => $wealthPerm]);
+                    if (! $role->hasPermissionTo($wealthPerm)) {
+                        $role->givePermissionTo($permission);
+                    }
+                } else {
+                    $role->revokePermissionTo($wealthPerm);
+                }
+            } catch (\Exception $e) {
+            }
+        }
+
         if($request->has('quotes-index')){
             $permission = Permission::firstOrCreate(['name' => 'quotes-index']);
             if(!$role->hasPermissionTo('quotes-index')){

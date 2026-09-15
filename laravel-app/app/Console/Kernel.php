@@ -26,6 +26,7 @@ class Kernel extends ConsoleKernel
         Commands\InternshipReviewSla::class,
         Commands\InternshipNotifyIntern::class,
         Commands\InternshipNotifySubmission::class,
+        Commands\WealthSyncIncome::class,
         Commands\SendOnlineInvitationReminders::class,
         Commands\FixFuneralEulogies::class,
     ];
@@ -54,6 +55,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('internship:review-sla')->hourlyAt(20)->withoutOverlapping();
         $schedule->command('internship:timesheet-reminders')->dailyAt('21:35')->withoutOverlapping();
         $schedule->command('online-invitations:send-reminders')->everyMinute();
+        $schedule->command('wealth:sync-income')->hourlyAt(40)->withoutOverlapping();
     }
 
     /**

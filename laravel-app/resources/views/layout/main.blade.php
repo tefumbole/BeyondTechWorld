@@ -2166,27 +2166,45 @@
                             </li>
                         @endif
                         <?php
-                        $index_permission = DB::table('permissions')->where('name', 'expenses-index')->first();
-                        $index_permission_active = DB::table('role_has_permissions')->where([
-                            ['permission_id', $index_permission->id],
-                            ['role_id', $role->id]
-                        ])->first();
+                        $wealth_view = DB::table('permissions')->where('name', 'wealth.view')->first();
+                        $expenses_index_perm = DB::table('permissions')->where('name', 'expenses-index')->first();
+                        $wealth_menu_active = (int) Auth::user()->role_id <= 2;
+                        if ($wealth_view) {
+                            $wealth_menu_active = $wealth_menu_active || DB::table('role_has_permissions')->where([
+                                ['permission_id', $wealth_view->id],
+                                ['role_id', $role->id]
+                            ])->first();
+                        }
+                        if (! $wealth_menu_active && $expenses_index_perm) {
+                            $wealth_menu_active = DB::table('role_has_permissions')->where([
+                                ['permission_id', $expenses_index_perm->id],
+                                ['role_id', $role->id]
+                            ])->first();
+                        }
                         ?>
-                        @if($index_permission_active)
-                            <li><a href="#expense" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-wallet"></i><span>{{trans('file.Expense')}}</span></a>
-                                <ul id="expense" class="collapse list-unstyled ">
+                        @if($wealth_menu_active)
+                            <li>
+                                <a href="#wealth" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-wallet"></i><span>{{trans('file.Wealth Manager')}}</span></a>
+                                <ul id="wealth" class="collapse list-unstyled ">
+                                    <li><a href="{{ route('wealth.overview') }}">Overview</a></li>
+                                    <li><a href="{{ route('wealth.health') }}">Financial Health</a></li>
+                                    <li><a href="{{ route('wealth.income') }}">Income</a></li>
+                                    <li><a href="{{ route('wealth.expenses') }}">Expenses</a></li>
+                                    <li><a href="{{ route('wealth.programs') }}">Programs</a></li>
+                                    <li><a href="{{ route('wealth.allocations') }}">Allocations</a></li>
+                                    <li><a href="{{ route('wealth.investments') }}">Investments</a></li>
+                                    <li><a href="{{ route('wealth.charity') }}">Charity</a></li>
+                                    <li><a href="{{ route('wealth.reports') }}">Reports</a></li>
+                                    <li><a href="{{ route('wealth.settings') }}">Settings</a></li>
                                     <li id="exp-cat-menu"><a href="{{route('expense_categories.index')}}">{{trans('file.Expense Category')}}</a></li>
-                                    @if(Auth::user()->role_id != 7)
-                                        <li id="exp-list-menu"><a href="{{route('expenses.index')}}">{{trans('file.Expense List')}}</a></li>
-                                    @endif
-                                        <?php
-                                        $add_permission = DB::table('permissions')->where('name', 'expenses-add')->first();
-                                        $add_permission_active = DB::table('role_has_permissions')->where([
-                                            ['permission_id', $add_permission->id],
-                                            ['role_id', $role->id]
-                                        ])->first();
-                                        ?>
-                                    @if($add_permission_active)
+                                    <?php
+                                    $add_permission = DB::table('permissions')->where('name', 'expenses-add')->first();
+                                    $add_permission_active = $add_permission && DB::table('role_has_permissions')->where([
+                                        ['permission_id', $add_permission->id],
+                                        ['role_id', $role->id]
+                                    ])->first();
+                                    ?>
+                                    @if($add_permission_active || (int) Auth::user()->role_id <= 2)
                                         <li><a id="add-expense" href=""> {{trans('file.Add Expense')}}</a></li>
                                     @endif
                                 </ul>

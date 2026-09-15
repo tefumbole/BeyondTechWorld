@@ -14,4 +14,21 @@ class Payment extends Model
     public function accounts() {
         return $this->belongsTo('App\Account', 'account_id');
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::saved(function ($payment) {
+            if (! $payment->sale_id) {
+                return;
+            }
+            try {
+                $sale = Sale::find($payment->sale_id);
+                if ($sale) {
+                    app(\App\Services\Wealth\WealthIncomeSync::class)->syncSale($sale);
+                }
+            } catch (\Throwable $e) {
+            }
+        });
+    }
 }

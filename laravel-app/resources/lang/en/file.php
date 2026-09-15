@@ -239,6 +239,7 @@ return [
 	'Expense Category' => 'Expense Category',
 	'Product Category' => 'Product Category',
 	'Expense' => 'Expense',
+	'Wealth Manager' => 'Wealth Manager',
 	'Gift Card' => 'Gift Card',
 	'Card' => 'Card',
 	'Expired Date' => 'Expired Date',

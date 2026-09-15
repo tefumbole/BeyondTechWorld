@@ -1772,6 +1772,54 @@
                                     <th colspan="5">Digital Invitations Module End</th>
                                 </tr>
 
+                                {{-- Wealth Manager --}}
+                                <tr class="permission-section-header">
+                                    <th colspan="5">
+                                        <div class="checkbox">
+                                            <input type="checkbox" class="section-select-all" id="section-wealth-module">
+                                            <label for="section-wealth-module">Wealth Manager</label>
+                                        </div>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td>Wealth Manager</td>
+                                    <td class="report-permissions" colspan="5">
+                                        @foreach([
+                                            'wealth.view' => 'View module',
+                                            'wealth.manage' => 'Manage all',
+                                            'wealth.income.view' => 'View income',
+                                            'wealth.income.create' => 'Create income',
+                                            'wealth.income.edit' => 'Edit manual income',
+                                            'wealth.expenses.view' => 'View expenses',
+                                            'wealth.expenses.create' => 'Create expenses',
+                                            'wealth.expenses.edit' => 'Edit / classify expenses',
+                                            'wealth.programs.view' => 'View programs',
+                                            'wealth.programs.manage' => 'Manage programs',
+                                            'wealth.investments.view' => 'View investments',
+                                            'wealth.investments.manage' => 'Manage investments',
+                                            'wealth.charity.view' => 'View charity',
+                                            'wealth.charity.manage' => 'Manage charity',
+                                            'wealth.reports.view' => 'Reports',
+                                            'wealth.settings.manage' => 'Settings',
+                                        ] as $perm => $label)
+                                        @php $pid = str_replace('.', '_', $perm); @endphp
+                                        <span>
+                                            <div class="checkbox">
+                                                @if(in_array($perm, $all_permission))
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}" checked>
+                                                @else
+                                                    <input type="checkbox" value="1" id="{{ $pid }}" name="{{ $perm }}">
+                                                @endif
+                                                <label for="{{ $pid }}" class="padding05">{{ $label }}</label>
+                                            </div>
+                                        </span>
+                                        @endforeach
+                                    </td>
+                                </tr>
+                                <tr class="permission-section-end">
+                                    <th colspan="5">Wealth Manager End</th>
+                                </tr>
+
                                 {{-- Internship & TimeSheets Module --}}
                                 <tr class="permission-section-header">
                                     <th colspan="5">

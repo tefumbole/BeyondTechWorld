@@ -924,6 +924,38 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('expense_categories/deletebyselection', 'ExpenseCategoryController@deleteBySelection');
 	Route::resource('expense_categories', 'ExpenseCategoryController');
 
+	Route::get('wealth', 'Wealth\WealthOverviewController@index')->name('wealth.overview');
+	Route::get('wealth/api/overview', 'Wealth\WealthOverviewController@apiOverview')->name('wealth.api.overview');
+	Route::get('wealth/api/financial-health', 'Wealth\WealthOverviewController@apiHealth')->name('wealth.api.health');
+	Route::post('wealth/api/income/sync', 'Wealth\WealthOverviewController@syncIncome')->name('wealth.income.sync');
+	Route::get('wealth/financial-health', 'Wealth\WealthHealthController@index')->name('wealth.health');
+	Route::get('wealth/income', 'Wealth\WealthIncomeController@index')->name('wealth.income');
+	Route::post('wealth/income', 'Wealth\WealthIncomeController@store')->name('wealth.income.store');
+	Route::get('wealth/income/{id}', 'Wealth\WealthIncomeController@show')->name('wealth.income.show');
+	Route::post('wealth/income/{id}', 'Wealth\WealthIncomeController@update')->name('wealth.income.update');
+	Route::get('wealth/expenses', 'Wealth\WealthExpensePageController@index')->name('wealth.expenses');
+	Route::post('wealth/expenses', 'Wealth\WealthExpensePageController@store')->name('wealth.expenses.store');
+	Route::post('wealth/expenses/classify', 'Wealth\WealthExpensePageController@classify')->name('wealth.expenses.classify');
+	Route::get('wealth/programs', 'Wealth\WealthProgramController@index')->name('wealth.programs');
+	Route::post('wealth/programs', 'Wealth\WealthProgramController@store')->name('wealth.programs.store');
+	Route::post('wealth/programs/{id}/budget', 'Wealth\WealthProgramController@storeBudget')->name('wealth.programs.budget.store');
+	Route::post('wealth/programs/budget/{id}/delete', 'Wealth\WealthProgramController@destroyBudget')->name('wealth.programs.budget.destroy');
+	Route::get('wealth/programs/{id}', 'Wealth\WealthProgramController@show')->name('wealth.programs.show');
+	Route::post('wealth/programs/{id}', 'Wealth\WealthProgramController@update')->name('wealth.programs.update');
+	Route::get('wealth/allocations', 'Wealth\WealthAllocationController@index')->name('wealth.allocations');
+	Route::get('wealth/investments', 'Wealth\WealthInvestmentController@index')->name('wealth.investments');
+	Route::post('wealth/investments', 'Wealth\WealthInvestmentController@store')->name('wealth.investments.store');
+	Route::post('wealth/investments/{id}', 'Wealth\WealthInvestmentController@update')->name('wealth.investments.update');
+	Route::get('wealth/charity', 'Wealth\WealthCharityController@index')->name('wealth.charity');
+	Route::post('wealth/charity', 'Wealth\WealthCharityController@store')->name('wealth.charity.store');
+	Route::get('wealth/reports', 'Wealth\WealthReportController@index')->name('wealth.reports');
+	Route::get('wealth/reports/pdf', 'Wealth\WealthReportController@pdf')->name('wealth.reports.pdf');
+	Route::get('wealth/reports/csv', 'Wealth\WealthReportController@csv')->name('wealth.reports.csv');
+	Route::get('wealth/settings', 'Wealth\WealthSettingsController@index')->name('wealth.settings');
+	Route::post('wealth/settings/rules', 'Wealth\WealthSettingsController@saveRules')->name('wealth.settings.rules');
+	Route::post('wealth/settings/health', 'Wealth\WealthSettingsController@saveHealth')->name('wealth.settings.health');
+	Route::post('wealth/settings/category', 'Wealth\WealthSettingsController@saveCategory')->name('wealth.settings.category');
+
 	Route::post('expenses/deletebyselection', 'ExpenseController@deleteBySelection');
 	Route::resource('expenses', 'ExpenseController');
 	Route::get('/expense/asset', 'ExpenseController@asset')->name('asset.expense');
