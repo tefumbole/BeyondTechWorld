@@ -55,17 +55,27 @@
 
                 <div class="w-full lg:w-[380px] space-y-4">
                     <h2 class="text-xl font-bold text-brand-blue">Your Details</h2>
+                    <p class="text-sm text-gray-500">Enter your WhatsApp number first. If you are already in our records — or on mobile money — your name will appear. Otherwise type it yourself.</p>
+                    <div>
+                        <label class="text-sm font-semibold text-gray-700">Phone *</label>
+                        <div class="flex gap-2 mt-1">
+                            <select name="country_code" id="reg-country" class="rounded-md border border-gray-200 px-2 py-2 w-36 shrink-0 bg-white">
+                                @foreach($countryCodes as $code => $label)
+                                    <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
+                                @endforeach
+                            </select>
+                            <input required name="client_phone" id="reg-phone" value="{{ old('client_phone') }}" type="tel" inputmode="numeric"
+                                   class="flex-1 rounded-md border border-gray-200 px-3 py-2" placeholder="675321739">
+                        </div>
+                        <p id="reg-phone-status" class="text-xs mt-1" style="display:none;"></p>
+                    </div>
                     <div>
                         <label class="text-sm font-semibold text-gray-700">Full Name *</label>
-                        <input required name="client_name" value="{{ old('client_name') }}" type="text" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
+                        <input required name="client_name" id="reg-name" value="{{ old('client_name') }}" type="text" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
                     </div>
                     <div>
                         <label class="text-sm font-semibold text-gray-700">Email *</label>
-                        <input required name="client_email" value="{{ old('client_email') }}" type="email" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="text-sm font-semibold text-gray-700">Phone *</label>
-                        <input required name="client_phone" value="{{ old('client_phone') }}" type="tel" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
+                        <input required name="client_email" id="reg-email" value="{{ old('client_email') }}" type="email" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2">
                     </div>
                     <div>
                         <label class="text-sm font-semibold text-gray-700">Company (optional)</label>
@@ -123,5 +133,19 @@ function registerForm() {
         }
     };
 }
+</script>
+@endpush
+
+@push('scripts')
+<script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
+<script>
+attachPhoneNameLookup({
+    url: @json(route('directory.phone-lookup')),
+    phone: '#reg-phone',
+    code: '#reg-country',
+    name: '#reg-name',
+    email: '#reg-email',
+    status: '#reg-phone-status'
+});
 </script>
 @endpush

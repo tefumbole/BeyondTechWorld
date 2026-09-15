@@ -124,34 +124,35 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="text-sm font-semibold text-gray-700">Full name *</label>
-                    <input required name="full_name" value="{{ old('full_name') }}" type="text" autocomplete="name"
-                           class="apply-field" placeholder="As on your ID card">
-                </div>
-                <div>
-                    <label class="text-sm font-semibold text-gray-700">Email *</label>
-                    <input required name="email" value="{{ old('email') }}" type="email" autocomplete="email" inputmode="email"
-                           class="apply-field" placeholder="you@example.com">
-                </div>
-                <div>
                     <label class="text-sm font-bold text-brand-blue">WhatsApp number *</label>
-                    <p class="text-xs text-gray-500 mt-0.5">Used for all application status notifications.</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Enter your number first. If it is on file — even if you do not have an account yet — your name will appear.</p>
                     <div class="apply-phone-row">
-                        <select name="country_code" class="apply-phone-cc" aria-label="Country code">
+                        <select name="country_code" id="apply-country" class="apply-phone-cc" aria-label="Country code">
                             @foreach ($countryCodes as $code => $label)
                                 <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
                             @endforeach
                         </select>
-                        <input required name="whatsapp_number" data-wa-phone="local"
+                        <input required name="whatsapp_number" data-wa-phone="local" id="apply-phone"
                                value="{{ old('whatsapp_number') }}"
                                type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="675321739"
                                autocomplete="tel-national"
                                class="apply-phone-local @error('whatsapp_number') border-red-500 @enderror">
                     </div>
+                    <p id="apply-phone-status" class="text-xs mt-1" style="display:none;"></p>
                     <p class="text-xs text-gray-500 mt-1">Enter digits only (e.g. 675321739).</p>
                     @error('whatsapp_number')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Full name *</label>
+                    <input required name="full_name" id="apply-name" value="{{ old('full_name') }}" type="text" autocomplete="name"
+                           class="apply-field" placeholder="As on your ID card">
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-gray-700">Email *</label>
+                    <input required name="email" id="apply-email" value="{{ old('email') }}" type="email" autocomplete="email" inputmode="email"
+                           class="apply-field" placeholder="you@example.com">
                 </div>
                 @unless($isInternship)
                     <div>
@@ -497,3 +498,19 @@
     </button>
 </div>
 @endif
+
+@push('scripts')
+<script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
+<script>
+if (window.attachPhoneNameLookup) {
+    attachPhoneNameLookup({
+        url: @json(route('directory.phone-lookup')),
+        phone: '#apply-phone',
+        code: '#apply-country',
+        name: '#apply-name',
+        email: '#apply-email',
+        status: '#apply-phone-status'
+    });
+}
+</script>
+@endpush

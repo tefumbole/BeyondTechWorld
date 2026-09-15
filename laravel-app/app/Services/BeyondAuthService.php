@@ -145,10 +145,6 @@ class BeyondAuthService
 
     public function redirectPath($role, $profile = null)
     {
-        if ($profile && ($profile->must_change_credentials || optional($profile)->must_change_credentials)) {
-            return '/complete-profile';
-        }
-
         $r = strtolower((string) $role);
         $adminRoles = ['admin', 'super_admin', 'director', 'manager'];
         if (in_array($r, $adminRoles, true)) {

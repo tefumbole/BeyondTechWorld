@@ -42,6 +42,12 @@
             </div>
         </div>
 
+        @if (!empty($needsCredentials))
+            <div class="bg-blue-50 border border-blue-200 text-blue-900 rounded-lg px-4 py-3 text-sm">
+                You signed in with WhatsApp OTP — that is enough to use tasks.
+                You can optionally <a class="font-semibold underline" href="{{ url('/user/profile') }}">create a username and password</a>.
+            </div>
+        @endif
         @if (session('status'))
             <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg px-4 py-3 text-sm flex items-center gap-2">
                 <i data-lucide="check-circle" class="w-5 h-5"></i> {{ session('status') }}

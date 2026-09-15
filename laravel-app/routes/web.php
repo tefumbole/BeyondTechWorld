@@ -65,6 +65,7 @@ Route::get('/events/{slug}', 'PublicEventController@show')->name('beyond.event.d
 Route::get('/api/public/events', 'PublicEventController@apiList');
 Route::get('/api/public/events/{slug}', 'PublicEventController@apiShow');
 Route::get('/trainings', 'TrainingController@trainings')->name('beyond.trainings');
+Route::get('/directory/phone-lookup', 'PublicPhoneLookupController@lookup')->middleware('throttle:40,1')->name('directory.phone-lookup');
 Route::get('/register-now', 'TrainingController@registerNow')->name('beyond.register');
 Route::post('/register-now', 'TrainingController@storeRegistration')->name('training.register');
 Route::get('/registration-confirmation/{reference}', 'TrainingController@registered')->name('training.registered');
@@ -143,6 +144,7 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
 // Public task invite (actions require login, enforced in controller)
 Route::get('/task-invite/{token}', 'TaskInviteController@show')->name('task.invite');
 Route::post('/task-invite/{token}/setup-otp', 'TaskInviteController@sendSetupOtp')->name('task.invite.setup.otp');
+Route::post('/task-invite/{token}/access-verify', 'TaskInviteController@verifyAccess')->name('task.invite.access.verify');
 Route::post('/task-invite/{token}/setup', 'TaskInviteController@storeSetup')->name('task.invite.setup');
 Route::post('/task-invite/{token}/accept', 'TaskInviteController@accept')->name('task.invite.accept');
 Route::post('/task-invite/{token}/decline', 'TaskInviteController@decline')->name('task.invite.decline');
@@ -192,6 +194,10 @@ Route::get('/staff-otp-login', 'StaffPhoneAuthController@show')->name('staff.otp
 Route::post('/staff-otp-login', 'StaffPhoneAuthController@requestOtp');
 Route::post('/staff-otp-login/verify', 'StaffPhoneAuthController@verifyOtp');
 Route::post('/staff-otp-login/resend', 'StaffPhoneAuthController@resendOtp');
+Route::get('/phone-login', 'PhoneOtpLoginController@show')->name('phone.otp.login');
+Route::post('/phone-login', 'PhoneOtpLoginController@requestOtp');
+Route::post('/phone-login/verify', 'PhoneOtpLoginController@verifyOtp');
+Route::post('/phone-login/resend', 'PhoneOtpLoginController@resendOtp');
 Route::get('/staff-set-password', 'StaffPhoneAuthController@showSetPassword')->name('staff.set-password');
 Route::post('/staff-set-password', 'StaffPhoneAuthController@storeSetPassword');
 Route::get('/complete-profile', 'BeyondAuthController@showCompleteProfile')->middleware('beyond.auth');

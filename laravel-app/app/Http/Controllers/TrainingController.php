@@ -36,6 +36,7 @@ class TrainingController extends Controller
     {
         return view('beyond.register-now', [
             'courses' => $this->training->courses(),
+            'countryCodes' => \App\Support\CountryDialCodes::all(),
         ]);
     }
 
@@ -45,10 +46,18 @@ class TrainingController extends Controller
             'client_name' => 'required|string|max:255',
             'client_email' => 'required|email|max:255',
             'client_phone' => 'required|string|max:50',
+            'country_code' => 'nullable|string|max:10',
             'company_name' => 'nullable|string|max:255',
             'course_ids' => 'required|array|min:1',
             'course_ids.*' => 'string',
         ]);
+
+        if (! empty($validated['country_code'])) {
+            $validated['client_phone'] = \App\Support\CountryDialCodes::combine(
+                $validated['country_code'],
+                $validated['client_phone']
+            );
+        }
 
         $user = Auth::guard('beyond')->user();
         $registration = $this->training->register($validated, $validated['course_ids'], $user ? $user->id : null);

@@ -183,10 +183,11 @@
 
             <div class="auth-divider">OR</div>
             <a class="btn-outline-auth" href="{{ route('shop.signup') }}">Create Customer Account</a>
-            <a class="btn-outline-auth" href="{{ route('otp_screen') }}">Login with WhatsApp OTP</a>
+            <a class="btn-outline-auth" href="{{ url('/phone-login') }}">Login with WhatsApp OTP</a>
 
             <div class="auth-signup">
-                Don't have an account? <a href="{{ route('shop.signup') }}">Sign Up</a> to view tasks assigned to you.
+                Account trouble? <a href="{{ url('/phone-login') }}">Sign in with your phone + OTP</a> — no password needed.
+                Or <a href="{{ route('shop.signup') }}">Sign Up</a> if you are new.
             </div>
         </div>
     </div>

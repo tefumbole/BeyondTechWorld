@@ -33,6 +33,7 @@ class UserTaskController extends Controller
             'statusFilter' => $statusFilter,
             'categoryFilter' => $categoryFilter,
             'service' => $this->tasks,
+            'needsCredentials' => (bool) $user->must_change_credentials,
         ]);
     }
 

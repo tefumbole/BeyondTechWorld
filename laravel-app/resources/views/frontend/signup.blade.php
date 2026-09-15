@@ -21,8 +21,8 @@
                         <div class="row">
                             <div class="col-lg-4">
                                 <div class="form-group">
-                                    <label class="mb-5 font-sm color-gray-700">Username *</label>
-                                    <input class="form-control" name="name" type="text" placeholder="user name*">
+                                    <label class="mb-5 font-sm color-gray-700">Full name *</label>
+                                    <input class="form-control" name="name" id="shop-name" type="text" placeholder="Full name*" required>
                                 </div>
                             </div>
                             <div class="col-lg-4">
@@ -39,10 +39,13 @@
                                             <div class="input-group-prepend">
                                                 <div class="input-group-text">+237</div>
                                             </div>
+                                            <input type="hidden" id="shop-country" value="+237">
                                             <input oninvalid="this.setCustomValidity('Please enter complete 9 digit number')"
                                                    oninput="this.setCustomValidity('')"
                                                    onkeypress="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');"
-                                                   type="text" minlength="9" maxlength="9" class="form-control" name="phone" value="" placeholder="Phone*" required>
+                                                   type="text" minlength="9" maxlength="9" class="form-control" name="phone" id="shop-phone" value="" placeholder="Phone*" required>
+                                        </div>
+                                        <p id="shop-phone-status" class="font-xs color-gray-500 mt-5" style="display:none;"></p>
                                         </div>
                                     </div>
                                 </div>
@@ -80,7 +83,7 @@
                             <div class="col-lg-4">
                                 <div class="form-group">
                                     <label class="mb-5 font-sm color-gray-700">Address *</label>
-                                    <input class="form-control" name="address" type="text" placeholder="Address" required>
+                                    <input class="form-control" name="address" id="shop-address" type="text" placeholder="Address" required>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -95,4 +98,15 @@
                 </div>
             </div>
         </section>
+<script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
+<script>
+attachPhoneNameLookup({
+    url: @json(route('directory.phone-lookup')),
+    phone: '#shop-phone',
+    code: '#shop-country',
+    name: '#shop-name',
+    address: '#shop-address',
+    status: '#shop-phone-status'
+});
+</script>
 @endsection

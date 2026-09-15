@@ -27,17 +27,17 @@
         <div class="grid md:grid-cols-2 gap-5">
             <div>
                 <label class="text-sm font-semibold text-gray-700">Full Name *</label>
-                <input type="text" name="full_name" value="{{ old('full_name') }}" required
+                <input type="text" name="full_name" id="sh-name" value="{{ old('full_name') }}" required
                        class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
             </div>
             <div>
                 <label class="text-sm font-semibold text-gray-700">Email Address *</label>
-                <input type="email" name="email" value="{{ old('email') }}" required
+                <input type="email" name="email" id="sh-email" value="{{ old('email') }}" required
                        class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
             </div>
             <div>
                 <label class="text-sm font-semibold text-gray-700">Country Code *</label>
-                <select name="country_code" required class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
+                <select name="country_code" id="sh-country" required class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">
                     @foreach ($countryCodes as $code => $label)
                         <option value="{{ $code }}" @if(old('country_code', '+250') === $code) selected @endif>{{ $label }}</option>
                     @endforeach
@@ -45,9 +45,10 @@
             </div>
             <div>
                 <label class="text-sm font-semibold text-gray-700">Phone Number *</label>
-                <input type="tel" name="phone_number" data-wa-phone="local" value="{{ old('phone_number') }}" required pattern="[0-9]{6,15}" autocomplete="tel-national"
+                <input type="tel" name="phone_number" id="sh-phone" data-wa-phone="local" value="{{ old('phone_number') }}" required pattern="[0-9]{6,15}" autocomplete="tel-national"
                        class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none"
                        placeholder="Digits only">
+                <p id="sh-phone-status" class="text-xs mt-1" style="display:none;"></p>
             </div>
             <div>
                 <label class="text-sm font-semibold text-gray-700">Company Name (optional)</label>
@@ -61,7 +62,7 @@
             </div>
             <div class="md:col-span-2">
                 <label class="text-sm font-semibold text-gray-700">Address *</label>
-                <textarea name="address" rows="2" required
+                <textarea name="address" id="sh-address" rows="2" required
                           class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 focus:border-brand-blue outline-none">{{ old('address') }}</textarea>
             </div>
         </div>
@@ -147,5 +148,17 @@ function shareholderForm(pricePerShare, available) {
         });
     }
 })();
+</script>
+<script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
+<script>
+attachPhoneNameLookup({
+    url: @json(route('directory.phone-lookup')),
+    phone: '#sh-phone',
+    code: '#sh-country',
+    name: '#sh-name',
+    email: '#sh-email',
+    address: '#sh-address',
+    status: '#sh-phone-status'
+});
 </script>
 @endpush
