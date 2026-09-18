@@ -23,7 +23,7 @@ class BirthdayFlyerController extends Controller
 
     public function index()
     {
-        $template = $this->flyers->randomTemplate();
+        $template = $this->flyers->nextTemplate();
 
         return view('beyond.birthday.mambole', [
             'template' => $template,
@@ -59,10 +59,7 @@ class BirthdayFlyerController extends Controller
             return $this->fail($request, 'Enter a valid WhatsApp number.', 422);
         }
 
-        $template = $data['template'];
-        if (! $this->flyers->isTemplate($template)) {
-            $template = $this->flyers->randomTemplate();
-        }
+        $template = $this->flyers->nextTemplate();
 
         $mark = isset($data['mark']) ? $data['mark'] : 'none';
         $selfieBin = null;

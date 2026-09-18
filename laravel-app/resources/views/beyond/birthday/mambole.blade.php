@@ -544,6 +544,121 @@
         }
     }
 
+    function samplePalette(d, cw, ch) {
+        var palette = [];
+        var band = Math.max(2, Math.floor(Math.min(cw, ch) * 0.04));
+        var step = Math.max(1, Math.floor(Math.min(cw, ch) / 36));
+        function add(x, y) {
+            var i = ((y * cw) + x) * 4;
+            var col = [d[i], d[i + 1], d[i + 2]];
+            for (var p = 0; p < palette.length; p++) {
+                var dr = col[0] - palette[p][0], dg = col[1] - palette[p][1], db = col[2] - palette[p][2];
+                if ((dr * dr + dg * dg + db * db) < 18 * 18) return;
+            }
+            if (palette.length < 24) palette.push(col);
+        }
+        for (var x = 0; x < cw; x += step) {
+            if (x >= cw * 0.22 && x <= cw * 0.78) continue;
+            for (var b = 0; b < band; b++) { add(x, b); add(x, ch - 1 - b); }
+        }
+        for (var y = 0; y < ch; y += step) {
+            if (y >= ch * 0.18 && y <= ch * 0.82) continue;
+            for (var b = 0; b < band; b++) { add(b, y); add(cw - 1 - b, y); }
+        }
+        return palette.length ? palette : [[180, 180, 190]];
+    }
+    function minDist(col, palette) {
+        var best = 1e9;
+        for (var i = 0; i < palette.length; i++) {
+            var dr = col[0] - palette[i][0], dg = col[1] - palette[i][1], db = col[2] - palette[i][2];
+            var dist = dr * dr + dg * dg + db * db;
+            if (dist < best) best = dist;
+        }
+        return best;
+    }
+    function simpleCutout(blob) {
+        return new Promise(function (resolve) {
+            var url = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function () {
+                var w = img.naturalWidth, h = img.naturalHeight;
+                var scale = Math.min(1, 720 / Math.max(w, h));
+                var cw = Math.max(64, Math.round(w * scale));
+                var ch = Math.max(64, Math.round(h * scale));
+                var c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                var ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0, cw, ch);
+                URL.revokeObjectURL(url);
+                var imgd = ctx.getImageData(0, 0, cw, ch);
+                var d = imgd.data;
+                var palette = samplePalette(d, cw, ch);
+                var keep = new Uint8Array(cw * ch);
+                var cx = cw / 2, cy = ch * 0.38, rx = cw * 0.32, ry = ch * 0.42;
+                var bgT = 38 * 38, growT = 28 * 28;
+                for (var y = 0; y < ch; y++) {
+                    for (var x = 0; x < cw; x++) {
+                        var i = ((y * cw) + x) * 4;
+                        var inOval = ((x - cx) * (x - cx)) / (rx * rx) + ((y - cy) * (y - cy)) / (ry * ry) <= 1;
+                        if (inOval && minDist([d[i], d[i + 1], d[i + 2]], palette) > bgT) keep[y * cw + x] = 1;
+                    }
+                }
+                var changed = true, guard = 0;
+                while (changed && guard++ < 90) {
+                    changed = false;
+                    for (y = 1; y < ch - 1; y++) {
+                        for (x = 1; x < cw - 1; x++) {
+                            var idx = y * cw + x;
+                            if (keep[idx]) continue;
+                            i = idx * 4;
+                            if (minDist([d[i], d[i + 1], d[i + 2]], palette) <= growT) continue;
+                            if (keep[idx - 1] || keep[idx + 1] || keep[idx - cw] || keep[idx + cw]) {
+                                keep[idx] = 1;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                for (var p = 0; p < cw * ch; p++) {
+                    if (!keep[p]) d[p * 4 + 3] = 0;
+                }
+                ctx.putImageData(imgd, 0, 0);
+                c.toBlob(function (out) { resolve(out || blob); }, 'image/png');
+            };
+            img.onerror = function () { URL.revokeObjectURL(url); resolve(blob); };
+            img.src = url;
+        });
+    }
+    function blobHasCutout(blob) {
+        return new Promise(function (resolve) {
+            if (!blob || (blob.type && blob.type.indexOf('png') === -1)) {
+                resolve(false);
+                return;
+            }
+            var url = URL.createObjectURL(blob);
+            var img = new Image();
+            img.onload = function () {
+                var w = img.naturalWidth, h = img.naturalHeight;
+                var c = document.createElement('canvas');
+                var s = Math.min(1, 200 / Math.max(w, h));
+                c.width = Math.max(20, Math.round(w * s));
+                c.height = Math.max(20, Math.round(h * s));
+                var ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0, c.width, c.height);
+                URL.revokeObjectURL(url);
+                var data = ctx.getImageData(0, 0, c.width, c.height).data;
+                var clear = 0, total = data.length / 4;
+                for (var i = 3; i < data.length; i += 4) {
+                    if (data[i] < 40) clear++;
+                }
+                resolve(clear > total * 0.08);
+            };
+            img.onerror = function () { URL.revokeObjectURL(url); resolve(false); };
+            img.src = url;
+        });
+    }
+
     function cropFace(blob) {
         return new Promise(function (resolve) {
             var url = URL.createObjectURL(blob);
@@ -602,23 +717,26 @@
 
     async function cutout(blob) {
         hint.textContent = 'Removing the background…';
+        var out = blob;
         try {
             if (!cutoutMod) {
                 cutoutMod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm');
             }
             var fn = cutoutMod.removeBackground || cutoutMod.default || cutoutMod;
-            var out = await fn(blob, {
+            out = await fn(blob, {
                 publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/dist/',
                 device: 'cpu',
                 model: 'small',
                 output: { format: 'image/png', quality: 1 }
             });
-            hint.textContent = 'Placing your face in the ring…';
-            return cropFace(out);
         } catch (e) {
-            hint.textContent = 'We will cut the background on the flyer.';
-            return blob;
+            out = blob;
         }
+        if (!(await blobHasCutout(out))) {
+            out = await simpleCutout(blob);
+        }
+        hint.textContent = 'Placing your face in the ring…';
+        return cropFace(out);
     }
 
     async function useImageBlob(blob) {

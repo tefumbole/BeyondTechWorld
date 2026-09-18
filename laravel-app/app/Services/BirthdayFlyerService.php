@@ -11,9 +11,24 @@ class BirthdayFlyerService
 
     public function randomTemplate()
     {
-        $keys = self::TEMPLATES;
+        return $this->nextTemplate();
+    }
 
-        return $keys[array_rand($keys)];
+    public function nextTemplate()
+    {
+        $keys = self::TEMPLATES;
+        $last = null;
+        try {
+            $last = BirthdayFlyer::orderBy('created_at', 'desc')->value('template');
+        } catch (\Throwable $e) {
+            $last = null;
+        }
+        if (! $last || ! in_array($last, $keys, true)) {
+            return $keys[array_rand($keys)];
+        }
+        $i = array_search($last, $keys, true);
+
+        return $keys[($i + 1) % count($keys)];
     }
 
     public function isTemplate($key)
@@ -433,7 +448,7 @@ class BirthdayFlyerService
                 }
                 $col = imagecolorat($cut, $x, $y);
                 $a = ($col >> 24) & 0x7F;
-                if ($a >= 110) {
+                if ($a >= 48) {
                     continue;
                 }
                 $r = ($col >> 16) & 0xFF;
@@ -543,14 +558,168 @@ class BirthdayFlyerService
     }
 
     /**
-     * If the photo is fully opaque, flood-fill from the edges so sky/studio
-     * backgrounds drop out and the navy ring shows through.
+     * Cut the room/sky out of a selfie so the navy ring is the shared background.
      */
     protected function knockoutEdgeBackground($src)
     {
-        if ($this->opaqueBounds($src)) {
+        $src = $this->asTrueColorAlpha($src);
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $maxDim = 280;
+        $scale = min(1.0, $maxDim / max($w, $h));
+        $mw = max(48, (int) round($w * $scale));
+        $mh = max(48, (int) round($h * $scale));
+        $small = imagecreatetruecolor($mw, $mh);
+        imagecopyresampled($small, $src, 0, 0, 0, 0, $mw, $mh, $w, $h);
+
+        $rgb = [];
+        $alpha = [];
+        for ($y = 0; $y < $mh; $y++) {
+            for ($x = 0; $x < $mw; $x++) {
+                $c = imagecolorat($small, $x, $y);
+                $i = $y * $mw + $x;
+                $alpha[$i] = ($c >> 24) & 0x7F;
+                $rgb[$i] = [($c >> 16) & 0xFF, ($c >> 8) & 0xFF, $c & 0xFF];
+            }
+        }
+        imagedestroy($small);
+
+        $palette = $this->borderPalette($rgb, $alpha, $mw, $mh);
+        $bgThresh = 38 * 38;
+        $isBg = function ($i) use ($rgb, $alpha, $palette, $bgThresh) {
+            if ($alpha[$i] >= 110) {
+                return true;
+            }
+            return $this->minPaletteDist($rgb[$i], $palette) <= $bgThresh;
+        };
+
+        $keep = array_fill(0, $mw * $mh, 0);
+        $cx = $mw / 2.0;
+        $cy = $mh * 0.38;
+        $rx = $mw * 0.32;
+        $ry = $mh * 0.42;
+        $seeds = 0;
+        for ($y = 0; $y < $mh; $y++) {
+            for ($x = 0; $x < $mw; $x++) {
+                $i = $y * $mw + $x;
+                if ($isBg($i)) {
+                    continue;
+                }
+                $inOval = (($x - $cx) * ($x - $cx)) / max(1, $rx * $rx)
+                    + (($y - $cy) * ($y - $cy)) / max(1, $ry * $ry) <= 1.0;
+                $skin = $this->isSkinTone($rgb[$i][0], $rgb[$i][1], $rgb[$i][2]);
+                if ($inOval || $skin) {
+                    $keep[$i] = 1;
+                    $seeds++;
+                }
+            }
+        }
+        if ($seeds < ($mw * $mh * 0.02)) {
+            for ($y = (int) round($mh * 0.12); $y < (int) round($mh * 0.72); $y++) {
+                for ($x = (int) round($mw * 0.22); $x < (int) round($mw * 0.78); $x++) {
+                    $i = $y * $mw + $x;
+                    if ($alpha[$i] < 110) {
+                        $keep[$i] = 1;
+                    }
+                }
+            }
+        }
+
+        $queue = [];
+        for ($i = 0; $i < $mw * $mh; $i++) {
+            if ($keep[$i]) {
+                $queue[] = $i;
+            }
+        }
+        $qi = 0;
+        $growThresh = 28 * 28;
+        while ($qi < count($queue)) {
+            $i = $queue[$qi++];
+            $x = $i % $mw;
+            $y = (int) floor($i / $mw);
+            $neigh = [
+                [$x + 1, $y], [$x - 1, $y], [$x, $y + 1], [$x, $y - 1],
+            ];
+            foreach ($neigh as $pt) {
+                $nx = $pt[0];
+                $ny = $pt[1];
+                if ($nx < 0 || $ny < 0 || $nx >= $mw || $ny >= $mh) {
+                    continue;
+                }
+                $ni = $ny * $mw + $nx;
+                if ($keep[$ni] || $alpha[$ni] >= 110) {
+                    continue;
+                }
+                if ($this->minPaletteDist($rgb[$ni], $palette) <= $growThresh) {
+                    continue;
+                }
+                $keep[$ni] = 1;
+                $queue[] = $ni;
+            }
+        }
+
+        $this->fillKeepHoles($keep, $mw, $mh);
+        $this->dilateKeep($keep, $mw, $mh, 2);
+
+        $kept = 0;
+        foreach ($keep as $v) {
+            if ($v) {
+                $kept++;
+            }
+        }
+        if ($kept < ($mw * $mh * 0.04) || $kept > ($mw * $mh * 0.92)) {
             return $src;
         }
+
+        $out = imagecreatetruecolor($w, $h);
+        imagealphablending($out, false);
+        imagesavealpha($out, true);
+        $clear = imagecolorallocatealpha($out, 0, 0, 0, 127);
+        for ($y = 0; $y < $h; $y++) {
+            $my = min($mh - 1, (int) floor($y * $mh / $h));
+            for ($x = 0; $x < $w; $x++) {
+                $mx = min($mw - 1, (int) floor($x * $mw / $w));
+                $score = 0;
+                $n = 0;
+                for ($oy = -1; $oy <= 1; $oy++) {
+                    $yy = $my + $oy;
+                    if ($yy < 0 || $yy >= $mh) {
+                        continue;
+                    }
+                    for ($ox = -1; $ox <= 1; $ox++) {
+                        $xx = $mx + $ox;
+                        if ($xx < 0 || $xx >= $mw) {
+                            continue;
+                        }
+                        $n++;
+                        if ($keep[$yy * $mw + $xx]) {
+                            $score++;
+                        }
+                    }
+                }
+                if ($n === 0 || $score === 0) {
+                    imagesetpixel($out, $x, $y, $clear);
+                    continue;
+                }
+                $c = imagecolorat($src, $x, $y);
+                $r = ($c >> 16) & 0xFF;
+                $g = ($c >> 8) & 0xFF;
+                $b = $c & 0xFF;
+                if ($score < $n) {
+                    $a = (int) round(127 * (1 - ($score / $n)));
+                    imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, $a));
+                } else {
+                    imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, 0));
+                }
+            }
+        }
+        imagedestroy($src);
+
+        return $out;
+    }
+
+    protected function asTrueColorAlpha($src)
+    {
         $w = imagesx($src);
         $h = imagesy($src);
         $out = imagecreatetruecolor($w, $h);
@@ -560,94 +729,135 @@ class BirthdayFlyerService
         imagefilledrectangle($out, 0, 0, $w - 1, $h - 1, $clear);
         imagealphablending($out, true);
         imagecopy($out, $src, 0, 0, 0, 0, $w, $h);
-        imagealphablending($out, false);
-
-        $samples = [];
-        $step = max(1, (int) floor(min($w, $h) / 40));
-        for ($x = 0; $x < $w; $x += $step) {
-            $samples[] = imagecolorat($src, $x, 0);
-            $samples[] = imagecolorat($src, $x, $h - 1);
-        }
-        for ($y = 0; $y < $h; $y += $step) {
-            $samples[] = imagecolorat($src, 0, $y);
-            $samples[] = imagecolorat($src, $w - 1, $y);
-        }
-        $sr = $sg = $sb = 0;
-        $n = max(1, count($samples));
-        foreach ($samples as $c) {
-            $sr += ($c >> 16) & 0xFF;
-            $sg += ($c >> 8) & 0xFF;
-            $sb += $c & 0xFF;
-        }
-        $sr = (int) round($sr / $n);
-        $sg = (int) round($sg / $n);
-        $sb = (int) round($sb / $n);
-        $mid = imagecolorat($src, (int) floor($w / 2), (int) floor($h / 2));
-        $mr = ($mid >> 16) & 0xFF;
-        $mg = ($mid >> 8) & 0xFF;
-        $mb = $mid & 0xFF;
-        $centerDist = ($sr - $mr) * ($sr - $mr) + ($sg - $mg) * ($sg - $mg) + ($sb - $mb) * ($sb - $mb);
-        if ($centerDist < 900) {
-            imagedestroy($out);
-
-            return $src;
-        }
-
-        $thresh = 46 * 46;
-        $queue = [];
-        $seen = array_fill(0, $w * $h, 0);
-        $push = function ($x, $y) use (&$queue, &$seen, $w, $h) {
-            if ($x < 0 || $y < 0 || $x >= $w || $y >= $h) {
-                return;
-            }
-            $i = $y * $w + $x;
-            if (! empty($seen[$i])) {
-                return;
-            }
-            $seen[$i] = 1;
-            $queue[] = $i;
-        };
-        for ($x = 0; $x < $w; $x++) {
-            $push($x, 0);
-            $push($x, $h - 1);
-        }
-        for ($y = 0; $y < $h; $y++) {
-            $push(0, $y);
-            $push($w - 1, $y);
-        }
-        $removed = 0;
-        $qi = 0;
-        while ($qi < count($queue)) {
-            $i = $queue[$qi++];
-            $x = $i % $w;
-            $y = (int) floor($i / $w);
-            $c = imagecolorat($out, $x, $y);
-            $a = ($c >> 24) & 0x7F;
-            if ($a >= 110) {
-                continue;
-            }
-            $r = ($c >> 16) & 0xFF;
-            $g = ($c >> 8) & 0xFF;
-            $b = $c & 0xFF;
-            $dist = ($r - $sr) * ($r - $sr) + ($g - $sg) * ($g - $sg) + ($b - $sb) * ($b - $sb);
-            if ($dist > $thresh) {
-                continue;
-            }
-            imagesetpixel($out, $x, $y, $clear);
-            $removed++;
-            $push($x + 1, $y);
-            $push($x - 1, $y);
-            $push($x, $y + 1);
-            $push($x, $y - 1);
-        }
-        if ($removed < 80 || $removed > ($w * $h * 0.88)) {
-            imagedestroy($out);
-
-            return $src;
-        }
         imagedestroy($src);
+        imagealphablending($out, false);
+        imagesavealpha($out, true);
 
         return $out;
+    }
+
+    protected function borderPalette($rgb, $alpha, $mw, $mh)
+    {
+        $palette = [];
+        $band = max(2, (int) floor(min($mw, $mh) * 0.04));
+        $step = max(1, (int) floor(min($mw, $mh) / 36));
+        $add = function ($x, $y) use (&$palette, $rgb, $alpha, $mw) {
+            $i = $y * $mw + $x;
+            if ($alpha[$i] >= 110) {
+                return;
+            }
+            $col = $rgb[$i];
+            foreach ($palette as $p) {
+                $d = ($col[0] - $p[0]) * ($col[0] - $p[0])
+                    + ($col[1] - $p[1]) * ($col[1] - $p[1])
+                    + ($col[2] - $p[2]) * ($col[2] - $p[2]);
+                if ($d < 18 * 18) {
+                    return;
+                }
+            }
+            if (count($palette) < 24) {
+                $palette[] = $col;
+            }
+        };
+        for ($x = 0; $x < $mw; $x += $step) {
+            $edge = ($x < $mw * 0.22 || $x > $mw * 0.78);
+            if (! $edge) {
+                continue;
+            }
+            for ($b = 0; $b < $band; $b++) {
+                $add($x, $b);
+                $add($x, $mh - 1 - $b);
+            }
+        }
+        for ($y = 0; $y < $mh; $y += $step) {
+            $edge = ($y < $mh * 0.18 || $y > $mh * 0.82);
+            if (! $edge) {
+                continue;
+            }
+            for ($b = 0; $b < $band; $b++) {
+                $add($b, $y);
+                $add($mw - 1 - $b, $y);
+            }
+        }
+        if (! $palette) {
+            $palette[] = [180, 180, 190];
+        }
+
+        return $palette;
+    }
+
+    protected function minPaletteDist($col, $palette)
+    {
+        $best = 999999;
+        foreach ($palette as $p) {
+            $d = ($col[0] - $p[0]) * ($col[0] - $p[0])
+                + ($col[1] - $p[1]) * ($col[1] - $p[1])
+                + ($col[2] - $p[2]) * ($col[2] - $p[2]);
+            if ($d < $best) {
+                $best = $d;
+            }
+        }
+
+        return $best;
+    }
+
+    protected function isSkinTone($r, $g, $b)
+    {
+        $max = max($r, $g, $b);
+        $min = min($r, $g, $b);
+        if ($max < 45 || $r < 35) {
+            return false;
+        }
+        $y = 0.299 * $r + 0.587 * $g + 0.114 * $b;
+        $cb = 128 - 0.168736 * $r - 0.331264 * $g + 0.5 * $b;
+        $cr = 128 + 0.5 * $r - 0.418688 * $g - 0.081312 * $b;
+        $ycbcr = $y >= 40 && $cb >= 78 && $cb <= 140 && $cr >= 125 && $cr <= 185;
+        $rgb = $r >= $g - 6 && $r >= $b - 12 && ($r - $g) >= -4 && ($max - $min) >= 8;
+
+        return $ycbcr || $rgb;
+    }
+
+    protected function fillKeepHoles(&$keep, $mw, $mh)
+    {
+        for ($y = 1; $y < $mh - 1; $y++) {
+            $run = null;
+            for ($x = 0; $x < $mw; $x++) {
+                $i = $y * $mw + $x;
+                if ($keep[$i]) {
+                    if ($run !== null && ($x - $run) > 1 && ($x - $run) < 18) {
+                        for ($xx = $run + 1; $xx < $x; $xx++) {
+                            $keep[$y * $mw + $xx] = 1;
+                        }
+                    }
+                    $run = $x;
+                }
+            }
+        }
+    }
+
+    protected function dilateKeep(&$keep, $mw, $mh, $radius)
+    {
+        $copy = $keep;
+        for ($y = 0; $y < $mh; $y++) {
+            for ($x = 0; $x < $mw; $x++) {
+                if (! $copy[$y * $mw + $x]) {
+                    continue;
+                }
+                for ($oy = -$radius; $oy <= $radius; $oy++) {
+                    $yy = $y + $oy;
+                    if ($yy < 0 || $yy >= $mh) {
+                        continue;
+                    }
+                    for ($ox = -$radius; $ox <= $radius; $ox++) {
+                        $xx = $x + $ox;
+                        if ($xx < 0 || $xx >= $mw) {
+                            continue;
+                        }
+                        $keep[$yy * $mw + $xx] = 1;
+                    }
+                }
+            }
+        }
     }
 
     protected function paintFromPlaque($flyer, $w, $h, $displayName, $centerX, $topY)
