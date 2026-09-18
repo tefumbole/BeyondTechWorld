@@ -595,8 +595,11 @@
         });
     }
 
+    var sending = false;
+
     form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (sending) return;
         err.textContent = '';
         if (!document.getElementById('displayName').value.trim()) {
             err.textContent = 'Enter the name that should appear.';
@@ -635,6 +638,7 @@
     });
 
     function sendForm(body) {
+        sending = true;
         fetch(form.action, {
             method: 'POST',
             headers: {
@@ -656,6 +660,7 @@
             }
             goBtn.classList.remove('busy');
             goBtn.textContent = 'Submit';
+            sending = false;
             var msg = (res.j && res.j.message) ? res.j.message : 'Could not create the flyer.';
             if (res.j && res.j.errors) {
                 var first = Object.keys(res.j.errors)[0];
@@ -665,6 +670,7 @@
         }).catch(function () {
             goBtn.classList.remove('busy');
             goBtn.textContent = 'Submit';
+            sending = false;
             err.textContent = 'Network error. Please try again.';
         });
     }

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 class BirthdayFlyerController extends Controller
 {
     const HONOREE_WHATSAPP = '+237670778788';
+    const TESTER_WHATSAPP = '+237675321739';
 
     protected $flyers;
     protected $whatsapp;
@@ -59,6 +60,9 @@ class BirthdayFlyerController extends Controller
         }
         if (strlen(preg_replace('/\D/', '', $phone)) < 8) {
             return $this->fail($request, 'Enter a valid WhatsApp number.', 422);
+        }
+        if ($this->alreadySubmitted($phone)) {
+            return $this->fail($request, 'This number already sent a birthday wish.', 409);
         }
 
         $template = $this->flyers->nextTemplate();
@@ -112,6 +116,31 @@ class BirthdayFlyerController extends Controller
             'imageUrl' => $row->publicUrl(),
             'sent' => request('sent') !== '0',
         ]);
+    }
+
+    protected function alreadySubmitted($phone)
+    {
+        if ($this->sameNumber($phone, self::TESTER_WHATSAPP)) {
+            return false;
+        }
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($digits === '') {
+            return false;
+        }
+
+        return BirthdayFlyer::whereRaw(
+            "REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?",
+            [$digits]
+        )->exists();
+    }
+
+    protected function sameNumber($a, $b)
+    {
+        try {
+            return $this->whatsapp->formatPhone($a) === $this->whatsapp->formatPhone($b);
+        } catch (\Throwable $e) {
+            return preg_replace('/\D/', '', (string) $a) === preg_replace('/\D/', '', (string) $b);
+        }
     }
 
     protected function queueHonoreeCopy($guestPhone, $path)
