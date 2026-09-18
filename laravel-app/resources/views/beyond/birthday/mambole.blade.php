@@ -15,7 +15,7 @@
             --ink: #1c160e;
             --paper: #fffaf1;
             --muted: #6b6258;
-            --card: clamp(18px, 3vw, 36px);
+            --card: clamp(14px, 2vw, 20px);
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; min-height: 100%; }
@@ -29,23 +29,23 @@
                 linear-gradient(180deg, #09070e 0%, #14101d 42%, #0b2a5c 100%);
         }
         .page {
-            width: min(960px, calc(100% - 24px));
+            width: min(560px, calc(100% - 20px));
             margin: 0 auto;
-            padding: clamp(20px, 4vw, 56px) 0 clamp(40px, 6vw, 80px);
+            padding: 14px 0 28px;
         }
-        .hero { text-align: center; color: #fff; padding: 0 8px clamp(18px, 3vw, 32px); }
+        .hero { text-align: center; color: #fff; padding: 0 8px 12px; }
         .kicker {
             letter-spacing: .28em;
             text-transform: uppercase;
-            font-size: clamp(11px, 1.4vw, 13px);
+            font-size: 11px;
             color: var(--gold);
-            margin: 0 0 10px;
+            margin: 0 0 6px;
             font-weight: 700;
         }
         .hero h1 {
             font-family: Cinzel, serif;
             font-weight: 600;
-            font-size: clamp(28px, 5.2vw, 52px);
+            font-size: clamp(22px, 4.2vw, 32px);
             line-height: 1.18;
             margin: 0 auto;
             max-width: 18ch;
@@ -53,9 +53,9 @@
             text-wrap: balance;
         }
         .flourish {
-            width: min(220px, 40vw);
-            height: 18px;
-            margin: 18px auto 0;
+            width: min(160px, 36vw);
+            height: 12px;
+            margin: 10px auto 0;
             background: linear-gradient(90deg, transparent, var(--gold), transparent);
             position: relative;
         }
@@ -77,22 +77,22 @@
             box-shadow: 0 28px 70px rgba(0,0,0,.38);
             border: 1px solid rgba(212,175,55,.28);
         }
-        label { display: block; font-size: clamp(13px, 1.5vw, 15px); font-weight: 700; color: var(--navy); margin: 0 0 8px; }
-        label.btn, label.btn-ghost, label.btn-gold { display: inline-flex; align-items: center; justify-content: center; margin: 0; font-size: 15px; }
-        .field { margin-top: clamp(16px, 2vw, 22px); }
-        .hint { font-size: clamp(12px, 1.3vw, 14px); color: var(--muted); margin: 8px 0 0; }
+        label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin: 0 0 6px; }
+        label.btn, label.btn-ghost, label.btn-gold { display: inline-flex; align-items: center; justify-content: center; margin: 0; font-size: 14px; }
+        .field { margin-top: 12px; }
+        .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
         .phone-row {
             display: grid;
-            grid-template-columns: minmax(220px, .95fr) minmax(180px, 1.15fr);
-            gap: 12px;
+            grid-template-columns: minmax(170px, .9fr) minmax(140px, 1.1fr);
+            gap: 8px;
             align-items: stretch;
         }
         input[type="tel"], input[type="text"], .cc-btn, .cc-search {
             width: 100%;
-            min-height: clamp(50px, 6.5vw, 58px);
+            min-height: 44px;
             border: 1px solid #e4d3a4;
-            border-radius: 14px;
-            padding: 0 16px;
+            border-radius: 12px;
+            padding: 0 12px;
             font-size: 16px;
             background: #fff;
         }
@@ -142,55 +142,62 @@
         .cc-list .dial { color: var(--muted); font-weight: 700; }
         .cc-list .empty { color: var(--muted); padding: 14px; cursor: default; }
         .status { font-size: 13px; margin-top: 8px; display: none; }
-        .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .choice {
             appearance: none;
             border: 1px solid #e4d3a4;
             background: #fff;
-            border-radius: 16px;
-            padding: 16px 10px;
+            border-radius: 12px;
+            padding: 10px 8px;
             cursor: pointer;
             text-align: center;
             font-family: inherit;
-            min-height: 92px;
+            min-height: 0;
         }
-        .choice strong { display: block; color: var(--navy); font-size: 16px; margin-bottom: 4px; }
-        .choice span { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; font-weight: 400; }
+        .choice strong { display: block; color: var(--navy); font-size: 14px; margin-bottom: 2px; }
+        .choice span { display: block; color: var(--muted); font-size: 11px; line-height: 1.3; font-weight: 400; }
         .choice.is-on { border-color: var(--gold); background: #fff8e8; box-shadow: 0 0 0 2px rgba(212,175,55,.35); }
-        .panel { display: none; margin-top: 16px; }
+        .panel { display: none; margin-top: 10px; }
         .panel.is-on { display: block; }
-        .selfie-box { border: 1px dashed #d4af37; border-radius: 18px; padding: clamp(14px, 2vw, 22px); background: #fff; }
+        .selfie-box { border: 1px dashed #d4af37; border-radius: 14px; padding: 12px; background: #fff; }
         .selfie-stage {
             display: none;
             position: relative;
-            width: min(220px, 56vw);
-            height: min(220px, 56vw);
-            margin: 0 auto 14px;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 10px;
             border-radius: 50%;
             overflow: hidden;
             background: #0b2a5c;
-            box-shadow: 0 0 0 6px #d4af37, 0 0 28px rgba(212,175,55,.45);
+            box-shadow: 0 0 0 4px #d4af37, 0 0 16px rgba(212,175,55,.45);
         }
         .selfie-stage.is-live, .selfie-stage.is-shot { display: block; margin-left: auto; margin-right: auto; }
         .selfie-stage video, .selfie-stage img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: none; }
         .selfie-stage.is-live video, .selfie-stage.is-shot img { display: block; }
-        .sig-wrap { border: 1px dashed #d4af37; border-radius: 18px; padding: 12px; background: #fff; }
-        .sig-wrap canvas { width: 100%; height: 180px; display: block; background: #fffdf7; border-radius: 12px; touch-action: none; cursor: crosshair; }
-        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        button, .btn { appearance: none; border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; font-size: 15px; font-family: inherit; }
+        .sig-wrap { border: 1px dashed #d4af37; border-radius: 14px; padding: 8px; background: #fff; }
+        .sig-wrap canvas { width: 100%; height: 96px; display: block; background: #fffdf7; border-radius: 10px; touch-action: none; cursor: crosshair; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+        button, .btn, .btn-gold, .btn-ghost {
+            appearance: none;
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            line-height: 1;
+        }
         .btn-gold { background: linear-gradient(180deg, #f0d57a, #c9a227); color: #1c160e; }
-        .btn-navy { background: var(--navy); color: #fff; width: 100%; margin-top: 18px; min-height: 54px; font-size: 16px; }
+        .btn-navy { background: var(--navy); color: #fff; width: 100%; margin-top: 12px; min-height: 44px; font-size: 15px; }
         .btn-ghost { background: #fff; color: var(--navy); border: 1px solid #d4af37; }
-        .err { color: #991b1b; font-size: 14px; min-height: 1em; margin-top: 10px; }
+        .err { color: #991b1b; font-size: 13px; min-height: 1em; margin-top: 6px; }
         .busy { opacity: .7; pointer-events: none; }
         .step { display: none; }
         .step.is-on { display: block; }
         @media (max-width: 700px) {
-            .phone-row, .choices { grid-template-columns: 1fr; }
+            .phone-row { grid-template-columns: 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; }
-        }
-        @media (min-width: 900px) {
-            .page { width: min(1040px, calc(100% - 48px)); }
         }
     </style>
 </head>
@@ -306,20 +313,20 @@
                         <button type="button" class="btn-gold" id="camBtn">Take selfie</button>
                         <button type="button" class="btn-ghost" id="captureBtn" style="display:none;">Capture</button>
                         <button type="button" class="btn-ghost" id="retakeBtn" style="display:none;">Remove</button>
-                        <label class="btn-ghost" for="selfieFile">Upload photo</label>
+                        <button type="button" class="btn-ghost" id="uploadBtn">Upload photo</button>
                     </div>
                     <input type="file" id="selfieFile" accept="image/*" style="position:absolute;left:-9999px;">
-                    <p class="hint" id="selfieHint">The background is removed automatically and your face is placed in the gold ring.</p>
+                    <p class="hint" id="selfieHint">Background is removed and your face goes in the gold ring.</p>
                 </div>
             </div>
 
             <div class="panel" id="panelSign">
                 <div class="sig-wrap">
-                    <canvas id="signPad" width="640" height="180"></canvas>
-                    <div class="toolbar" style="margin-top:10px;">
+                    <canvas id="signPad" width="640" height="96"></canvas>
+                    <div class="toolbar" style="margin-top:8px;">
                         <button type="button" class="btn-ghost" id="sigClear">Clear signature</button>
                     </div>
-                    <p class="hint">Sign with your finger or mouse. This is placed on the flyer.</p>
+                    <p class="hint">Sign here. Only the ink is placed on the flyer.</p>
                 </div>
             </div>
 
@@ -428,6 +435,7 @@
     var captureBtn = document.getElementById('captureBtn');
     var retakeBtn = document.getElementById('retakeBtn');
     var fileInput = document.getElementById('selfieFile');
+    var uploadBtn = document.getElementById('uploadBtn');
     var hint = document.getElementById('selfieHint');
     var form = document.getElementById('bform');
     var err = document.getElementById('formErr');
@@ -466,7 +474,7 @@
         if (!canvas || typeof SignaturePad === 'undefined') return;
         var ratio = Math.max(window.devicePixelRatio || 1, 1);
         var w = canvas.offsetWidth || 640;
-        var h = 180;
+        var h = 96;
         canvas.width = Math.floor(w * ratio);
         canvas.height = Math.floor(h * ratio);
         canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -665,6 +673,11 @@
         if (!f) return;
         useImageBlob(f);
     });
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function () {
+            fileInput.click();
+        });
+    }
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
