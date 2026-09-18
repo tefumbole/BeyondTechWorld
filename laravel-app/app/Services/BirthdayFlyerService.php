@@ -73,6 +73,7 @@ class BirthdayFlyerService
         if (! $flyer) {
             throw new \RuntimeException('Could not read the birthday template.');
         }
+        $flyer = $this->upscaleFlyer($flyer);
         $w = imagesx($flyer);
         $h = imagesy($flyer);
         imagealphablending($flyer, true);
@@ -87,7 +88,7 @@ class BirthdayFlyerService
 
         if ($selfieBin && $kind !== 'none') {
             if ($kind === 'sign') {
-                $this->paintSignatureRing($flyer, $w, $h, $selfieBin, $displayName);
+                $this->paintSignatureRing($flyer, $w, $h, $selfieBin, $displayName, $templateKey);
             } else {
                 $this->paintSelfieRing($flyer, $w, $h, $selfieBin, $displayName);
             }
@@ -102,12 +103,28 @@ class BirthdayFlyerService
             );
         }
 
-        imagejpeg($flyer, $destPath, 88);
+        imagejpeg($flyer, $destPath, 95);
         imagedestroy($flyer);
 
         if (! is_file($destPath)) {
             throw new \RuntimeException('Could not save the flyer.');
         }
+    }
+
+    protected function upscaleFlyer($flyer)
+    {
+        $w = imagesx($flyer);
+        $h = imagesy($flyer);
+        $targetW = 1080;
+        if ($w >= $targetW) {
+            return $flyer;
+        }
+        $targetH = (int) round($h * ($targetW / $w));
+        $hi = imagecreatetruecolor($targetW, $targetH);
+        imagecopyresampled($hi, $flyer, 0, 0, 0, 0, $targetW, $targetH, $w, $h);
+        imagedestroy($flyer);
+
+        return $hi;
     }
 
     protected function paintCallName($flyer, $w, $h, $callName, $templateKey = null)
@@ -245,103 +262,133 @@ class BirthdayFlyerService
         }
     }
 
-    protected function paintSignatureRing($flyer, $w, $h, $signatureBin, $displayName)
+    protected function paintSignatureRing($flyer, $w, $h, $signatureBin, $displayName, $templateKey = 'lace')
     {
         $src = @imagecreatefromstring($signatureBin);
         if (! $src) {
             return;
         }
-        $size = (int) round(min($w, $h) * 0.26);
-        $size = max(110, min(230, $size));
-        $bx = (int) round($w * 0.04);
-        $by = (int) round($h * 0.71);
-        if ($by + $size + 32 > $h) {
-            $by = $h - $size - 32;
-        }
-        $badge = $this->makeSignatureBadge($src, $size);
-        imagedestroy($src);
-        if (! $badge) {
+        $bbox = $this->inkBounds($src);
+        if (! $bbox) {
+            imagedestroy($src);
+
             return;
         }
-        imagecopy($flyer, $badge, $bx, $by, 0, 0, imagesx($badge), imagesy($badge));
-        imagedestroy($badge);
+        $sw = $bbox[2] - $bbox[0] + 1;
+        $sh = $bbox[3] - $bbox[1] + 1;
+        $maxW = (int) round($w * 0.30);
+        $maxH = (int) round($h * 0.11);
+        $scale = min($maxW / max(1, $sw), $maxH / max(1, $sh));
+        $dw = max(28, (int) round($sw * $scale));
+        $dh = max(18, (int) round($sh * $scale));
+
+        $spots = [
+            'lace' => [0.58, 0.73],
+            'kente' => [0.52, 0.70],
+            'kimono' => [0.50, 0.72],
+        ];
+        $spot = isset($spots[$templateKey]) ? $spots[$templateKey] : $spots['lace'];
+        $bx = (int) round($w * $spot[0] - $dw / 2);
+        $by = (int) round($h * $spot[1]);
+        if ($bx < 8) {
+            $bx = 8;
+        }
+        if ($bx + $dw > $w - 8) {
+            $bx = $w - 8 - $dw;
+        }
+        if ($by + $dh + 52 > $h) {
+            $by = $h - $dh - 52;
+        }
+
+        $gold = imagecolorallocate($flyer, 250, 228, 140);
+        $goldDark = imagecolorallocate($flyer, 120, 82, 16);
+        $stepX = $sw / $dw;
+        $stepY = $sh / $dh;
+        for ($y = 0; $y < $dh; $y++) {
+            for ($x = 0; $x < $dw; $x++) {
+                $sx = $bbox[0] + (int) floor($x * $stepX);
+                $sy = $bbox[1] + (int) floor($y * $stepY);
+                if (! $this->isInkPixel($src, $sx, $sy)) {
+                    continue;
+                }
+                $px = $bx + $x;
+                $py = $by + $y;
+                imagesetpixel($flyer, $px + 1, $py + 1, $goldDark);
+                imagesetpixel($flyer, $px, $py, $gold);
+                imagesetpixel($flyer, $px + 1, $py, $gold);
+                imagesetpixel($flyer, $px, $py + 1, $gold);
+            }
+        }
+        imagedestroy($src);
+
         if ($displayName !== '') {
             $this->paintFromPlaque(
                 $flyer,
                 $w,
                 $h,
                 $displayName,
-                $bx + (int) round($size / 2),
-                $by + $size + (int) round($h * 0.006)
+                $bx + (int) round($dw / 2),
+                $by + $dh + (int) round($h * 0.008)
             );
         }
     }
 
-    protected function makeSignatureBadge($src, $size)
+    /**
+     * @return int[]|null [minX, minY, maxX, maxY]
+     */
+    protected function inkBounds($src)
     {
-        $out = imagecreatetruecolor($size, $size);
-        imagealphablending($out, false);
-        imagesavealpha($out, true);
-        $clear = imagecolorallocatealpha($out, 0, 0, 0, 127);
-        imagefilledrectangle($out, 0, 0, $size, $size, $clear);
-        imagealphablending($out, true);
-
-        $cx = (int) floor($size / 2);
-        $cy = $cx;
-        $navy = imagecolorallocate($out, 11, 42, 92);
-        $cream = imagecolorallocate($out, 255, 248, 230);
-        $gold = imagecolorallocate($out, 212, 175, 55);
-        $gold2 = imagecolorallocate($out, 240, 211, 122);
-        $ink = imagecolorallocate($out, 20, 28, 70);
-
-        imagefilledellipse($out, $cx, $cy, $size - 2, $size - 2, $navy);
-        imagefilledellipse($out, $cx, $cy, $size - 14, $size - 14, $cream);
-        for ($i = 0; $i < 7; $i++) {
-            $d = $size - 8 - $i;
-            imageellipse($out, $cx, $cy, $d, $d, $i < 3 ? $gold2 : $gold);
-        }
-
         $sw = imagesx($src);
         $sh = imagesy($src);
-        $inner = $size - 40;
-        $scale = min($inner / max(1, $sw), $inner / max(1, $sh));
-        $dw = max(1, (int) round($sw * $scale));
-        $dh = max(1, (int) round($sh * $scale));
-        $scaled = imagecreatetruecolor($dw, $dh);
-        imagealphablending($scaled, false);
-        imagesavealpha($scaled, true);
-        $sClear = imagecolorallocatealpha($scaled, 255, 255, 255, 127);
-        imagefilledrectangle($scaled, 0, 0, $dw, $dh, $sClear);
-        imagealphablending($scaled, true);
-        imagecopyresampled($scaled, $src, 0, 0, 0, 0, $dw, $dh, $sw, $sh);
-
-        $ox = (int) round(($size - $dw) / 2);
-        $oy = (int) round(($size - $dh) / 2);
-        $ir = ($size - 18) / 2.0;
-        for ($y = 0; $y < $dh; $y++) {
-            for ($x = 0; $x < $dw; $x++) {
-                $px = $ox + $x;
-                $py = $oy + $y;
-                $dx = ($px + 0.5) - $cx;
-                $dy = ($py + 0.5) - $cy;
-                if (($dx * $dx + $dy * $dy) > $ir * $ir) {
+        $minX = $sw;
+        $minY = $sh;
+        $maxX = -1;
+        $maxY = -1;
+        for ($y = 0; $y < $sh; $y++) {
+            for ($x = 0; $x < $sw; $x++) {
+                if (! $this->isInkPixel($src, $x, $y)) {
                     continue;
                 }
-                $col = imagecolorat($scaled, $x, $y);
-                $a = ($col >> 24) & 0x7F;
-                $r = ($col >> 16) & 0xFF;
-                $g = ($col >> 8) & 0xFF;
-                $b = $col & 0xFF;
-                $lum = 0.299 * $r + 0.587 * $g + 0.114 * $b;
-                if ($a >= 100 || $lum > 228) {
-                    continue;
+                if ($x < $minX) {
+                    $minX = $x;
                 }
-                imagesetpixel($out, $px, $py, $ink);
+                if ($y < $minY) {
+                    $minY = $y;
+                }
+                if ($x > $maxX) {
+                    $maxX = $x;
+                }
+                if ($y > $maxY) {
+                    $maxY = $y;
+                }
             }
         }
-        imagedestroy($scaled);
+        if ($maxX < $minX) {
+            return null;
+        }
+        $pad = 2;
 
-        return $out;
+        return [
+            max(0, $minX - $pad),
+            max(0, $minY - $pad),
+            min($sw - 1, $maxX + $pad),
+            min($sh - 1, $maxY + $pad),
+        ];
+    }
+
+    protected function isInkPixel($src, $x, $y)
+    {
+        $col = imagecolorat($src, $x, $y);
+        $a = ($col >> 24) & 0x7F;
+        if ($a >= 90) {
+            return false;
+        }
+        $r = ($col >> 16) & 0xFF;
+        $g = ($col >> 8) & 0xFF;
+        $b = $col & 0xFF;
+        $lum = 0.299 * $r + 0.587 * $g + 0.114 * $b;
+
+        return $lum < 210;
     }
 
     protected function makeRingBadge($src, $size)

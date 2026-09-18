@@ -472,10 +472,10 @@
         canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
         if (!signPad) {
             signPad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255,253,247)',
-                penColor: 'rgb(11, 42, 92)',
-                minWidth: 1.2,
-                maxWidth: 2.8
+                backgroundColor: 'rgba(0,0,0,0)',
+                penColor: 'rgb(20, 32, 80)',
+                minWidth: 2.2,
+                maxWidth: 4.5
             });
             document.getElementById('sigClear').addEventListener('click', function () {
                 signPad.clear();
