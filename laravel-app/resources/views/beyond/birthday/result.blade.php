@@ -21,7 +21,7 @@
 <div class="wrap">
     <h1>Your flyer is ready</h1>
     @if(!empty($sent))
-        <p>We also sent it to your WhatsApp so you can save and post it.</p>
+        <p>It is on your WhatsApp as a photo with no caption — forward it to your status.</p>
     @else
         <p>Download the flyer below. WhatsApp delivery did not go through this time — you can still save the image and share it yourself.</p>
     @endif

@@ -27,7 +27,6 @@ class BirthdayFlyerController extends Controller
 
         return view('beyond.birthday.mambole', [
             'template' => $template,
-            'templateUrl' => $this->flyers->templateUrl($template),
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => url('/mambole/lookup'),
             'submitUrl' => url('/mambole/submit'),
@@ -79,8 +78,7 @@ class BirthdayFlyerController extends Controller
             return $this->fail($request, 'Could not build the flyer. Please try again.', 500);
         }
 
-        $caption = 'Happy Birthday '.$row->call_name.' — from '.$row->display_name.'. Save this flyer and post it.';
-        $send = $this->whatsapp->sendImage($phone, $row->absolutePath(), $caption);
+        $send = $this->whatsapp->sendImage($phone, $row->absolutePath());
         $waOk = ! empty($send['success']);
         if (! $waOk) {
             Log::info('mambole WhatsApp send failed', ['error' => $send['error'] ?? 'unknown']);

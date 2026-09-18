@@ -251,11 +251,7 @@ class BirthdayFlyerService
         imagefilledellipse($out, $cx, $cy, $size - 10, $size - 10, $navy);
 
         $inner = $size - 28;
-        $sw = imagesx($src);
-        $sh = imagesy($src);
-        $side = min($sw, $sh);
-        $sx = (int) floor(($sw - $side) / 2);
-        $sy = (int) floor(($sh - $side) / 2);
+        list($sx, $sy, $side) = $this->subjectSquare($src);
 
         $cut = imagecreatetruecolor($inner, $inner);
         imagealphablending($cut, false);
@@ -299,6 +295,91 @@ class BirthdayFlyerService
         }
 
         return $out;
+    }
+
+    /**
+     * Square crop around the face / head: opaque cutout bbox, or upper-center for a full photo.
+     *
+     * @return array{0:int,1:int,2:int} sx, sy, side
+     */
+    protected function subjectSquare($src)
+    {
+        $sw = imagesx($src);
+        $sh = imagesy($src);
+        $bbox = $this->opaqueBounds($src);
+        if ($bbox) {
+            $bw = max(1, $bbox[2] - $bbox[0] + 1);
+            $bh = max(1, $bbox[3] - $bbox[1] + 1);
+            $headH = max($bw * 0.95, $bh * 0.58);
+            $cx = ($bbox[0] + $bbox[2]) / 2.0;
+            $cy = $bbox[1] + $headH * 0.42;
+            $side = (int) round(max($bw, $headH) * 1.16);
+        } else {
+            $side = (int) round(min($sw, $sh * 0.72));
+            $cx = $sw / 2.0;
+            $cy = $sh * 0.36;
+        }
+        $side = max(32, min($side, max($sw, $sh)));
+        $sx = (int) round($cx - $side / 2);
+        $sy = (int) round($cy - $side / 2);
+        if ($sx < 0) {
+            $sx = 0;
+        }
+        if ($sy < 0) {
+            $sy = 0;
+        }
+        if ($sx + $side > $sw) {
+            $sx = max(0, $sw - $side);
+        }
+        if ($sy + $side > $sh) {
+            $sy = max(0, $sh - $side);
+        }
+        $side = min($side, $sw - $sx, $sh - $sy);
+
+        return [$sx, $sy, max(32, $side)];
+    }
+
+    /**
+     * @return int[]|null [minX, minY, maxX, maxY]
+     */
+    protected function opaqueBounds($src)
+    {
+        $sw = imagesx($src);
+        $sh = imagesy($src);
+        $step = ($sw * $sh > 400000) ? 2 : 1;
+        $minX = $sw;
+        $minY = $sh;
+        $maxX = -1;
+        $maxY = -1;
+        $found = 0;
+        $sampled = 0;
+        for ($y = 0; $y < $sh; $y += $step) {
+            for ($x = 0; $x < $sw; $x += $step) {
+                $sampled++;
+                $a = (imagecolorat($src, $x, $y) >> 24) & 0x7F;
+                if ($a >= 110) {
+                    continue;
+                }
+                $found++;
+                if ($x < $minX) {
+                    $minX = $x;
+                }
+                if ($y < $minY) {
+                    $minY = $y;
+                }
+                if ($x > $maxX) {
+                    $maxX = $x;
+                }
+                if ($y > $maxY) {
+                    $maxY = $y;
+                }
+            }
+        }
+        if ($found < 40 || $found > $sampled * 0.92) {
+            return null;
+        }
+
+        return [$minX, $minY, $maxX, $maxY];
     }
 
     protected function paintFromCaption($flyer, $w, $h, $displayName, $x, $y)

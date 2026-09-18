@@ -292,19 +292,17 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
             }
 
-            $caption = \App\Support\LetterReference::applyToMessage(
-                (string) ($caption !== null ? $caption : ''),
-                'whatsapp'
-            );
-
             $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
             $url = $base.'/send-message';
             $payload = [
                 'to' => $to,
                 'imageUrl' => $publicUrl,
             ];
-            if ($caption !== '') {
-                $payload['text'] = $caption;
+            if ($caption !== null && trim((string) $caption) !== '') {
+                $payload['text'] = \App\Support\LetterReference::applyToMessage(
+                    (string) $caption,
+                    'whatsapp'
+                );
             }
 
             $ch = curl_init($url);
