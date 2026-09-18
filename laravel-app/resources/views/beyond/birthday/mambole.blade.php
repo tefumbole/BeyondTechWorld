@@ -78,6 +78,7 @@
             border: 1px solid rgba(212,175,55,.28);
         }
         label { display: block; font-size: clamp(13px, 1.5vw, 15px); font-weight: 700; color: var(--navy); margin: 0 0 8px; }
+        label.btn, label.btn-ghost, label.btn-gold { display: inline-flex; align-items: center; justify-content: center; margin: 0; font-size: 15px; }
         .field { margin-top: clamp(16px, 2vw, 22px); }
         .hint { font-size: clamp(12px, 1.3vw, 14px); color: var(--muted); margin: 8px 0 0; }
         .phone-row {
@@ -141,8 +142,26 @@
         .cc-list .dial { color: var(--muted); font-weight: 700; }
         .cc-list .empty { color: var(--muted); padding: 14px; cursor: default; }
         .status { font-size: 13px; margin-top: 8px; display: none; }
+        .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .choice {
+            appearance: none;
+            border: 1px solid #e4d3a4;
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px 10px;
+            cursor: pointer;
+            text-align: center;
+            font-family: inherit;
+            min-height: 92px;
+        }
+        .choice strong { display: block; color: var(--navy); font-size: 16px; margin-bottom: 4px; }
+        .choice span { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; font-weight: 400; }
+        .choice.is-on { border-color: var(--gold); background: #fff8e8; box-shadow: 0 0 0 2px rgba(212,175,55,.35); }
+        .panel { display: none; margin-top: 16px; }
+        .panel.is-on { display: block; }
         .selfie-box { border: 1px dashed #d4af37; border-radius: 18px; padding: clamp(14px, 2vw, 22px); background: #fff; }
         .selfie-stage {
+            display: none;
             position: relative;
             width: min(220px, 56vw);
             height: min(220px, 56vw);
@@ -152,8 +171,11 @@
             background: #0b2a5c;
             box-shadow: 0 0 0 6px #d4af37, 0 0 28px rgba(212,175,55,.45);
         }
+        .selfie-stage.is-live, .selfie-stage.is-shot { display: block; margin-left: auto; margin-right: auto; }
         .selfie-stage video, .selfie-stage img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: none; }
         .selfie-stage.is-live video, .selfie-stage.is-shot img { display: block; }
+        .sig-wrap { border: 1px dashed #d4af37; border-radius: 18px; padding: 12px; background: #fff; }
+        .sig-wrap canvas { width: 100%; height: 180px; display: block; background: #fffdf7; border-radius: 12px; touch-action: none; cursor: crosshair; }
         .toolbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         button, .btn { appearance: none; border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; font-size: 15px; font-family: inherit; }
         .btn-gold { background: linear-gradient(180deg, #f0d57a, #c9a227); color: #1c160e; }
@@ -164,7 +186,7 @@
         .step { display: none; }
         .step.is-on { display: block; }
         @media (max-width: 700px) {
-            .phone-row { grid-template-columns: 1fr; }
+            .phone-row, .choices { grid-template-columns: 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; }
         }
         @media (min-width: 900px) {
@@ -256,20 +278,48 @@
 
         <div class="step" id="step2">
             <div class="field">
-                <label>Selfie (optional)</label>
+                <label>Add to the flyer</label>
+                <input type="hidden" name="mark" id="markField" value="none">
+                <div class="choices" id="choices">
+                    <button type="button" class="choice" data-choice="picture">
+                        <strong>Picture</strong>
+                        <span>Upload or selfie</span>
+                    </button>
+                    <button type="button" class="choice" data-choice="sign">
+                        <strong>Sign</strong>
+                        <span>Draw on a sign pad</span>
+                    </button>
+                    <button type="button" class="choice is-on" data-choice="none">
+                        <strong>None</strong>
+                        <span>Send without a picture</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel" id="panelPicture">
                 <div class="selfie-box">
                     <div class="selfie-stage" id="selfieStage">
                         <video id="selfieVideo" playsinline autoplay muted></video>
                         <img id="selfieShot" alt="Selfie">
                     </div>
                     <div class="toolbar">
-                        <button type="button" class="btn-gold" id="camBtn">Enable camera</button>
-                        <button type="button" class="btn-ghost" id="captureBtn" style="display:none;">Take photo</button>
-                        <button type="button" class="btn-ghost" id="retakeBtn" style="display:none;">Remove selfie</button>
-                        <label class="btn-ghost" for="selfieFile">Choose photo</label>
+                        <button type="button" class="btn-gold" id="camBtn">Take selfie</button>
+                        <button type="button" class="btn-ghost" id="captureBtn" style="display:none;">Capture</button>
+                        <button type="button" class="btn-ghost" id="retakeBtn" style="display:none;">Remove</button>
+                        <label class="btn-ghost" for="selfieFile">Upload photo</label>
                     </div>
-                    <input type="file" id="selfieFile" accept="image/*" capture="user" style="position:absolute;left:-9999px;">
-                    <p class="hint" id="selfieHint">The background is removed automatically and your face is placed in the gold ring. You can skip this.</p>
+                    <input type="file" id="selfieFile" accept="image/*" style="position:absolute;left:-9999px;">
+                    <p class="hint" id="selfieHint">The background is removed automatically and your face is placed in the gold ring.</p>
+                </div>
+            </div>
+
+            <div class="panel" id="panelSign">
+                <div class="sig-wrap">
+                    <canvas id="signPad" width="640" height="180"></canvas>
+                    <div class="toolbar" style="margin-top:10px;">
+                        <button type="button" class="btn-ghost" id="sigClear">Clear signature</button>
+                    </div>
+                    <p class="hint">Sign with your finger or mouse. This is placed on the flyer.</p>
                 </div>
             </div>
 
@@ -280,6 +330,7 @@
     </form>
 </div>
 <script type="application/json" id="countryData">@json($countryRows)</script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
 <script>
 (function () {
@@ -385,6 +436,54 @@
     var stream = null;
     var selfieFile = null;
     var cutoutMod = null;
+    var mark = 'none';
+    var signPad = null;
+
+    function currentMark() {
+        return mark;
+    }
+    function setMark(next) {
+        mark = next;
+        document.getElementById('markField').value = next;
+        document.querySelectorAll('.choice').forEach(function (el) {
+            el.classList.toggle('is-on', el.getAttribute('data-choice') === next);
+        });
+        document.getElementById('panelPicture').classList.toggle('is-on', next === 'picture');
+        document.getElementById('panelSign').classList.toggle('is-on', next === 'sign');
+        if (next !== 'picture') stopCam();
+        if (next === 'sign') {
+            window.setTimeout(fitSignPad, 50);
+        }
+    }
+    document.getElementById('choices').addEventListener('click', function (e) {
+        var btn = e.target.closest('.choice');
+        if (!btn) return;
+        setMark(btn.getAttribute('data-choice'));
+    });
+
+    function fitSignPad() {
+        var canvas = document.getElementById('signPad');
+        if (!canvas || typeof SignaturePad === 'undefined') return;
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        var w = canvas.offsetWidth || 640;
+        var h = 180;
+        canvas.width = Math.floor(w * ratio);
+        canvas.height = Math.floor(h * ratio);
+        canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+        if (!signPad) {
+            signPad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255,253,247)',
+                penColor: 'rgb(11, 42, 92)',
+                minWidth: 1.2,
+                maxWidth: 2.8
+            });
+            document.getElementById('sigClear').addEventListener('click', function () {
+                signPad.clear();
+            });
+        } else {
+            signPad.clear();
+        }
+    }
 
     import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm').then(function (mod) {
         cutoutMod = mod;
@@ -412,6 +511,7 @@
             return;
         }
         showStep(2);
+        if (currentMark() === 'sign') fitSignPad();
     });
     backBtn.addEventListener('click', function () {
         stopCam();
@@ -464,21 +564,18 @@
                     }
                 }
                 var total = Math.ceil(w / step) * Math.ceil(h / step);
-                var sx, sy, side;
-                if (found > 40 && found < total * 0.92) {
-                    var bw = Math.max(1, maxX - minX);
-                    var bh = Math.max(1, maxY - minY);
-                    var headH = Math.max(bw * 0.95, bh * 0.58);
-                    var cx = (minX + maxX) / 2;
-                    var cy = minY + headH * 0.42;
-                    side = Math.round(Math.max(bw, headH) * 1.16);
-                    sx = Math.round(cx - side / 2);
-                    sy = Math.round(cy - side / 2);
-                } else {
-                    side = Math.round(Math.min(w, h * 0.72));
-                    sx = Math.round((w - side) / 2);
-                    sy = Math.round(h * 0.08);
+                if (!(found > 40 && found < total * 0.92)) {
+                    resolve(blob);
+                    return;
                 }
+                var bw = Math.max(1, maxX - minX);
+                var bh = Math.max(1, maxY - minY);
+                var headH = Math.max(bw * 0.95, bh * 0.58);
+                var cx = (minX + maxX) / 2;
+                var cy = minY + headH * 0.42;
+                var side = Math.round(Math.max(bw, headH) * 1.16);
+                var sx = Math.round(cx - side / 2);
+                var sy = Math.round(cy - side / 2);
                 if (sx < 0) sx = 0;
                 if (sy < 0) sy = 0;
                 if (sx + side > w) sx = Math.max(0, w - side);
@@ -501,15 +598,18 @@
             if (!cutoutMod) {
                 cutoutMod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm');
             }
-            var out = await cutoutMod.removeBackground(blob, {
+            var fn = cutoutMod.removeBackground || cutoutMod.default || cutoutMod;
+            var out = await fn(blob, {
                 publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/dist/',
-                device: 'cpu'
+                device: 'cpu',
+                model: 'small',
+                output: { format: 'image/png', quality: 1 }
             });
             hint.textContent = 'Placing your face in the ring…';
             return cropFace(out);
         } catch (e) {
-            hint.textContent = 'Could not cut the background on this phone — we will still place your face in the ring.';
-            return cropFace(blob);
+            hint.textContent = 'We will cut the background on the flyer.';
+            return blob;
         }
     }
 
@@ -577,7 +677,35 @@
         goBtn.classList.add('busy');
         goBtn.textContent = 'Sending…';
         var body = new FormData(form);
-        if (selfieFile) body.set('selfie', selfieFile, 'selfie.png');
+        body.set('mark', currentMark());
+        if (currentMark() === 'picture') {
+            if (!selfieFile) {
+                goBtn.classList.remove('busy');
+                goBtn.textContent = 'Submit';
+                err.textContent = 'Upload or take a picture, or choose None.';
+                return;
+            }
+            body.set('selfie', selfieFile, 'selfie.png');
+            sendForm(body);
+            return;
+        }
+        if (currentMark() === 'sign') {
+            if (!signPad || signPad.isEmpty()) {
+                goBtn.classList.remove('busy');
+                goBtn.textContent = 'Submit';
+                err.textContent = 'Please sign first, or choose None.';
+                return;
+            }
+            signPad.canvas.toBlob(function (blob) {
+                if (blob) body.set('selfie', blob, 'signature.png');
+                sendForm(body);
+            }, 'image/png');
+            return;
+        }
+        sendForm(body);
+    });
+
+    function sendForm(body) {
         fetch(form.action, {
             method: 'POST',
             headers: {
@@ -610,7 +738,7 @@
             goBtn.textContent = 'Submit';
             err.textContent = 'Network error. Please try again.';
         });
-    });
+    }
 })();
 </script>
 </body>

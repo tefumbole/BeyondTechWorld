@@ -46,6 +46,7 @@ class BirthdayFlyerController extends Controller
             'display_name' => 'required|string|max:80',
             'call_name' => 'required|string|max:80',
             'template' => 'required|string|max:32',
+            'mark' => 'nullable|in:picture,sign,none',
             'selfie' => 'nullable|file|max:8192',
         ]);
 
@@ -63,14 +64,19 @@ class BirthdayFlyerController extends Controller
             $template = $this->flyers->randomTemplate();
         }
 
-        $selfieBin = $this->readSelfie($request);
+        $mark = isset($data['mark']) ? $data['mark'] : 'none';
+        $selfieBin = null;
+        if ($mark === 'picture' || $mark === 'sign') {
+            $selfieBin = $this->readSelfie($request);
+        }
         try {
             $row = $this->flyers->createFlyer(
                 $phone,
                 trim($data['display_name']),
                 trim($data['call_name']),
                 $template,
-                $selfieBin
+                $selfieBin,
+                $mark
             );
         } catch (\Throwable $e) {
             Log::warning('mambole flyer compose failed: '.$e->getMessage());

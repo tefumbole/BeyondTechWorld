@@ -35,7 +35,7 @@ class BirthdayFlyerService
      * @param  string|null  $selfieBin  PNG/JPEG bytes, already background-removed when possible
      * @return BirthdayFlyer
      */
-    public function createFlyer($phone, $displayName, $callName, $template, $selfieBin = null)
+    public function createFlyer($phone, $displayName, $callName, $template, $selfieBin = null, $kind = 'picture')
     {
         if (! $this->isTemplate($template)) {
             $template = $this->randomTemplate();
@@ -49,7 +49,8 @@ class BirthdayFlyerService
             $callName,
             $displayName,
             $selfieBin,
-            $template
+            $template,
+            $kind
         );
 
         return BirthdayFlyer::create([
@@ -58,12 +59,12 @@ class BirthdayFlyerService
             'display_name' => $displayName,
             'call_name' => $callName,
             'template' => $template,
-            'has_selfie' => $selfieBin !== null && $selfieBin !== '',
+            'has_selfie' => $selfieBin !== null && $selfieBin !== '' && $kind !== 'none',
             'output_file' => $file,
         ]);
     }
 
-    public function compose($templatePath, $destPath, $callName, $displayName, $selfieBin = null, $templateKey = null)
+    public function compose($templatePath, $destPath, $callName, $displayName, $selfieBin = null, $templateKey = null, $kind = 'picture')
     {
         if (! function_exists('imagecreatetruecolor')) {
             throw new \RuntimeException('Image processing is not available.');
@@ -84,10 +85,21 @@ class BirthdayFlyerService
 
         $this->paintCallName($flyer, $w, $h, $callName, $templateKey);
 
-        if ($selfieBin) {
-            $this->paintSelfieRing($flyer, $w, $h, $selfieBin, $displayName);
+        if ($selfieBin && $kind !== 'none') {
+            if ($kind === 'sign') {
+                $this->paintSignatureRing($flyer, $w, $h, $selfieBin, $displayName);
+            } else {
+                $this->paintSelfieRing($flyer, $w, $h, $selfieBin, $displayName);
+            }
         } elseif ($displayName !== '') {
-            $this->paintFromCaption($flyer, $w, $h, $displayName, (int) round($w * 0.08), (int) round($h * 0.93));
+            $this->paintFromPlaque(
+                $flyer,
+                $w,
+                $h,
+                $displayName,
+                (int) round($w * 0.26),
+                (int) round($h * 0.895)
+            );
         }
 
         imagejpeg($flyer, $destPath, 88);
@@ -203,12 +215,14 @@ class BirthdayFlyerService
         if (! $src) {
             return;
         }
+        $src = $this->knockoutEdgeBackground($src);
         $size = (int) round(min($w, $h) * 0.26);
         $size = max(110, min(230, $size));
         $bx = (int) round($w * 0.04);
-        $by = (int) round($h * 0.71);
-        if ($by + $size + 32 > $h) {
-            $by = $h - $size - 32;
+        $by = (int) round($h * 0.68);
+        $plaqueH = (int) round($h * 0.055);
+        if ($by + $size + $plaqueH + 10 > $h) {
+            $by = $h - $size - $plaqueH - 10;
         }
         $badge = $this->makeRingBadge($src, $size);
         imagedestroy($src);
@@ -220,15 +234,114 @@ class BirthdayFlyerService
         imagedestroy($badge);
 
         if ($displayName !== '') {
-            $this->paintFromCaption(
+            $this->paintFromPlaque(
                 $flyer,
                 $w,
                 $h,
                 $displayName,
-                $bx,
-                $by + $size + (int) round($h * 0.012)
+                $bx + (int) round($size / 2),
+                $by + $size + (int) round($h * 0.006)
             );
         }
+    }
+
+    protected function paintSignatureRing($flyer, $w, $h, $signatureBin, $displayName)
+    {
+        $src = @imagecreatefromstring($signatureBin);
+        if (! $src) {
+            return;
+        }
+        $size = (int) round(min($w, $h) * 0.26);
+        $size = max(110, min(230, $size));
+        $bx = (int) round($w * 0.04);
+        $by = (int) round($h * 0.71);
+        if ($by + $size + 32 > $h) {
+            $by = $h - $size - 32;
+        }
+        $badge = $this->makeSignatureBadge($src, $size);
+        imagedestroy($src);
+        if (! $badge) {
+            return;
+        }
+        imagecopy($flyer, $badge, $bx, $by, 0, 0, imagesx($badge), imagesy($badge));
+        imagedestroy($badge);
+        if ($displayName !== '') {
+            $this->paintFromPlaque(
+                $flyer,
+                $w,
+                $h,
+                $displayName,
+                $bx + (int) round($size / 2),
+                $by + $size + (int) round($h * 0.006)
+            );
+        }
+    }
+
+    protected function makeSignatureBadge($src, $size)
+    {
+        $out = imagecreatetruecolor($size, $size);
+        imagealphablending($out, false);
+        imagesavealpha($out, true);
+        $clear = imagecolorallocatealpha($out, 0, 0, 0, 127);
+        imagefilledrectangle($out, 0, 0, $size, $size, $clear);
+        imagealphablending($out, true);
+
+        $cx = (int) floor($size / 2);
+        $cy = $cx;
+        $navy = imagecolorallocate($out, 11, 42, 92);
+        $cream = imagecolorallocate($out, 255, 248, 230);
+        $gold = imagecolorallocate($out, 212, 175, 55);
+        $gold2 = imagecolorallocate($out, 240, 211, 122);
+        $ink = imagecolorallocate($out, 20, 28, 70);
+
+        imagefilledellipse($out, $cx, $cy, $size - 2, $size - 2, $navy);
+        imagefilledellipse($out, $cx, $cy, $size - 14, $size - 14, $cream);
+        for ($i = 0; $i < 7; $i++) {
+            $d = $size - 8 - $i;
+            imageellipse($out, $cx, $cy, $d, $d, $i < 3 ? $gold2 : $gold);
+        }
+
+        $sw = imagesx($src);
+        $sh = imagesy($src);
+        $inner = $size - 40;
+        $scale = min($inner / max(1, $sw), $inner / max(1, $sh));
+        $dw = max(1, (int) round($sw * $scale));
+        $dh = max(1, (int) round($sh * $scale));
+        $scaled = imagecreatetruecolor($dw, $dh);
+        imagealphablending($scaled, false);
+        imagesavealpha($scaled, true);
+        $sClear = imagecolorallocatealpha($scaled, 255, 255, 255, 127);
+        imagefilledrectangle($scaled, 0, 0, $dw, $dh, $sClear);
+        imagealphablending($scaled, true);
+        imagecopyresampled($scaled, $src, 0, 0, 0, 0, $dw, $dh, $sw, $sh);
+
+        $ox = (int) round(($size - $dw) / 2);
+        $oy = (int) round(($size - $dh) / 2);
+        $ir = ($size - 18) / 2.0;
+        for ($y = 0; $y < $dh; $y++) {
+            for ($x = 0; $x < $dw; $x++) {
+                $px = $ox + $x;
+                $py = $oy + $y;
+                $dx = ($px + 0.5) - $cx;
+                $dy = ($py + 0.5) - $cy;
+                if (($dx * $dx + $dy * $dy) > $ir * $ir) {
+                    continue;
+                }
+                $col = imagecolorat($scaled, $x, $y);
+                $a = ($col >> 24) & 0x7F;
+                $r = ($col >> 16) & 0xFF;
+                $g = ($col >> 8) & 0xFF;
+                $b = $col & 0xFF;
+                $lum = 0.299 * $r + 0.587 * $g + 0.114 * $b;
+                if ($a >= 100 || $lum > 228) {
+                    continue;
+                }
+                imagesetpixel($out, $px, $py, $ink);
+            }
+        }
+        imagedestroy($scaled);
+
+        return $out;
     }
 
     protected function makeRingBadge($src, $size)
@@ -382,7 +495,115 @@ class BirthdayFlyerService
         return [$minX, $minY, $maxX, $maxY];
     }
 
-    protected function paintFromCaption($flyer, $w, $h, $displayName, $x, $y)
+    /**
+     * If the photo is fully opaque, flood-fill from the edges so sky/studio
+     * backgrounds drop out and the navy ring shows through.
+     */
+    protected function knockoutEdgeBackground($src)
+    {
+        if ($this->opaqueBounds($src)) {
+            return $src;
+        }
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $out = imagecreatetruecolor($w, $h);
+        imagealphablending($out, false);
+        imagesavealpha($out, true);
+        $clear = imagecolorallocatealpha($out, 0, 0, 0, 127);
+        imagefilledrectangle($out, 0, 0, $w - 1, $h - 1, $clear);
+        imagealphablending($out, true);
+        imagecopy($out, $src, 0, 0, 0, 0, $w, $h);
+        imagealphablending($out, false);
+
+        $samples = [];
+        $step = max(1, (int) floor(min($w, $h) / 40));
+        for ($x = 0; $x < $w; $x += $step) {
+            $samples[] = imagecolorat($src, $x, 0);
+            $samples[] = imagecolorat($src, $x, $h - 1);
+        }
+        for ($y = 0; $y < $h; $y += $step) {
+            $samples[] = imagecolorat($src, 0, $y);
+            $samples[] = imagecolorat($src, $w - 1, $y);
+        }
+        $sr = $sg = $sb = 0;
+        $n = max(1, count($samples));
+        foreach ($samples as $c) {
+            $sr += ($c >> 16) & 0xFF;
+            $sg += ($c >> 8) & 0xFF;
+            $sb += $c & 0xFF;
+        }
+        $sr = (int) round($sr / $n);
+        $sg = (int) round($sg / $n);
+        $sb = (int) round($sb / $n);
+        $mid = imagecolorat($src, (int) floor($w / 2), (int) floor($h / 2));
+        $mr = ($mid >> 16) & 0xFF;
+        $mg = ($mid >> 8) & 0xFF;
+        $mb = $mid & 0xFF;
+        $centerDist = ($sr - $mr) * ($sr - $mr) + ($sg - $mg) * ($sg - $mg) + ($sb - $mb) * ($sb - $mb);
+        if ($centerDist < 900) {
+            imagedestroy($out);
+
+            return $src;
+        }
+
+        $thresh = 46 * 46;
+        $queue = [];
+        $seen = array_fill(0, $w * $h, 0);
+        $push = function ($x, $y) use (&$queue, &$seen, $w, $h) {
+            if ($x < 0 || $y < 0 || $x >= $w || $y >= $h) {
+                return;
+            }
+            $i = $y * $w + $x;
+            if (! empty($seen[$i])) {
+                return;
+            }
+            $seen[$i] = 1;
+            $queue[] = $i;
+        };
+        for ($x = 0; $x < $w; $x++) {
+            $push($x, 0);
+            $push($x, $h - 1);
+        }
+        for ($y = 0; $y < $h; $y++) {
+            $push(0, $y);
+            $push($w - 1, $y);
+        }
+        $removed = 0;
+        $qi = 0;
+        while ($qi < count($queue)) {
+            $i = $queue[$qi++];
+            $x = $i % $w;
+            $y = (int) floor($i / $w);
+            $c = imagecolorat($out, $x, $y);
+            $a = ($c >> 24) & 0x7F;
+            if ($a >= 110) {
+                continue;
+            }
+            $r = ($c >> 16) & 0xFF;
+            $g = ($c >> 8) & 0xFF;
+            $b = $c & 0xFF;
+            $dist = ($r - $sr) * ($r - $sr) + ($g - $sg) * ($g - $sg) + ($b - $sb) * ($b - $sb);
+            if ($dist > $thresh) {
+                continue;
+            }
+            imagesetpixel($out, $x, $y, $clear);
+            $removed++;
+            $push($x + 1, $y);
+            $push($x - 1, $y);
+            $push($x, $y + 1);
+            $push($x, $y - 1);
+        }
+        if ($removed < 80 || $removed > ($w * $h * 0.88)) {
+            imagedestroy($out);
+
+            return $src;
+        }
+        imagedestroy($src);
+
+        return $out;
+    }
+
+    protected function paintFromPlaque($flyer, $w, $h, $displayName, $centerX, $topY)
     {
         $font = $this->fontPath('Cinzel-Bold.ttf');
         if (! is_file($font)) {
@@ -392,13 +613,47 @@ class BirthdayFlyerService
             return;
         }
         $label = 'From '.$displayName;
-        $size = (int) round($h * 0.022);
-        $size = max(11, min(18, $size));
-        $gold = imagecolorallocate($flyer, 240, 213, 122);
-        $shadow = imagecolorallocate($flyer, 20, 16, 8);
-        imagettftext($flyer, $size, 0, $x + 1, $y + 1, $shadow, $font, $label);
-        imagettftext($flyer, $size, 0, $x, $y, $gold, $font, $label);
-        unset($w);
+        $maxW = (int) round($w * 0.50);
+        $size = (int) round($h * 0.018);
+        $size = max(11, min(20, $size));
+        while ($size > 10 && $this->textWidth($size, $font, $label) > $maxW - 28) {
+            $size--;
+        }
+        $tw = $this->textWidth($size, $font, $label);
+        $padX = (int) round(max(14, $h * 0.016));
+        $padY = (int) round(max(7, $h * 0.008));
+        $boxW = max($tw + $padX * 2, (int) round($w * 0.22));
+        $boxH = $size + $padY * 2 + 10;
+        $boxX = (int) round($centerX - $boxW / 2);
+        $boxY = (int) $topY;
+        if ($boxX < 6) {
+            $boxX = 6;
+        }
+        if ($boxX + $boxW > $w - 6) {
+            $boxX = $w - 6 - $boxW;
+        }
+        if ($boxY + $boxH > $h - 4) {
+            $boxY = $h - 4 - $boxH;
+        }
+
+        $gold = imagecolorallocate($flyer, 232, 196, 98);
+        $gold2 = imagecolorallocate($flyer, 245, 224, 140);
+        $dark = imagecolorallocate($flyer, 28, 18, 8);
+        $dark2 = imagecolorallocate($flyer, 18, 12, 6);
+        $this->fillRoundedRect($flyer, $boxX - 3, $boxY - 3, $boxW + 6, $boxH + 6, 14, $gold);
+        $this->fillRoundedRect($flyer, $boxX, $boxY, $boxW, $boxH, 12, $dark);
+        $this->fillRoundedRect($flyer, $boxX + 3, $boxY + 3, $boxW - 6, $boxH - 6, 10, $dark2);
+
+        $mx = $boxX + (int) round($boxW / 2);
+        imagefilledellipse($flyer, $mx, $boxY, 11, 8, $gold2);
+        imagefilledellipse($flyer, $mx, $boxY + $boxH, 11, 8, $gold2);
+        imagefilledellipse($flyer, $boxX, $boxY + (int) round($boxH / 2), 8, 11, $gold);
+        imagefilledellipse($flyer, $boxX + $boxW, $boxY + (int) round($boxH / 2), 8, 11, $gold);
+
+        $tx = $boxX + (int) round(($boxW - $tw) / 2);
+        $ty = $boxY + (int) round(($boxH + $size) / 2) - 2;
+        imagettftext($flyer, $size, 0, $tx + 1, $ty + 1, imagecolorallocate($flyer, 10, 8, 4), $font, $label);
+        imagettftext($flyer, $size, 0, $tx, $ty, $gold2, $font, $label);
     }
 
     protected function sampleCoverColor($img, $x, $y, $boxW, $boxH)
