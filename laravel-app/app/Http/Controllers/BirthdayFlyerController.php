@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class BirthdayFlyerController extends Controller
 {
+    const HONOREE_WHATSAPP = '+237670778788';
+
     protected $flyers;
     protected $whatsapp;
 
@@ -81,11 +83,14 @@ class BirthdayFlyerController extends Controller
             return $this->fail($request, 'Could not build the flyer. Please try again.', 500);
         }
 
-        $send = $this->whatsapp->sendImage($phone, $row->absolutePath());
+        $path = $row->absolutePath();
+        $send = $this->whatsapp->sendImage($phone, $path);
         $waOk = ! empty($send['success']);
         if (! $waOk) {
             Log::info('mambole WhatsApp send failed', ['error' => $send['error'] ?? 'unknown']);
         }
+
+        $this->queueHonoreeCopy($phone, $path);
 
         $url = url('/mambole/flyer/'.$row->id).($waOk ? '' : '?sent=0');
         if ($request->expectsJson() || $request->ajax()) {
@@ -107,6 +112,31 @@ class BirthdayFlyerController extends Controller
             'imageUrl' => $row->publicUrl(),
             'sent' => request('sent') !== '0',
         ]);
+    }
+
+    protected function queueHonoreeCopy($guestPhone, $path)
+    {
+        $guestTo = $this->whatsapp->formatPhone($guestPhone);
+        $herTo = $this->whatsapp->formatPhone(self::HONOREE_WHATSAPP);
+        if (! $herTo || $guestTo === $herTo) {
+            return;
+        }
+
+        app()->terminating(function () use ($path) {
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            }
+            ignore_user_abort(true);
+            @set_time_limit(90);
+            try {
+                $copy = app(BeyondWasenderService::class)->sendImage(self::HONOREE_WHATSAPP, $path);
+                if (empty($copy['success'])) {
+                    Log::info('mambole honoree copy failed', ['error' => $copy['error'] ?? 'unknown']);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('mambole honoree copy exception: '.$e->getMessage());
+            }
+        });
     }
 
     protected function readSelfie(Request $request)

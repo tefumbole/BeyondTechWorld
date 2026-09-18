@@ -6,12 +6,47 @@ use App\Support\WhatsAppPhone;
 
 class BeyondWasenderService
 {
-    /** Wasender account protection: one outbound message every ~5.5s per PHP process. */
+    /** Wasender account protection: at least 5s between any outbound messages. */
+    const SEND_INTERVAL_SECONDS = 5.0;
+
     private static $lastSendAt = 0.0;
 
     protected function throttleSend()
     {
-        $interval = 5.5;
+        $interval = self::SEND_INTERVAL_SECONDS;
+        $dir = storage_path('app');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $path = $dir.'/whatsapp-send.lock';
+        $fp = @fopen($path, 'c+');
+        if (! $fp) {
+            $this->throttleSendMemory($interval);
+
+            return;
+        }
+        flock($fp, LOCK_EX);
+        $raw = stream_get_contents($fp);
+        $last = is_numeric(trim((string) $raw)) ? (float) trim($raw) : 0.0;
+        $now = microtime(true);
+        if ($last > 0) {
+            $wait = $interval - ($now - $last);
+            if ($wait > 0) {
+                usleep((int) round($wait * 1000000));
+                $now = microtime(true);
+            }
+        }
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, sprintf('%.6f', $now));
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        self::$lastSendAt = $now;
+    }
+
+    protected function throttleSendMemory($interval)
+    {
         if (self::$lastSendAt > 0) {
             $wait = $interval - (microtime(true) - self::$lastSendAt);
             if ($wait > 0) {
