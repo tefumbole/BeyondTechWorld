@@ -316,7 +316,7 @@
                         <button type="button" class="btn-ghost" id="uploadBtn">Upload photo</button>
                     </div>
                     <input type="file" id="selfieFile" accept="image/*" style="position:absolute;left:-9999px;">
-                    <p class="hint" id="selfieHint">Background is removed and your face goes in the gold ring.</p>
+                    <p class="hint" id="selfieHint">Your photo is placed in the gold ring as it is.</p>
                 </div>
             </div>
 
@@ -443,7 +443,6 @@
     var goBtn = document.getElementById('goBtn');
     var stream = null;
     var selfieFile = null;
-    var cutoutMod = null;
     var mark = 'none';
     var signPad = null;
 
@@ -493,10 +492,6 @@
         }
     }
 
-    import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm').then(function (mod) {
-        cutoutMod = mod;
-    }).catch(function () {});
-
     function showStep(n) {
         step1.classList.toggle('is-on', n === 1);
         step2.classList.toggle('is-on', n === 2);
@@ -544,215 +539,18 @@
         }
     }
 
-    function samplePalette(d, cw, ch) {
-        var palette = [];
-        var band = Math.max(2, Math.floor(Math.min(cw, ch) * 0.04));
-        var step = Math.max(1, Math.floor(Math.min(cw, ch) / 36));
-        function add(x, y) {
-            var i = ((y * cw) + x) * 4;
-            var col = [d[i], d[i + 1], d[i + 2]];
-            for (var p = 0; p < palette.length; p++) {
-                var dr = col[0] - palette[p][0], dg = col[1] - palette[p][1], db = col[2] - palette[p][2];
-                if ((dr * dr + dg * dg + db * db) < 18 * 18) return;
-            }
-            if (palette.length < 24) palette.push(col);
-        }
-        for (var x = 0; x < cw; x += step) {
-            if (x >= cw * 0.22 && x <= cw * 0.78) continue;
-            for (var b = 0; b < band; b++) { add(x, b); add(x, ch - 1 - b); }
-        }
-        for (var y = 0; y < ch; y += step) {
-            if (y >= ch * 0.18 && y <= ch * 0.82) continue;
-            for (var b = 0; b < band; b++) { add(b, y); add(cw - 1 - b, y); }
-        }
-        return palette.length ? palette : [[180, 180, 190]];
-    }
-    function minDist(col, palette) {
-        var best = 1e9;
-        for (var i = 0; i < palette.length; i++) {
-            var dr = col[0] - palette[i][0], dg = col[1] - palette[i][1], db = col[2] - palette[i][2];
-            var dist = dr * dr + dg * dg + db * db;
-            if (dist < best) best = dist;
-        }
-        return best;
-    }
-    function simpleCutout(blob) {
-        return new Promise(function (resolve) {
-            var url = URL.createObjectURL(blob);
-            var img = new Image();
-            img.onload = function () {
-                var w = img.naturalWidth, h = img.naturalHeight;
-                var scale = Math.min(1, 720 / Math.max(w, h));
-                var cw = Math.max(64, Math.round(w * scale));
-                var ch = Math.max(64, Math.round(h * scale));
-                var c = document.createElement('canvas');
-                c.width = cw;
-                c.height = ch;
-                var ctx = c.getContext('2d');
-                ctx.drawImage(img, 0, 0, cw, ch);
-                URL.revokeObjectURL(url);
-                var imgd = ctx.getImageData(0, 0, cw, ch);
-                var d = imgd.data;
-                var palette = samplePalette(d, cw, ch);
-                var keep = new Uint8Array(cw * ch);
-                var cx = cw / 2, cy = ch * 0.38, rx = cw * 0.32, ry = ch * 0.42;
-                var bgT = 38 * 38, growT = 28 * 28;
-                for (var y = 0; y < ch; y++) {
-                    for (var x = 0; x < cw; x++) {
-                        var i = ((y * cw) + x) * 4;
-                        var inOval = ((x - cx) * (x - cx)) / (rx * rx) + ((y - cy) * (y - cy)) / (ry * ry) <= 1;
-                        if (inOval && minDist([d[i], d[i + 1], d[i + 2]], palette) > bgT) keep[y * cw + x] = 1;
-                    }
-                }
-                var changed = true, guard = 0;
-                while (changed && guard++ < 90) {
-                    changed = false;
-                    for (y = 1; y < ch - 1; y++) {
-                        for (x = 1; x < cw - 1; x++) {
-                            var idx = y * cw + x;
-                            if (keep[idx]) continue;
-                            i = idx * 4;
-                            if (minDist([d[i], d[i + 1], d[i + 2]], palette) <= growT) continue;
-                            if (keep[idx - 1] || keep[idx + 1] || keep[idx - cw] || keep[idx + cw]) {
-                                keep[idx] = 1;
-                                changed = true;
-                            }
-                        }
-                    }
-                }
-                for (var p = 0; p < cw * ch; p++) {
-                    if (!keep[p]) d[p * 4 + 3] = 0;
-                }
-                ctx.putImageData(imgd, 0, 0);
-                c.toBlob(function (out) { resolve(out || blob); }, 'image/png');
-            };
-            img.onerror = function () { URL.revokeObjectURL(url); resolve(blob); };
-            img.src = url;
-        });
-    }
-    function blobHasCutout(blob) {
-        return new Promise(function (resolve) {
-            if (!blob || (blob.type && blob.type.indexOf('png') === -1)) {
-                resolve(false);
-                return;
-            }
-            var url = URL.createObjectURL(blob);
-            var img = new Image();
-            img.onload = function () {
-                var w = img.naturalWidth, h = img.naturalHeight;
-                var c = document.createElement('canvas');
-                var s = Math.min(1, 200 / Math.max(w, h));
-                c.width = Math.max(20, Math.round(w * s));
-                c.height = Math.max(20, Math.round(h * s));
-                var ctx = c.getContext('2d');
-                ctx.drawImage(img, 0, 0, c.width, c.height);
-                URL.revokeObjectURL(url);
-                var data = ctx.getImageData(0, 0, c.width, c.height).data;
-                var clear = 0, total = data.length / 4;
-                for (var i = 3; i < data.length; i += 4) {
-                    if (data[i] < 40) clear++;
-                }
-                resolve(clear > total * 0.08);
-            };
-            img.onerror = function () { URL.revokeObjectURL(url); resolve(false); };
-            img.src = url;
-        });
-    }
-
-    function cropFace(blob) {
-        return new Promise(function (resolve) {
-            var url = URL.createObjectURL(blob);
-            var img = new Image();
-            img.onload = function () {
-                var w = img.naturalWidth;
-                var h = img.naturalHeight;
-                var c = document.createElement('canvas');
-                c.width = w;
-                c.height = h;
-                var ctx = c.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
-                var data = ctx.getImageData(0, 0, w, h).data;
-                var minX = w, minY = h, maxX = 0, maxY = 0, found = 0;
-                var step = w * h > 400000 ? 2 : 1;
-                for (var y = 0; y < h; y += step) {
-                    for (var x = 0; x < w; x += step) {
-                        var a = data[((y * w) + x) * 4 + 3];
-                        if (a < 40) continue;
-                        found++;
-                        if (x < minX) minX = x;
-                        if (y < minY) minY = y;
-                        if (x > maxX) maxX = x;
-                        if (y > maxY) maxY = y;
-                    }
-                }
-                var total = Math.ceil(w / step) * Math.ceil(h / step);
-                if (!(found > 40 && found < total * 0.92)) {
-                    resolve(blob);
-                    return;
-                }
-                var bw = Math.max(1, maxX - minX);
-                var bh = Math.max(1, maxY - minY);
-                var headH = Math.max(bw * 0.95, bh * 0.58);
-                var cx = (minX + maxX) / 2;
-                var cy = minY + headH * 0.42;
-                var side = Math.round(Math.max(bw, headH) * 1.16);
-                var sx = Math.round(cx - side / 2);
-                var sy = Math.round(cy - side / 2);
-                if (sx < 0) sx = 0;
-                if (sy < 0) sy = 0;
-                if (sx + side > w) sx = Math.max(0, w - side);
-                if (sy + side > h) sy = Math.max(0, h - side);
-                side = Math.min(side, w - sx, h - sy);
-                var out = document.createElement('canvas');
-                out.width = side;
-                out.height = side;
-                out.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, side, side);
-                out.toBlob(function (cut) { resolve(cut || blob); }, 'image/png');
-            };
-            img.onerror = function () { URL.revokeObjectURL(url); resolve(blob); };
-            img.src = url;
-        });
-    }
-
-    async function cutout(blob) {
-        hint.textContent = 'Removing the background…';
-        var out = blob;
-        try {
-            if (!cutoutMod) {
-                cutoutMod = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/+esm');
-            }
-            var fn = cutoutMod.removeBackground || cutoutMod.default || cutoutMod;
-            out = await fn(blob, {
-                publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/dist/',
-                device: 'cpu',
-                model: 'small',
-                output: { format: 'image/png', quality: 1 }
-            });
-        } catch (e) {
-            out = blob;
-        }
-        if (!(await blobHasCutout(out))) {
-            out = await simpleCutout(blob);
-        }
-        hint.textContent = 'Placing your face in the ring…';
-        return cropFace(out);
-    }
-
-    async function useImageBlob(blob) {
-        camBtn.classList.add('busy');
-        var cut = await cutout(blob);
-        selfieFile = blobToFile(cut, 'selfie.png');
-        var url = URL.createObjectURL(cut);
+    function useImageBlob(blob) {
+        selfieFile = blobToFile(blob, 'selfie.jpg');
+        var url = URL.createObjectURL(blob);
         shot.src = url;
         setStage('is-shot');
         captureBtn.style.display = 'none';
         camBtn.style.display = 'none';
-        camBtn.classList.remove('busy');
         retakeBtn.style.display = 'inline-flex';
-        hint.textContent = 'Background removed. Your face is ready for the flyer.';
+        hint.textContent = 'This photo will appear in the gold ring.';
         stopCam();
     }
+
 
     camBtn.addEventListener('click', function () {
         err.textContent = '';
@@ -783,7 +581,7 @@
         setStage('');
         retakeBtn.style.display = 'none';
         camBtn.style.display = 'inline-flex';
-        hint.textContent = 'The background is removed automatically and your face is placed in the gold ring.';
+        hint.textContent = 'Your photo is placed in the gold ring as it is.';
     });
 
     fileInput.addEventListener('change', function () {
