@@ -104,6 +104,11 @@ Route::post('/pangwayu/eulogy', 'PublicFuneralPledgeController@storeEulogy')->na
 Route::get('/pangwayu/payment/check', 'PublicFuneralPledgeController@payment')->name('funeral.pangwayu.payment');
 Route::get('/pangwayu/stripe/check', 'PublicFuneralPledgeController@stripeReturn')->name('funeral.pangwayu.stripe');
 
+Route::get('/mambole', 'BirthdayFlyerController@index')->name('birthday.mambole');
+Route::get('/mambole/lookup', 'BirthdayFlyerController@lookup')->middleware('throttle:40,1')->name('birthday.mambole.lookup');
+Route::post('/mambole/submit', 'BirthdayFlyerController@submit')->middleware('throttle:20,1')->name('birthday.mambole.submit');
+Route::get('/mambole/flyer/{id}', 'BirthdayFlyerController@show')->name('birthday.mambole.show');
+
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::get('/student/dashboard', 'StudentDashboardController@dashboard')->name('student.dashboard');

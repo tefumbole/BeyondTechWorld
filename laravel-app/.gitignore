@@ -38,6 +38,8 @@
 !/public/wealth/documents/.gitkeep
 /public/wealth/covers/*
 !/public/wealth/covers/.gitkeep
+/public/birthday/mambole/out/*
+!/public/birthday/mambole/out/.gitkeep
 Homestead.json
 Homestead.yaml
 npm-debug.log

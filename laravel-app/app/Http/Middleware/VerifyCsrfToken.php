@@ -24,5 +24,6 @@ class VerifyCsrfToken extends Middleware
         // Public memorial form: WhatsApp / Facebook in-app browsers often drop
         // the session cookie, so CSRF would block family members from submitting.
         'pangwayu/eulogy',
+        'mambole/submit',
     ];
 }
