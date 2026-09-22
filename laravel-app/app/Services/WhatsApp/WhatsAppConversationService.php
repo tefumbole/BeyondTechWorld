@@ -6,7 +6,9 @@ use App\Contracts\WhatsApp\WhatsAppProviderInterface;
 use App\WhatsApp\WhatsAppContact;
 use App\WhatsApp\WhatsAppContactLink;
 use App\WhatsApp\WhatsAppConversation;
+use App\WhatsApp\WhatsAppConversationEvent;
 use App\WhatsApp\WhatsAppMessage;
+use App\WhatsApp\WhatsAppNote;
 use App\WhatsApp\WhatsAppSetting;
 
 class WhatsAppConversationService
@@ -66,18 +68,27 @@ class WhatsAppConversationService
     public function openConversation(WhatsAppContact $contact)
     {
         $conversation = WhatsAppConversation::where('contact_id', $contact->id)
-            ->where('status', '!=', 'archived')
             ->orderByDesc('id')
             ->first();
 
         if ($conversation) {
+            if (in_array($conversation->status, [WhatsAppConversation::STATUS_CLOSED, WhatsAppConversation::STATUS_RESOLVED], true)) {
+                $conversation->status = WhatsAppConversation::STATUS_WAITING_STAFF;
+                if ($conversation->mode === WhatsAppConversation::MODE_CLOSED) {
+                    $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+                }
+                $conversation->save();
+            }
+
             return $conversation;
         }
 
         return WhatsAppConversation::create([
             'contact_id' => $contact->id,
-            'mode' => $this->defaultMode(),
-            'status' => 'open',
+            'mode' => $this->defaultMode() === WhatsAppConversation::MODE_AI
+                ? WhatsAppConversation::MODE_HUMAN
+                : $this->defaultMode(),
+            'status' => WhatsAppConversation::STATUS_OPEN,
             'unread_count' => 0,
         ]);
     }
@@ -118,7 +129,15 @@ class WhatsAppConversationService
         $conversation->last_message = $preview;
         $conversation->last_activity_at = now();
         $conversation->last_incoming_at = now();
+        if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
+            $conversation->status = WhatsAppConversation::STATUS_WAITING_STAFF;
+        }
         $conversation->save();
+
+        try {
+            app(WhatsAppLeadService::class)->considerIncoming($contact, $conversation, $message);
+        } catch (\Exception $e) {
+        }
 
         return $message;
     }
@@ -225,7 +244,19 @@ class WhatsAppConversationService
         $conversation->last_activity_at = now();
         $conversation->last_outgoing_at = now();
         $conversation->unread_count = 0;
+        if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
+            $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
+        }
         $conversation->save();
+        try {
+            app(WhatsAppLeadService::class)->conversationEvent(
+                $conversation->id,
+                WhatsAppConversationEvent::REPLIED,
+                'Staff replied',
+                $userId
+            );
+        } catch (\Exception $e) {
+        }
 
         $result['message'] = $message;
 
@@ -236,6 +267,145 @@ class WhatsAppConversationService
     {
         $conversation->unread_count = 0;
         $conversation->save();
+    }
+
+    public function assign(WhatsAppConversation $conversation, $userId, $actorId = null)
+    {
+        $conversation->assigned_user_id = $userId ?: null;
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::ASSIGNED, $userId ? 'Assigned to #'.$userId : 'Unassigned', $actorId);
+
+        return $conversation;
+    }
+
+    public function takeover(WhatsAppConversation $conversation, $userId)
+    {
+        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+        $conversation->assigned_user_id = $userId;
+        if (in_array($conversation->status, [WhatsAppConversation::STATUS_CLOSED, WhatsAppConversation::STATUS_RESOLVED], true)) {
+            $conversation->status = WhatsAppConversation::STATUS_OPEN;
+        }
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::TAKEOVER, 'Taken by staff', $userId);
+
+        return $conversation;
+    }
+
+    public function release(WhatsAppConversation $conversation, $userId)
+    {
+        $conversation->assigned_user_id = null;
+        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+        if ($conversation->status === WhatsAppConversation::STATUS_CLOSED) {
+            $conversation->status = WhatsAppConversation::STATUS_OPEN;
+        }
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::RELEASED, 'Released', $userId);
+
+        return $conversation;
+    }
+
+    public function pause(WhatsAppConversation $conversation, $userId)
+    {
+        $conversation->mode = WhatsAppConversation::MODE_PAUSED;
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::MODE, 'Paused', $userId);
+
+        return $conversation;
+    }
+
+    public function close(WhatsAppConversation $conversation, $userId)
+    {
+        $conversation->mode = WhatsAppConversation::MODE_CLOSED;
+        $conversation->status = WhatsAppConversation::STATUS_CLOSED;
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::CLOSED, 'Closed', $userId);
+
+        return $conversation;
+    }
+
+    public function reopen(WhatsAppConversation $conversation, $userId)
+    {
+        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+        $conversation->status = WhatsAppConversation::STATUS_OPEN;
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::REOPENED, 'Reopened', $userId);
+
+        return $conversation;
+    }
+
+    public function addNote(WhatsAppConversation $conversation, $body, $authorId, $leadId = null)
+    {
+        $body = trim((string) $body);
+        if ($body === '') {
+            return null;
+        }
+        $note = WhatsAppNote::create([
+            'conversation_id' => $conversation->id,
+            'lead_id' => $leadId,
+            'author_id' => $authorId,
+            'body' => $body,
+        ]);
+        $this->event($conversation, WhatsAppConversationEvent::NOTE, 'Internal note added', $authorId);
+
+        return $note;
+    }
+
+    public function sendExistingDocument(WhatsAppConversation $conversation, $localPath, $fileName, $caption, $userId)
+    {
+        $contact = $conversation->contact;
+        if (! $contact || ! is_string($localPath) || ! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Document is not available.'];
+        }
+        $real = realpath($localPath);
+        $root = realpath(base_path());
+        if (! $real || strpos($real, $root) !== 0) {
+            return ['success' => false, 'error' => 'Document path is not allowed.'];
+        }
+
+        $message = WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'DOCUMENT',
+            'body' => $caption ?: $fileName,
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'sender_type' => 'STAFF',
+            'sender_user_id' => $userId,
+            'queued_at' => now(),
+            'media_json' => json_encode(['path' => $fileName]),
+        ]);
+        $result = $this->provider->sendDocument($contact->normalized_phone, $real, $fileName, $caption);
+        if (! empty($result['success'])) {
+            $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+            $message->status = WhatsAppMessage::STATUS_SENT;
+            $message->sent_at = now();
+            $message->save();
+        } else {
+            $message->status = WhatsAppMessage::STATUS_FAILED;
+            $message->failed_at = now();
+            $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+            $message->save();
+        }
+        $conversation->last_message = '['.$fileName.']';
+        $conversation->last_activity_at = now();
+        $conversation->last_outgoing_at = now();
+        $conversation->unread_count = 0;
+        $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::DOCUMENT, 'Document sent: '.$fileName, $userId);
+        $result['message'] = $message;
+
+        return $result;
+    }
+
+    protected function event(WhatsAppConversation $conversation, $type, $body, $actorId = null)
+    {
+        return WhatsAppConversationEvent::create([
+            'conversation_id' => $conversation->id,
+            'type' => $type,
+            'body' => $body,
+            'actor_user_id' => $actorId,
+        ]);
     }
 
     protected function preview($body, $type)

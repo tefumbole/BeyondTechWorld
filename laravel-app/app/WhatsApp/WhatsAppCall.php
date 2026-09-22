@@ -16,7 +16,7 @@ class WhatsAppCall extends Model
     protected $table = 'whatsapp_calls';
 
     protected $fillable = [
-        'provider_call_id', 'contact_id', 'caller_phone', 'call_type',
+        'provider_call_id', 'contact_id', 'lead_id', 'caller_phone', 'call_type',
         'status', 'assigned_user_id', 'notes', 'called_at',
     ];
 

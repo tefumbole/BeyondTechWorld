@@ -2,6 +2,9 @@
 
 namespace App\Services\WhatsApp;
 
+use App\User;
+use App\WhatsApp\Lead;
+use App\WhatsApp\LeadCatalog;
 use App\WhatsApp\WhatsAppCall;
 use App\WhatsApp\WhatsAppConversation;
 use App\WhatsApp\WhatsAppMessage;
@@ -61,7 +64,66 @@ class WhatsAppHubQuery
             'recent_failed' => WhatsAppMessage::with('contact')->where('status', WhatsAppMessage::STATUS_FAILED)->orderByDesc('id')->limit(8)->get(),
             'recent_calls' => WhatsAppCall::with('contact')->orderByDesc('called_at')->limit(8)->get(),
             'recent_events' => WhatsAppWebhookEvent::orderByDesc('id')->limit(8)->get(),
+            'new_leads' => Schema::hasTable('leads') ? Lead::where('status', LeadCatalog::STATUS_NEW)->count() : 0,
+            'unassigned_leads' => Schema::hasTable('leads') ? Lead::whereNull('assigned_user_id')->whereNotIn('status', LeadCatalog::closedStatuses())->count() : 0,
+            'followups_due' => Schema::hasTable('leads') ? Lead::whereNotNull('follow_up_at')->where('follow_up_at', '<=', Carbon::now())->whereNotIn('status', LeadCatalog::closedStatuses())->count() : 0,
+            'awaiting_staff' => WhatsAppConversation::where(function ($q) {
+                $q->whereColumn('last_incoming_at', '>', 'last_outgoing_at')
+                    ->orWhere(function ($inner) {
+                        $inner->whereNotNull('last_incoming_at')->whereNull('last_outgoing_at');
+                    });
+            })->whereNotIn('status', [WhatsAppConversation::STATUS_CLOSED])->count(),
+            'unread_conversations' => WhatsAppConversation::where('unread_count', '>', 0)->count(),
+            'missed_calls' => WhatsAppCall::whereIn('status', [WhatsAppCall::MISSED, WhatsAppCall::FOLLOW_UP, WhatsAppCall::RECEIVED])->count(),
+            'needs_attention' => WhatsAppConversation::with('contact')
+                ->where(function ($q) {
+                    $q->whereColumn('last_incoming_at', '>', 'last_outgoing_at')
+                        ->orWhere(function ($inner) {
+                            $inner->whereNotNull('last_incoming_at')->whereNull('last_outgoing_at');
+                        });
+                })
+                ->whereNotIn('status', [WhatsAppConversation::STATUS_CLOSED])
+                ->orderBy('last_incoming_at')
+                ->limit(8)
+                ->get(),
+            'overdue_followups' => Schema::hasTable('leads')
+                ? Lead::with('assignee')->whereNotNull('follow_up_at')->where('follow_up_at', '<=', Carbon::now())->whereNotIn('status', LeadCatalog::closedStatuses())->orderBy('follow_up_at')->limit(8)->get()
+                : collect(),
+            'staff_workload' => $this->staffWorkload(),
         ];
+    }
+
+    public function staffWorkload()
+    {
+        $rows = WhatsAppConversation::query()
+            ->select('assigned_user_id')
+            ->whereNotNull('assigned_user_id')
+            ->whereNotIn('status', [WhatsAppConversation::STATUS_CLOSED])
+            ->get();
+        $ids = $rows->pluck('assigned_user_id')->unique()->filter()->all();
+        if ($ids === []) {
+            return collect();
+        }
+        $users = User::whereIn('id', $ids)->get()->keyBy('id');
+        $out = [];
+        foreach ($ids as $id) {
+            $user = $users->get($id);
+            $out[] = [
+                'user' => $user,
+                'open' => WhatsAppConversation::where('assigned_user_id', $id)->whereNotIn('status', [WhatsAppConversation::STATUS_CLOSED])->count(),
+                'waiting' => WhatsAppConversation::where('assigned_user_id', $id)->where(function ($q) {
+                    $q->whereColumn('last_incoming_at', '>', 'last_outgoing_at')
+                        ->orWhere(function ($inner) {
+                            $inner->whereNotNull('last_incoming_at')->whereNull('last_outgoing_at');
+                        });
+                })->count(),
+                'leads' => Schema::hasTable('leads')
+                    ? Lead::where('assigned_user_id', $id)->whereNotIn('status', LeadCatalog::closedStatuses())->count()
+                    : 0,
+            ];
+        }
+
+        return collect($out);
     }
 
     public function diagnostics()

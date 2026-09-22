@@ -4,6 +4,7 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
+        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">WhatsApp Diagnostics</h1>
         <p class="wa-sub">Operational health. Credentials are never displayed.</p>
 

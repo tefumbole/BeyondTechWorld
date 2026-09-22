@@ -4,6 +4,7 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
+        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">Message Tracking</h1>
         @include('whatsapp_hub.partials.range')
         <form method="get" class="form-inline mb-3">

@@ -4,6 +4,7 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
+        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">WhatsApp Calls</h1>
         <p class="wa-sub">Incoming call tracking only. The assistant does not answer voice calls.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
@@ -44,6 +45,12 @@
                                 </select>
                                 <input type="text" name="notes" value="{{ $call->notes }}" class="form-control form-control-sm mr-1 mb-1" placeholder="Notes">
                                 <button class="btn btn-sm btn-primary mb-1" type="submit">Save</button>
+                            </form>
+                            <form method="post" action="{{ route('whatsapp.calls.followup', $call->id) }}" class="form-inline mt-1">
+                                @csrf
+                                <input type="hidden" name="me" value="1">
+                                <input type="hidden" name="create_lead" value="1">
+                                <button class="btn btn-sm btn-outline-warning mb-1" type="submit">Follow up + create lead</button>
                             </form>
                         </td>
                     </tr>

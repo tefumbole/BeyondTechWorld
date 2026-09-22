@@ -4,6 +4,7 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
+        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title"><i class="fa fa-whatsapp"></i> WhatsApp Command Center</h1>
         <p class="wa-sub">Operational health from recorded Hub events and WaSender session status.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
@@ -30,6 +31,10 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Failed messages</div><p class="wa-stat">{{ $stats['failed'] }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Calls</div><p class="wa-stat">{{ $stats['calls'] }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Webhook events</div><p class="wa-stat">{{ $stats['webhooks'] }}</p><div class="small text-muted">{{ $stats['webhooks_processed'] }} processed · {{ $stats['webhooks_failed'] }} failed</div></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">New leads</div><p class="wa-stat">{{ $stats['new_leads'] }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Unassigned leads</div><p class="wa-stat">{{ $stats['unassigned_leads'] }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Follow-ups due</div><p class="wa-stat">{{ $stats['followups_due'] }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Awaiting staff</div><p class="wa-stat">{{ $stats['awaiting_staff'] }}</p></div></div>
         </div>
 
         <div class="row">
@@ -63,6 +68,39 @@
                             <div class="small text-muted">{{ $call->called_at }}</div></div>
                     @empty
                         <p class="text-muted mb-0">No calls recorded.</p>
+                    @endforelse
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="wa-card">
+                    <h5>Needs attention</h5>
+                    @forelse($stats['needs_attention'] as $c)
+                        <div class="mb-2"><a href="{{ route('whatsapp.conversation', $c->id) }}">{{ optional($c->contact)->displayName() }}</a>
+                            <div class="small text-muted">Waiting {{ $c->waitingMinutes() }} min · {{ $c->last_message }}</div></div>
+                    @empty
+                        <p class="text-muted mb-0">No unanswered conversations.</p>
+                    @endforelse
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="wa-card">
+                    <h5>Overdue follow-ups</h5>
+                    @forelse($stats['overdue_followups'] as $lead)
+                        <div class="mb-2"><a href="{{ route('whatsapp.leads.show', $lead->id) }}">{{ $lead->name ?: $lead->normalized_phone }}</a>
+                            <div class="small text-muted">Due {{ $lead->follow_up_at }} · {{ optional($lead->assignee)->name ?: 'Unassigned' }}</div></div>
+                    @empty
+                        <p class="text-muted mb-0">No overdue follow-ups.</p>
+                    @endforelse
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="wa-card">
+                    <h5>Staff workload</h5>
+                    @forelse($stats['staff_workload'] as $row)
+                        <div class="mb-2">{{ optional($row['user'])->name ?: 'Staff' }}
+                            <div class="small text-muted">{{ $row['open'] }} open · {{ $row['waiting'] }} waiting · {{ $row['leads'] }} leads</div></div>
+                    @empty
+                        <p class="text-muted mb-0">No assigned conversations.</p>
                     @endforelse
                 </div>
             </div>

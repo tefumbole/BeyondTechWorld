@@ -1,4 +1,5 @@
 <style>
+.wa-shell, .wa-shell * { letter-spacing: normal !important; }
 .wa-shell { max-width: 1280px; }
 .wa-title { font-size: 1.4rem; margin: 0 0 4px; }
 .wa-sub { color: #6c757d; margin-bottom: 1rem; }
@@ -21,6 +22,7 @@
 .wa-ticks-failed { color: #c0392b; }
 .wa-list a { color: inherit; }
 .wa-list .unread { font-weight: 700; }
+.wa-note { background:#fff8e1;border:1px dashed #f0ad4e;max-width:100%; }
 .wa-inbox { display: grid; grid-template-columns: 280px 1fr 260px; gap: 12px; }
 @media (max-width: 991px) {
     .wa-inbox { grid-template-columns: 1fr; }
