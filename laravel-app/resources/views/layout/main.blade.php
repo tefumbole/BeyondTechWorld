@@ -2165,6 +2165,37 @@
                                 <a href="{{ route('announcement.index') }}"> <i class="fa fa-bullhorn"></i><span>{{trans('file.Announcement')}}</span></a>
                             </li>
                         @endif
+                        @php
+                            $whatsapp_module_permission = \Spatie\Permission\Models\Permission::where('name', 'whatsapp_module')->first();
+                            $whatsapp_module_active = $role && $whatsapp_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $whatsapp_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                            if (! $whatsapp_module_active && $role) {
+                                foreach (['whatsapp.view', 'whatsapp.manage'] as $waPermName) {
+                                    $waPerm = \Spatie\Permission\Models\Permission::where('name', $waPermName)->first();
+                                    if ($waPerm && \DB::table('role_has_permissions')->where([
+                                        ['permission_id', $waPerm->id],
+                                        ['role_id', $role->id]
+                                    ])->first()) {
+                                        $whatsapp_module_active = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        @endphp
+                        @if($whatsapp_module_active)
+                            <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
+                                <ul id="whatsapp-module" class="collapse list-unstyled ">
+                                    <li><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
+                                    <li><a href="{{ route('whatsapp.conversations') }}">Conversations</a></li>
+                                    <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
+                                    <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
+                                    <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
+                                    <li><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
+                                </ul>
+                            </li>
+                        @endif
                         <?php
                         $wealth_view = DB::table('permissions')->where('name', 'wealth.view')->first();
                         $expenses_index_perm = DB::table('permissions')->where('name', 'expenses-index')->first();

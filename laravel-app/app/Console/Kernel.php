@@ -56,6 +56,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('internship:timesheet-reminders')->dailyAt('21:35')->withoutOverlapping();
         $schedule->command('online-invitations:send-reminders')->everyMinute();
         $schedule->command('wealth:sync-income')->hourlyAt(40)->withoutOverlapping();
+        $schedule->command('whatsapp:prune-webhooks')->dailyAt('03:20')->withoutOverlapping();
     }
 
     /**

@@ -59,11 +59,19 @@ class WhatsAppStatus extends Command
         } elseif ($service === 'WASENDER') {
             if ($hasWasenderKey && $hasSessionId) {
                 $this->info('Active provider: WasenderAPI (key + session configured)');
-                $this->checkWasenderConnection(
-                    config('services.whatsapp.wasender_api_key'),
-                    $sessionId,
-                    $baseUrl
-                );
+                $status = app(\App\Services\WhatsApp\WhatsAppSessionStatusService::class)->status(true);
+                $line = 'Wasender session status: '.($status['status'] ?? 'UNKNOWN');
+                if (! empty($status['connected'])) {
+                    $this->info($line);
+                } else {
+                    $this->warn($line.' — open Wasender dashboard and reconnect session '.$sessionId);
+                }
+                if (! empty($status['session_name'])) {
+                    $this->line('Wasender session name: '.$status['session_name']);
+                }
+                if (! empty($status['error'])) {
+                    $this->warn($status['error']);
+                }
             } elseif ($hasWasenderKey) {
                 $this->warn('Active provider: WasenderAPI — add WASENDER_SESSION_ID in .env');
             } else {
@@ -82,56 +90,5 @@ class WhatsAppStatus extends Command
         }
 
         return 0;
-    }
-
-    private function checkWasenderConnection($apiKey, $sessionId, $baseUrl)
-    {
-        $baseUrl = rtrim((string) $baseUrl, '/');
-        $headers = [
-            'Authorization: Bearer '.$apiKey,
-            'Accept: application/json',
-        ];
-
-        $statusResponse = $this->wasenderGet($baseUrl.'/status', $headers);
-        if (is_array($statusResponse)) {
-            $status = $statusResponse['status'] ?? $statusResponse['data']['status'] ?? null;
-            if ($status) {
-                $line = 'Wasender session status: '.$status;
-                if (in_array($status, ['connected'], true)) {
-                    $this->info($line);
-                } else {
-                    $this->warn($line.' — open Wasender dashboard and reconnect session '.$sessionId);
-                }
-            }
-        }
-
-        $sessionResponse = $this->wasenderGet($baseUrl.'/whatsapp-sessions/'.$sessionId, $headers);
-        if (is_array($sessionResponse) && ! empty($sessionResponse['data']['name'])) {
-            $this->line('Wasender session name: '.$sessionResponse['data']['name']);
-        }
-    }
-
-    private function wasenderGet($url, array $headers)
-    {
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYHOST => 0,
-            CURLOPT_SSL_VERIFYPEER => 0,
-        ]);
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-
-        if ($response === false) {
-            return null;
-        }
-
-        $decoded = json_decode($response, true);
-
-        return is_array($decoded) ? $decoded : null;
     }
 }

@@ -61,6 +61,10 @@ return [
             'HX47150e179fdbab79738d060fb0ac6415'
         ),
         'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
+        'wasender_webhook_secret' => env('WASENDER_WEBHOOK_SECRET'),
+        'webhook_retention_days' => (int) env('WHATSAPP_WEBHOOK_RETENTION_DAYS', 30),
+        'default_conversation_mode' => strtoupper((string) env('WHATSAPP_DEFAULT_CONVERSATION_MODE', 'HUMAN')),
+        'session_status_cache_seconds' => (int) env('WHATSAPP_SESSION_STATUS_CACHE_SECONDS', 45),
     ],
 
         'sms' => [

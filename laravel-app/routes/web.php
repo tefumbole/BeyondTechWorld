@@ -471,6 +471,17 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/announcements/settings', 'AnnouncementManagerController@settings')->name('announcements.settings');
     Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
 
+    Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
+    Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
+    Route::get('/admin/whatsapp/conversations/{id}', 'WhatsApp\WhatsAppHubController@conversation')->name('whatsapp.conversation');
+    Route::post('/admin/whatsapp/conversations/{id}/reply', 'WhatsApp\WhatsAppHubController@reply')->name('whatsapp.conversation.reply');
+    Route::get('/admin/whatsapp/tracking', 'WhatsApp\WhatsAppHubController@tracking')->name('whatsapp.tracking');
+    Route::get('/admin/whatsapp/calls', 'WhatsApp\WhatsAppHubController@calls')->name('whatsapp.calls');
+    Route::post('/admin/whatsapp/calls/{id}', 'WhatsApp\WhatsAppHubController@updateCall')->name('whatsapp.calls.update');
+    Route::get('/admin/whatsapp/diagnostics', 'WhatsApp\WhatsAppHubController@diagnostics')->name('whatsapp.diagnostics');
+    Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
+    Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');
+
     // Course Manager (AlphaBridge-style)
     Route::get('/admin/courses', 'CourseManagerController@index')->name('courses.index');
     Route::get('/admin/courses/create', 'CourseManagerController@create')->name('courses.create');

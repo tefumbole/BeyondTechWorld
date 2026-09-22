@@ -47,6 +47,7 @@ class SiteMenu
             'contracts'    => 'Contracts',
             'permissions'  => 'Permissions',
             'announcements'=> 'Announcements',
+            'whatsapp'     => 'WhatsApp Hub',
             'courses'      => 'Courses',
             'timesheets'   => 'TimeSheets (Employee)',
             'timesheet-admin' => 'TimeSheet Admin',

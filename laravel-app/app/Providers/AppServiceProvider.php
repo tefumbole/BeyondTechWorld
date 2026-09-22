@@ -24,7 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->bind(
+            \App\Contracts\WhatsApp\WhatsAppProviderInterface::class,
+            \App\Services\WhatsApp\Providers\WaSenderProvider::class
+        );
     }
 
     public function boot()
