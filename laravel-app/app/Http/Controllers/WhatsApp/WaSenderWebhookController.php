@@ -18,6 +18,15 @@ class WaSenderWebhookController extends Controller
         // Public webhook — skip the ERP permission share in the base controller.
     }
 
+    public function info()
+    {
+        return response()->json([
+            'ok' => true,
+            'service' => 'wasender',
+            'hint' => 'This endpoint accepts POST webhooks only.',
+        ]);
+    }
+
     public function handle(Request $request, WaSenderEventParser $parser)
     {
         $raw = $request->getContent();

@@ -19,6 +19,13 @@ use Tests\WhatsAppHubTestCase;
 
 class WhatsAppWebhookTest extends WhatsAppHubTestCase
 {
+    public function test_get_info_does_not_require_signature()
+    {
+        $this->getJson('/api/webhooks/wasender')
+            ->assertStatus(200)
+            ->assertJson(['ok' => true, 'service' => 'wasender']);
+    }
+
     public function test_rejects_invalid_signature()
     {
         $response = $this->withHeaders(['X-Webhook-Signature' => 'wrong', 'Content-Type' => 'application/json'])

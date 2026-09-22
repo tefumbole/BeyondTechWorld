@@ -17,6 +17,10 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::get('/webhooks/wasender', 'WhatsApp\WaSenderWebhookController@info')
+    ->middleware('throttle:60,1')
+    ->name('whatsapp.webhook.info');
+
 Route::post('/webhooks/wasender', 'WhatsApp\WaSenderWebhookController@handle')
     ->middleware('throttle:300,1')
     ->name('whatsapp.webhook');
