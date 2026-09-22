@@ -60,27 +60,15 @@ class InternshipSupervisorController extends Controller
      */
     public function renderPersonalHome(\App\User $user)
     {
-        $uid = (int) $user->id;
-        $scopeOwn = InternCompliance::shouldScopeSupervisees($user);
-
         $enrolmentQ = InternshipEnrolment::whereIn('status', ['pending', 'active', 'paused']);
-        if ($scopeOwn) {
-            $enrolmentQ->where(function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
+        $allowed = $this->service->supervisedEnrolmentIds($user);
+        if ($allowed !== null) {
+            $enrolmentQ->whereIn('id', $allowed->isEmpty() ? [0] : $allowed);
         }
         $internCount = (clone $enrolmentQ)->count();
         $activeCount = (clone $enrolmentQ)->where('status', 'active')->count();
 
-        $pendingGradeQ = InternshipSubmission::where('status', 'submitted');
-        if ($scopeOwn) {
-            $pendingGradeQ->whereHas('assignment.enrolment', function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
-        }
-        $pendingGrades = (clone $pendingGradeQ)->count();
+        $pendingGrades = $this->service->pendingGradeCount($user);
 
         $timesheet = app(TimesheetService::class);
         $weekScore = $timesheet->weekScore($user->id);
@@ -100,17 +88,13 @@ class InternshipSupervisorController extends Controller
     public function dashboard()
     {
         $this->allow();
-        $uid = (int) Auth::id();
-        $scopeOwn = InternCompliance::shouldScopeSupervisees(Auth::user());
+        $allowed = $this->service->supervisedEnrolmentIds(Auth::user());
 
         $enrolmentQ = InternshipEnrolment::with(['student', 'program', 'assignments.task'])
             ->whereIn('status', ['pending', 'active', 'paused'])
             ->orderByDesc('id');
-        if ($scopeOwn) {
-            $enrolmentQ->where(function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
+        if ($allowed !== null) {
+            $enrolmentQ->whereIn('id', $allowed->isEmpty() ? [0] : $allowed);
         }
         $enrolments = $enrolmentQ->limit(50)->get();
 
@@ -123,29 +107,15 @@ class InternshipSupervisorController extends Controller
             ];
         });
 
-        $pendingGradeQ = InternshipSubmission::where('status', 'submitted');
-        if ($scopeOwn) {
-            $pendingGradeQ->whereHas('assignment.enrolment', function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
-        }
-        $pendingGradeCount = (clone $pendingGradeQ)->count();
-        $recentSubmissions = (clone $pendingGradeQ)
-            ->with(['student', 'assignment.task', 'assignment.enrolment.program'])
-            ->orderByDesc('submitted_at')
-            ->limit(8)
-            ->get();
+        $pendingGradeCount = $this->service->pendingGradeCount(Auth::user());
+        $recentSubmissions = $this->service->pendingGradeQuery(Auth::user())->limit(8)->get();
 
         $openTaskQ = InternshipTaskAssignment::with(['task', 'enrolment.student'])
             ->whereIn('status', ['available', 'in_progress', 'revision_required', 'submitted'])
             ->orderByDesc('scheduled_work_date')
             ->orderByDesc('id');
-        if ($scopeOwn) {
-            $openTaskQ->whereHas('enrolment', function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
+        if ($allowed !== null) {
+            $openTaskQ->whereIn('enrolment_id', $allowed->isEmpty() ? [0] : $allowed);
         }
         $openTaskCount = (clone $openTaskQ)->count();
         $openTasks = $openTaskQ->limit(25)->get();
@@ -165,19 +135,8 @@ class InternshipSupervisorController extends Controller
     public function index()
     {
         $this->allow();
-        $q = InternshipSubmission::with([
-            'student', 'assignment.task', 'assignment.enrolment.program', 'files',
-        ])->where('status', 'submitted')->orderByDesc('submitted_at');
-
-        if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
-            $uid = (int) Auth::id();
-            $q->whereHas('assignment.enrolment', function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
-        }
-
-        $submissions = $q->paginate(30);
+        $submissions = $this->service->pendingGradeQuery(Auth::user())->paginate(40);
+        $pendingGrades = $submissions->total();
 
         $sla = [];
         foreach ($submissions as $submission) {
@@ -185,7 +144,7 @@ class InternshipSupervisorController extends Controller
         }
         $slaDays = $this->service->reviewSlaWorkingDays();
 
-        return view('internship.supervisor.index', compact('submissions', 'sla', 'slaDays'));
+        return view('internship.supervisor.index', compact('submissions', 'sla', 'slaDays', 'pendingGrades'));
     }
 
     public function show($id)
@@ -308,12 +267,9 @@ class InternshipSupervisorController extends Controller
         $q = InternshipEnrolment::with(['student', 'program'])
             ->whereIn('status', ['pending', 'active', 'paused'])
             ->orderByDesc('id');
-        if (InternCompliance::shouldScopeSupervisees(Auth::user())) {
-            $uid = (int) Auth::id();
-            $q->where(function ($w) use ($uid) {
-                $w->where('supervisor_id', $uid)
-                    ->orWhere('supervisors_json', 'like', '%user:'.$uid.'%');
-            });
+        $allowed = $this->service->supervisedEnrolmentIds(Auth::user());
+        if ($allowed !== null) {
+            $q->whereIn('id', $allowed->isEmpty() ? [0] : $allowed);
         }
         $enrolments = $q->paginate(40);
 

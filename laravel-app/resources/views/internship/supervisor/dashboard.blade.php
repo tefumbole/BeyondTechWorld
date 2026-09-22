@@ -3,7 +3,7 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+        <div class="ip-page-head">
             <div>
                 <h1 class="ip-title mb-0">Supervisor</h1>
                 <p class="ip-meta mb-0">

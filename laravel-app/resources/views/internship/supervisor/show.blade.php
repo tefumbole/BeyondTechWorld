@@ -6,6 +6,7 @@
     $enrolment = $assignment->enrolment;
     $passMark = (int) ($task->pass_mark ?: 60);
     $totalHours = $hours->sum('hours');
+    $canGrade = $submission->status === 'submitted' || optional($assignment)->status === 'submitted';
 @endphp
 <section class="forms">
     <div class="container-fluid ip-shell">
@@ -41,7 +42,7 @@
                     </p>
                 </div>
             </div>
-            @if($submission->status === 'submitted' && !empty($sla['deadline']))
+            @if($canGrade && !empty($sla['deadline']))
                 <p class="mb-0 mt-2">
                     <span class="ip-badge {{ $sla['overdue'] ? 'warn' : 'active' }}">
                         Review due {{ $sla['deadline']->format('D d M Y H:i') }}
@@ -54,7 +55,7 @@
                         @endif
                     </span>
                 </p>
-            @elseif($submission->status !== 'submitted')
+            @elseif(! $canGrade)
                 <div class="alert alert-info mb-0 mt-2">
                     This submission is already marked <strong>{{ str_replace('_', ' ', $submission->status) }}</strong>, so it can no longer be graded.
                 </div>
@@ -191,12 +192,14 @@
                                            placeholder="0–{{ $c['max'] }}" required>
                                 </td>
                                 <td>
-                                    @foreach(\App\Support\InternshipRubric::bands($c['max']) as $band)
-                                        <button type="button" class="ip-btn ip-btn-outline ip-btn-sm ip-band mb-1"
-                                                data-value="{{ $band['value'] }}" title="{{ $band['label'] }}">
-                                            {{ $band['label'] }} {{ $band['value'] }}
-                                        </button>
-                                    @endforeach
+                                    <div class="ip-bands">
+                                        @foreach(\App\Support\InternshipRubric::bands($c['max']) as $band)
+                                            <button type="button" class="ip-btn ip-btn-outline ip-btn-sm ip-band"
+                                                    data-value="{{ $band['value'] }}" title="{{ $band['label'] }}">
+                                                {{ $band['label'] }}
+                                            </button>
+                                        @endforeach
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -251,7 +254,7 @@
                     </div>
                 </div>
 
-                <button class="ip-btn" type="submit" {{ $submission->status === 'submitted' ? '' : 'disabled' }}>Save decision</button>
+                <button class="ip-btn" type="submit" {{ $canGrade ? '' : 'disabled' }}>Save decision</button>
             </form>
         </div>
     </div>

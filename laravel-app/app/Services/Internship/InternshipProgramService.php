@@ -962,7 +962,8 @@ class InternshipProgramService
         if (! $assignment || ! $enrolment) {
             throw new \RuntimeException('This submission is no longer linked to a task.');
         }
-        if ($submission->status !== 'submitted' || $assignment->status !== 'submitted') {
+        $reviewable = $assignment->status === 'submitted' || $submission->status === 'submitted';
+        if (! $reviewable || in_array($assignment->status, ['passed', 'skipped'], true)) {
             throw new \RuntimeException('This submission has already been reviewed. Reload the queue to see the current decision.');
         }
 
@@ -1188,6 +1189,129 @@ class InternshipProgramService
             'overdue' => $deadline ? now()->greaterThan($deadline) : false,
             'waiting_hours' => (int) $submittedAt->diffInHours(now()),
         ];
+    }
+
+    /**
+     * Assignment IDs that still need a supervisor decision: the task is
+     * submitted, or its latest submission is still ungraded.
+     *
+     * @return \Illuminate\Support\Collection|int[]
+     */
+    public function ungradedAssignmentIds(User $user = null)
+    {
+        $fromAssignments = InternshipTaskAssignment::where('status', 'submitted')->pluck('id');
+        $latestSubmitted = InternshipSubmission::query()
+            ->where('status', 'submitted')
+            ->whereIn('id', function ($q) {
+                $q->selectRaw('MAX(id) as id')
+                    ->from('internship_submissions')
+                    ->groupBy('assignment_id');
+            })
+            ->pluck('assignment_id');
+
+        $ids = $fromAssignments->merge($latestSubmitted)->unique()->filter()->values();
+        if ($ids->isEmpty()) {
+            return $ids;
+        }
+
+        $ids = InternshipTaskAssignment::whereIn('id', $ids)
+            ->whereNotIn('status', ['passed', 'skipped'])
+            ->pluck('id');
+
+        $allowed = $user ? $this->supervisedEnrolmentIds($user) : null;
+        if ($allowed !== null) {
+            if ($allowed->isEmpty()) {
+                return collect();
+            }
+            $ids = InternshipTaskAssignment::whereIn('id', $ids)
+                ->whereIn('enrolment_id', $allowed)
+                ->pluck('id');
+        }
+
+        return $ids->values();
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function pendingGradeQuery(User $user = null)
+    {
+        $ids = $this->ungradedAssignmentIds($user);
+        $this->healSubmittedSubmissions($ids);
+        $ids = $this->ungradedAssignmentIds($user);
+        if ($ids->isEmpty()) {
+            return InternshipSubmission::query()->whereRaw('0 = 1');
+        }
+
+        $latest = InternshipSubmission::query()
+            ->selectRaw('MAX(id) as id')
+            ->whereIn('assignment_id', $ids)
+            ->groupBy('assignment_id');
+
+        return InternshipSubmission::with([
+            'student', 'assignment.task', 'assignment.enrolment.program', 'files',
+        ])->whereIn('id', $latest)
+            ->orderByRaw('COALESCE(submitted_at, created_at) DESC');
+    }
+
+    public function pendingGradeCount(User $user = null)
+    {
+        return $this->ungradedAssignmentIds($user)->count();
+    }
+
+    /**
+     * Enrolment IDs this supervisor may see, or null when they see everyone.
+     *
+     * @return \Illuminate\Support\Collection|null
+     */
+    public function supervisedEnrolmentIds(User $user)
+    {
+        if (! InternCompliance::shouldScopeSupervisees($user)) {
+            return null;
+        }
+        $uid = (int) $user->id;
+
+        return InternshipEnrolment::query()
+            ->get(['id', 'supervisor_id', 'supervisors_json'])
+            ->filter(function (InternshipEnrolment $e) use ($uid) {
+                return $e->isSupervisedBy($uid);
+            })
+            ->pluck('id')
+            ->values();
+    }
+
+    /**
+     * Keep a submission row (status=submitted) for every task waiting on a grade.
+     */
+    protected function healSubmittedSubmissions($assignmentIds)
+    {
+        if (! $assignmentIds || count($assignmentIds) < 1) {
+            return;
+        }
+        $rows = InternshipTaskAssignment::with(['enrolment', 'latestSubmission'])
+            ->whereIn('id', $assignmentIds)
+            ->where('status', 'submitted')
+            ->get();
+        foreach ($rows as $assignment) {
+            $sub = $assignment->latestSubmission;
+            if ($sub && $sub->status !== 'submitted') {
+                $sub->status = 'submitted';
+                if (! $sub->submitted_at) {
+                    $sub->submitted_at = $sub->created_at ?: now();
+                }
+                $sub->save();
+            }
+            if (! $sub && $assignment->enrolment) {
+                InternshipSubmission::create([
+                    'assignment_id' => $assignment->id,
+                    'student_user_id' => $assignment->enrolment->student_user_id,
+                    'attempt_no' => max(1, (int) $assignment->attempt_count),
+                    'description' => '',
+                    'submitted_at' => $assignment->updated_at ?: now(),
+                    'status' => 'submitted',
+                ]);
+            }
+        }
     }
 
     /**

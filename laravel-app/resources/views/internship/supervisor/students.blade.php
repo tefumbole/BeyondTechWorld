@@ -3,7 +3,7 @@
 @include('internship.partials.styles')
 <section class="forms">
     <div class="container-fluid ip-shell">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+        <div class="ip-page-head">
             <h1 class="ip-title mb-0">{{ \App\Support\InternCompliance::isInternshipAdmin(auth()->user()) ? 'All interns' : 'My interns' }}</h1>
             @include('internship.partials.supervisor_nav', ['ipNavHere' => 'students'])
         </div>
