@@ -37,6 +37,15 @@
         </div>
 
         <div class="wa-card">
+            <h5>Beyond Assistant</h5>
+            <p>Enabled: {{ !empty($diag['assistant_enabled']) ? 'Yes' : 'No' }} · Provider key: {{ $diag['assistant_provider'] }}</p>
+            <p>Last success: {{ optional($diag['assistant_last_ok'])->created_at ?: '—' }} · Last failure: {{ optional($diag['assistant_last_fail'])->error ?: '—' }}</p>
+            <p>Average processing: {{ $diag['assistant_avg_ms'] }} ms · Handovers: {{ $diag['assistant_handovers'] }}</p>
+            @foreach($diag['assistant_tool_failures'] as $tf)
+                <div class="small">Tool {{ $tf->tools_executed }} · {{ $tf->tool_status }}</div>
+            @endforeach
+        </div>
+        <div class="wa-card">
             <h5>Recent processing failures</h5>
             @forelse($diag['recent_failures'] as $fail)
                 <div class="mb-2">#{{ $fail->id }} {{ $fail->event_type }} — {{ $fail->processing_error }}</div>

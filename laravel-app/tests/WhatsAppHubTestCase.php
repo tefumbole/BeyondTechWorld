@@ -31,6 +31,10 @@ abstract class WhatsAppHubTestCase extends TestCase
             '--path' => 'database/migrations/2026_09_22_191000_create_whatsapp_hub_phase2.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_22_201000_create_whatsapp_hub_phase3.php',
+            '--force' => true,
+        ]);
     }
 
     protected function createSupportTables()
@@ -195,6 +199,8 @@ abstract class WhatsAppHubTestCase extends TestCase
             'whatsapp.conversations', 'whatsapp.reply', 'whatsapp.calls', 'whatsapp.settings',
             'whatsapp.leads', 'whatsapp.leads.manage', 'whatsapp.assign',
             'whatsapp.takeover', 'whatsapp.notes', 'whatsapp.documents',
+            'whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.ai.knowledge',
+            'whatsapp.ai.tools', 'whatsapp.ai.activity', 'whatsapp.ai.suggest',
         ] as $name) {
             $perm = Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
             try {

@@ -240,8 +240,11 @@ class WhatsAppHubController extends Controller
             'sla_warning_minutes' => (int) WhatsAppSetting::getValue('sla_warning_minutes', 60),
             'sla_critical_minutes' => (int) WhatsAppSetting::getValue('sla_critical_minutes', 240),
         ];
+        $assistantEnabled = WhatsAppSetting::getValue('assistant_enabled', '0') === '1';
+        $assistantEnv = (bool) config('assistant.enabled');
+        $assistantConfigured = trim((string) config('assistant.api_key')) !== '';
 
-        return view('whatsapp_hub.settings', compact('session', 'mode', 'webhookUrl', 'sla'));
+        return view('whatsapp_hub.settings', compact('session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured'));
     }
 
     public function updateSettings(Request $request)
@@ -259,6 +262,9 @@ class WhatsAppHubController extends Controller
             if ($val > 0 && $val <= 10080) {
                 WhatsAppSetting::putValue($key, (string) $val);
             }
+        }
+        if ($this->canAny(['whatsapp.ai.manage', 'whatsapp.manage'])) {
+            WhatsAppSetting::putValue('assistant_enabled', $request->input('assistant_enabled') ? '1' : '0');
         }
 
         return redirect()->route('whatsapp.settings')->with('message', 'Settings saved.');

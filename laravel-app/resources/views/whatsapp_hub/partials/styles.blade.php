@@ -15,6 +15,7 @@
 .wa-bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; margin-bottom: 10px; }
 .wa-in { background: #fff; border: 1px solid #e5e7eb; margin-right: auto; }
 .wa-out { background: #dcf8c6; margin-left: auto; }
+.wa-ai { background: #e8f0fe; margin-left: auto; border: 1px solid #c5d4f5; }
 .wa-meta { font-size: 11px; color: #6c757d; margin-top: 4px; }
 .wa-ticks-sent { color: #6c757d; }
 .wa-ticks-delivered { color: #6c757d; }

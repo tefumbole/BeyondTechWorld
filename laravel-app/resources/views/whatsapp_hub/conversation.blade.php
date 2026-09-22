@@ -34,7 +34,8 @@
                     @endforeach
                 @endif
                 <hr>
-                <form method="post" action="{{ route('whatsapp.conversation.takeover', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-primary btn-block" type="submit">Take Conversation</button></form>
+                <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-success btn-block" type="submit">Enable AI</button></form>
+                <form method="post" action="{{ route('whatsapp.conversation.takeover', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-primary btn-block" type="submit">Take Over</button></form>
                 <form method="post" action="{{ route('whatsapp.conversation.release', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-secondary btn-block" type="submit">Release</button></form>
                 <form method="post" action="{{ route('whatsapp.conversation.pause', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-warning btn-block" type="submit">Pause</button></form>
                 @if($conversation->status === 'CLOSED')
@@ -69,7 +70,9 @@
                                 <div>{{ $item->body }}</div>
                             </div>
                         @else
-                            <div class="wa-bubble {{ $item->direction === 'OUTGOING' ? 'wa-out' : 'wa-in' }}">
+                            <div class="wa-bubble {{ $item->sender_type === 'ASSISTANT' ? 'wa-ai' : ($item->direction === 'OUTGOING' ? 'wa-out' : 'wa-in') }}">
+                                @if($item->sender_type === 'ASSISTANT')<div class="small text-muted">Beyond Assistant</div>@endif
+                                @if($item->sender_type === 'STAFF')<div class="small text-muted">Staff</div>@endif
                                 <div>{{ $item->body ?: '['.$item->type.']' }}</div>
                                 <div class="wa-meta">
                                     {{ $item->created_at }}
@@ -92,8 +95,13 @@
                 @if($canReply)
                     <form method="post" action="{{ route('whatsapp.conversation.reply', $conversation->id) }}" class="mt-3">
                         @csrf
-                        <textarea name="body" class="form-control mb-2" rows="3" required placeholder="WhatsApp reply…"></textarea>
+                        <textarea name="body" class="form-control mb-2" rows="3" required placeholder="WhatsApp reply…">{{ session('suggested_reply') }}</textarea>
                         <button class="btn btn-primary" type="submit">Send WhatsApp</button>
+                    </form>
+                    <form method="post" action="{{ route('whatsapp.conversation.suggest', $conversation->id) }}" class="mt-1">
+                        @csrf
+                        <button class="btn btn-outline-info btn-sm" type="submit">Suggest Reply</button>
+                        <span class="small text-muted">Draft only — not sent until you click Send WhatsApp.</span>
                     </form>
                 @endif
                 <form method="post" action="{{ route('whatsapp.conversation.note', $conversation->id) }}" class="mt-2">

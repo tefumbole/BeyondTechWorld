@@ -160,6 +160,23 @@ class WhatsAppHubQuery
             'wasender_key' => ! empty(config('services.whatsapp.wasender_api_key')) ? 'Configured' : 'Missing',
             'wasender_session' => ! empty(config('services.whatsapp.wasender_session_id')) ? 'Configured' : 'Missing',
             'webhook_secret' => WaSenderSignature::isConfigured() ? 'Configured' : 'Missing',
+            'assistant_enabled' => app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled(),
+            'assistant_provider' => trim((string) config('assistant.api_key')) !== '' ? 'Configured' : 'Missing',
+            'assistant_last_ok' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
+                ? \App\Assistant\AssistantActivity::where('status', \App\Assistant\AssistantActivity::COMPLETED)->orderByDesc('id')->first()
+                : null,
+            'assistant_last_fail' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
+                ? \App\Assistant\AssistantActivity::where('status', \App\Assistant\AssistantActivity::FAILED)->orderByDesc('id')->first()
+                : null,
+            'assistant_avg_ms' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
+                ? (int) \App\Assistant\AssistantActivity::whereNotNull('duration_ms')->avg('duration_ms')
+                : 0,
+            'assistant_handovers' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
+                ? \App\Assistant\AssistantActivity::where('status', \App\Assistant\AssistantActivity::HANDED_OVER)->count()
+                : 0,
+            'assistant_tool_failures' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
+                ? \App\Assistant\AssistantActivity::whereNotNull('tool_status')->where('tool_status', '!=', 'ok')->orderByDesc('id')->limit(8)->get()
+                : collect(),
         ];
     }
 }

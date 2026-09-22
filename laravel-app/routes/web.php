@@ -500,6 +500,12 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/diagnostics', 'WhatsApp\WhatsAppHubController@diagnostics')->name('whatsapp.diagnostics');
     Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
     Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');
+    Route::get('/admin/whatsapp/assistant', 'WhatsApp\WhatsAppAssistantController@index')->name('whatsapp.assistant');
+    Route::post('/admin/whatsapp/assistant/enabled', 'WhatsApp\WhatsAppAssistantController@updateEnabled')->name('whatsapp.assistant.enabled');
+    Route::post('/admin/whatsapp/assistant/knowledge', 'WhatsApp\WhatsAppAssistantController@storeKnowledge')->name('whatsapp.assistant.knowledge.store');
+    Route::post('/admin/whatsapp/assistant/knowledge/{id}', 'WhatsApp\WhatsAppAssistantController@updateKnowledge')->name('whatsapp.assistant.knowledge.update');
+    Route::post('/admin/whatsapp/conversations/{id}/enable-ai', 'WhatsApp\WhatsAppAssistantController@enableAi')->name('whatsapp.conversation.enable_ai');
+    Route::post('/admin/whatsapp/conversations/{id}/suggest', 'WhatsApp\WhatsAppAssistantController@suggest')->name('whatsapp.conversation.suggest');
 
     // Course Manager (AlphaBridge-style)
     Route::get('/admin/courses', 'CourseManagerController@index')->name('courses.index');

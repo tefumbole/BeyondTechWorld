@@ -1,9 +1,89 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 2 — Conversations, Leads & Human Handover  
-STATUS: Deployed to production (`ff6b354`). Automated suite passing. Live-test the wedding enquiry path, then STOP (no Phase 3 / no LLM).
+PHASE: 3 — Beyond Assistant  
+STATUS: Implemented. Automated suite passing. Ready to deploy (no Phase 4).
 
 Date: 22 September 2026
+
+---
+
+## PHASE 3 — Beyond Assistant
+
+Controlled operations assistant. **AI interprets. ERP validates and executes.** The model never receives DB credentials, SQL, or arbitrary Eloquent access.
+
+### Architecture
+
+WhatsApp → WaSender webhook (Phase 1) → conversation/lead (Phase 2) → queued `ProcessAssistantTurn` → `BeyondAssistantService` → intent → policy → registered tool → existing ERP model → composer → `WhatsAppProviderInterface` → WhatsApp.
+
+### Provider
+
+`AiProviderInterface` → `OpenAiProvider` (when `AI_API_KEY` is set) or `NullAiProvider` (tests / missing key). Deterministic intent still handles greeting, services, rental, booking, internship, finance refuse, and human request without a vendor.
+
+### Config (env only — never in Hub UI)
+
+`WHATSAPP_ASSISTANT_ENABLED`, `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT`, `AI_MAX_OUTPUT_TOKENS`, `AI_TEMPERATURE`, `AI_MAX_TOOL_ITERATIONS`, confidence thresholds. Hub **Disable Beyond Assistant** is `whatsapp_settings.assistant_enabled`. Both must be on.
+
+### Modes
+
+AI / HUMAN / PAUSED / CLOSED are operational. Human takeover always silences AI. New conversations use AI only when the global switch is on and default mode is AI.
+
+### Tools (read + handover)
+
+Contact, company, services, rental catalogue search (no date availability claim), quotations, bookings, internship summary/task/progress, current lead, list PDFs, `request_human_handover`. Payment summary exists but is policy-blocked (VERIFIED).
+
+### Policy
+
+PUBLIC / RECOGNIZED / VERIFIED / PRIVILEGED. Phase 3 does not auto-disclose balances, receipts, contracts, or employee records. “I paid 500,000” is not ERP confirmation.
+
+### Memory
+
+`assistant_memories` — short-term slots (event type/date/guests), TTL hours, clarification count.
+
+### Screens
+
+WhatsApp Hub → **AI Assistant** (status, knowledge, intents, tools, activity, failures). Conversation: Enable AI, Take Over, Pause, Close, Suggest Reply (draft only). Diagnostics show assistant health without keys.
+
+### Permissions
+
+`whatsapp.ai`, `.ai.manage`, `.ai.knowledge`, `.ai.tools`, `.ai.activity`, `.ai.suggest` — roles 1–2.
+
+### Migration
+
+`2026_09_22_201000_create_whatsapp_hub_phase3.php` — `assistant_knowledge`, `assistant_memories`, `assistant_activities`.
+
+### Tests
+
+**54 tests, 188 assertions — OK** (Phase 1 + 2 + 3).
+
+Covered: disabled/HUMAN/PAUSED silence, greeting, services, rental multi-turn memory, product search disclaimer, booking status, ambiguous bookings, internship task, balance refuse, payment-claim refuse, human handover, low confidence, unauthorized tool, unknown tool, provider failure keeps inbound, duplicate inbound, AI key not leaked, suggested reply does not send.
+
+### Known limitations
+
+- No Phase 4 availability/pricing/quotation writer.
+- No Phase 5 internship WhatsApp submission or grading.
+- No Phase 7 document OTP; VERIFIED finance stays refused.
+- No Phase 9 calendar appointments.
+- Without `AI_API_KEY`, replies use deterministic intents + approved knowledge (still safe).
+
+### Phase 4 readiness
+
+Rental memory slots (event, date, guests, product) and catalogue search are in place. Do not start availability, pricing engine, auto-quotation, or PDF send until Phase 4 is approved.
+
+### Live validation (after deploy)
+
+1. Set `WHATSAPP_ASSISTANT_ENABLED=true` in production `.env` (do not put a real key in git).
+2. Optionally set `AI_API_KEY` / `AI_MODEL`.
+3. Hub Settings → enable Beyond Assistant.
+4. Conversation → Enable AI (or default mode AI).
+5. Test: greeting; services; rental; JBL search; booking; intern task; “how much do I owe”; “I paid 500,000 confirm”; “speak with someone”; Take Over; Enable AI; Suggest Reply.
+
+Do not mark those PASSED until they are actually tested on WhatsApp.
+
+---
+
+## PHASE 2 COMPLETED (shipped)
+
+Conversations, leads, handover. See git `c7d1971` / `ff6b354`.
 
 ---
 

@@ -22,7 +22,7 @@
             <h5>Conversations</h5>
             <form method="post" action="{{ route('whatsapp.settings.update') }}">
                 @csrf
-                <label>Default conversation mode (AI is not implemented in Phase 2)</label>
+                <label>Default conversation mode</label>
                 <select name="default_conversation_mode" class="form-control mb-3" style="max-width:240px">
                     @foreach(['HUMAN','AI','PAUSED','CLOSED'] as $opt)
                         <option value="{{ $opt }}" {{ strtoupper($mode) === $opt ? 'selected' : '' }}>{{ $opt }}</option>
@@ -34,6 +34,14 @@
                 <input type="number" min="1" max="10080" name="sla_warning_minutes" class="form-control mb-2" style="max-width:240px" value="{{ $sla['sla_warning_minutes'] }}">
                 <label>SLA — critical (minutes)</label>
                 <input type="number" min="1" max="10080" name="sla_critical_minutes" class="form-control mb-3" style="max-width:240px" value="{{ $sla['sla_critical_minutes'] }}">
+                <hr>
+                <h5>Beyond Assistant</h5>
+                <p class="small text-muted">Environment switch: {{ !empty($assistantEnv) ? 'Allowed' : 'Blocked (WHATSAPP_ASSISTANT_ENABLED)' }}. Provider key: {{ !empty($assistantConfigured) ? 'Configured' : 'Missing' }}. Secrets are never shown here.</p>
+                <label class="d-block mb-3">
+                    <input type="hidden" name="assistant_enabled" value="0">
+                    <input type="checkbox" name="assistant_enabled" value="1" {{ !empty($assistantEnabled) ? 'checked' : '' }}>
+                    Enable Beyond Assistant (uncheck to disable all AI replies immediately)
+                </label>
                 <button class="btn btn-primary" type="submit">Save</button>
             </form>
         </div>
