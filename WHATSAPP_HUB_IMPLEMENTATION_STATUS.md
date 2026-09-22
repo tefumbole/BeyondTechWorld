@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 3 — Beyond Assistant  
-STATUS: Implemented. Automated suite passing. Ready to deploy (no Phase 4).
+STATUS: Deployed to production (`eb2a9ac`). Automated suite passing. Live-test, then STOP (no Phase 4).
 
 Date: 22 September 2026
 
