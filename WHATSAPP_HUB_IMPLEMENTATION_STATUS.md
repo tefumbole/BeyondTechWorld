@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 2 — Conversations, Leads & Human Handover  
-STATUS: Implemented locally. Automated suite passing. Ready to deploy (no Phase 3 / no LLM).
+STATUS: Deployed to production (`ff6b354`). Automated suite passing. Live-test the wedding enquiry path, then STOP (no Phase 3 / no LLM).
 
 Date: 22 September 2026
 
