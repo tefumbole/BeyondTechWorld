@@ -6,14 +6,21 @@ use App\Support\WhatsAppPhone;
 
 class BeyondWasenderService
 {
-    /** Wasender account protection: at least 5s between any outbound messages. */
-    const SEND_INTERVAL_SECONDS = 5.0;
+    /** Wasender account protection: one outbound message every 5s, measured after the previous send finishes. */
+    const SEND_INTERVAL_SECONDS = 5.5;
 
     private static $lastSendAt = 0.0;
 
-    protected function throttleSend()
+    protected function sendIntervalSeconds()
     {
-        $interval = self::SEND_INTERVAL_SECONDS;
+        $configured = ((int) config('services.whatsapp.min_send_interval_ms', 5500)) / 1000.0;
+
+        return max(self::SEND_INTERVAL_SECONDS, $configured > 0 ? $configured : self::SEND_INTERVAL_SECONDS);
+    }
+
+    protected function beginOutboundSend()
+    {
+        $interval = $this->sendIntervalSeconds();
         $dir = storage_path('app');
         if (! is_dir($dir)) {
             @mkdir($dir, 0775, true);
@@ -21,39 +28,122 @@ class BeyondWasenderService
         $path = $dir.'/whatsapp-send.lock';
         $fp = @fopen($path, 'c+');
         if (! $fp) {
-            $this->throttleSendMemory($interval);
+            $this->waitSince($interval, self::$lastSendAt);
 
-            return;
+            return null;
         }
         flock($fp, LOCK_EX);
         $raw = stream_get_contents($fp);
-        $last = is_numeric(trim((string) $raw)) ? (float) trim($raw) : 0.0;
+        $last = is_numeric(trim((string) $raw)) ? (float) trim($raw) : self::$lastSendAt;
+        $this->waitSince($interval, $last);
+
+        return $fp;
+    }
+
+    protected function endOutboundSend($fp)
+    {
         $now = microtime(true);
-        if ($last > 0) {
-            $wait = $interval - ($now - $last);
-            if ($wait > 0) {
-                usleep((int) round($wait * 1000000));
-                $now = microtime(true);
-            }
+        if ($fp) {
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, sprintf('%.6f', $now));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+            fclose($fp);
         }
-        ftruncate($fp, 0);
-        rewind($fp);
-        fwrite($fp, sprintf('%.6f', $now));
-        fflush($fp);
-        flock($fp, LOCK_UN);
-        fclose($fp);
         self::$lastSendAt = $now;
     }
 
-    protected function throttleSendMemory($interval)
+    protected function waitSince($interval, $last)
     {
-        if (self::$lastSendAt > 0) {
-            $wait = $interval - (microtime(true) - self::$lastSendAt);
-            if ($wait > 0) {
-                usleep((int) round($wait * 1000000));
-            }
+        if ($last <= 0) {
+            return;
         }
-        self::$lastSendAt = microtime(true);
+        $wait = $interval - (microtime(true) - $last);
+        if ($wait > 0) {
+            usleep((int) round($wait * 1000000));
+        }
+    }
+
+    protected function isProtectionError($error)
+    {
+        return is_string($error) && $error !== '' && preg_match(
+            '/account protection|every 5 seconds|rate.?limit|too many messages/i',
+            $error
+        );
+    }
+
+    /**
+     * POST /send-message with a process-wide lock and one automatic retry on Wasender protection.
+     *
+     * @return array{success:bool,http?:int,decoded:?array,error?:string,body?:string}
+     */
+    protected function postSendMessage(array $payload, $timeout = 30)
+    {
+        $fp = $this->beginOutboundSend();
+        try {
+            $result = $this->curlSendMessage($payload, $timeout);
+            if ($this->isProtectionError(isset($result['error']) ? $result['error'] : '')) {
+                usleep((int) round($this->sendIntervalSeconds() * 1000000));
+                $result = $this->curlSendMessage($payload, $timeout);
+            }
+
+            return $result;
+        } finally {
+            $this->endOutboundSend($fp);
+        }
+    }
+
+    protected function curlSendMessage(array $payload, $timeout)
+    {
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/send-message');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_TIMEOUT => (int) $timeout,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($err) {
+            return ['success' => false, 'error' => $err, 'http' => $http, 'decoded' => null, 'body' => null];
+        }
+        $decoded = json_decode($body, true);
+        $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
+        $apiMessage = is_array($decoded)
+            ? (string) ($decoded['message'] ?? $decoded['error'] ?? '')
+            : '';
+        $looksFailed = $http >= 400
+            || $apiSuccess === false
+            || ($apiSuccess !== true && $apiMessage !== '' && preg_match(
+                '/not connected|rejected|does not exist|rate|protection|failed|invalid|unauthorized/i',
+                $apiMessage
+            ));
+        if ($looksFailed) {
+            return [
+                'success' => false,
+                'error' => $apiMessage !== '' ? $apiMessage : ('HTTP '.$http),
+                'http' => $http,
+                'decoded' => $decoded,
+                'body' => is_string($body) ? $body : null,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'http' => $http,
+            'decoded' => $decoded,
+            'error' => null,
+            'body' => is_string($body) ? $body : null,
+        ];
     }
 
     public function isConfigured()
@@ -108,67 +198,19 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
 
-            $this->throttleSend();
-
             $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
-
-            $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
-            $url = $base.'/send-message';
-            $payload = json_encode(['to' => $to, 'text' => $message]);
-
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
-                    'Accept: application/json',
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_TIMEOUT => 30,
-            ]);
-            $body = curl_exec($ch);
-            $err = curl_error($ch);
-            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($err) {
-                \Log::warning('[beyond-whatsapp] curl error', ['error' => $err, 'to' => $to]);
-
-                return ['success' => false, 'error' => $err];
-            }
-
-            $decoded = json_decode($body, true);
-            $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
-            $apiMessage = is_array($decoded)
-                ? (string) ($decoded['message'] ?? $decoded['error'] ?? '')
-                : '';
-            $looksFailed = $http >= 400
-                || $apiSuccess === false
-                || ($apiSuccess !== true && $apiMessage !== '' && preg_match(
-                    '/not connected|rejected|does not exist|rate|protection|failed|invalid|unauthorized/i',
-                    $apiMessage
-                ));
-
-            if ($looksFailed) {
-                $error = $apiMessage !== '' ? $apiMessage : ('HTTP '.$http);
+            $posted = $this->postSendMessage(['to' => $to, 'text' => $message], 30);
+            $decoded = $posted['decoded'];
+            $http = (int) ($posted['http'] ?? 0);
+            if (empty($posted['success'])) {
                 \Log::warning('[beyond-whatsapp] send failed', [
-                    'error' => $error,
+                    'error' => $posted['error'] ?? 'unknown',
                     'to' => $to,
                     'http' => $http,
-                    'body' => is_string($body) ? substr($body, 0, 500) : null,
+                    'body' => isset($posted['body']) ? substr((string) $posted['body'], 0, 500) : null,
                 ]);
 
-                return ['success' => false, 'error' => $error];
-            }
-
-            if ($apiSuccess !== true) {
-                \Log::warning('[beyond-whatsapp] ambiguous API response treated carefully', [
-                    'to' => $to,
-                    'http' => $http,
-                    'body' => is_string($body) ? substr($body, 0, 500) : null,
-                ]);
+                return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
 
             return [
@@ -226,8 +268,6 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
 
-            $this->throttleSend();
-
             $publicUrl = $this->uploadLocalFile($localPath);
             if (empty($publicUrl)) {
                 return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
@@ -237,50 +277,20 @@ class BeyondWasenderService
                 (string) ($caption !== null && $caption !== '' ? $caption : $fileName),
                 'whatsapp'
             );
-
-            $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
-            $url = $base.'/send-message';
-            $payload = json_encode([
+            $posted = $this->postSendMessage([
                 'to' => $to,
                 'documentUrl' => $publicUrl,
                 'fileName' => $fileName,
                 'text' => $caption !== null && $caption !== '' ? $caption : $fileName,
-            ]);
-
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
-                    'Accept: application/json',
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_TIMEOUT => 60,
-            ]);
-            $body = curl_exec($ch);
-            $err = curl_error($ch);
-            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($err) {
-                return ['success' => false, 'error' => $err];
+            ], 60);
+            if (empty($posted['success'])) {
+                return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
-
-            $decoded = json_decode($body, true);
-            $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
-            if ($http >= 400 || $apiSuccess === false) {
-                $error = is_array($decoded)
-                    ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http))
-                    : ('HTTP '.$http);
-
-                return ['success' => false, 'error' => $error];
-            }
+            $decoded = $posted['decoded'];
 
             return [
                 'success' => true,
-                'http' => $http,
+                'http' => (int) ($posted['http'] ?? 0),
                 'publicUrl' => $publicUrl,
                 'msg_id' => is_array($decoded) ? ($decoded['data']['msgId'] ?? null) : null,
             ];
@@ -320,15 +330,11 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
 
-            $this->throttleSend();
-
             $publicUrl = $this->uploadLocalFile($localPath);
             if (empty($publicUrl)) {
                 return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
             }
 
-            $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
-            $url = $base.'/send-message';
             $payload = [
                 'to' => $to,
                 'imageUrl' => $publicUrl,
@@ -339,41 +345,15 @@ class BeyondWasenderService
                     'whatsapp'
                 );
             }
-
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
-                    'Accept: application/json',
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_POSTFIELDS => json_encode($payload),
-                CURLOPT_TIMEOUT => 60,
-            ]);
-            $body = curl_exec($ch);
-            $err = curl_error($ch);
-            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($err) {
-                return ['success' => false, 'error' => $err];
+            $posted = $this->postSendMessage($payload, 60);
+            if (empty($posted['success'])) {
+                return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
-
-            $decoded = json_decode($body, true);
-            $apiSuccess = is_array($decoded) ? ($decoded['success'] ?? null) : null;
-            if ($http >= 400 || $apiSuccess === false) {
-                $error = is_array($decoded)
-                    ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http))
-                    : ('HTTP '.$http);
-
-                return ['success' => false, 'error' => $error];
-            }
+            $decoded = $posted['decoded'];
 
             return [
                 'success' => true,
-                'http' => $http,
+                'http' => (int) ($posted['http'] ?? 0),
                 'publicUrl' => $publicUrl,
                 'msg_id' => is_array($decoded) ? ($decoded['data']['msgId'] ?? null) : null,
             ];

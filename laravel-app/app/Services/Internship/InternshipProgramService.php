@@ -547,7 +547,7 @@ class InternshipProgramService
         return $sent;
     }
 
-    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false, $immediate = false)
+    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false, $immediate = false, $notify = true)
     {
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
         $forceSameDay = $forceSameDay || $immediate;
@@ -684,7 +684,7 @@ class InternshipProgramService
 
         $enrolment = InternshipEnrolment::with(['student', 'program'])->find($result['enrolment_id']);
         $assignment = InternshipTaskAssignment::with('task')->find($result['assignment_id']);
-        if ($enrolment && $assignment) {
+        if ($enrolment && $assignment && $notify) {
             $this->notifyTaskReleased($enrolment, $assignment);
         }
 
@@ -1064,7 +1064,7 @@ class InternshipProgramService
             $this->notifyCompleted($enrolment);
         } else {
             try {
-                $this->tryReleaseNext($enrolment, Carbon::today(), true, true);
+                $this->tryReleaseNext($enrolment, Carbon::today(), true, true, false);
             } catch (\Throwable $e) {
                 Log::warning('Immediate next-task release after acceptance failed for enrolment '.$enrolment->id.': '.$e->getMessage());
             }
@@ -1078,6 +1078,9 @@ class InternshipProgramService
                 }
             }
             $this->notifyPassed($enrolment, $assignment->fresh(['task']), $grade, $timesheetLabel);
+            if ($nextAssignment) {
+                $this->notifyTaskReleased($enrolment, $nextAssignment->fresh(['task']));
+            }
             $this->nudgeWorkingWeekIfBlocking($enrolment->fresh(['student']));
         }
 
