@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 1 — Foundation  
-STATUS: Complete (awaiting review; do not start Phase 2)
+STATUS: Deployed to production for live validation (do not start Phase 2)
 
 Date: 22 September 2026
 
@@ -251,9 +251,43 @@ Phase 2 — Conversations + Leads, after live validation is complete and Phase 2
 
 ---
 
+## PRODUCTION DEPLOY
+
+Deployed 22 September 2026. Commit `08b1a1c`. Production HEAD matches that commit.
+
+Completed on the VPS:
+
+- Laravel deploy + additive migration `2026_09_22_180000_create_whatsapp_hub_foundation`
+- Production `.env` now has `QUEUE_CONNECTION=database`, `WHATSAPP_WEBHOOK_RETENTION_DAYS=30`, `WHATSAPP_DEFAULT_CONVERSATION_MODE=HUMAN`, `WHATSAPP_SESSION_STATUS_CACHE_SECONDS=45`, and `WASENDER_WEBHOOK_SECRET` (value stored only in `.env`)
+- Existing `WASENDER_API_KEY` / `WASENDER_SESSION_ID` were not changed
+- PM2 process `beyondtechworld-whatsapp-queue` runs as `www-data`:  
+  `php artisan queue:work database --queue=whatsapp,default --sleep=1 --tries=3 --timeout=90`
+- Endpoint smoke (synthetic signed POST, not a real WhatsApp message): unsigned/wrong signature → `401`; valid signature → `200`; job processed; `failed_jobs = 0`
+- WaSender session status via existing API key: `connected`
+
+Not completed via API:
+
+- WaSender dashboard webhook URL / events. Session management (`PUT /api/whatsapp-sessions/{id}`) requires a **Personal Access Token**. The production Session API Key correctly returns `401` on that endpoint and was not used to change session settings.
+
+Remaining WaSender dashboard step (must use the same secret already stored in production `.env`):
+
+1. Open the live BeyondTechWorld WhatsApp session → Webhooks.
+2. Webhook URL: `https://beyondtechworld.com/api/webhooks/wasender`
+3. Webhook Secret: paste the current production `WASENDER_WEBHOOK_SECRET` (do not generate a different one unless you also replace the `.env` value).
+4. Enable: `messages.received`, `messages.upsert`, `messages.update`, `message-receipt.update`, `call`.
+5. Save.
+
+Read the secret on the VPS only (do not commit it):
+
+```
+sudo grep '^WASENDER_WEBHOOK_SECRET=' /var/www/beyondtechworld/laravel-app/.env
+```
+
+---
+
 ## LIVE VALIDATION
 
-Prepared 22 September 2026. Nothing below is marked PASSED until it has been tested against the real WaSender / WhatsApp environment.
+Prepared 22 September 2026. Production code and queue are live. Nothing below is marked PASSED until it has been tested against the real WaSender / WhatsApp environment.
 
 Phase 1 automated suite re-run: **16 tests, 67 assertions, OK**.
 
