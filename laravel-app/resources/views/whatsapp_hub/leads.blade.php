@@ -5,8 +5,13 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         @include('whatsapp_hub.partials.nav')
-        <h1 class="wa-title">Leads</h1>
-        <p class="wa-sub">WhatsApp enquiries captured as CRM leads. Internal notes are never sent to the customer.</p>
+        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+            <div>
+                <h1 class="wa-title">Leads</h1>
+                <p class="wa-sub mb-0">WhatsApp enquiries captured as CRM leads. Internal notes are never sent to the customer.</p>
+            </div>
+            <a class="btn btn-primary mb-2" href="{{ route('whatsapp.leads.create') }}">Create Lead</a>
+        </div>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 

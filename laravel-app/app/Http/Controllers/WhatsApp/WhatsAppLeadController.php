@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\WhatsApp;
 
 use App\Http\Controllers\Controller;
+use App\Services\WhatsApp\WhatsAppConversationService;
 use App\Services\WhatsApp\WhatsAppLeadService;
 use App\User;
 use App\WhatsApp\Lead;
@@ -76,6 +77,52 @@ class WhatsAppLeadController extends Controller
         $filters = $request->all();
 
         return view('whatsapp_hub.leads', compact('list', 'cards', 'staff', 'filters'));
+    }
+
+    public function create()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.leads.manage', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $conversations = WhatsAppConversation::with('contact')->orderByDesc('last_activity_at')->limit(80)->get();
+
+        return view('whatsapp_hub.lead_create', compact('conversations'));
+    }
+
+    public function store(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.leads.manage', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $attrs = $request->only(['category', 'company', 'summary', 'priority', 'name']);
+        $conversationId = $request->input('conversation_id');
+        if ($conversationId) {
+            $conversation = WhatsAppConversation::with('contact')->findOrFail($conversationId);
+            if (! $conversation->contact) {
+                return back()->with('not_permitted', 'That conversation has no contact.')->withInput();
+            }
+            $existing = $this->leads->activeLead($conversation->contact);
+            $lead = $this->leads->createManual($conversation->contact, $conversation, Auth::id(), $attrs);
+
+            return redirect()->route('whatsapp.leads.show', $lead->id)
+                ->with('message', $existing ? 'This number already has an open lead.' : 'Lead created.');
+        }
+
+        $phone = trim((string) $request->input('phone'));
+        if ($phone === '') {
+            return back()->with('not_permitted', 'Choose a conversation or enter a phone number.')->withInput();
+        }
+        $conversations = app(WhatsAppConversationService::class);
+        $contact = $conversations->findOrCreateContact($phone, $request->input('name'));
+        if (! $contact) {
+            return back()->with('not_permitted', 'Enter a valid phone number.')->withInput();
+        }
+        $conversation = $conversations->openConversation($contact);
+        $existing = $this->leads->activeLead($contact);
+        $lead = $this->leads->createManual($contact, $conversation, Auth::id(), $attrs);
+
+        return redirect()->route('whatsapp.leads.show', $lead->id)
+            ->with('message', $existing ? 'This number already has an open lead.' : 'Lead created.');
     }
 
     public function show($id)

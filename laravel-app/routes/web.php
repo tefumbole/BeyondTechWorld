@@ -485,6 +485,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/conversations/{id}/document', 'WhatsApp\WhatsAppHubController@sendDocument')->name('whatsapp.conversation.document');
     Route::post('/admin/whatsapp/conversations/{id}/lead', 'WhatsApp\WhatsAppLeadController@createFromConversation')->name('whatsapp.conversation.lead');
     Route::get('/admin/whatsapp/leads', 'WhatsApp\WhatsAppLeadController@index')->name('whatsapp.leads');
+    Route::get('/admin/whatsapp/leads/create', 'WhatsApp\WhatsAppLeadController@create')->name('whatsapp.leads.create');
+    Route::post('/admin/whatsapp/leads', 'WhatsApp\WhatsAppLeadController@store')->name('whatsapp.leads.store');
     Route::get('/admin/whatsapp/leads/{id}', 'WhatsApp\WhatsAppLeadController@show')->name('whatsapp.leads.show');
     Route::post('/admin/whatsapp/leads/{id}/assign', 'WhatsApp\WhatsAppLeadController@assign')->name('whatsapp.leads.assign');
     Route::post('/admin/whatsapp/leads/{id}/status', 'WhatsApp\WhatsAppLeadController@status')->name('whatsapp.leads.status');

@@ -101,6 +101,14 @@
                     <textarea name="body" class="form-control mb-2" rows="2" required placeholder="Internal note (never sent to WhatsApp)"></textarea>
                     <button class="btn btn-outline-secondary btn-sm" type="submit">Save internal note</button>
                 </form>
+                @if(!$lead)
+                    <form method="post" action="{{ route('whatsapp.conversation.lead', $conversation->id) }}" class="mt-2">
+                        @csrf
+                        <button class="btn btn-success" type="submit">Create Lead</button>
+                    </form>
+                @else
+                    <a class="btn btn-outline-success mt-2" href="{{ route('whatsapp.leads.show', $lead->id) }}">Open lead</a>
+                @endif
             </div>
 
             <div class="wa-inbox-contact wa-card">
@@ -147,7 +155,7 @@
                 @else
                     <form method="post" action="{{ route('whatsapp.conversation.lead', $conversation->id) }}" class="mt-2">
                         @csrf
-                        <button class="btn btn-sm btn-outline-primary" type="submit">Create Lead</button>
+                        <button class="btn btn-sm btn-success btn-block" type="submit">Create Lead</button>
                     </form>
                     <a class="btn btn-sm btn-link p-0" href="{{ url('quotations/create?phone='.optional($conversation->contact)->normalized_phone) }}">Create Quotation</a>
                 @endif

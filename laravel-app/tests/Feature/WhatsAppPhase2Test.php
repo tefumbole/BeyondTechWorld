@@ -127,6 +127,23 @@ class WhatsAppPhase2Test extends WhatsAppHubTestCase
         $this->assertSame(0, WhatsAppMessage::where('type', 'DOCUMENT')->count());
     }
 
+    public function test_manual_lead_can_be_created_for_known_customer()
+    {
+        \App\Customer::create(['name' => 'Known For Lead', 'phone_number' => '675100011', 'is_active' => true]);
+        $this->postWebhook($this->incomingText('+237675100011', 'Hello', 'P2M1'))->assertStatus(200);
+        $this->assertSame(0, Lead::count());
+        $conversation = WhatsAppConversation::first();
+        $lead = app(WhatsAppLeadService::class)->createManual(
+            $conversation->contact,
+            $conversation,
+            1,
+            ['summary' => 'Need LED for a ceremony']
+        );
+        $this->assertSame(1, Lead::count());
+        $this->assertSame($conversation->id, $lead->conversation_id);
+        $this->assertSame('Need LED for a ceremony', $lead->summary);
+    }
+
     public function test_role_without_permission_cannot_open_leads()
     {
         $role = Role::find(3);
