@@ -43,7 +43,9 @@ class AssistantIntentRouter
         if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
-        if (! empty($memoryParams['attendance_pending']) && (isset($memoryParams['latitude']) || preg_match('/^\s*(yes|here)\b/i', $t))) {
+        $locationFollowUp = ($t === '' && isset($memoryParams['latitude']))
+            || preg_match('/^\s*(yes|here)\b/i', $t);
+        if (! empty($memoryParams['attendance_pending']) && $locationFollowUp) {
             return $this->make($memoryParams['attendance_pending'], 0.99, true, false);
         }
         if (preg_match('/\b(forgot to check out|forgot to check in|correct my attendance)\b/i', $t)) {

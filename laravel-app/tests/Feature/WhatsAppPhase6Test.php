@@ -61,7 +61,31 @@ class WhatsAppPhase6Test extends WhatsAppHubTestCase
             'attendance_pending' => 'ATTENDANCE_IN',
             'latitude' => 4.05,
         ])['intent']);
+        $this->assertSame('ATTENDANCE_OUT', $router->deterministic('CHECK OUT', [
+            'attendance_pending' => 'ATTENDANCE_IN',
+            'latitude' => 4.05,
+        ])['intent']);
         $this->assertGreaterThanOrEqual(0.98, $router->deterministic('CHECK IN')['confidence']);
+    }
+
+    public function test_chosen_role_is_kept_for_a_later_location()
+    {
+        $person = $this->employee('675610099');
+        InternshipEnrolment::create(['student_user_id' => $person['user']->id, 'status' => 'active']);
+        $context = [
+            'employee_id' => $person['employee']->id,
+            'intern_user_id' => $person['user']->id,
+            'roles' => ['employee', 'intern'],
+            'conversation_id' => 1,
+        ];
+        $service = app(AttendanceWhatsAppService::class);
+        $ask = $service->checkIn($context, ['text' => 'CHECK IN']);
+        $this->assertTrue(! empty($ask['needs_choice']));
+        $kept = $service->checkIn($context, ['text' => '', 'context' => 'employee', 'provider_message_id' => 'P6CTX']);
+        $this->assertTrue(empty($kept['needs_choice']));
+        $this->assertTrue(! empty($kept['checked_in']));
+        $this->assertEquals($person['employee']->id, Attendance::first()->employee_id);
+        $this->assertNull(Attendance::first()->intern_user_id);
     }
 
     public function test_employee_check_in_uses_server_time_and_blocks_duplicates()

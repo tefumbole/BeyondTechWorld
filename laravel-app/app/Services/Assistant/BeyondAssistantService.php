@@ -88,6 +88,12 @@ class BeyondAssistantService
         }
         $slots['provider_message_id'] = $message->provider_message_id;
         $slots['conversation_id'] = $conversation->id;
+        $choiceText = strtolower((string) $slots['text']);
+        if (strpos($choiceText, 'intern') !== false) {
+            $slots['context'] = 'intern';
+        } elseif (preg_match('/\b(employee|staff|office)\b/', $choiceText)) {
+            $slots['context'] = 'employee';
+        }
         $classified = $this->router->classify((string) $message->body, $context, $slots);
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
