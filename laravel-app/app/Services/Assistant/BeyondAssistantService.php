@@ -115,6 +115,8 @@ class BeyondAssistantService
 
         $toolResult = null;
         $toolsRun = [];
+        $otpCode = null;
+        $otpTtl = 5;
         if ($decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $roles = isset($context['roles']) ? $context['roles'] : [];
             if ($decision['intent'] === IntentCatalog::HUMAN_REQUEST && in_array('intern', $roles, true)) {
@@ -145,6 +147,13 @@ class BeyondAssistantService
                     $activity->error = $e->getMessage();
                 }
                 $toolsRun[] = $tool;
+                $otpCode = null;
+                $otpTtl = 5;
+                if (is_array($toolResult) && isset($toolResult['otp_code'])) {
+                    $otpCode = $toolResult['otp_code'];
+                    $otpTtl = isset($toolResult['otp_ttl']) ? $toolResult['otp_ttl'] : 5;
+                    unset($toolResult['otp_code'], $toolResult['otp_ttl']);
+                }
                 $this->memory->storeTool($mem, $tool, is_array($toolResult) ? $toolResult : []);
                 if (is_array($toolResult) && ! empty($toolResult['location_required'])) {
                     $slots['attendance_pending'] = $decision['intent'];
@@ -167,6 +176,22 @@ class BeyondAssistantService
                     if ($open) {
                         app(\App\Services\Rental\RentalRequestService::class)->markStaffReview($open, $toolResult['quotation_id']);
                     }
+                }
+                if (is_array($toolResult)) {
+                    if (array_key_exists('verification_pending', $toolResult)) {
+                        $slots['verification_pending'] = $toolResult['verification_pending'] ? 1 : 0;
+                    }
+                    if (! empty($toolResult['clear_verification'])) {
+                        $slots['verification_pending'] = 0;
+                    }
+                    if (! empty($toolResult['document_context'])) {
+                        $slots['document_context'] = $toolResult['document_context'];
+                        $slots['context'] = $toolResult['document_context'];
+                    }
+                    if (array_key_exists('document_choice_pending', $toolResult)) {
+                        $slots['document_choice_pending'] = $toolResult['document_choice_pending'] ? 1 : 0;
+                    }
+                    $this->memory->remember($mem, $decision['intent'], $slots);
                 }
                 $activity->tools_executed = implode(',', $toolsRun);
                 $activity->tool_status = ! empty($toolResult['success']) ? 'ok' : (isset($toolResult['error']) ? $toolResult['error'] : 'failed');
@@ -195,6 +220,15 @@ class BeyondAssistantService
         }
         if (! empty($toolResult['skip_assistant_reply'])) {
             $sent = true;
+        } elseif ($otpCode && ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER)) {
+            $secret = 'Your BeyondTechWorld verification code is '.$otpCode.'. It expires in '.$otpTtl.' minutes. Do not share this code.';
+            $send = $this->conversations->sendSecretText($conversation, $secret);
+            $sent = ! empty($send['success']);
+            $otpCode = null;
+            if (! $sent && is_array($toolResult) && ! empty($toolResult['challenge_id'])) {
+                app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->invalidateChallenge($toolResult['challenge_id']);
+                $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
+            }
         } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $send = $this->conversations->assistantReply($conversation, $reply);
             $sent = ! empty($send['success']);
@@ -265,7 +299,8 @@ class BeyondAssistantService
             IntentCatalog::ATTENDANCE_HOURS => 'get_work_hours',
             IntentCatalog::ATTENDANCE_ASSIGNMENT => 'get_current_assignment',
             IntentCatalog::ATTENDANCE_CORRECTION => 'request_attendance_correction',
-            IntentCatalog::DOCUMENT_REQUEST => 'list_available_documents',
+            IntentCatalog::DOCUMENT_REQUEST => 'request_document',
+            IntentCatalog::VERIFY_OTP => 'verify_otp',
             IntentCatalog::HUMAN_REQUEST => 'request_human_handover',
         ];
 

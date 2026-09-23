@@ -411,6 +411,47 @@ class WhatsAppConversationService
         return $note;
     }
 
+    public function sendSecretText(WhatsAppConversation $conversation, $secret)
+    {
+        $secret = trim((string) $secret);
+        $contact = $conversation->contact;
+        if ($secret === '' || ! $contact || $contact->isBlocked()) {
+            return ['success' => false, 'error' => 'Message is empty.'];
+        }
+        $stored = 'Verification code sent. It expires shortly. Do not share this code.';
+        $message = WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'body' => $stored,
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'sender_type' => 'ASSISTANT',
+            'queued_at' => now(),
+        ]);
+        $result = $this->provider->sendText($contact->normalized_phone, $secret);
+        if (! empty($result['success'])) {
+            $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+            $message->status = WhatsAppMessage::STATUS_SENT;
+            $message->sent_at = now();
+            $message->save();
+        } else {
+            $message->status = WhatsAppMessage::STATUS_FAILED;
+            $message->failed_at = now();
+            $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+            $message->save();
+        }
+        $conversation->last_message = $stored;
+        $conversation->last_activity_at = now();
+        $conversation->last_outgoing_at = now();
+        $conversation->unread_count = 0;
+        $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
+        $conversation->save();
+        $result['message'] = $message;
+
+        return $result;
+    }
+
     public function sendExistingDocument(WhatsAppConversation $conversation, $localPath, $fileName, $caption, $userId, $senderType = 'STAFF')
     {
         $contact = $conversation->contact;
@@ -453,7 +494,7 @@ class WhatsAppConversationService
         $conversation->unread_count = 0;
         $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
         $conversation->save();
-        $this->event($conversation, WhatsAppConversationEvent::DOCUMENT, 'Document sent: '.$fileName, $userId);
+        $this->event($conversation, WhatsAppConversationEvent::DOCUMENT, ! empty($result['success']) ? 'Document sent: '.$fileName : 'Document send failed: '.$fileName, $userId);
         $result['message'] = $message;
 
         return $result;

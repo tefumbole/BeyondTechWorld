@@ -114,6 +114,9 @@ class WhatsAppHubController extends Controller
         $attendancePanel = \Illuminate\Support\Facades\Schema::hasTable('attendances')
             ? app(\App\Services\Attendance\AttendanceWhatsAppService::class)->panel($conversation)
             : null;
+        $documentPanel = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_document_requests')
+            ? app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->panel($conversation)
+            : null;
         $internshipPanel = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_internship_intakes')
             ? app(\App\Services\Internship\InternshipWhatsAppService::class)->panel($conversation)
             : null;
@@ -144,7 +147,7 @@ class WhatsAppHubController extends Controller
         }
 
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel'
         ));
     }
 
@@ -562,6 +565,41 @@ class WhatsAppHubController extends Controller
             : collect();
 
         return view('whatsapp_hub.internship', compact('metrics', 'intakes', 'failures'));
+    }
+
+    public function documents()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.documents', 'whatsapp.documents.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $metrics = app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->metrics();
+        $requests = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_document_requests')
+            ? \App\WhatsApp\WhatsAppDocumentRequest::with('contact')->orderByDesc('id')->limit(100)->get()
+            : collect();
+
+        return view('whatsapp_hub.documents', compact('metrics', 'requests'));
+    }
+
+    public function retryDocument($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.documents.retry', 'whatsapp.documents.manage', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $request = \App\WhatsApp\WhatsAppDocumentRequest::findOrFail($id);
+        app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->retrySend($request);
+
+        return back()->with('message', 'Document send was retried.');
+    }
+
+    public function invalidateVerification($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.verification.invalidate', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $session = \App\WhatsApp\WhatsAppVerificationSession::findOrFail($id);
+        app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->invalidateContact($session->whatsapp_contact_id);
+
+        return back()->with('message', 'Verification was invalidated.');
     }
 
     protected function denyUnless(array $names)

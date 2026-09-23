@@ -47,6 +47,10 @@ abstract class WhatsAppHubTestCase extends TestCase
             '--path' => 'database/migrations/2026_09_23_160000_extend_attendance_for_whatsapp.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_23_180000_create_whatsapp_document_verification.php',
+            '--force' => true,
+        ]);
     }
 
     protected function createSupportTables()
@@ -219,6 +223,8 @@ abstract class WhatsAppHubTestCase extends TestCase
             'whatsapp.internship.manage', 'whatsapp.internship.media',
             'whatsapp.attendance', 'whatsapp.attendance.view', 'whatsapp.attendance.manage',
             'whatsapp.attendance.location', 'whatsapp.attendance.corrections',
+            'whatsapp.documents.view', 'whatsapp.documents.manage', 'whatsapp.documents.retry',
+            'whatsapp.verification', 'whatsapp.verification.invalidate',
         ] as $name) {
             $perm = Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
             try {

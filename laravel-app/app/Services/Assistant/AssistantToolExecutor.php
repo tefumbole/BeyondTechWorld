@@ -34,7 +34,7 @@ class AssistantToolExecutor
         if (preg_match('/grade|pass_intern|release_next|official_score/i', (string) $name)) {
             return ['success' => false, 'error' => 'grading_forbidden'];
         }
-        if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical/i', (string) $name)) {
+        if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical|bypass_ownership|another_user_document|bulk_documents/i', (string) $name)) {
             return ['success' => false, 'error' => 'privileged'];
         }
         $meta = $this->registry->get($name);
@@ -416,15 +416,55 @@ class AssistantToolExecutor
 
     protected function toolListAvailableDocuments(array $params, array $context)
     {
-        $dir = public_path('quotation');
-        $files = [];
-        if (is_dir($dir)) {
-            foreach (array_slice(glob($dir.'/quotation_*_invoice.pdf') ?: [], 0, 8) as $file) {
-                $files[] = ['name' => basename($file)];
-            }
-        }
+        $documents = app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->listFor($context);
 
-        return ['success' => true, 'documents' => $files];
+        return ['success' => true, 'documents' => $documents, 'message' => $documents === [] ? 'There are no documents available for this account on WhatsApp.' : null];
+    }
+
+    protected function toolFindMyDocuments(array $params, array $context)
+    {
+        return $this->toolRequestDocument($params, $context);
+    }
+
+    protected function toolRequestDocument(array $params, array $context)
+    {
+        return app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->handle(
+            $context,
+            isset($params['text']) ? $params['text'] : '',
+            $params,
+            isset($params['provider_message_id']) ? $params['provider_message_id'] : null
+        );
+    }
+
+    protected function toolGetDocumentRequestStatus(array $params, array $context)
+    {
+        $panel = isset($context['conversation'])
+            ? app(\App\Services\WhatsApp\WhatsAppDocumentService::class)->panel($context['conversation'])
+            : null;
+
+        return ['success' => true, 'panel' => $panel, 'message' => $panel ? 'Request status: '.$panel['status'] : 'No document request is open.'];
+    }
+
+    protected function toolRequestVerification(array $params, array $context)
+    {
+        return $this->toolRequestDocument($params, $context);
+    }
+
+    protected function toolVerifyOtp(array $params, array $context)
+    {
+        $params['verification_pending'] = 1;
+
+        return $this->toolRequestDocument($params, $context);
+    }
+
+    protected function toolGetVerificationStatus(array $params, array $context)
+    {
+        return $this->toolGetDocumentRequestStatus($params, $context);
+    }
+
+    protected function toolSendAuthorizedDocument(array $params, array $context)
+    {
+        return $this->toolRequestDocument($params, $context);
     }
 
     protected function knowledge(array $categories)

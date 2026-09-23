@@ -43,7 +43,14 @@ class AssistantToolRegistry
             'get_attendance_correction_status' => ['description' => 'Status of this person\'s correction requests', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['employee', 'intern']],
             'get_current_lead' => ['description' => 'Open WhatsApp lead for this contact', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
             'request_human_handover' => ['description' => 'Switch conversation to HUMAN', 'sensitivity' => 'PUBLIC', 'write' => true, 'roles' => []],
-            'list_available_documents' => ['description' => 'List existing quotation PDFs only', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['customer']],
+            'list_available_documents' => ['description' => 'Document categories this identity may request', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['customer', 'employee', 'intern']],
+            'find_my_documents' => ['description' => 'Owned document choices for this identity', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['customer', 'employee', 'intern']],
+            'request_document' => ['description' => 'Resolve and authorize one owned ERP document', 'sensitivity' => 'RECOGNIZED', 'write' => true, 'roles' => ['customer', 'employee', 'intern']],
+            'get_document_request_status' => ['description' => 'Status of this contact document request', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['customer', 'employee', 'intern']],
+            'request_verification' => ['description' => 'Start a hashed OTP challenge for a document', 'sensitivity' => 'RECOGNIZED', 'write' => true, 'roles' => ['customer', 'employee', 'intern']],
+            'verify_otp' => ['description' => 'Check a pending OTP without revealing the code', 'sensitivity' => 'RECOGNIZED', 'write' => true, 'roles' => ['customer', 'employee', 'intern']],
+            'get_verification_status' => ['description' => 'Whether a verification session is active', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['customer', 'employee', 'intern']],
+            'send_authorized_document' => ['description' => 'Send a document that already passed ownership and verification', 'sensitivity' => 'RECOGNIZED', 'write' => true, 'roles' => ['customer', 'employee', 'intern']],
         ];
     }
 

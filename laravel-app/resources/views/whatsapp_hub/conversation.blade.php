@@ -50,6 +50,16 @@
                         <div>Pending corrections: {{ $attendancePanel['pending_corrections'] }}</div>
                         <a href="{{ url('admin/attendance') }}">View attendance</a>
                     </div>
+                        @endif
+                        @if(!empty($documentPanel))
+                    <div class="small mt-2">
+                        <div class="text-muted">Document request</div>
+                        <div>{{ $documentPanel['identity'] ?: 'Identity pending' }} · {{ $documentPanel['document_type'] ?: '—' }}</div>
+                        <div>Status: {{ $documentPanel['status'] ?: '—' }} · Verification: {{ $documentPanel['verification'] }}</div>
+                        @if($documentPanel['verified_until'])
+                            <div>Verified until {{ $documentPanel['verified_until'] }}</div>
+                        @endif
+                    </div>
                 @endif
                 @if(!empty($internshipPanel))
                     <div class="small mt-2">

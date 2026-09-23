@@ -1275,7 +1275,7 @@ class SaleController extends Controller
     /**
      * Shared A4 Beyond sales invoice PDF bytes (WhatsApp / email attachment).
      */
-    protected function buildSaleInvoicePdfBinary($id)
+    public function buildSaleInvoicePdfBinary($id)
     {
         $lims_sale_data = Sale::find($id);
         if (! $lims_sale_data) {

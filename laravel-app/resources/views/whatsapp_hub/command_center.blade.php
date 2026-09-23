@@ -47,6 +47,13 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Missing check-out</div><p class="wa-stat">{{ $stats['missing_checkout'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Pending corrections</div><p class="wa-stat">{{ $stats['pending_corrections'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Location review</div><p class="wa-stat">{{ $stats['location_review'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Document requests today</div><p class="wa-stat">{{ $stats['document_requests_today'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Awaiting code</div><p class="wa-stat">{{ $stats['document_awaiting_otp'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Documents verified</div><p class="wa-stat">{{ $stats['document_verified'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Documents sent</div><p class="wa-stat">{{ $stats['document_sent'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Failed document sends</div><p class="wa-stat">{{ $stats['document_failed'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Denied document requests</div><p class="wa-stat">{{ $stats['document_denied'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Expired codes</div><p class="wa-stat">{{ $stats['document_expired'] ?? 0 }}</p></div></div>
         </div>
 
         <div class="row">

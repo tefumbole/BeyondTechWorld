@@ -40,7 +40,7 @@ class AssistantIntentRouter
 
             return $this->make(IntentCatalog::UNKNOWN, 0.1, false, true);
         }
-        if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
+        if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|i need a human|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
         $locationFollowUp = ($t === '' && isset($memoryParams['latitude']))
@@ -71,6 +71,15 @@ class AssistantIntentRouter
         }
         if (preg_match('/^(check\s*-?\s*in|checkin)\b|\bi\'?m at work\b|\bi\'?ve arrived\b|\bi\'?m on site\b|\bi\'?m starting work\b|\bi have arrived\b|\bi am at work\b/i', $t)) {
             return $this->make(IntentCatalog::ATTENDANCE_IN, 0.99, true, false);
+        }
+        if (! empty($memoryParams['verification_pending']) && preg_match('/^\d{6}$/', $t)) {
+            return $this->make(IntentCatalog::VERIFY_OTP, 0.99, true, false);
+        }
+        if (! empty($memoryParams['verification_pending']) && preg_match('/\b(?:my code is|code is|code)\s+\d{6}\b/', $t)) {
+            return $this->make(IntentCatalog::VERIFY_OTP, 0.99, true, false);
+        }
+        if ($this->isDocumentRequest($t, $memoryParams)) {
+            return $this->make(IntentCatalog::DOCUMENT_REQUEST, 0.99, true, false);
         }
         if (! empty($memoryParams['internship_pending']) && preg_match('/^\s*\d+\b|^(yes|confirm|submit)\b/i', $t)) {
             return $this->make($memoryParams['internship_pending'], 0.94, true, false);
@@ -162,6 +171,40 @@ class AssistantIntentRouter
         }
 
         return (bool) preg_match('/\b(\d{1,2}\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{1,2}[\/\-.]\d{1,2}(?:[\/\-.]\d{2,4})?|next\s+(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday)|tomorrow)\b/i', $stripped);
+    }
+
+    protected function isDocumentRequest($t, array $memoryParams)
+    {
+        if (! empty($memoryParams['document_choice_pending']) && preg_match('/^(employee|employment|intern|internship|customer)$/', $t)) {
+            return true;
+        }
+        if ((! empty($memoryParams['document_context']) || ! empty($memoryParams['document_choice_pending']))
+            && preg_match('/^(payslip|contract|timesheet|quotation|quote|invoice|receipt|certificate|assessment)$/', $t)) {
+            return true;
+        }
+        if (preg_match('/\b(what documents|which documents|documents can i)\b/', $t)) {
+            return true;
+        }
+        if (preg_match('/\bquotation for\b/', $t)) {
+            return false;
+        }
+        if (preg_match('/\b(send|share|need|get|give)\b.{0,40}\b(my |the )(last |latest )?(invoice|receipt|payslip|contract|timesheet|certificate|assessment|internship letter|mission|document)\b/', $t)) {
+            return true;
+        }
+        if (preg_match('/\bmy (last |latest )?(quotation|quote)\b|\b(last |latest )(quotation|quote)\b/', $t)) {
+            return true;
+        }
+        if (preg_match('/\b(my |last |latest )(invoice|receipt|payslip|contract|timesheet|certificate)\b|\bmy (last |latest )?(quotation|quote)\b/', $t)) {
+            return true;
+        }
+        if (preg_match('/\b(invoice|quotation|quote|receipt|payslip|certificate)\s+#?[a-z0-9\-]+\b/', $t)) {
+            return true;
+        }
+        if (preg_match('#\.\.|/etc/|://#', $t)) {
+            return true;
+        }
+
+        return false;
     }
 
     protected function fromModel($text, array $context, array $memoryParams)

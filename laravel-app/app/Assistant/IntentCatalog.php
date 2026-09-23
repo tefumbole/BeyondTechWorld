@@ -35,6 +35,7 @@ class IntentCatalog
     const ATTENDANCE_CORRECTION = 'ATTENDANCE_CORRECTION';
     const EMPLOYEE_ENQUIRY = 'EMPLOYEE_ENQUIRY';
     const DOCUMENT_REQUEST = 'DOCUMENT_REQUEST';
+    const VERIFY_OTP = 'VERIFY_OTP';
     const APPOINTMENT_REQUEST = 'APPOINTMENT_REQUEST';
     const TECHNICAL_SUPPORT = 'TECHNICAL_SUPPORT';
     const HUMAN_REQUEST = 'HUMAN_REQUEST';
@@ -81,6 +82,7 @@ class IntentCatalog
             self::ATTENDANCE_CORRECTION => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::EMPLOYEE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'PRIVILEGED'],
             self::DOCUMENT_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::VERIFY_OTP => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::APPOINTMENT_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::TECHNICAL_SUPPORT => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::HUMAN_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],

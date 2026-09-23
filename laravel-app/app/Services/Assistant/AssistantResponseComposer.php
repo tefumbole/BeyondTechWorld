@@ -127,6 +127,9 @@ class AssistantResponseComposer
 
     protected function fromTool($intent, $toolResult, array $params)
     {
+        if (in_array($intent, [IntentCatalog::DOCUMENT_REQUEST, IntentCatalog::VERIFY_OTP], true) && is_array($toolResult) && ! empty($toolResult['message'])) {
+            return $toolResult['message'];
+        }
         $attendance = $this->attendanceText($intent, is_array($toolResult) ? $toolResult : []);
         if ($attendance !== null) {
             return $attendance;

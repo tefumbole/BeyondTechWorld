@@ -106,6 +106,13 @@ class WhatsAppHubQuery
             'pending_corrections' => $this->attendanceMetrics()['pending_corrections'],
             'location_review' => $this->attendanceMetrics()['location_review'],
             'attendance_failures' => $this->attendanceMetrics()['failures'],
+            'document_requests_today' => $this->documentMetrics()['requests_today'],
+            'document_awaiting_otp' => $this->documentMetrics()['awaiting_otp'],
+            'document_verified' => $this->documentMetrics()['verified'],
+            'document_sent' => $this->documentMetrics()['sent'],
+            'document_failed' => $this->documentMetrics()['failed'],
+            'document_denied' => $this->documentMetrics()['denied'],
+            'document_expired' => $this->documentMetrics()['expired'],
         ];
     }
 
@@ -307,6 +314,12 @@ class WhatsAppHubQuery
             'rental_send_failures' => $this->rentalActivityCount('quotation_send_failed'),
             'internship' => $this->internshipDiagnostics(),
             'attendance' => $this->attendanceDiagnostics(),
+            'documents' => app(WhatsAppDocumentService::class)->diagnostics(),
         ];
+    }
+
+    protected function documentMetrics()
+    {
+        return app(WhatsAppDocumentService::class)->metrics();
     }
 }

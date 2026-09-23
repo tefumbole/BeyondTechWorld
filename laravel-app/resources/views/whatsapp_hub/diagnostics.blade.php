@@ -52,6 +52,17 @@
             <p>PDF or send failures: {{ $diag['rental_send_failures'] ?? 0 }}</p>
         </div>
         <div class="wa-card">
+            <h5>Documents and verification</h5>
+            @php $docs = $diag['documents'] ?? []; @endphp
+            <p>OTP service: {{ $docs['otp_service'] ?? '—' }}</p>
+            <p>Last code generated: {{ $docs['last_otp_generated'] ?? '—' }}</p>
+            <p>Last code verified: {{ $docs['last_otp_verified'] ?? '—' }}</p>
+            <p>Code failures: {{ $docs['otp_failures'] ?? 0 }} · Rate limited: {{ $docs['rate_limited'] ?? 0 }}</p>
+            <p>Registry documents: {{ $docs['registry_available'] ?? 0 }}</p>
+            <p>PDF failures: {{ $docs['generation_failures'] ?? 0 }} · Send failures: {{ $docs['send_failures'] ?? 0 }}</p>
+            <p>Unauthorized attempts: {{ $docs['unauthorized'] ?? 0 }}</p>
+        </div>
+        <div class="wa-card">
             <h5>Attendance</h5>
             @php $att = $diag['attendance'] ?? []; @endphp
             <p>Last check-in: {{ $att['last_check_in'] ?? '—' }}</p>
