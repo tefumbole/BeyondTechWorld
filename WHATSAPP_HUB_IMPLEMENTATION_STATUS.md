@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 8 — Property, Tenant & Bill Payment Operations  
-STATUS: CODE COMPLETE. Automated tests passed (128 tests, 727 assertions). Live A–W run after deploy and are recorded in the Stage 8 section. Stage 9 has not started.
+STATUS: DEPLOYED. Automated tests passed (128 tests, 727 assertions). Live A–W were not run: SSH to the server timed out after the deploy. The site webhook still returned 200. Stage 9 has not started.
 
 Date: 23 September 2026
 
@@ -56,33 +56,35 @@ Payment provider calls against real money were not made.
 
 ### Live validation
 
-Recorded after deploy on the controlled fixture (customer 124, conversation restored to HUMAN). No production payment was taken.
+Deploy of `212ef48` completed. Migration `2026_09_23_200000_create_property_tenant_foundation` ran. Only `beyondtechworld-whatsapp-queue` was restarted. `GET /api/webhooks/wasender` returned 200 after SSH dropped.
+
+The controlled live script did not run. SSH to the server timed out, so A–W are **NOT RUN**. They were not marked PASS. No production payment was taken. Sandbox provider success was not executed on the server.
 
 | Check | Result |
 | --- | --- |
-| A Tenant balance | See live run |
-| B Wrong tenant | See live run |
-| C Rent due | See live run |
-| D Payment history | See live run |
-| E False payment claim | See live run |
-| F Rent receipt | See live run |
-| G Tenancy agreement | See live run |
-| H Maintenance request | See live run |
-| I Maintenance photo | See live run |
-| J Maintenance status | See live run |
-| K Wrong maintenance id | See live run |
-| L Field check-in does not close maintenance | See live run |
-| M Bill request is not paid | See live run |
-| N Bill image is provisional | See live run |
-| O Confirmation does not debit | See live run |
-| P Provider success | SANDBOX only if recorded below |
-| Q Provider failure | See live run |
-| R Timeout / no second debit | See live run |
-| S Duplicate webhook | See live run |
-| T Duplicate WhatsApp bill request | See live run |
-| U Employee + tenant then CHECK OUT | See live run |
-| V Unknown number | See live run |
-| W Reminder idempotency | See live run |
+| A Tenant balance | NOT RUN |
+| B Wrong tenant | NOT RUN |
+| C Rent due | NOT RUN |
+| D Payment history | NOT RUN |
+| E False payment claim | NOT RUN |
+| F Rent receipt | NOT RUN |
+| G Tenancy agreement | NOT RUN |
+| H Maintenance request | NOT RUN |
+| I Maintenance photo | NOT RUN |
+| J Maintenance status | NOT RUN |
+| K Wrong maintenance id | NOT RUN |
+| L Field attendance does not close maintenance | NOT RUN |
+| M Bill request is not paid | NOT RUN |
+| N Bill image is provisional | NOT RUN |
+| O Confirmation does not debit | NOT RUN |
+| P Provider success | NOT RUN (sandbox was not executed) |
+| Q Provider failure | NOT RUN |
+| R Timeout / no second debit | NOT RUN |
+| S Duplicate webhook | NOT RUN |
+| T Duplicate WhatsApp bill request | NOT RUN |
+| U Employee + tenant then CHECK OUT | NOT RUN |
+| V Unknown number | NOT RUN |
+| W Reminder idempotency | NOT RUN |
 | Production payment | NOT RUN |
 
 ### Known limitations
