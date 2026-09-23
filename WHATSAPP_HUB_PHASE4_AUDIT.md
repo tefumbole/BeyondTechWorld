@@ -45,24 +45,11 @@ A proposal in chat does not reserve stock. Only an existing ERP booking in statu
 - “I confirm the quotation” creates a **draft booking**. That conflicts with this spec: acceptance must use the existing approval link, and a discussion must not create a booking.
 - Quotes at or under 500,000 try to send the PDF immediately. That conflicts with the default **AI prepares → staff approves → send**.
 
-## Not done against this spec
+## Still open
 
-- `WHATSAPP_HUB_PHASE4_AUDIT.md` did not exist before this file.
-- No rental-request record (event, setup, return, venue, attendance, categories, delivery, technicians, status).
-- Date phrases still missing or unsafe: “next Saturday”, “this weekend”, “next month”. Ambiguous dates are not always questioned.
-- No `RentalPricingService` separate from the day-rate multiply. No discount policy. No package or customer price rules.
-- No `RentalRecommendationService` or editable audience rules. Alternatives are name-token matches only.
-- No pre-quotation summary that waits for “prepare the formal quotation”.
-- No staff approval queue, Approve & Send, or link to the existing quotation editor.
-- No provenance columns (WhatsApp, conversation, lead) on the quotation.
-- No revision path that keeps the original quotation. `QuotationQuote` is the client counter-offer table and was not wired.
-- “Okay” / “I accept” is not mapped to the token approval URL, and availability is not rechecked before any reservation.
-- No second rental context, so two events can collapse into one memory blob.
-- Command Center has no Phase 4 cards. The conversation panel only shows a draft reference.
-- Diagnostics do not show rental, pricing, PDF, or approval failures.
-- Permissions `whatsapp.rentals*` and `whatsapp.quotation.*` were not added.
-- Automated tests cover a few availability and draft-quote cases (59 WhatsApp tests). They do not cover the section 55 list.
-- Not deployed. Not live-tested against real products, prices, or bookings.
+- Not deployed. Not live-tested on real products, prices, or bookings (checklist A–P).
+- Package pricing and customer-specific price lists are not applied. The rate used is `rent_price_per_day`, and discounts stay at zero unless staff edit the quotation.
+- Partial-return quantity is not split out beyond the pending/completed rules above.
 - Phase 5 was not started.
 
 ## Quotation line truth
