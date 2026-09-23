@@ -41,7 +41,7 @@ class AssistantResponseComposer
                 return $this->availabilityText($check);
             }
             if ($toolResult['error'] === 'unpriced') {
-                return 'That item has no daily rental rate in the ERP, so I cannot price it. A team member can confirm the rate. This is not a confirmed booking.';
+                return 'That item has no price on the quotation list, so I cannot price it. A team member can set the quotation price. This is not a confirmed booking.';
             }
             if ($toolResult['error'] === 'no_quote') {
                 return 'I do not have a draft quotation to confirm yet. Ask me to send a quotation first.';

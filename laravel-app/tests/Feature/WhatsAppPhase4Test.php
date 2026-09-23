@@ -195,6 +195,27 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
         $this->assertSame(500, (int) $second->attendance);
     }
 
+    public function test_quotation_uses_sale_price_when_there_is_no_daily_rate()
+    {
+        Product::create([
+            'name' => 'JBL Charge 5 Bluetooth Speaker',
+            'code' => 'JBLC5',
+            'is_active' => true,
+            'qty' => 5,
+            'price' => 85000,
+            'rent_price_per_day' => 0,
+        ]);
+        $this->postWebhook($this->incomingText('+237675400012', 'Do you have a JBL Charge 5 available Saturday?', 'P4S1'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400012', 'Send me a quotation', 'P4S2'))->assertStatus(200);
+        $quote = Quotation::orderByDesc('id')->first();
+        $this->assertNotNull($quote);
+        $this->assertSame(Quotation::STATUS_PENDING, (int) $quote->quotation_status);
+        $this->assertEquals(85000, (float) $quote->grand_total);
+        $reply = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringNotContainsString('daily rental', strtolower($reply->body));
+        $this->assertSame(0, Booking::count());
+    }
+
     protected function speaker($qty)
     {
         return Product::create([
@@ -202,6 +223,7 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
             'code' => 'JBL1',
             'is_active' => true,
             'qty' => $qty,
+            'price' => 25000,
             'rent_price_per_day' => 25000,
         ]);
     }
@@ -215,6 +237,7 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
                 $table->string('code')->nullable();
                 $table->boolean('is_active')->default(true);
                 $table->decimal('qty', 12, 2)->default(0);
+                $table->decimal('price', 12, 2)->nullable();
                 $table->decimal('rent_price_per_day', 12, 2)->nullable();
                 $table->decimal('rent_price_per_hour', 12, 2)->nullable();
                 $table->timestamps();

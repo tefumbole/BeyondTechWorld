@@ -61,9 +61,11 @@ class RentalQuoteService
                 'alternatives' => $this->availability->alternatives($product, $qty, $range['start'], $range['end']),
             ];
         }
-        if (empty($check['priced'])) {
+        $unit = app(RentalPricingService::class)->quotationUnitPrice($product);
+        if ($unit <= 0) {
             return ['success' => false, 'error' => 'unpriced', 'check' => $check];
         }
+        $check['quote_unit_price'] = $unit;
         if (! Schema::hasTable('quotations')) {
             return ['success' => false, 'error' => 'inventory_unavailable'];
         }
@@ -74,10 +76,10 @@ class RentalQuoteService
         }
 
         $days = (int) $range['days'];
-        $lineTotal = round($check['day_rate'] * $check['requested_qty'] * $days, 2);
+        $lineTotal = round($unit * $check['requested_qty'], 2);
         $reference = 'qr-'.date('Ymd').'-'.date('His').substr(uniqid(), -3);
-        $note = 'WhatsApp rental draft for '.$check['name'].' x'.$check['requested_qty']
-            .' from '.$range['start'].' to '.$range['end'].'. Staff must review before signature or booking.';
+        $note = 'WhatsApp quotation for '.$check['name'].' x'.$check['requested_qty']
+            .' at the quotation price. Staff must review before it is sent.';
         if (! empty($slots['event_type'])) {
             $note .= ' Event: '.$slots['event_type'].'.';
         }
@@ -260,10 +262,12 @@ class RentalQuoteService
             }
             $qty = isset($line['quantity']) ? (int) $line['quantity'] : 1;
             $check = $this->availability->assess($product, $qty, $range['start'], $range['end']);
-            if (empty($check['availability_checked']) || empty($check['available']) || empty($check['priced'])) {
+            $unit = app(RentalPricingService::class)->quotationUnitPrice($product);
+            if (empty($check['availability_checked']) || empty($check['available']) || $unit <= 0) {
                 continue;
             }
-            $lineTotal = round($check['day_rate'] * $check['requested_qty'] * (int) $range['days'], 2);
+            $check['quote_unit_price'] = $unit;
+            $lineTotal = round($unit * $check['requested_qty'], 2);
             $stored[] = [$product, $check, $lineTotal];
             $grand += $lineTotal;
             $qtySum += (int) $check['requested_qty'];
@@ -272,8 +276,8 @@ class RentalQuoteService
         if ($stored === []) {
             return ['success' => false, 'error' => 'unavailable'];
         }
-        $note = 'WhatsApp rental draft for '.implode(', ', $names)
-            .' from '.$range['start'].' to '.$range['end'].'. Staff must review before signature or booking.';
+        $note = 'WhatsApp quotation for '.implode(', ', $names)
+            .' at the quotation price. Staff must review before it is sent.';
         if (! empty($slots['event_type'])) {
             $note .= ' Event: '.$slots['event_type'].'.';
         }
@@ -330,7 +334,7 @@ class RentalQuoteService
             'qty' => $check['requested_qty'],
             'sale_unit_id' => 0,
             'variant_id' => null,
-            'net_unit_price' => $check['day_rate'],
+            'net_unit_price' => isset($check['quote_unit_price']) ? $check['quote_unit_price'] : 0,
             'discount' => 0,
             'tax_rate' => 0,
             'tax' => 0,

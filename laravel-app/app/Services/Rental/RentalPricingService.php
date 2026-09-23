@@ -7,11 +7,25 @@ use App\Product;
 class RentalPricingService
 {
     /**
-     * ERP daily rate only. Discounts are never applied here.
+     * Same unit price the Quotation screen uses. Not the rental daily rate.
+     * Discounts are never applied here.
      */
+    public function quotationUnitPrice(Product $product)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('products', 'price')) {
+            return 0.0;
+        }
+        $today = date('Y-m-d');
+        if (! empty($product->promotion) && (float) $product->promotion_price > 0 && ! empty($product->last_date) && $today <= $product->last_date) {
+            return (float) $product->promotion_price;
+        }
+
+        return (float) $product->price;
+    }
+
     public function priceLine(Product $product, $qty, $days)
     {
-        $rate = (float) $product->rent_price_per_day;
+        $rate = $this->quotationUnitPrice($product);
         $quantity = max(1, (int) $qty);
         $duration = max(1, (int) $days);
         if ($rate <= 0) {
@@ -23,7 +37,7 @@ class RentalPricingService
                 'quantity' => $quantity,
             ];
         }
-        $total = round($rate * $quantity * $duration, 2);
+        $total = round($rate * $quantity, 2);
 
         return [
             'success' => true,
