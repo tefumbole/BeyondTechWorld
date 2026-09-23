@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
             <div>
                 <h1 class="wa-title">Leads</h1>

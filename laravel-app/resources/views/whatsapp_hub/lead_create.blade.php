@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <p><a href="{{ route('whatsapp.leads') }}">&larr; All leads</a></p>
         <h1 class="wa-title">Create Lead</h1>
         <p class="wa-sub">Use this for a number that is already in the ERP. Auto-capture only runs for unknown numbers.</p>

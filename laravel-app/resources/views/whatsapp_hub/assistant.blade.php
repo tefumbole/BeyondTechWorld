@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">Beyond Assistant</h1>
         <p class="wa-sub">Controlled ERP intelligence. API keys are never displayed.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif

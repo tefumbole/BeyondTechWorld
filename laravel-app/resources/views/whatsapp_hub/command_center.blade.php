@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title"><i class="fa fa-whatsapp"></i> WhatsApp Command Center</h1>
         <p class="wa-sub">Operational health from recorded Hub events and WaSender session status.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif

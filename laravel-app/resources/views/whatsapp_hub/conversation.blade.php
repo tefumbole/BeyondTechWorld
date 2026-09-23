@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <p>
             @if($conversation->mode === 'AI')
                 <a href="{{ route('whatsapp.assistant', ['tab' => 'conversations']) }}">&larr; AI conversations</a>

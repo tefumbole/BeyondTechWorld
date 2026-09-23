@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">WhatsApp Calls</h1>
         <p class="wa-sub">Incoming call tracking only. The assistant does not answer voice calls.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif

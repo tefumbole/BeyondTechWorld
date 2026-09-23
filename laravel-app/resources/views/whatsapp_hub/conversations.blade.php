@@ -4,7 +4,6 @@
 @include('whatsapp_hub.partials.styles')
 <section class="forms">
     <div class="container-fluid wa-shell">
-        @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">Conversations</h1>
         <div class="mb-3">
             <a class="btn btn-sm {{ ($mode ?? '') === '' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', request()->except(['mode','page'])) }}">All</a>
