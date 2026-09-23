@@ -109,6 +109,11 @@ class AssistantToolExecutor
         $products = $availability->search($query, 1);
         $product = $products->first();
         if (! $product) {
+            $proposal = $this->proposalAvailability($params, $context, $range);
+            if ($proposal) {
+                return $proposal;
+            }
+
             return ['success' => true, 'products' => [], 'availability_checked' => true, 'available' => false, 'reason' => 'not_found'];
         }
         $qty = isset($params['qty']) ? (int) $params['qty'] : 1;
@@ -123,6 +128,39 @@ class AssistantToolExecutor
         }
 
         return $check;
+    }
+
+    protected function proposalAvailability(array $params, array $context, array $range)
+    {
+        $conversation = isset($context['conversation']) ? $context['conversation'] : null;
+        if (! $conversation) {
+            return null;
+        }
+        $request = app(\App\Services\Rental\RentalRequestService::class)->active($conversation);
+        if (! $request) {
+            return null;
+        }
+        $proposal = app(\App\Services\Rental\RentalRecommendationService::class)->propose($request, $params);
+        foreach (isset($proposal['lines']) ? $proposal['lines'] : [] as $line) {
+            if (empty($line['success']) || empty($line['available']) || empty($line['name'])) {
+                continue;
+            }
+
+            return [
+                'success' => true,
+                'availability_checked' => true,
+                'available' => true,
+                'priced' => true,
+                'name' => $line['name'],
+                'start' => $range['start'],
+                'available_qty' => isset($line['available_qty']) ? $line['available_qty'] : $line['quantity'],
+                'day_rate' => isset($line['unit_price']) ? $line['unit_price'] : 0,
+                'requested_qty' => isset($line['quantity']) ? $line['quantity'] : 1,
+                'products' => [$line],
+            ];
+        }
+
+        return null;
     }
 
     protected function toolCreateRentalQuotation(array $params, array $context)

@@ -422,7 +422,8 @@
             .beyond-module-tab .beyond-attention-badge {
                 position: absolute;
                 top: -8px;
-                left: -8px;
+                right: -8px;
+                left: auto;
                 margin: 0;
                 box-shadow: 0 2px 6px rgba(0,0,0,.2);
             }
@@ -1526,6 +1527,7 @@
                         ?>
                         @if($index_permission_booking_active)
                             <?php
+                                $booking_list_count = \App\Booking::query()->count();
                                 $booking_request_count = \App\Booking::where('is_frontend', 1)->where('booking_status', 2)->count();
                                 $booking_awaiting_count = \App\BookingContract::where('review_status', \App\BookingContract::STATUS_PENDING_CLIENT)->count();
                                 $booking_pending_review_count = \App\BookingContract::where('review_status', \App\BookingContract::STATUS_PENDING_REVIEW)->count();
@@ -1566,7 +1568,9 @@
                                         ])->first();
                                         ?>
                                     @if($create_permission_booking_active)
-                                        <li id="booking-index-menu"><a href="{{route('booking.index')}}">Booking List</a></li>
+                                        <li id="booking-index-menu"><a href="{{route('booking.index')}}">Booking List
+                                                @if($booking_list_count > 0)<span class="beyond-attention-badge" data-count="{{ $booking_list_count }}">{{ $booking_list_count > 99 ? '99+' : $booking_list_count }}</span>@endif
+                                            </a></li>
                                         <li id="booking-requests-menu">
                                             <a href="{{route('booking.requests')}}">Booking Request
                                                 @if($booking_request_count > 0)<span class="beyond-attention-badge" data-count="{{ $booking_request_count }}">{{ $booking_request_count > 99 ? '99+' : $booking_request_count }}</span>@endif

@@ -34,7 +34,8 @@
         height: 16px;
         font-size: 9px;
         top: -6px;
-        left: -6px;
+        right: -6px;
+        left: auto;
     }
     body:has(.booking-create-page) section.forms {
         padding-top: 0 !important;

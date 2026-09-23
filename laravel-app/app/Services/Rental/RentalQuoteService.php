@@ -32,7 +32,15 @@ class RentalQuoteService
     {
         $range = $this->availability->resolveRange($slots);
         $query = isset($slots['product']) ? $slots['product'] : (isset($slots['query']) ? $slots['query'] : '');
-        if (! $range || trim((string) $query) === '') {
+        if (! $range) {
+            return ['success' => false, 'error' => 'missing_requirements'];
+        }
+        $proposalLines = $this->usableLines($slots, $context);
+        $generic = in_array(strtolower(trim((string) $query)), ['sound', 'audio', 'lighting', 'light', 'lights', 'led'], true);
+        if ($proposalLines && ($generic || trim((string) $query) === '' || $this->availability->search($query, 1)->isEmpty())) {
+            return $this->draftFromLines($proposalLines, $range, $slots, $context);
+        }
+        if (trim((string) $query) === '') {
             return ['success' => false, 'error' => 'missing_requirements'];
         }
         $products = $this->availability->search($query, 1);
@@ -209,6 +217,106 @@ class RentalQuoteService
         $this->conversations->assistantReply($conversation, 'Your quotation '.$quotation->reference_no.' is ready. Review and approve it here: '.$url);
 
         return ['success' => true, 'reference' => $quotation->reference_no, 'approval_url' => $url];
+    }
+
+    protected function usableLines(array $slots, array $context)
+    {
+        $conversation = isset($context['conversation']) ? $context['conversation'] : null;
+        if (! $conversation) {
+            return [];
+        }
+        $request = app(RentalRequestService::class)->active($conversation);
+        if (! $request) {
+            return [];
+        }
+        $proposal = app(RentalRecommendationService::class)->propose($request, $slots);
+        $usable = [];
+        foreach (isset($proposal['lines']) ? $proposal['lines'] : [] as $line) {
+            if (! empty($line['product_id']) && ! empty($line['success']) && ! empty($line['available']) && ! empty($line['quantity'])) {
+                $usable[] = $line;
+            }
+        }
+
+        return $usable;
+    }
+
+    protected function draftFromLines(array $lines, array $range, array $slots, array $context)
+    {
+        if (! Schema::hasTable('quotations')) {
+            return ['success' => false, 'error' => 'inventory_unavailable'];
+        }
+        $customer = $this->ensureCustomer($context);
+        if (! $customer) {
+            return ['success' => false, 'error' => 'no_customer'];
+        }
+        $stored = [];
+        $grand = 0;
+        $qtySum = 0;
+        $names = [];
+        foreach ($lines as $line) {
+            $product = Product::find($line['product_id']);
+            if (! $product) {
+                continue;
+            }
+            $qty = isset($line['quantity']) ? (int) $line['quantity'] : 1;
+            $check = $this->availability->assess($product, $qty, $range['start'], $range['end']);
+            if (empty($check['availability_checked']) || empty($check['available']) || empty($check['priced'])) {
+                continue;
+            }
+            $lineTotal = round($check['day_rate'] * $check['requested_qty'] * (int) $range['days'], 2);
+            $stored[] = [$product, $check, $lineTotal];
+            $grand += $lineTotal;
+            $qtySum += (int) $check['requested_qty'];
+            $names[] = $check['name'];
+        }
+        if ($stored === []) {
+            return ['success' => false, 'error' => 'unavailable'];
+        }
+        $note = 'WhatsApp rental draft for '.implode(', ', $names)
+            .' from '.$range['start'].' to '.$range['end'].'. Staff must review before signature or booking.';
+        if (! empty($slots['event_type'])) {
+            $note .= ' Event: '.$slots['event_type'].'.';
+        }
+        if (! empty($slots['location'])) {
+            $note .= ' Location: '.$slots['location'].'.';
+        }
+        $payload = $this->onlyColumns('quotations', [
+            'reference_no' => 'qr-'.date('Ymd').'-'.date('His').substr(uniqid(), -3),
+            'user_id' => User::query()->where('role_id', '<=', 2)->value('id'),
+            'customer_id' => $customer->id,
+            'item' => count($stored),
+            'total_qty' => $qtySum,
+            'total_discount' => 0,
+            'total_tax' => 0,
+            'total_price' => $grand,
+            'order_tax_rate' => 0,
+            'order_tax' => 0,
+            'order_discount' => 0,
+            'shipping_cost' => 0,
+            'grand_total' => $grand,
+            'quotation_status' => Quotation::STATUS_PENDING,
+            'note' => $note,
+            'whatsapp_conversation_id' => isset($context['conversation_id']) ? $context['conversation_id'] : null,
+            'whatsapp_lead_id' => isset($context['lead']['id']) ? $context['lead']['id'] : null,
+            'quotation_source' => 'whatsapp',
+            'revised_from_id' => isset($slots['revised_from_id']) ? $slots['revised_from_id'] : null,
+        ]);
+        $quotation = Quotation::create($payload);
+        foreach ($stored as $row) {
+            $this->storeLine($quotation->id, $row[0], $row[1], $row[2]);
+        }
+
+        return [
+            'success' => true,
+            'quotation_id' => $quotation->id,
+            'reference' => $quotation->reference_no,
+            'grand_total' => $grand,
+            'status' => 'Draft',
+            'days' => (int) $range['days'],
+            'auto_send' => false,
+            'awaiting_staff' => true,
+            'customer_id' => $customer->id,
+        ];
     }
 
     protected function storeLine($quotationId, Product $product, array $check, $lineTotal)

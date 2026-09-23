@@ -169,6 +169,32 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
         $this->assertSame(1, \App\Customer::count());
     }
 
+    public function test_ordinal_date_creates_a_rental_request_and_draft_quotation()
+    {
+        $this->speaker(4);
+        $this->postWebhook($this->incomingText('+237675400010', 'I need sound for a wedding', 'P4O1'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400010', '20th November', 'P4O2'))->assertStatus(200);
+        $dateReply = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringNotContainsString('team member will continue', strtolower($dateReply->body));
+        $this->postWebhook($this->incomingText('+237675400010', 'Send me a quotation', 'P4O3'))->assertStatus(200);
+        $quote = Quotation::orderByDesc('id')->first();
+        $this->assertNotNull($quote);
+        $this->assertSame(Quotation::STATUS_PENDING, (int) $quote->quotation_status);
+        $this->assertSame(0, Booking::count());
+        $this->assertSame(0, WhatsAppMessage::where('type', 'DOCUMENT')->count());
+        $request = \App\WhatsApp\RentalRequest::first();
+        $this->assertNotNull($request);
+        $this->assertSame('2026-11-20', $request->event_date->toDateString());
+        $this->postWebhook($this->incomingText('+237675400011', 'I need sound for a wedding', 'P4O4'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400011', 'October 24th in Douala, around 500 people', 'P4O5'))->assertStatus(200);
+        $follow = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringNotContainsString('team member will continue', strtolower($follow->body));
+        $second = \App\WhatsApp\RentalRequest::orderByDesc('id')->first();
+        $this->assertSame('2026-10-24', $second->event_date->toDateString());
+        $this->assertSame('Douala', $second->location);
+        $this->assertSame(500, (int) $second->attendance);
+    }
+
     protected function speaker($qty)
     {
         return Product::create([

@@ -98,8 +98,28 @@ class AssistantIntentRouter
         if (preg_match('/\b(appointment|schedule a meeting|book a meeting)\b/i', $t)) {
             return $this->make(IntentCatalog::APPOINTMENT_REQUEST, 0.8, false, true);
         }
+        $availability = app(\App\Services\Rental\RentalAvailabilityService::class);
+        if ($this->isRentalDateFollowUp($t, $memoryParams, $availability)) {
+            $needs = empty($memoryParams['product']) || $availability->dateIssue($memoryParams) !== 'ok';
+
+            return $this->make(IntentCatalog::RENTAL_ENQUIRY, 0.93, true, $needs);
+        }
 
         return null;
+    }
+
+    protected function isRentalDateFollowUp($text, array $memoryParams, $availability)
+    {
+        $collecting = ! empty($memoryParams['product']) || ! empty($memoryParams['event_type']) || ! empty($memoryParams['event_date']);
+        if (! $collecting) {
+            return false;
+        }
+        $stripped = strtolower(preg_replace('/\b(\d{1,2})(st|nd|rd|th)\b/i', '$1', $text));
+        if ($availability->isAmbiguousDate($stripped)) {
+            return true;
+        }
+
+        return (bool) preg_match('/\b(\d{1,2}\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{1,2}[\/\-.]\d{1,2}(?:[\/\-.]\d{2,4})?|next\s+(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday)|tomorrow)\b/i', $stripped);
     }
 
     protected function fromModel($text, array $context, array $memoryParams)

@@ -11,7 +11,10 @@
                 <div class="card-header mt-2">
                     <h3 class="text-center">{{ $page_title ?? 'Online Booking List' }}</h3>
                 </div>
-                {!! Form::open(['route' => 'online.booking.index', 'method' => 'get']) !!}
+                {!! Form::open(['route' => (!empty($list_mode) && $list_mode === 'requests') ? 'booking.requests' : 'online.booking.index', 'method' => 'get']) !!}
+                @if(!empty($pending_only))
+                    <input type="hidden" name="pending_only" value="1" />
+                @endif
                 <div class="row mb-3">
                     <div class="col-md-4 offset-md-2 mt-3">
                         <div class="d-flex">
@@ -295,9 +298,15 @@
 
     <script type="text/javascript">
 
+        @if(!empty($list_mode) && $list_mode === 'requests')
+        $("ul#booking").siblings('a').attr('aria-expanded','true');
+        $("ul#booking").addClass("show");
+        $("ul#booking #booking-requests-menu").addClass("active");
+        @else
         $("ul#order").siblings('a').attr('aria-expanded','true');
         $("ul#order").addClass("show");
         $("ul#order #online-booking-index-menu").addClass("active");
+        @endif
 
         var public_key = <?php echo json_encode($lims_pos_setting_data->stripe_public_key) ?>;
         var all_permission = <?php echo json_encode($all_permission) ?>;
@@ -426,7 +435,8 @@
                     all_permission: all_permission,
                     starting_date: starting_date,
                     ending_date: ending_date,
-                    warehouse_id: warehouse_id
+                    warehouse_id: warehouse_id,
+                    pending_only: {{ !empty($pending_only) ? 1 : 0 }}
                 },
                 dataType: "json",
                 type:"post"

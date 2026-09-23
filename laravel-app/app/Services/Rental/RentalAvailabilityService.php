@@ -179,6 +179,9 @@ class RentalAvailabilityService
     protected function parseDate($raw)
     {
         $raw = strtolower(trim((string) $raw));
+        $raw = preg_replace('/\b(\d{1,2})(st|nd|rd|th)\b/', '$1', $raw);
+        $raw = preg_replace('/\b(\d{1,2})\s+of\s+/', '$1 ', $raw);
+        $raw = trim(preg_replace('/\s+/', ' ', $raw));
         if ($raw === '' || $this->isAmbiguousDate($raw)) {
             return null;
         }

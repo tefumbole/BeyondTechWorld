@@ -90,8 +90,10 @@ class RentalRecommendationService
 
     protected function queries(RentalRequest $request, array $slots)
     {
-        if (! empty($slots['product'])) {
-            return [strtolower($slots['product'])];
+        $product = isset($slots['product']) ? strtolower(trim($slots['product'])) : '';
+        $generic = ['sound', 'audio', 'lighting', 'light', 'lights', 'led'];
+        if ($product !== '' && ! in_array($product, $generic, true)) {
+            return [$product];
         }
         $categories = $request->categories();
         if ($categories === [] && $request->event_type) {

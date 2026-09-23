@@ -177,7 +177,7 @@ class BookingController extends Controller
                 $ending_date = $request->input('ending_date');
             }
             else {
-                $starting_date = date("Y-m-d", strtotime(date('Y-m-d', strtotime('-1 year', strtotime(date('Y-m-d') )))));
+                $starting_date = '2000-01-01';
                 $ending_date = date("Y-m-d");
             }
 
@@ -198,6 +198,14 @@ class BookingController extends Controller
         $role = Role::find(Auth::user()->role_id);
         if ($role && ($role->hasPermissionTo('booking_index') || $role->hasPermissionTo('booking_module') || $role->hasPermissionTo('sales-index'))) {
             $request->attributes->set('booking_requests_title', 'Booking Requests');
+            $request->attributes->set('booking_list_mode', 'requests');
+            if (! $request->input('starting_date')) {
+                $request->merge([
+                    'starting_date' => '2000-01-01',
+                    'ending_date' => date('Y-m-d'),
+                    'pending_only' => 1,
+                ]);
+            }
 
             return $this->onlineIndex($request);
         }
@@ -235,8 +243,10 @@ class BookingController extends Controller
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
             $lims_account_list = Account::with('departments')->where('is_active', true)->get();
             $page_title = $request->attributes->get('booking_requests_title', 'Online Booking List');
+            $list_mode = $request->attributes->get('booking_list_mode', 'online');
+            $pending_only = (int) $request->input('pending_only', $list_mode === 'requests' ? 1 : 0);
 
-            return view('booking.online-index',compact('starting_date', 'ending_date', 'warehouse_id', 'lims_gift_card_list', 'lims_pos_setting_data', 'lims_reward_point_setting_data', 'lims_account_list', 'lims_warehouse_list', 'all_permission', 'page_title'));
+            return view('booking.online-index',compact('starting_date', 'ending_date', 'warehouse_id', 'lims_gift_card_list', 'lims_pos_setting_data', 'lims_reward_point_setting_data', 'lims_account_list', 'lims_warehouse_list', 'all_permission', 'page_title', 'list_mode', 'pending_only'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -256,14 +266,13 @@ class BookingController extends Controller
 
         if(Auth::user()->role_id > 2 && config('staff_access') == 'own')
             $totalData = Booking::where('user_id', Auth::id())
-                ->where('is_frontend', false)
                 ->whereDate('created_at', '>=' ,$request->input('starting_date'))
                 ->whereDate('created_at', '<=' ,$request->input('ending_date'))
                 ->count();
         elseif($warehouse_id != 0)
-            $totalData = Booking::where('warehouse_id', $warehouse_id)->where('is_frontend', false)->whereDate('created_at', '>=' ,$request->input('starting_date'))->whereDate('created_at', '<=' ,$request->input('ending_date'))->count();
+            $totalData = Booking::where('warehouse_id', $warehouse_id)->whereDate('created_at', '>=' ,$request->input('starting_date'))->whereDate('created_at', '<=' ,$request->input('ending_date'))->count();
         else
-            $totalData = Booking::whereDate('created_at', '>=' ,$request->input('starting_date'))->whereDate('created_at', '<=' ,$request->input('ending_date'))->where('is_frontend', false)->count();
+            $totalData = Booking::whereDate('created_at', '>=' ,$request->input('starting_date'))->whereDate('created_at', '<=' ,$request->input('ending_date'))->count();
 
         $totalFiltered = $totalData;
         if($request->input('length') != -1)
@@ -276,7 +285,6 @@ class BookingController extends Controller
         if(empty($request->input('search.value'))) {
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
                 $sales = Booking::with('biller', 'customer', 'warehouse', 'user', 'contract')
-                    ->where('is_frontend', false)
                     ->where('user_id', Auth::id())
                     ->whereDate('created_at', '>=', $request->input('starting_date'))
                     ->whereDate('created_at', '<=', $request->input('ending_date'))
@@ -287,7 +295,6 @@ class BookingController extends Controller
             } elseif($warehouse_id != 0) {
 
                 $sales = Booking::with('biller', 'customer', 'warehouse', 'user', 'contract')
-                    ->where('is_frontend', false)
                     ->where('warehouse_id', $warehouse_id)
                     ->whereDate('created_at', '>=' ,$request->input('starting_date'))
                     ->whereDate('created_at', '<=' ,$request->input('ending_date'))
@@ -298,7 +305,6 @@ class BookingController extends Controller
 
             } else {
                 $sales = Booking::with('biller', 'customer', 'warehouse', 'user', 'contract')
-                    ->where('is_frontend', false)
                     ->whereDate('created_at', '>=' ,$request->input('starting_date'))
                     ->whereDate('created_at', '<=' ,$request->input('ending_date'))
                     ->offset($start)
@@ -312,7 +318,6 @@ class BookingController extends Controller
             $search = $request->input('search.value');
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own') {
                 $sales =  Booking::select('bookings.*')
-                    ->where('is_frontend', false)
                     ->with('biller', 'customer', 'warehouse', 'user', 'contract')
                     ->join('customers', 'bookings.customer_id', '=', 'customers.id')
                     ->join('billers', 'bookings.biller_id', '=', 'billers.id')
@@ -343,7 +348,6 @@ class BookingController extends Controller
                     ->join('billers', 'bookings.biller_id', '=', 'billers.id')
                     ->whereDate('bookings.created_at', '=' , date('Y-m-d', strtotime(str_replace('/', '-', $search))))
                     ->where('bookings.user_id', Auth::id())
-                    ->where('bookings.is_frontend', false)
                     ->orwhere([
                         ['bookings.reference_no', 'LIKE', "%{$search}%"],
                         ['bookings.user_id', Auth::id()]
@@ -369,7 +373,6 @@ class BookingController extends Controller
                     ->join('billers', 'bookings.biller_id', '=', 'billers.id')
                     ->whereDate('bookings.created_at', '=' , date('Y-m-d', strtotime(str_replace('/', '-', $search))))
                     ->where('bookings.user_id', Auth::id())
-                    ->where('bookings.is_frontend', false)
                     ->orwhere('bookings.reference_no', 'LIKE', "%{$search}%")
                     ->orwhere('customers.name', 'LIKE', "%{$search}%")
                     ->orwhere('customers.phone_number', 'LIKE', "%{$search}%")
@@ -383,7 +386,6 @@ class BookingController extends Controller
                     ->join('billers', 'bookings.biller_id', '=', 'billers.id')
                     ->whereDate('bookings.created_at', '=' , date('Y-m-d', strtotime(str_replace('/', '-', $search))))
                     ->where('bookings.user_id', Auth::id())
-                    ->where('bookings.is_frontend', false)
                     ->orwhere('bookings.reference_no', 'LIKE', "%{$search}%")
                     ->orwhere('customers.name', 'LIKE', "%{$search}%")
                     ->orwhere('customers.phone_number', 'LIKE', "%{$search}%")
@@ -399,8 +401,10 @@ class BookingController extends Controller
                 $nestedData['key'] = $key;
                 $nestedData['date'] = date(config('date_format'), strtotime($sale->created_at->toDateString()));
                 $nestedData['reference_no'] = $sale->reference_no;
-                $nestedData['biller'] = $sale->biller->name;
-                $nestedData['customer'] = $sale->customer->name . '<input type="hidden" class="deposit" value="' . ($sale->customer->deposit - $sale->customer->expense) . '" />' . '<input type="hidden" class="points" value="' . $sale->customer->points . '" />';
+                $biller = $sale->biller;
+                $customer = $sale->customer;
+                $nestedData['biller'] = $biller ? $biller->name : '';
+                $nestedData['customer'] = ($customer ? $customer->name : '') . '<input type="hidden" class="deposit" value="' . ($customer ? ($customer->deposit - $customer->expense) : 0) . '" />' . '<input type="hidden" class="points" value="' . ($customer ? $customer->points : 0) . '" />';
 
                 if ($sale->booking_status == 1) {
                     $nestedData['booking_status'] = '<div class="badge badge-success">' . trans('file.Completed') . '</div>';
@@ -497,7 +501,7 @@ class BookingController extends Controller
                 else
                     $coupon_code = null;
 
-                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$booking_status.'"', ' "'.$sale->biller->name.'"', ' "'.$sale->biller->company_name.'"', ' "'.$sale->biller->email.'"', ' "'.$sale->biller->phone_number.'"', ' "'.$sale->biller->address.'"', ' "'.$sale->biller->city.'"', ' "'.$sale->customer->name.'"', ' "'.$sale->customer->phone_number.'"', ' "'.$sale->customer->address.'"', ' "'.$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->booking_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.$sale->user->name.'"', ' "'.$sale->user->email.'"', ' "'.$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
+                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$booking_status.'"', ' "'.@$sale->biller->name.'"', ' "'.@$sale->biller->company_name.'"', ' "'.@$sale->biller->email.'"', ' "'.@$sale->biller->phone_number.'"', ' "'.@$sale->biller->address.'"', ' "'.@$sale->biller->city.'"', ' "'.@$sale->customer->name.'"', ' "'.@$sale->customer->phone_number.'"', ' "'.@$sale->customer->address.'"', ' "'.@$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->booking_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.@$sale->user->name.'"', ' "'.@$sale->user->email.'"', ' "'.@$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
                 );
                 $data[] = $nestedData;
             }
@@ -522,6 +526,11 @@ class BookingController extends Controller
         );
 
         $warehouse_id = $request->input('warehouse_id');
+        if ($request->input('pending_only')) {
+            Booking::addGlobalScope('pending_booking_requests', function ($builder) {
+                $builder->where('bookings.booking_status', 2);
+            });
+        }
 
         if(Auth::user()->role_id > 2 && config('staff_access') == 'own')
             $totalData = Booking::where('user_id', Auth::id())
@@ -668,8 +677,10 @@ class BookingController extends Controller
                 $nestedData['key'] = $key;
                 $nestedData['date'] = date(config('date_format'), strtotime($sale->created_at->toDateString()));
                 $nestedData['reference_no'] = $sale->reference_no;
-                $nestedData['biller'] = $sale->biller->name;
-                $nestedData['customer'] = $sale->customer->name . '<input type="hidden" class="deposit" value="' . ($sale->customer->deposit - $sale->customer->expense) . '" />' . '<input type="hidden" class="points" value="' . $sale->customer->points . '" />';
+                $biller = $sale->biller;
+                $customer = $sale->customer;
+                $nestedData['biller'] = $biller ? $biller->name : '';
+                $nestedData['customer'] = ($customer ? $customer->name : '') . '<input type="hidden" class="deposit" value="' . ($customer ? ($customer->deposit - $customer->expense) : 0) . '" />' . '<input type="hidden" class="points" value="' . ($customer ? $customer->points : 0) . '" />';
                 if ($sale->payment_method == 'COD') {
                     $nestedData['paying_method'] = '<div class="badge badge-warning">' . $sale->payment_method . '</div>';
                 } else {
@@ -740,7 +751,7 @@ class BookingController extends Controller
                 else
                     $coupon_code = null;
 
-                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$booking_status.'"', ' "'.@$sale->biller->name.'"', ' "'.@$sale->biller->company_name.'"', ' "'.@$sale->biller->email.'"', ' "'.@$sale->biller->phone_number.'"', ' "'.@$sale->biller->address.'"', ' "'.@$sale->biller->city.'"', ' "'.@$sale->customer->name.'"', ' "'.$sale->customer->phone_number.'"', ' "'.$sale->customer->address.'"', ' "'.$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->booking_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.@$sale->user->name.'"', ' "'.@$sale->user->email.'"', ' "'.$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
+                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$booking_status.'"', ' "'.@@$sale->biller->name.'"', ' "'.@@$sale->biller->company_name.'"', ' "'.@@$sale->biller->email.'"', ' "'.@@$sale->biller->phone_number.'"', ' "'.@@$sale->biller->address.'"', ' "'.@@$sale->biller->city.'"', ' "'.@@$sale->customer->name.'"', ' "'.@$sale->customer->phone_number.'"', ' "'.@$sale->customer->address.'"', ' "'.@$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->booking_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.@@$sale->user->name.'"', ' "'.@@$sale->user->email.'"', ' "'.@$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
                 );
                 $data[] = $nestedData;
             }

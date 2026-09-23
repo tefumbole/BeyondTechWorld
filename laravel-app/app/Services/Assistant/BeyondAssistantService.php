@@ -85,6 +85,7 @@ class BeyondAssistantService
         try {
             app(\App\Services\Rental\RentalRequestService::class)->capture($conversation, $slots, (string) $message->body, $decision['intent']);
         } catch (\Throwable $e) {
+            $activity->error = $e->getMessage();
         }
 
         $activity->intent = $decision['intent'];
@@ -229,21 +230,23 @@ class BeyondAssistantService
     protected function extractSlots($text, array $existing)
     {
         $slots = $existing;
+        $dated = preg_replace('/\b(\d{1,2})(st|nd|rd|th)\b/i', '$1', $text);
+        $dated = preg_replace('/\b(\d{1,2})\s+of\s+/i', '$1 ', $dated);
         if (preg_match('/\b(wedding|concert|church|conference|birthday|funeral)\b/i', $text, $m)) {
             $slots['event_type'] = strtolower($m[1]);
         }
-        if (preg_match('/\b(this weekend|next weekend|next month)\b/i', $text, $m)) {
+        if (preg_match('/\b(this weekend|next weekend|next month)\b/i', $dated, $m)) {
             $slots['event_date'] = strtolower($m[1]);
-        } elseif (preg_match('/\bnext\s+(saturday|sunday|monday|tuesday|wednesday|thursday|friday)\b/i', $text, $m)) {
+        } elseif (preg_match('/\bnext\s+(saturday|sunday|monday|tuesday|wednesday|thursday|friday)\b/i', $dated, $m)) {
             $slots['event_date'] = strtolower($m[0]);
-        } elseif (preg_match('/\b(saturday|sunday|monday|tuesday|wednesday|thursday|friday|tomorrow)\b/i', $text, $m)) {
+        } elseif (preg_match('/\b(saturday|sunday|monday|tuesday|wednesday|thursday|friday|tomorrow)\b/i', $dated, $m)) {
             $slots['event_date'] = strtolower($m[1]);
         }
-        if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)?\b/i', $text, $m) && (int) $m[1] >= 20) {
+        if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)\b/i', $text, $m) && (int) $m[1] >= 20) {
             $slots['guests'] = (int) $m[1];
         }
-        if (preg_match('/\b(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b/i', $text, $m)) {
-            $slots['event_date'] = strtolower($m[1]);
+        if (preg_match('/\b(\d{1,2}\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b/i', $dated, $m)) {
+            $slots['event_date'] = strtolower(preg_replace('/\s+of\s+/', ' ', $m[1]));
         }
         if (preg_match('/\bin\s+([A-Za-z][A-Za-z]{2,30})\b/', $text, $m)) {
             $slots['location'] = $m[1];
