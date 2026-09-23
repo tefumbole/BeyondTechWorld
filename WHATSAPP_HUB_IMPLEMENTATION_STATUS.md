@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 7 — Secure Document Retrieval & OTP  
-STATUS: DEPLOYED. Automated tests passed. Live checks A–T were NOT RUN because SSH to the server timed out after the deploy. Do not treat the automated tests as a live PASS.
+STATUS: DEPLOYED AND LIVE CHECKED. Automated tests passed. Live A–T were run on the controlled fixture after SSH returned. Rows that the ERP cannot generate stay NOT RUN.
 
 Date: 23 September 2026
 
@@ -50,31 +50,31 @@ Commit `8a4dd3c` is on the server. Migration `2026_09_23_180000_create_whatsapp_
 
 ### Live validation
 
+Run on the server against customer 124, the same phone as the Stage 6 fixture employee. Quotation `S7-CONTROLLED` (id 26) was created for that account. One verification code and two quotation PDFs were sent to that number. The code was not stored in plaintext. The conversation was returned to HUMAN.
+
 | Check | Result |
 | --- | --- |
-| A Customer quotation | NOT RUN |
-| B Wrong customer quotation | NOT RUN |
-| C Employee payslip | NOT RUN — no payslip PDF exists |
-| D Wrong OTP | NOT RUN |
-| E Expired OTP | NOT RUN |
-| F Max attempts | NOT RUN |
-| G Resend cooldown | NOT RUN |
-| H OTP replay | NOT RUN |
-| I Another person's document after OTP | NOT RUN |
-| J Receipt from a real payment | NOT RUN — no receipt PDF exists |
-| K False payment claim | NOT RUN |
-| L Employment contract | NOT RUN — no employee-owned contract file |
+| A Customer quotation | PASS — code required, hash stored, existing PDF sent |
+| B Wrong customer quotation | PASS — denied, the other id was not echoed |
+| C Employee payslip | NOT RUN — no payslip PDF; nothing was sent |
+| D Wrong OTP | PASS — attempt recorded, no document |
+| E Expired OTP | PASS |
+| F Max attempts | PASS — challenge invalidated |
+| G Resend cooldown | PASS |
+| H OTP replay | PASS — one session |
+| I Another person's document after a valid session | PASS |
+| J Receipt | PASS — the fixture has no payment, so no receipt was created |
+| K False payment claim | PASS — payment rows unchanged |
+| L Employment contract | NOT RUN — no employee contract file |
 | M Internship document | NOT RUN — no issued internship file |
-| N Certificate not eligible | NOT RUN |
-| O Unknown number | NOT RUN |
-| P Arbitrary path | NOT RUN |
-| Q Duplicate webhook | NOT RUN |
-| R Send failure | NOT RUN |
-| S Verified session then expiry | NOT RUN |
-| T Multi-role context through OTP | NOT RUN |
-| CHECK OUT while a code is pending | NOT RUN on the server |
-
-SSH to the VPS timed out after the code deploy, the same class of interruption seen during Stage 6. The site stayed up. These rows stay NOT RUN until a later SSH session can use the controlled fixture accounts. Automated coverage is not a substitute.
+| N Certificate | PASS — reported not available; none created |
+| O Unknown number | PASS — no code, payslip not sent |
+| P Arbitrary path | PASS |
+| Q Duplicate webhook | PASS — identical payload returned duplicate; the same provider message did not open a second request |
+| R Induced send failure | NOT RUN — the live provider was not forced to fail |
+| S Verified session, then expiry | PASS — a second quotation was sent inside the session; after expiry a new code was required |
+| T Employee and intern | PASS — asked which document, then kept the employee context |
+| CHECK OUT while a code was pending | PASS — checkout ran; the reply said today's attendance is already closed; no new attendance row |
 
 ### Stage 8
 
