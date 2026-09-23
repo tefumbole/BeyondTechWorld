@@ -88,6 +88,63 @@ class WhatsAppPhase6Test extends WhatsAppHubTestCase
         $this->assertNull(Attendance::first()->intern_user_id);
     }
 
+    public function test_location_pin_keeps_employee_role_and_checkout_is_not_a_check_in()
+    {
+        $this->enableAssistant();
+        WhatsAppSetting::putValue('default_conversation_mode', 'AI');
+        $person = $this->employee('675610030');
+        InternshipEnrolment::create(['student_user_id' => $person['user']->id, 'status' => 'active']);
+        $this->job($person['user'], '247', 4.05, 9.70, 200);
+
+        $this->postWebhook($this->incomingText('+237675610030', 'CHECK IN JOB 247 employee', 'P6PIN1'))->assertStatus(200);
+        $this->assertSame(0, Attendance::count());
+        $this->assertStringContainsString('share your current WhatsApp location', $this->latestAssistant());
+
+        $this->postWebhook($this->incomingLocation('+237675610030', 'P6PIN2', 4.05, 9.70))->assertStatus(200);
+        $this->assertSame(1, Attendance::count());
+        $row = Attendance::first();
+        $this->assertEquals($person['employee']->id, $row->employee_id);
+        $this->assertNull($row->intern_user_id);
+        $this->assertSame('LOCATION_VERIFIED', $row->location_status);
+        $this->assertStringNotContainsString('Which one should I use', $this->latestAssistant());
+
+        $checkout = $this->incomingText('+237675610030', 'CHECK OUT', 'P6PIN3');
+        $this->postWebhook($checkout)->assertStatus(200);
+        $this->assertNotNull($row->fresh()->checkout);
+        $this->assertSame(1, Attendance::count());
+        $this->assertStringContainsString('Checked out successfully', $this->latestAssistant());
+        $replies = WhatsAppMessage::where('sender_type', 'ASSISTANT')->count();
+        $sheets = TimesheetEntry::count();
+        $this->postWebhook($checkout)->assertStatus(200)->assertJson(['duplicate' => true]);
+        $this->assertSame(1, Attendance::count());
+        $this->assertSame($sheets, TimesheetEntry::count());
+        $this->assertSame($replies, WhatsAppMessage::where('sender_type', 'ASSISTANT')->count());
+    }
+
+    public function test_pending_location_does_not_turn_checkout_into_check_in()
+    {
+        $this->enableAssistant();
+        WhatsAppSetting::putValue('default_conversation_mode', 'AI');
+        $person = $this->employee('675610031');
+        InternshipEnrolment::create(['student_user_id' => $person['user']->id, 'status' => 'active']);
+        $this->job($person['user'], '248', 4.05, 9.70, 200);
+        $this->postWebhook($this->incomingText('+237675610031', 'CHECK IN JOB 248 employee', 'P6HOLD'))->assertStatus(200);
+        $this->assertSame(0, Attendance::count());
+
+        $memory = \App\Assistant\AssistantMemory::first();
+        $this->assertNotNull($memory);
+        $params = $memory->parameters();
+        $params['latitude'] = 4.05;
+        $params['longitude'] = 9.70;
+        $params['location_at'] = '2026-09-23 09:15:00';
+        $memory->setParameters($params);
+        $memory->save();
+
+        $this->postWebhook($this->incomingText('+237675610031', 'CHECK OUT', 'P6HOLD2'))->assertStatus(200);
+        $this->assertSame(0, Attendance::count());
+        $this->assertStringContainsString("couldn't find an active check-in", $this->latestAssistant());
+    }
+
     public function test_employee_check_in_uses_server_time_and_blocks_duplicates()
     {
         $person = $this->employee('675610001');
@@ -546,6 +603,33 @@ class WhatsAppPhase6Test extends WhatsAppHubTestCase
         $this->assertNotNull($message);
 
         return (string) $message->body;
+    }
+
+    protected function incomingLocation($phone, $id, $lat, $lng)
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+
+        return [
+            'event' => 'messages.received',
+            'timestamp' => 1790000001,
+            'data' => [
+                'messages' => [
+                    'key' => [
+                        'id' => $id,
+                        'fromMe' => false,
+                        'remoteJid' => $digits.'@s.whatsapp.net',
+                        'cleanedSenderPn' => $digits,
+                    ],
+                    'messageBody' => '',
+                    'message' => [
+                        'locationMessage' => [
+                            'degreesLatitude' => $lat,
+                            'degreesLongitude' => $lng,
+                        ],
+                    ],
+                ],
+            ],
+        ];
     }
 
     protected function incomingText($phone, $body, $id)

@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 6 — Attendance & Field Operations  
-STATUS: Live validation is in progress and is not closed. Office check-in, checkout, timesheet, corrections, intern check-in, outside geofence, and handover passed on production. Invalid location, stale location, an identical webhook retry, field checkout, and location-coordinate cleanup were not reconfirmed after a fix (`3c3e68e`) because the server stopped accepting SSH. Do not start Stage 7.
+STATUS: COMPLETED AND LIVE VALIDATED. Stage 7 has not started.
 
 Date: 23 September 2026
 
@@ -52,54 +52,52 @@ Permissions: `whatsapp.attendance`, `.view`, `.manage`, `.location`, `.correctio
 
 ### Tests
 
-**101 tests, 483 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
+**103 tests, 511 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
 
-That run includes Stage 6 and the Stage 1–5 regression.
+That run includes Stage 6, the location-pin and checkout regressions, identical webhook replay, and the Stage 1–5 regression.
 
 ### Live validation — 23 September 2026
 
-Production HEAD at the start of the run was `a7985a0`, then `23635bc`, then `3c3e68e`. Migration `2026_09_23_160000_extend_attendance_for_whatsapp` is batch 196. The queue error log was empty and WaSender was connected. Messages to the controlled staff numbers were sent (`SENT`).
+Production functional code for the retest was `3c3e68e`. Migration `2026_09_23_160000_extend_attendance_for_whatsapp` is batch 196. The queue had no failed jobs. WaSender was connected.
 
-Controlled records, by id only: office user 274 / employee 1 / conversation 3; intern user 284 / enrolment 4; field user 278 / employee 3; event `JOB-9001`; outside fixture employee 4 on `JOB-9002`. No existing attendance rows were present before the run (count was 0).
-
-| Test | Result | Evidence |
+| Test | Final Result | Evidence |
 | --- | --- | --- |
-| A Employee check-in | PASS | Attendance 2, source whatsapp, check-in 14:18:38, conversation 3, WhatsApp SENT |
-| B Duplicate check-in | PASS | Still one row for that employee today. Reply: already checked in at 14:18 |
-| C Status | PASS | Reply used attendance 2: Checked In, started 14:18 |
-| D Check-out | PASS | Attendance 2 closed at 14:19:52. Duration 0h 1m |
-| E Timesheet | PASS | Timesheet `7787556a-bd3d-47ae-892c-bc3b45b6b58b`, 0.02 hours, status submitted. Payroll stayed 0 |
-| Server time | PASS | Text said 8:00 AM. Stored check-in is 14:18:38. A later attempt did not open another row |
-| F Field job check-in | PASS | `CHECK IN JOB 9001` asked for a WhatsApp location. No row until a location was accepted |
-| G Assignment validation | PASS | `CHECK IN JOB 0001` was refused. No event name was disclosed. No row |
-| H WhatsApp location | FAIL | The location pin asked which role instead of finishing check-in. Fix is deployed and was not retested |
-| I Geofence inside | PASS | Attendance 6, `LOCATION_VERIFIED`, distance 0 m, radius 150 m. WhatsApp said location verified. Venue coordinates were set on `JOB-9001` only |
-| Outside geofence | PASS | Attendance 5, `LOCATION_REVIEW_REQUIRED`, distance 3214 m, radius 150 m. Reply did not say verified |
-| J Invalid location | FAIL | Reply asked which role. Nothing was recorded, but the error text was wrong. Fix not retested |
-| K Stale location | FAIL | Reply asked which role. Fix not retested |
-| L Intern check-in | PASS | Attendance 4, intern user 284, no employee id. Task 3 stayed `available` |
-| M Intern schedule | PASS | Wednesday start 08:30. Check-in 14:20 stored status 0 |
-| N My hours | PASS | Today and this week came from attendance and the timesheet, including the natural-language question |
-| O Missing checkout | PASS | Open row 1 for 2026-09-22 blocked a new check-in. Checkout stayed empty |
-| P Correction request | PASS | Correction 1 is `PENDING`. Attendance 1 was not changed |
-| Q Supervisor approval | PASS | User 279 was denied. User 1 approved 17:00. Timesheet for that day is 8 hours, status submitted |
-| Unauthorized correction | PASS | User 279 could not change the checkout |
-| R Unknown number | PASS | Handover reply. No attendance and no new user |
-| S Rapid commands | PASS | Four parallel check-ins left one open row. Two overlapping check-ins for employee 2 also left one row |
-| T Worker retry | FAIL | The two posts were not byte-for-byte identical, so the duplicate flag was not proven. Not retested |
-| U Human handover | PASS | Conversation 3 switched to HUMAN. A following CHECK IN got no assistant reply |
-| Natural language | PASS | “I've arrived” mapped to the open session. “I'm leaving” checked out |
-| Multi-role | PASS | CHECK IN asked Employee or Internship and wrote nothing until a role was chosen |
-| Location privacy | PASS | Attendance page shows the location column only for an authorized role. Raw coordinates were not in the page |
-| Location retention | NOT RUN | The cleanup command was not executed. Attendance 6 still has coordinates |
-| Field checkout / event safety | FAIL | Event `JOB-9001` stayed `planning`, but the field session (attendance 6) was not checked out. Fix not retested |
-| Payroll safety | PASS | Payroll count stayed 0. Timesheet status stayed submitted |
-| Stage 5 current task | PASS | Reply named the current enrolment task. Read only |
-| Stage 5 submission | NOT RUN | The live task asks for a practical artifact. Nothing was submitted |
+| Office check-in | PASS | Attendance 2, 14:18:38, WhatsApp SENT |
+| Duplicate check-in | PASS | One row. Already checked in at 14:18 |
+| Status | PASS | Checked In, started 14:18 |
+| Checkout | PASS | Attendance 2 closed at 14:19:52 |
+| Timesheet | PASS | 0.02 hours, status submitted. Payroll stayed 0 |
+| Field job | PASS | Job 9001 asked for a location before any row |
+| Assignment validation | PASS | Job 0001 refused. No event details disclosed |
+| Location pin | PASS | After the role fix, the pin kept Employee. Attendance 7, no second role question |
+| Inside geofence | PASS | Attendance 6, `LOCATION_VERIFIED`, 0 m, radius 150 m. Repeated on attendance 7 |
+| Outside geofence | PASS | Attendance 5, `LOCATION_REVIEW_REQUIRED`, 3214 m. Not called verified |
+| Invalid location | PASS | Invalid pin was refused. No coordinates stored. Audit stayed clean |
+| Stale location | PASS | A 3-hour-old pin was refused and a fresh location was requested |
+| Intern check-in | PASS | Attendance 4, intern 284. Task 3 stayed available |
+| Intern schedule | PASS | Wednesday 08:30. Check-in 14:20 stored status 0 |
+| My hours | PASS | Today and this week from the ERP, including natural language |
+| Missing checkout | PASS | Open 22 September row blocked a new check-in. No invented time |
+| Correction | PASS | Correction 1 stayed PENDING until a supervisor approved it |
+| Supervisor approval | PASS | User 279 denied. User 1 set 17:00. Timesheet 8 hours, submitted |
+| Unknown number | PASS | Handover. No attendance and no new user |
+| Rapid duplicate | PASS | Parallel check-ins left one open row |
+| Identical webhook retry | PASS | The same location payload posted twice. Duplicate flag set. One message, one attendance |
+| Human handover | PASS | Conversation 3 went HUMAN. The next CHECK IN got no assistant reply |
+| Field checkout | PASS | Attendance 6 closed at 14:53:12. Duration 0h 31m. WhatsApp SENT. Event `JOB-9001` stayed `planning`. Assignment `checked_out` |
+| Location cleanup | PASS | Disposable attendance 8 lost coordinates only. Check-in 08:00 and checkout 09:00 remained. Attendance 6 coordinates were kept |
 
-Stage 4 live WhatsApp validation was not repeated in this run. It stays not live-tested. Automated tests are not treated as a live pass.
+Stage 5 current task was read from the live enrolment and passed. Stage 5 submission stays **NOT RUN**. The live task needs a real artifact, and none was sent.
 
-Stage 6 is not marked completed. Stage 7 has not started.
+Stage 4 live WhatsApp validation was not repeated. It stays not live-tested.
+
+### Infrastructure incident during live validation
+
+SSH from the validation client to port 22 timed out for about 25 minutes, from roughly 13:25 to 13:50 UTC. The server had been up 106 days and was not rebooted. Load was 0.14, disk was 13% used, and about 6.5 GB of memory was free. `sshd`, nginx, and PHP-FPM stayed active. Fail2ban was not running. The public site and the WhatsApp webhook answered HTTP 200. The queue worker stayed online with no failed jobs. ICMP is blocked on this host and was not the outage. The next SSH attempt was accepted with the existing key. This was a transient network path to SSH, not a Stage 6 defect. No rollback was done.
+
+The first pass failed the location pin, invalid location, stale location, identical replay, and field checkout because a chosen role was dropped and `CHECK OUT` was treated as the pending check-in. Those were repeated after `3c3e68e` and passed. Earlier passes were kept.
+
+Stage 7 has not started.
 
 ### Known limitations
 
