@@ -1,9 +1,105 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 5 — Internship WhatsApp Operations  
-STATUS: Implemented and covered by automated tests. Live checks A–W are NOT RUN. Do not mark them passed. Stage 6 has not started.
+PHASE: 6 — Attendance & Field Operations  
+STATUS: Implemented and covered by automated tests. Live checks A–U are NOT RUN. Do not mark them passed. Stage 7 has not started.
 
 Date: 23 September 2026
+
+---
+
+## STAGE 6 — Attendance & Field Operations
+
+Audit: `WHATSAPP_HUB_STAGE6_AUDIT.md`.
+
+WhatsApp is another way to open and close the attendance the ERP already stores. `CHECK IN`, `CHECK OUT`, `STATUS`, `MY HOURS`, and `MY ASSIGNMENT` are recognized before any AI call. Natural wording such as “I've arrived” or “I'm leaving” uses the same tools. A time typed in the message is ignored. The server clock is the check-in and check-out time.
+
+### Existing architecture reused
+
+- `attendances` — one row per person per day. Empty checkout is the open session. A second check-in the same day does not open another row. After checkout, that day stays closed.
+- `hrm_settings` — expected office times. Late is recorded as the existing status flag. No penalty.
+- `be_working_week` — intern schedule for that user. Not a global Monday–Friday.
+- `be_timesheet_entries` through `TimesheetService::refreshDayBalance` — checkout writes hours. Overtime stays pending for a supervisor. Payroll is not written.
+- `event_assignments`, `event_worker_profiles`, `btw_events`, and `EventTimesheetService` — field check-in only when that person is assigned. Check-out does not complete the event or the rental.
+- Internship task status is not changed by check-in.
+
+### Migration
+
+`2026_09_23_160000_extend_attendance_for_whatsapp.php`
+
+Adds WhatsApp source, message id, conversation, location, distance, and assignment columns on `attendances`. `employee_id` and `checkout` may be null so an intern without an employee row, and an open session, can be stored. Adds venue coordinates on `btw_events` only as empty columns. Creates `attendance_correction_requests` and `whatsapp_attendance_activities`.
+
+### Services
+
+- `AttendancePolicyService` — who may check in, whether location or a job is required, expected times, duplicate and closed-day state.
+- `AttendanceLocationService` — Haversine distance. Results are `LOCATION_VERIFIED`, `LOCATION_REVIEW_REQUIRED`, or `UNVERIFIED`. No coordinates are invented. A location older than `WHATSAPP_ATTENDANCE_LOCATION_MAX_AGE_MINUTES` (default 15) does not count. Coordinates older than `WHATSAPP_ATTENDANCE_LOCATION_RETENTION_DAYS` (default 90) are cleared by `whatsapp:prune-webhooks`. The attendance row stays.
+- `AttendanceWhatsAppService` — identity, policy, the existing attendance row, timesheet, event timesheet, audit, and confirmation. Success is returned only after the database write.
+
+Office `CHECK IN` does not ask for a location. `CHECK IN JOB …` does, unless field location is turned off. Outside the radius the attendance is saved for supervisor review. It is not called verified. An unknown number creates no attendance. Employee and intern together are asked which context to use. A previous day's open session blocks a new check-in. The missing checkout time is not invented.
+
+### Commands and tools
+
+Deterministic: `ATTENDANCE_IN`, `ATTENDANCE_OUT`, `ATTENDANCE_STATUS`, `ATTENDANCE_HOURS`, `ATTENDANCE_ASSIGNMENT`, `ATTENDANCE_CORRECTION`.
+
+Tools: `get_attendance_status`, `check_in`, `check_out`, `get_work_hours`, `get_current_assignment`, `check_in_assignment`, `check_out_assignment`, `validate_assignment_location`, `request_attendance_correction`, `get_attendance_correction_status`.
+
+Approve, override location, and change historical attendance are privileged. The assistant can only file a `PENDING` correction. A staff member with `whatsapp.attendance.corrections` supplies the corrected time.
+
+### Hub
+
+WhatsApp Hub → Attendance lists who is checked in, field staff on site, missing checkouts, location review, pending corrections, and recent actions. Command Center and Diagnostics use the same counts. Location is shown only with `whatsapp.attendance.location`. One employee cannot read another person's hours by sending their id.
+
+Permissions: `whatsapp.attendance`, `.view`, `.manage`, `.location`, `.corrections` for roles 1–2. They do not replace payroll permissions.
+
+### Tests
+
+**100 tests, 475 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
+
+That run includes Stage 6 and the Stage 1–5 regression. Stage 6 alone is 13 tests, 87 assertions.
+
+### Live validation
+
+NOT RUN. Do not mark these passed from automated tests.
+
+| Check | Result |
+| --- | --- |
+| A Employee check-in | NOT RUN |
+| B Duplicate check-in | NOT RUN |
+| C Status | NOT RUN |
+| D Check-out | NOT RUN |
+| E Timesheet | NOT RUN |
+| F Field job check-in | NOT RUN |
+| G Assignment validation | NOT RUN |
+| H WhatsApp location | NOT RUN |
+| I Geofence | NOT RUN |
+| J Invalid location | NOT RUN |
+| K Stale location | NOT RUN |
+| L Intern check-in | NOT RUN |
+| M Intern schedule | NOT RUN |
+| N My hours | NOT RUN |
+| O Missing checkout | NOT RUN |
+| P Correction request | NOT RUN |
+| Q Supervisor approval | NOT RUN |
+| R Unknown number | NOT RUN |
+| S Rapid duplicate commands | NOT RUN |
+| T Worker retry | NOT RUN |
+| U Human handover | NOT RUN |
+
+### Known limitations
+
+- One attendance row per person per day. After checkout, that day is closed until a staff correction.
+- Breaks are not implemented. The ERP has no break records.
+- Payroll, payable overtime, and discipline are not decided from WhatsApp.
+- Venue coordinates stay empty until staff set them. Until then a field location is `UNVERIFIED`.
+- Guest invitation check-in is unchanged.
+- An employee who is also an intern must say which role they are checking in as.
+
+### Deployment
+
+Migrate `database/migrations/2026_09_23_160000_extend_attendance_for_whatsapp.php`, then restart only `beyondtechworld-whatsapp-queue`.
+
+### Stage 7
+
+Not started. Stage 7 is secure document retrieval and OTP (invoice, payslip, internship letter, rent receipt). It must use existing ERP documents.
 
 ---
 

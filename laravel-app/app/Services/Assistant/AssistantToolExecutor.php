@@ -34,6 +34,9 @@ class AssistantToolExecutor
         if (preg_match('/grade|pass_intern|release_next|official_score/i', (string) $name)) {
             return ['success' => false, 'error' => 'grading_forbidden'];
         }
+        if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical/i', (string) $name)) {
+            return ['success' => false, 'error' => 'privileged'];
+        }
         $meta = $this->registry->get($name);
         if (! $meta) {
             return ['success' => false, 'error' => 'unknown_tool'];
@@ -324,6 +327,67 @@ class AssistantToolExecutor
     protected function toolRequestSupervisorHandover(array $params, array $context)
     {
         return app(\App\Services\Internship\InternshipWhatsAppService::class)->handover($context, $params);
+    }
+
+    protected function toolGetAttendanceStatus(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->status($context, $params);
+    }
+
+    protected function toolCheckIn(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->checkIn($context, $params);
+    }
+
+    protected function toolCheckOut(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->checkOut($context, $params);
+    }
+
+    protected function toolGetWorkHours(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->hours($context, $params);
+    }
+
+    protected function toolGetCurrentAssignment(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->assignment($context, $params);
+    }
+
+    protected function toolCheckInAssignment(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->checkInAssignment($context, $params);
+    }
+
+    protected function toolCheckOutAssignment(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->checkOutAssignment($context, $params);
+    }
+
+    protected function toolValidateAssignmentLocation(array $params, array $context)
+    {
+        $service = app(\App\Services\Attendance\AttendanceLocationService::class);
+        if (! $service->validCoordinates(isset($params['latitude']) ? $params['latitude'] : null, isset($params['longitude']) ? $params['longitude'] : null)) {
+            return ['success' => false, 'error' => 'invalid_location'];
+        }
+
+        return ['success' => true] + $service->verify(
+            $params['latitude'],
+            $params['longitude'],
+            isset($params['expected_latitude']) ? $params['expected_latitude'] : null,
+            isset($params['expected_longitude']) ? $params['expected_longitude'] : null,
+            isset($params['radius']) ? $params['radius'] : null
+        );
+    }
+
+    protected function toolRequestAttendanceCorrection(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->requestCorrection($context, $params);
+    }
+
+    protected function toolGetAttendanceCorrectionStatus(array $params, array $context)
+    {
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->correctionStatus($context, $params);
     }
 
     protected function toolGetCurrentLead(array $params, array $context)

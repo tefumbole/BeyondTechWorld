@@ -127,6 +127,10 @@ class AssistantResponseComposer
 
     protected function fromTool($intent, $toolResult, array $params)
     {
+        $attendance = $this->attendanceText($intent, is_array($toolResult) ? $toolResult : []);
+        if ($attendance !== null) {
+            return $attendance;
+        }
         $internship = $this->internshipText($intent, is_array($toolResult) ? $toolResult : []);
         if ($internship !== null) {
             return $internship;
@@ -187,6 +191,118 @@ class AssistantResponseComposer
                 return 'Booking '.$booking['reference'].' is currently '.$booking['status'].'.';
             }
         }
+        return null;
+    }
+
+    protected function attendanceText($intent, array $toolResult)
+    {
+        $intents = [
+            IntentCatalog::ATTENDANCE_IN, IntentCatalog::ATTENDANCE_OUT, IntentCatalog::ATTENDANCE_STATUS,
+            IntentCatalog::ATTENDANCE_HOURS, IntentCatalog::ATTENDANCE_ASSIGNMENT, IntentCatalog::ATTENDANCE_CORRECTION,
+        ];
+        if (! in_array($intent, $intents, true)) {
+            return null;
+        }
+        if (! empty($toolResult['needs_choice']) && ! empty($toolResult['choices'])) {
+            $lines = ['Which one should I use?'];
+            foreach ($toolResult['choices'] as $index => $choice) {
+                $label = isset($choice['title']) ? $choice['title'] : 'Option';
+                $lines[] = ($index + 1).'. '.$label;
+            }
+
+            return implode("\n", $lines);
+        }
+        if (! empty($toolResult['location_required'])) {
+            return 'Please share your current WhatsApp location to complete check-in.';
+        }
+        if (! empty($toolResult['duplicate']) && ! empty($toolResult['started'])) {
+            return 'You are already checked in. Your current session started at '.$toolResult['started'].'.';
+        }
+        if (! empty($toolResult['checked_in'])) {
+            $line = 'Checked in successfully at '.$toolResult['checked_in'].'.';
+            if (! empty($toolResult['off_schedule'])) {
+                $line .= ' Today is not one of your scheduled working days.';
+            }
+            if (isset($toolResult['location_status']) && $toolResult['location_status'] === 'LOCATION_VERIFIED') {
+                $line .= ' Location verified.';
+            } elseif (isset($toolResult['location_status']) && $toolResult['location_status'] === 'LOCATION_REVIEW_REQUIRED') {
+                $line .= ' Your location is outside the site radius, so a supervisor needs to review it.';
+            } elseif (isset($toolResult['location_status']) && $toolResult['location_status'] === 'UNVERIFIED') {
+                $line .= ' Location saved. This site has no map coordinates, so it was not geofence-checked.';
+            }
+
+            return $line;
+        }
+        if (! empty($toolResult['checked_out'])) {
+            return 'Checked out successfully at '.$toolResult['checked_out'].'. Recorded working duration: '.$toolResult['duration'].'.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'no_open') {
+            return 'I couldn\'t find an active check-in for today. I\'ve not recorded a checkout.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'checkout_required') {
+            return 'You still have an open attendance from '.(isset($toolResult['date']) ? $toolResult['date'] : 'an earlier day').'. I have not invented a checkout time. A supervisor can correct it.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'not_assigned') {
+            return 'I can\'t check you in to that job.';
+        }
+        if (isset($toolResult['error']) && in_array($toolResult['error'], ['not_authorized', 'no_user'], true)) {
+            return 'I can\'t match this WhatsApp number to an employee or intern record, so I have not recorded attendance.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'stale_location') {
+            return 'That location is too old to use. Please share your current WhatsApp location.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'invalid_location') {
+            return 'I could not read a valid location. Please share your WhatsApp location again. Nothing was recorded.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'day_closed') {
+            return 'Today\'s attendance is already closed'.(! empty($toolResult['ended']) ? ' at '.$toolResult['ended'] : '').'. I have not opened another session.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'failed') {
+            return 'I could not save that attendance. Nothing was confirmed.';
+        }
+        if (isset($toolResult['state']) && $toolResult['state'] === 'checked_in') {
+            return "Status: Checked In\nStarted: ".$toolResult['started']."\nDuration so far: ".$toolResult['duration'];
+        }
+        if (isset($toolResult['state']) && $toolResult['state'] === 'checked_out') {
+            return 'Status: Checked out at '.$toolResult['ended'].'. Duration: '.$toolResult['duration'].'.';
+        }
+        if (isset($toolResult['state']) && $toolResult['state'] === 'not_checked_in') {
+            return 'Status: Not checked in.';
+        }
+        if (isset($toolResult['today'])) {
+            $line = 'Today: '.$toolResult['today'].'. This week: '.$toolResult['week'].'.';
+            if ($toolResult['timesheet_hours'] !== null) {
+                $line .= ' Timesheet recorded today: '.$toolResult['timesheet_hours'].'h.';
+            }
+
+            return $line;
+        }
+        if (isset($toolResult['assignments'])) {
+            if ($toolResult['assignments'] === []) {
+                return 'I do not have a field assignment for you today.';
+            }
+            $lines = ['Your assignment today:'];
+            foreach ($toolResult['assignments'] as $row) {
+                $lines[] = $row['name'].($row['venue'] ? ' at '.$row['venue'] : '').($row['role'] ? ' ('.$row['role'].')' : '').($row['reporting_time'] ? ' reporting '.$row['reporting_time'] : '');
+            }
+
+            return implode("\n", $lines);
+        }
+        if (! empty($toolResult['correction_id'])) {
+            return 'I have sent that as a correction request. Your attendance was not changed. A supervisor still needs to approve it.';
+        }
+        if (isset($toolResult['corrections'])) {
+            if ($toolResult['corrections'] === []) {
+                return 'You have no attendance correction requests.';
+            }
+            $bits = [];
+            foreach ($toolResult['corrections'] as $row) {
+                $bits[] = '#'.$row['id'].' '.$row['status'];
+            }
+
+            return 'Correction requests: '.implode(', ', $bits).'.';
+        }
+
         return null;
     }
 

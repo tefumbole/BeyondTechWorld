@@ -22,6 +22,7 @@ class WhatsAppPruneWebhookEvents extends Command
         }
 
         $cutoff = Carbon::now()->subDays($days);
+        $locations = app(\App\Services\Attendance\AttendanceLocationService::class)->forgetExpiredCoordinates();
         $deleted = WhatsAppWebhookEvent::where(function ($q) use ($cutoff) {
             $q->where('received_at', '<', $cutoff)
                 ->orWhere(function ($q2) use ($cutoff) {
@@ -29,7 +30,7 @@ class WhatsAppPruneWebhookEvents extends Command
                 });
         })->delete();
 
-        $this->info('Deleted '.$deleted.' webhook event(s) older than '.$days.' day(s). Conversations and messages were kept.');
+        $this->info('Deleted '.$deleted.' webhook event(s) older than '.$days.' day(s). Conversations, messages, and attendance rows were kept. Expired location coordinates cleared: '.$locations.'.');
 
         return 0;
     }

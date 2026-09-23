@@ -100,6 +100,12 @@ class WhatsAppHubQuery
             'intern_awaiting_review' => $this->internshipMetrics()['awaiting_review'],
             'intern_corrections' => $this->internshipMetrics()['corrections'],
             'intern_media_failures' => $this->internshipMetrics()['media_failures'],
+            'checked_in_now' => $this->attendanceMetrics()['checked_in_now'],
+            'field_on_site' => $this->attendanceMetrics()['field_on_site'],
+            'missing_checkout' => $this->attendanceMetrics()['missing_checkout'],
+            'pending_corrections' => $this->attendanceMetrics()['pending_corrections'],
+            'location_review' => $this->attendanceMetrics()['location_review'],
+            'attendance_failures' => $this->attendanceMetrics()['failures'],
         ];
     }
 
@@ -134,6 +140,47 @@ class WhatsAppHubQuery
         }
 
         return collect($out);
+    }
+
+    protected function attendanceMetrics()
+    {
+        if (! Schema::hasTable('attendances')) {
+            return [
+                'checked_in_now' => 0, 'field_on_site' => 0, 'missing_checkout' => 0,
+                'pending_corrections' => 0, 'location_review' => 0, 'failures' => 0,
+            ];
+        }
+
+        return app(\App\Services\Attendance\AttendanceWhatsAppService::class)->metrics();
+    }
+
+    protected function attendanceDiagnostics()
+    {
+        $metrics = $this->attendanceMetrics();
+        $lastIn = null;
+        $lastOut = null;
+        $lastFail = null;
+        if (Schema::hasTable('whatsapp_attendance_activities')) {
+            $lastIn = \App\WhatsApp\AttendanceActivity::where('type', 'check_in')->orderByDesc('id')->first();
+            $lastOut = \App\WhatsApp\AttendanceActivity::where('type', 'check_out')->orderByDesc('id')->first();
+            $lastFail = \App\WhatsApp\AttendanceActivity::where('type', 'failed')->orderByDesc('id')->first();
+        }
+        $open = Schema::hasTable('attendances')
+            ? \App\Attendance::where(function ($q) {
+                $q->whereNull('checkout')->orWhere('checkout', '');
+            })->count()
+            : 0;
+
+        return [
+            'metrics' => $metrics,
+            'last_check_in' => $lastIn ? (string) $lastIn->created_at : null,
+            'last_check_out' => $lastOut ? (string) $lastOut->created_at : null,
+            'last_fail' => $lastFail ? $lastFail->body : null,
+            'open_sessions' => $open,
+            'duplicates_prevented' => Schema::hasTable('whatsapp_attendance_activities')
+                ? \App\WhatsApp\AttendanceActivity::where('type', 'duplicate_prevented')->count()
+                : 0,
+        ];
     }
 
     protected function internshipMetrics()
@@ -259,6 +306,7 @@ class WhatsAppHubQuery
             'rental_pricing_failures' => $this->rentalActivityCount('pricing_failed'),
             'rental_send_failures' => $this->rentalActivityCount('quotation_send_failed'),
             'internship' => $this->internshipDiagnostics(),
+            'attendance' => $this->attendanceDiagnostics(),
         ];
     }
 }

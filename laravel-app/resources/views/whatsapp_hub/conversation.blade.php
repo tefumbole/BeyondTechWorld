@@ -37,6 +37,20 @@
                         @endif
                     </div>
                 @endif
+                @if(!empty($attendancePanel))
+                    <div class="small mt-2">
+                        <div class="text-muted">Attendance</div>
+                        <div>{{ $attendancePanel['name'] }} · {{ $attendancePanel['state'] }}</div>
+                        @if($attendancePanel['started'])
+                            <div>Since {{ $attendancePanel['started'] }} · {{ $attendancePanel['duration'] }}</div>
+                        @endif
+                        @if($attendancePanel['location_status'])
+                            <div>Location: {{ $attendancePanel['location_status'] }}</div>
+                        @endif
+                        <div>Pending corrections: {{ $attendancePanel['pending_corrections'] }}</div>
+                        <a href="{{ url('admin/attendance') }}">View attendance</a>
+                    </div>
+                @endif
                 @if(!empty($internshipPanel))
                     <div class="small mt-2">
                         <div class="text-muted">Intern</div>

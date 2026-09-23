@@ -18,6 +18,7 @@ class AssistantContextBuilder
         $roles = [];
         $customerId = null;
         $internUserId = null;
+        $employeeId = null;
         if ($contact) {
             foreach ($contact->links as $link) {
                 $roles[] = $link->role;
@@ -26,6 +27,9 @@ class AssistantContextBuilder
                 }
                 if ($link->role === 'intern') {
                     $internUserId = (int) $link->linkable_id;
+                }
+                if ($link->role === 'employee') {
+                    $employeeId = (int) $link->linkable_id;
                 }
             }
         }
@@ -60,6 +64,7 @@ class AssistantContextBuilder
             'roles' => array_values(array_unique($roles)),
             'customer_id' => $customerId,
             'intern_user_id' => $internUserId,
+            'employee_id' => $employeeId,
             'lead' => $lead,
             'mode' => $conversation->mode,
             'assigned_user_id' => $conversation->assigned_user_id,

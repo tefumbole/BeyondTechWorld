@@ -501,6 +501,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
     Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');
     Route::get('/admin/whatsapp/internship', 'WhatsApp\WhatsAppHubController@internship')->name('whatsapp.internship');
+    Route::get('/admin/whatsapp/attendance', 'WhatsApp\WhatsAppHubController@attendance')->name('whatsapp.attendance');
+    Route::post('/admin/whatsapp/attendance/corrections/{id}/approve', 'WhatsApp\WhatsAppHubController@approveCorrection')->name('whatsapp.attendance.corrections.approve');
     Route::get('/admin/whatsapp/rentals', 'WhatsApp\WhatsAppRentalController@index')->name('whatsapp.rentals');
     Route::post('/admin/whatsapp/rentals/{id}/approve', 'WhatsApp\WhatsAppRentalController@approve')->name('whatsapp.rentals.approve');
     Route::post('/admin/whatsapp/rentals/{id}/reject', 'WhatsApp\WhatsAppRentalController@reject')->name('whatsapp.rentals.reject');

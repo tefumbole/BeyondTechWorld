@@ -39,6 +39,33 @@ class AssistantIntentRouter
         if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
+        if (! empty($memoryParams['attendance_pending']) && (isset($memoryParams['latitude']) || preg_match('/^\s*(yes|here)\b/i', $t))) {
+            return $this->make($memoryParams['attendance_pending'], 0.99, true, false);
+        }
+        if (preg_match('/\b(forgot to check out|forgot to check in|correct my attendance)\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_CORRECTION, 0.99, true, false);
+        }
+        if (preg_match('/\bcheck\s*-?\s*out\s+job\s+\d+\b|\bfinished job\s+\d+\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_OUT, 0.99, true, false);
+        }
+        if (preg_match('/\bcheck\s*-?\s*in\s+job\s+\d+\b|\barrived at job\s+\d+\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_IN, 0.99, true, false);
+        }
+        if (preg_match('/\b(my assignment|what job am i|where am i assigned|job status|happening with my assignment)\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_ASSIGNMENT, 0.98, true, false);
+        }
+        if (preg_match('/\b(my hours|how many hours)\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_HOURS, 0.98, true, false);
+        }
+        if (preg_match('/^(status|my status)\b|\bam i checked in\b|\bwhat time did i (check in|start)\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_STATUS, 0.99, true, false);
+        }
+        if (preg_match('/^(check\s*-?\s*out|checkout)\b|\bi am done for today\b|\bi\'?m leaving\b|\bi\'?ve finished\b|\bi have finished\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_OUT, 0.99, true, false);
+        }
+        if (preg_match('/^(check\s*-?\s*in|checkin)\b|\bi\'?m at work\b|\bi\'?ve arrived\b|\bi\'?m on site\b|\bi\'?m starting work\b|\bi have arrived\b|\bi am at work\b/i', $t)) {
+            return $this->make(IntentCatalog::ATTENDANCE_IN, 0.99, true, false);
+        }
         if (! empty($memoryParams['internship_pending']) && preg_match('/^\s*\d+\b|^(yes|confirm|submit)\b/i', $t)) {
             return $this->make($memoryParams['internship_pending'], 0.94, true, false);
         }

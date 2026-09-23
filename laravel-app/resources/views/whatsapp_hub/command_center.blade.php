@@ -42,6 +42,11 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Awaiting internship review</div><p class="wa-stat">{{ $stats['intern_awaiting_review'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Internship corrections</div><p class="wa-stat">{{ $stats['intern_corrections'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Submission import failures</div><p class="wa-stat">{{ $stats['intern_media_failures'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Checked in now</div><p class="wa-stat">{{ $stats['checked_in_now'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Field staff on site</div><p class="wa-stat">{{ $stats['field_on_site'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Missing check-out</div><p class="wa-stat">{{ $stats['missing_checkout'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Pending corrections</div><p class="wa-stat">{{ $stats['pending_corrections'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Location review</div><p class="wa-stat">{{ $stats['location_review'] ?? 0 }}</p></div></div>
         </div>
 
         <div class="row">

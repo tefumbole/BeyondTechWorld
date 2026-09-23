@@ -2196,6 +2196,7 @@
                                     <li><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
                                     <li><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>
                                     <li><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
+                                    <li><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
                                     <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>

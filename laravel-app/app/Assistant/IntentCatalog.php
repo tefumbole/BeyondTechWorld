@@ -27,6 +27,12 @@ class IntentCatalog
     const INTERNSHIP_MATERIAL = 'INTERNSHIP_MATERIAL';
     const INTERNSHIP_SUBMIT = 'INTERNSHIP_SUBMIT';
     const INTERNSHIP_STATUS = 'INTERNSHIP_STATUS';
+    const ATTENDANCE_IN = 'ATTENDANCE_IN';
+    const ATTENDANCE_OUT = 'ATTENDANCE_OUT';
+    const ATTENDANCE_STATUS = 'ATTENDANCE_STATUS';
+    const ATTENDANCE_HOURS = 'ATTENDANCE_HOURS';
+    const ATTENDANCE_ASSIGNMENT = 'ATTENDANCE_ASSIGNMENT';
+    const ATTENDANCE_CORRECTION = 'ATTENDANCE_CORRECTION';
     const EMPLOYEE_ENQUIRY = 'EMPLOYEE_ENQUIRY';
     const DOCUMENT_REQUEST = 'DOCUMENT_REQUEST';
     const APPOINTMENT_REQUEST = 'APPOINTMENT_REQUEST';
@@ -67,6 +73,12 @@ class IntentCatalog
             self::INTERNSHIP_MATERIAL => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::INTERNSHIP_SUBMIT => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::INTERNSHIP_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_IN => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_OUT => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_HOURS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_ASSIGNMENT => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::ATTENDANCE_CORRECTION => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::EMPLOYEE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'PRIVILEGED'],
             self::DOCUMENT_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::APPOINTMENT_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],

@@ -80,7 +80,14 @@ class BeyondAssistantService
         if ($media) {
             $slots['media'] = $media;
             $slots['provider_message_id'] = $message->provider_message_id;
+            if (isset($media['latitude'])) {
+                $slots['latitude'] = $media['latitude'];
+                $slots['longitude'] = isset($media['longitude']) ? $media['longitude'] : null;
+                $slots['location_at'] = now()->toDateTimeString();
+            }
         }
+        $slots['provider_message_id'] = $message->provider_message_id;
+        $slots['conversation_id'] = $conversation->id;
         $classified = $this->router->classify((string) $message->body, $context, $slots);
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
@@ -133,6 +140,11 @@ class BeyondAssistantService
                 }
                 $toolsRun[] = $tool;
                 $this->memory->storeTool($mem, $tool, is_array($toolResult) ? $toolResult : []);
+                if (is_array($toolResult) && ! empty($toolResult['location_required'])) {
+                    $slots['attendance_pending'] = $decision['intent'];
+                    $slots['job'] = isset($toolResult['job']) ? $toolResult['job'] : (isset($slots['job']) ? $slots['job'] : null);
+                    $this->memory->remember($mem, $decision['intent'], $slots);
+                }
                 if (is_array($toolResult) && ! empty($toolResult['needs_choice'])) {
                     $slots['internship_pending'] = $decision['intent'];
                     $this->memory->remember($mem, $decision['intent'], $slots);
@@ -241,6 +253,12 @@ class BeyondAssistantService
             IntentCatalog::INTERNSHIP_SUBMIT => $this->internshipSubmitTool($slots),
             IntentCatalog::INTERNSHIP_STATUS => $this->internshipStatusTool($slots),
             IntentCatalog::INTERNSHIP_ENQUIRY => 'get_internship_summary',
+            IntentCatalog::ATTENDANCE_IN => 'check_in',
+            IntentCatalog::ATTENDANCE_OUT => 'check_out',
+            IntentCatalog::ATTENDANCE_STATUS => 'get_attendance_status',
+            IntentCatalog::ATTENDANCE_HOURS => 'get_work_hours',
+            IntentCatalog::ATTENDANCE_ASSIGNMENT => 'get_current_assignment',
+            IntentCatalog::ATTENDANCE_CORRECTION => 'request_attendance_correction',
             IntentCatalog::DOCUMENT_REQUEST => 'list_available_documents',
             IntentCatalog::HUMAN_REQUEST => 'request_human_handover',
         ];

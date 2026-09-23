@@ -103,6 +103,9 @@ class AssistantPolicyService
         if (in_array($intent, [IntentCatalog::INTERNSHIP_TASK, IntentCatalog::INTERNSHIP_STATUS, IntentCatalog::INTERNSHIP_MATERIAL, IntentCatalog::INTERNSHIP_SUBMIT], true)) {
             return ['intern'];
         }
+        if (in_array($intent, [IntentCatalog::ATTENDANCE_IN, IntentCatalog::ATTENDANCE_OUT, IntentCatalog::ATTENDANCE_STATUS, IntentCatalog::ATTENDANCE_HOURS, IntentCatalog::ATTENDANCE_ASSIGNMENT, IntentCatalog::ATTENDANCE_CORRECTION], true)) {
+            return ['employee', 'intern'];
+        }
 
         return ['customer'];
     }

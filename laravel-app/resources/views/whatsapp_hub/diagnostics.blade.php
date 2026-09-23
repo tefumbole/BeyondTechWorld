@@ -52,6 +52,14 @@
             <p>PDF or send failures: {{ $diag['rental_send_failures'] ?? 0 }}</p>
         </div>
         <div class="wa-card">
+            <h5>Attendance</h5>
+            @php $att = $diag['attendance'] ?? []; @endphp
+            <p>Last check-in: {{ $att['last_check_in'] ?? '—' }}</p>
+            <p>Last check-out: {{ $att['last_check_out'] ?? '—' }}</p>
+            <p>Last failure: {{ $att['last_fail'] ?? '—' }}</p>
+            <p>Open sessions: {{ $att['open_sessions'] ?? 0 }} · Duplicates prevented: {{ $att['duplicates_prevented'] ?? 0 }}</p>
+        </div>
+        <div class="wa-card">
             <h5>Internship assistant</h5>
             @php $intern = $diag['internship'] ?? []; @endphp
             <p>Last task lookup: {{ $intern['last_task'] ?? '—' }}</p>

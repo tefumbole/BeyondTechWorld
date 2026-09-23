@@ -111,6 +111,9 @@ class WhatsAppHubController extends Controller
         $rentalRequest = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_rental_requests')
             ? \App\WhatsApp\RentalRequest::where('conversation_id', $conversation->id)->orderByDesc('id')->first()
             : null;
+        $attendancePanel = \Illuminate\Support\Facades\Schema::hasTable('attendances')
+            ? app(\App\Services\Attendance\AttendanceWhatsAppService::class)->panel($conversation)
+            : null;
         $internshipPanel = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_internship_intakes')
             ? app(\App\Services\Internship\InternshipWhatsAppService::class)->panel($conversation)
             : null;
@@ -141,7 +144,7 @@ class WhatsAppHubController extends Controller
         }
 
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel'
         ));
     }
 
@@ -506,6 +509,43 @@ class WhatsAppHubController extends Controller
         }
 
         return array_slice($out, 0, 20);
+    }
+
+    public function attendance()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.attendance', 'whatsapp.attendance.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $metrics = app(\App\Services\Attendance\AttendanceWhatsAppService::class)->metrics();
+        $open = \Illuminate\Support\Facades\Schema::hasTable('attendances')
+            ? \App\Attendance::where(function ($q) {
+                $q->whereNull('checkout')->orWhere('checkout', '');
+            })->orderByDesc('id')->limit(30)->get()
+            : collect();
+        $corrections = \Illuminate\Support\Facades\Schema::hasTable('attendance_correction_requests')
+            ? \App\AttendanceCorrection::orderByDesc('id')->limit(20)->get()
+            : collect();
+        $canLocation = $this->canAny(['whatsapp.attendance.location', 'whatsapp.manage']);
+        $canCorrect = $this->canAny(['whatsapp.attendance.corrections']);
+
+        return view('whatsapp_hub.attendance', compact('metrics', 'open', 'corrections', 'canLocation', 'canCorrect'));
+    }
+
+    public function approveCorrection(\Illuminate\Http\Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.attendance.corrections'])) {
+            return $deny;
+        }
+        $result = app(\App\Services\Attendance\AttendanceWhatsAppService::class)->approveCorrection(
+            $id,
+            Auth::user(),
+            $request->input('checkout')
+        );
+        if (empty($result['success'])) {
+            return redirect()->back()->with('not_permitted', 'That correction was not applied.');
+        }
+
+        return redirect()->back()->with('message', 'Attendance updated from the approved correction.');
     }
 
     public function internship()
