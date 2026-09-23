@@ -24,6 +24,8 @@ class IntentCatalog
     const CONTRACT_REQUEST = 'CONTRACT_REQUEST';
     const INTERNSHIP_ENQUIRY = 'INTERNSHIP_ENQUIRY';
     const INTERNSHIP_TASK = 'INTERNSHIP_TASK';
+    const INTERNSHIP_MATERIAL = 'INTERNSHIP_MATERIAL';
+    const INTERNSHIP_SUBMIT = 'INTERNSHIP_SUBMIT';
     const INTERNSHIP_STATUS = 'INTERNSHIP_STATUS';
     const EMPLOYEE_ENQUIRY = 'EMPLOYEE_ENQUIRY';
     const DOCUMENT_REQUEST = 'DOCUMENT_REQUEST';
@@ -62,6 +64,8 @@ class IntentCatalog
             self::CONTRACT_REQUEST => ['requires_erp' => true, 'sensitivity' => 'VERIFIED'],
             self::INTERNSHIP_ENQUIRY => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::INTERNSHIP_TASK => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::INTERNSHIP_MATERIAL => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::INTERNSHIP_SUBMIT => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::INTERNSHIP_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::EMPLOYEE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'PRIVILEGED'],
             self::DOCUMENT_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],

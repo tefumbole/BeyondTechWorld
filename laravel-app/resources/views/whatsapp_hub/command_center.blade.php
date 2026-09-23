@@ -38,6 +38,10 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Quotes awaiting approval</div><p class="wa-stat">{{ $stats['rental_awaiting_approval'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Quotations sent</div><p class="wa-stat">{{ $stats['rental_sent'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Revision requests</div><p class="wa-stat">{{ $stats['rental_revisions'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">WhatsApp submissions</div><p class="wa-stat">{{ $stats['intern_submissions'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Awaiting internship review</div><p class="wa-stat">{{ $stats['intern_awaiting_review'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Internship corrections</div><p class="wa-stat">{{ $stats['intern_corrections'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Submission import failures</div><p class="wa-stat">{{ $stats['intern_media_failures'] ?? 0 }}</p></div></div>
         </div>
 
         <div class="row">

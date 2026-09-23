@@ -11,6 +11,7 @@ class InternshipSubmission extends Model
     protected $fillable = [
         'assignment_id', 'student_user_id', 'attempt_no', 'description',
         'pdf_path', 'submitted_at', 'status',
+        'source', 'whatsapp_conversation_id', 'whatsapp_message_ids',
     ];
 
     protected $dates = ['submitted_at'];

@@ -96,6 +96,10 @@ class WhatsAppHubQuery
             'rental_awaiting_approval' => $this->rentalCount([RentalRequest::AWAITING_STAFF, RentalRequest::QUOTE_CREATED]),
             'rental_sent' => $this->rentalCount([RentalRequest::QUOTE_SENT]),
             'rental_revisions' => $this->rentalCount([RentalRequest::REVISION]),
+            'intern_submissions' => $this->internshipMetrics()['submissions_today'],
+            'intern_awaiting_review' => $this->internshipMetrics()['awaiting_review'],
+            'intern_corrections' => $this->internshipMetrics()['corrections'],
+            'intern_media_failures' => $this->internshipMetrics()['media_failures'],
         ];
     }
 
@@ -130,6 +134,48 @@ class WhatsAppHubQuery
         }
 
         return collect($out);
+    }
+
+    protected function internshipMetrics()
+    {
+        if (! Schema::hasTable('whatsapp_internship_intakes')) {
+            return ['submissions_today' => 0, 'awaiting_review' => 0, 'corrections' => 0, 'media_failures' => 0];
+        }
+
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->metrics();
+    }
+
+    protected function internshipDiagnostics()
+    {
+        $metrics = $this->internshipMetrics();
+        $lastTask = null;
+        $lastMedia = null;
+        $lastSubmit = null;
+        $lastFail = null;
+        if (Schema::hasTable('whatsapp_internship_activities')) {
+            $lastTask = \App\WhatsApp\InternshipActivity::where('type', 'task_lookup')->orderByDesc('id')->first();
+            $lastSubmit = \App\WhatsApp\InternshipActivity::where('type', 'official_submission')->orderByDesc('id')->first();
+            $lastFail = \App\WhatsApp\InternshipActivity::whereIn('type', ['submit_failed', 'media_failed', 'validation_failed'])->orderByDesc('id')->first();
+        }
+        if (Schema::hasTable('whatsapp_internship_intake_files')) {
+            $lastMedia = \App\WhatsApp\InternshipIntakeFile::orderByDesc('id')->first();
+        }
+        $pendingMedia = Schema::hasTable('whatsapp_internship_intake_files')
+            ? \App\WhatsApp\InternshipIntakeFile::where('status', 'pending')->count()
+            : 0;
+        $duplicates = Schema::hasTable('whatsapp_internship_activities')
+            ? \App\WhatsApp\InternshipActivity::where('type', 'duplicate_prevented')->count()
+            : 0;
+
+        return [
+            'metrics' => $metrics,
+            'last_task' => $lastTask ? (string) $lastTask->created_at : null,
+            'last_media' => $lastMedia ? $lastMedia->status.' '.(string) $lastMedia->updated_at : null,
+            'last_submit' => $lastSubmit ? (string) $lastSubmit->created_at : null,
+            'last_fail' => $lastFail ? $lastFail->type.': '.$lastFail->body : null,
+            'pending_media' => $pendingMedia,
+            'duplicates_prevented' => $duplicates,
+        ];
     }
 
     protected function rentalCount(array $statuses)
@@ -212,6 +258,7 @@ class WhatsAppHubQuery
             'rental_availability_failures' => $this->rentalActivityCount('availability_check', 'availability_not_confirmed'),
             'rental_pricing_failures' => $this->rentalActivityCount('pricing_failed'),
             'rental_send_failures' => $this->rentalActivityCount('quotation_send_failed'),
+            'internship' => $this->internshipDiagnostics(),
         ];
     }
 }

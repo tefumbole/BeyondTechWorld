@@ -100,7 +100,7 @@ class AssistantPolicyService
 
     protected function rolesFor($intent)
     {
-        if (in_array($intent, [IntentCatalog::INTERNSHIP_TASK, IntentCatalog::INTERNSHIP_STATUS], true)) {
+        if (in_array($intent, [IntentCatalog::INTERNSHIP_TASK, IntentCatalog::INTERNSHIP_STATUS, IntentCatalog::INTERNSHIP_MATERIAL, IntentCatalog::INTERNSHIP_SUBMIT], true)) {
             return ['intern'];
         }
 

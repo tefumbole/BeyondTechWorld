@@ -4,8 +4,6 @@ namespace App\Services\Assistant;
 
 use App\Assistant\AssistantKnowledge;
 use App\Booking;
-use App\InternshipEnrolment;
-use App\InternshipTaskAssignment;
 use App\Product;
 use App\Quotation;
 use App\Sale;
@@ -33,6 +31,9 @@ class AssistantToolExecutor
 
     public function execute($name, array $params, array $context)
     {
+        if (preg_match('/grade|pass_intern|release_next|official_score/i', (string) $name)) {
+            return ['success' => false, 'error' => 'grading_forbidden'];
+        }
         $meta = $this->registry->get($name);
         if (! $meta) {
             return ['success' => false, 'error' => 'unknown_tool'];
@@ -272,51 +273,57 @@ class AssistantToolExecutor
 
     protected function toolGetInternshipSummary(array $params, array $context)
     {
-        $enrolment = $this->enrolment($context);
-        if (! $enrolment) {
-            return ['success' => false, 'error' => 'not_found'];
-        }
-
-        return ['success' => true, 'status' => $enrolment->status, 'enrolment_id' => $enrolment->id];
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->summary($context, $params);
     }
 
     protected function toolGetCurrentInternshipTask(array $params, array $context)
     {
-        $enrolment = $this->enrolment($context);
-        if (! $enrolment || ! Schema::hasTable('internship_task_assignments')) {
-            return ['success' => false, 'error' => 'not_found'];
-        }
-        $assignment = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)
-            ->whereNotIn('status', ['completed', 'cancelled', 'withdrawn'])
-            ->orderByDesc('id')
-            ->first();
-        if (! $assignment) {
-            return ['success' => false, 'error' => 'not_found'];
-        }
-        $title = null;
-        if ($assignment->program_task_id && Schema::hasTable('internship_program_tasks') && $assignment->task) {
-            $title = $assignment->task->title ?: $assignment->task->name;
-        }
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->currentTask($context, $params);
+    }
 
-        return [
-            'success' => true,
-            'assignment_id' => $assignment->id,
-            'status' => $assignment->status,
-            'title' => $title ?: ('Task #'.$assignment->id),
-            'scheduled_work_date' => (string) $assignment->scheduled_work_date,
-        ];
+    protected function toolGetTaskInstructions(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->currentTask($context, $params);
     }
 
     protected function toolGetInternshipProgress(array $params, array $context)
     {
-        $enrolment = $this->enrolment($context);
-        if (! $enrolment || ! Schema::hasTable('internship_task_assignments')) {
-            return ['success' => false, 'error' => 'not_found'];
-        }
-        $total = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)->count();
-        $done = InternshipTaskAssignment::where('enrolment_id', $enrolment->id)->where('status', 'completed')->count();
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->progress($context, $params);
+    }
 
-        return ['success' => true, 'released' => $total, 'completed' => $done, 'status' => $enrolment->status];
+    protected function toolGetTaskMaterials(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->materials($context, $params);
+    }
+
+    protected function toolGetSubmissionStatus(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->submissionStatus($context, $params);
+    }
+
+    protected function toolPrepareInternshipSubmission(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->prepare($context, $params);
+    }
+
+    protected function toolSubmitInternshipWork(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->confirm($context, $params);
+    }
+
+    protected function toolAttachSubmissionFile(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->prepare($context, $params);
+    }
+
+    protected function toolAttachSubmissionLink(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->prepare($context, $params);
+    }
+
+    protected function toolRequestSupervisorHandover(array $params, array $context)
+    {
+        return app(\App\Services\Internship\InternshipWhatsAppService::class)->handover($context, $params);
     }
 
     protected function toolGetCurrentLead(array $params, array $context)
@@ -373,16 +380,6 @@ class AssistantToolExecutor
     protected function customerId(array $context)
     {
         return isset($context['customer_id']) ? (int) $context['customer_id'] : 0;
-    }
-
-    protected function enrolment(array $context)
-    {
-        $userId = isset($context['intern_user_id']) ? (int) $context['intern_user_id'] : 0;
-        if (! $userId || ! Schema::hasTable('internship_enrolments')) {
-            return null;
-        }
-
-        return InternshipEnrolment::where('student_user_id', $userId)->orderByDesc('id')->first();
     }
 
     protected function bookingRow(Booking $row)

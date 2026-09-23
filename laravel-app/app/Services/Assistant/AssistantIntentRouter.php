@@ -36,8 +36,11 @@ class AssistantIntentRouter
         if ($t === '') {
             return $this->make(IntentCatalog::UNKNOWN, 0.1, false, true);
         }
-        if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please)\b/i', $t)) {
+        if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
+        }
+        if (! empty($memoryParams['internship_pending']) && preg_match('/^\s*\d+\b|^(yes|confirm|submit)\b/i', $t)) {
+            return $this->make($memoryParams['internship_pending'], 0.94, true, false);
         }
         if (preg_match('/\b(\d+\s*%|\bdiscount\b|make it cheaper|same price|give me the same)\b/i', $t)) {
             return $this->make(IntentCatalog::DISCOUNT_REQUEST, 0.97, false, false);
@@ -68,11 +71,17 @@ class AssistantIntentRouter
         if (preg_match('/\b(your staff told me|they said (it )?cost|the speakers cost)\b/i', $t)) {
             return $this->make(IntentCatalog::PRICE_ENQUIRY, 0.88, true, false);
         }
-        if (preg_match('/\b(current task|my task|internship task)\b/i', $t)) {
+        if (preg_match('/\b(handbook|task pdf|today\'?s material|where are the instructions|send the instructions)\b/i', $t)) {
+            return $this->make(IntentCatalog::INTERNSHIP_MATERIAL, 0.94, true, false);
+        }
+        if (preg_match('/\b(i want to submit|i have finished|here is my assignment|today\'?s work|here is my github|see attached|resubmit|i\'?ve corrected|here is the new file|day \d+ submission)\b/i', $t)) {
+            return $this->make(IntentCatalog::INTERNSHIP_SUBMIT, 0.95, true, false);
+        }
+        if (preg_match('/\b(what is my task|my task today|today\'?s assignment|what am i supposed to do|current task|send today\'?s work|tomorrow\'?s task|what is day \d+|internship task)\b/i', $t)) {
             return $this->make(IntentCatalog::INTERNSHIP_TASK, 0.93, true, false);
         }
-        if (preg_match('/\b(internship progress|my internship status)\b/i', $t)) {
-            return $this->make(IntentCatalog::INTERNSHIP_STATUS, 0.9, true, false);
+        if (preg_match('/\b(how far have i gone|what day am i on|tasks have i completed|tasks are left|internship progress|my internship status|been reviewed|supervisor check|submission status|did i pass|internship grade)\b/i', $t)) {
+            return $this->make(IntentCatalog::INTERNSHIP_STATUS, 0.92, true, false);
         }
         if (preg_match('/\b(booking status|status of my booking|my booking)\b/i', $t)) {
             return $this->make(IntentCatalog::BOOKING_STATUS, 0.9, true, false);

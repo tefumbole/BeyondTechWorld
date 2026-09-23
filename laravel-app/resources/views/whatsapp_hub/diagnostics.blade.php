@@ -52,6 +52,15 @@
             <p>PDF or send failures: {{ $diag['rental_send_failures'] ?? 0 }}</p>
         </div>
         <div class="wa-card">
+            <h5>Internship assistant</h5>
+            @php $intern = $diag['internship'] ?? []; @endphp
+            <p>Last task lookup: {{ $intern['last_task'] ?? '—' }}</p>
+            <p>Last media download: {{ $intern['last_media'] ?? '—' }}</p>
+            <p>Last successful submission: {{ $intern['last_submit'] ?? '—' }}</p>
+            <p>Last failed submission: {{ $intern['last_fail'] ?? '—' }}</p>
+            <p>Pending media jobs: {{ $intern['pending_media'] ?? 0 }} · Duplicate submissions prevented: {{ $intern['duplicates_prevented'] ?? 0 }}</p>
+        </div>
+        <div class="wa-card">
             <h5>Recent processing failures</h5>
             @forelse($diag['recent_failures'] as $fail)
                 <div class="mb-2">#{{ $fail->id }} {{ $fail->event_type }} — {{ $fail->processing_error }}</div>

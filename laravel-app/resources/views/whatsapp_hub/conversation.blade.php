@@ -37,6 +37,24 @@
                         @endif
                     </div>
                 @endif
+                @if(!empty($internshipPanel))
+                    <div class="small mt-2">
+                        <div class="text-muted">Intern</div>
+                        <div>{{ $internshipPanel['name'] }}</div>
+                        <div>{{ $internshipPanel['program'] ?: 'Programme' }} · {{ $internshipPanel['enrolment_status'] }}</div>
+                        <div>Day {{ $internshipPanel['day'] ?: '—' }} · {{ $internshipPanel['task'] ?: 'No released task' }}</div>
+                        <div>Task {{ $internshipPanel['task_status'] ?: '—' }} · Submission {{ $internshipPanel['submission_status'] ?: 'none' }}</div>
+                        <div>Supervisor: {{ $internshipPanel['supervisor'] ?: '—' }}</div>
+                        <div>Progress: {{ $internshipPanel['completed'] }} / {{ $internshipPanel['planned'] ?: '—' }}</div>
+                        @if($internshipPanel['assignment_id'])
+                            <a href="{{ route('internship.student.task', $internshipPanel['assignment_id']) }}">View task</a>
+                        @endif
+                        @if($internshipPanel['submission_id'])
+                            <a href="{{ route('internship.supervisor.show', $internshipPanel['submission_id']) }}">View submission</a>
+                        @endif
+                        <a href="{{ route('internship.enrol.edit', $internshipPanel['enrolment_id']) }}">View enrolment</a>
+                    </div>
+                @endif
                 @if(!empty($rentalDraft))
                     <div class="small mt-1">AI Generated quotation: {{ $rentalDraft }}</div>
                 @endif

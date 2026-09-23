@@ -1,9 +1,31 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 4 — Rental Intelligence & Quotations  
-STATUS: Deployed (`ea588f2`). Staff must approve before a quotation PDF is sent. Live-test, then STOP (no Phase 5).
+PHASE: 5 — Internship WhatsApp Operations  
+STATUS: Implemented and covered by automated tests. Live checks A–W are NOT RUN. Do not mark them passed. Stage 6 has not started.
 
 Date: 23 September 2026
+
+---
+
+## STAGE 5 — Internship WhatsApp Operations
+
+Audit: `WHATSAPP_HUB_STAGE5_AUDIT.md`.
+
+WhatsApp collects work for an existing active enrolment and submits it through `InternshipProgramService::submitAssignment`. Grading, the next task, and supervisor review stay in the internship module. The assistant cannot grade. A locked or unreleased task is not described. “Done” without the required file is not an official submission.
+
+Hub → Internship shows intake counts and links back to the existing enrolment, task, and submission screens. Permissions `whatsapp.internship`, `.view`, `.submit`, `.manage`, and `.media` are for roles 1–2.
+
+### Tests
+
+**87 tests, 388 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
+
+### Live validation
+
+NOT RUN. A–W stay failed / not passed until someone tests a real intern number on live WhatsApp against a real enrolment.
+
+### Out of scope
+
+Stage 6 (attendance, check-in, location, timesheets) was not started.
 
 ---
 

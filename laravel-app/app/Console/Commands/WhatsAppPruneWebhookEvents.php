@@ -10,7 +10,7 @@ class WhatsAppPruneWebhookEvents extends Command
 {
     protected $signature = 'whatsapp:prune-webhooks {--days=}';
 
-    protected $description = 'Remove old raw WhatsApp webhook payloads (does not delete conversations or messages)';
+    protected $description = 'Remove old raw WhatsApp webhook payloads. Does not delete conversations, messages, or internship submission files';
 
     public function handle()
     {

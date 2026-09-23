@@ -75,6 +75,12 @@ class BeyondAssistantService
         $context = $this->context->build($conversation);
         $mem = $this->memory->forConversation($conversation->id);
         $slots = $this->extractSlots((string) $message->body, $mem->parameters());
+        $slots['text'] = (string) $message->body;
+        $media = $message->media();
+        if ($media) {
+            $slots['media'] = $media;
+            $slots['provider_message_id'] = $message->provider_message_id;
+        }
         $classified = $this->router->classify((string) $message->body, $context, $slots);
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
@@ -97,7 +103,14 @@ class BeyondAssistantService
         $toolResult = null;
         $toolsRun = [];
         if ($decision['action'] === IntentCatalog::ACTION_HANDOVER) {
-            $this->handover->toHuman($conversation, $decision['reason'] ?: 'handover');
+            $roles = isset($context['roles']) ? $context['roles'] : [];
+            if ($decision['intent'] === IntentCatalog::HUMAN_REQUEST && in_array('intern', $roles, true)) {
+                app(\App\Services\Internship\InternshipWhatsAppService::class)->handover($context, [
+                    'reason' => $decision['reason'] ?: 'intern_request',
+                ]);
+            } else {
+                $this->handover->toHuman($conversation, $decision['reason'] ?: 'handover');
+            }
             $activity->handover_reason = $decision['reason'];
             $activity->status = AssistantActivity::HANDED_OVER;
         } elseif ($decision['action'] === IntentCatalog::ACTION_CLARIFY) {
@@ -120,6 +133,14 @@ class BeyondAssistantService
                 }
                 $toolsRun[] = $tool;
                 $this->memory->storeTool($mem, $tool, is_array($toolResult) ? $toolResult : []);
+                if (is_array($toolResult) && ! empty($toolResult['needs_choice'])) {
+                    $slots['internship_pending'] = $decision['intent'];
+                    $this->memory->remember($mem, $decision['intent'], $slots);
+                } elseif (is_array($toolResult) && ! empty($toolResult['assignment_id'])) {
+                    $slots['assignment_id'] = $toolResult['assignment_id'];
+                    $slots['internship_pending'] = '';
+                    $this->memory->remember($mem, $decision['intent'], $slots);
+                }
                 if (is_array($toolResult) && ! empty($toolResult['quotation_id'])) {
                     $slots['quotation_id'] = $toolResult['quotation_id'];
                     $slots['quotation_reference'] = isset($toolResult['reference']) ? $toolResult['reference'] : null;
@@ -144,7 +165,19 @@ class BeyondAssistantService
         $reply = $this->composer->compose($decision['intent'], $decision['action'], $toolResult ?: [], $context, (string) $message->body, $mem->parameters());
         $sent = false;
         $conversation = $conversation->fresh();
-        if ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
+        if (is_array($toolResult) && ! empty($toolResult['document_path']) && $conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI) {
+            $this->conversations->sendExistingDocument(
+                $conversation,
+                $toolResult['document_path'],
+                isset($toolResult['document_name']) ? $toolResult['document_name'] : 'task-material',
+                $reply,
+                null,
+                'ASSISTANT'
+            );
+        }
+        if (! empty($toolResult['skip_assistant_reply'])) {
+            $sent = true;
+        } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $send = $this->conversations->assistantReply($conversation, $reply);
             $sent = ! empty($send['success']);
             if (! $sent) {
@@ -204,13 +237,41 @@ class BeyondAssistantService
             IntentCatalog::BOOKING_STATUS => 'get_booking_status',
             IntentCatalog::QUOTATION_REQUEST => 'get_customer_quotations',
             IntentCatalog::INTERNSHIP_TASK => 'get_current_internship_task',
-            IntentCatalog::INTERNSHIP_STATUS => 'get_internship_progress',
+            IntentCatalog::INTERNSHIP_MATERIAL => 'get_task_materials',
+            IntentCatalog::INTERNSHIP_SUBMIT => $this->internshipSubmitTool($slots),
+            IntentCatalog::INTERNSHIP_STATUS => $this->internshipStatusTool($slots),
             IntentCatalog::INTERNSHIP_ENQUIRY => 'get_internship_summary',
             IntentCatalog::DOCUMENT_REQUEST => 'list_available_documents',
             IntentCatalog::HUMAN_REQUEST => 'request_human_handover',
         ];
 
         return isset($map[$intent]) ? $map[$intent] : null;
+    }
+
+    protected function internshipSubmitTool(array $slots)
+    {
+        $text = isset($slots['text']) ? strtolower((string) $slots['text']) : '';
+        if (preg_match('/^(yes|confirm|submit)\b|\b(submit these|yes,? submit)\b/', $text)) {
+            return 'submit_internship_work';
+        }
+        if (! empty($slots['media'])) {
+            return 'attach_submission_file';
+        }
+        if (strpos($text, 'github.com') !== false) {
+            return 'attach_submission_link';
+        }
+
+        return 'prepare_internship_submission';
+    }
+
+    protected function internshipStatusTool(array $slots)
+    {
+        $text = isset($slots['text']) ? strtolower((string) $slots['text']) : '';
+        if (preg_match('/reviewed|pass|grade|submission status|supervisor check/', $text)) {
+            return 'get_submission_status';
+        }
+
+        return 'get_internship_progress';
     }
 
     protected function toolParams($tool, array $slots, array $context)

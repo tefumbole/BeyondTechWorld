@@ -39,6 +39,10 @@ abstract class WhatsAppHubTestCase extends TestCase
             '--path' => 'database/migrations/2026_09_23_100000_create_whatsapp_rental_requests.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_23_140000_create_whatsapp_internship_intakes.php',
+            '--force' => true,
+        ]);
     }
 
     protected function createSupportTables()
@@ -207,6 +211,8 @@ abstract class WhatsAppHubTestCase extends TestCase
             'whatsapp.ai.tools', 'whatsapp.ai.activity', 'whatsapp.ai.suggest',
             'whatsapp.rentals', 'whatsapp.rentals.view', 'whatsapp.rentals.manage',
             'whatsapp.quotation.prepare', 'whatsapp.quotation.approve', 'whatsapp.quotation.send',
+            'whatsapp.internship', 'whatsapp.internship.view', 'whatsapp.internship.submit',
+            'whatsapp.internship.manage', 'whatsapp.internship.media',
         ] as $name) {
             $perm = Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
             try {

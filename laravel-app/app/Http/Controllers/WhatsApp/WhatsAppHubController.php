@@ -111,6 +111,9 @@ class WhatsAppHubController extends Controller
         $rentalRequest = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_rental_requests')
             ? \App\WhatsApp\RentalRequest::where('conversation_id', $conversation->id)->orderByDesc('id')->first()
             : null;
+        $internshipPanel = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_internship_intakes')
+            ? app(\App\Services\Internship\InternshipWhatsAppService::class)->panel($conversation)
+            : null;
         $rentalDraft = null;
         if (\Illuminate\Support\Facades\Schema::hasTable('assistant_memories')) {
             $mem = \App\Assistant\AssistantMemory::where('conversation_id', $conversation->id)->first();
@@ -138,7 +141,7 @@ class WhatsAppHubController extends Controller
         }
 
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel'
         ));
     }
 
@@ -503,6 +506,22 @@ class WhatsAppHubController extends Controller
         }
 
         return array_slice($out, 0, 20);
+    }
+
+    public function internship()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.internship', 'whatsapp.internship.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $metrics = app(\App\Services\Internship\InternshipWhatsAppService::class)->metrics();
+        $intakes = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_internship_intakes')
+            ? \App\WhatsApp\InternshipIntake::orderByDesc('id')->limit(30)->get()
+            : collect();
+        $failures = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_internship_intake_files')
+            ? \App\WhatsApp\InternshipIntakeFile::whereIn('status', ['failed', 'rejected'])->orderByDesc('id')->limit(20)->get()
+            : collect();
+
+        return view('whatsapp_hub.internship', compact('metrics', 'intakes', 'failures'));
     }
 
     protected function denyUnless(array $names)

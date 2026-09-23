@@ -127,6 +127,10 @@ class AssistantResponseComposer
 
     protected function fromTool($intent, $toolResult, array $params)
     {
+        $internship = $this->internshipText($intent, is_array($toolResult) ? $toolResult : []);
+        if ($internship !== null) {
+            return $internship;
+        }
         if (! is_array($toolResult) || empty($toolResult['success'])) {
             return null;
         }
@@ -183,11 +187,120 @@ class AssistantResponseComposer
                 return 'Booking '.$booking['reference'].' is currently '.$booking['status'].'.';
             }
         }
+        return null;
+    }
+
+    protected function internshipText($intent, array $toolResult)
+    {
+        if (! in_array($intent, [IntentCatalog::INTERNSHIP_TASK, IntentCatalog::INTERNSHIP_STATUS, IntentCatalog::INTERNSHIP_MATERIAL, IntentCatalog::INTERNSHIP_SUBMIT, IntentCatalog::INTERNSHIP_ENQUIRY], true)) {
+            return null;
+        }
+        if (! empty($toolResult['needs_choice']) && ! empty($toolResult['choices'])) {
+            $lines = ['Which one should I use?'];
+            foreach ($toolResult['choices'] as $index => $choice) {
+                $label = isset($choice['title']) ? $choice['title'] : (isset($choice['program']) ? $choice['program'] : 'Option');
+                $day = isset($choice['day']) ? 'Day '.$choice['day'].' — ' : '';
+                $lines[] = ($index + 1).'. '.$day.$label;
+            }
+
+            return implode("\n", $lines);
+        }
+        if (! empty($toolResult['locked'])) {
+            return 'That task has not been released. I cannot send it until your supervisor releases it through the internship programme.';
+        }
+        if (! empty($toolResult['media_pending'])) {
+            return 'I am saving that file. I will ask you to confirm after it is stored. Nothing has been submitted yet.';
+        }
+        if (! empty($toolResult['awaiting_confirm'])) {
+            $lines = ['I have these for '.((isset($toolResult['day']) && $toolResult['day']) ? 'Day '.$toolResult['day'].' — ' : '').(isset($toolResult['title']) ? $toolResult['title'] : 'your task').':'];
+            foreach ((array) (isset($toolResult['files']) ? $toolResult['files'] : []) as $file) {
+                $lines[] = '- '.$file;
+            }
+            $lines[] = 'Would you like me to submit these for supervisor review?';
+
+            return implode("\n", $lines);
+        }
+        if ($intent === IntentCatalog::INTERNSHIP_SUBMIT && ! empty($toolResult['submission_id']) && empty($toolResult['duplicate'])) {
+            return 'Your work for '.(isset($toolResult['title']) ? $toolResult['title'] : 'this task').' is now with your supervisor in the internship system.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'missing_requirement') {
+            $need = isset($toolResult['missing']) ? $toolResult['missing'] : 'file';
+
+            return 'I have not submitted that. This task still needs a '.$need.'. A short message on its own does not complete the task.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'too_large') {
+            return 'That file is larger than the upload limit. Please send a smaller file, or use the internship upload page in the ERP.';
+        }
+        if (isset($toolResult['error']) && in_array($toolResult['error'], ['unsafe_type', 'voice_not_allowed'], true)) {
+            return 'I cannot accept that file type for this task. Please send the format the assignment asks for.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'media_failed') {
+            return 'I could not save that file. Please send it again. Nothing was submitted.';
+        }
+        if (isset($toolResult['error']) && $toolResult['error'] === 'no_task') {
+            return 'You do not have a released internship task right now.';
+        }
+        if (isset($toolResult['error']) && in_array($toolResult['error'], ['not_found', 'no_active_internship'], true)) {
+            return 'I cannot find an active internship for this WhatsApp number, so I cannot share internship records.';
+        }
         if ($intent === IntentCatalog::INTERNSHIP_TASK && ! empty($toolResult['title'])) {
-            return 'Your current internship task is "'.$toolResult['title'].'" ('.$toolResult['status'].').';
+            $bits = [];
+            if (! empty($toolResult['program'])) {
+                $bits[] = $toolResult['program'];
+            }
+            if (! empty($toolResult['day'])) {
+                $bits[] = 'Day '.$toolResult['day'];
+            }
+            $bits[] = $toolResult['title'];
+            $text = 'Your current task is '.implode(' — ', $bits).'.';
+            if (! empty($toolResult['deadline'])) {
+                $text .= ' Deadline: '.$toolResult['deadline'].'.';
+            }
+            if (! empty($toolResult['instructions'])) {
+                $text .= "\n".implode("\n", array_slice($toolResult['instructions'], 0, 8));
+            }
+            if (! empty($toolResult['requirements'])) {
+                $text .= "\nSubmit: ".$toolResult['requirements'];
+            }
+
+            return $text;
+        }
+        if ($intent === IntentCatalog::INTERNSHIP_MATERIAL && ! empty($toolResult['title'])) {
+            if (! empty($toolResult['document_path'])) {
+                return 'I am sending the material for '.$toolResult['title'].'.';
+            }
+
+            return 'I do not have a separate file for '.$toolResult['title'].'. '.(! empty($toolResult['instructions']) ? implode(' ', array_slice($toolResult['instructions'], 0, 4)) : 'Your supervisor can share the handbook from the internship programme.');
+        }
+        if ($intent === IntentCatalog::INTERNSHIP_STATUS && isset($toolResult['decision'])) {
+            $line = 'Submission status: '.$toolResult['submission_status'].'.';
+            if ($toolResult['decision']) {
+                $line .= ' Supervisor decision: '.$toolResult['decision'].'.';
+            }
+            if ($toolResult['score'] !== null) {
+                $line .= ' Score on record: '.$toolResult['score'].'.';
+            }
+
+            return $line;
         }
         if ($intent === IntentCatalog::INTERNSHIP_STATUS && isset($toolResult['completed'])) {
-            return 'Internship status: '.$toolResult['status'].'. Completed tasks: '.$toolResult['completed'].' of '.$toolResult['released'].'.';
+            $planned = isset($toolResult['planned']) ? $toolResult['planned'] : $toolResult['released'];
+            $text = 'You have completed '.$toolResult['completed'];
+            if ($planned) {
+                $text .= ' of '.$planned.' tasks';
+            }
+            $text .= '.';
+            if (! empty($toolResult['day'])) {
+                $text .= ' Current day: '.$toolResult['day'].'.';
+            }
+            if (isset($toolResult['remaining']) && $toolResult['remaining'] !== null) {
+                $text .= ' Remaining: '.$toolResult['remaining'].'.';
+            }
+
+            return $text;
+        }
+        if ($intent === IntentCatalog::INTERNSHIP_ENQUIRY && ! empty($toolResult['program'])) {
+            return 'You are enrolled on '.$toolResult['program'].' ('.$toolResult['status'].').';
         }
 
         return null;
