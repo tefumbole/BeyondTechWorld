@@ -1,9 +1,84 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 6 — Attendance & Field Operations  
-STATUS: COMPLETED AND LIVE VALIDATED. Stage 7 has not started.
+PHASE: 7 — Secure Document Retrieval & OTP  
+STATUS: DEPLOYED. Automated tests passed. Live checks A–T were NOT RUN because SSH to the server timed out after the deploy. Do not treat the automated tests as a live PASS.
 
 Date: 23 September 2026
+
+---
+
+## STAGE 7 — Secure Document Retrieval & OTP
+
+Audit: `WHATSAPP_HUB_STAGE7_AUDIT.md`.
+
+The assistant only names the document. `WhatsAppDocumentRegistry` lists what exists. `DocumentAuthorizationService` decides ownership. `WhatsAppVerificationService` issues and checks the code. `QuotationController::buildQuotationPdf` and `SaleController::buildSaleInvoicePdfBinary` produce the file. `WhatsAppProviderInterface` sends it.
+
+### Supported documents
+
+| Key | Sensitivity | WhatsApp |
+| --- | --- | --- |
+| CUSTOMER_QUOTATION | VERIFIED | Yes, existing quotation PDF |
+| CUSTOMER_INVOICE | VERIFIED | Yes, existing sales-invoice PDF |
+
+Not registered for sending, because the ERP has no safe file to reuse: customer receipt, customer contract, payslip, employment contract, timesheet PDF, mission order, internship letter, internship assessment, internship certificate. A payment claim does not create a payment or a receipt. A certificate request does not create a certificate. Payslip verification on the public site is unchanged and is not a WhatsApp sender.
+
+### OTP
+
+`whatsapp_verification_challenges` stores HMAC-SHA256 of a 6-digit `random_int` code. The plaintext is sent through the existing provider and is not stored on the challenge, in assistant activity, or in conversation memory. The stored WhatsApp message says only that a code was sent.
+
+Defaults, all from config: TTL `WHATSAPP_OTP_TTL_MINUTES` 5, attempts `WHATSAPP_OTP_MAX_ATTEMPTS` 5, resend cooldown `WHATSAPP_OTP_RESEND_COOLDOWN_SECONDS` 60, hourly `WHATSAPP_OTP_HOURLY_LIMIT` 5, daily `WHATSAPP_OTP_DAILY_LIMIT` 10, session `WHATSAPP_VERIFICATION_SESSION_MINUTES` 20. A new code invalidates the previous active code for that contact. During the cooldown the active code is kept and no second message is generated. A used code cannot open another session. The session scope is `CUSTOMER_DOCUMENTS`, `EMPLOYEE_DOCUMENTS`, or `INTERN_DOCUMENTS` for that identity only.
+
+### Ownership and requests
+
+`whatsapp_document_requests` records the contact, identity, document type, resolved id, sensitivity, status, and failure code. It does not store the PDF contents. A supplied id is loaded only from rows owned by the resolved identity. The public refusal is “I couldn't provide that document for this account.” Paths containing `..`, a URL, or a file outside `storage/app` and `public/quotation` are rejected. User text is never used as a filesystem path.
+
+Inbound order: webhook idempotency, human handover, attendance commands such as CHECK OUT, a 6-digit code only while a challenge is pending, then the document request, then other assistant intents.
+
+### Hub
+
+WhatsApp Hub → Documents shows request counts and rows without file contents or codes. Command Center and Diagnostics use the same tables. Diagnostics never shows the code, the hash, the AI key, or the WaSender secret.
+
+Permissions added: `whatsapp.documents.view`, `whatsapp.documents.manage`, `whatsapp.documents.retry`, `whatsapp.verification`, `whatsapp.verification.invalidate`. They do not bypass ownership. Staff can retry a failed send or invalidate a verification.
+
+### Tests
+
+`./vendor/bin/phpunit --filter WhatsApp` — 118 tests, 632 assertions, OK. That includes Stage 7 and Stages 1–6. Stage 4 “send me a quotation” / “send the quotation” still creates a rental draft. “Send my quotation” is the retrieval path.
+
+### Deploy
+
+Commit `8a4dd3c` is on the server. Migration `2026_09_23_180000_create_whatsapp_document_verification` ran. `beyondtechworld-whatsapp-queue` was restarted. HTTPS `GET /api/webhooks/wasender` returned 200 after SSH became unreachable. The letterhead warning is the existing branding notice.
+
+### Live validation
+
+| Check | Result |
+| --- | --- |
+| A Customer quotation | NOT RUN |
+| B Wrong customer quotation | NOT RUN |
+| C Employee payslip | NOT RUN — no payslip PDF exists |
+| D Wrong OTP | NOT RUN |
+| E Expired OTP | NOT RUN |
+| F Max attempts | NOT RUN |
+| G Resend cooldown | NOT RUN |
+| H OTP replay | NOT RUN |
+| I Another person's document after OTP | NOT RUN |
+| J Receipt from a real payment | NOT RUN — no receipt PDF exists |
+| K False payment claim | NOT RUN |
+| L Employment contract | NOT RUN — no employee-owned contract file |
+| M Internship document | NOT RUN — no issued internship file |
+| N Certificate not eligible | NOT RUN |
+| O Unknown number | NOT RUN |
+| P Arbitrary path | NOT RUN |
+| Q Duplicate webhook | NOT RUN |
+| R Send failure | NOT RUN |
+| S Verified session then expiry | NOT RUN |
+| T Multi-role context through OTP | NOT RUN |
+| CHECK OUT while a code is pending | NOT RUN on the server |
+
+SSH to the VPS timed out after the code deploy, the same class of interruption seen during Stage 6. The site stayed up. These rows stay NOT RUN until a later SSH session can use the controlled fixture accounts. Automated coverage is not a substitute.
+
+### Stage 8
+
+Not started. Stage 8 is property and tenant operations. This stage did not audit a property or tenant module and did not add tenant WhatsApp behaviour. Stage 8 has to begin with that audit.
 
 ---
 
