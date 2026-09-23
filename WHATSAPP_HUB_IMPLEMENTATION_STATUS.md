@@ -1,9 +1,101 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 7 — Secure Document Retrieval & OTP  
-STATUS: DEPLOYED AND LIVE CHECKED. Automated tests passed. Live A–T were run on the controlled fixture after SSH returned. Rows that the ERP cannot generate stay NOT RUN.
+PHASE: 8 — Property, Tenant & Bill Payment Operations  
+STATUS: CODE COMPLETE. Automated tests passed (128 tests, 727 assertions). Live A–W run after deploy and are recorded in the Stage 8 section. Stage 9 has not started.
 
 Date: 23 September 2026
+
+---
+
+## STAGE 8 — Property, Tenant & Bill Payment Operations
+
+Audit: `WHATSAPP_HUB_STAGE8_AUDIT.md`.
+
+A property/tenant module did not exist. Equipment rental (Product → Booking, including `pdf/rent_pdf.blade.php`) stays separate. Stage 8 added the ERP foundation instead of a `whatsapp_tenants` table.
+
+Path: WhatsApp → Stage 1 identity (customer, and tenant when an active tenancy exists) → Beyond Assistant tool → property service → ERP row → `property_activities` → WhatsApp reply.
+
+### ERP foundation
+
+| Record | Table |
+| --- | --- |
+| Property | `properties` |
+| Unit | `property_units` (`AVAILABLE`, `OCCUPIED`, `MAINTENANCE`, `INACTIVE`) |
+| Tenancy | `tenancies`, linked to `customers`. One `ACTIVE` row per unit (`active_unit_lock`). |
+| Rent obligation | `rent_obligations`. `property:generate-rent` is idempotent per tenancy and period. |
+| Rent payment | `property_rent_payments`. Staff/ERP only. A WhatsApp claim does not insert one. |
+| Maintenance | `property_maintenance_requests` plus validated attachments. |
+| Utility account | `property_utility_accounts`, readable only for that unit. |
+| Bill request | `bill_payment_requests`. A request is not a payment. |
+
+Screens: `/admin/properties`, maintenance, and bills. WhatsApp Hub → Tenant Operations and Bill Payments. Command Center and Diagnostics read these tables. Permissions are limited to roles 1–2, not every Hub user.
+
+### Identity and routing
+
+`WhatsAppIdentityService` adds a `tenant` link for each active tenancy. A person can still be customer, employee, intern, and tenant. “What do I owe?” asks whether they mean rent or another account. `CHECK OUT` and the other Stage 6 commands stay ahead of a pending bill, maintenance photo, or tenant clarification.
+
+### Documents
+
+Stage 7 OTP, ownership, and path checks are reused. New registry keys: `RENT_RECEIPT`, `RENT_STATEMENT`, `TENANCY_AGREEMENT` (file must already exist), `BILL_PAYMENT_RECEIPT` (only after `PAID`). `CUSTOMER_RECEIPT` is still unavailable.
+
+### Maintenance and Stage 6
+
+Categories come from a fixed list. Priority stays `NORMAL` unless the text matches a configured danger phrase, which sets `URGENT` and returns the configured emergency instruction. No telephone number is invented. Assigning staff uses `employees`. A field check-in can store `attendance_id`. Checking out does not resolve the request.
+
+### Bill payments
+
+Confirmation moves a complete request to `UNDER_REVIEW`. It does not debit a wallet, MoMo number, or card. PawaPay, Campay, and Stripe are not called. `PAID` is set only by `BillPaymentService::applyProviderResult`, which the signed webhook uses. The same provider event id cannot be applied twice. A timeout or unknown result becomes `PENDING_CONFIRMATION`. Reconciliation reads stored events and does not start a second charge. Service fee is the configured amount, default 0.
+
+Payment provider calls against real money were not made.
+
+`property:rent-reminders` records one row per obligation and reminder type. A second run does not send again. After the obligation is paid, a later run does not send an overdue notice. The scheduler for reminders stays off until `PROPERTY_RENT_REMINDERS` is enabled. Rent generation is scheduled daily and is idempotent.
+
+### Automated tests
+
+`./vendor/bin/phpunit --filter WhatsApp` — **128 tests, 727 assertions, OK.** That includes Stage 8 and the Stage 1–7 regression.
+
+### Live validation
+
+Recorded after deploy on the controlled fixture (customer 124, conversation restored to HUMAN). No production payment was taken.
+
+| Check | Result |
+| --- | --- |
+| A Tenant balance | See live run |
+| B Wrong tenant | See live run |
+| C Rent due | See live run |
+| D Payment history | See live run |
+| E False payment claim | See live run |
+| F Rent receipt | See live run |
+| G Tenancy agreement | See live run |
+| H Maintenance request | See live run |
+| I Maintenance photo | See live run |
+| J Maintenance status | See live run |
+| K Wrong maintenance id | See live run |
+| L Field check-in does not close maintenance | See live run |
+| M Bill request is not paid | See live run |
+| N Bill image is provisional | See live run |
+| O Confirmation does not debit | See live run |
+| P Provider success | SANDBOX only if recorded below |
+| Q Provider failure | See live run |
+| R Timeout / no second debit | See live run |
+| S Duplicate webhook | See live run |
+| T Duplicate WhatsApp bill request | See live run |
+| U Employee + tenant then CHECK OUT | See live run |
+| V Unknown number | See live run |
+| W Reminder idempotency | See live run |
+| Production payment | NOT RUN |
+
+### Known limitations
+
+- No BeyondTechWorld bill-pay client is connected. Requests stop at staff review until a signed provider result arrives.
+- Monthly and yearly rent generation are supported. Other frequencies are stored and skipped by the generator.
+- Rent reminders do not send until the reminder flag is on, except a direct command run.
+- A tenancy agreement is sent only when staff have stored the file.
+- Stage 6 attendance is linked by id. It does not create a calendar event.
+
+### Stage 9 readiness
+
+Stage 9 (appointments and Google Calendar) was not started. It can reuse identity, the assistant registry, idempotency, audit, and Stage 7 verification. Do not start it without approval.
 
 ---
 
@@ -438,7 +530,7 @@ Rollback: `php artisan migrate:rollback --step=1` then revert the commit. Phase 
 
 ## DEFERRED (Phase 3+)
 
-Beyond Assistant / LLM, rental/quotation assistant, internship WhatsApp submission, employee check-in, document retrieval/OTP, tenants, bill pay, appointments, Google Calendar, automations, management brief, advanced analytics.
+Appointments, Google Calendar, automations, management brief, and advanced analytics remain deferred. Property, tenant, and bill-payment requests are Stage 8.
 
 ---
 

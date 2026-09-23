@@ -31,6 +31,7 @@ class WhatsAppIdentityService
         $this->collectCustomers($normalized, $matches);
         $this->collectSuppliers($normalized, $matches);
         $this->collectApplicants($normalized, $matches);
+        $this->collectTenants($matches);
 
         return $matches;
     }
@@ -147,6 +148,26 @@ class WhatsAppIdentityService
             $local,
             '0'.$local,
         ])));
+    }
+
+    protected function collectTenants(array &$matches)
+    {
+        if (! Schema::hasTable('tenancies')) {
+            return;
+        }
+        $customerIds = [];
+        foreach ($matches as $match) {
+            if ($match['role'] === 'customer') {
+                $customerIds[] = (int) $match['id'];
+            }
+        }
+        if ($customerIds === []) {
+            return;
+        }
+        $rows = \App\Property\Tenancy::whereIn('customer_id', $customerIds)->where('status', 'ACTIVE')->get();
+        foreach ($rows as $row) {
+            $matches[] = $this->row('tenant', \App\Property\Tenancy::class, $row->id, 'Tenancy '.$row->id, 'Tenant');
+        }
     }
 
     protected function row($role, $type, $id, $name, $label)

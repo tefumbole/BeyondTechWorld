@@ -71,7 +71,7 @@ class WhatsAppPhase7Test extends WhatsAppHubTestCase
             $this->assertFalse($registry->get($key)['available'], $key);
         }
         $labels = app(WhatsAppDocumentService::class)->listFor(['roles' => ['customer']]);
-        $this->assertEquals(['Quotation', 'Invoice'], array_column($labels, 'label'));
+        $this->assertEquals(['Quotation', 'Invoice', 'Bill receipt'], array_column($labels, 'label'));
         $this->assertSame([], app(WhatsAppDocumentService::class)->listFor(['roles' => ['employee']]));
     }
 

@@ -126,4 +126,15 @@ return [
             ],
         ],
 
+        'property' => [
+            'reminders_enabled' => env('PROPERTY_RENT_REMINDERS', false),
+            'reminder_days_before' => (int) env('PROPERTY_REMINDER_DAYS_BEFORE', 3),
+            'emergency_contact' => env('PROPERTY_EMERGENCY_CONTACT', ''),
+            'emergency_instruction' => env('PROPERTY_EMERGENCY_INSTRUCTION', ''),
+            'service_fee' => (float) env('PROPERTY_BILL_SERVICE_FEE', 0),
+            'currency' => env('PROPERTY_BILL_CURRENCY', 'XAF'),
+            'bill_webhook_secret' => env('PROPERTY_BILL_WEBHOOK_SECRET', ''),
+            'bill_types' => ['electricity', 'water', 'tv', 'internet', 'other'],
+        ],
+
 ];

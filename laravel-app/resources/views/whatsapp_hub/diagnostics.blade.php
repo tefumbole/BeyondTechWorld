@@ -63,6 +63,19 @@
             <p>Unauthorized attempts: {{ $docs['unauthorized'] ?? 0 }}</p>
         </div>
         <div class="wa-card">
+            <h5>Property and bills</h5>
+            @php $property = $diag['property'] ?? []; @endphp
+            <p>Property module: {{ $property['module'] ?? '—' }}</p>
+            <p>Tenant identity: {{ $property['tenant_identity'] ?? '—' }}</p>
+            <p>Rent billing: {{ $property['rent_billing'] ?? '—' }}</p>
+            <p>Rent reminders: {{ ! empty($property['reminders_enabled']) ? 'Enabled' : 'Off' }}</p>
+            <p>Maintenance open: {{ $property['maintenance_open'] ?? 0 }}</p>
+            <p>Bill requests: {{ $property['bill_requests'] ?? 0 }} · Failed: {{ $property['failed_payments'] ?? 0 }}</p>
+            <p>Payment provider: {{ $property['payment_provider'] ?? '—' }}</p>
+            <p>Bill webhook: {{ $property['webhook'] ?? '—' }}</p>
+            <p>Duplicate events prevented: {{ $property['duplicates_prevented'] ?? 0 }}</p>
+        </div>
+        <div class="wa-card">
             <h5>Attendance</h5>
             @php $att = $diag['attendance'] ?? []; @endphp
             <p>Last check-in: {{ $att['last_check_in'] ?? '—' }}</p>

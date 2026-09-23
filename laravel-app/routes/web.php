@@ -504,6 +504,17 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/attendance', 'WhatsApp\WhatsAppHubController@attendance')->name('whatsapp.attendance');
     Route::post('/admin/whatsapp/attendance/corrections/{id}/approve', 'WhatsApp\WhatsAppHubController@approveCorrection')->name('whatsapp.attendance.corrections.approve');
     Route::get('/admin/whatsapp/documents', 'WhatsApp\WhatsAppHubController@documents')->name('whatsapp.documents');
+    Route::get('/admin/whatsapp/tenants', 'WhatsApp\WhatsAppHubController@tenants')->name('whatsapp.tenants');
+    Route::get('/admin/whatsapp/bills', 'WhatsApp\WhatsAppHubController@bills')->name('whatsapp.bills');
+    Route::get('/admin/properties', 'Property\PropertyController@index')->name('property.index');
+    Route::post('/admin/properties', 'Property\PropertyController@storeProperty')->name('property.store');
+    Route::post('/admin/properties/units', 'Property\PropertyController@storeUnit')->name('property.units.store');
+    Route::post('/admin/properties/tenancies', 'Property\PropertyController@storeTenancy')->name('property.tenancies.store');
+    Route::post('/admin/properties/rent-payments', 'Property\PropertyController@storeRentPayment')->name('property.rent.payment');
+    Route::get('/admin/properties/maintenance', 'Property\PropertyController@maintenance')->name('property.maintenance');
+    Route::post('/admin/properties/maintenance/{id}/assign', 'Property\PropertyController@assignMaintenance')->name('property.maintenance.assign');
+    Route::post('/admin/properties/maintenance/{id}/status', 'Property\PropertyController@maintenanceStatus')->name('property.maintenance.status');
+    Route::get('/admin/properties/bills', 'Property\PropertyController@bills')->name('property.bills');
     Route::post('/admin/whatsapp/documents/{id}/retry', 'WhatsApp\WhatsAppHubController@retryDocument')->name('whatsapp.documents.retry');
     Route::post('/admin/whatsapp/verification/{id}/invalidate', 'WhatsApp\WhatsAppHubController@invalidateVerification')->name('whatsapp.verification.invalidate');
     Route::get('/admin/whatsapp/rentals', 'WhatsApp\WhatsAppRentalController@index')->name('whatsapp.rentals');

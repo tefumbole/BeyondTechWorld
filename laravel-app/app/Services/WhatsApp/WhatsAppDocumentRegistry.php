@@ -18,6 +18,10 @@ class WhatsAppDocumentRegistry
             'INTERNSHIP_LETTER' => $this->row('Internship letter', 'intern', 'INTERN_DOCUMENTS', false, null),
             'INTERNSHIP_ASSESSMENT' => $this->row('Assessment', 'intern', 'INTERN_DOCUMENTS', false, null),
             'INTERNSHIP_CERTIFICATE' => $this->row('Certificate', 'intern', 'INTERN_DOCUMENTS', false, null),
+            'RENT_RECEIPT' => $this->row('Rent receipt', 'tenant', 'TENANT_DOCUMENTS', true, 'TenantDocumentFileService'),
+            'RENT_STATEMENT' => $this->row('Rent statement', 'tenant', 'TENANT_DOCUMENTS', true, 'TenantDocumentFileService'),
+            'TENANCY_AGREEMENT' => $this->row('Tenancy agreement', 'tenant', 'TENANT_DOCUMENTS', true, 'TenantDocumentFileService'),
+            'BILL_PAYMENT_RECEIPT' => $this->row('Bill receipt', 'customer', 'BILL_DOCUMENTS', true, 'TenantDocumentFileService'),
         ];
     }
 

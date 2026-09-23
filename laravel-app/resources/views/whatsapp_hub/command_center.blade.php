@@ -54,6 +54,15 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Failed document sends</div><p class="wa-stat">{{ $stats['document_failed'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Denied document requests</div><p class="wa-stat">{{ $stats['document_denied'] ?? 0 }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Expired codes</div><p class="wa-stat">{{ $stats['document_expired'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Active tenancies</div><p class="wa-stat">{{ $stats['active_tenancies'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Rent due</div><p class="wa-stat">{{ $stats['rent_due'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Overdue rent</div><p class="wa-stat">{{ $stats['rent_overdue'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Maintenance open</div><p class="wa-stat">{{ $stats['maintenance_open'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Maintenance urgent</div><p class="wa-stat">{{ $stats['maintenance_urgent'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Maintenance awaiting assignment</div><p class="wa-stat">{{ $stats['maintenance_unassigned'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Bill requests</div><p class="wa-stat">{{ $stats['bills_open'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Bill processing</div><p class="wa-stat">{{ $stats['bills_processing'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Bill failed</div><p class="wa-stat">{{ $stats['bills_failed'] ?? 0 }}</p></div></div>
         </div>
 
         <div class="row">

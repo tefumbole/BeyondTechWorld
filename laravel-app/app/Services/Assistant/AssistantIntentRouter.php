@@ -37,6 +37,12 @@ class AssistantIntentRouter
             if (! empty($memoryParams['attendance_pending']) && isset($memoryParams['latitude'])) {
                 return $this->make($memoryParams['attendance_pending'], 0.99, true, false);
             }
+            if (! empty($memoryParams['maintenance_pending']) && ! empty($memoryParams['media']) && ! isset($memoryParams['latitude'])) {
+                return $this->make(IntentCatalog::MAINTENANCE_ATTACH, 0.99, true, false);
+            }
+            if (! empty($memoryParams['bill_pending']) && ! empty($memoryParams['media']) && ! isset($memoryParams['latitude'])) {
+                return $this->make(IntentCatalog::BILL_MEDIA, 0.99, true, false);
+            }
 
             return $this->make(IntentCatalog::UNKNOWN, 0.1, false, true);
         }
@@ -71,6 +77,10 @@ class AssistantIntentRouter
         }
         if (preg_match('/^(check\s*-?\s*in|checkin)\b|\bi\'?m at work\b|\bi\'?ve arrived\b|\bi\'?m on site\b|\bi\'?m starting work\b|\bi have arrived\b|\bi am at work\b/i', $t)) {
             return $this->make(IntentCatalog::ATTENDANCE_IN, 0.99, true, false);
+        }
+        $property = $this->propertyIntent($t, $memoryParams);
+        if ($property) {
+            return $property;
         }
         if (! empty($memoryParams['verification_pending']) && preg_match('/^\d{6}$/', $t)) {
             return $this->make(IntentCatalog::VERIFY_OTP, 0.99, true, false);
@@ -171,6 +181,53 @@ class AssistantIntentRouter
         }
 
         return (bool) preg_match('/\b(\d{1,2}\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{1,2}[\/\-.]\d{1,2}(?:[\/\-.]\d{2,4})?|next\s+(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday)|tomorrow)\b/i', $stripped);
+    }
+
+    protected function propertyIntent($t, array $memoryParams)
+    {
+        if (! empty($memoryParams['bill_pending']) && preg_match('/^(yes|confirm)\b/i', $t)) {
+            return $this->make(IntentCatalog::BILL_CONFIRM, 0.99, true, false);
+        }
+        if (! empty($memoryParams['maintenance_pending']) && ! empty($memoryParams['media']) && ! isset($memoryParams['latitude'])) {
+            return $this->make(IntentCatalog::MAINTENANCE_ATTACH, 0.99, true, false);
+        }
+        if (! empty($memoryParams['tenant_choice_pending']) && preg_match('/\b(tenant|rent)\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_BALANCE, 0.99, true, false);
+        }
+        $roles = isset($memoryParams['roles']) ? $memoryParams['roles'] : [];
+        $context = isset($memoryParams['context']) ? $memoryParams['context'] : '';
+        if (in_array('tenant', $roles, true) && $context !== 'tenant' && preg_match('/\b(how much do i owe|what do i owe|my balance)\b/', $t) && ! preg_match('/\brent\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_CLARIFY, 0.99, true, false);
+        }
+        if (preg_match('/\b(rent receipt|rent statement|tenancy agreement|rental agreement)\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_DOCUMENT, 0.99, true, false);
+        }
+        if (preg_match('/\b(when is my rent due|rent due date|my rent due)\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_DUE, 0.99, true, false);
+        }
+        if (preg_match('/\b(rent balance|what is my rent|my rent balance)\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_BALANCE, 0.99, true, false);
+        }
+        if (preg_match('/\b(rent payments|payments have i made|has my rent)\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_PAYMENTS, 0.99, true, false);
+        }
+        if (preg_match('/\b(i paid|i have paid|paid my rent)\b/', $t) && preg_match('/\brent\b/', $t)) {
+            return $this->make(IntentCatalog::TENANT_CLAIM, 0.99, true, false);
+        }
+        if (preg_match('/\b(status of my repair|happening with my repair|my maintenance|repair status)\b/', $t)) {
+            return $this->make(IntentCatalog::MAINTENANCE_STATUS, 0.99, true, false);
+        }
+        if (preg_match('/\b(bill status|status of my bill)\b/', $t)) {
+            return $this->make(IntentCatalog::BILL_STATUS, 0.99, true, false);
+        }
+        if (preg_match('/\b(pay my|help paying|electricity bill|water bill|tv bill|internet bill)\b/', $t)) {
+            return $this->make(IntentCatalog::BILL_REQUEST, 0.99, true, false);
+        }
+        if (preg_match('/\b(leaking|leak|not working|electricity is|power is off|door lock|plumbing|need maintenance|water is)\b/', $t)) {
+            return $this->make(IntentCatalog::MAINTENANCE_CREATE, 0.97, true, false);
+        }
+
+        return null;
     }
 
     protected function isDocumentRequest($t, array $memoryParams)

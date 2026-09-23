@@ -127,7 +127,7 @@ class AssistantResponseComposer
 
     protected function fromTool($intent, $toolResult, array $params)
     {
-        if (in_array($intent, [IntentCatalog::DOCUMENT_REQUEST, IntentCatalog::VERIFY_OTP], true) && is_array($toolResult) && ! empty($toolResult['message'])) {
+        if (in_array($intent, [IntentCatalog::DOCUMENT_REQUEST, IntentCatalog::VERIFY_OTP, IntentCatalog::TENANT_BALANCE, IntentCatalog::TENANT_DUE, IntentCatalog::TENANT_PAYMENTS, IntentCatalog::TENANT_CLAIM, IntentCatalog::TENANT_DOCUMENT, IntentCatalog::TENANT_CLARIFY, IntentCatalog::MAINTENANCE_CREATE, IntentCatalog::MAINTENANCE_STATUS, IntentCatalog::MAINTENANCE_ATTACH, IntentCatalog::BILL_REQUEST, IntentCatalog::BILL_CONFIRM, IntentCatalog::BILL_STATUS, IntentCatalog::BILL_MEDIA], true) && is_array($toolResult) && ! empty($toolResult['message'])) {
             return $toolResult['message'];
         }
         $attendance = $this->attendanceText($intent, is_array($toolResult) ? $toolResult : []);

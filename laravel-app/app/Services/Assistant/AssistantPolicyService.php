@@ -109,6 +109,12 @@ class AssistantPolicyService
         if (in_array($intent, [IntentCatalog::DOCUMENT_REQUEST, IntentCatalog::VERIFY_OTP], true)) {
             return ['customer', 'employee', 'intern'];
         }
+        if (in_array($intent, [IntentCatalog::BILL_REQUEST, IntentCatalog::BILL_CONFIRM, IntentCatalog::BILL_STATUS, IntentCatalog::BILL_MEDIA], true)) {
+            return ['customer', 'tenant'];
+        }
+        if (in_array($intent, [IntentCatalog::TENANT_BALANCE, IntentCatalog::TENANT_DUE, IntentCatalog::TENANT_PAYMENTS, IntentCatalog::TENANT_CLAIM, IntentCatalog::TENANT_DOCUMENT, IntentCatalog::TENANT_CLARIFY, IntentCatalog::MAINTENANCE_CREATE, IntentCatalog::MAINTENANCE_STATUS, IntentCatalog::MAINTENANCE_ATTACH], true)) {
+            return ['tenant'];
+        }
 
         return ['customer'];
     }

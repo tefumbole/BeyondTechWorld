@@ -36,6 +36,19 @@ class IntentCatalog
     const EMPLOYEE_ENQUIRY = 'EMPLOYEE_ENQUIRY';
     const DOCUMENT_REQUEST = 'DOCUMENT_REQUEST';
     const VERIFY_OTP = 'VERIFY_OTP';
+    const TENANT_BALANCE = 'TENANT_BALANCE';
+    const TENANT_DUE = 'TENANT_DUE';
+    const TENANT_PAYMENTS = 'TENANT_PAYMENTS';
+    const TENANT_CLAIM = 'TENANT_CLAIM';
+    const TENANT_DOCUMENT = 'TENANT_DOCUMENT';
+    const TENANT_CLARIFY = 'TENANT_CLARIFY';
+    const MAINTENANCE_CREATE = 'MAINTENANCE_CREATE';
+    const MAINTENANCE_STATUS = 'MAINTENANCE_STATUS';
+    const MAINTENANCE_ATTACH = 'MAINTENANCE_ATTACH';
+    const BILL_REQUEST = 'BILL_REQUEST';
+    const BILL_CONFIRM = 'BILL_CONFIRM';
+    const BILL_STATUS = 'BILL_STATUS';
+    const BILL_MEDIA = 'BILL_MEDIA';
     const APPOINTMENT_REQUEST = 'APPOINTMENT_REQUEST';
     const TECHNICAL_SUPPORT = 'TECHNICAL_SUPPORT';
     const HUMAN_REQUEST = 'HUMAN_REQUEST';
@@ -83,6 +96,19 @@ class IntentCatalog
             self::EMPLOYEE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'PRIVILEGED'],
             self::DOCUMENT_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::VERIFY_OTP => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_BALANCE => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_DUE => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_PAYMENTS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_CLAIM => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_DOCUMENT => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::TENANT_CLARIFY => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::MAINTENANCE_CREATE => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::MAINTENANCE_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::MAINTENANCE_ATTACH => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::BILL_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::BILL_CONFIRM => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::BILL_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::BILL_MEDIA => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::APPOINTMENT_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::TECHNICAL_SUPPORT => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::HUMAN_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],

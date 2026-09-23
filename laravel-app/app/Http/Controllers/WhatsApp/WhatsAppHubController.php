@@ -567,6 +567,32 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.internship', compact('metrics', 'intakes', 'failures'));
     }
 
+    public function tenants()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.tenants.view', 'whatsapp.tenants.manage', 'tenancies.view'])) {
+            return $deny;
+        }
+        $metrics = app(\App\Services\Property\PropertyMetrics::class)->all();
+        $maintenance = \Illuminate\Support\Facades\Schema::hasTable('property_maintenance_requests')
+            ? \App\Property\MaintenanceRequest::orderByDesc('id')->limit(30)->get()
+            : collect();
+
+        return view('whatsapp_hub.tenants', compact('metrics', 'maintenance'));
+    }
+
+    public function bills()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.bills.view', 'whatsapp.bills.manage', 'billpayments.view'])) {
+            return $deny;
+        }
+        $metrics = app(\App\Services\Property\PropertyMetrics::class)->all();
+        $requests = \Illuminate\Support\Facades\Schema::hasTable('bill_payment_requests')
+            ? \App\Property\BillPaymentRequest::orderByDesc('id')->limit(50)->get()
+            : collect();
+
+        return view('whatsapp_hub.bills', compact('metrics', 'requests'));
+    }
+
     public function documents()
     {
         if ($deny = $this->denyUnless(['whatsapp.documents', 'whatsapp.documents.view', 'whatsapp.manage'])) {

@@ -113,6 +113,15 @@ class WhatsAppHubQuery
             'document_failed' => $this->documentMetrics()['failed'],
             'document_denied' => $this->documentMetrics()['denied'],
             'document_expired' => $this->documentMetrics()['expired'],
+            'active_tenancies' => $this->propertyMetrics()['active_tenancies'],
+            'rent_due' => $this->propertyMetrics()['rent_due'],
+            'rent_overdue' => $this->propertyMetrics()['rent_overdue'],
+            'maintenance_open' => $this->propertyMetrics()['maintenance_open'],
+            'maintenance_urgent' => $this->propertyMetrics()['maintenance_urgent'],
+            'maintenance_unassigned' => $this->propertyMetrics()['maintenance_unassigned'],
+            'bills_open' => $this->propertyMetrics()['bills_open'],
+            'bills_processing' => $this->propertyMetrics()['bills_processing'],
+            'bills_failed' => $this->propertyMetrics()['bills_failed'],
         ];
     }
 
@@ -315,11 +324,17 @@ class WhatsAppHubQuery
             'internship' => $this->internshipDiagnostics(),
             'attendance' => $this->attendanceDiagnostics(),
             'documents' => app(WhatsAppDocumentService::class)->diagnostics(),
+            'property' => app(\App\Services\Property\PropertyMetrics::class)->diagnostics(),
         ];
     }
 
     protected function documentMetrics()
     {
         return app(WhatsAppDocumentService::class)->metrics();
+    }
+
+    protected function propertyMetrics()
+    {
+        return app(\App\Services\Property\PropertyMetrics::class)->all();
     }
 }

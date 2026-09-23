@@ -34,7 +34,7 @@ class AssistantToolExecutor
         if (preg_match('/grade|pass_intern|release_next|official_score/i', (string) $name)) {
             return ['success' => false, 'error' => 'grading_forbidden'];
         }
-        if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical|bypass_ownership|another_user_document|bulk_documents/i', (string) $name)) {
+        if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical|bypass_ownership|another_user_document|bulk_documents|adjust_rent|waive_rent|terminate_tenancy|mark_rent_paid|override_property_ownership|reconcile_override|initiate_debit/i', (string) $name)) {
             return ['success' => false, 'error' => 'privileged'];
         }
         $meta = $this->registry->get($name);
@@ -465,6 +465,106 @@ class AssistantToolExecutor
     protected function toolSendAuthorizedDocument(array $params, array $context)
     {
         return $this->toolRequestDocument($params, $context);
+    }
+
+    protected function toolGetMyTenancy(array $params, array $context)
+    {
+        return $this->propertyTool('get_my_tenancy', $params, $context);
+    }
+
+    protected function toolGetRentBalance(array $params, array $context)
+    {
+        return $this->propertyTool('get_rent_balance', $params, $context);
+    }
+
+    protected function toolGetRentDueDate(array $params, array $context)
+    {
+        return $this->propertyTool('get_rent_due_date', $params, $context);
+    }
+
+    protected function toolGetRentPaymentHistory(array $params, array $context)
+    {
+        return $this->propertyTool('get_rent_payment_history', $params, $context);
+    }
+
+    protected function toolRejectPaymentClaim(array $params, array $context)
+    {
+        return $this->propertyTool('record_payment_claim', $params, $context);
+    }
+
+    protected function toolClarifyTenantBalance(array $params, array $context)
+    {
+        return app(\App\Services\Property\PropertyWhatsAppService::class)->clarify();
+    }
+
+    protected function toolGetMaintenanceRequests(array $params, array $context)
+    {
+        return $this->propertyTool('get_maintenance_requests', $params, $context);
+    }
+
+    protected function toolCreateMaintenanceRequest(array $params, array $context)
+    {
+        return $this->propertyTool('create_maintenance_request', $params, $context);
+    }
+
+    protected function toolGetMaintenanceStatus(array $params, array $context)
+    {
+        return $this->propertyTool('get_maintenance_status', $params, $context);
+    }
+
+    protected function toolAddMaintenanceAttachment(array $params, array $context)
+    {
+        return $this->propertyTool('add_maintenance_attachment', $params, $context);
+    }
+
+    protected function toolRequestTenantDocument(array $params, array $context)
+    {
+        return $this->toolRequestDocument($params, $context);
+    }
+
+    protected function toolListSupportedBillTypes(array $params, array $context)
+    {
+        return $this->propertyTool('list_supported_bill_types', $params, $context);
+    }
+
+    protected function toolCreateBillPaymentRequest(array $params, array $context)
+    {
+        return $this->propertyTool('create_bill_payment_request', $params, $context);
+    }
+
+    protected function toolGetBillPaymentRequest(array $params, array $context)
+    {
+        return $this->propertyTool('get_bill_payment_request', $params, $context);
+    }
+
+    protected function toolUpdateBillPaymentDetails(array $params, array $context)
+    {
+        return $this->propertyTool('update_bill_payment_details', $params, $context);
+    }
+
+    protected function toolConfirmBillPaymentRequest(array $params, array $context)
+    {
+        return $this->propertyTool('confirm_bill_payment_request', $params, $context);
+    }
+
+    protected function toolGetBillPaymentStatus(array $params, array $context)
+    {
+        return $this->propertyTool('get_bill_payment_status', $params, $context);
+    }
+
+    protected function toolRequestBillPaymentHandover(array $params, array $context)
+    {
+        return $this->propertyTool('request_bill_payment_handover', $params, $context);
+    }
+
+    protected function toolAttachBillImage(array $params, array $context)
+    {
+        return $this->propertyTool('attach_bill_image', $params, $context);
+    }
+
+    protected function propertyTool($name, array $params, array $context)
+    {
+        return app(\App\Services\Property\PropertyWhatsAppService::class)->handle($name, $params, $context);
     }
 
     protected function knowledge(array $categories)

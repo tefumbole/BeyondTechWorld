@@ -2198,6 +2198,8 @@
                                     <li><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
                                     <li><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
                                     <li><a href="{{ route('whatsapp.documents') }}">Documents</a></li>
+                                    <li><a href="{{ route('whatsapp.tenants') }}">Tenant Operations</a></li>
+                                    <li><a href="{{ route('whatsapp.bills') }}">Bill Payments</a></li>
                                     <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
@@ -2206,6 +2208,7 @@
                                 </ul>
                             </li>
                         @endif
+                        <li><a href="{{ route('property.index') }}"> <i class="fa fa-building"></i><span>Properties</span></a></li>
                         <?php
                         $wealth_view = DB::table('permissions')->where('name', 'wealth.view')->first();
                         $expenses_index_perm = DB::table('permissions')->where('name', 'expenses-index')->first();

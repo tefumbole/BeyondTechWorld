@@ -377,10 +377,15 @@ class WhatsAppDocumentService
                 $path = $this->files->quotation($recordId);
                 $ephemeral = false;
                 $name = 'quotation-'.$recordId.'.pdf';
-            } else {
+            } elseif ($type === 'CUSTOMER_INVOICE') {
                 $path = $this->files->invoice($recordId);
                 $ephemeral = ! config('services.whatsapp.document_use_fixtures');
                 $name = 'invoice-'.$recordId.'.pdf';
+            } else {
+                $made = app(\App\Services\Property\TenantDocumentFileService::class)->make($type, $recordId);
+                $path = $made['path'];
+                $ephemeral = false;
+                $name = $made['name'];
             }
         } catch (\Throwable $e) {
             return $this->finish($request, WhatsAppDocumentRequest::FAILED, 'generation_failed', 'I could not prepare that document. A team member can try again.', $request->identity_type, $clearVerification);
@@ -398,7 +403,15 @@ class WhatsAppDocumentService
         if (! $conversation) {
             return $this->finish($request, WhatsAppDocumentRequest::FAILED, 'send_failed', 'I could not send that document. It can be retried.', $request->identity_type, $clearVerification);
         }
-        $label = $type === 'CUSTOMER_QUOTATION' ? 'quotation' : 'invoice';
+        $labels = [
+            'CUSTOMER_QUOTATION' => 'quotation',
+            'CUSTOMER_INVOICE' => 'invoice',
+            'RENT_RECEIPT' => 'rent receipt',
+            'RENT_STATEMENT' => 'rent statement',
+            'TENANCY_AGREEMENT' => 'tenancy agreement',
+            'BILL_PAYMENT_RECEIPT' => 'bill receipt',
+        ];
+        $label = isset($labels[$type]) ? $labels[$type] : 'document';
         $sent = $this->conversations->sendExistingDocument($conversation, $safe, $name, 'Your '.$label.' is attached.', null, 'ASSISTANT');
         if (empty($sent['success'])) {
             return $this->finish($request, WhatsAppDocumentRequest::FAILED, 'send_failed', 'I could not send that document. It can be retried.', $request->identity_type, $clearVerification);
@@ -421,6 +434,9 @@ class WhatsAppDocumentService
 
     protected function resolve($type, array $owner, $text)
     {
+        if (in_array($type, ['RENT_RECEIPT', 'RENT_STATEMENT', 'TENANCY_AGREEMENT', 'BILL_PAYMENT_RECEIPT'], true)) {
+            return app(\App\Services\Property\TenantDocumentResolver::class)->resolve($type, $owner, $text);
+        }
         if ($type === 'CUSTOMER_QUOTATION') {
             return $this->resolveRows('quotations', 'customer_id', $owner['id'], $text, 'quotation');
         }
@@ -525,6 +541,9 @@ class WhatsAppDocumentService
         if ($ownerType === 'intern' && ! empty($context['intern_user_id']) && ($choice === null || $choice === 'intern')) {
             return ['type' => 'intern', 'id' => (int) $context['intern_user_id']];
         }
+        if ($ownerType === 'tenant' && ! empty($context['tenancy_id']) && ($choice === null || $choice === 'tenant')) {
+            return ['type' => 'tenant', 'id' => (int) $context['tenancy_id']];
+        }
 
         return null;
     }
@@ -534,6 +553,18 @@ class WhatsAppDocumentService
         $t = strtolower($text);
         if (preg_match('/\b(what documents|which documents|documents can i)\b/', $t)) {
             return 'LIST';
+        }
+        if (preg_match('/\brent statement\b/', $t)) {
+            return 'RENT_STATEMENT';
+        }
+        if (preg_match('/\brent receipt\b/', $t)) {
+            return 'RENT_RECEIPT';
+        }
+        if (preg_match('/\b(tenancy agreement|rental agreement)\b/', $t)) {
+            return 'TENANCY_AGREEMENT';
+        }
+        if (preg_match('/\bbill receipt\b/', $t)) {
+            return 'BILL_PAYMENT_RECEIPT';
         }
         if (preg_match('/\binvoice\b/', $t)) {
             return 'CUSTOMER_INVOICE';
@@ -583,6 +614,9 @@ class WhatsAppDocumentService
     protected function roleChoice($text, array $memory, array $roles)
     {
         $t = strtolower($text);
+        if (preg_match('/\b(rent receipt|rent statement|tenancy agreement|rental agreement)\b/', $t)) {
+            return 'tenant';
+        }
         if (preg_match('/\bintern/', $t)) {
             return 'intern';
         }
@@ -595,7 +629,7 @@ class WhatsAppDocumentService
         if (! empty($memory['document_context'])) {
             return $memory['document_context'];
         }
-        if (! empty($memory['context']) && in_array($memory['context'], ['employee', 'intern', 'customer'], true)) {
+        if (! empty($memory['context']) && in_array($memory['context'], ['employee', 'intern', 'customer', 'tenant'], true)) {
             return $memory['context'];
         }
 

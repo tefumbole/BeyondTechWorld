@@ -19,6 +19,7 @@ class AssistantContextBuilder
         $customerId = null;
         $internUserId = null;
         $employeeId = null;
+        $tenancyIds = [];
         if ($contact) {
             foreach ($contact->links as $link) {
                 $roles[] = $link->role;
@@ -30,6 +31,9 @@ class AssistantContextBuilder
                 }
                 if ($link->role === 'employee') {
                     $employeeId = (int) $link->linkable_id;
+                }
+                if ($link->role === 'tenant') {
+                    $tenancyIds[] = (int) $link->linkable_id;
                 }
             }
         }
@@ -65,6 +69,8 @@ class AssistantContextBuilder
             'customer_id' => $customerId,
             'intern_user_id' => $internUserId,
             'employee_id' => $employeeId,
+            'tenancy_id' => count($tenancyIds) === 1 ? $tenancyIds[0] : null,
+            'tenancy_ids' => $tenancyIds,
             'lead' => $lead,
             'mode' => $conversation->mode,
             'assigned_user_id' => $conversation->assigned_user_id,

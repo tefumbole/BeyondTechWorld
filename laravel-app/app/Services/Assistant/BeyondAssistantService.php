@@ -88,11 +88,14 @@ class BeyondAssistantService
         }
         $slots['provider_message_id'] = $message->provider_message_id;
         $slots['conversation_id'] = $conversation->id;
+        $slots['roles'] = isset($context['roles']) ? $context['roles'] : [];
         $choiceText = strtolower((string) $slots['text']);
         if (strpos($choiceText, 'intern') !== false) {
             $slots['context'] = 'intern';
         } elseif (preg_match('/\b(employee|staff|office)\b/', $choiceText)) {
             $slots['context'] = 'employee';
+        } elseif (! empty($slots['tenant_choice_pending']) && preg_match('/\b(tenant|rent)\b/', $choiceText)) {
+            $slots['context'] = 'tenant';
         }
         $classified = $this->router->classify((string) $message->body, $context, $slots);
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
@@ -190,6 +193,24 @@ class BeyondAssistantService
                     }
                     if (array_key_exists('document_choice_pending', $toolResult)) {
                         $slots['document_choice_pending'] = $toolResult['document_choice_pending'] ? 1 : 0;
+                    }
+                    if (! empty($toolResult['tenant_context'])) {
+                        $slots['context'] = 'tenant';
+                    }
+                    if (array_key_exists('tenant_choice_pending', $toolResult)) {
+                        $slots['tenant_choice_pending'] = $toolResult['tenant_choice_pending'] ? 1 : 0;
+                    }
+                    if (array_key_exists('bill_pending', $toolResult)) {
+                        $slots['bill_pending'] = $toolResult['bill_pending'] ? 1 : 0;
+                    }
+                    if (! empty($toolResult['bill_request_id'])) {
+                        $slots['bill_request_id'] = $toolResult['bill_request_id'];
+                    }
+                    if (array_key_exists('maintenance_pending', $toolResult)) {
+                        $slots['maintenance_pending'] = $toolResult['maintenance_pending'] ? 1 : 0;
+                    }
+                    if (! empty($toolResult['maintenance_request_id'])) {
+                        $slots['maintenance_request_id'] = $toolResult['maintenance_request_id'];
                     }
                     $this->memory->remember($mem, $decision['intent'], $slots);
                 }
@@ -301,6 +322,19 @@ class BeyondAssistantService
             IntentCatalog::ATTENDANCE_CORRECTION => 'request_attendance_correction',
             IntentCatalog::DOCUMENT_REQUEST => 'request_document',
             IntentCatalog::VERIFY_OTP => 'verify_otp',
+            IntentCatalog::TENANT_BALANCE => 'get_rent_balance',
+            IntentCatalog::TENANT_DUE => 'get_rent_due_date',
+            IntentCatalog::TENANT_PAYMENTS => 'get_rent_payment_history',
+            IntentCatalog::TENANT_CLAIM => 'reject_payment_claim',
+            IntentCatalog::TENANT_DOCUMENT => 'request_tenant_document',
+            IntentCatalog::TENANT_CLARIFY => 'clarify_tenant_balance',
+            IntentCatalog::MAINTENANCE_CREATE => 'create_maintenance_request',
+            IntentCatalog::MAINTENANCE_STATUS => 'get_maintenance_status',
+            IntentCatalog::MAINTENANCE_ATTACH => 'add_maintenance_attachment',
+            IntentCatalog::BILL_REQUEST => 'create_bill_payment_request',
+            IntentCatalog::BILL_CONFIRM => 'confirm_bill_payment_request',
+            IntentCatalog::BILL_STATUS => 'get_bill_payment_status',
+            IntentCatalog::BILL_MEDIA => 'attach_bill_image',
             IntentCatalog::HUMAN_REQUEST => 'request_human_handover',
         ];
 
