@@ -57,6 +57,10 @@ class WhatsAppPhase6Test extends WhatsAppHubTestCase
         $this->assertSame('ATTENDANCE_OUT', $router->deterministic("I'm leaving.")['intent']);
         $this->assertSame('ATTENDANCE_CORRECTION', $router->deterministic('I forgot to check out yesterday.')['intent']);
         $this->assertSame('ATTENDANCE_IN', $router->deterministic('CHECK IN JOB 247')['intent']);
+        $this->assertSame('ATTENDANCE_IN', $router->deterministic('', [
+            'attendance_pending' => 'ATTENDANCE_IN',
+            'latitude' => 4.05,
+        ])['intent']);
         $this->assertGreaterThanOrEqual(0.98, $router->deterministic('CHECK IN')['confidence']);
     }
 
@@ -251,6 +255,7 @@ class WhatsAppPhase6Test extends WhatsAppHubTestCase
         $this->assertTrue($approved['success']);
         $this->assertSame('17:00:00', $row->fresh()->checkout);
         $this->assertSame(AttendanceCorrection::APPROVED, AttendanceCorrection::first()->status);
+        $this->assertSame(1, TimesheetEntry::where('user_id', $person['user']->id)->count());
     }
 
     public function test_webhook_unknown_and_known_employee()

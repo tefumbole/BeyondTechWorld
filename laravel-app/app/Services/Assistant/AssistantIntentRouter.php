@@ -34,6 +34,10 @@ class AssistantIntentRouter
     {
         $t = strtolower(trim(preg_replace('/\s+/', ' ', (string) $text)));
         if ($t === '') {
+            if (! empty($memoryParams['attendance_pending']) && isset($memoryParams['latitude'])) {
+                return $this->make($memoryParams['attendance_pending'], 0.99, true, false);
+            }
+
             return $this->make(IntentCatalog::UNKNOWN, 0.1, false, true);
         }
         if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {

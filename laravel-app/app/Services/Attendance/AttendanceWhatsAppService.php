@@ -267,6 +267,12 @@ class AttendanceWhatsAppService
             $attendance->checkout = strlen($checkoutTime) === 5 ? $checkoutTime.':00' : $checkoutTime;
             $attendance->note = trim((string) $attendance->note."\nApproved correction");
             $attendance->save();
+            $person = [
+                'user_id' => (int) $attendance->user_id,
+                'employee' => $attendance->employee_id ? Employee::find($attendance->employee_id) : null,
+                'intern_user_id' => $attendance->intern_user_id ? (int) $attendance->intern_user_id : null,
+            ];
+            $this->syncTimesheet($person, $attendance, $this->minutesBetween($attendance->checkin, $attendance->checkout));
             $request->status = AttendanceCorrection::APPROVED;
             $request->requested_checkout = substr($checkoutTime, 0, 5);
             $request->approver_user_id = $staff->id;
