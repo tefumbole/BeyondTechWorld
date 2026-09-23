@@ -51,7 +51,7 @@
         ['quoted', 'Client Quotes', 'dripicons-message', 'tone-cyan'],
         ['approved', 'Approved / Final', 'dripicons-checkmark', 'tone-green'],
         ['rejected', 'Rejected', 'dripicons-wrong', 'tone-red'],
-        ['draft', 'Drafts', 'dripicons-document', 'tone-blue'],
+        ['draft', 'AI Generated', 'dripicons-document', 'tone-blue'],
     ];
 @endphp
 <nav class="qt-nav" aria-label="Quotation status">

@@ -38,7 +38,7 @@
                     </div>
                 @endif
                 @if(!empty($rentalDraft))
-                    <div class="small mt-1">Draft quotation: {{ $rentalDraft }}</div>
+                    <div class="small mt-1">AI Generated quotation: {{ $rentalDraft }}</div>
                 @endif
                 @if($conversation->isAwaitingStaff())
                     @php

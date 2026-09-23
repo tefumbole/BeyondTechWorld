@@ -17,8 +17,8 @@
     $orderTax = (float) ($lims_sale_data->order_tax ?? 0);
     $orderDiscount = (float) ($lims_sale_data->order_discount ?? 0);
     $shippingCost = (float) ($lims_sale_data->shipping_cost ?? 0);
-    $quotationStatus = method_exists($lims_sale_data, 'getStatusLabelAttribute')
-        ? $lims_sale_data->status_label
+    $quotationStatus = method_exists($lims_sale_data, 'statusLabelText')
+        ? $lims_sale_data->statusLabelText()
         : \App\Quotation::statusLabel($lims_sale_data->quotation_status ?? null);
     $currencyCode = is_object($currency ?? null) ? ($currency->code ?? '') : (string) ($currency ?? '');
 @endphp

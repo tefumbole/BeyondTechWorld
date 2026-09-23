@@ -166,8 +166,18 @@ class Quotation extends Model
             || $this->hasClientSignature();
     }
 
+    public function isAiGenerated()
+    {
+        return (string) $this->quotation_source === 'whatsapp'
+            && (int) $this->quotation_status === self::STATUS_PENDING;
+    }
+
     public function statusLabelText()
     {
+        if ($this->isAiGenerated()) {
+            return 'AI Generated';
+        }
+
         return self::statusLabel($this->quotation_status);
     }
 

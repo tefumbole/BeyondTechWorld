@@ -147,10 +147,10 @@ class AssistantResponseComposer
                 return 'Quotation '.$toolResult['reference'].' is ready to review. Approve it on this secure link: '.$toolResult['approval_url'].' This chat does not create a booking or a payment.';
             }
 
-            return 'Quotation '.$toolResult['reference'].' is still a draft waiting for staff approval. I have not reserved any equipment and I have not created a booking.';
+            return 'Quotation '.$toolResult['reference'].' is still AI Generated and waiting for staff approval. I have not reserved any equipment and I have not created a booking.';
         }
         if (! empty($toolResult['reference']) && isset($toolResult['grand_total'])) {
-            return 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' at the quotation price. Staff must approve it before any PDF is sent. This is not a confirmed booking.';
+            return 'AI Generated quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' at the quotation price. Staff must approve it before any PDF is sent. This is not a confirmed booking.';
         }
         if (! empty($toolResult['availability_checked'])) {
             return $this->availabilityText($toolResult);

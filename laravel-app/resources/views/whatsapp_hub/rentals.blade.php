@@ -5,7 +5,7 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         <h1 class="wa-title">Rental requests</h1>
-        <p class="wa-sub">Draft quotations wait here until a manager approves and sends them. Editing stays in the existing quotation screen.</p>
+        <p class="wa-sub">AI Generated quotations wait here until a manager approves and sends them. Editing stays in the existing quotation screen.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         <div class="wa-card">

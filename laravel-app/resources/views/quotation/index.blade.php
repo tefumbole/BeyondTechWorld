@@ -38,7 +38,9 @@
                         if ($quotation->hasClientSignature() && $st === \App\Quotation::STATUS_AWAITING) {
                             $st = \App\Quotation::STATUS_APPROVED;
                         }
-                        $status = \App\Quotation::statusLabel($st);
+                        $status = ($st === \App\Quotation::STATUS_PENDING)
+                            ? $quotation->statusLabelText()
+                            : \App\Quotation::statusLabel($st);
                         ?>
                     <tr class="quotation-link" data-quotation='["{{date($general_setting->date_format, strtotime($quotation->created_at->toDateString()))}}", "{{$quotation->reference_no}}", "{{$status}}", "{{@$quotation->biller->name}}", "{{@$quotation->biller->company_name}}","{{@$quotation->biller->email}}", "{{@$quotation->biller->phone_number}}", "{{@$quotation->biller->address}}", "{{@$quotation->biller->city}}", "{{@$quotation->customer->name}}", "{{@$quotation->customer->phone_number}}", "{{@$quotation->customer->address}}", "{{@$quotation->customer->city}}", "{{$quotation->id}}", "{{$quotation->total_tax}}", "{{$quotation->total_discount}}", "{{$quotation->total_price}}", "{{$quotation->order_tax}}", "{{$quotation->order_tax_rate}}", "{{$quotation->order_discount}}", "{{$quotation->shipping_cost}}", "{{$quotation->grand_total}}", {!! json_encode(\App\Support\BookingNoteFormatter::forDisplay($quotation->note), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}, "{{@$quotation->user->name}}", "{{@$quotation->user->email}}"]'>
                         <td>{{$key}}</td>
