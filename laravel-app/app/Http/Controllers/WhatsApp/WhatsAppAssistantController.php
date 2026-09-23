@@ -24,7 +24,7 @@ class WhatsAppAssistantController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage'])) {
             return $deny;
         }
-        $tab = $request->get('tab', 'status');
+        $tab = $request->get('tab', 'conversations');
         $policy = app(AssistantPolicyService::class);
         $enabled = $policy->globallyEnabled();
         $configured = trim((string) config('assistant.api_key')) !== '';
@@ -41,9 +41,14 @@ class WhatsAppAssistantController extends Controller
             'output_tokens' => (int) AssistantActivity::whereBetween('created_at', [$from, $to])->sum('output_tokens'),
         ];
         $usage['total_tokens'] = $usage['input_tokens'] + $usage['output_tokens'];
+        $aiConversations = WhatsAppConversation::with(['contact', 'assignee'])
+            ->where('mode', WhatsAppConversation::MODE_AI)
+            ->orderByDesc('last_activity_at')
+            ->paginate(40)
+            ->appends($request->query());
 
         return view('whatsapp_hub.assistant', compact(
-            'tab', 'enabled', 'configured', 'knowledge', 'intents', 'tools', 'activities', 'failures', 'usage', 'from', 'to'
+            'tab', 'enabled', 'configured', 'knowledge', 'intents', 'tools', 'activities', 'failures', 'usage', 'from', 'to', 'aiConversations'
         ));
     }
 

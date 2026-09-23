@@ -5,7 +5,13 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         @include('whatsapp_hub.partials.nav')
-        <p><a href="{{ route('whatsapp.conversations') }}">&larr; All conversations</a></p>
+        <p>
+            @if($conversation->mode === 'AI')
+                <a href="{{ route('whatsapp.assistant', ['tab' => 'conversations']) }}">&larr; AI conversations</a>
+            @else
+                <a href="{{ route('whatsapp.conversations', ['mode' => 'HUMAN']) }}">&larr; Human conversations</a>
+            @endif
+        </p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 

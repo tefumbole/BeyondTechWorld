@@ -62,6 +62,10 @@ class WhatsAppHubController extends Controller
         }
         $q = trim((string) $request->get('q'));
         $filter = (string) $request->get('filter', 'all');
+        $mode = strtoupper((string) $request->get('mode', ''));
+        if (! in_array($mode, ['AI', 'HUMAN'], true)) {
+            $mode = '';
+        }
         $list = $this->filteredConversations($request)->paginate(40)->appends($request->query());
         $staff = $this->staff();
         $counts = $this->inboxBadgeCounts();
@@ -83,7 +87,7 @@ class WhatsAppHubController extends Controller
             ]);
         }
 
-        return view('whatsapp_hub.conversations', compact('list', 'q', 'filter', 'staff', 'counts'));
+        return view('whatsapp_hub.conversations', compact('list', 'q', 'filter', 'staff', 'counts', 'mode'));
     }
 
     public function conversation($id)
@@ -416,6 +420,12 @@ class WhatsAppHubController extends Controller
         }
         if ($request->get('from') && $request->get('to')) {
             $query->whereBetween('last_activity_at', [$request->get('from').' 00:00:00', $request->get('to').' 23:59:59']);
+        }
+        $mode = strtoupper((string) $request->get('mode', ''));
+        if ($mode === 'AI') {
+            $query->where('mode', WhatsAppConversation::MODE_AI);
+        } elseif ($mode === 'HUMAN') {
+            $query->where('mode', '!=', WhatsAppConversation::MODE_AI);
         }
         if ($filter === 'unread') {
             $query->where('unread_count', '>', 0);

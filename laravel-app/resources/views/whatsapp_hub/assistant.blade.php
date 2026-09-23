@@ -9,6 +9,7 @@
         <p class="wa-sub">Controlled ERP intelligence. API keys are never displayed.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         <div class="mb-3">
+            <a class="btn btn-sm {{ $tab === 'conversations' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant', ['tab'=>'conversations']) }}">AI Conversations</a>
             <a class="btn btn-sm {{ $tab === 'status' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant', ['tab'=>'status']) }}">Status</a>
             <a class="btn btn-sm {{ $tab === 'knowledge' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant', ['tab'=>'knowledge']) }}">Knowledge</a>
             <a class="btn btn-sm {{ $tab === 'intents' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant', ['tab'=>'intents']) }}">Intents</a>
@@ -17,7 +18,27 @@
             <a class="btn btn-sm {{ $tab === 'failures' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant', ['tab'=>'failures']) }}">Failures</a>
         </div>
 
-        @if($tab === 'status')
+        @if($tab === 'conversations')
+            <div class="wa-card wa-list">
+                <p class="small text-muted">Only conversations in AI mode. Human chats stay on Conversations → Human.</p>
+                <table class="table mb-0">
+                    <thead><tr><th>Contact</th><th>Phone</th><th>Last message</th><th>Mode</th></tr></thead>
+                    <tbody>
+                    @forelse($aiConversations as $c)
+                        <tr>
+                            <td><a href="{{ route('whatsapp.conversation', $c->id) }}">{{ optional($c->contact)->displayName() }}</a></td>
+                            <td>{{ optional($c->contact)->display_phone }}</td>
+                            <td>{{ \Illuminate\Support\Str::limit($c->last_message, 60) }}</td>
+                            <td>{{ $c->mode }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-muted">No AI conversations yet. Open a chat and click Enable AI.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+                {{ $aiConversations->links() }}
+            </div>
+        @elseif($tab === 'status')
             <div class="wa-card">
                 <p>Assistant: <span class="wa-badge {{ $enabled ? 'wa-badge-ok' : 'wa-badge-bad' }}">{{ $enabled ? 'Enabled' : 'Disabled' }}</span></p>
                 <p>Provider: {{ config('assistant.provider') }} · {{ $configured ? 'Configured' : 'Missing key' }}</p>

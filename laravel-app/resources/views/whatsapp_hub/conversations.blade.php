@@ -6,7 +6,13 @@
     <div class="container-fluid wa-shell">
         @include('whatsapp_hub.partials.nav')
         <h1 class="wa-title">Conversations</h1>
+        <div class="mb-3">
+            <a class="btn btn-sm {{ ($mode ?? '') === '' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', request()->except(['mode','page'])) }}">All</a>
+            <a class="btn btn-sm {{ ($mode ?? '') === 'HUMAN' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['mode' => 'HUMAN'])) }}">Human</a>
+            <a class="btn btn-sm {{ ($mode ?? '') === 'AI' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['mode' => 'AI'])) }}">AI</a>
+        </div>
         <form method="get" class="form-inline mb-3" id="wa-inbox-filters">
+            @if(!empty($mode))<input type="hidden" name="mode" value="{{ $mode }}">@endif
             <input type="text" name="q" value="{{ $q }}" class="form-control mr-2 mb-2" placeholder="Name, phone or message">
             <select name="filter" class="form-control mr-2 mb-2">
                 @foreach(['all'=>'All','unread'=>'Unread','awaiting'=>'Awaiting Response','mine'=>'Assigned to Me','unassigned'=>'Unassigned','customers'=>'Customers','leads'=>'Leads','employees'=>'Employees','interns'=>'Interns','closed'=>'Closed'] as $k=>$label)
