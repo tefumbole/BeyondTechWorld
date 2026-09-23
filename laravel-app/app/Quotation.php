@@ -45,6 +45,10 @@ class Quotation extends Model
         'client_responded_at',
         'approval_sent_at',
         'approval_sent_by',
+        'whatsapp_conversation_id',
+        'whatsapp_lead_id',
+        'quotation_source',
+        'revised_from_id',
     ];
 
     protected $dates = [

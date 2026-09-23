@@ -35,6 +35,10 @@
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Unassigned leads</div><p class="wa-stat">{{ $stats['unassigned_leads'] }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Follow-ups due</div><p class="wa-stat">{{ $stats['followups_due'] }}</p></div></div>
             <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Awaiting staff</div><p class="wa-stat">{{ $stats['awaiting_staff'] }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Rental enquiries</div><p class="wa-stat">{{ $stats['rental_new'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Quotes awaiting approval</div><p class="wa-stat">{{ $stats['rental_awaiting_approval'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Quotations sent</div><p class="wa-stat">{{ $stats['rental_sent'] ?? 0 }}</p></div></div>
+            <div class="col-md-3"><div class="wa-card"><div class="wa-stat-label">Revision requests</div><p class="wa-stat">{{ $stats['rental_revisions'] ?? 0 }}</p></div></div>
         </div>
 
         <div class="row">

@@ -46,6 +46,13 @@
             @endforeach
         </div>
         <div class="wa-card">
+            <h5>Rental quotations</h5>
+            <p>Awaiting approval: {{ $diag['rental_pending_approval'] ?? 0 }}</p>
+            <p>Last availability check: {{ $diag['rental_last_check'] ?? '—' }}</p>
+            <p>Availability failures: {{ $diag['rental_availability_failures'] ?? 0 }} · Pricing failures: {{ $diag['rental_pricing_failures'] ?? 0 }}</p>
+            <p>PDF or send failures: {{ $diag['rental_send_failures'] ?? 0 }}</p>
+        </div>
+        <div class="wa-card">
             <h5>Recent processing failures</h5>
             @forelse($diag['recent_failures'] as $fail)
                 <div class="mb-2">#{{ $fail->id }} {{ $fail->event_type }} — {{ $fail->processing_error }}</div>

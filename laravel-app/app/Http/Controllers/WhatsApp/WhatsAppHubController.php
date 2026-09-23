@@ -104,6 +104,9 @@ class WhatsAppHubController extends Controller
         $lead = $context['lead'];
         $documents = $this->existingDocuments($conversation);
         $sla = $context['sla'];
+        $rentalRequest = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_rental_requests')
+            ? \App\WhatsApp\RentalRequest::where('conversation_id', $conversation->id)->orderByDesc('id')->first()
+            : null;
         $rentalDraft = null;
         if (\Illuminate\Support\Facades\Schema::hasTable('assistant_memories')) {
             $mem = \App\Assistant\AssistantMemory::where('conversation_id', $conversation->id)->first();
@@ -131,7 +134,7 @@ class WhatsAppHubController extends Controller
         }
 
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest'
         ));
     }
 

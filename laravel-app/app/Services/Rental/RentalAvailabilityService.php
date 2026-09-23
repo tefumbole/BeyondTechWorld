@@ -14,12 +14,28 @@ use Illuminate\Support\Facades\Schema;
  */
 class RentalAvailabilityService
 {
-    public function resolveRange(array $slots)
+    public function dateIssue(array $slots)
     {
         $raw = isset($slots['event_date']) ? strtolower(trim((string) $slots['event_date'])) : '';
         if ($raw === '') {
+            return 'missing';
+        }
+        if ($this->isAmbiguousDate($raw)) {
+            return 'ambiguous';
+        }
+        if (! $this->parseDate($raw)) {
+            return 'ambiguous';
+        }
+
+        return 'ok';
+    }
+
+    public function resolveRange(array $slots)
+    {
+        if ($this->dateIssue($slots) !== 'ok') {
             return null;
         }
+        $raw = strtolower(trim((string) $slots['event_date']));
         $start = $this->parseDate($raw);
         if (! $start) {
             return null;
@@ -153,14 +169,29 @@ class RentalAvailabilityService
             ->whereIn('bookings.booking_status', $statuses);
     }
 
+    public function isAmbiguousDate($raw)
+    {
+        $raw = strtolower(trim((string) $raw));
+
+        return (bool) preg_match('/\b(this weekend|next weekend|next month|sometime|soon|later)\b/', $raw);
+    }
+
     protected function parseDate($raw)
     {
         $raw = strtolower(trim((string) $raw));
-        if ($raw === '') {
+        if ($raw === '' || $this->isAmbiguousDate($raw)) {
             return null;
         }
         if ($raw === 'tomorrow') {
             return Carbon::tomorrow()->startOfDay();
+        }
+        if (preg_match('/^next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/', $raw, $m)) {
+            $next = Carbon::parse('next '.$m[1])->startOfDay();
+            if (strtolower(Carbon::now()->format('l')) === $m[1]) {
+                return Carbon::today()->addWeek();
+            }
+
+            return $next;
         }
         $weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         if (in_array($raw, $weekdays, true)) {

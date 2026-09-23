@@ -79,6 +79,13 @@ class BeyondAssistantService
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
         $this->memory->remember($mem, $decision['intent'], $slots);
+        if ($decision['intent'] === IntentCatalog::RENTAL_REVISION && ! empty($slots['quotation_id'])) {
+            $slots['revised_from_id'] = $slots['quotation_id'];
+        }
+        try {
+            app(\App\Services\Rental\RentalRequestService::class)->capture($conversation, $slots, (string) $message->body, $decision['intent']);
+        } catch (\Throwable $e) {
+        }
 
         $activity->intent = $decision['intent'];
         $activity->confidence = $decision['confidence'];
@@ -116,9 +123,10 @@ class BeyondAssistantService
                     $slots['quotation_id'] = $toolResult['quotation_id'];
                     $slots['quotation_reference'] = isset($toolResult['reference']) ? $toolResult['reference'] : null;
                     $this->memory->remember($mem, $decision['intent'], $slots);
-                }
-                if (is_array($toolResult) && ! empty($toolResult['auto_send']) && ! empty($toolResult['quotation_id'])) {
-                    $toolResult['pdf_sent'] = $this->sendQuotePdf($conversation, $toolResult);
+                    $open = app(\App\Services\Rental\RentalRequestService::class)->active($conversation);
+                    if ($open) {
+                        app(\App\Services\Rental\RentalRequestService::class)->markStaffReview($open, $toolResult['quotation_id']);
+                    }
                 }
                 $activity->tools_executed = implode(',', $toolsRun);
                 $activity->tool_status = ! empty($toolResult['success']) ? 'ok' : (isset($toolResult['error']) ? $toolResult['error'] : 'failed');
@@ -142,9 +150,9 @@ class BeyondAssistantService
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
             }
         }
-        if (is_array($toolResult) && ! empty($toolResult['over_cap'])) {
-            $this->handover->toHuman($conversation, 'rental_quote_review');
-            $activity->handover_reason = 'rental_quote_review';
+        if ($decision['intent'] === IntentCatalog::DISCOUNT_REQUEST) {
+            $this->handover->toHuman($conversation, 'discount_request');
+            $activity->handover_reason = 'discount_request';
             $activity->status = AssistantActivity::HANDED_OVER;
         }
         $activity->response_preview = mb_substr($reply, 0, 240);
@@ -189,7 +197,9 @@ class BeyondAssistantService
             IntentCatalog::EQUIPMENT_AVAILABILITY => $this->rentalTool($slots),
             IntentCatalog::PRICE_ENQUIRY => $this->rentalTool($slots),
             IntentCatalog::RENTAL_QUOTE => 'create_rental_quotation',
-            IntentCatalog::RENTAL_CONFIRM => 'request_rental_booking',
+            IntentCatalog::RENTAL_CONFIRM => 'create_rental_quotation',
+            IntentCatalog::RENTAL_REVISION => 'create_rental_quotation',
+            IntentCatalog::RENTAL_ACCEPT => 'request_rental_booking',
             IntentCatalog::BOOKING_STATUS => 'get_booking_status',
             IntentCatalog::QUOTATION_REQUEST => 'get_customer_quotations',
             IntentCatalog::INTERNSHIP_TASK => 'get_current_internship_task',
@@ -222,7 +232,11 @@ class BeyondAssistantService
         if (preg_match('/\b(wedding|concert|church|conference|birthday|funeral)\b/i', $text, $m)) {
             $slots['event_type'] = strtolower($m[1]);
         }
-        if (preg_match('/\b(saturday|sunday|monday|tuesday|wednesday|thursday|friday|tomorrow)\b/i', $text, $m)) {
+        if (preg_match('/\b(this weekend|next weekend|next month)\b/i', $text, $m)) {
+            $slots['event_date'] = strtolower($m[1]);
+        } elseif (preg_match('/\bnext\s+(saturday|sunday|monday|tuesday|wednesday|thursday|friday)\b/i', $text, $m)) {
+            $slots['event_date'] = strtolower($m[0]);
+        } elseif (preg_match('/\b(saturday|sunday|monday|tuesday|wednesday|thursday|friday|tomorrow)\b/i', $text, $m)) {
             $slots['event_date'] = strtolower($m[1]);
         }
         if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)?\b/i', $text, $m) && (int) $m[1] >= 20) {

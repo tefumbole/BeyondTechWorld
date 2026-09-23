@@ -16,6 +16,9 @@ class AssistantResponseComposer
 
     public function compose($intent, $action, array $toolResult, array $context, $incoming, array $memoryParams = [])
     {
+        if ($intent === IntentCatalog::DISCOUNT_REQUEST) {
+            return 'I cannot change ERP prices or apply a discount from WhatsApp. A team member can review that request. The quotation is unchanged.';
+        }
         if ($action === IntentCatalog::ACTION_HANDOVER) {
             return 'A BeyondTechWorld team member will continue this conversation with you shortly.';
         }
@@ -92,8 +95,8 @@ class AssistantResponseComposer
             if (empty($params['product'])) {
                 return 'Which equipment do you need, and how many?';
             }
-            if (empty($params['event_date'])) {
-                return 'On which date do you need the equipment?';
+            if (empty($params['event_date']) || app(\App\Services\Rental\RentalAvailabilityService::class)->dateIssue($params) === 'ambiguous') {
+                return 'Which exact date should I use? Please send a day such as 24 October or 24/10.';
             }
             if ($intent === IntentCatalog::RENTAL_CONFIRM && empty($params['quotation_id'])) {
                 return 'I do not have a draft quotation to confirm yet. Ask me to send a quotation first.';
@@ -132,18 +135,15 @@ class AssistantResponseComposer
 
             return implode("\n\n", $bits);
         }
-        if (! empty($toolResult['booking_requested'])) {
-            return 'I recorded draft booking '.$toolResult['reference'].' for quotation '.$toolResult['quotation_reference'].'. Staff must approve it before the equipment is reserved. This is not a confirmed booking.';
-        }
-        if (! empty($toolResult['reference']) && isset($toolResult['grand_total'])) {
-            $text = 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' using the ERP daily rate for '.$toolResult['days'].' day(s). Staff must review it before it is final. This is not a confirmed booking.';
-            if (! empty($toolResult['pdf_sent'])) {
-                $text .= ' I have sent the PDF.';
-            } elseif (! empty($toolResult['over_cap'])) {
-                $text .= ' The amount is above the automatic send limit, so a team member will review it before a PDF is sent.';
+        if (! empty($toolResult['acceptance'])) {
+            if ($toolResult['acceptance'] === 'link' && ! empty($toolResult['approval_url'])) {
+                return 'Quotation '.$toolResult['reference'].' is ready to review. Approve it on this secure link: '.$toolResult['approval_url'].' This chat does not create a booking or a payment.';
             }
 
-            return $text;
+            return 'Quotation '.$toolResult['reference'].' is still a draft waiting for staff approval. I have not reserved any equipment and I have not created a booking.';
+        }
+        if (! empty($toolResult['reference']) && isset($toolResult['grand_total'])) {
+            return 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' using ERP daily rates for '.$toolResult['days'].' day(s). Staff must approve it before any PDF is sent. This is not a confirmed booking.';
         }
         if (! empty($toolResult['availability_checked'])) {
             return $this->availabilityText($toolResult);

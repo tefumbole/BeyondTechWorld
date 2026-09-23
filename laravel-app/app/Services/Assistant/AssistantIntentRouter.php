@@ -39,8 +39,17 @@ class AssistantIntentRouter
         if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
-        if (preg_match('/\b(i confirm( the)? (quote|quotation|booking)|confirm the quotation|yes,? book)\b/i', $t)) {
-            return $this->make(IntentCatalog::RENTAL_CONFIRM, 0.96, true, empty($memoryParams['quotation_id']));
+        if (preg_match('/\b(\d+\s*%|\bdiscount\b|make it cheaper|same price|give me the same)\b/i', $t)) {
+            return $this->make(IntentCatalog::DISCOUNT_REQUEST, 0.97, false, false);
+        }
+        if (preg_match('/\b(i accept( the)? quotation|i approve the quotation)\b/i', $t)) {
+            return $this->make(IntentCatalog::RENTAL_ACCEPT, 0.96, true, empty($memoryParams['quotation_id']));
+        }
+        if (preg_match('/\b(remove the|add another|instead of|don\'t need the|do not need the)\b/i', $t)) {
+            return $this->make(IntentCatalog::RENTAL_REVISION, 0.9, true, empty($memoryParams['product']) && empty($memoryParams['event_date']));
+        }
+        if (preg_match('/\b(i confirm( the)? (quote|quotation|booking)|confirm the quotation|prepare the (formal )?quotation|yes,? (prepare|send) (the )?quotation)\b/i', $t)) {
+            return $this->make(IntentCatalog::RENTAL_CONFIRM, 0.96, true, empty($memoryParams['product']) || ! app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams));
         }
         if (preg_match('/\b(send (me )?(a )?(quote|quotation)|give me a (quote|quotation)|i need a quote|quotation for)\b/i', $t)) {
             $ready = ! empty($memoryParams['product']) && app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams);
@@ -78,8 +87,8 @@ class AssistantIntentRouter
             $intent = preg_match('/\b(jbl|have you|do you have|available)\b/i', $t)
                 ? IntentCatalog::EQUIPMENT_AVAILABILITY
                 : IntentCatalog::RENTAL_ENQUIRY;
-            $dated = app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams);
-            $needs = $intent === IntentCatalog::RENTAL_ENQUIRY && (empty($memoryParams['product']) || ! $dated);
+            $availability = app(\App\Services\Rental\RentalAvailabilityService::class);
+            $needs = $intent === IntentCatalog::RENTAL_ENQUIRY && (empty($memoryParams['product']) || $availability->dateIssue($memoryParams) !== 'ok');
 
             return $this->make($intent, 0.9, true, $needs);
         }

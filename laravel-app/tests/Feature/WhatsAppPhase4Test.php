@@ -98,10 +98,12 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
         $this->assertStringContainsString($quote->reference_no, $reply->body);
         $this->assertStringContainsString('not a confirmed booking', strtolower($reply->body));
 
-        $this->postWebhook($this->incomingText('+237675400004', 'I confirm the quotation', 'P4Q3'))->assertStatus(200);
-        $booking = Booking::orderByDesc('id')->first();
-        $this->assertNotNull($booking);
-        $this->assertSame(5, (int) $booking->booking_status);
+        $this->assertSame(0, WhatsAppMessage::where('type', 'DOCUMENT')->count());
+        $this->assertStringContainsString('staff must approve', strtolower($reply->body));
+        $this->postWebhook($this->incomingText('+237675400004', 'I accept the quotation', 'P4Q3'))->assertStatus(200);
+        $this->assertSame(0, Booking::count());
+        $accept = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString('not created a booking', strtolower($accept->body));
         $still = app(RentalAvailabilityService::class)->assess(
             Product::first(),
             2,
@@ -121,8 +123,50 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
         $quote = Quotation::orderByDesc('id')->first();
         $this->assertSame(Quotation::STATUS_PENDING, (int) $quote->quotation_status);
         $reply = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
-        $this->assertStringContainsString('automatic send limit', strtolower($reply->body));
+        $this->assertStringContainsString('staff must approve', strtolower($reply->body));
         $this->assertSame(0, WhatsAppMessage::where('type', 'DOCUMENT')->count());
+    }
+
+    public function test_ambiguous_date_is_not_guessed()
+    {
+        $this->speaker(2);
+        $this->postWebhook($this->incomingText('+237675400006', 'I need sound this weekend', 'P4D1'))->assertStatus(200);
+        $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->first();
+        $this->assertStringContainsString('exact date', strtolower($out->body));
+        $this->assertSame(0, Quotation::count());
+    }
+
+    public function test_discount_does_not_change_erp_price()
+    {
+        $this->speaker(2);
+        $this->postWebhook($this->incomingText('+237675400007', 'Do you have 1 JBL speaker available Saturday?', 'P4D2'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400007', 'Send me a quotation', 'P4D3'))->assertStatus(200);
+        $before = (float) Quotation::first()->grand_total;
+        $this->postWebhook($this->incomingText('+237675400007', 'Give me 20% discount', 'P4D4'))->assertStatus(200);
+        $this->assertEquals($before, (float) Quotation::first()->grand_total);
+        $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString('cannot change erp prices', strtolower($out->body));
+    }
+
+    public function test_revision_creates_a_new_quotation()
+    {
+        $this->speaker(10);
+        $this->postWebhook($this->incomingText('+237675400009', 'Do you have 2 JBL speakers available Saturday?', 'P4V1'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400009', 'Send me a quotation', 'P4V2'))->assertStatus(200);
+        $original = Quotation::first();
+        $this->postWebhook($this->incomingText('+237675400009', 'I need 8 speakers instead of 2', 'P4V3'))->assertStatus(200);
+        $this->assertSame(2, Quotation::count());
+        $this->assertEquals(50000, (float) $original->fresh()->grand_total);
+        $this->assertEquals(200000, (float) Quotation::orderByDesc('id')->first()->grand_total);
+    }
+
+    public function test_same_phone_does_not_create_a_second_customer()
+    {
+        $this->speaker(3);
+        $this->postWebhook($this->incomingText('+237675400008', 'Do you have 1 JBL speaker available Saturday?', 'P4C1'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400008', 'Send me a quotation', 'P4C2'))->assertStatus(200);
+        $this->postWebhook($this->incomingText('+237675400008', 'Send me a quotation', 'P4C3'))->assertStatus(200);
+        $this->assertSame(1, \App\Customer::count());
     }
 
     protected function speaker($qty)

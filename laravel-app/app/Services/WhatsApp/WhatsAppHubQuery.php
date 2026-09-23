@@ -4,6 +4,8 @@ namespace App\Services\WhatsApp;
 
 use App\User;
 use App\WhatsApp\Lead;
+use App\WhatsApp\RentalActivity;
+use App\WhatsApp\RentalRequest;
 use App\WhatsApp\LeadCatalog;
 use App\WhatsApp\WhatsAppCall;
 use App\WhatsApp\WhatsAppConversation;
@@ -90,6 +92,10 @@ class WhatsAppHubQuery
                 ? Lead::with('assignee')->whereNotNull('follow_up_at')->where('follow_up_at', '<=', Carbon::now())->whereNotIn('status', LeadCatalog::closedStatuses())->orderBy('follow_up_at')->limit(8)->get()
                 : collect(),
             'staff_workload' => $this->staffWorkload(),
+            'rental_new' => $this->rentalCount([RentalRequest::COLLECTING, RentalRequest::READY, RentalRequest::CHECKED, RentalRequest::PROPOSAL, RentalRequest::AWAITING_CUSTOMER]),
+            'rental_awaiting_approval' => $this->rentalCount([RentalRequest::AWAITING_STAFF, RentalRequest::QUOTE_CREATED]),
+            'rental_sent' => $this->rentalCount([RentalRequest::QUOTE_SENT]),
+            'rental_revisions' => $this->rentalCount([RentalRequest::REVISION]),
         ];
     }
 
@@ -124,6 +130,28 @@ class WhatsAppHubQuery
         }
 
         return collect($out);
+    }
+
+    protected function rentalCount(array $statuses)
+    {
+        if (! Schema::hasTable('whatsapp_rental_requests')) {
+            return 0;
+        }
+
+        return RentalRequest::whereIn('status', $statuses)->count();
+    }
+
+    protected function rentalActivityCount($type, $body = null)
+    {
+        if (! Schema::hasTable('whatsapp_rental_activities')) {
+            return 0;
+        }
+        $query = RentalActivity::where('type', $type);
+        if ($body) {
+            $query->where('body', $body);
+        }
+
+        return $query->count();
     }
 
     public function diagnostics()
@@ -177,6 +205,13 @@ class WhatsAppHubQuery
             'assistant_tool_failures' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
                 ? \App\Assistant\AssistantActivity::whereNotNull('tool_status')->where('tool_status', '!=', 'ok')->orderByDesc('id')->limit(8)->get()
                 : collect(),
+            'rental_pending_approval' => $this->rentalCount([RentalRequest::AWAITING_STAFF]),
+            'rental_last_check' => Schema::hasTable('whatsapp_rental_requests')
+                ? optional(RentalRequest::whereNotNull('availability_checked_at')->orderByDesc('availability_checked_at')->first())->availability_checked_at
+                : null,
+            'rental_availability_failures' => $this->rentalActivityCount('availability_check', 'availability_not_confirmed'),
+            'rental_pricing_failures' => $this->rentalActivityCount('pricing_failed'),
+            'rental_send_failures' => $this->rentalActivityCount('quotation_send_failed'),
         ];
     }
 }

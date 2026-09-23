@@ -67,7 +67,6 @@ class RentalQuoteService
 
         $days = (int) $range['days'];
         $lineTotal = round($check['day_rate'] * $check['requested_qty'] * $days, 2);
-        $cap = (float) config('assistant.rental_auto_quote_max', 500000);
         $reference = 'qr-'.date('Ymd').'-'.date('His').substr(uniqid(), -3);
         $note = 'WhatsApp rental draft for '.$check['name'].' x'.$check['requested_qty']
             .' from '.$range['start'].' to '.$range['end'].'. Staff must review before signature or booking.';
@@ -94,6 +93,10 @@ class RentalQuoteService
             'grand_total' => $lineTotal,
             'quotation_status' => Quotation::STATUS_PENDING,
             'note' => $note,
+            'whatsapp_conversation_id' => isset($context['conversation_id']) ? $context['conversation_id'] : null,
+            'whatsapp_lead_id' => isset($context['lead']['id']) ? $context['lead']['id'] : null,
+            'quotation_source' => 'whatsapp',
+            'revised_from_id' => isset($slots['revised_from_id']) ? $slots['revised_from_id'] : null,
         ]);
         $quotation = Quotation::create($payload);
         $this->storeLine($quotation->id, $product, $check, $lineTotal);
@@ -105,8 +108,8 @@ class RentalQuoteService
             'grand_total' => $lineTotal,
             'status' => 'Draft',
             'days' => $days,
-            'auto_send' => $lineTotal <= $cap,
-            'over_cap' => $lineTotal > $cap,
+            'auto_send' => false,
+            'awaiting_staff' => true,
             'check' => $check,
             'customer_id' => $customer->id,
         ];
@@ -115,66 +118,97 @@ class RentalQuoteService
     public function requestBooking(array $slots, array $context)
     {
         $quoteId = isset($slots['quotation_id']) ? (int) $slots['quotation_id'] : 0;
-        if (! $quoteId || ! Schema::hasTable('quotations') || ! Schema::hasTable('bookings')) {
-            return ['success' => false, 'error' => 'no_quote'];
-        }
-        $quote = Quotation::find($quoteId);
+        $quote = $quoteId && Schema::hasTable('quotations') ? Quotation::find($quoteId) : null;
         if (! $quote) {
             return ['success' => false, 'error' => 'no_quote'];
         }
-        $range = $this->availability->resolveRange($slots);
-        $query = isset($slots['product']) ? $slots['product'] : '';
-        $products = $query !== '' ? $this->availability->search($query, 1) : collect();
-        $product = $products->first();
-        $reference = 'wa-bk-'.date('Ymd').'-'.date('His').substr(uniqid(), -3);
-        $note = 'WhatsApp confirmation of draft '.$quote->reference_no.'. Staff must approve before this reserves equipment.';
-        $payload = $this->onlyColumns('bookings', [
-            'reference_no' => $reference,
-            'user_id' => $quote->user_id,
-            'customer_id' => $quote->customer_id,
-            'warehouse_id' => isset($quote->warehouse_id) ? $quote->warehouse_id : null,
-            'biller_id' => isset($quote->biller_id) ? $quote->biller_id : null,
-            'item' => 1,
-            'total_qty' => $quote->total_qty,
-            'total_discount' => 0,
-            'total_tax' => 0,
-            'total_price' => $quote->total_price,
-            'order_tax_rate' => 0,
-            'order_tax' => 0,
-            'order_discount' => 0,
-            'shipping_cost' => 0,
-            'grand_total' => $quote->grand_total,
-            'booking_status' => 5,
-            'payment_status' => 1,
-            'paid_amount' => 0,
-            'booking_note' => $note,
-            'staff_note' => 'Created from WhatsApp. Draft only — does not hold inventory.',
-        ]);
-        $booking = Booking::create($payload);
-        if ($product && $range && Schema::hasTable('booking_products')) {
-            $line = $this->onlyColumns('booking_products', [
-                'booking_id' => $booking->id,
-                'product_id' => $product->id,
-                'qty' => isset($slots['qty']) ? (int) $slots['qty'] : ($quote->total_qty ?: 1),
-                'net_unit_price' => $product->rent_price_per_day,
-                'discount' => 0,
-                'tax_rate' => 0,
-                'tax' => 0,
-                'total' => $quote->grand_total,
-                'start' => $range['start'].' 08:00:00',
-                'end' => $range['end'].' 08:00:00',
-            ]);
-            BookingProduct::create($line);
+        if ((int) $quote->quotation_status !== Quotation::STATUS_AWAITING || empty($quote->client_approval_token)) {
+            return [
+                'success' => true,
+                'acceptance' => 'not_sent',
+                'reference' => $quote->reference_no,
+                'booking_created' => false,
+            ];
         }
+        $quote->rotateApprovalToken();
 
         return [
             'success' => true,
-            'booking_requested' => true,
-            'booking_id' => $booking->id,
-            'reference' => $booking->reference_no,
-            'quotation_reference' => $quote->reference_no,
-            'status' => 'Draft',
+            'acceptance' => 'link',
+            'reference' => $quote->reference_no,
+            'approval_url' => $quote->approvalUrl(),
+            'booking_created' => false,
         ];
+    }
+
+    public function approveAndSend(Quotation $quotation, $conversation, $userId = null)
+    {
+        $request = null;
+        if (Schema::hasTable('whatsapp_rental_requests')) {
+            $request = \App\WhatsApp\RentalRequest::where('quotation_id', $quotation->id)->orderByDesc('id')->first();
+        }
+        $range = $request && $request->event_date
+            ? ['start' => $request->event_date->toDateString(), 'end' => $request->return_at ? $request->return_at->toDateString() : $request->event_date->copy()->addDay()->toDateString()]
+            : null;
+        if ($range && Schema::hasTable('product_quotation')) {
+            foreach (ProductQuotation::where('quotation_id', $quotation->id)->get() as $line) {
+                $product = Product::find($line->product_id);
+                if (! $product) {
+                    continue;
+                }
+                $check = $this->availability->assess($product, $line->qty, $range['start'], $range['end']);
+                if (empty($check['availability_checked'])) {
+                    return ['success' => false, 'error' => 'inventory_unavailable'];
+                }
+                if (empty($check['available'])) {
+                    if ($request) {
+                        $request->status = \App\WhatsApp\RentalRequest::CHECKED;
+                        $request->availability_note = 'recheck_failed';
+                        $request->availability_checked_at = now();
+                        $request->save();
+                    }
+
+                    return ['success' => false, 'error' => 'availability_changed', 'name' => $product->name, 'available_qty' => $check['available_qty']];
+                }
+            }
+        }
+        $quotation->quotation_status = Quotation::STATUS_AWAITING;
+        $quotation->save();
+        $quotation->rotateApprovalToken();
+        $pdfSent = false;
+        $pdfError = null;
+        try {
+            $path = app(\App\Http\Controllers\QuotationController::class)->buildQuotationPdf($quotation->id);
+            $send = $this->conversations->sendExistingDocument(
+                $conversation,
+                $path,
+                'quotation_'.$quotation->reference_no.'.pdf',
+                'Quotation '.$quotation->reference_no,
+                $userId,
+                'STAFF'
+            );
+            $pdfSent = ! empty($send['success']);
+            if (! $pdfSent) {
+                $pdfError = isset($send['error']) ? $send['error'] : 'send_failed';
+            }
+        } catch (\Throwable $e) {
+            $pdfError = $e->getMessage();
+        }
+        if ($request) {
+            $request->status = $pdfSent ? \App\WhatsApp\RentalRequest::QUOTE_SENT : \App\WhatsApp\RentalRequest::AWAITING_STAFF;
+            $request->save();
+            app(RentalRequestService::class)->log($request, $pdfSent ? 'quotation_sent' : 'quotation_send_failed', $pdfError ?: 'Sent', [], $userId);
+        }
+        if (! $pdfSent) {
+            $quotation->quotation_status = Quotation::STATUS_PENDING;
+            $quotation->save();
+
+            return ['success' => false, 'error' => 'pdf_failed', 'pdf_error' => $pdfError, 'reference' => $quotation->reference_no];
+        }
+        $url = $quotation->approvalUrl();
+        $this->conversations->assistantReply($conversation, 'Your quotation '.$quotation->reference_no.' is ready. Review and approve it here: '.$url);
+
+        return ['success' => true, 'reference' => $quotation->reference_no, 'approval_url' => $url];
     }
 
     protected function storeLine($quotationId, Product $product, array $check, $lineTotal)

@@ -500,6 +500,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/diagnostics', 'WhatsApp\WhatsAppHubController@diagnostics')->name('whatsapp.diagnostics');
     Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
     Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');
+    Route::get('/admin/whatsapp/rentals', 'WhatsApp\WhatsAppRentalController@index')->name('whatsapp.rentals');
+    Route::post('/admin/whatsapp/rentals/{id}/approve', 'WhatsApp\WhatsAppRentalController@approve')->name('whatsapp.rentals.approve');
+    Route::post('/admin/whatsapp/rentals/{id}/reject', 'WhatsApp\WhatsAppRentalController@reject')->name('whatsapp.rentals.reject');
     Route::get('/admin/whatsapp/assistant', 'WhatsApp\WhatsAppAssistantController@index')->name('whatsapp.assistant');
     Route::post('/admin/whatsapp/assistant/enabled', 'WhatsApp\WhatsAppAssistantController@updateEnabled')->name('whatsapp.assistant.enabled');
     Route::post('/admin/whatsapp/assistant/knowledge', 'WhatsApp\WhatsAppAssistantController@storeKnowledge')->name('whatsapp.assistant.knowledge.store');

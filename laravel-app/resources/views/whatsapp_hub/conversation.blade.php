@@ -17,6 +17,21 @@
                 <div class="small mt-2">Mode: {{ $conversation->mode }}</div>
                 <div class="small">Status: {{ $conversation->status }}</div>
                 <div class="small">Assigned: {{ optional($conversation->assignee)->name ?: 'Unassigned' }}</div>
+                @if(!empty($rentalRequest))
+                    <div class="small mt-2">
+                        <div>Event: {{ $rentalRequest->event_type ?: '—' }}</div>
+                        <div>Date: {{ $rentalRequest->event_date ? $rentalRequest->event_date->toDateString() : ($rentalRequest->event_date_text ?: '—') }}</div>
+                        <div>Location: {{ $rentalRequest->location ?: '—' }}</div>
+                        <div>Guests: {{ $rentalRequest->attendance ?: '—' }}</div>
+                        <div>Status: {{ $rentalRequest->status }}</div>
+                        @if($rentalRequest->proposal_total !== null)
+                            <div>Proposal: {{ number_format($rentalRequest->proposal_total, 0) }}</div>
+                        @endif
+                        @if($rentalRequest->quotation_id)
+                            <a href="{{ route('quotations.edit', $rentalRequest->quotation_id) }}">Edit quotation</a>
+                        @endif
+                    </div>
+                @endif
                 @if(!empty($rentalDraft))
                     <div class="small mt-1">Draft quotation: {{ $rentalDraft }}</div>
                 @endif

@@ -1,41 +1,53 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 4 — Rentals  
-STATUS: Implemented locally. Automated suite passing. Not deployed. Live-test, then STOP (no Phase 5).
+PHASE: 4 — Rental Intelligence & Quotations  
+STATUS: Implemented locally (`staff approval before send`). Automated suite passing. Not deployed. Live-test, then STOP (no Phase 5).
 
 Date: 23 September 2026
 
 ---
 
-## PHASE 4 — Rentals
+## PHASE 4 — Rental Intelligence & Quotations
 
-Availability, ERP daily pricing, a draft quotation, and a staff-review booking. The assistant does not confirm a booking or invent a price.
+Audit: `WHATSAPP_HUB_PHASE4_AUDIT.md`.
 
-### What it does
+A rental chat collects a `whatsapp_rental_requests` row, checks real stock, prices from `rent_price_per_day`, and creates a normal Draft quotation. Staff approve before any PDF goes out. A WhatsApp “I accept” does not create a booking.
 
-- A dated equipment question checks `products.qty` and overlapping **pending** booking lines (status 2). Completed lines (status 1) are already removed from qty when the gear leaves, and qty that returns before the requested date is added back.
-- Reply states the available quantity, the listed daily rate, and that it is **not a confirmed booking**.
-- A question with no date still shows the catalogue only, with the date-check disclaimer.
-- “Send me a quotation” creates a real ERP quotation in **Draft** (`quotation_status = 1`) using `rent_price_per_day × quantity × days`. It does not send the signature link.
-- Totals at or under `WHATSAPP_RENTAL_AUTO_QUOTE_MAX` (default 500,000) try to send the existing quotation PDF. Above that, the draft is saved and the chat is handed to staff. No PDF is sent.
-- “I confirm the quotation” creates a **draft** booking (status 5). Draft lines do not hold stock. Staff approve it in the existing booking screen.
-- The conversation sidebar shows the draft quotation reference.
-- Booking reminders stay on `bookings:send-reminders`. Overdue return notices stay on `RentalReturnReminderCron`. Those were not rebuilt.
+### Availability
 
-### Out of scope
+On-hand `products.qty`, plus gear on completed bookings (status 1) that is back before the requested start, minus overlapping **pending** bookings (status 2). Draft bookings do not hold stock. Return (status 3) is already back in qty.
 
-Phase 5 internship submission, document OTP, and calendar booking.
+“This weekend” and “next month” are treated as ambiguous and the assistant asks for a calendar date. “Next Saturday”, “24 October”, and `24/10` resolve to a real date.
+
+### Quotation
+
+Lines are `product_quotation` on a normal `Quotation` (status 1 Draft). Status names were not changed. `QuotationQuote` stays the client counter-offer table.
+
+Default is **AI prepares → staff Approve & Send**. The assistant does not send the PDF itself. Approve & Send rechecks availability, then uses the existing PDF generator, WaSender document send, and the existing approval link. If the PDF or send fails, the quotation stays Draft.
+
+“I accept the quotation” only returns that secure link after staff have sent it. It does not reserve equipment.
+
+A change such as “8 speakers instead of 2” creates a new quotation and leaves the original total untouched.
+
+Customer-stated prices and discount requests are refused and handed to staff.
+
+Recommendations come from `config/rental_recommendations.php` and are included only when the ERP product exists.
+
+### Hub
+
+WhatsApp Hub → Rentals lists requests, links to the existing quotation editor, and has Approve & Send / Reject. Approve is permission `whatsapp.quotation.approve` (role 1 only). Prepare/view permissions go to roles 1–2. Command Center and Diagnostics show the rental counts. The conversation panel shows event, date, location, guests, status, and total.
 
 ### Tests
 
-**59 tests, 218 assertions — OK** (Phase 1 + 2 + 3 + 4).
+**63 tests, 238 assertions — OK** (Phase 1 + 2 + 3 + 4).
 
-### Live validation (not run)
+### Live validation
 
-1. Enable AI on one thread.
-2. `Do you have 2 JBL speakers available Saturday?` — quantity and rate, not a confirmed booking.
-3. `Send me a quotation` — draft appears in Quotations, and on the phone if it is under the send limit.
-4. `I confirm the quotation` — a draft booking appears. Stock for that date does not drop until staff approve it.
+Not run. Not deployed. Do not mark A–P passed until a real WhatsApp test against live products.
+
+### Out of scope
+
+Phase 5 internship submission, document OTP, and calendar booking. Booking reminders remain `bookings:send-reminders`. Overdue notices remain `RentalReturnReminderCron`.
 
 ---
 
