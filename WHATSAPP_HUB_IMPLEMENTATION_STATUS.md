@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 4 — Rental Intelligence & Quotations  
-STATUS: Implemented locally (`staff approval before send`). Automated suite passing. Not deployed. Live-test, then STOP (no Phase 5).
+STATUS: Deployed (`ea588f2`). Staff must approve before a quotation PDF is sent. Live-test, then STOP (no Phase 5).
 
 Date: 23 September 2026
 
@@ -43,7 +43,7 @@ WhatsApp Hub → Rentals lists requests, links to the existing quotation editor,
 
 ### Live validation
 
-Not run. Not deployed. Do not mark A–P passed until a real WhatsApp test against live products.
+Not run on live WhatsApp yet. Code is deployed. Do not mark A–P passed until a real test against live products.
 
 ### Out of scope
 
