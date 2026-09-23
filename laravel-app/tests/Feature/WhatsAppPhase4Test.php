@@ -213,7 +213,12 @@ class WhatsAppPhase4Test extends WhatsAppHubTestCase
         $this->assertEquals(85000, (float) $quote->grand_total);
         $reply = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
         $this->assertStringNotContainsString('daily rental', strtolower($reply->body));
+        $this->assertStringNotContainsString('further help', strtolower($reply->body));
         $this->assertSame(0, Booking::count());
+        $this->postWebhook($this->incomingText('+237675400012', 'send the quotation', 'P4S3'))->assertStatus(200);
+        $again = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringNotContainsString('further help', strtolower($again->body));
+        $this->assertStringContainsString('quotation', strtolower($again->body));
     }
 
     protected function speaker($qty)

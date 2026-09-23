@@ -47,7 +47,10 @@ class AssistantResponseComposer
                 return 'I do not have a draft quotation to confirm yet. Ask me to send a quotation first.';
             }
             if ($toolResult['error'] === 'missing_requirements') {
-                return 'I still need the equipment and a date before I can prepare a quotation.';
+                return 'Which product should I put on the quotation?';
+            }
+            if ($intent === IntentCatalog::RENTAL_QUOTE) {
+                return 'I could not prepare that quotation from the product price. A team member can finish it in Quotations.';
             }
             if ($toolResult['error'] === 'not_found') {
                 return 'I could not find that in our records. I can connect you with a team member if you would like.';
@@ -59,6 +62,10 @@ class AssistantResponseComposer
         $fromTool = $this->fromTool($intent, $toolResult, $memoryParams);
         if ($fromTool !== null) {
             return $fromTool;
+        }
+
+        if ($intent === IntentCatalog::RENTAL_QUOTE) {
+            return 'Which product should I put on the quotation? For example: Send a quotation for 1 JBL Charge 5.';
         }
 
         return $this->fromModel($intent, $toolResult, $context, $incoming);
@@ -143,7 +150,7 @@ class AssistantResponseComposer
             return 'Quotation '.$toolResult['reference'].' is still a draft waiting for staff approval. I have not reserved any equipment and I have not created a booking.';
         }
         if (! empty($toolResult['reference']) && isset($toolResult['grand_total'])) {
-            return 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' using ERP daily rates for '.$toolResult['days'].' day(s). Staff must approve it before any PDF is sent. This is not a confirmed booking.';
+            return 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' at the quotation price. Staff must approve it before any PDF is sent. This is not a confirmed booking.';
         }
         if (! empty($toolResult['availability_checked'])) {
             return $this->availabilityText($toolResult);

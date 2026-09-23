@@ -51,8 +51,8 @@ class AssistantIntentRouter
         if (preg_match('/\b(i confirm( the)? (quote|quotation|booking)|confirm the quotation|prepare the (formal )?quotation|yes,? (prepare|send) (the )?quotation)\b/i', $t)) {
             return $this->make(IntentCatalog::RENTAL_CONFIRM, 0.96, true, empty($memoryParams['product']) || ! app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams));
         }
-        if (preg_match('/\b(send (me )?(a )?(quote|quotation)|give me a (quote|quotation)|i need a quote|quotation for)\b/i', $t)) {
-            $ready = ! empty($memoryParams['product']) && app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams);
+        if (preg_match('/\b(quote|quotation)\b/i', $t) && preg_match('/\b(send|give|need|want|prepare|make|get|share)\b/i', $t)) {
+            $ready = ! empty($memoryParams['product']);
 
             return $this->make(IntentCatalog::RENTAL_QUOTE, 0.95, true, ! $ready);
         }

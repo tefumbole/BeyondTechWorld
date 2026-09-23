@@ -31,10 +31,11 @@ class RentalQuoteService
     public function createDraft(array $slots, array $context)
     {
         $range = $this->availability->resolveRange($slots);
-        $query = isset($slots['product']) ? $slots['product'] : (isset($slots['query']) ? $slots['query'] : '');
         if (! $range) {
-            return ['success' => false, 'error' => 'missing_requirements'];
+            $today = date('Y-m-d');
+            $range = ['start' => $today, 'end' => $today, 'days' => 1];
         }
+        $query = isset($slots['product']) ? $slots['product'] : (isset($slots['query']) ? $slots['query'] : '');
         $proposalLines = $this->usableLines($slots, $context);
         $generic = in_array(strtolower(trim((string) $query)), ['sound', 'audio', 'lighting', 'light', 'lights', 'led'], true);
         if ($proposalLines && ($generic || trim((string) $query) === '' || $this->availability->search($query, 1)->isEmpty())) {

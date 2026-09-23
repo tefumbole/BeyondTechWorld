@@ -259,6 +259,10 @@ class BeyondAssistantService
             $slots['product'] = strtolower($m[1]);
             $slots['query'] = strtolower($m[1]);
         }
+        if (preg_match('/\bjbl\s+charge(?:\s*\d+)?(?:\s+bluetooth)?(?:\s+speakers?)?/i', $text, $m)) {
+            $slots['product'] = strtolower(trim($m[0]));
+            $slots['query'] = $slots['product'];
+        }
 
         return $slots;
     }
