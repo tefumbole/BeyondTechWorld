@@ -39,6 +39,14 @@ class AssistantIntentRouter
         if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
+        if (preg_match('/\b(i confirm( the)? (quote|quotation|booking)|confirm the quotation|yes,? book)\b/i', $t)) {
+            return $this->make(IntentCatalog::RENTAL_CONFIRM, 0.96, true, empty($memoryParams['quotation_id']));
+        }
+        if (preg_match('/\b(send (me )?(a )?(quote|quotation)|give me a (quote|quotation)|i need a quote|quotation for)\b/i', $t)) {
+            $ready = ! empty($memoryParams['product']) && app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams);
+
+            return $this->make(IntentCatalog::RENTAL_QUOTE, 0.95, true, ! $ready);
+        }
         if (preg_match('/\b(complaint|terrible|worst|angry|fraud)\b/i', $t)) {
             return $this->make(IntentCatalog::COMPLAINT, 0.86, false, false);
         }
@@ -70,7 +78,8 @@ class AssistantIntentRouter
             $intent = preg_match('/\b(jbl|have you|do you have|available)\b/i', $t)
                 ? IntentCatalog::EQUIPMENT_AVAILABILITY
                 : IntentCatalog::RENTAL_ENQUIRY;
-            $needs = $intent === IntentCatalog::RENTAL_ENQUIRY && empty($memoryParams['event_type']);
+            $dated = app(\App\Services\Rental\RentalAvailabilityService::class)->resolveRange($memoryParams);
+            $needs = $intent === IntentCatalog::RENTAL_ENQUIRY && (empty($memoryParams['product']) || ! $dated);
 
             return $this->make($intent, 0.9, true, $needs);
         }

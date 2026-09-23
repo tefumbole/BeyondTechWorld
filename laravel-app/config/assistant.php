@@ -18,4 +18,6 @@ return [
     'max_replies_per_contact_hour' => max(1, (int) env('AI_MAX_REPLIES_PER_CONTACT_HOUR', 20)),
     'memory_ttl_hours' => max(1, (int) env('AI_MEMORY_TTL_HOURS', 12)),
     'history_limit' => max(2, (int) env('AI_HISTORY_LIMIT', 8)),
+    // Draft quotations above this total are saved but not auto-sent. Staff review them.
+    'rental_auto_quote_max' => (float) env('WHATSAPP_RENTAL_AUTO_QUOTE_MAX', 500000),
 ];

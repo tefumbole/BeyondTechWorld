@@ -31,6 +31,21 @@ class AssistantResponseComposer
             return 'Hello, this is '.$name.'. How can we help you today?';
         }
         if (is_array($toolResult) && empty($toolResult['success']) && isset($toolResult['error'])) {
+            if ($toolResult['error'] === 'unavailable' && isset($toolResult['check'])) {
+                $check = $toolResult['check'];
+                $check['alternatives'] = isset($toolResult['alternatives']) ? $toolResult['alternatives'] : [];
+
+                return $this->availabilityText($check);
+            }
+            if ($toolResult['error'] === 'unpriced') {
+                return 'That item has no daily rental rate in the ERP, so I cannot price it. A team member can confirm the rate. This is not a confirmed booking.';
+            }
+            if ($toolResult['error'] === 'no_quote') {
+                return 'I do not have a draft quotation to confirm yet. Ask me to send a quotation first.';
+            }
+            if ($toolResult['error'] === 'missing_requirements') {
+                return 'I still need the equipment and a date before I can prepare a quotation.';
+            }
             if ($toolResult['error'] === 'not_found') {
                 return 'I could not find that in our records. I can connect you with a team member if you would like.';
             }
@@ -73,12 +88,18 @@ class AssistantResponseComposer
 
     protected function clarify($intent, array $params)
     {
-        if (in_array($intent, [IntentCatalog::RENTAL_ENQUIRY, IntentCatalog::EQUIPMENT_AVAILABILITY, IntentCatalog::PRICE_ENQUIRY], true)) {
-            if (empty($params['event_type'])) {
-                return 'What type of event is this for?';
+        if (in_array($intent, [IntentCatalog::RENTAL_ENQUIRY, IntentCatalog::EQUIPMENT_AVAILABILITY, IntentCatalog::PRICE_ENQUIRY, IntentCatalog::RENTAL_QUOTE, IntentCatalog::RENTAL_CONFIRM], true)) {
+            if (empty($params['product'])) {
+                return 'Which equipment do you need, and how many?';
             }
             if (empty($params['event_date'])) {
                 return 'On which date do you need the equipment?';
+            }
+            if ($intent === IntentCatalog::RENTAL_CONFIRM && empty($params['quotation_id'])) {
+                return 'I do not have a draft quotation to confirm yet. Ask me to send a quotation first.';
+            }
+            if (empty($params['event_type']) && $intent === IntentCatalog::RENTAL_ENQUIRY) {
+                return 'What type of event is this for?';
             }
             if (empty($params['guests'])) {
                 return 'Approximately how many guests are you expecting?';
@@ -110,6 +131,22 @@ class AssistantResponseComposer
             }
 
             return implode("\n\n", $bits);
+        }
+        if (! empty($toolResult['booking_requested'])) {
+            return 'I recorded draft booking '.$toolResult['reference'].' for quotation '.$toolResult['quotation_reference'].'. Staff must approve it before the equipment is reserved. This is not a confirmed booking.';
+        }
+        if (! empty($toolResult['reference']) && isset($toolResult['grand_total'])) {
+            $text = 'Draft quotation '.$toolResult['reference'].' totals '.number_format((float) $toolResult['grand_total'], 0).' using the ERP daily rate for '.$toolResult['days'].' day(s). Staff must review it before it is final. This is not a confirmed booking.';
+            if (! empty($toolResult['pdf_sent'])) {
+                $text .= ' I have sent the PDF.';
+            } elseif (! empty($toolResult['over_cap'])) {
+                $text .= ' The amount is above the automatic send limit, so a team member will review it before a PDF is sent.';
+            }
+
+            return $text;
+        }
+        if (! empty($toolResult['availability_checked'])) {
+            return $this->availabilityText($toolResult);
         }
         if (in_array($intent, [IntentCatalog::EQUIPMENT_AVAILABILITY, IntentCatalog::RENTAL_ENQUIRY, IntentCatalog::PRICE_ENQUIRY], true)) {
             $products = isset($toolResult['products']) ? $toolResult['products'] : [];
@@ -147,6 +184,45 @@ class AssistantResponseComposer
         }
 
         return null;
+    }
+
+    protected function availabilityText(array $toolResult)
+    {
+        if (! empty($toolResult['reason']) && $toolResult['reason'] === 'not_found') {
+            return 'I could not find that item in our rental catalogue. A team member can confirm options for your event. This is not a confirmed booking.';
+        }
+        if (empty($toolResult['availability_checked']) || $toolResult['availability_checked'] !== true && empty($toolResult['name'])) {
+            return null;
+        }
+        $name = isset($toolResult['name']) ? $toolResult['name'] : 'That item';
+        $date = isset($toolResult['start']) ? $toolResult['start'] : 'that date';
+        if (empty($toolResult['availability_checked'])) {
+            return $name.' is in the catalogue. I have not checked that date against bookings. This is not a confirmed booking.';
+        }
+        $qty = isset($toolResult['available_qty']) ? $toolResult['available_qty'] : 0;
+        if (empty($toolResult['available'])) {
+            $text = $name.' is not available on '.$date.'. Available quantity: '.$qty.'.';
+            if (! empty($toolResult['alternatives'])) {
+                $names = [];
+                foreach ($toolResult['alternatives'] as $alt) {
+                    $names[] = $alt['name'];
+                }
+                $text .= ' Available instead: '.implode(', ', $names).'.';
+            }
+            $text .= ' This is not a confirmed booking.';
+
+            return $text;
+        }
+        $text = $name.': '.$qty.' available on '.$date.'.';
+        if (! empty($toolResult['priced'])) {
+            $text .= ' Listed daily rate '.number_format((float) $toolResult['day_rate'], 0).'.';
+        }
+        if (isset($toolResult['estimate_total'])) {
+            $text .= ' Estimate '.number_format((float) $toolResult['estimate_total'], 0).' before staff review.';
+        }
+        $text .= ' This is not a confirmed booking.';
+
+        return $text;
     }
 
     protected function fromModel($intent, $toolResult, array $context, $incoming)

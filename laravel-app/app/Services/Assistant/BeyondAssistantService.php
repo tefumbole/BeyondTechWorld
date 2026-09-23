@@ -4,6 +4,7 @@ namespace App\Services\Assistant;
 
 use App\Assistant\AssistantActivity;
 use App\Assistant\IntentCatalog;
+use App\Services\Rental\RentalAvailabilityService;
 use App\Services\WhatsApp\WhatsAppConversationService;
 use App\WhatsApp\WhatsAppMessage;
 use Illuminate\Support\Facades\Schema;
@@ -110,7 +111,15 @@ class BeyondAssistantService
                     $activity->error = $e->getMessage();
                 }
                 $toolsRun[] = $tool;
-                $this->memory->storeTool($mem, $tool, $toolResult);
+                $this->memory->storeTool($mem, $tool, is_array($toolResult) ? $toolResult : []);
+                if (is_array($toolResult) && ! empty($toolResult['quotation_id'])) {
+                    $slots['quotation_id'] = $toolResult['quotation_id'];
+                    $slots['quotation_reference'] = isset($toolResult['reference']) ? $toolResult['reference'] : null;
+                    $this->memory->remember($mem, $decision['intent'], $slots);
+                }
+                if (is_array($toolResult) && ! empty($toolResult['auto_send']) && ! empty($toolResult['quotation_id'])) {
+                    $toolResult['pdf_sent'] = $this->sendQuotePdf($conversation, $toolResult);
+                }
                 $activity->tools_executed = implode(',', $toolsRun);
                 $activity->tool_status = ! empty($toolResult['success']) ? 'ok' : (isset($toolResult['error']) ? $toolResult['error'] : 'failed');
                 if (empty($toolResult['success']) && in_array($toolResult['error'] ?? '', ['not_found', 'unknown_tool', 'unimplemented_tool'], true)
@@ -132,6 +141,11 @@ class BeyondAssistantService
             if (! $sent) {
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
             }
+        }
+        if (is_array($toolResult) && ! empty($toolResult['over_cap'])) {
+            $this->handover->toHuman($conversation, 'rental_quote_review');
+            $activity->handover_reason = 'rental_quote_review';
+            $activity->status = AssistantActivity::HANDED_OVER;
         }
         $activity->response_preview = mb_substr($reply, 0, 240);
         $activity->sent = $sent;
@@ -171,9 +185,11 @@ class BeyondAssistantService
             IntentCatalog::COMPANY_INFORMATION => 'get_company_information',
             IntentCatalog::SERVICE_ENQUIRY => 'get_services',
             IntentCatalog::GENERAL_ENQUIRY => 'get_services',
-            IntentCatalog::RENTAL_ENQUIRY => 'search_rental_products',
-            IntentCatalog::EQUIPMENT_AVAILABILITY => 'search_rental_products',
-            IntentCatalog::PRICE_ENQUIRY => 'search_rental_products',
+            IntentCatalog::RENTAL_ENQUIRY => $this->rentalTool($slots),
+            IntentCatalog::EQUIPMENT_AVAILABILITY => $this->rentalTool($slots),
+            IntentCatalog::PRICE_ENQUIRY => $this->rentalTool($slots),
+            IntentCatalog::RENTAL_QUOTE => 'create_rental_quotation',
+            IntentCatalog::RENTAL_CONFIRM => 'request_rental_booking',
             IntentCatalog::BOOKING_STATUS => 'get_booking_status',
             IntentCatalog::QUOTATION_REQUEST => 'get_customer_quotations',
             IntentCatalog::INTERNSHIP_TASK => 'get_current_internship_task',
@@ -212,12 +228,55 @@ class BeyondAssistantService
         if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)?\b/i', $text, $m) && (int) $m[1] >= 20) {
             $slots['guests'] = (int) $m[1];
         }
-        if (preg_match('/\b(jbl|yamaha|speaker|speakers|led|lighting|sound)\b/i', $text, $m)) {
+        if (preg_match('/\b(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b/i', $text, $m)) {
+            $slots['event_date'] = strtolower($m[1]);
+        }
+        if (preg_match('/\bin\s+([A-Za-z][A-Za-z]{2,30})\b/', $text, $m)) {
+            $slots['location'] = $m[1];
+        }
+        if (preg_match('/\b(\d{1,3}|one|two|three|four|five|six|eight|ten|twelve)\s+(moving heads?|par lights?|speakers?|led screens?|microphones?|jbl(?:\s+speakers?)?)\b/i', $text, $m)) {
+            $slots['qty'] = $this->qtyWord($m[1]);
+            $slots['product'] = strtolower($m[2]);
+            $slots['query'] = $slots['product'];
+        } elseif (preg_match('/\b(jbl|yamaha|speaker|speakers|led|lighting|sound|microphone|microphones)\b/i', $text, $m)) {
             $slots['product'] = strtolower($m[1]);
             $slots['query'] = strtolower($m[1]);
         }
 
         return $slots;
+    }
+
+    protected function rentalTool(array $slots)
+    {
+        return app(RentalAvailabilityService::class)->resolveRange($slots) ? 'check_rental_availability' : 'search_rental_products';
+    }
+
+    protected function qtyWord($value)
+    {
+        $words = ['one' => 1, 'two' => 2, 'three' => 3, 'four' => 4, 'five' => 5, 'six' => 6, 'eight' => 8, 'ten' => 10, 'twelve' => 12];
+        $key = strtolower((string) $value);
+
+        return isset($words[$key]) ? $words[$key] : max(1, (int) $value);
+    }
+
+    protected function sendQuotePdf($conversation, array $toolResult)
+    {
+        try {
+            $path = app(\App\Http\Controllers\QuotationController::class)->buildQuotationPdf($toolResult['quotation_id']);
+            $name = 'quotation_'.$toolResult['reference'].'.pdf';
+            $send = $this->conversations->sendExistingDocument(
+                $conversation,
+                $path,
+                $name,
+                'Draft quotation '.$toolResult['reference'].'. Staff will review it before it is final.',
+                null,
+                'ASSISTANT'
+            );
+
+            return ! empty($send['success']);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     protected function fingerprint(WhatsAppMessage $message)

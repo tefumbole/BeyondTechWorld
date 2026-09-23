@@ -17,6 +17,9 @@
                 <div class="small mt-2">Mode: {{ $conversation->mode }}</div>
                 <div class="small">Status: {{ $conversation->status }}</div>
                 <div class="small">Assigned: {{ optional($conversation->assignee)->name ?: 'Unassigned' }}</div>
+                @if(!empty($rentalDraft))
+                    <div class="small mt-1">Draft quotation: {{ $rentalDraft }}</div>
+                @endif
                 @if($conversation->isAwaitingStaff())
                     @php
                         $wait = $conversation->waitingMinutes();

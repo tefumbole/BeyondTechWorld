@@ -1,9 +1,41 @@
 # WhatsApp Hub — Implementation Status
 
-PHASE: 3 — Beyond Assistant  
-STATUS: Deployed to production (`eb2a9ac`). Automated suite passing. Live-test, then STOP (no Phase 4).
+PHASE: 4 — Rentals  
+STATUS: Implemented locally. Automated suite passing. Not deployed. Live-test, then STOP (no Phase 5).
 
-Date: 22 September 2026
+Date: 23 September 2026
+
+---
+
+## PHASE 4 — Rentals
+
+Availability, ERP daily pricing, a draft quotation, and a staff-review booking. The assistant does not confirm a booking or invent a price.
+
+### What it does
+
+- A dated equipment question checks `products.qty` and overlapping **pending** booking lines (status 2). Completed lines (status 1) are already removed from qty when the gear leaves, and qty that returns before the requested date is added back.
+- Reply states the available quantity, the listed daily rate, and that it is **not a confirmed booking**.
+- A question with no date still shows the catalogue only, with the date-check disclaimer.
+- “Send me a quotation” creates a real ERP quotation in **Draft** (`quotation_status = 1`) using `rent_price_per_day × quantity × days`. It does not send the signature link.
+- Totals at or under `WHATSAPP_RENTAL_AUTO_QUOTE_MAX` (default 500,000) try to send the existing quotation PDF. Above that, the draft is saved and the chat is handed to staff. No PDF is sent.
+- “I confirm the quotation” creates a **draft** booking (status 5). Draft lines do not hold stock. Staff approve it in the existing booking screen.
+- The conversation sidebar shows the draft quotation reference.
+- Booking reminders stay on `bookings:send-reminders`. Overdue return notices stay on `RentalReturnReminderCron`. Those were not rebuilt.
+
+### Out of scope
+
+Phase 5 internship submission, document OTP, and calendar booking.
+
+### Tests
+
+**59 tests, 218 assertions — OK** (Phase 1 + 2 + 3 + 4).
+
+### Live validation (not run)
+
+1. Enable AI on one thread.
+2. `Do you have 2 JBL speakers available Saturday?` — quantity and rate, not a confirmed booking.
+3. `Send me a quotation` — draft appears in Quotations, and on the phone if it is under the send limit.
+4. `I confirm the quotation` — a draft booking appears. Stock for that date does not drop until staff approve it.
 
 ---
 
@@ -59,7 +91,7 @@ Covered: disabled/HUMAN/PAUSED silence, greeting, services, rental multi-turn me
 
 ### Known limitations
 
-- No Phase 4 availability/pricing/quotation writer.
+- Phase 4 rental availability, draft quotation, and staff-review booking are implemented separately.
 - No Phase 5 internship WhatsApp submission or grading.
 - No Phase 7 document OTP; VERIFIED finance stays refused.
 - No Phase 9 calendar appointments.
@@ -69,15 +101,11 @@ Covered: disabled/HUMAN/PAUSED silence, greeting, services, rental multi-turn me
 
 Rental memory slots (event, date, guests, product) and catalogue search are in place. Do not start availability, pricing engine, auto-quotation, or PDF send until Phase 4 is approved.
 
-### Live validation (after deploy)
+### Live validation
 
-1. Set `WHATSAPP_ASSISTANT_ENABLED=true` in production `.env` (do not put a real key in git).
-2. Optionally set `AI_API_KEY` / `AI_MODEL`.
-3. Hub Settings → enable Beyond Assistant.
-4. Conversation → Enable AI (or default mode AI).
-5. Test: greeting; services; rental; JBL search; booking; intern task; “how much do I owe”; “I paid 500,000 confirm”; “speak with someone”; Take Over; Enable AI; Suggest Reply.
+**PASSED** — 23 September 2026, on `+250794006160` (Alpha Bridge), with Enable AI on that thread.
 
-Do not mark those PASSED until they are actually tested on WhatsApp.
+Greeting, services, wedding speakers follow-up, balance refused, “speak with someone” handover, and Take Over silence were confirmed by the user. Default conversation mode stays HUMAN.
 
 ---
 

@@ -411,7 +411,7 @@ class WhatsAppConversationService
         return $note;
     }
 
-    public function sendExistingDocument(WhatsAppConversation $conversation, $localPath, $fileName, $caption, $userId)
+    public function sendExistingDocument(WhatsAppConversation $conversation, $localPath, $fileName, $caption, $userId, $senderType = 'STAFF')
     {
         $contact = $conversation->contact;
         if (! $contact || ! is_string($localPath) || ! is_file($localPath)) {
@@ -430,7 +430,7 @@ class WhatsAppConversationService
             'type' => 'DOCUMENT',
             'body' => $caption ?: $fileName,
             'status' => WhatsAppMessage::STATUS_QUEUED,
-            'sender_type' => 'STAFF',
+            'sender_type' => $senderType ?: 'STAFF',
             'sender_user_id' => $userId,
             'queued_at' => now(),
             'media_json' => json_encode(['path' => $fileName]),

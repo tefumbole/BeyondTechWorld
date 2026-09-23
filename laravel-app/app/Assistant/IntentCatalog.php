@@ -12,6 +12,8 @@ class IntentCatalog
     const EQUIPMENT_AVAILABILITY = 'EQUIPMENT_AVAILABILITY';
     const PRICE_ENQUIRY = 'PRICE_ENQUIRY';
     const QUOTATION_REQUEST = 'QUOTATION_REQUEST';
+    const RENTAL_QUOTE = 'RENTAL_QUOTE';
+    const RENTAL_CONFIRM = 'RENTAL_CONFIRM';
     const BOOKING_STATUS = 'BOOKING_STATUS';
     const PAYMENT_ENQUIRY = 'PAYMENT_ENQUIRY';
     const BALANCE_ENQUIRY = 'BALANCE_ENQUIRY';
@@ -45,6 +47,8 @@ class IntentCatalog
             self::EQUIPMENT_AVAILABILITY => ['requires_erp' => true, 'sensitivity' => 'PUBLIC'],
             self::PRICE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'PUBLIC'],
             self::QUOTATION_REQUEST => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::RENTAL_QUOTE => ['requires_erp' => true, 'sensitivity' => 'PUBLIC'],
+            self::RENTAL_CONFIRM => ['requires_erp' => true, 'sensitivity' => 'PUBLIC'],
             self::BOOKING_STATUS => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::PAYMENT_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'VERIFIED'],
             self::BALANCE_ENQUIRY => ['requires_erp' => true, 'sensitivity' => 'VERIFIED'],

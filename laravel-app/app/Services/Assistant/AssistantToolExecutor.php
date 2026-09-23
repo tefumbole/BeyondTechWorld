@@ -9,6 +9,8 @@ use App\InternshipTaskAssignment;
 use App\Product;
 use App\Quotation;
 use App\Sale;
+use App\Services\Rental\RentalAvailabilityService;
+use App\Services\Rental\RentalQuoteService;
 use App\WhatsApp\Lead;
 use App\WhatsApp\WhatsAppContact;
 use Illuminate\Support\Facades\Schema;
@@ -94,6 +96,43 @@ class AssistantToolExecutor
         }
 
         return ['success' => true, 'products' => $products, 'availability_checked' => false];
+    }
+
+    protected function toolCheckRentalAvailability(array $params, array $context)
+    {
+        $availability = app(RentalAvailabilityService::class);
+        $range = $availability->resolveRange($params);
+        $query = isset($params['product']) ? $params['product'] : (isset($params['query']) ? $params['query'] : '');
+        if (! $range) {
+            return $this->toolSearchRentalProducts($params, $context);
+        }
+        $products = $availability->search($query, 1);
+        $product = $products->first();
+        if (! $product) {
+            return ['success' => true, 'products' => [], 'availability_checked' => true, 'available' => false, 'reason' => 'not_found'];
+        }
+        $qty = isset($params['qty']) ? (int) $params['qty'] : 1;
+        $check = $availability->assess($product, $qty, $range['start'], $range['end']);
+        $check['days'] = $range['days'];
+        $check['products'] = [$check];
+        if (empty($check['available'])) {
+            $check['alternatives'] = $availability->alternatives($product, $qty, $range['start'], $range['end']);
+        }
+        if (! empty($check['priced']) && ! empty($check['available'])) {
+            $check['estimate_total'] = round($check['day_rate'] * $check['requested_qty'] * $range['days'], 2);
+        }
+
+        return $check;
+    }
+
+    protected function toolCreateRentalQuotation(array $params, array $context)
+    {
+        return app(RentalQuoteService::class)->createDraft($params, $context);
+    }
+
+    protected function toolRequestRentalBooking(array $params, array $context)
+    {
+        return app(RentalQuoteService::class)->requestBooking($params, $context);
     }
 
     protected function toolGetRentalProductInformation(array $params, array $context)
