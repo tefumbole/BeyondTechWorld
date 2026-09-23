@@ -88,9 +88,18 @@ class RentalQuoteService
             $note .= ' Location: '.$slots['location'].'.';
         }
 
+        $defaults = $this->quotationDefaults();
+        if ($defaults['biller_id'] === null && Schema::hasColumn('quotations', 'biller_id')) {
+            return ['success' => false, 'error' => 'no_biller'];
+        }
+        if ($defaults['warehouse_id'] === null && Schema::hasColumn('quotations', 'warehouse_id')) {
+            return ['success' => false, 'error' => 'no_warehouse'];
+        }
         $payload = $this->onlyColumns('quotations', [
             'reference_no' => $reference,
             'user_id' => User::query()->where('role_id', '<=', 2)->value('id'),
+            'biller_id' => $defaults['biller_id'],
+            'warehouse_id' => $defaults['warehouse_id'],
             'customer_id' => $customer->id,
             'item' => 1,
             'total_qty' => $check['requested_qty'],
@@ -285,9 +294,18 @@ class RentalQuoteService
         if (! empty($slots['location'])) {
             $note .= ' Location: '.$slots['location'].'.';
         }
+        $defaults = $this->quotationDefaults();
+        if ($defaults['biller_id'] === null && Schema::hasColumn('quotations', 'biller_id')) {
+            return ['success' => false, 'error' => 'no_biller'];
+        }
+        if ($defaults['warehouse_id'] === null && Schema::hasColumn('quotations', 'warehouse_id')) {
+            return ['success' => false, 'error' => 'no_warehouse'];
+        }
         $payload = $this->onlyColumns('quotations', [
             'reference_no' => 'qr-'.date('Ymd').'-'.date('His').substr(uniqid(), -3),
             'user_id' => User::query()->where('role_id', '<=', 2)->value('id'),
+            'biller_id' => $defaults['biller_id'],
+            'warehouse_id' => $defaults['warehouse_id'],
             'customer_id' => $customer->id,
             'item' => count($stored),
             'total_qty' => $qtySum,
@@ -324,6 +342,28 @@ class RentalQuoteService
         ];
     }
 
+    protected function quotationDefaults()
+    {
+        $billerId = null;
+        $warehouseId = null;
+        if (Schema::hasTable('billers')) {
+            $billers = \App\Biller::query();
+            if (Schema::hasColumn('billers', 'is_active')) {
+                $billers->where('is_active', 1);
+            }
+            $billerId = $billers->value('id');
+        }
+        if (Schema::hasTable('warehouses')) {
+            $warehouses = \App\Warehouse::query();
+            if (Schema::hasColumn('warehouses', 'is_active')) {
+                $warehouses->where('is_active', 1);
+            }
+            $warehouseId = $warehouses->value('id');
+        }
+
+        return ['biller_id' => $billerId, 'warehouse_id' => $warehouseId];
+    }
+
     protected function storeLine($quotationId, Product $product, array $check, $lineTotal)
     {
         if (! Schema::hasTable('product_quotation')) {
@@ -333,7 +373,7 @@ class RentalQuoteService
             'quotation_id' => $quotationId,
             'product_id' => $product->id,
             'qty' => $check['requested_qty'],
-            'sale_unit_id' => 0,
+            'sale_unit_id' => ! empty($product->sale_unit_id) ? $product->sale_unit_id : 0,
             'variant_id' => null,
             'net_unit_price' => isset($check['quote_unit_price']) ? $check['quote_unit_price'] : 0,
             'discount' => 0,
