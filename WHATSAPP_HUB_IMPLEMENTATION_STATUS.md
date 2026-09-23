@@ -1,7 +1,7 @@
 # WhatsApp Hub — Implementation Status
 
 PHASE: 6 — Attendance & Field Operations  
-STATUS: Implemented and covered by automated tests. Live checks A–U are NOT RUN. Do not mark them passed. Stage 7 has not started.
+STATUS: Live validation is in progress and is not closed. Office check-in, checkout, timesheet, corrections, intern check-in, outside geofence, and handover passed on production. Invalid location, stale location, an identical webhook retry, field checkout, and location-coordinate cleanup were not reconfirmed after a fix (`3c3e68e`) because the server stopped accepting SSH. Do not start Stage 7.
 
 Date: 23 September 2026
 
@@ -52,37 +52,54 @@ Permissions: `whatsapp.attendance`, `.view`, `.manage`, `.location`, `.correctio
 
 ### Tests
 
-**100 tests, 475 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
+**101 tests, 483 assertions — OK** (`./vendor/bin/phpunit --filter WhatsApp`).
 
-That run includes Stage 6 and the Stage 1–5 regression. Stage 6 alone is 13 tests, 87 assertions.
+That run includes Stage 6 and the Stage 1–5 regression.
 
-### Live validation
+### Live validation — 23 September 2026
 
-NOT RUN. Do not mark these passed from automated tests.
+Production HEAD at the start of the run was `a7985a0`, then `23635bc`, then `3c3e68e`. Migration `2026_09_23_160000_extend_attendance_for_whatsapp` is batch 196. The queue error log was empty and WaSender was connected. Messages to the controlled staff numbers were sent (`SENT`).
 
-| Check | Result |
-| --- | --- |
-| A Employee check-in | NOT RUN |
-| B Duplicate check-in | NOT RUN |
-| C Status | NOT RUN |
-| D Check-out | NOT RUN |
-| E Timesheet | NOT RUN |
-| F Field job check-in | NOT RUN |
-| G Assignment validation | NOT RUN |
-| H WhatsApp location | NOT RUN |
-| I Geofence | NOT RUN |
-| J Invalid location | NOT RUN |
-| K Stale location | NOT RUN |
-| L Intern check-in | NOT RUN |
-| M Intern schedule | NOT RUN |
-| N My hours | NOT RUN |
-| O Missing checkout | NOT RUN |
-| P Correction request | NOT RUN |
-| Q Supervisor approval | NOT RUN |
-| R Unknown number | NOT RUN |
-| S Rapid duplicate commands | NOT RUN |
-| T Worker retry | NOT RUN |
-| U Human handover | NOT RUN |
+Controlled records, by id only: office user 274 / employee 1 / conversation 3; intern user 284 / enrolment 4; field user 278 / employee 3; event `JOB-9001`; outside fixture employee 4 on `JOB-9002`. No existing attendance rows were present before the run (count was 0).
+
+| Test | Result | Evidence |
+| --- | --- | --- |
+| A Employee check-in | PASS | Attendance 2, source whatsapp, check-in 14:18:38, conversation 3, WhatsApp SENT |
+| B Duplicate check-in | PASS | Still one row for that employee today. Reply: already checked in at 14:18 |
+| C Status | PASS | Reply used attendance 2: Checked In, started 14:18 |
+| D Check-out | PASS | Attendance 2 closed at 14:19:52. Duration 0h 1m |
+| E Timesheet | PASS | Timesheet `7787556a-bd3d-47ae-892c-bc3b45b6b58b`, 0.02 hours, status submitted. Payroll stayed 0 |
+| Server time | PASS | Text said 8:00 AM. Stored check-in is 14:18:38. A later attempt did not open another row |
+| F Field job check-in | PASS | `CHECK IN JOB 9001` asked for a WhatsApp location. No row until a location was accepted |
+| G Assignment validation | PASS | `CHECK IN JOB 0001` was refused. No event name was disclosed. No row |
+| H WhatsApp location | FAIL | The location pin asked which role instead of finishing check-in. Fix is deployed and was not retested |
+| I Geofence inside | PASS | Attendance 6, `LOCATION_VERIFIED`, distance 0 m, radius 150 m. WhatsApp said location verified. Venue coordinates were set on `JOB-9001` only |
+| Outside geofence | PASS | Attendance 5, `LOCATION_REVIEW_REQUIRED`, distance 3214 m, radius 150 m. Reply did not say verified |
+| J Invalid location | FAIL | Reply asked which role. Nothing was recorded, but the error text was wrong. Fix not retested |
+| K Stale location | FAIL | Reply asked which role. Fix not retested |
+| L Intern check-in | PASS | Attendance 4, intern user 284, no employee id. Task 3 stayed `available` |
+| M Intern schedule | PASS | Wednesday start 08:30. Check-in 14:20 stored status 0 |
+| N My hours | PASS | Today and this week came from attendance and the timesheet, including the natural-language question |
+| O Missing checkout | PASS | Open row 1 for 2026-09-22 blocked a new check-in. Checkout stayed empty |
+| P Correction request | PASS | Correction 1 is `PENDING`. Attendance 1 was not changed |
+| Q Supervisor approval | PASS | User 279 was denied. User 1 approved 17:00. Timesheet for that day is 8 hours, status submitted |
+| Unauthorized correction | PASS | User 279 could not change the checkout |
+| R Unknown number | PASS | Handover reply. No attendance and no new user |
+| S Rapid commands | PASS | Four parallel check-ins left one open row. Two overlapping check-ins for employee 2 also left one row |
+| T Worker retry | FAIL | The two posts were not byte-for-byte identical, so the duplicate flag was not proven. Not retested |
+| U Human handover | PASS | Conversation 3 switched to HUMAN. A following CHECK IN got no assistant reply |
+| Natural language | PASS | “I've arrived” mapped to the open session. “I'm leaving” checked out |
+| Multi-role | PASS | CHECK IN asked Employee or Internship and wrote nothing until a role was chosen |
+| Location privacy | PASS | Attendance page shows the location column only for an authorized role. Raw coordinates were not in the page |
+| Location retention | NOT RUN | The cleanup command was not executed. Attendance 6 still has coordinates |
+| Field checkout / event safety | FAIL | Event `JOB-9001` stayed `planning`, but the field session (attendance 6) was not checked out. Fix not retested |
+| Payroll safety | PASS | Payroll count stayed 0. Timesheet status stayed submitted |
+| Stage 5 current task | PASS | Reply named the current enrolment task. Read only |
+| Stage 5 submission | NOT RUN | The live task asks for a practical artifact. Nothing was submitted |
+
+Stage 4 live WhatsApp validation was not repeated in this run. It stays not live-tested. Automated tests are not treated as a live pass.
+
+Stage 6 is not marked completed. Stage 7 has not started.
 
 ### Known limitations
 
