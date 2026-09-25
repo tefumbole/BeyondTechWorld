@@ -27,7 +27,7 @@
             z-index: 1;
             max-width: 1280px;
             margin: 0 auto;
-            padding: 92px 36px 100px;
+            padding: 36px 36px 8px;
         }
         .eu-eyebrow {
             margin: 0;
@@ -236,7 +236,7 @@
             .eu-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
-            .eu-hero-inner { padding: 70px 24px 80px; }
+            .eu-hero-inner { padding: 28px 24px 4px; }
             .eu-hero p { font-size: 16px; }
             .eu-note { padding: 35px 24px 23px; }
             .eu-collection { padding: 0 20px 70px; }
@@ -264,12 +264,6 @@
     <section class="eu-hero">
         <div class="eu-hero-inner">
             <p class="eu-eyebrow">Words that remain with us</p>
-            <h1>Eulogies</h1>
-            <p>Memories, gratitude and farewell words from the people whose lives Pa Ngwayu Nchinda Francis touched.</p>
-            <div class="eu-stats">
-                <strong>{{ $euCount }}</strong>
-                <span>{{ $euCount === 1 ? 'Eulogy written' : 'Eulogies written' }}<br>Submissions closed</span>
-            </div>
         </div>
     </section>
 
