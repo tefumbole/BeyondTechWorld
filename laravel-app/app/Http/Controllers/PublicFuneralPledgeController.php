@@ -80,8 +80,24 @@ class PublicFuneralPledgeController extends Controller
     {
         $this->guardEnabled();
 
+        $fade = public_path('memorial/pangwayu/bio-fade.jpg');
+        $ver = is_file($fade) ? filemtime($fade) : time();
+
         return view('beyond.memorial.biography', [
+            'navActive' => 'biography',
             'bio' => PaNgwayuBiography::data(),
+            'photos' => [asset('public/memorial/pangwayu/bio-fade.jpg').'?v='.$ver],
+        ]);
+    }
+
+    public function gallery()
+    {
+        $this->guardEnabled();
+
+        return view('beyond.memorial.gallery', [
+            'navActive' => 'gallery',
+            'photos' => [$this->pledges->rememberPhotos()[0]],
+            'gallery' => $this->pledges->galleryPhotos(),
         ]);
     }
 

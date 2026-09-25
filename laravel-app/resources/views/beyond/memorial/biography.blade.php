@@ -1,634 +1,143 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
-    <meta name="theme-color" content="#050403">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $bio['meta']['title'] }}</title>
-    <meta name="description" content="{{ $bio['meta']['description'] }}">
-    <meta property="og:title" content="{{ $bio['meta']['title'] }}">
-    <meta property="og:description" content="{{ $bio['meta']['description'] }}">
-    <meta property="og:image" content="{{ \App\Support\PaNgwayuBiography::photoUrl($bio['meta']['og_image']) }}">
-    <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:type" content="article">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --gold: #d4af37;
-            --gold-2: #f0d57a;
-            --ink: #f7f1e4;
-            --muted: #c4b498;
-            --bg: #070604;
-            --paper: #f4eee0;
-            --paper-ink: #1a140c;
-            --card: #12100c;
-        }
-        * { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        html, body { margin: 0; min-height: 100%; }
-        body {
+@extends('beyond.memorial.remember-layout')
+
+@section('title', 'Biography · Late Pa Ngwayu Nchinda Francis')
+
+@section('styles')
+        .bio-block { margin: 0 0 28px; max-width: 40em; }
+        .bio-block h2 {
+            margin: 0 0 12px;
             font-family: "Source Sans Pro", sans-serif;
-            background: var(--bg);
-            color: var(--ink);
-            -webkit-text-size-adjust: 100%;
+            font-size: clamp(22px, 3vw, 28px);
+            font-weight: 700;
+            letter-spacing: 0;
+            color: #fff8e8;
+            line-height: 1.25;
         }
-        a { color: inherit; }
-        img { max-width: 100%; display: block; }
-        .site-head {
-            position: sticky; top: 0; z-index: 30;
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 16px; padding: 14px 22px;
-            background: rgba(7,6,4,.92);
-            border-bottom: 1px solid rgba(212,175,55,.22);
-            backdrop-filter: blur(12px);
+        .bio-block .sub {
+            margin: 0 0 12px;
+            color: var(--muted);
+            font-size: 16px;
         }
-        .brand { text-decoration: none; min-width: 0; }
-        .brand b {
-            display: block; font-family: "Cormorant Garamond", serif;
-            font-size: 18px; letter-spacing: .08em; font-weight: 700;
+        .bio-block p {
+            margin: 0 0 12px;
+            color: #e8dcc0;
+            font-size: 18px;
+            line-height: 1.7;
         }
-        .brand span {
-            display: block; color: var(--gold); font-size: 10px;
-            letter-spacing: .18em; text-transform: uppercase; font-weight: 700;
-        }
-        .top-nav {
-            display: flex; align-items: center; gap: 18px;
-            overflow-x: auto; -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; max-width: min(720px, 58vw);
-        }
-        .top-nav::-webkit-scrollbar { display: none; }
-        .top-nav a {
-            text-decoration: none; white-space: nowrap;
-            font-size: 13px; letter-spacing: .08em; color: #f7f1e4;
-            padding-bottom: 4px;
-        }
-        .top-nav a.on { color: #fff; border-bottom: 2px solid var(--gold); }
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 999px; padding: 12px 20px; font-weight: 700;
-            text-decoration: none; font-family: inherit; font-size: 14px;
-            min-height: 44px; cursor: pointer; border: 1px solid transparent;
-        }
-        .btn-gold { background: linear-gradient(180deg, #f0d57a, #d4af37); color: #1a1408; }
-        .btn-ghost { background: transparent; color: #fff8e8; border-color: rgba(255,248,232,.45); }
-        .btn-dark { background: rgba(8,6,4,.45); color: #fff8e8; border-color: rgba(212,175,55,.45); }
-        .hero {
-            position: relative; min-height: min(88vh, 860px);
-            padding: 28px 28px 40px;
-            overflow: hidden;
-            background:
-                radial-gradient(ellipse at 18% 70%, rgba(212,175,55,.12), transparent 42%),
-                radial-gradient(ellipse at 82% 30%, rgba(232,150,60,.1), transparent 38%),
-                #050403;
-        }
-        .hero-grid {
-            max-width: 1280px; margin: 0 auto;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(280px, .92fr) minmax(0, 1fr);
-            gap: 28px; align-items: stretch;
-            min-height: min(78vh, 740px);
-        }
-        .hero-side { position: relative; min-height: min(72vh, 700px); }
-        .hero-portrait, .hero-companion {
-            position: relative; margin: 0; height: 100%;
-            overflow: hidden; background: #050403;
-        }
-        .hero-portrait img, .hero-companion img {
-            width: 100%; height: 100%;
-            object-fit: cover;
-        }
-        .hero-portrait img { object-position: center 10%; }
-        .hero-companion img { object-position: center 28%; }
-        .hero-portrait::after, .hero-companion::after {
-            content: ""; position: absolute; inset: 0; pointer-events: none;
-            background:
-                linear-gradient(90deg, rgba(5,4,3,.78) 0%, rgba(5,4,3,.12) 22%, transparent 42%, transparent 70%, rgba(5,4,3,.55) 100%),
-                linear-gradient(180deg, rgba(5,4,3,.28) 0%, transparent 18%, transparent 74%, rgba(5,4,3,.72) 100%);
-        }
-        .hero-companion::after {
-            background:
-                linear-gradient(90deg, rgba(5,4,3,.55) 0%, transparent 24%, transparent 72%, rgba(5,4,3,.45) 100%),
-                linear-gradient(180deg, rgba(5,4,3,.18) 0%, transparent 22%, transparent 62%, rgba(5,4,3,.78) 100%);
-        }
-        .hero-copy {
-            text-align: center; padding: 18px 8px;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        .kicker {
-            letter-spacing: .24em; text-transform: uppercase; color: var(--gold);
-            font-size: 12px; font-weight: 700; margin: 0 0 10px;
-        }
-        .hero-copy .kicker {
-            display: flex; align-items: center; justify-content: center; gap: 16px;
-            margin: 0 0 18px; font-size: 11px; letter-spacing: .28em;
-        }
-        .hero-copy .kicker::before, .hero-copy .kicker::after {
-            content: ""; width: 42px; height: 1px; background: var(--gold); opacity: .85;
-        }
-        .hero-copy h1 {
+        .bio-quote {
+            margin: 16px 0 0;
+            padding: 14px 16px;
+            border-left: 3px solid var(--gold);
+            color: var(--gold-2);
             font-family: "Cormorant Garamond", serif;
-            font-size: clamp(38px, 5.4vw, 68px);
-            line-height: 1.02; margin: 0 0 16px; font-weight: 700;
-            letter-spacing: .02em;
+            font-size: 24px;
+            line-height: 1.35;
         }
-        .years-row {
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-            width: min(100%, 360px); margin: 0 0 18px;
+        .bio-quote span {
+            display: block;
+            margin-top: 6px;
+            font-family: "Source Sans Pro", sans-serif;
+            font-size: 13px;
+            letter-spacing: .06em;
+            color: var(--muted);
         }
-        .years-row .line { flex: 1; height: 1px; background: rgba(212,175,55,.7); }
-        .years-row .diamond {
-            width: 7px; height: 7px; background: var(--gold);
-            transform: rotate(45deg); flex: 0 0 7px;
-        }
-        .years {
-            color: var(--gold-2); font-family: "Cormorant Garamond", serif;
-            font-size: clamp(20px, 2.4vw, 26px); margin: 0; letter-spacing: .12em;
-            white-space: nowrap;
-        }
-        .hero-faith {
-            margin: 0 0 22px; color: #f3ead6; font-size: 12px;
-            letter-spacing: .16em; text-transform: uppercase; font-weight: 600;
-        }
-        .hero-quote {
-            font-family: "Cormorant Garamond", serif; font-style: italic;
-            font-size: clamp(20px, 2.5vw, 28px); line-height: 1.4;
-            margin: 0 0 10px; color: #fff8e8; max-width: 28ch;
-        }
-        .hero-attr {
-            color: #d8cba8; font-size: 12px; margin: 0 0 28px;
-            letter-spacing: .1em; text-transform: uppercase;
-        }
-        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-        .subnav {
-            position: sticky; top: 63px; z-index: 20;
-            background: #0a0806; border-top: 1px solid rgba(212,175,55,.16);
-            border-bottom: 1px solid rgba(212,175,55,.16);
-        }
-        .subnav-inner {
-            max-width: 1100px; margin: 0 auto; display: flex; gap: 0;
-            overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-            padding: 0 12px;
-        }
-        .subnav-inner::-webkit-scrollbar { display: none; }
-        .subnav a {
-            flex: 0 0 auto; text-decoration: none; color: #e8dcc0;
-            padding: 12px 14px; font-size: 13px; letter-spacing: .06em;
-            text-transform: uppercase; font-weight: 700; white-space: nowrap;
-        }
-        .subnav a + a { border-left: 1px solid rgba(255,248,232,.12); }
-        .band { padding: 72px 20px; }
-        .band-cream { background: var(--paper); color: var(--paper-ink); }
-        .band-dark { background: #0b0907; color: var(--ink); }
-        .band-char { background: #11100d; color: var(--ink); }
-        .wrap { max-width: 1120px; margin: 0 auto; }
-        .read {
-            max-width: 820px; margin: 0 auto;
-            font-size: clamp(17px, 2.1vw, 20px); line-height: 1.8;
-        }
-        .band-cream .read { color: #2a2218; }
-        .read p { margin: 0 0 1.1em; }
-        .read p:last-child { margin-bottom: 0; }
-        .section-head { max-width: 820px; margin: 0 auto 28px; }
-        .band-cream .kicker, .band-cream .years { color: #8a6d1a; }
-        .band-cream h2, .cream-title {
-            font-family: "Cormorant Garamond", serif;
-            font-size: clamp(32px, 5vw, 52px); line-height: 1.08; margin: 0 0 8px;
-            color: #14100a;
-        }
-        h2 {
-            font-family: "Cormorant Garamond", serif;
-            font-size: clamp(32px, 5vw, 52px); line-height: 1.08; margin: 0 0 8px;
-        }
-        .sub { margin: 0; color: inherit; opacity: .78; font-size: 17px; }
-        .split {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start;
-        }
-        .split.reverse { direction: rtl; }
-        .split.reverse > * { direction: ltr; }
-        .photo-frame {
-            border-radius: 18px; overflow: hidden;
-            box-shadow: 0 18px 40px rgba(0,0,0,.18);
-            background: #0d0a08;
-        }
-        .band-cream .photo-frame { background: #ebe4d4; }
-        .photo-frame img {
-            width: 100%;
-            height: auto;
-            max-height: min(820px, 92vh);
-            object-fit: contain;
-            object-position: center top;
-            vertical-align: top;
-        }
-        .photo-cap { margin: 8px 2px 0; font-size: 13px; color: #6b5410; }
-        .band-dark .photo-cap, .band-char .photo-cap { color: var(--muted); }
-        .quote-band {
-            padding: 64px 20px; text-align: center;
-            background: linear-gradient(180deg, #100c08, #0a0806);
-        }
-        .quote-band q {
-            display: block; max-width: 820px; margin: 0 auto 12px;
-            font-family: "Cormorant Garamond", serif; font-style: italic;
-            font-size: clamp(26px, 4vw, 40px); line-height: 1.35; color: #fff8e8;
-        }
-        .quote-band q::before, .quote-band q::after { color: var(--gold); }
-        .quote-inline {
-            margin: 28px auto; max-width: 720px; padding: 22px 8px;
-            border-top: 1px solid rgba(212,175,55,.28);
-            border-bottom: 1px solid rgba(212,175,55,.28);
-            text-align: center;
-        }
-        .quote-inline q {
-            display: block; font-family: "Cormorant Garamond", serif; font-style: italic;
-            font-size: clamp(22px, 3vw, 30px); line-height: 1.4;
-        }
-        .attr { display: block; margin-top: 10px; color: var(--gold); letter-spacing: .08em; font-size: 12px; text-transform: uppercase; }
-        .band-cream .attr { color: #8a6d1a; }
-        .note {
-            margin-top: 18px; padding: 12px 14px; border: 1px dashed #c2a45a;
-            border-radius: 12px; font-size: 14px; color: #6b5410; background: rgba(212,175,55,.08);
-        }
-        .band-dark .note, .band-char .note { color: var(--muted); border-color: rgba(212,175,55,.35); }
-        .timeline { display: grid; gap: 0; max-width: 760px; margin: 28px auto 0; }
-        .t-item { display: grid; grid-template-columns: 120px 28px 1fr; gap: 16px; }
-        .t-year {
-            font-family: "Cormorant Garamond", serif; font-size: 22px; color: var(--gold-2);
-            text-align: right; padding-top: 4px;
-        }
-        .t-line { position: relative; }
-        .t-line:before {
-            content: ""; position: absolute; left: 12px; top: 0; bottom: 0; width: 1px;
-            background: linear-gradient(#d4af37, rgba(212,175,55,.15));
-        }
-        .t-item:last-child .t-line:before { bottom: 18px; }
-        .t-line:after {
-            content: ""; position: absolute; left: 6px; top: 10px; width: 13px; height: 13px;
-            border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(212,175,55,.15);
-        }
-        .t-body { padding: 0 0 32px; }
-        .t-body h3 { margin: 4px 0 6px; font-family: "Cormorant Garamond", serif; font-size: 24px; }
-        .t-body p { margin: 0; color: #ddd2b8; line-height: 1.65; }
-        .values-grid {
-            display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; align-items: center;
-        }
-        .v-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
-        .v-item { padding: 8px 0 10px; border-bottom: 1px solid rgba(212,175,55,.18); }
-        .v-item b { display: block; font-family: "Cormorant Garamond", serif; font-size: 22px; }
-        .v-item span { color: var(--muted); font-size: 13px; }
-        .masonry {
-            columns: 3; column-gap: 14px; margin-top: 28px;
-        }
-        .masonry a {
-            break-inside: avoid; display: block; margin: 0 0 14px;
-            border-radius: 14px; overflow: hidden; text-decoration: none;
-            border: 1px solid rgba(212,175,55,.18);
-        }
-        .masonry img { width: 100%; height: auto; }
-        .masonry span {
-            display: block; padding: 8px 10px 10px; color: #d8cba8; font-size: 13px;
-            background: #14100c;
-        }
-        .legacy { text-align: center; }
-        .legacy .read { text-align: left; }
-        .legacy .hero-actions { margin-top: 28px; }
-        .closing { text-align: center; padding: 80px 20px 96px; }
-        .closing h2 { margin-bottom: 6px; }
-        .closing p { margin: 6px 0; font-family: "Cormorant Garamond", serif; font-size: 22px; color: #efe4c4; }
-        .foot { text-align: center; color: #8a7b62; font-size: 13px; padding: 0 16px 28px; }
-        .lightbox {
-            display: none; position: fixed; inset: 0; z-index: 50;
-            background: rgba(4,3,2,.88); padding: 18px;
-            align-items: center; justify-content: center;
-        }
-        .lightbox.on { display: flex; }
-        .lightbox figure { margin: 0; max-width: min(960px, 100%); text-align: center; }
-        .lightbox img { max-height: 78vh; width: auto; margin: 0 auto; border-radius: 10px; }
-        .lightbox figcaption { color: #f3ead6; margin-top: 12px; font-size: 15px; }
-        .lightbox button {
-            position: absolute; top: 14px; right: 14px; width: 42px; height: 42px;
-            border-radius: 50%; border: 1px solid rgba(212,175,55,.35);
-            background: rgba(8,6,4,.7); color: #fff8e8; font-size: 22px; cursor: pointer;
-        }
-        @media (max-width: 980px) {
-            .hero-grid { grid-template-columns: 1fr; gap: 22px; min-height: 0; }
-            .hero-side { min-height: min(64vh, 560px); }
-            .split, .split.reverse, .values-grid { grid-template-columns: 1fr; }
-            .masonry { columns: 2; }
-            .top-nav { max-width: none; }
-            .site-head { flex-wrap: wrap; }
-        }
-        @media (max-width: 640px) {
-            .band { padding: 48px 16px; }
-            .t-item { grid-template-columns: 86px 22px 1fr; gap: 10px; }
-            .t-year { font-size: 16px; }
-            .masonry { columns: 1; }
-            .v-list { grid-template-columns: 1fr; }
-            .hero { min-height: auto; padding: 16px 14px 28px; }
-            .hero-side { min-height: min(58vh, 480px); }
-            .subnav { top: 108px; }
-        }
-    </style>
-</head>
-<body>
-@php
-    $photo = function ($path) { return \App\Support\PaNgwayuBiography::photoUrl($path); };
-    $remember = route('funeral.pangwayu.remember');
-    $share = $remember.'?memory=1';
-    $tributes = $remember.'#eulogies';
-@endphp
+@endsection
 
-<header class="site-head">
-    <a class="brand" href="{{ $remember }}">
-        <b>PA NGWAYU FRANCIS</b>
-        <span>A life well lived</span>
-    </a>
-    <nav class="top-nav" aria-label="Memorial">
-        <a href="{{ $remember }}">Home</a>
-        <a class="on" href="{{ route('funeral.pangwayu.biography') }}">Biography</a>
-        <a href="#gallery">Life in Pictures</a>
-        <a href="{{ $tributes }}">Tributes</a>
-        <a href="{{ $tributes }}">Eulogies</a>
-        <a href="{{ route('funeral.pangwayu.program') }}">Funeral Programme</a>
-    </nav>
-    <a class="btn btn-gold" href="{{ $share }}">Share a Memory</a>
-</header>
+@section('content')
+    <header class="bio-block">
+        <p class="kicker">In loving memory</p>
+        <h1>Late Pa Ngwayu Nchinda Francis</h1>
+        <p class="meta">The biography of “Wisest Ngwayu”</p>
+        <p class="lead">Fondly called “Ageyi,” “Ba Timende,” “Wisest” and by the wide circle of friends, siblings, children, grandchildren, nieces, nephews, and mentees who sought his counsel and company, Pa Ngwayu Nchinda Francis lived seventy-three years marked by discipline, faith, generosity, and an unmistakable devotion to family. To the nation he served, he was a decorated officer of the Cameroon Prisons Administration, honoured for a career built on order, integrity, and quiet excellence. To his household and to everyone who ever called him for advice and regarded him as a father, he was something even greater: a wellspring of wisdom, warmth, and unwavering love, a man whose words seemed to arrive exactly when they were needed most.</p>
+    </header>
 
-<section class="hero">
-    <div class="hero-grid">
-        <div class="hero-side">
-            <figure class="hero-portrait">
-                <img src="{{ $photo($bio['hero']['portrait']) }}" alt="{{ $bio['hero']['portrait_alt'] }}">
-            </figure>
-        </div>
-        <div class="hero-copy">
-            <p class="kicker">{{ $bio['hero']['kicker'] }}</p>
-            <h1>{{ $bio['hero']['name'] }}</h1>
-            <div class="years-row">
-                <span class="line"></span>
-                <span class="diamond" aria-hidden="true"></span>
-                <p class="years">{{ $bio['hero']['years'] }}</p>
-                <span class="diamond" aria-hidden="true"></span>
-                <span class="line"></span>
-            </div>
-            <p class="hero-faith">{{ $bio['hero']['faith_line'] }}</p>
-            <p class="hero-quote">“{{ $bio['hero']['quote'] }}”</p>
-            <p class="hero-attr">{{ $bio['hero']['quote_attr'] }}</p>
-            <div class="hero-actions">
-                <a class="btn btn-gold" href="#story">Read His Story ↓</a>
-                <a class="btn btn-ghost" href="{{ $share }}">Share a Memory</a>
-            </div>
-        </div>
-        <div class="hero-side">
-            <figure class="hero-companion">
-                <img src="{{ $photo($bio['hero']['companion']) }}" alt="{{ $bio['hero']['companion_alt'] }}">
-            </figure>
-        </div>
-    </div>
-</section>
+    <article class="bio-block">
+        <h2>Early Life</h2>
+        <p>Pa Ngwayu Nchinda Francis was born on July 5, 1953, in Lang Kevu Oku, Bui Division of the North West Region to Pa Ngwayu wan Kefih and Timende Rose wan Taatah, both of blessed memory.</p>
+    </article>
 
-<nav class="subnav" aria-label="Biography sections">
-    <div class="subnav-inner">
-        @foreach($bio['nav'] as $item)
-            <a href="{{ $item['id'] === 'tributes' ? $tributes : '#'.$item['id'] }}">{{ $item['label'] }}</a>
-        @endforeach
-    </div>
-</nav>
+    <article class="bio-block">
+        <h2>Academic Journey &amp; Educational Achievements</h2>
+        <p>Pa Ngwayu Francis Nchinda’s pursuit of knowledge was defined by determination and a commitment to lifelong learning. His formal education began at the Cameroon Baptist Mission School (CBM), today CBC Primary School Kevu, Oku, where he earned his First School Leaving Certificate in June 1967.</p>
+        <p>He did a 3-month intensive course as a short-hand typist in Bamenda at Progressive Typing Institute, owned by late Pa Yong Francis (which today would be called documentation) in 1969.</p>
+        <p>Driven to advance his studies, without the benefit of formal classroom instruction, he undertook the rigorous task of self-study, mastering the curriculum independently to write and pass his London GCE Ordinary Level in April 1977 and his GCE Advanced Level examination in July 1978 (first batch of the Cameroon GCE).</p>
+        <p>This extraordinary display of discipline opened the doors to the University of Yaoundé in 1978, where he formally enrolled to study Law, solidifying his legal acumen and expanding his intellectual horizons.</p>
+        <p>However, his path shifted when he chose to pursue specialized professional training in prison administration. He earned his Diploma of Prison Superintendents from the National Prison Training School (CNFRAP) in Buea in July 1980, and completed an extension program at ENAM Yaoundé from September 1980 to June 1981. Demonstrating an ongoing dedication to professional growth, he later earned a Diploma of Prison Administrators from the National Prison School (ENAP) in Buea in December 1997.</p>
+        <p>Even after completing his distinguished public service career, his intellectual drive remained vibrant; in March 2015, he achieved a Postgraduate Diploma in Business Administration from the MIT School of Distance Education in Pune, India. This achievement marked the fulfillment of a deeply held personal dream — to proudly earn and bear the title of Master degree holder, Ngwayu Francis, MA, reflecting a lifetime dream by determination, resilience, and an unwavering love for learning.</p>
+    </article>
 
-<section class="band band-cream" id="intro">
-    <div class="wrap">
-        <div class="split">
-            <div>
-                <p class="kicker">{{ $bio['intro']['kicker'] }}</p>
-                <h2>{{ $bio['intro']['title'] }}</h2>
-                <div class="read">
-                    @foreach($bio['intro']['paragraphs'] as $p)
-                        <p>{{ $p }}</p>
-                    @endforeach
-                </div>
-                <p style="margin-top:22px;"><a class="btn btn-gold" href="#story">Read His Full Biography</a></p>
-            </div>
-            <div>
-                <div class="quote-inline">
-                    <q>{{ $bio['intro']['quote'] }}</q>
-                    <span class="attr">{{ $bio['intro']['quote_attr'] }}</span>
-                </div>
-                <figure class="photo-frame">
-                    <img src="{{ $photo($bio['intro']['image']) }}" alt="{{ $bio['intro']['image_caption'] }}" loading="lazy">
-                </figure>
-                <p class="photo-cap">{{ $bio['intro']['image_caption'] }}</p>
-            </div>
-        </div>
-    </div>
-</section>
+    <article class="bio-block">
+        <h2>Distinction &amp; Professional Career</h2>
+        <p>In 1968, at a time when opportunities were scarce and the road ahead was uncertain, he made a courageous move to Buea, seeking a better future and willing to begin from the very bottom. He took up work as a houseboy, embracing the humble assignment not as a reflection of his worth, but as an opportunity to learn, grow, and build a life of dignity.</p>
+        <p>In 1969, after completion of a 3-month intensive training at Progressive Typing Institute, he was appointed as an instructor at the same Institute in Bamenda.</p>
+        <p>In 1970, he was employed to serve as a Secretary-Typist at Lawyer Layo’s Chambers in Bamenda. There, he continued to distinguish himself through professionalism, accuracy, commitment, and an unwavering sense of responsibility.</p>
+        <p>Four years later, in 1974, another chapter of his professional journey began when he joined the Baptist Centre, Bamenda, as a Secretary-Typist. His career was steadily taking shape, but more importantly, he was establishing a reputation as a dependable, disciplined, and capable worker.</p>
+        <p>Then, in 1977, his professional journey took yet another significant step forward. He moved into public service, joining the Ministry of Territorial Administration as a Secretary-Typist. This marked an important milestone in a journey that had begun nine years earlier in the most humble of circumstances.</p>
+        <p>Ngwayu Francis Nchinda built an exemplary, decades-long career as a high-ranking Prison Administrator across Cameroon. His leadership journey spanned numerous key posts. Due to his outstanding performance in the training school, he was posted as Régisseur at Principal Prison Poli (1982–1983) exceptionally.</p>
+        <p>Over the course of his distinguished public service, he held major managerial and operational leadership roles, serving as Chargé de Discipline and Chief of Service at Central Prisons in Bamenda, Yaoundé, Bafoussam, and Douala. His administrative expertise was also recognized at the national policy level, serving as an Office Operative under the Director of Prisons at the MINAT ministry headquarters from 1987 to 1990.</p>
+        <p>He commanded several detention facilities as Régisseur (Head of Establishment), leading Principal Prisons in Mbouda, Mbengwi, Kaélé, and Wum, as well as Central Prison Bafoussam with the rank of Assistant Director.</p>
+        <p>Beyond prison administration, he served as an Instructor at ENAP Buea from 1999 to 2001, imparting his knowledge by teaching Administrative Writing and Penitentiary Text to the next generation of officers.</p>
+        <p>Throughout his career, he remained deeply dedicated to staff discipline, maintenance of order, and the socio-cultural education and rehabilitation of inmates. In recognition of his honorable service to the nation, he was decorated with national honors, including the Knight of the Order of Merit and the Médaille de Vaillance, before his official retirement in July 2008.</p>
+        <p>Due to his resourcefulness, he was coopted to serve as the chairman of the tenders’ board of the Elak Council, Oku. A post he handled diligently and faithfully from 2016 to 2019.</p>
+    </article>
 
-@foreach($bio['sections'] as $i => $section)
-    @php
-        $dark = $i % 2 === 1;
-        $band = $dark ? 'band-dark' : 'band-cream';
-        $hasImage = !empty($section['image']);
-        $layout = $section['layout'] ?? 'prose';
-    @endphp
-    <section class="band {{ $band }}" id="{{ $section['id'] }}">
-        <div class="wrap">
-            @if($hasImage && strpos($layout, 'split') === 0)
-                <div class="split {{ $layout === 'split-image-left' ? '' : 'reverse' }}">
-                    <figure>
-                        <div class="photo-frame">
-                            <img src="{{ $photo($section['image']) }}" alt="{{ $section['image_caption'] ?? $section['title'] }}" loading="lazy">
-                        </div>
-                        @if(!empty($section['image_caption']))
-                            <p class="photo-cap">{{ $section['image_caption'] }}</p>
-                        @endif
-                    </figure>
-                    <div>
-                        <div class="section-head" style="margin-left:0;margin-right:0;">
-                            <p class="kicker">{{ $section['kicker'] }}</p>
-                            <h2>{{ $section['title'] }}</h2>
-                            @if(!empty($section['subtitle']))
-                                <p class="sub">{{ $section['subtitle'] }}</p>
-                            @endif
-                        </div>
-                        <div class="read" style="margin:0;">
-                            @foreach($section['paragraphs'] as $p)
-                                <p>{{ $p }}</p>
-                            @endforeach
-                        </div>
-                        @if(!empty($section['placeholder']) && !empty($section['placeholder_note']))
-                            <p class="note">{{ $section['placeholder_note'] }}</p>
-                        @endif
-                    </div>
-                </div>
-            @else
-                <div class="section-head">
-                    <p class="kicker">{{ $section['kicker'] }}</p>
-                    <h2>{{ $section['title'] }}</h2>
-                    @if(!empty($section['subtitle']))
-                        <p class="sub">{{ $section['subtitle'] }}</p>
-                    @endif
-                </div>
-                <div class="read">
-                    @foreach($section['paragraphs'] as $p)
-                        <p>{{ $p }}</p>
-                    @endforeach
-                </div>
-                @if(!empty($section['placeholder']) && !empty($section['placeholder_note']))
-                    <p class="note read">{{ $section['placeholder_note'] }}</p>
-                @endif
-                @if($hasImage)
-                    <figure class="photo-frame" style="max-width:720px;margin:28px auto 0;">
-                        <img src="{{ $photo($section['image']) }}" alt="{{ $section['image_caption'] ?? $section['title'] }}" loading="lazy">
-                    </figure>
-                    @if(!empty($section['image_caption']))
-                        <p class="photo-cap" style="text-align:center;">{{ $section['image_caption'] }}</p>
-                    @endif
-                @endif
-            @endif
-        </div>
-    </section>
-    @if(!empty($section['quote']))
-        <section class="quote-band" aria-label="Quotation">
-            <q>{{ $section['quote'] }}</q>
-            @if(!empty($section['quote_attr']))
-                <span class="attr">{{ $section['quote_attr'] }}</span>
-            @endif
-        </section>
-    @endif
-@endforeach
+    <article class="bio-block">
+        <h2>A Gifted Hand and a Resourceful Soul</h2>
+        <p>Beyond his professional career, he was a man blessed with remarkably gifted hands and an extraordinary ability to solve problems. Without receiving formal training, he developed remarkable skills in plumbing, electrical works, building, tiling, wood carving, and mechanics.</p>
+        <p>He was the kind of man who could look at a technical fault and, through patience, wisdom, and practical ingenuity, find a way to fix it. Where others saw a difficult problem, he saw a challenge that could be overcome. His hands were always ready to build, repair, improve, and restore.</p>
+        <p>These abilities were more than mere skills — they were a reflection of his character: resourceful, hardworking, curious, determined, and always willing to help. He did not need a classroom to teach him everything; life itself became his workshop, and experience became his teacher.</p>
+        <p>Through his hands, many things were repaired; through his wisdom, many problems were solved; and through his willingness to help, many lives were touched.</p>
+    </article>
 
-@if(!empty($bio['timeline']['events']))
-<section class="band band-char" id="timeline">
-    <div class="wrap">
-        <div class="section-head">
-            <p class="kicker">{{ $bio['timeline']['kicker'] }}</p>
-            <h2>{{ $bio['timeline']['title'] }}</h2>
-            <p class="sub">{{ $bio['timeline']['subtitle'] }}</p>
-        </div>
-        <div class="timeline">
-            @foreach($bio['timeline']['events'] as $event)
-                <article class="t-item">
-                    <div class="t-year">{{ $event['year'] }}</div>
-                    <div class="t-line" aria-hidden="true"></div>
-                    <div class="t-body">
-                        <h3>{{ $event['title'] }}</h3>
-                        <p>{{ $event['text'] }}</p>
-                    </div>
-                </article>
-            @endforeach
-        </div>
-    </div>
-</section>
-@endif
+    <article class="bio-block">
+        <h2>A Life of Generosity</h2>
+        <p>He lived a life marked by generosity, compassion, and selfless service to others. His kindness extended far beyond his immediate family, as he quietly paid school fees and supported the education of many people who might otherwise have struggled to continue their studies.</p>
+        <p>For him, giving was never a burden or an obligation — it was a joy. He was always ready to lend a helping hand, and nothing made him happier than knowing that his support had brought hope, relief, or a better opportunity to someone else. Through his generosity, he invested not only in people’s needs, but also in their dreams and futures.</p>
+    </article>
 
-<section class="band band-cream" id="values">
-    <div class="wrap values-grid">
-        <figure>
-            <div class="photo-frame">
-                <img src="{{ $photo($bio['values']['image']) }}" alt="{{ $bio['values']['image_caption'] }}" loading="lazy">
-            </div>
-            <p class="photo-cap">{{ $bio['values']['image_caption'] }}</p>
-        </figure>
-        <div>
-            <p class="kicker">{{ $bio['values']['kicker'] }}</p>
-            <h2 class="cream-title">{{ $bio['values']['title'] }}</h2>
-            <div class="v-list">
-                @foreach($bio['values']['items'] as $value)
-                    <div class="v-item">
-                        <b>{{ $value['name'] }}</b>
-                        <span>{{ $value['note'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
-</section>
+    <article class="bio-block">
+        <h2>A Spirit of Enterprise and Resourcefulness</h2>
+        <p>Beyond his professional life, he was a man of remarkable entrepreneurial spirit, resourcefulness, and vision. After obtaining his First School Leaving Certificate in 1967, he ventured into business alongside his cousin, Mr. Yow Henry, now retired Superintendent of Prisons, buying palm kernels from Babungo and transporting them to Oku for sale. This early venture revealed the determination, courage, and business instinct that would characterize his life.</p>
+        <p>His entrepreneurial journey continued through poultry farming, goat and sheep rearing, and his involvement as a shareholder in Gap Bridge Enterprise, an initiative established with the vision of helping bridge food shortages in prisons.</p>
+        <p>Following his retirement, he turned his attention to real estate, investing wisely and building assets that reflected his foresight and commitment to securing a lasting legacy.</p>
+    </article>
 
-<section class="band band-dark" id="gallery">
-    <div class="wrap">
-        <div class="section-head">
-            <p class="kicker">{{ $bio['gallery']['kicker'] }}</p>
-            <h2>{{ $bio['gallery']['title'] }}</h2>
-            <p class="sub">{{ $bio['gallery']['subtitle'] }}</p>
-        </div>
-        <div class="masonry">
-            @foreach($bio['gallery']['items'] as $item)
-                <a href="{{ $photo($item['src']) }}" data-caption="{{ $item['caption'] }}" data-year="{{ $item['year'] }}">
-                    <img src="{{ $photo($item['src']) }}" alt="{{ $item['caption'] }}" loading="lazy">
-                    <span>{{ $item['caption'] }}@if($item['year']) · {{ $item['year'] }}@endif</span>
-                </a>
-            @endforeach
-        </div>
-    </div>
-</section>
+    <article class="bio-block">
+        <h2>“Wisest” — A Father, Mentor and Friend to a Generation</h2>
+        <p>Long before it became his most enduring nickname, Pa had already earned the title “Wisest” many times over. It was not a name he gave himself; it was one his children and their cousins settled on him because no conversation with him ever ended without a person leaving a little wiser, a little calmer, or a little more hopeful than they came.</p>
+        <p>He handed out nicknames the way other men hand out advice: “Big V,” “Shiam-san,” “Baby-brother,” “Wan se meh,” “Biggeh,” “Chop-chair,” “Namee,” “Constant Victory,” “Baam,” “Alexie,” “Zee,” “Lexie,” “Take care of you,” “Son of Adam,” “KEB-U-H,” “wan,” “Noh Baaba,” “Doctor,” “Wain wom,” “Bread treasurer,” and others — a way of telling a child exactly how much they mattered to him.</p>
+        <p>He met bad news with prayer and crying, good news with dancing and crying, and ordinary days with a joke, and in doing so, he taught an entire generation of children, grandchildren, nieces, and nephews what it looks like to walk through life unafraid, unhurried, and full of faith.</p>
+    </article>
 
-<section class="band band-cream legacy" id="legacy-close">
-    <div class="wrap">
-        <p class="kicker">{{ $bio['legacy_close']['kicker'] }}</p>
-        <h2 class="cream-title">{{ $bio['legacy_close']['title'] }}</h2>
-        <div class="read">
-            @foreach($bio['legacy_close']['paragraphs'] as $p)
-                <p>{{ $p }}</p>
-            @endforeach
-        </div>
-        <div class="hero-actions">
-            <a class="btn btn-gold" href="{{ $tributes }}">Read Tributes</a>
-            <a class="btn btn-dark" href="{{ $share }}" style="color:#1a1408;border-color:#8a6d1a;">Share Your Memory</a>
-        </div>
-    </div>
-</section>
+    <article class="bio-block">
+        <h2>Family Life</h2>
+        <p>In 1982, he entered into holy matrimony with Miss Nteff Margaret Bih. Their union was blessed with two daughters. Though the marriage ultimately ended ten years later (1992), his love and devotion to his children remained steadfast. Tragically, in April 2023, he endured the profound heartbreak of losing his firstborn daughter, who is survived by her beloved husband, Mr. Alex Ndi, and their two beautiful daughters, Zoe Ndi and Lexi Ndi.</p>
+        <p>Following a period of nine years of singlehood, he found love once again and was united in marriage with Miss Nsakse Mercy Nyuylai in 2001. Together, they built a loving, enduring home and were blessed with two children. She remained his faithful companion and dedicated partner throughout the rest of his life’s journey.</p>
+        <p>His home was never a small or quiet one. It was, by every account, the family compound, and a household where siblings, nieces, nephews, cousins, and mentees came and went as freely as his own children, all of them under his watchful, affectionate eye, all of them calling him, one way or another, “Pa.” Worth noting is that he served as the Family Head of the entire Ngwayu’s Family.</p>
+    </article>
 
-<section class="closing">
-    <p class="kicker">In loving memory</p>
-    <h2>{{ $bio['closing']['name'] }}</h2>
-    <p class="years">{{ $bio['closing']['years'] }}</p>
-    @foreach($bio['closing']['lines'] as $line)
-        <p>{{ $line }}</p>
-    @endforeach
-</section>
+    <article class="bio-block">
+        <h2>His Christian Life and Faith</h2>
+        <p>He was baptized on May 7, 1967, at CBC Kevu by Rev. Bah Noah, marking the beginning of a lifelong walk with Christ.</p>
+        <p>He was among the founding youth leaders of Nkwen Baptist Church, where he played an important role in nurturing the faith and fellowship of young believers. He remained an active “iron” in the men’s group CBCMF of Nkwen Baptist Church. His commitment to the work of God extended beyond the walls of the church. He generously supported gospel crusades and student pastors in training, contributing quietly but meaningfully to the spread of the Gospel.</p>
+        <p>From around the year 2000, his consciousness of eternity became especially evident. He lived with a deep awareness that life on earth is temporary and that his ultimate destination was eternity with God. This conviction shaped his character, his relationships, and the way he served others.</p>
+        <p>He did not only support the preaching of the Gospel; he personally shared the Good News, particularly with people of his own age bracket. He spoke about Christ with sincerity, seeking to encourage others to know God and prepare their hearts for eternity.</p>
+        <p>His faith was therefore not merely something he professed — it was a life he lived, through his service, generosity, encouragement, and personal witness. He lived conscious of eternity, served God faithfully, and finished his race with the hope of meeting his Saviour.</p>
+        <p class="bio-quote">“I have fought the good fight, I have finished the race, I have kept the faith.”<span>2 Timothy 4:7</span></p>
+    </article>
 
-<p class="foot">Developed By: Sr. Engr. Tefu R. Mbole |
-    <a href="https://wa.me/237675321739" target="_blank" rel="noopener">+237 675-321-739</a>
-</p>
+    <article class="bio-block">
+        <h2>His Final Journey</h2>
+        <p>It all began in May 2026, when a noticeable loss of weight raised concerns about his health. He underwent several medical examinations at Baptist Hospital Nkwen, but the results were inconclusive. He was subsequently referred to Mbingo Baptist Hospital for a CT scan, which revealed a mass in his pancreas.</p>
+        <p>He commenced chemotherapy and, after about five sessions, his condition improved considerably. For approximately six weeks, he regained his strength and was up and about, giving the family renewed hope, as he would tell everyone who came around that the prayer point should be that of thanksgiving rather than praying for healing, as he was healed. He was already mobilizing the family for a thanksgiving service in church for his healing.</p>
+        <p>However, on Friday, August 14, 2026, his condition suddenly took a turn for the worse. He began experiencing persistent vomiting and loss of appetite. These symptoms continued through the weekend until the early hours of Monday, August 17, 2026, when he was rushed to Baptist Hospital Nkwen at about 4:30 a.m.</p>
+        <p>He was attended to at the emergency unit and later admitted to the ward, as his condition was initially not considered very serious. Sadly, at about 11:00 a.m. that morning, he peacefully rested in the Lord.</p>
+        <p>Worth noting that he had his first hospitalization at 73.</p>
+    </article>
 
-<div class="lightbox" id="lightbox" aria-hidden="true">
-    <button type="button" id="lightboxClose" aria-label="Close">&times;</button>
-    <figure>
-        <img id="lightboxImg" alt="">
-        <figcaption id="lightboxCap"></figcaption>
-    </figure>
-</div>
-
-<script>
-(function () {
-    var box = document.getElementById('lightbox');
-    var img = document.getElementById('lightboxImg');
-    var cap = document.getElementById('lightboxCap');
-    function openLb(href, caption, year) {
-        img.src = href;
-        cap.textContent = (caption || '') + (year ? ' · ' + year : '');
-        box.classList.add('on');
-        box.setAttribute('aria-hidden', 'false');
-    }
-    function closeLb() {
-        box.classList.remove('on');
-        box.setAttribute('aria-hidden', 'true');
-        img.removeAttribute('src');
-    }
-    Array.prototype.forEach.call(document.querySelectorAll('.masonry a'), function (a) {
-        a.addEventListener('click', function (e) {
-            e.preventDefault();
-            openLb(a.getAttribute('href'), a.getAttribute('data-caption'), a.getAttribute('data-year'));
-        });
-    });
-    document.getElementById('lightboxClose').addEventListener('click', closeLb);
-    box.addEventListener('click', function (e) { if (e.target === box) closeLb(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeLb(); });
-    var startX = 0;
-    box.addEventListener('touchstart', function (e) { startX = e.changedTouches[0].clientX; }, { passive: true });
-    box.addEventListener('touchend', function (e) {
-        if (Math.abs(e.changedTouches[0].clientX - startX) > 60) closeLb();
-    }, { passive: true });
-})();
-</script>
-</body>
-</html>
+    <article class="bio-block">
+        <h2>A Legacy That Lives On</h2>
+        <p>He leaves behind, too, unfinished conversations, questions he promised to answer “in a more relaxed manner,” a graduation gown he will not get to see worn, a white coat ceremony he will not attend, weddings he did not live to bless, and more. But he also leaves behind the certainty, in the hearts of everyone who loved him, that he ran his race well, that he is now farther along, and that, as he himself believed and taught, “we’ll understand it all by and by.”</p>
+        <p>His legacy lives on.</p>
+    </article>
+@endsection

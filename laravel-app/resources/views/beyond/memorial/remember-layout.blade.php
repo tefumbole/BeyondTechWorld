@@ -55,6 +55,13 @@
             opacity: 0; transition: opacity 1.4s ease;
         }
         .portrait img.on { opacity: 1; }
+        body.is-biography .portrait img.on {
+            animation: bioFade 9s ease-in-out infinite;
+        }
+        @keyframes bioFade {
+            0%, 100% { opacity: .42; }
+            50% { opacity: 1; }
+        }
         .portrait .wash {
             position: absolute; inset: 0;
             pointer-events: none;
@@ -738,7 +745,7 @@
         @yield('styles')
     </style>
 </head>
-<body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}">
+<body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}{{ ($navActive ?? '') === 'biography' ? ' is-biography' : '' }}">
 <canvas class="sky-fx" id="skyFx" aria-hidden="true"></canvas>
 <div class="glow-veil" aria-hidden="true"></div>
 <div class="shell">
@@ -756,6 +763,7 @@
     <nav class="nav" aria-label="Memorial pages">
         <a href="{{ route('funeral.pangwayu.remember') }}" class="{{ ($navActive ?? '') === 'remember' ? 'on' : '' }}">Home</a>
         <a href="{{ route('funeral.pangwayu.biography') }}" class="{{ ($navActive ?? '') === 'biography' ? 'on' : '' }}">Biography</a>
+        <a href="{{ route('funeral.pangwayu.gallery') }}" class="{{ ($navActive ?? '') === 'gallery' ? 'on' : '' }}">Gallery</a>
         <a href="{{ route('funeral.pangwayu.program') }}" class="{{ ($navActive ?? '') === 'program' ? 'on' : '' }}">Funeral program</a>
         <a href="{{ route('funeral.pangwayu.hymns') }}" class="{{ ($navActive ?? '') === 'hymns' ? 'on' : '' }}">Hymns</a>
         <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">Eulogies</a>
@@ -777,7 +785,7 @@
     var imgs = document.querySelectorAll('#bg img');
     var idx = 0;
     function nextPhoto() {
-        if (!imgs.length) return;
+        if (imgs.length < 2) return;
         imgs[idx].classList.remove('on');
         idx = (idx + 1) % imgs.length;
         imgs[idx].classList.add('on');

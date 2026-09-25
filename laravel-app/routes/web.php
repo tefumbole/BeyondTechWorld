@@ -96,6 +96,7 @@ Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@
 Route::get('/pangwayu', 'PublicFuneralPledgeController@index')->name('funeral.pangwayu');
 Route::get('/pangwayu/remember', 'PublicFuneralPledgeController@remember')->name('funeral.pangwayu.remember');
 Route::get('/pangwayu/biography', 'PublicFuneralPledgeController@biography')->name('funeral.pangwayu.biography');
+Route::get('/pangwayu/gallery', 'PublicFuneralPledgeController@gallery')->name('funeral.pangwayu.gallery');
 Route::get('/pangwayu/program', 'PublicFuneralPledgeController@program')->name('funeral.pangwayu.program');
 Route::get('/pangwayu/hymns', 'PublicFuneralPledgeController@hymns')->name('funeral.pangwayu.hymns');
 Route::get('/pangwayu/lookup', 'PublicFuneralPledgeController@lookup')->name('funeral.pangwayu.lookup');

@@ -648,6 +648,19 @@ class FuneralPledgeService
             ->first();
     }
 
+    public function galleryPhotos()
+    {
+        $files = glob(public_path('memorial/pangwayu/gallery').'/*.jpg') ?: [];
+        sort($files, SORT_NATURAL);
+
+        return array_map(function ($path) {
+            $rel = 'memorial/pangwayu/gallery/'.basename($path);
+            $ver = filemtime($path);
+
+            return asset('public/'.$rel).'?v='.$ver;
+        }, $files);
+    }
+
     public function rememberPhotos()
     {
         $files = [
