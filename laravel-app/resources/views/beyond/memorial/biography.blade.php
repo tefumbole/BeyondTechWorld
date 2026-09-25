@@ -3,7 +3,7 @@
 @section('title', 'Biography · Late Pa Ngwayu Nchinda Francis')
 
 @section('styles')
-        .bio-block { margin: 0 0 28px; max-width: 40em; }
+        .bio-block { margin: 0 0 28px; max-width: 46em; }
         .bio-block h2 {
             margin: 0 0 12px;
             font-family: "Source Sans Pro", sans-serif;

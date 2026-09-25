@@ -83,7 +83,7 @@ class PublicFuneralPledgeController extends Controller
         return view('beyond.memorial.biography', [
             'navActive' => 'biography',
             'bio' => PaNgwayuBiography::data(),
-            'photos' => [$this->pledges->rememberPhotos()[0]],
+            'photos' => [],
         ]);
     }
 

@@ -40,8 +40,8 @@
             display: grid;
             grid-template-columns: minmax(260px, 40%) 1fr;
         }
-        body.is-hymns .portrait { display: none; }
-        body.is-hymns .shell { grid-template-columns: 1fr; }
+        body.is-hymns .portrait, body.is-biography .portrait { display: none; }
+        body.is-hymns .shell, body.is-biography .shell { grid-template-columns: 1fr; }
         .portrait {
             position: sticky;
             top: 0;
