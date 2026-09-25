@@ -40,7 +40,7 @@
             display: grid;
             grid-template-columns: minmax(260px, 40%) 1fr;
         }
-        body:not(.is-landing) .shell { grid-template-columns: 1fr; }
+        body:not(.is-landing) .shell { grid-template-columns: 1fr; align-content: start; }
         body:not(.is-landing) .portrait { display: none; }
         body:not(.is-landing) .portrait {
             position: relative;
@@ -108,6 +108,8 @@
             margin: 0;
             justify-content: center;
             width: 100%;
+            align-items: center;
+            align-self: start;
             position: sticky;
             top: 0;
             z-index: 20;
