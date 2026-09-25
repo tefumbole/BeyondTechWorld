@@ -18,25 +18,23 @@
             gap: 28px;
             text-align: left;
         }
-        .bio-intro .kicker,
         .bio-intro h1,
         .bio-intro .meta,
         .bio-intro .lead { grid-column: 2; }
         .bio-intro .kicker {
+            grid-column: 1;
+            grid-row: 1;
+            align-self: start;
             color: #b78e4b;
-            letter-spacing: .28em;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 14px;
+            letter-spacing: .12em;
+            font-size: 11px;
+            line-height: 1.45;
+            display: block;
             margin: 0;
+            padding-top: 16px;
+            text-align: left;
         }
-        .bio-intro .kicker:before {
-            content: "";
-            width: 32px;
-            height: 1px;
-            background: #b78e4b;
-        }
+        .bio-intro h1 { grid-row: 1; }
         .bio-intro h1 {
             color: #28312b;
             font-size: clamp(40px, 5vw, 64px);
@@ -132,7 +130,7 @@
             .bio-intro .kicker,
             .bio-intro h1,
             .bio-intro .meta,
-            .bio-intro .lead { grid-column: auto; }
+            .bio-intro .lead { grid-column: auto; grid-row: auto; padding-top: 0; }
             .chapter-meta { margin-bottom: 10px; padding-top: 0; }
             .bio-intro h1 { font-size: 36px; }
             .bio-quote { padding: 18px 16px; font-size: 20px; }
