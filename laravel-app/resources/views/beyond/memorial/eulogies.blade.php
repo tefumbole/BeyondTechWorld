@@ -18,20 +18,10 @@
         .eu-hero {
             position: relative;
             overflow: hidden;
-            background: #263c31;
-            color: #fff;
+            background: #f3f2eb;
+            color: #29352d;
         }
-        .eu-hero:after {
-            content: "“";
-            position: absolute;
-            right: 7%;
-            top: -125px;
-            font-family: "Cormorant Garamond", serif;
-            font-size: 470px;
-            line-height: 1;
-            color: rgba(255,255,255,.04);
-            pointer-events: none;
-        }
+        .eu-hero:after { content: none; }
         .eu-hero-inner {
             position: relative;
             z-index: 1;
@@ -54,12 +44,12 @@
             font-size: clamp(57px, 7vw, 100px);
             letter-spacing: -.05em;
             line-height: 1.08;
-            color: #fff;
+            color: #29352d;
         }
         .eu-hero p {
             max-width: 600px;
             margin: 0;
-            color: #e0e5dc;
+            color: #49544b;
             font-size: 18px;
             line-height: 1.75;
         }
@@ -74,14 +64,14 @@
             font-weight: 500;
             font-size: 38px;
             line-height: 1;
-            color: #e6c78a;
+            color: #b88f4b;
         }
         .eu-stats span {
             font-size: 12px;
             font-weight: 700;
             letter-spacing: .12em;
             text-transform: uppercase;
-            color: #e1e5db;
+            color: #8e7b59;
             line-height: 1.45;
         }
         .eu-note {
