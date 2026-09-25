@@ -141,7 +141,8 @@
             color: var(--muted);
         }
         .after-parts { margin-top: 28px; display: grid; gap: 18px; }
-        .rsvp-list { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+        .rsvp-card { text-align: center; }
+        .rsvp-list { margin: 12px 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; }
         .rsvp-list a { color: #405444; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
         @media (max-width: 520px) {
             .timeline:before { left: 23px; }
@@ -248,8 +249,7 @@
             <p style="margin-top:12px;">Your love carried us. May God bless you all abundantly.</p>
             <div class="venue">Ngwayu Richard Fonjo</div>
         </article>
-        <article class="part-card">
-            <p class="kicker">RSVP</p>
+        <article class="part-card rsvp-card">
             <h2>Till we meet again</h2>
             <div class="rsvp-list">
                 <a href="https://wa.me/237677318405" target="_blank" rel="noopener">677 318 405 — Richard Fonjo Ngwayu</a>
