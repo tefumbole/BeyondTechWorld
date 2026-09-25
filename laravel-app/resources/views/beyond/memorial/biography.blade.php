@@ -9,10 +9,57 @@
         }
         body.is-biography .foot { color: #5d635c; }
         body.is-biography .foot a { color: #405444; }
+        .bio-toc {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 28px 4px 4px;
+        }
+        .bio-toc p {
+            margin: 0 0 12px;
+            color: #b78e4b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+        }
+        .bio-toc ol {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 36px;
+            counter-reset: toc;
+        }
+        .bio-toc li {
+            counter-increment: toc;
+            border-top: 1px solid #ddd9cc;
+        }
+        .bio-toc a {
+            display: flex;
+            gap: 14px;
+            align-items: baseline;
+            padding: 11px 0;
+            color: #28312b;
+            text-decoration: none;
+            font-family: "Cormorant Garamond", serif;
+            font-size: 20px;
+            line-height: 1.25;
+        }
+        .bio-toc a:before {
+            content: counter(toc, decimal-leading-zero);
+            flex: 0 0 auto;
+            color: #b78e4b;
+            font-family: "Source Sans Pro", sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .12em;
+        }
+        .bio-toc a:hover { color: #405444; }
         .bio-intro {
             max-width: 980px;
             margin: 0 auto;
-            padding: 48px 4px 8px;
+            padding: 36px 4px 8px;
             display: grid;
             grid-template-columns: 110px minmax(0, 1fr);
             gap: 28px;
@@ -73,6 +120,7 @@
             gap: 28px;
             padding: 42px 0;
             border-top: 1px solid #ddd9cc;
+            scroll-margin-top: 84px;
         }
         .chapter-meta {
             display: flex;
@@ -125,6 +173,8 @@
             color: #9c7e48;
         }
         @media (max-width: 700px) {
+            .bio-toc ol { grid-template-columns: 1fr; }
+            .bio-toc a { font-size: 18px; }
             .bio-intro,
             .chapter { display: block; padding: 28px 0; }
             .bio-intro .kicker,
@@ -138,6 +188,23 @@
 @endsection
 
 @section('content')
+    <nav class="bio-toc" aria-label="Biography contents">
+        <p>Contents</p>
+        <ol>
+            <li><a href="#early-life">Early Life</a></li>
+            <li><a href="#academic-journey">Academic Journey &amp; Educational Achievements</a></li>
+            <li><a href="#professional-career">Distinction &amp; Professional Career</a></li>
+            <li><a href="#gifted-hand">A Gifted Hand and a Resourceful Soul</a></li>
+            <li><a href="#generosity">A Life of Generosity</a></li>
+            <li><a href="#enterprise">A Spirit of Enterprise and Resourcefulness</a></li>
+            <li><a href="#wisest">“Wisest” — A Father, Mentor and Friend to a Generation</a></li>
+            <li><a href="#family-life">Family Life</a></li>
+            <li><a href="#christian-life">His Christian Life and Faith</a></li>
+            <li><a href="#final-journey">His Final Journey</a></li>
+            <li><a href="#legacy">A Legacy That Lives On</a></li>
+        </ol>
+    </nav>
+
     <header class="bio-intro">
         <p class="kicker">In loving memory</p>
         <h1>Late Pa Ngwayu Nchinda Francis</h1>
@@ -146,7 +213,7 @@
     </header>
 
     <div class="chapters">
-    <section class="chapter">
+    <section class="chapter" id="early-life">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>Early Life</h2>
@@ -154,7 +221,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="academic-journey">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>Academic Journey &amp; Educational Achievements</h2>
@@ -167,7 +234,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="professional-career">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>Distinction &amp; Professional Career</h2>
@@ -185,7 +252,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="gifted-hand">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>A Gifted Hand and a Resourceful Soul</h2>
@@ -196,7 +263,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="generosity">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>A Life of Generosity</h2>
@@ -205,7 +272,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="enterprise">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>A Spirit of Enterprise and Resourcefulness</h2>
@@ -215,7 +282,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="wisest">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>“Wisest” — A Father, Mentor and Friend to a Generation</h2>
@@ -225,7 +292,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="family-life">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>Family Life</h2>
@@ -235,7 +302,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="christian-life">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>His Christian Life and Faith</h2>
@@ -248,7 +315,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="final-journey">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>His Final Journey</h2>
@@ -260,7 +327,7 @@
         </div>
     </section>
 
-    <section class="chapter">
+    <section class="chapter" id="legacy">
         <div class="chapter-meta"><span></span><div class="chapter-line"></div></div>
         <div class="chapter-body">
         <h2>A Legacy That Lives On</h2>
