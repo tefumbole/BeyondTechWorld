@@ -10,21 +10,28 @@
         body.is-biography .foot { color: #5d635c; }
         body.is-biography .foot a { color: #405444; }
         .bio-intro {
-            max-width: 860px;
+            max-width: 980px;
             margin: 0 auto;
-            padding: 56px 8px 28px;
-            text-align: center;
+            padding: 48px 4px 8px;
+            display: grid;
+            grid-template-columns: 110px minmax(0, 1fr);
+            gap: 28px;
+            text-align: left;
         }
+        .bio-intro .kicker,
+        .bio-intro h1,
+        .bio-intro .meta,
+        .bio-intro .lead { grid-column: 2; }
         .bio-intro .kicker {
             color: #b78e4b;
             letter-spacing: .28em;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 14px;
+            margin: 0;
         }
-        .bio-intro .kicker:before,
-        .bio-intro .kicker:after {
+        .bio-intro .kicker:before {
             content: "";
             width: 32px;
             height: 1px;
@@ -35,7 +42,8 @@
             font-size: clamp(40px, 5vw, 64px);
             letter-spacing: -.03em;
             line-height: 1.12;
-            margin: 18px 0 12px;
+            margin: 14px 0 12px;
+            text-align: left;
         }
         .bio-intro .meta {
             color: #405444;
@@ -43,13 +51,16 @@
             letter-spacing: .12em;
             text-transform: uppercase;
             font-size: 13px;
+            text-align: left;
+            margin: 0;
         }
         .bio-intro .lead {
-            margin: 22px auto 0;
-            max-width: 740px;
+            margin: 22px 0 0;
+            max-width: none;
             color: #515950;
-            font-size: 18px;
+            font-size: 17px;
             line-height: 1.95;
+            text-align: left;
         }
         .chapters {
             max-width: 980px;
@@ -116,7 +127,12 @@
             color: #9c7e48;
         }
         @media (max-width: 700px) {
+            .bio-intro,
             .chapter { display: block; padding: 28px 0; }
+            .bio-intro .kicker,
+            .bio-intro h1,
+            .bio-intro .meta,
+            .bio-intro .lead { grid-column: auto; }
             .chapter-meta { margin-bottom: 10px; padding-top: 0; }
             .bio-intro h1 { font-size: 36px; }
             .bio-quote { padding: 18px 16px; font-size: 20px; }
