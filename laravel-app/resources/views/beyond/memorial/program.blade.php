@@ -40,10 +40,12 @@
         .part {
             position: relative;
             display: grid;
-            grid-template-columns: 56px 1fr;
+            grid-template-columns: 56px minmax(0, 1fr);
             gap: 16px;
             align-items: start;
+            width: 100%;
         }
+        .part-card { min-width: 0; }
         .part-num {
             width: 56px;
             height: 56px;
@@ -180,6 +182,7 @@
 
     <div class="timeline">
         <article class="part" id="removal">
+            <div class="part-num">01</div>
             <div class="part-card">
                 <span class="part-time">7:00 – 8:00 a.m.</span>
                 <h2>Removal of the mortal remains</h2>
@@ -188,6 +191,7 @@
         </article>
 
         <article class="part" id="church-service">
+            <div class="part-num">02</div>
             <div class="part-card">
                 <span class="part-time">8:00 a.m.</span>
                 <h2>Church service</h2>
@@ -223,6 +227,7 @@
         </article>
 
         <article class="part" id="military-honours">
+            <div class="part-num">03</div>
             <div class="part-card">
                 <span class="part-time">10:30 a.m. · 11:00 a.m.</span>
                 <h2>Military honours</h2>
@@ -232,6 +237,7 @@
         </article>
 
         <article class="part" id="committal">
+            <div class="part-num">04</div>
             <div class="part-card">
                 <span class="part-time">12:00 p.m. · 12:30 p.m.</span>
                 <h2>Committal</h2>
