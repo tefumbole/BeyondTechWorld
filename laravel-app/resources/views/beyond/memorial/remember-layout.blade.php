@@ -57,6 +57,7 @@
             opacity: 1;
         }
         body:not(.is-landing) .portrait .caption { display: none; }
+        body:not(.is-landing) .nav { justify-content: center; }
         .portrait {
             position: sticky;
             top: 0;
