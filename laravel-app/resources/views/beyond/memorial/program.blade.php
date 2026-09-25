@@ -153,6 +153,18 @@
 @endsection
 
 @section('content')
+    <nav class="page-toc" aria-label="Funeral program contents">
+        <p>Contents</p>
+        <ol>
+            <li><a href="#removal">Removal of the mortal remains</a></li>
+            <li><a href="#church-service">Church service</a></li>
+            <li><a href="#military-honours">Military honours</a></li>
+            <li><a href="#committal">Committal</a></li>
+            <li><a href="#appreciation">For the family</a></li>
+            <li><a href="#rsvp">Till we meet again</a></li>
+        </ol>
+    </nav>
+
     <header class="program-hero">
         <p class="kicker">In loving memory</p>
         <h1>Funeral program</h1>
@@ -167,8 +179,7 @@
     </header>
 
     <div class="timeline">
-        <article class="part">
-            <div class="part-num">01</div>
+        <article class="part" id="removal">
             <div class="part-card">
                 <span class="part-time">7:00 – 8:00 a.m.</span>
                 <h2>Removal of the mortal remains</h2>
@@ -176,8 +187,7 @@
             </div>
         </article>
 
-        <article class="part">
-            <div class="part-num">02</div>
+        <article class="part" id="church-service">
             <div class="part-card">
                 <span class="part-time">8:00 a.m.</span>
                 <h2>Church service</h2>
@@ -212,8 +222,7 @@
             </div>
         </article>
 
-        <article class="part">
-            <div class="part-num">03</div>
+        <article class="part" id="military-honours">
             <div class="part-card">
                 <span class="part-time">10:30 a.m. · 11:00 a.m.</span>
                 <h2>Military honours</h2>
@@ -222,8 +231,7 @@
             </div>
         </article>
 
-        <article class="part">
-            <div class="part-num">04</div>
+        <article class="part" id="committal">
             <div class="part-card">
                 <span class="part-time">12:00 p.m. · 12:30 p.m.</span>
                 <h2>Committal</h2>
@@ -241,15 +249,14 @@
     </div>
 
     <div class="after-parts">
-        <article class="part-card">
-            <p class="kicker">Appreciation</p>
+        <article class="part-card" id="appreciation">
             <h2>For the family</h2>
             <p>The family of the late Pa Ngwayu Francis Nchinda wishes to express its heartfelt gratitude to the Baptist Hospital Nkwen, Mbingo Baptist Hospital, and the entire staff of St. Blaise Hospital for the care given to Pa during his final months.</p>
             <p style="margin-top:12px;">We are deeply thankful to the youth, women and men of both Nkwen Baptist Church and Mile 1 Baptist Church, the CBC Men’s Fellowship as a whole, family, friends, colleagues, and every well-wisher for your calls, visits, prayers, and support during this difficult season.</p>
             <p style="margin-top:12px;">Your love carried us. May God bless you all abundantly.</p>
             <div class="venue">Ngwayu Richard Fonjo</div>
         </article>
-        <article class="part-card rsvp-card">
+        <article class="part-card rsvp-card" id="rsvp">
             <h2>Till we meet again</h2>
             <div class="rsvp-list">
                 <a href="https://wa.me/237677318405" target="_blank" rel="noopener">677 318 405 — Richard Fonjo Ngwayu</a>

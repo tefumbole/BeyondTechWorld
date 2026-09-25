@@ -267,6 +267,15 @@
         </div>
     </section>
 
+    <nav class="page-toc" aria-label="Eulogy contents">
+        <p>Contents</p>
+        <ol>
+            @foreach($eulogies as $index => $eu)
+                <li><a href="#tribute-{{ $index + 1 }}">{{ $eu['name'] }}</a></li>
+            @endforeach
+        </ol>
+    </nav>
+
     <div class="eu-note">
         <span>Tributes written for Pa Ngwayu Francis</span>
         <div class="line"></div>
