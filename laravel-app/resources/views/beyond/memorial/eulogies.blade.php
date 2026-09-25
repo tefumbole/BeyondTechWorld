@@ -128,17 +128,14 @@
             align-items: start;
         }
         .eu-card {
-            background: #fbfaf6;
+            background: #fffcf7;
             border: 1px solid #e9e5d9;
             box-shadow: 0 9px 29px rgba(49, 58, 46, .03);
             margin: 0;
             padding: 36px 40px 40px;
         }
         .eu-featured .eu-card {
-            border: 0;
-            box-shadow: none;
-            background: transparent;
-            padding: 0;
+            background: #fffcf7;
         }
         .eu-grid .eu-card { height: 100%; }
         .eu-top {
