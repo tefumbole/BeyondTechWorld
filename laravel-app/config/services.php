@@ -126,6 +126,15 @@ return [
             ],
         ],
 
+        'calendar' => [
+            'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID', ''),
+            'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET', ''),
+            'refresh_token' => env('GOOGLE_CALENDAR_REFRESH_TOKEN', ''),
+            'calendar_id' => env('GOOGLE_CALENDAR_ID', ''),
+            'channel_token' => env('GOOGLE_CALENDAR_CHANNEL_TOKEN', ''),
+            'reminders_enabled' => env('APPOINTMENT_REMINDERS', false),
+        ],
+
         'property' => [
             'reminders_enabled' => env('PROPERTY_RENT_REMINDERS', false),
             'reminder_days_before' => (int) env('PROPERTY_REMINDER_DAYS_BEFORE', 3),

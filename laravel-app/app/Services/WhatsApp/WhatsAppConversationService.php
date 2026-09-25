@@ -217,6 +217,29 @@ class WhatsAppConversationService
         return $message;
     }
 
+    public function ownerNotice(WhatsAppConversation $conversation, $body)
+    {
+        $body = trim((string) $body);
+        $contact = $conversation->contact;
+        if ($body === '' || ! $contact) {
+            return ['success' => false];
+        }
+        $result = $this->provider->sendText($contact->normalized_phone, $body);
+        WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'body' => $body,
+            'status' => ! empty($result['success']) ? WhatsAppMessage::STATUS_SENT : WhatsAppMessage::STATUS_FAILED,
+            'sender_type' => 'ASSISTANT',
+            'provider_message_id' => isset($result['msg_id']) ? $result['msg_id'] : null,
+            'sent_at' => now(),
+        ]);
+
+        return $result;
+    }
+
     public function reply(WhatsAppConversation $conversation, $body, $userId = null)
     {
         $body = trim((string) $body);

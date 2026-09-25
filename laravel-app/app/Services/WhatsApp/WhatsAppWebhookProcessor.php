@@ -34,7 +34,17 @@ class WhatsAppWebhookProcessor
             $parsed = $this->parser->parse($event->payloadArray());
             $type = $parsed['type'];
 
-            if (in_array($type, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
+            if (! empty($parsed['is_group']) || in_array($type, ['messages-group.received', 'messages.group.received', 'message-group.received'], true)) {
+                if (! empty($parsed['from_me'])) {
+                    $event->status = WhatsAppWebhookEvent::IGNORED;
+                    $event->processed_at = now();
+                    $event->save();
+
+                    return $event;
+                }
+                app(GroupIngestService::class)->ingest($parsed);
+                $event->status = WhatsAppWebhookEvent::PROCESSED;
+            } elseif (in_array($type, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
                 if (! empty($parsed['from_me'])) {
                     $event->status = WhatsAppWebhookEvent::IGNORED;
                     $event->processed_at = now();

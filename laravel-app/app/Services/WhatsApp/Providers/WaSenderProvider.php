@@ -45,4 +45,14 @@ class WaSenderProvider implements WhatsAppProviderInterface
     {
         return $this->wasender->isConfigured();
     }
+
+    public function listGroups()
+    {
+        return $this->wasender->listGroups();
+    }
+
+    public function sendGroupText($groupJid, $message)
+    {
+        return $this->wasender->sendGroupText($groupJid, $message);
+    }
 }

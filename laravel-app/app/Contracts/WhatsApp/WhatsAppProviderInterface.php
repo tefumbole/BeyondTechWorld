@@ -25,4 +25,14 @@ interface WhatsAppProviderInterface
     public function sessionStatus();
 
     public function isConfigured();
+
+    /**
+     * @return array{success:bool,groups?:array}
+     */
+    public function listGroups();
+
+    /**
+     * @return array{success:bool,error?:string,msg_id?:mixed}
+     */
+    public function sendGroupText($groupJid, $message);
 }

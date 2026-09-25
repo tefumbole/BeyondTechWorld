@@ -2200,6 +2200,7 @@
                                     <li><a href="{{ route('whatsapp.documents') }}">Documents</a></li>
                                     <li><a href="{{ route('whatsapp.tenants') }}">Tenant Operations</a></li>
                                     <li><a href="{{ route('whatsapp.bills') }}">Bill Payments</a></li>
+                                    <li><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
                                     <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>

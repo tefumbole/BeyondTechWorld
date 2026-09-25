@@ -336,6 +336,65 @@ class WhatsAppHubController extends Controller
         return redirect()->route('whatsapp.settings')->with('message', $count.' eligible conversation(s) switched to AI.');
     }
 
+    public function appointments()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.appointments', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $rows = \App\Appointment\Appointment::orderByDesc('starts_at')->limit(100)->get();
+
+        return view('whatsapp_hub.appointments', compact('rows'));
+    }
+
+    public function storeAvailability(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.appointments', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $weekday = (int) $request->input('weekday');
+        $start = (string) $request->input('starts_time');
+        $end = (string) $request->input('ends_time');
+        if ($weekday < 0 || $weekday > 6 || $start === '' || $end === '' || $start >= $end) {
+            return back()->with('message', 'Enter a weekday and a window that ends after it starts.');
+        }
+        \App\Appointment\AppointmentAvailability::create([
+            'weekday' => $weekday,
+            'starts_time' => strlen($start) === 5 ? $start.':00' : $start,
+            'ends_time' => strlen($end) === 5 ? $end.':00' : $end,
+            'slot_minutes' => max(15, (int) $request->input('slot_minutes', 60)),
+            'location' => $request->input('location'),
+            'enabled' => true,
+        ]);
+
+        return back()->with('message', 'Availability window saved. WhatsApp will only offer these times.');
+    }
+
+    public function groups()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $groups = \App\WhatsApp\WhatsAppGroup::orderBy('name')->get();
+
+        return view('whatsapp_hub.groups', compact('groups'));
+    }
+
+    public function updateGroupMode(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $group = \App\WhatsApp\WhatsAppGroup::findOrFail($id);
+        $mode = strtoupper((string) $request->input('mode', \App\WhatsApp\WhatsAppGroup::MONITOR));
+        $user = Auth::user();
+        if (! $user) {
+            return redirect()->guest(url('/login'));
+        }
+        app(\App\Services\WhatsApp\GroupRegistryService::class)->enable($group, $mode, $user);
+
+        return back()->with('message', 'Group mode updated. Newly discovered groups stay off until enabled.');
+    }
+
     public function assignConversation(Request $request, $id)
     {
         if ($deny = $this->denyUnless(['whatsapp.assign', 'whatsapp.takeover', 'whatsapp.manage'])) {

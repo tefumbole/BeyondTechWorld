@@ -37,6 +37,21 @@ class AssistantToolExecutor
         if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical|bypass_ownership|another_user_document|bulk_documents|adjust_rent|waive_rent|terminate_tenancy|mark_rent_paid|override_property_ownership|reconcile_override|initiate_debit/i', (string) $name)) {
             return ['success' => false, 'error' => 'privileged'];
         }
+        $ownerTools = [
+            'get_ai_status', 'set_ai_enabled', 'set_ai_first', 'switch_eligible_conversations_to_ai',
+            'get_conversations_needing_attention', 'get_open_leads_summary', 'get_pending_quotation_summary',
+            'get_failed_whatsapp_summary', 'assign_conversation_to_me', 'return_conversation_to_ai',
+        ];
+        if (in_array($name, $ownerTools, true)) {
+            return app(\App\Services\WhatsApp\OwnerCommandService::class)->run($name, $params, $context);
+        }
+        $appointmentTools = [
+            'check_appointment_availability', 'create_appointment', 'get_my_appointments',
+            'cancel_appointment', 'reschedule_appointment',
+        ];
+        if (in_array($name, $appointmentTools, true)) {
+            return app(\App\Services\Appointment\AppointmentService::class)->tool($name, $params, $context);
+        }
         $meta = $this->registry->get($name);
         if (! $meta) {
             return ['success' => false, 'error' => 'unknown_tool'];

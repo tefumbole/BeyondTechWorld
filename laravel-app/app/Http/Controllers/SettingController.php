@@ -82,8 +82,16 @@ class SettingController extends Controller
 
         $envPath = base_path('.env');
         $envContent = is_file($envPath) ? file_get_contents($envPath) : '';
+        $calendar = [
+            'client_id' => (string) \App\Support\EnvFile::get('GOOGLE_CALENDAR_CLIENT_ID', ''),
+            'has_secret' => trim((string) \App\Support\EnvFile::get('GOOGLE_CALENDAR_CLIENT_SECRET', '')) !== '',
+            'has_refresh' => trim((string) \App\Support\EnvFile::get('GOOGLE_CALENDAR_REFRESH_TOKEN', '')) !== '',
+            'calendar_id' => (string) \App\Support\EnvFile::get('GOOGLE_CALENDAR_ID', ''),
+            'has_channel' => trim((string) \App\Support\EnvFile::get('GOOGLE_CALENDAR_CHANNEL_TOKEN', '')) !== '',
+            'reminders' => filter_var(\App\Support\EnvFile::get('APPOINTMENT_REMINDERS', 'false'), FILTER_VALIDATE_BOOLEAN),
+        ];
 
-        return view('setting.env_setting', compact('envContent', 'envPath'));
+        return view('setting.env_setting', compact('envContent', 'envPath', 'calendar'));
     }
 
     public function envSettingStore(Request $request)
@@ -95,6 +103,10 @@ class SettingController extends Controller
 
         if(!env('USER_VERIFIED'))
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
+
+        if ($request->input('save_calendar') === '1') {
+            return $this->storeCalendarEnv($request);
+        }
 
         $request->validate([
             'env_content' => 'required|string',
@@ -117,6 +129,39 @@ class SettingController extends Controller
         }
 
         return redirect()->route('setting.env')->with('message', 'Environment file saved. Run config:clear on the server if values do not apply immediately.');
+    }
+
+    protected function storeCalendarEnv(Request $request)
+    {
+        $pairs = [
+            'GOOGLE_CALENDAR_CLIENT_ID' => trim((string) $request->input('google_calendar_client_id', '')),
+            'GOOGLE_CALENDAR_ID' => trim((string) $request->input('google_calendar_id', '')),
+            'APPOINTMENT_REMINDERS' => $request->input('appointment_reminders') === 'true' ? 'true' : 'false',
+        ];
+        $secret = trim((string) $request->input('google_calendar_client_secret', ''));
+        $refresh = trim((string) $request->input('google_calendar_refresh_token', ''));
+        $channel = trim((string) $request->input('google_calendar_channel_token', ''));
+        if ($secret !== '') {
+            $pairs['GOOGLE_CALENDAR_CLIENT_SECRET'] = $secret;
+        }
+        if ($refresh !== '') {
+            $pairs['GOOGLE_CALENDAR_REFRESH_TOKEN'] = $refresh;
+        }
+        if ($channel !== '') {
+            $pairs['GOOGLE_CALENDAR_CHANNEL_TOKEN'] = $channel;
+        }
+        if (! \App\Support\EnvFile::upsert($pairs)) {
+            return redirect()->back()->with('not_permitted', '.env file is missing or not writable.');
+        }
+        try {
+            \Artisan::call('config:clear');
+        } catch (\Throwable $e) {
+        }
+        if (function_exists('opcache_reset')) {
+            @opcache_reset();
+        }
+
+        return redirect()->route('setting.env')->with('message', 'Google Calendar settings saved. Config cache was cleared.');
     }
 
     public function generalSettingStore(Request $request)

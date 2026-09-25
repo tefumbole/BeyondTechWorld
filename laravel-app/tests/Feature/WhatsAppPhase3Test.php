@@ -357,6 +357,16 @@ class WhatsAppPhase3Test extends WhatsAppHubTestCase
             {
                 return true;
             }
+
+            public function listGroups()
+            {
+                return ['success' => true, 'groups' => []];
+            }
+
+            public function sendGroupText($groupJid, $message)
+            {
+                return ['success' => true, 'msg_id' => 'G'.uniqid()];
+            }
         };
     }
 }

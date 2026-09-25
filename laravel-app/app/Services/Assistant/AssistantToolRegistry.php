@@ -71,6 +71,21 @@ class AssistantToolRegistry
             'attach_bill_image' => ['description' => 'Store a bill image as provisional evidence', 'sensitivity' => 'RECOGNIZED', 'write' => true, 'roles' => ['customer', 'tenant']],
             'reject_payment_claim' => ['description' => 'Refuse a WhatsApp payment claim that is not an ERP payment', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['tenant']],
             'clarify_tenant_balance' => ['description' => 'Ask which balance the person means', 'sensitivity' => 'RECOGNIZED', 'write' => false, 'roles' => ['tenant']],
+            'get_ai_status' => ['description' => 'Owner AI status', 'sensitivity' => 'OWNER', 'write' => false, 'roles' => ['owner']],
+            'set_ai_enabled' => ['description' => 'Owner enable or disable the assistant', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
+            'set_ai_first' => ['description' => 'Owner AI-first for new chats', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
+            'switch_eligible_conversations_to_ai' => ['description' => 'Owner confirmed bulk AI switch', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
+            'get_conversations_needing_attention' => ['description' => 'Owner waiting conversations', 'sensitivity' => 'OWNER', 'write' => false, 'roles' => ['owner']],
+            'get_open_leads_summary' => ['description' => 'Owner open leads', 'sensitivity' => 'OWNER', 'write' => false, 'roles' => ['owner']],
+            'get_pending_quotation_summary' => ['description' => 'Owner pending quotations from ERP', 'sensitivity' => 'OWNER', 'write' => false, 'roles' => ['owner']],
+            'get_failed_whatsapp_summary' => ['description' => 'Owner failed WhatsApp sends', 'sensitivity' => 'OWNER', 'write' => false, 'roles' => ['owner']],
+            'check_appointment_availability' => ['description' => 'Configured appointment windows only', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
+            'create_appointment' => ['description' => 'Create an ERP appointment from a chosen slot', 'sensitivity' => 'PUBLIC', 'write' => true, 'roles' => []],
+            'get_my_appointments' => ['description' => 'Upcoming appointments for this contact', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
+            'cancel_appointment' => ['description' => 'Cancel one appointment on this contact', 'sensitivity' => 'PUBLIC', 'write' => true, 'roles' => []],
+            'reschedule_appointment' => ['description' => 'Move one appointment to a free configured slot', 'sensitivity' => 'PUBLIC', 'write' => true, 'roles' => []],
+            'assign_conversation_to_me' => ['description' => 'Owner takes one conversation', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
+            'return_conversation_to_ai' => ['description' => 'Owner returns one conversation to AI', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
         ];
     }
 

@@ -57,9 +57,13 @@ class Kernel extends ConsoleKernel
         $schedule->command('online-invitations:send-reminders')->everyMinute();
         $schedule->command('wealth:sync-income')->hourlyAt(40)->withoutOverlapping();
         $schedule->command('whatsapp:prune-webhooks')->dailyAt('03:20')->withoutOverlapping();
+        $schedule->command('whatsapp:prune-group-messages')->dailyAt('03:40')->withoutOverlapping();
         $schedule->command('property:generate-rent')->dailyAt('00:25')->withoutOverlapping();
         if (config('services.property.reminders_enabled')) {
             $schedule->command('property:rent-reminders')->dailyAt('08:10')->withoutOverlapping();
+        }
+        if (config('services.calendar.reminders_enabled')) {
+            $schedule->command('whatsapp:appointment-reminders')->hourlyAt(15)->withoutOverlapping();
         }
     }
 

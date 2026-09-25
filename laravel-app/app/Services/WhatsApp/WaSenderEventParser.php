@@ -24,9 +24,18 @@ class WaSenderEventParser
             'status_code' => null,
             'wa_name' => null,
             'call' => null,
+            'is_group' => false,
+            'group_jid' => null,
+            'participant_phone' => null,
+            'participant_jid' => null,
+            'reply_to' => null,
+            'timestamp' => isset($payload['timestamp']) ? $payload['timestamp'] : null,
             'raw' => $payload,
         ];
 
+        if (in_array($event, ['messages-group.received', 'messages.group.received', 'message-group.received'], true)) {
+            return $this->parseGroup($parsed, $data, $payload);
+        }
         if (in_array($event, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
             return $this->parseIncoming($parsed, $data, $payload);
         }
@@ -54,6 +63,7 @@ class WaSenderEventParser
             (string) ($payload['timestamp'] ?? ''),
             (string) ($parsed['status_code'] !== null ? $parsed['status_code'] : ''),
             isset($parsed['call']['id']) ? $parsed['call']['id'] : '',
+            isset($parsed['group_jid']) ? $parsed['group_jid'] : '',
         ];
         $basis = implode('|', $parts);
         if (trim($basis, '|') === '') {
@@ -75,6 +85,44 @@ class WaSenderEventParser
         $parsed['body'] = $this->messageBody($message);
         $parsed['message_type'] = $this->messageType($message);
         $parsed['media'] = $this->mediaMeta($message);
+
+        return $parsed;
+    }
+
+    protected function parseGroup(array $parsed, array $data, array $payload)
+    {
+        $message = $this->firstMessage($data);
+        $key = isset($message['key']) && is_array($message['key']) ? $message['key'] : [];
+        $parsed['is_group'] = true;
+        $parsed['from_me'] = ! empty($key['fromMe']);
+        $parsed['message_id'] = isset($key['id']) ? (string) $key['id'] : null;
+        $parsed['provider_event_id'] = $parsed['message_id'] ?: (string) ($payload['timestamp'] ?? '');
+        $jid = isset($key['remoteJid']) ? (string) $key['remoteJid'] : '';
+        $parsed['group_jid'] = substr($jid, -5) === '@g.us' ? $jid : $jid;
+        $parsed['group_name'] = isset($message['groupName']) ? $message['groupName'] : (isset($data['groupName']) ? $data['groupName'] : null);
+        $parsed['participant_jid'] = isset($key['participant']) ? (string) $key['participant'] : null;
+        $participantPhone = null;
+        foreach (['cleanedParticipantPn', 'participantPn', 'cleanedSenderPn'] as $field) {
+            if (! empty($key[$field]) && strpos((string) $key[$field], '@g.us') === false) {
+                $participantPhone = $this->jidToPhone($key[$field]);
+                if ($participantPhone) {
+                    break;
+                }
+            }
+        }
+        if (! $participantPhone && ! empty($parsed['participant_jid'])) {
+            $participantPhone = $this->jidToPhone($parsed['participant_jid']);
+        }
+        $parsed['participant_phone'] = $participantPhone;
+        $parsed['phone'] = $participantPhone;
+        $parsed['wa_name'] = $this->pushName($message, $data);
+        $parsed['body'] = $this->messageBody($message);
+        $parsed['message_type'] = $this->messageType($message);
+        $parsed['media'] = $this->mediaMeta($message);
+        $parsed['reply_to'] = isset($message['message']['extendedTextMessage']['contextInfo']['stanzaId'])
+            ? $message['message']['extendedTextMessage']['contextInfo']['stanzaId']
+            : null;
+        $parsed['timestamp'] = isset($payload['timestamp']) ? $payload['timestamp'] : (isset($message['messageTimestamp']) ? $message['messageTimestamp'] : null);
 
         return $parsed;
     }

@@ -87,6 +87,9 @@ class AssistantPolicyService
     public function toolAllowed($toolName, array $toolMeta, array $roles)
     {
         $sensitivity = isset($toolMeta['sensitivity']) ? $toolMeta['sensitivity'] : 'PUBLIC';
+        if ($sensitivity === 'OWNER') {
+            return ! empty($roles['owner_authorized']) ? [true, null] : [false, 'privileged'];
+        }
         if ($sensitivity === 'VERIFIED' || $sensitivity === 'PRIVILEGED') {
             return [false, 'policy_blocked'];
         }

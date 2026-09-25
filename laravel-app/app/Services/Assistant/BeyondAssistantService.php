@@ -50,6 +50,17 @@ class BeyondAssistantService
         if (! $conversation) {
             return ['skipped' => true, 'reason' => 'no_conversation'];
         }
+        $ownerUser = $conversation->contact
+            ? app(\App\Services\WhatsApp\OwnerAuthorizationService::class)->authorizePhone($conversation->contact->normalized_phone)
+            : null;
+        if ($ownerUser) {
+            $answer = app(\App\Services\WhatsApp\OwnerCommandService::class)->handle($conversation, (string) $message->body, $ownerUser);
+            if (is_string($answer)) {
+                $this->conversations->ownerNotice($conversation, $answer);
+
+                return ['skipped' => false, 'sent' => true, 'intent' => 'OWNER', 'reply' => $answer];
+            }
+        }
         $fingerprint = $this->fingerprint($message);
         $existing = $this->existingActivity($fingerprint);
         if ($existing && in_array($existing->status, [AssistantActivity::COMPLETED, AssistantActivity::HANDED_OVER, AssistantActivity::SKIPPED], true)) {
@@ -107,6 +118,25 @@ class BeyondAssistantService
         $conversationalResult = null;
         $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
         $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
+        if (! $justNamed) {
+            $appointmentReply = app(\App\Services\Appointment\AppointmentConversationService::class)
+                ->handle($conversation, $context, $mem, (string) $message->body, $deterministic);
+            if (is_string($appointmentReply)) {
+                $directReply = $appointmentReply;
+                $classified = [
+                    'intent' => IntentCatalog::APPOINTMENT_REQUEST,
+                    'confidence' => 0.95,
+                    'requires_erp' => false,
+                    'needs_clarification' => false,
+                    'slots' => [],
+                ];
+                $fresh = $mem->parameters();
+                $slots = array_merge($slots, $fresh);
+                if (! isset($fresh['appointment_draft'])) {
+                    unset($slots['appointment_draft']);
+                }
+            }
+        }
         if ($justNamed) {
             $directReply = 'Thanks '.$slots['captured_name'].'. Are you arranging this for yourself or for an organization?';
             $classified = [

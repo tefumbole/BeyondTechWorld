@@ -25,6 +25,10 @@ Route::post('/webhooks/wasender', 'WhatsApp\WaSenderWebhookController@handle')
     ->middleware('throttle:300,1')
     ->name('whatsapp.webhook');
 
+Route::post('/webhooks/google-calendar', 'Calendar\GoogleCalendarWebhookController@handle')
+    ->middleware('throttle:120,1')
+    ->name('calendar.webhook');
+
 Route::post('/webhooks/bill-payments', 'Property\BillPaymentWebhookController@handle')
     ->middleware('throttle:120,1')
     ->name('property.bills.webhook');

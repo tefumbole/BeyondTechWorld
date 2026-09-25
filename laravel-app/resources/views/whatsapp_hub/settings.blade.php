@@ -14,7 +14,7 @@
             <p>API key: {{ !empty(config('services.whatsapp.wasender_api_key')) ? 'Configured' : 'Missing' }}</p>
             <p>Webhook secret: {{ trim((string) config('services.whatsapp.wasender_webhook_secret')) !== '' ? 'Configured' : 'Missing' }}</p>
             <p>Webhook URL (subscribe this in WaSender): <code>{{ $webhookUrl }}</code></p>
-            <p class="small text-muted">Subscribe events: messages.received, messages.update, message-receipt.update, call.</p>
+            <p class="small text-muted">Subscribe events: messages.received, messages-group.received, messages.update, message-receipt.update, call.</p>
         </div>
 
         <div class="wa-card">

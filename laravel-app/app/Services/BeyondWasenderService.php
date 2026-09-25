@@ -504,4 +504,56 @@ class BeyondWasenderService
 
         return null;
     }
+
+    public function listGroups()
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'groups' => []];
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/groups');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 20,
+        ]);
+        $body = curl_exec($ch);
+        $decoded = json_decode((string) $body, true);
+        $rows = [];
+        $data = is_array($decoded) && isset($decoded['data']) ? $decoded['data'] : [];
+        if (is_array($data)) {
+            foreach ($data as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $rows[] = [
+                    'jid' => isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : ''),
+                    'name' => isset($row['subject']) ? $row['subject'] : (isset($row['name']) ? $row['name'] : ''),
+                    'description' => isset($row['description']) ? $row['description'] : null,
+                ];
+            }
+        }
+
+        return ['success' => true, 'groups' => $rows];
+    }
+
+    public function sendGroupText($groupJid, $message)
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+        $posted = $this->postSendMessage(['to' => $groupJid, 'text' => (string) $message], 30);
+        if (empty($posted['success'])) {
+            return ['success' => false, 'error' => isset($posted['error']) ? $posted['error'] : 'send failed'];
+        }
+        $decoded = isset($posted['decoded']) ? $posted['decoded'] : [];
+
+        return [
+            'success' => true,
+            'msg_id' => is_array($decoded) && isset($decoded['data']['msgId']) ? $decoded['data']['msgId'] : null,
+        ];
+    }
 }

@@ -162,8 +162,8 @@ class AssistantIntentRouter
         if (preg_match('/^(hi|hello|hey|hiya|greetings|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[\s!.]*$/i', $t)) {
             return $this->make(IntentCatalog::GREETING, 0.97, false, false);
         }
-        if (preg_match('/\b(appointment|schedule a meeting|book a meeting)\b/i', $t)) {
-            return $this->make(IntentCatalog::APPOINTMENT_REQUEST, 0.8, false, true);
+        if (preg_match('/\b(appointment|schedule a meeting|book a meeting|book me|i want to see)\b/i', $t)) {
+            return $this->make(IntentCatalog::APPOINTMENT_REQUEST, 0.9, false, false);
         }
         $availability = app(\App\Services\Rental\RentalAvailabilityService::class);
         if ($this->isRentalDateFollowUp($t, $memoryParams, $availability)) {

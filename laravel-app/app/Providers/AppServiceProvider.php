@@ -28,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\WhatsApp\WhatsAppProviderInterface::class,
             \App\Services\WhatsApp\Providers\WaSenderProvider::class
         );
+        $this->app->bind(
+            \App\Contracts\Calendar\CalendarProviderInterface::class,
+            \App\Services\Calendar\GoogleCalendarProvider::class
+        );
         $this->app->bind(\App\Contracts\Ai\AiProviderInterface::class, function () {
             if (strtolower((string) config('assistant.provider')) === 'null' || trim((string) config('assistant.api_key')) === '') {
                 return new \App\Services\Assistant\Providers\NullAiProvider();

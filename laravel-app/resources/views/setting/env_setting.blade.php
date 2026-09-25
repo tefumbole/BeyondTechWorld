@@ -16,7 +16,56 @@
                         <span class="text-muted small">{{ $envPath }}</span>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted mb-3">Edit the <code>.env</code> file directly. After saving, run <code>php artisan config:clear</code> on the server. A timestamped backup is created automatically on each save.</p>
+                        <h5 class="mb-3">Google Calendar</h5>
+                        <p class="text-muted">These fields write the appointment calendar keys into <code>.env</code> and clear the config cache. Leave a secret blank to keep the value already stored.</p>
+                        {!! Form::open(['route' => 'setting.envStore', 'method' => 'post']) !!}
+                            <input type="hidden" name="save_calendar" value="1">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>GOOGLE_CALENDAR_CLIENT_ID</label>
+                                        <input type="text" name="google_calendar_client_id" class="form-control" value="{{ old('google_calendar_client_id', $calendar['client_id']) }}" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>GOOGLE_CALENDAR_ID</label>
+                                        <input type="text" name="google_calendar_id" class="form-control" value="{{ old('google_calendar_id', $calendar['calendar_id']) }}" placeholder="primary or the calendar email" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>GOOGLE_CALENDAR_CLIENT_SECRET</label>
+                                        <input type="password" name="google_calendar_client_secret" class="form-control" value="" placeholder="{{ $calendar['has_secret'] ? 'Saved. Leave blank to keep it.' : 'Not set' }}" autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>GOOGLE_CALENDAR_REFRESH_TOKEN</label>
+                                        <input type="password" name="google_calendar_refresh_token" class="form-control" value="" placeholder="{{ $calendar['has_refresh'] ? 'Saved. Leave blank to keep it.' : 'Not set' }}" autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>GOOGLE_CALENDAR_CHANNEL_TOKEN</label>
+                                        <input type="password" name="google_calendar_channel_token" class="form-control" value="" placeholder="{{ $calendar['has_channel'] ? 'Saved. Leave blank to keep it.' : 'Optional. For inbound calendar notifications.' }}" autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>APPOINTMENT_REMINDERS</label>
+                                        <select name="appointment_reminders" class="form-control">
+                                            <option value="false" @if(! $calendar['reminders']) selected @endif>Off</option>
+                                            <option value="true" @if($calendar['reminders']) selected @endif>On</option>
+                                        </select>
+                                        <small class="text-muted">WhatsApp reminders stay off until this is On. The server cron must run <code>php artisan schedule:run</code>.</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mb-4">Save Google Calendar</button>
+                        {!! Form::close() !!}
+                        <hr>
+                        <p class="text-muted mb-3">Edit the <code>.env</code> file directly. Saving this box replaces the whole file. A timestamped backup is created automatically. Saving the Google Calendar form above already runs <code>php artisan config:clear</code>.</p>
                         {!! Form::open(['route' => 'setting.envStore', 'method' => 'post']) !!}
                             <div class="form-group">
                                 <label for="env_content"><strong>Application `.env`</strong></label>
@@ -35,6 +84,13 @@ WASENDER_TEXT_TO_DOCUMENT_DELAY_MS=6000
 COMPANY_NAME=Beyond Enterprise
 WHATSAPP_SERVICE=WASENDER
 WHATSAPP_TWILIO_FALLBACK_WASENDER=true
+# Google Calendar (also editable in the form above)
+GOOGLE_CALENDAR_CLIENT_ID=
+GOOGLE_CALENDAR_CLIENT_SECRET=
+GOOGLE_CALENDAR_REFRESH_TOKEN=
+GOOGLE_CALENDAR_ID=
+GOOGLE_CALENDAR_CHANNEL_TOKEN=
+APPOINTMENT_REMINDERS=false
 # Twilio keys below are for SMS (and optional WhatsApp templates if WHATSAPP_SERVICE=TWILIO)
 TWILIO_WHATSAPP_CONTENT_SID_ADMISSION=HX47150e179fdbab79738d060fb0ac6415
 TWILIO_WHATSAPP_CONTENT_SID_STATUS=HX47150e179fdbab79738d060fb0ac6415</pre>

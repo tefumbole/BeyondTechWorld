@@ -15,6 +15,22 @@ Ordinary chat now uses conversation history and the existing ERP tools. Checkout
 
 ---
 
+## Owner control and group intelligence
+
+Date: 25 September 2026. Report: `WHATSAPP_GROUP_INTELLIGENCE_IMPLEMENTATION.md`.
+
+A mapped ERP owner can control AI from a private WhatsApp chat, including a confirmed bulk switch. Group webhooks are stored only after a group is explicitly enabled, and the default enabled mode is Monitor. Discovered groups stay off. Automated tests: 153 tests, 852 assertions, OK. This was not deployed. Stage 9 has not started.
+
+---
+
+## Stage 9 — Appointments and Google Calendar
+
+Date: 25 September 2026. Report: `WHATSAPP_APPOINTMENTS_IMPLEMENTATION.md`.
+
+An appointment is an ERP row. WhatsApp offers only configured windows and creates the row after the customer chooses a time. Google Calendar is updated only when credentials are set; otherwise the booking stays in the ERP and the reply says the calendar was not copied. Reminders stay off until `APPOINTMENT_REMINDERS` is enabled. Automated tests: 160 tests, 898 assertions, OK. This was not deployed. Stage 10 has not started.
+
+---
+
 ## STAGE 8 — Property, Tenant & Bill Payment Operations
 
 Audit: `WHATSAPP_HUB_STAGE8_AUDIT.md`.
