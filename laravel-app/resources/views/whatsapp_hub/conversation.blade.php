@@ -19,7 +19,19 @@
                 <div class="small text-muted">Conversation</div>
                 <strong>{{ optional($conversation->contact)->displayName() }}</strong>
                 <div>{{ optional($conversation->contact)->display_phone }}</div>
-                <div class="small mt-2">Mode: {{ $conversation->mode }}</div>
+                @php
+                    $assignee = optional($conversation->assignee)->name;
+                    if ($conversation->mode === 'AI') {
+                        $stateLabel = 'AI ACTIVE';
+                    } elseif ($conversation->mode === 'HUMAN') {
+                        $stateLabel = 'HUMAN — '.($assignee ?: 'unassigned');
+                    } elseif ($conversation->mode === 'PAUSED') {
+                        $stateLabel = 'PAUSED';
+                    } else {
+                        $stateLabel = 'CLOSED';
+                    }
+                @endphp
+                <div class="small mt-2"><strong>{{ $stateLabel }}</strong></div>
                 <div class="small">Status: {{ $conversation->status }}</div>
                 <div class="small">Assigned: {{ optional($conversation->assignee)->name ?: 'Unassigned' }}</div>
                 @if(!empty($rentalRequest))
@@ -99,7 +111,12 @@
                     @endforeach
                 @endif
                 <hr>
-                <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-success btn-block" type="submit">Enable AI</button></form>
+                <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $conversation->id) }}" class="mb-1">
+                    @csrf
+                    <label class="small d-block"><input type="checkbox" name="confirm" value="1"> Confirm return to AI</label>
+                    <textarea name="handoff_note" class="form-control form-control-sm mb-1" rows="2" placeholder="Internal note (not sent to the customer)"></textarea>
+                    <button class="btn btn-sm btn-success btn-block" type="submit">Return to AI</button>
+                </form>
                 <form method="post" action="{{ route('whatsapp.conversation.takeover', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-primary btn-block" type="submit">Take Over</button></form>
                 <form method="post" action="{{ route('whatsapp.conversation.release', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-secondary btn-block" type="submit">Release</button></form>
                 <form method="post" action="{{ route('whatsapp.conversation.pause', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-warning btn-block" type="submit">Pause</button></form>

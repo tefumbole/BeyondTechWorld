@@ -500,6 +500,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/diagnostics', 'WhatsApp\WhatsAppHubController@diagnostics')->name('whatsapp.diagnostics');
     Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
     Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');
+    Route::post('/admin/whatsapp/settings/switch-ai', 'WhatsApp\WhatsAppHubController@switchEligibleToAi')->name('whatsapp.settings.switch_ai');
     Route::get('/admin/whatsapp/internship', 'WhatsApp\WhatsAppHubController@internship')->name('whatsapp.internship');
     Route::get('/admin/whatsapp/attendance', 'WhatsApp\WhatsAppHubController@attendance')->name('whatsapp.attendance');
     Route::post('/admin/whatsapp/attendance/corrections/{id}/approve', 'WhatsApp\WhatsAppHubController@approveCorrection')->name('whatsapp.attendance.corrections.approve');

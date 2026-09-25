@@ -94,12 +94,20 @@ class WhatsAppAssistantController extends Controller
         return redirect()->route('whatsapp.assistant', ['tab' => 'knowledge'])->with('message', 'Knowledge updated.');
     }
 
-    public function enableAi($id)
+    public function enableAi(Request $request, $id)
     {
         if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.takeover', 'whatsapp.manage'])) {
             return $deny;
         }
-        app(WhatsAppConversationService::class)->enableAi(WhatsAppConversation::findOrFail($id), Auth::id());
+        if (! $request->input('confirm')) {
+            return back()->with('not_permitted', 'Confirm before returning this conversation to AI.');
+        }
+        $conversation = WhatsAppConversation::findOrFail($id);
+        $note = trim((string) $request->input('handoff_note', ''));
+        if ($note !== '') {
+            app(WhatsAppConversationService::class)->addNote($conversation, $note, Auth::id());
+        }
+        app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
 
         return back()->with('message', 'Beyond Assistant enabled for this conversation.');
     }

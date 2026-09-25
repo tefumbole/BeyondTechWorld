@@ -7,6 +7,14 @@ Date: 23 September 2026
 
 ---
 
+## Conversational assistant upgrade
+
+Date: 25 September 2026. Report: `WHATSAPP_ASSISTANT_CONVERSATIONAL_UPGRADE.md`.
+
+Ordinary chat now uses conversation history and the existing ERP tools. Checkout, OTP, documents, property, bills, and human handover still win over chat. AI-first applies to new conversations only and stays off until an admin enables it. Automated tests: 140 tests, 782 assertions, OK. Stage 9 has not started.
+
+---
+
 ## STAGE 8 — Property, Tenant & Bill Payment Operations
 
 Audit: `WHATSAPP_HUB_STAGE8_AUDIT.md`.

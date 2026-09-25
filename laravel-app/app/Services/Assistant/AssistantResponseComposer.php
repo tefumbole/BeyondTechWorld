@@ -19,6 +19,9 @@ class AssistantResponseComposer
         if ($intent === IntentCatalog::DISCOUNT_REQUEST) {
             return 'I cannot change ERP prices or apply a discount from WhatsApp. A team member can review that request. The quotation is unchanged.';
         }
+        if ($intent === IntentCatalog::CALL_REQUEST) {
+            return "I've asked our team to call you. They have not called yet.";
+        }
         if ($action === IntentCatalog::ACTION_HANDOVER) {
             return 'A BeyondTechWorld team member will continue this conversation with you shortly.';
         }
@@ -29,9 +32,10 @@ class AssistantResponseComposer
             return $this->clarify($intent, $memoryParams);
         }
         if ($intent === IntentCatalog::GREETING) {
-            $name = config('assistant.identify') ? config('assistant.display_name') : 'BeyondTechWorld';
-
-            return 'Hello, this is '.$name.'. How can we help you today?';
+            return $this->greeting($context, $memoryParams);
+        }
+        if ($intent === IntentCatalog::PREVIOUS_QUOTATION && is_array($toolResult) && ! empty($toolResult['message'])) {
+            return $toolResult['message'];
         }
         if (is_array($toolResult) && empty($toolResult['success']) && isset($toolResult['error'])) {
             if ($toolResult['error'] === 'unavailable' && isset($toolResult['check'])) {
@@ -123,6 +127,27 @@ class AssistantResponseComposer
         }
 
         return 'Could you share a bit more detail so I can help accurately?';
+    }
+
+    protected function greeting(array $context, array $params)
+    {
+        $known = '';
+        if (AssistantRuntimeSettings::greetByName()) {
+            if (! empty($params['captured_name'])) {
+                $known = trim((string) $params['captured_name']);
+            } elseif (! empty($context['customer_id']) || ! empty($context['employee_id']) || ! empty($context['intern_user_id'])) {
+                $known = isset($context['contact_name']) ? trim((string) $context['contact_name']) : '';
+            }
+        }
+        if ($known !== '') {
+            return 'Hi '.$known.', welcome back. How can I help you today?';
+        }
+        $ask = AssistantRuntimeSettings::collectUnknownName()
+            ? ' May I know your name?'
+            : '';
+        $who = config('assistant.identify') ? config('assistant.display_name') : 'BeyondTechWorld';
+
+        return 'Hi, this is '.$who.'. How can I help you today?'.$ask;
     }
 
     protected function fromTool($intent, $toolResult, array $params)

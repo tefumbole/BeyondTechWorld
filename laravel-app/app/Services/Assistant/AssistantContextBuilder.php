@@ -46,7 +46,7 @@ class AssistantContextBuilder
         }
         $history = WhatsAppMessage::where('conversation_id', $conversation->id)
             ->orderByDesc('id')
-            ->limit((int) config('assistant.history_limit'))
+            ->limit(AssistantRuntimeSettings::historyLimit())
             ->get()
             ->reverse()
             ->values()

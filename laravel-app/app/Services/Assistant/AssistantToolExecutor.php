@@ -214,6 +214,58 @@ class AssistantToolExecutor
         return ['success' => true, 'quotations' => $out];
     }
 
+    protected function toolGetCustomerQuotationDetails(array $params, array $context)
+    {
+        $customerId = $this->customerId($context);
+        if (! $customerId || ! Schema::hasTable('quotations')) {
+            return ['success' => false, 'error' => 'not_found', 'message' => "I couldn't find a previous quotation on this account."];
+        }
+        $id = isset($params['quotation_id']) ? (int) $params['quotation_id'] : 0;
+        $query = Quotation::where('customer_id', $customerId)->orderByDesc('id');
+        $row = $id ? $query->where('id', $id)->first() : $query->first();
+        if (! $row) {
+            return ['success' => false, 'error' => 'not_found', 'message' => "I couldn't find a previous quotation on this account."];
+        }
+        $lines = [];
+        if (Schema::hasTable('product_quotation')) {
+            $lines = \Illuminate\Support\Facades\DB::table('product_quotation')->where('quotation_id', $row->id)->get();
+        }
+        $pricing = app(\App\Services\Rental\RentalPricingService::class);
+        $items = [];
+        $bits = [];
+        foreach ($lines as $line) {
+            $product = Product::find($line->product_id);
+            $qty = isset($line->qty) ? $line->qty : 1;
+            $historical = isset($line->net_unit_price) ? $line->net_unit_price : null;
+            $current = null;
+            $name = $product ? $product->name : 'Item';
+            if ($product) {
+                $priced = $pricing->priceLine($product, $qty, 1);
+                $current = ! empty($priced['success']) ? $priced['unit_price'] : null;
+            }
+            $items[] = [
+                'product_id' => $product ? $product->id : (isset($line->product_id) ? $line->product_id : null),
+                'name' => $name,
+                'qty' => $qty,
+                'historical_unit_price' => $historical,
+                'current_unit_price' => $current,
+            ];
+            $bits[] = $name.' x '.$qty.' (historical '.$historical.', current '.$current.')';
+        }
+        $message = 'Quotation '.$row->reference_no.' is a previous record. Prices below marked historical are not a new quote. Current prices are from the catalogue today and still need staff approval before anything is sent.';
+        if ($bits !== []) {
+            $message .= ' '.implode('; ', $bits).'.';
+        }
+
+        return [
+            'success' => true,
+            'id' => $row->id,
+            'reference' => $row->reference_no,
+            'items' => $items,
+            'message' => $message,
+        ];
+    }
+
     protected function toolGetQuotationStatus(array $params, array $context)
     {
         $customerId = $this->customerId($context);

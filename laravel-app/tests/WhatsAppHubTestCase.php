@@ -55,6 +55,10 @@ abstract class WhatsAppHubTestCase extends TestCase
             '--path' => 'database/migrations/2026_09_23_200000_create_property_tenant_foundation.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_25_120000_create_whatsapp_call_requests.php',
+            '--force' => true,
+        ]);
     }
 
     protected function createSupportTables()

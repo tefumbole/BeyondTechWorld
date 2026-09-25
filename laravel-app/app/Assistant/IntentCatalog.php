@@ -51,6 +51,8 @@ class IntentCatalog
     const BILL_MEDIA = 'BILL_MEDIA';
     const APPOINTMENT_REQUEST = 'APPOINTMENT_REQUEST';
     const TECHNICAL_SUPPORT = 'TECHNICAL_SUPPORT';
+    const PREVIOUS_QUOTATION = 'PREVIOUS_QUOTATION';
+    const CALL_REQUEST = 'CALL_REQUEST';
     const HUMAN_REQUEST = 'HUMAN_REQUEST';
     const COMPLAINT = 'COMPLAINT';
     const UNKNOWN = 'UNKNOWN';
@@ -111,6 +113,8 @@ class IntentCatalog
             self::BILL_MEDIA => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
             self::APPOINTMENT_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::TECHNICAL_SUPPORT => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
+            self::PREVIOUS_QUOTATION => ['requires_erp' => true, 'sensitivity' => 'RECOGNIZED'],
+            self::CALL_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::HUMAN_REQUEST => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::COMPLAINT => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],
             self::UNKNOWN => ['requires_erp' => false, 'sensitivity' => 'PUBLIC'],

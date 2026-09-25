@@ -200,6 +200,9 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $calls = WhatsAppCall::with(['contact', 'assignee'])->orderByDesc('called_at')->paginate(40);
+        $callRequests = \Illuminate\Support\Facades\Schema::hasTable('whatsapp_call_requests')
+            ? \App\WhatsApp\WhatsAppCallRequest::with(['contact', 'assignee'])->orderByDesc('id')->limit(40)->get()
+            : collect();
         $staff = User::query()
             ->where(function ($q) {
                 $q->where('is_deleted', false)->orWhereNull('is_deleted');
@@ -211,7 +214,7 @@ class WhatsAppHubController extends Controller
             ->limit(200)
             ->get(['id', 'name']);
 
-        return view('whatsapp_hub.calls', compact('calls', 'staff'));
+        return view('whatsapp_hub.calls', compact('calls', 'staff', 'callRequests'));
     }
 
     public function updateCall(Request $request, $id)
@@ -266,8 +269,21 @@ class WhatsAppHubController extends Controller
         $assistantEnabled = WhatsAppSetting::getValue('assistant_enabled', '0') === '1';
         $assistantEnv = (bool) config('assistant.enabled');
         $assistantConfigured = trim((string) config('assistant.api_key')) !== '';
+        $aiFirst = \App\Services\Assistant\AssistantRuntimeSettings::aiFirst();
+        $manualTakeover = \App\Services\Assistant\AssistantRuntimeSettings::manualReplyTakesOver();
+        $collectName = \App\Services\Assistant\AssistantRuntimeSettings::collectUnknownName();
+        $greetByName = \App\Services\Assistant\AssistantRuntimeSettings::greetByName();
+        $handoverUserId = \App\Services\Assistant\AssistantRuntimeSettings::handoverUserId();
+        $historyLimit = \App\Services\Assistant\AssistantRuntimeSettings::historyLimit();
+        $clarificationLimit = \App\Services\Assistant\AssistantRuntimeSettings::maxClarifications();
+        $switchPreview = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->preview();
+        $staff = User::query()->orderBy('name')->limit(200)->get(['id', 'name']);
 
-        return view('whatsapp_hub.settings', compact('session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured'));
+        return view('whatsapp_hub.settings', compact(
+            'session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured',
+            'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'historyLimit',
+            'clarificationLimit', 'switchPreview', 'staff'
+        ));
     }
 
     public function updateSettings(Request $request)
@@ -288,9 +304,36 @@ class WhatsAppHubController extends Controller
         }
         if ($this->canAny(['whatsapp.ai.manage', 'whatsapp.manage'])) {
             WhatsAppSetting::putValue('assistant_enabled', $request->input('assistant_enabled') ? '1' : '0');
+            WhatsAppSetting::putValue('ai_first', $request->input('ai_first') ? '1' : '0');
+            WhatsAppSetting::putValue('manual_reply_takes_over', $request->has('manual_reply_takes_over') ? ($request->input('manual_reply_takes_over') ? '1' : '0') : '1');
+            WhatsAppSetting::putValue('assistant_collect_name', $request->input('assistant_collect_name') ? '1' : '0');
+            WhatsAppSetting::putValue('assistant_greet_by_name', $request->input('assistant_greet_by_name') ? '1' : '0');
+            $agent = (int) $request->input('default_handover_user_id', 0);
+            WhatsAppSetting::putValue('default_handover_user_id', $agent > 0 ? (string) $agent : '0');
+            $history = (int) $request->input('assistant_history_limit', 8);
+            if ($history >= 2 && $history <= 20) {
+                WhatsAppSetting::putValue('assistant_history_limit', (string) $history);
+            }
+            $clarify = (int) $request->input('assistant_max_clarifications', 4);
+            if ($clarify >= 1 && $clarify <= 8) {
+                WhatsAppSetting::putValue('assistant_max_clarifications', (string) $clarify);
+            }
         }
 
-        return redirect()->route('whatsapp.settings')->with('message', 'Settings saved.');
+        return redirect()->route('whatsapp.settings')->with('message', 'Settings saved. Existing conversations were not changed.');
+    }
+
+    public function switchEligibleToAi(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai.manage', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        if (! $request->input('confirm')) {
+            return redirect()->route('whatsapp.settings')->with('not_permitted', 'Confirm the switch before eligible conversations move to AI.');
+        }
+        $count = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->switchEligible(Auth::id());
+
+        return redirect()->route('whatsapp.settings')->with('message', $count.' eligible conversation(s) switched to AI.');
     }
 
     public function assignConversation(Request $request, $id)

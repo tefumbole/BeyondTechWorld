@@ -89,6 +89,11 @@ class BeyondAssistantService
         $slots['provider_message_id'] = $message->provider_message_id;
         $slots['conversation_id'] = $conversation->id;
         $slots['roles'] = isset($context['roles']) ? $context['roles'] : [];
+        try {
+            app(AssistantLeadCapture::class)->apply($conversation, $slots, (string) $message->body);
+        } catch (\Throwable $e) {
+            $activity->error = $e->getMessage();
+        }
         $choiceText = strtolower((string) $slots['text']);
         if (strpos($choiceText, 'intern') !== false) {
             $slots['context'] = 'intern';
@@ -97,9 +102,71 @@ class BeyondAssistantService
         } elseif (! empty($slots['tenant_choice_pending']) && preg_match('/\b(tenant|rent)\b/', $choiceText)) {
             $slots['context'] = 'tenant';
         }
-        $classified = $this->router->classify((string) $message->body, $context, $slots);
+        $directReply = null;
+        $conversationalTool = null;
+        $conversationalResult = null;
+        $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
+        $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
+        if ($justNamed) {
+            $directReply = 'Thanks '.$slots['captured_name'].'. Are you arranging this for yourself or for an organization?';
+            $classified = [
+                'intent' => IntentCatalog::GREETING,
+                'confidence' => 0.97,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
+        $high = (float) config('assistant.confidence_high');
+        if (! isset($classified) && (! $deterministic || $deterministic['confidence'] < $high)) {
+            $turn = app(ConversationalTurnService::class)->turn($conversation, $context, $mem, $slots, (string) $message->body);
+            if (! empty($turn['handled'])) {
+                $directReply = $turn['reply'];
+                $conversationalTool = isset($turn['tool']) ? $turn['tool'] : null;
+                $conversationalResult = isset($turn['tool_result']) ? $turn['tool_result'] : null;
+                if (! empty($turn['memory'])) {
+                    $slots = array_merge($slots, $turn['memory']);
+                }
+                if (! empty($turn['handover'])) {
+                    $classified = [
+                        'intent' => ! empty($turn['call_request']) ? IntentCatalog::CALL_REQUEST : IntentCatalog::HUMAN_REQUEST,
+                        'confidence' => 0.99,
+                        'requires_erp' => false,
+                        'needs_clarification' => false,
+                        'slots' => [],
+                    ];
+                    if (! empty($turn['reason'])) {
+                        $classified['reason'] = $turn['reason'];
+                    }
+                } else {
+                    $classified = [
+                        'intent' => IntentCatalog::GENERAL_ENQUIRY,
+                        'confidence' => 0.95,
+                        'requires_erp' => false,
+                        'needs_clarification' => ! empty($turn['clarify']),
+                        'slots' => [],
+                    ];
+                }
+            }
+        }
+        if (! isset($classified) && ! empty($slots['organization'])) {
+            $directReply = 'Thanks, I have noted '.$slots['organization'].'. What do you need for the event?';
+            $classified = [
+                'intent' => IntentCatalog::GENERAL_ENQUIRY,
+                'confidence' => 0.95,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
+        if (! isset($classified)) {
+            $classified = $this->router->classify((string) $message->body, $context, $slots);
+        }
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
+        if (! empty($classified['reason']) && $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
+            $decision['reason'] = $classified['reason'];
+        }
         $this->memory->remember($mem, $decision['intent'], $slots);
         if ($decision['intent'] === IntentCatalog::RENTAL_REVISION && ! empty($slots['quotation_id'])) {
             $slots['revised_from_id'] = $slots['quotation_id'];
@@ -118,23 +185,26 @@ class BeyondAssistantService
 
         $toolResult = null;
         $toolsRun = [];
+        if ($conversationalResult) {
+            $toolResult = $conversationalResult;
+            if ($conversationalTool) {
+                $toolsRun[] = $conversationalTool;
+                $activity->tools_requested = $conversationalTool;
+                $activity->tools_executed = $conversationalTool;
+                $activity->tool_status = ! empty($conversationalResult['success']) ? 'ok' : 'failed';
+            }
+        }
         $otpCode = null;
         $otpTtl = 5;
         if ($decision['action'] === IntentCatalog::ACTION_HANDOVER) {
-            $roles = isset($context['roles']) ? $context['roles'] : [];
-            if ($decision['intent'] === IntentCatalog::HUMAN_REQUEST && in_array('intern', $roles, true)) {
-                app(\App\Services\Internship\InternshipWhatsAppService::class)->handover($context, [
-                    'reason' => $decision['reason'] ?: 'intern_request',
-                ]);
-            } else {
-                $this->handover->toHuman($conversation, $decision['reason'] ?: 'handover');
+            if ($decision['intent'] === IntentCatalog::CALL_REQUEST) {
+                app(\App\Services\WhatsApp\WhatsAppCallRequestService::class)->open($conversation, (string) $message->body);
             }
             $activity->handover_reason = $decision['reason'];
             $activity->status = AssistantActivity::HANDED_OVER;
         } elseif ($decision['action'] === IntentCatalog::ACTION_CLARIFY) {
             $this->memory->bumpClarification($mem);
-            if ((int) $mem->clarification_count > (int) config('assistant.max_clarifications')) {
-                $this->handover->toHuman($conversation, 'too_many_clarifications');
+            if ((int) $mem->clarification_count > AssistantRuntimeSettings::maxClarifications()) {
                 $decision['action'] = IntentCatalog::ACTION_HANDOVER;
                 $activity->handover_reason = 'too_many_clarifications';
                 $activity->status = AssistantActivity::HANDED_OVER;
@@ -218,7 +288,6 @@ class BeyondAssistantService
                 $activity->tool_status = ! empty($toolResult['success']) ? 'ok' : (isset($toolResult['error']) ? $toolResult['error'] : 'failed');
                 if (empty($toolResult['success']) && in_array($toolResult['error'] ?? '', ['not_found', 'unknown_tool', 'unimplemented_tool'], true)
                     && in_array($decision['intent'], [IntentCatalog::BOOKING_STATUS, IntentCatalog::INTERNSHIP_TASK], true)) {
-                    $this->handover->toHuman($conversation, 'tool_failed');
                     $decision['action'] = IntentCatalog::ACTION_HANDOVER;
                     $activity->handover_reason = 'tool_failed';
                     $activity->status = AssistantActivity::HANDED_OVER;
@@ -226,7 +295,12 @@ class BeyondAssistantService
             }
         }
 
-        $reply = $this->composer->compose($decision['intent'], $decision['action'], $toolResult ?: [], $context, (string) $message->body, $mem->parameters());
+        if ($decision['intent'] === IntentCatalog::GREETING && AssistantRuntimeSettings::collectUnknownName() && empty($slots['captured_name']) && empty($context['customer_id']) && empty($context['employee_id']) && empty($context['intern_user_id'])) {
+            $slots['awaiting_name'] = 1;
+            $this->memory->remember($mem, $decision['intent'], $slots);
+        }
+
+        $reply = $directReply !== null ? $directReply : $this->composer->compose($decision['intent'], $decision['action'], $toolResult ?: [], $context, (string) $message->body, $mem->parameters());
         $sent = false;
         $conversation = $conversation->fresh();
         if (is_array($toolResult) && ! empty($toolResult['document_path']) && $conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI) {
@@ -255,6 +329,16 @@ class BeyondAssistantService
             $sent = ! empty($send['success']);
             if (! $sent) {
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
+            }
+        }
+        if ($decision['action'] === IntentCatalog::ACTION_HANDOVER && $conversation->fresh()->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI) {
+            $roles = isset($context['roles']) ? $context['roles'] : [];
+            if ($decision['intent'] === IntentCatalog::HUMAN_REQUEST && in_array('intern', $roles, true)) {
+                app(\App\Services\Internship\InternshipWhatsAppService::class)->handover($context, [
+                    'reason' => $decision['reason'] ?: 'intern_request',
+                ]);
+            } else {
+                $this->handover->toHuman($conversation, $decision['reason'] ?: 'handover');
             }
         }
         if ($decision['intent'] === IntentCatalog::DISCOUNT_REQUEST) {
@@ -309,6 +393,7 @@ class BeyondAssistantService
             IntentCatalog::RENTAL_ACCEPT => 'request_rental_booking',
             IntentCatalog::BOOKING_STATUS => 'get_booking_status',
             IntentCatalog::QUOTATION_REQUEST => 'get_customer_quotations',
+            IntentCatalog::PREVIOUS_QUOTATION => 'get_customer_quotation_details',
             IntentCatalog::INTERNSHIP_TASK => 'get_current_internship_task',
             IntentCatalog::INTERNSHIP_MATERIAL => 'get_task_materials',
             IntentCatalog::INTERNSHIP_SUBMIT => $this->internshipSubmitTool($slots),
@@ -398,6 +483,20 @@ class BeyondAssistantService
         }
         if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)\b/i', $text, $m) && (int) $m[1] >= 20) {
             $slots['guests'] = (int) $m[1];
+        }
+        if (! empty($existing['awaiting_name']) && preg_match("/^[A-Za-z][A-Za-z '\\-]{1,40}$/", trim($text)) && ! preg_match('/\b(yes|no|ok|help|price|speakers?|sound|church|school|company)\b/i', $text)) {
+            $slots['captured_name'] = trim($text);
+            $slots['awaiting_name'] = 0;
+        }
+        if (preg_match("/(?:my name is|i am|i'm)\s+([A-Za-z][A-Za-z'\\-]{1,40})/i", $text, $m)) {
+            $candidate = trim($m[1]);
+            if (! preg_match('/^(looking|interested|calling|here|from|with|for|the|a)\b/i', $candidate)) {
+                $slots['captured_name'] = $candidate;
+                $slots['awaiting_name'] = 0;
+            }
+        }
+        if (preg_match('/\b([A-Za-z][A-Za-z]+)\s+(church|school|company|organisation|organization)\b/i', $text, $m)) {
+            $slots['organization'] = trim($m[1].' '.$m[2]);
         }
         if (preg_match('/\b(\d{1,2}\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}|\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b/i', $dated, $m)) {
             $slots['event_date'] = strtolower(preg_replace('/\s+of\s+/', ' ', $m[1]));

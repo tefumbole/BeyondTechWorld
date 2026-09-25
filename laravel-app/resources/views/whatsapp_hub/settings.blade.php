@@ -41,7 +41,49 @@
                     <input type="checkbox" name="assistant_enabled" value="1" {{ !empty($assistantEnabled) ? 'checked' : '' }}>
                     Enable Beyond Assistant (uncheck to disable all AI replies immediately)
                 </label>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="ai_first" value="0">
+                    <input type="checkbox" name="ai_first" value="1" {{ !empty($aiFirst) ? 'checked' : '' }}>
+                    AI-first for new conversations only
+                </label>
+                <p class="small text-muted">Saving this does not change conversations that already exist.</p>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="manual_reply_takes_over" value="0">
+                    <input type="checkbox" name="manual_reply_takes_over" value="1" {{ !empty($manualTakeover) ? 'checked' : '' }}>
+                    A manual staff reply takes the conversation over from AI
+                </label>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="assistant_greet_by_name" value="0">
+                    <input type="checkbox" name="assistant_greet_by_name" value="1" {{ !empty($greetByName) ? 'checked' : '' }}>
+                    Greet known contacts by name
+                </label>
+                <label class="d-block mb-3">
+                    <input type="hidden" name="assistant_collect_name" value="0">
+                    <input type="checkbox" name="assistant_collect_name" value="1" {{ !empty($collectName) ? 'checked' : '' }}>
+                    Ask an unknown contact for their name once
+                </label>
+                <label>Default handover agent</label>
+                <select name="default_handover_user_id" class="form-control mb-3" style="max-width:320px">
+                    <option value="0">None</option>
+                    @foreach($staff as $u)
+                        <option value="{{ $u->id }}" {{ (int) $handoverUserId === (int) $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                    @endforeach
+                </select>
+                <label>History window (messages)</label>
+                <input type="number" min="2" max="20" name="assistant_history_limit" class="form-control mb-2" style="max-width:240px" value="{{ $historyLimit }}">
+                <label>Clarification limit</label>
+                <input type="number" min="1" max="8" name="assistant_max_clarifications" class="form-control mb-3" style="max-width:240px" value="{{ $clarificationLimit }}">
                 <button class="btn btn-primary" type="submit">Save</button>
+            </form>
+            <hr>
+            <h5>Switch eligible conversations to AI</h5>
+            <p class="small">Eligible now: {{ $switchPreview['eligible'] }}. Excluded — assigned {{ $switchPreview['excluded']['assigned'] }}, paused {{ $switchPreview['excluded']['paused'] }}, closed {{ $switchPreview['excluded']['closed'] }}, verification {{ $switchPreview['excluded']['verification'] }}, open attendance {{ $switchPreview['excluded']['attendance'] }}.</p>
+            <form method="post" action="{{ route('whatsapp.settings.switch_ai') }}">
+                @csrf
+                <label class="d-block mb-2">
+                    <input type="checkbox" name="confirm" value="1"> I confirm this switch for eligible conversations only
+                </label>
+                <button class="btn btn-outline-primary" type="submit">Switch eligible conversations to AI</button>
             </form>
         </div>
     </div>

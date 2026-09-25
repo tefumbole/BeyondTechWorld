@@ -60,6 +60,28 @@
             </table>
             {{ $calls->links() }}
         </div>
+        <div class="wa-card table-responsive mt-3">
+            <h5>Call requests</h5>
+            <p class="small text-muted">These are requests for a person to call. The assistant does not place the call.</p>
+            <table class="table">
+                <thead>
+                    <tr><th>When</th><th>Contact</th><th>Status</th><th>Assigned</th><th>Request</th></tr>
+                </thead>
+                <tbody>
+                @forelse($callRequests as $request)
+                    <tr>
+                        <td>{{ $request->created_at }}</td>
+                        <td>{{ optional($request->contact)->displayName() ?: 'Unknown' }}</td>
+                        <td>{{ $request->status }}</td>
+                        <td>{{ optional($request->assignee)->name ?: '—' }}</td>
+                        <td>{{ $request->requested_body }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="text-muted">No call requests.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
 @endsection

@@ -3,6 +3,7 @@
 namespace App\Services\WhatsApp;
 
 use App\Contracts\WhatsApp\WhatsAppProviderInterface;
+use App\Services\Assistant\AssistantRuntimeSettings;
 use App\WhatsApp\WhatsAppContact;
 use App\WhatsApp\WhatsAppContactLink;
 use App\WhatsApp\WhatsAppConversation;
@@ -26,13 +27,27 @@ class WhatsAppConversationService
     {
         $saved = WhatsAppSetting::getValue('default_conversation_mode');
         $mode = strtoupper((string) ($saved ?: config('services.whatsapp.default_conversation_mode', 'HUMAN')));
-
-        return in_array($mode, [
+        if (! in_array($mode, [
             WhatsAppConversation::MODE_AI,
             WhatsAppConversation::MODE_HUMAN,
             WhatsAppConversation::MODE_PAUSED,
             WhatsAppConversation::MODE_CLOSED,
-        ], true) ? $mode : WhatsAppConversation::MODE_HUMAN;
+        ], true)) {
+            $mode = WhatsAppConversation::MODE_HUMAN;
+        }
+        if (AssistantRuntimeSettings::aiFirst()) {
+            try {
+                if (app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()) {
+                    return WhatsAppConversation::MODE_AI;
+                }
+            } catch (\Exception $e) {
+                return WhatsAppConversation::MODE_HUMAN;
+            }
+
+            return WhatsAppConversation::MODE_HUMAN;
+        }
+
+        return $mode;
     }
 
     public function findOrCreateContact($phone, $waName = null)
@@ -208,6 +223,14 @@ class WhatsAppConversationService
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }
+        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+            $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+            if ($userId) {
+                $conversation->assigned_user_id = $userId;
+            }
+            $conversation->save();
+            $this->event($conversation, WhatsAppConversationEvent::TAKEOVER, 'HUMAN_TAKEOVER_BY_REPLY', $userId);
+        }
 
         $contact = $conversation->contact;
         if (! $contact || $contact->isBlocked()) {
@@ -299,6 +322,10 @@ class WhatsAppConversationService
         $body = trim((string) $body);
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
+        }
+        $conversation = WhatsAppConversation::find($conversation->id);
+        if (! $conversation || $conversation->mode !== WhatsAppConversation::MODE_AI) {
+            return ['success' => false, 'error' => 'mode_changed', 'discarded' => true];
         }
         $contact = $conversation->contact;
         if (! $contact || $contact->isBlocked()) {

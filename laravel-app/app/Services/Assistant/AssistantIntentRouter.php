@@ -46,7 +46,10 @@ class AssistantIntentRouter
 
             return $this->make(IntentCatalog::UNKNOWN, 0.1, false, true);
         }
-        if (preg_match('/\b(talk to (someone|a person|staff|human)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|i need a human|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
+        if (preg_match('/\b(call me|please call me|can someone call|give me a call)\b/i', $t)) {
+            return $this->make(IntentCatalog::CALL_REQUEST, 0.99, false, false);
+        }
+        if (preg_match('/\b(talk to (someone|a person|staff|human|the manager)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|i need a human|i want a (person|human)|connect me|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
         $locationFollowUp = ($t === '' && isset($memoryParams['latitude']))
@@ -153,7 +156,10 @@ class AssistantIntentRouter
 
             return $this->make($intent, 0.9, true, $needs);
         }
-        if (preg_match('/^(hi|hello|hey|bonjour|good morning|good evening)[\s!.]*$/i', $t)) {
+        if (preg_match('/\b(previous quotation|old quotation|same equipment|same quotation|what did i (rent|book) last)\b/i', $t)) {
+            return $this->make(IntentCatalog::PREVIOUS_QUOTATION, 0.95, true, false);
+        }
+        if (preg_match('/^(hi|hello|hey|hiya|greetings|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[\s!.]*$/i', $t)) {
             return $this->make(IntentCatalog::GREETING, 0.97, false, false);
         }
         if (preg_match('/\b(appointment|schedule a meeting|book a meeting)\b/i', $t)) {

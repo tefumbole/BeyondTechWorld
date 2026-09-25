@@ -51,8 +51,10 @@ class AssistantPolicyService
         $high = (float) config('assistant.confidence_high');
         $low = (float) config('assistant.confidence_low');
 
-        if (in_array($name, [IntentCatalog::HUMAN_REQUEST, IntentCatalog::COMPLAINT], true)) {
-            return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, 'customer_request');
+        if (in_array($name, [IntentCatalog::HUMAN_REQUEST, IntentCatalog::COMPLAINT, IntentCatalog::CALL_REQUEST], true)) {
+            $reason = $name === IntentCatalog::CALL_REQUEST ? 'call_request' : 'customer_request';
+
+            return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, $reason);
         }
         if ($name === IntentCatalog::EMPLOYEE_ENQUIRY) {
             return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, 'privileged');
