@@ -41,6 +41,7 @@
             grid-template-columns: minmax(260px, 40%) 1fr;
         }
         body:not(.is-landing) .shell { grid-template-columns: 1fr; }
+        body:not(.is-landing) .portrait { display: none; }
         body:not(.is-landing) .portrait {
             position: relative;
             height: auto;
