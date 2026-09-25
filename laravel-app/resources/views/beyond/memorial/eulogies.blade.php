@@ -137,7 +137,13 @@
         .eu-featured .eu-card {
             background: #fffcf7;
         }
-        .eu-grid .eu-card { height: 100%; }
+        .eu-grid .eu-card { align-self: start; }
+        .eu-card.is-long { grid-column: 1 / -1; }
+        .eu-card.is-long .eu-body {
+            column-count: 2;
+            column-gap: 40px;
+        }
+        .eu-card.is-long .eu-sign { column-span: all; }
         .eu-top {
             display: flex;
             align-items: center;
@@ -234,6 +240,7 @@
             .eu-aside { border-right: 0; border-bottom: 1px solid #e6e0d1; padding: 0 0 12px; }
             .eu-aside p { margin: 10px 0 0; font-size: 24px; }
             .eu-grid { grid-template-columns: 1fr; }
+            .eu-card.is-long .eu-body { column-count: 1; }
         }
         @media (max-width: 600px) {
             .eu-hero-inner { padding: 28px 24px 4px; }
@@ -299,7 +306,10 @@
             @if($euCount > 1)
                 <div class="eu-grid">
                     @foreach(array_slice($eulogies, 1) as $offset => $eu)
-                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2])
+                        @php
+                            $euLen = strlen(trim(implode(' ', $eu['paragraphs'] ?? [])));
+                        @endphp
+                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2, 'long' => $euLen > 1400])
                     @endforeach
                 </div>
             @endif
