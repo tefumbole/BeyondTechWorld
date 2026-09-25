@@ -2,7 +2,7 @@
     $name = trim((string) ($eu['name'] ?? ''));
     $letter = $name === '' ? '·' : strtoupper(substr($name, 0, 1));
 @endphp
-<article class="eu-card{{ !empty($long) ? ' is-long' : '' }}" id="tribute-{{ $num }}">
+<article class="eu-card" id="tribute-{{ $num }}">
     <div class="eu-top">
         <div class="eu-avatar" aria-hidden="true">
             @if(!empty($eu['has_selfie']))

@@ -134,29 +134,10 @@
             margin: 0;
             padding: 36px 40px 40px;
         }
-        .eu-featured .eu-card.is-long {
-            grid-column: auto;
+        .eu-featured .eu-card {
+            background: #fffcf7;
         }
-        .eu-featured .eu-card.is-long .eu-body {
-            max-width: none;
-            margin: 27px 0 0;
-            column-count: 2;
-            column-gap: 42px;
-        }
-        .eu-grid .eu-card { align-self: start; }
-        .eu-card.is-long { grid-column: 1 / -1; }
-        .eu-card.is-long .eu-body {
-            max-width: none;
-            margin: 27px 0 0;
-            column-count: 2;
-            column-gap: 42px;
-            column-fill: balance;
-        }
-        .eu-card.is-long .eu-body p {
-            break-inside: avoid;
-            -webkit-column-break-inside: avoid;
-        }
-        .eu-card.is-long .eu-sign { column-span: all; }
+        .eu-grid .eu-card { height: 100%; }
         .eu-top {
             display: flex;
             align-items: center;
@@ -253,7 +234,6 @@
             .eu-aside { border-right: 0; border-bottom: 1px solid #e6e0d1; padding: 0 0 12px; }
             .eu-aside p { margin: 10px 0 0; font-size: 24px; }
             .eu-grid { grid-template-columns: 1fr; }
-            .eu-card.is-long .eu-body { column-count: 1; }
         }
         @media (max-width: 600px) {
             .eu-hero-inner { padding: 28px 24px 4px; }
@@ -314,19 +294,12 @@
                         <p>“{{ $pull }}”</p>
                     @endif
                 </aside>
-                @include('beyond.memorial.eulogy-card', [
-                    'eu' => $eulogies[0],
-                    'num' => 1,
-                    'long' => strlen(trim(implode(' ', $eulogies[0]['paragraphs'] ?? []))) > 900,
-                ])
+                @include('beyond.memorial.eulogy-card', ['eu' => $eulogies[0], 'num' => 1])
             </div>
             @if($euCount > 1)
                 <div class="eu-grid">
                     @foreach(array_slice($eulogies, 1) as $offset => $eu)
-                        @php
-                            $euLen = strlen(trim(implode(' ', $eu['paragraphs'] ?? [])));
-                        @endphp
-                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2, 'long' => $euLen > 900])
+                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2])
                     @endforeach
                 </div>
             @endif
