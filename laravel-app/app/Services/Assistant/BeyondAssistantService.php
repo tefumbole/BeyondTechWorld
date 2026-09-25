@@ -60,6 +60,11 @@ class BeyondAssistantService
 
                 return ['skipped' => false, 'sent' => true, 'intent' => 'OWNER', 'reply' => $answer];
             }
+            if ($conversation->mode !== \App\WhatsApp\WhatsAppConversation::MODE_AI) {
+                $conversation->mode = \App\WhatsApp\WhatsAppConversation::MODE_AI;
+                $conversation->assigned_user_id = null;
+                $conversation->save();
+            }
         }
         $fingerprint = $this->fingerprint($message);
         $existing = $this->existingActivity($fingerprint);
@@ -514,13 +519,13 @@ class BeyondAssistantService
         if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)\b/i', $text, $m) && (int) $m[1] >= 20) {
             $slots['guests'] = (int) $m[1];
         }
-        if (! empty($existing['awaiting_name']) && preg_match("/^[A-Za-z][A-Za-z '\\-]{1,40}$/", trim($text)) && ! preg_match('/\b(yes|no|ok|help|price|speakers?|sound|church|school|company)\b/i', $text)) {
+        if (! empty($existing['awaiting_name']) && preg_match("/^[A-Za-z][A-Za-z '\\-]{1,40}$/", trim($text)) && ! preg_match('/\b(yes|no|ok|okay|help|price|speakers?|sound|church|school|company|how|are|you|today|great|good|fine|well|and|doing)\b/i', $text)) {
             $slots['captured_name'] = trim($text);
             $slots['awaiting_name'] = 0;
         }
         if (preg_match("/(?:my name is|i am|i'm)\s+([A-Za-z][A-Za-z'\\-]{1,40})/i", $text, $m)) {
             $candidate = trim($m[1]);
-            if (! preg_match('/^(looking|interested|calling|here|from|with|for|the|a)\b/i', $candidate)) {
+            if (! preg_match('/^(looking|interested|calling|here|from|with|for|the|a|great|good|fine|well|ok|okay|doing)\b/i', $candidate)) {
                 $slots['captured_name'] = $candidate;
                 $slots['awaiting_name'] = 0;
             }

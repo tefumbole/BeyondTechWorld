@@ -32,7 +32,7 @@ class AssistantResponseComposer
             return $this->clarify($intent, $memoryParams);
         }
         if ($intent === IntentCatalog::GREETING) {
-            return $this->greeting($context, $memoryParams);
+            return $this->greeting($context, $memoryParams, $incoming);
         }
         if ($intent === IntentCatalog::PREVIOUS_QUOTATION && is_array($toolResult) && ! empty($toolResult['message'])) {
             return $toolResult['message'];
@@ -129,8 +129,15 @@ class AssistantResponseComposer
         return 'Could you share a bit more detail so I can help accurately?';
     }
 
-    protected function greeting(array $context, array $params)
+    protected function greeting(array $context, array $params, $incoming = '')
     {
+        $text = strtolower(trim((string) $incoming));
+        if (preg_match('/\b(i\'?m (great|good|fine|well|ok|okay)|i am (great|good|fine|well))\b/', $text)) {
+            return "Glad to hear it. I'm doing well too. What can I help you with?";
+        }
+        if (preg_match('/\bhow are you\b/', $text)) {
+            return "I'm doing well, thank you. How can I help you today?";
+        }
         $known = '';
         if (AssistantRuntimeSettings::greetByName()) {
             if (! empty($params['captured_name'])) {

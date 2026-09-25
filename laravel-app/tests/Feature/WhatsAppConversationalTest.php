@@ -182,7 +182,7 @@ class WhatsAppConversationalTest extends WhatsAppHubTestCase
         $fake = new NullAiProvider();
         $fake->fail = true;
         $this->app->instance(AiProviderInterface::class, $fake);
-        $this->postWebhook($this->incoming('237650100011', 'How are you today?', 'C11'))->assertStatus(200);
+        $this->postWebhook($this->incoming('237650100011', 'Could you walk me through a site survey?', 'C11'))->assertStatus(200);
         $this->assertSame(1, WhatsAppMessage::where('direction', 'INCOMING')->count());
         $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->first();
         $this->assertStringContainsString('passed this to our team', $out->body);

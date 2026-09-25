@@ -162,6 +162,9 @@ class AssistantIntentRouter
         if (preg_match('/^(hi|hello|hey|hiya|greetings|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[\s!.]*$/i', $t)) {
             return $this->make(IntentCatalog::GREETING, 0.97, false, false);
         }
+        if (preg_match('/\b(how are you|how r you|i\'?m (great|good|fine|well|ok|okay)|i am (great|good|fine|well)|and you)\b/i', $t)) {
+            return $this->make(IntentCatalog::GREETING, 0.96, false, false);
+        }
         if (preg_match('/\b(appointment|schedule a meeting|book a meeting|book me|i want to see)\b/i', $t)) {
             return $this->make(IntentCatalog::APPOINTMENT_REQUEST, 0.9, false, false);
         }

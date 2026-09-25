@@ -136,6 +136,50 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         $this->assertStringContainsString('Reminder:', $notice->body);
     }
 
+    public function test_social_replies_stay_in_the_conversation()
+    {
+        $this->postWebhook($this->incoming('+237670000909', 'Hello', 'S9G1'))->assertStatus(200);
+        $this->postWebhook($this->incoming('+237670000909', 'how are you today', 'S9G2'))->assertStatus(200);
+        $this->postWebhook($this->incoming('+237670000909', "I'm great and you?", 'S9G3'))->assertStatus(200);
+        $bodies = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderBy('id')->pluck('body')->all();
+        $joined = implode("\n", $bodies);
+        $this->assertStringContainsString('Beyond Assistant', $joined);
+        $this->assertStringContainsString("I'm doing well", $joined);
+        $this->assertStringContainsString('Glad to hear it', $joined);
+        $conversation = WhatsAppConversation::orderByDesc('id')->first();
+        $this->assertSame(WhatsAppConversation::MODE_AI, $conversation->mode);
+    }
+
+    public function test_owner_chat_returns_to_ai_for_a_normal_message()
+    {
+        $user = User::create([
+            'name' => 'Owner',
+            'email' => 'owner'.uniqid().'@example.test',
+            'password' => 'x',
+            'phone' => '250794006160',
+            'role_id' => 1,
+            'is_active' => true,
+            'is_deleted' => false,
+        ]);
+        \App\WhatsApp\WhatsAppOwnerUser::create([
+            'user_id' => $user->id,
+            'normalized_phone' => '250794006160',
+            'enabled' => true,
+        ]);
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $this->postWebhook($this->incoming('+250794006160', 'Hello', 'S9H1'))->assertStatus(200);
+        $conversation = WhatsAppConversation::orderByDesc('id')->first();
+        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+        $conversation->assigned_user_id = $user->id;
+        $conversation->save();
+        $this->postWebhook($this->incoming('+250794006160', 'how are you today', 'S9H2'))->assertStatus(200);
+        $conversation = $conversation->fresh();
+        $this->assertSame(WhatsAppConversation::MODE_AI, $conversation->mode);
+        $this->assertNull($conversation->assigned_user_id);
+        $reply = WhatsAppMessage::where('conversation_id', $conversation->id)->where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString("I'm doing well", $reply->body);
+    }
+
     public function test_calendar_notification_updates_the_erp_time()
     {
         config(['services.calendar.channel_token' => 'channel-token']);
