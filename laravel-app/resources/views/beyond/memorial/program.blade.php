@@ -141,8 +141,8 @@
             color: var(--muted);
         }
         .after-parts { margin-top: 28px; display: grid; gap: 18px; }
-        .rsvp-list { margin: 12px 0 0; display: grid; gap: 6px; }
-        .rsvp-list a { color: #405444; font-weight: 700; text-decoration: none; }
+        .rsvp-list { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+        .rsvp-list a { color: #405444; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
         @media (max-width: 520px) {
             .timeline:before { left: 23px; }
             .part { grid-template-columns: 48px 1fr; gap: 12px; }
@@ -252,20 +252,11 @@
             <p class="kicker">RSVP</p>
             <h2>Till we meet again</h2>
             <div class="rsvp-list">
-                <a href="tel:+237677318405">677 318 405 — Richard Fonjo Ngwayu</a>
-                <a href="tel:+237677387275">677 387 275 — Mercy epse Francis Ngwayu</a>
-                <a href="tel:+237677124575">677 124 575 — Ngwayu Victor Nkol</a>
-                <a href="tel:+237677674000">677 674 000 — Alex Ndi</a>
+                <a href="https://wa.me/237677318405" target="_blank" rel="noopener">677 318 405 — Richard Fonjo Ngwayu</a>
+                <a href="https://wa.me/237677387275" target="_blank" rel="noopener">677 387 275 — Mercy epse Francis Ngwayu</a>
+                <a href="https://wa.me/237677124575" target="_blank" rel="noopener">677 124 575 — Ngwayu Victor Nkol</a>
+                <a href="https://wa.me/237677674000" target="_blank" rel="noopener">677 674 000 — Alex Ndi</a>
             </div>
         </article>
-    </div>
-
-    <div class="qr-card">
-        <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
-        <div>
-            <strong>Scan to open</strong>
-            <p>Opens the memorial page: program, hymns, and eulogies.</p>
-            <a href="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" download="pangwayu-remember-qr.png">Download QR</a>
-        </div>
     </div>
 @endsection
