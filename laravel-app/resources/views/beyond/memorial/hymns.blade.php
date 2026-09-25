@@ -61,6 +61,24 @@
             line-height: 1.7;
             font-style: italic;
         }
+        .hymn-player {
+            position: static;
+            min-width: 0;
+            width: 100%;
+            margin: 14px 0 4px;
+            background: #f3f0e7;
+            border: 1px solid #e6e0d1;
+            box-shadow: none;
+            color: #29352d;
+        }
+        .hymn-player .music-title { color: #405444; }
+        .hymn-player .music-time { color: #8e7b59; }
+        .hymn-player .music-bar { background: rgba(64,84,68,.12); }
+        .hymn-player .music-controls button {
+            color: #6d613f;
+            border-color: #c8ad76;
+            background: #eee9db;
+        }
         .hymn-chorus strong {
             display: block;
             font-style: normal;
@@ -68,6 +86,8 @@
             letter-spacing: .16em;
             text-transform: uppercase;
             margin-bottom: 4px;
+            color: #b88f4b;
+        }
             color: #b88f4b;
         }
 @endsection
@@ -82,6 +102,19 @@
         <summary>
             <span class="hymn-label">Opening hymn</span>
             <h2>When the Trumpet of the Lord Shall Sound</h2>
+            <div class="music-player hymn-player" data-src="{{ asset('public/memorial/pangwayu/audio/when-the-roll-piano.mp3') }}">
+                <div class="music-controls">
+                    <button type="button" class="hymn-play" aria-label="Play piano">
+                        <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                        <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+                    </button>
+                </div>
+                <div class="music-meta">
+                    <span class="music-title">When the Roll Is Called Up Yonder · piano</span>
+                    <div class="music-bar"><div class="music-fill"></div></div>
+                    <div class="music-time"><span class="music-cur">0:00</span><span class="music-dur">0:00</span></div>
+                </div>
+            </div>
         </summary>
         <div class="hymn-body">
         <p class="hymn-also">When the Roll Is Called Up Yonder</p>
@@ -119,6 +152,19 @@ When the roll is called up yonder, I’ll be there.</p>
         <summary>
             <span class="hymn-label">Closing hymn</span>
             <h2>Farther Along</h2>
+            <div class="music-player hymn-player" data-src="{{ asset('public/memorial/pangwayu/audio/farther-along-piano.mp3') }}">
+                <div class="music-controls">
+                    <button type="button" class="hymn-play" aria-label="Play piano">
+                        <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                        <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+                    </button>
+                </div>
+                <div class="music-meta">
+                    <span class="music-title">Farther Along · piano</span>
+                    <div class="music-bar"><div class="music-fill"></div></div>
+                    <div class="music-time"><span class="music-cur">0:00</span><span class="music-dur">0:00</span></div>
+                </div>
+            </div>
         </summary>
         <div class="hymn-body">
 
@@ -177,4 +223,66 @@ Cheer up, my brother, live in the sunshine,
 We’ll understand it all by and by.</p>
         </div>
     </details>
+@endsection
+
+@section('scripts')
+<script>
+(function () {
+    function fmt(t) {
+        if (!isFinite(t) || t < 0) return '0:00';
+        var m = Math.floor(t / 60);
+        var s = Math.floor(t % 60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    var current = null;
+    Array.prototype.forEach.call(document.querySelectorAll('.hymn-player'), function (box) {
+        var audio = new Audio(box.getAttribute('data-src'));
+        audio.preload = 'metadata';
+        audio.volume = 0.5;
+        var btn = box.querySelector('.hymn-play');
+        var play = box.querySelector('.icon-play');
+        var pause = box.querySelector('.icon-pause');
+        var fill = box.querySelector('.music-fill');
+        var bar = box.querySelector('.music-bar');
+        var cur = box.querySelector('.music-cur');
+        var dur = box.querySelector('.music-dur');
+        function ui(on) {
+            play.style.display = on ? 'none' : 'block';
+            pause.style.display = on ? 'block' : 'none';
+            btn.setAttribute('aria-label', on ? 'Pause piano' : 'Play piano');
+        }
+        function sync() {
+            var d = audio.duration || 0;
+            var c = audio.currentTime || 0;
+            fill.style.width = (d ? Math.min(100, (c / d) * 100) : 0) + '%';
+            cur.textContent = fmt(c);
+            dur.textContent = fmt(d);
+        }
+        box.addEventListener('click', function (e) { e.stopPropagation(); });
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (current && current !== audio) { current.pause(); }
+            if (audio.paused) {
+                current = audio;
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        });
+        bar.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var r = bar.getBoundingClientRect();
+            if (audio.duration) audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
+            sync();
+        });
+        audio.addEventListener('timeupdate', sync);
+        audio.addEventListener('loadedmetadata', sync);
+        audio.addEventListener('play', function () { ui(true); });
+        audio.addEventListener('pause', function () { ui(false); });
+        audio.addEventListener('ended', function () { ui(false); });
+    });
+})();
+</script>
 @endsection
