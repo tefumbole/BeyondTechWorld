@@ -669,7 +669,6 @@
         }
         body.is-landing .portrait .wash,
         body.is-landing .portrait .caption { display: none; }
-        body.is-landing .portrait { display: none; }
         .sky-fx {
             display: none;
             position: fixed;
