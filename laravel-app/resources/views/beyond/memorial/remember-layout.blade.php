@@ -771,6 +771,15 @@
             body.is-landing .eulogy-cta { width: min(100%, 320px); font-size: 16px; }
             body.is-landing .landing-home .rings { margin-bottom: 14px; }
         }
+        body:not(.is-landing) { background: #f3f2eb; }
+        body:not(.is-landing) .main { background: #f3f2eb; color: #29352d; }
+        body:not(.is-landing) h1,
+        body:not(.is-landing) h2 { color: #29352d; }
+        body:not(.is-landing) .kicker { color: #8e7b59; }
+        body:not(.is-landing) .lead,
+        body:not(.is-landing) .meta { color: #49544b; }
+        body:not(.is-landing) .foot { color: #5d635c; }
+        body:not(.is-landing) .foot a { color: #405444; }
         @yield('styles')
     </style>
 </head>

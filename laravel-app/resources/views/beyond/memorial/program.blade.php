@@ -14,9 +14,9 @@
         .chip {
             display: inline-flex;
             align-items: center;
-            border: 1px solid #5a4a22;
-            background: rgba(212,175,55,.08);
-            color: var(--gold-2);
+            border: 1px solid #e9e5d9;
+            background: #fffcf7;
+            color: #8e7b59;
             border-radius: 999px;
             padding: 6px 12px;
             font-size: 13px;
@@ -35,7 +35,7 @@
             top: 28px;
             bottom: 28px;
             width: 2px;
-            background: linear-gradient(180deg, #d4af37, rgba(212,175,55,.12));
+            background: #d7d4c8;
         }
         .part {
             position: relative;
@@ -54,17 +54,17 @@
             font-family: "Cormorant Garamond", serif;
             font-size: 22px;
             font-weight: 700;
-            color: #1a1408;
-            background: linear-gradient(180deg, #f0d57a, #d4af37);
-            box-shadow: 0 0 0 6px rgba(212,175,55,.12);
+            color: #6d613f;
+            background: #eee9db;
+            border: 1px solid #c8ad76;
+            box-shadow: none;
             z-index: 1;
         }
         .part-card {
-            background: linear-gradient(180deg, #221a12, #16110c);
-            border: 1px solid #4a3b1c;
-            border-radius: 22px;
+            background: #fffcf7;
+            border: 1px solid #e9e5d9;
             padding: 22px 22px 20px;
-            box-shadow: 0 18px 40px rgba(0,0,0,.28);
+            box-shadow: 0 9px 29px rgba(49, 58, 46, .03);
         }
         .part-card h2 {
             font-size: clamp(26px, 4vw, 34px);
@@ -73,7 +73,7 @@
         .part-time {
             display: inline-block;
             margin: 0 0 10px;
-            color: var(--gold);
+            color: #b88f4b;
             font-size: 15px;
             font-weight: 800;
             letter-spacing: .08em;
@@ -81,13 +81,13 @@
         }
         .part-card p {
             margin: 0;
-            color: #e8dcc0;
+            color: #49544b;
             font-size: 18px;
             line-height: 1.55;
         }
         .venue {
             margin-top: 12px;
-            color: var(--gold-2);
+            color: #405444;
             font-weight: 700;
             font-size: 15px;
         }
@@ -102,9 +102,9 @@
             gap: 10px;
             padding: 11px 12px;
             border-radius: 14px;
-            background: rgba(255,248,232,.03);
-            border: 1px solid rgba(212,175,55,.12);
-            color: #f3ead6;
+            background: #f3f2eb;
+            border: 1px solid #e8e3d8;
+            color: #29352d;
             font-size: 16px;
         }
         .service-row b {
@@ -115,8 +115,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(212,175,55,.14);
-            color: var(--gold-2);
+            background: #eee9db;
+            color: #6d613f;
             font-size: 12px;
         }
         .service-row span {
@@ -124,10 +124,10 @@
             min-width: 0;
             line-height: 1.45;
         }
-        .service-row a { color: var(--gold-2); }
+        .service-row a { color: #405444; }
         .program-quote {
             margin: 16px 0 0;
-            color: var(--gold-2);
+            color: #405444;
             font-family: "Cormorant Garamond", serif;
             font-size: 22px;
             line-height: 1.4;
@@ -142,7 +142,7 @@
         }
         .after-parts { margin-top: 28px; display: grid; gap: 18px; }
         .rsvp-list { margin: 12px 0 0; display: grid; gap: 6px; }
-        .rsvp-list a { color: var(--gold-2); font-weight: 700; text-decoration: none; }
+        .rsvp-list a { color: #405444; font-weight: 700; text-decoration: none; }
         @media (max-width: 520px) {
             .timeline:before { left: 23px; }
             .part { grid-template-columns: 48px 1fr; gap: 12px; }

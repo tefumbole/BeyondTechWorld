@@ -5,9 +5,9 @@
 @section('styles')
         .hymn-hero { margin: 0 0 28px; }
         .hymn-card {
-            background: linear-gradient(180deg, #221a12, #16110c);
-            border: 1px solid #4a3b1c;
-            border-radius: 22px;
+            background: #fffcf7;
+            border: 1px solid #e9e5d9;
+            box-shadow: 0 9px 29px rgba(49, 58, 46, .03);
             margin-bottom: 14px;
             overflow: hidden;
         }
@@ -26,7 +26,7 @@
         }
         .hymn-card summary h2::after {
             content: " +";
-            color: var(--gold);
+            color: #b88f4b;
             text-decoration: none;
             display: inline-block;
         }
@@ -35,7 +35,7 @@
         .hymn-label {
             display: inline-block;
             margin: 0 0 8px;
-            color: var(--gold);
+            color: #b88f4b;
             font-size: 15.6px;
             font-weight: 800;
             letter-spacing: .16em;
@@ -43,20 +43,20 @@
         }
         .hymn-also {
             margin: 0 0 18px;
-            color: var(--muted);
+            color: #667066;
             font-size: 18px;
         }
         .hymn-verse {
             margin: 0 0 10px;
             white-space: pre-wrap;
-            color: #e8dcc0;
+            color: #49544b;
             font-size: 21.6px;
             line-height: 1.7;
         }
         .hymn-chorus {
             margin: 0 0 22px;
             white-space: pre-wrap;
-            color: var(--gold-2);
+            color: #3c5141;
             font-size: 20.4px;
             line-height: 1.7;
             font-style: italic;
@@ -68,7 +68,7 @@
             letter-spacing: .16em;
             text-transform: uppercase;
             margin-bottom: 4px;
-            color: var(--gold);
+            color: #b88f4b;
         }
 @endsection
 

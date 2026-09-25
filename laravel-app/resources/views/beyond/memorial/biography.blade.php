@@ -4,7 +4,7 @@
 
 @section('styles')
         body.is-biography .main {
-            background: #f8f6f0;
+            background: #f3f2eb;
             color: #28312b;
         }
         body.is-biography .foot { color: #5d635c; }

@@ -13,10 +13,9 @@
             width: 100%;
             margin: 0 0 14px;
             padding: 0;
-            border: 1px solid rgba(212,175,55,.35);
-            border-radius: 16px;
+            border: 1px solid #e9e5d9;
             overflow: hidden;
-            background: #0d0a08;
+            background: #fffcf7;
             cursor: zoom-in;
             break-inside: avoid;
         }
