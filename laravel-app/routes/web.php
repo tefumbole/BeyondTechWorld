@@ -99,6 +99,7 @@ Route::get('/pangwayu/biography', 'PublicFuneralPledgeController@biography')->na
 Route::get('/pangwayu/gallery', 'PublicFuneralPledgeController@gallery')->name('funeral.pangwayu.gallery');
 Route::get('/pangwayu/program', 'PublicFuneralPledgeController@program')->name('funeral.pangwayu.program');
 Route::get('/pangwayu/hymns', 'PublicFuneralPledgeController@hymns')->name('funeral.pangwayu.hymns');
+Route::get('/pangwayu/eulogies', 'PublicFuneralPledgeController@eulogies')->name('funeral.pangwayu.eulogies');
 Route::get('/pangwayu/lookup', 'PublicFuneralPledgeController@lookup')->name('funeral.pangwayu.lookup');
 Route::post('/pangwayu/pledge', 'PublicFuneralPledgeController@store')->name('funeral.pangwayu.store');
 Route::post('/pangwayu/eulogy', 'PublicFuneralPledgeController@storeEulogy')->name('funeral.pangwayu.eulogy');

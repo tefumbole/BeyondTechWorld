@@ -46,40 +46,6 @@
         </div>
     </div>
 
-    <section class="eulogies is-hidden" id="eulogies">
-        <p class="kicker">Eulogies</p>
-        <h2>Eulogies</h2>
-        <p class="lead">Words already written for Pa Ngwayu Francis. New eulogies are no longer being accepted.</p>
-        <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
-        @forelse($eulogies as $eu)
-            <article class="eulogy-box">
-                <header class="eulogy-head">
-                    @if(!empty($eu['has_selfie']))
-                        <img class="selfie" src="{{ $eu['selfie'] }}" alt="{{ $eu['name'] }}">
-                    @endif
-                    <div class="eulogy-head-text">
-                        <cite>{{ $eu['name'] }}</cite>
-                        @if(!empty($eu['when']))
-                            <span class="eulogy-date">{{ $eu['when'] }}</span>
-                        @endif
-                    </div>
-                </header>
-                <div class="eulogy-body">
-                    @foreach(($eu['paragraphs'] ?? [$eu['body']]) as $para)
-                        <p>{{ $para }}</p>
-                    @endforeach
-                </div>
-                <footer class="eulogy-who">
-                    <cite>{{ $eu['name'] }}</cite>
-                    @if($eu['has_signature'])
-                        <img class="sig" src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
-                    @endif
-                </footer>
-            </article>
-        @empty
-            <p class="eulogies-empty">The eulogies written for Pa Ngwayu Francis are kept here.</p>
-        @endforelse
-    </section>
 @endsection
 
 @section('modals')
@@ -433,24 +399,9 @@
     var END = new Date(@json($funeralAt)).getTime();
     var payMethod = 'momo';
     var selfieBlob = null;
-    var eulogySection = document.getElementById('eulogies');
-    function showEulogies() {
-        if (!eulogySection) return;
-        eulogySection.classList.remove('is-hidden');
-        eulogySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
     if (window.location.hash === '#eulogies' || window.location.search.indexOf('eulogy=ok') !== -1) {
-        eulogySection.classList.remove('is-hidden');
+        window.location.replace(@json(route('funeral.pangwayu.eulogies')));
     }
-    Array.prototype.forEach.call(document.querySelectorAll('a[href*="#eulogies"]'), function (link) {
-        link.addEventListener('click', function (e) {
-            if (eulogySection) {
-                e.preventDefault();
-                history.replaceState(null, '', '#eulogies');
-                showEulogies();
-            }
-        });
-    });
 
     function tick() {
         var left = Math.max(0, END - Date.now());

@@ -64,7 +64,7 @@ class PublicFuneralPledgeController extends Controller
             'navActive' => 'remember',
             'campaign' => $data['campaign'],
             'funeralAt' => $data['funeral_at'],
-            'photos' => [$this->pledges->rememberPhotos()[0]],
+            'photos' => [],
             'eulogies' => $data['eulogies'],
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => route('funeral.pangwayu.lookup'),
@@ -128,6 +128,21 @@ class PublicFuneralPledgeController extends Controller
             'photos' => [],
             'funeralAt' => $data['funeral_at'],
             'campaign' => $data['campaign'],
+        ]);
+    }
+
+    public function eulogies()
+    {
+        $this->guardEnabled();
+        $data = $this->pledges->pageData();
+        if (! $data) {
+            abort(404);
+        }
+
+        return view('beyond.memorial.eulogies', [
+            'navActive' => 'eulogies',
+            'photos' => [],
+            'eulogies' => $data['eulogies'],
         ]);
     }
 

@@ -680,7 +680,7 @@ class FuneralPledgeService
 
     public function notifyEulogy(FuneralEulogy $eulogy)
     {
-        $pageUrl = route('funeral.pangwayu.remember').'#eulogies';
+        $pageUrl = route('funeral.pangwayu.eulogies');
         $familyMsg = WhatsAppMessage::funeralEulogyThanks($eulogy->name, $eulogy->body, $pageUrl);
         if (strlen($familyMsg) > 3900) {
             $familyMsg = WhatsAppMessage::funeralEulogyThanks(
