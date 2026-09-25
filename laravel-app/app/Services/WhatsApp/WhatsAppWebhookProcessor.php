@@ -44,6 +44,11 @@ class WhatsAppWebhookProcessor
                 }
                 app(GroupIngestService::class)->ingest($parsed);
                 $event->status = WhatsAppWebhookEvent::PROCESSED;
+            } elseif ($type === 'poll.results') {
+                if (! empty($parsed['phone']) && ! empty($parsed['body'])) {
+                    $this->conversations->recordIncoming($parsed);
+                }
+                $event->status = WhatsAppWebhookEvent::PROCESSED;
             } elseif (in_array($type, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
                 if (! empty($parsed['from_me'])) {
                     $event->status = WhatsAppWebhookEvent::IGNORED;

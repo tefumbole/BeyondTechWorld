@@ -313,6 +313,36 @@ class WhatsAppConversationService
         return $result;
     }
 
+    public function sendServicePoll(WhatsAppConversation $conversation)
+    {
+        $contact = $conversation ? $conversation->contact : null;
+        if (! $conversation || ! $contact || $conversation->mode !== WhatsAppConversation::MODE_AI) {
+            return ['success' => false];
+        }
+        $menu = app(\App\Services\Assistant\ServiceMenu::class);
+        $wasender = app(\App\Services\BeyondWasenderService::class);
+        if (! $wasender->isConfigured()) {
+            return ['success' => false, 'error' => 'not_configured'];
+        }
+        $result = $wasender->sendPoll($contact->normalized_phone, 'Which service do you need?', $menu->options());
+        if (empty($result['success'])) {
+            return $result;
+        }
+        WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'body' => 'Which service do you need?',
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'sender_type' => 'ASSISTANT',
+            'provider_message_id' => isset($result['msg_id']) ? (string) $result['msg_id'] : null,
+            'sent_at' => now(),
+        ]);
+
+        return $result;
+    }
+
     public function markRead(WhatsAppConversation $conversation)
     {
         $conversation->unread_count = 0;

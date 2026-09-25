@@ -136,7 +136,7 @@ class AssistantResponseComposer
             return "Glad to hear it. I'm doing well too. What can I help you with?";
         }
         if (preg_match('/\bhow are you\b/', $text)) {
-            return "I'm doing well, thank you. How can I help you today?";
+            return "I'm doing well, thank you. How can I help you today?\n\n".app(ServiceMenu::class)->text();
         }
         $known = '';
         if (AssistantRuntimeSettings::greetByName()) {
@@ -147,14 +147,14 @@ class AssistantResponseComposer
             }
         }
         if ($known !== '') {
-            return 'Hi '.$known.', welcome back. How can I help you today?';
+            return 'Hi '.$known.', welcome back. How can I help you today?'."\n\n".app(ServiceMenu::class)->text();
         }
         $ask = AssistantRuntimeSettings::collectUnknownName()
             ? ' May I know your name?'
             : '';
         $who = config('assistant.identify') ? config('assistant.display_name') : 'BeyondTechWorld';
 
-        return 'Hi, this is '.$who.'. How can I help you today?'.$ask;
+        return 'Hi, this is '.$who.'. How can I help you today?'.$ask."\n\n".app(ServiceMenu::class)->text();
     }
 
     protected function fromTool($intent, $toolResult, array $params)

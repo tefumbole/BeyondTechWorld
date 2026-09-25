@@ -36,6 +36,9 @@ class WaSenderEventParser
         if (in_array($event, ['messages-group.received', 'messages.group.received', 'message-group.received'], true)) {
             return $this->parseGroup($parsed, $data, $payload);
         }
+        if ($event === 'poll.results') {
+            return $this->parsePoll($parsed, $data, $payload);
+        }
         if (in_array($event, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
             return $this->parseIncoming($parsed, $data, $payload);
         }
@@ -71,6 +74,31 @@ class WaSenderEventParser
         }
 
         return hash('sha256', $basis);
+    }
+
+    protected function parsePoll(array $parsed, array $data, array $payload)
+    {
+        $key = isset($data['key']) && is_array($data['key']) ? $data['key'] : [];
+        $results = isset($data['pollResult']) && is_array($data['pollResult']) ? $data['pollResult'] : [];
+        $choice = null;
+        $voter = null;
+        foreach ($results as $row) {
+            if (! is_array($row) || empty($row['voters']) || ! is_array($row['voters'])) {
+                continue;
+            }
+            $choice = isset($row['name']) ? (string) $row['name'] : null;
+            $voter = (string) $row['voters'][count($row['voters']) - 1];
+            break;
+        }
+        $digits = preg_replace('/\D/', '', (string) $voter);
+        $parsed['from_me'] = false;
+        $parsed['body'] = $choice;
+        $parsed['phone'] = $digits !== '' ? $digits : null;
+        $parsed['message_type'] = 'POLL';
+        $parsed['message_id'] = (isset($key['id']) ? $key['id'] : 'poll').'-'.$digits.'-'.substr(md5((string) $choice), 0, 8);
+        $parsed['provider_event_id'] = $parsed['message_id'];
+
+        return $parsed;
     }
 
     protected function parseIncoming(array $parsed, array $data, array $payload)

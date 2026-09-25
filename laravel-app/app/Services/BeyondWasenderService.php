@@ -178,6 +178,33 @@ class BeyondWasenderService
     /**
      * Direct WasenderAPI send (used only as NotificationRouter fallback).
      */
+    public function sendPoll($phone, $question, array $options)
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+        $to = $this->formatPhone($phone);
+        if (! $to || count($options) < 2) {
+            return ['success' => false, 'error' => 'Invalid poll'];
+        }
+        $posted = $this->postSendMessage([
+            'to' => $to,
+            'poll' => [
+                'question' => $question,
+                'options' => array_values($options),
+                'multiSelect' => false,
+            ],
+        ], 30);
+        $decoded = isset($posted['decoded']) ? $posted['decoded'] : [];
+        $msgId = is_array($decoded) && isset($decoded['data']['msgId']) ? $decoded['data']['msgId'] : (isset($decoded['msgId']) ? $decoded['msgId'] : null);
+
+        return [
+            'success' => ! empty($posted['success']),
+            'error' => isset($posted['error']) ? $posted['error'] : null,
+            'msg_id' => $msgId,
+        ];
+    }
+
     public function sendTextRaw($phone, $message)
     {
         if (! $this->isConfigured()) {

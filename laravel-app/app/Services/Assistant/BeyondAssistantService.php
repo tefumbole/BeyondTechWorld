@@ -123,6 +123,26 @@ class BeyondAssistantService
         $conversationalResult = null;
         $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
         $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
+        $menuChoice = app(ServiceMenu::class)->match((string) $message->body);
+        if (! $justNamed && $menuChoice) {
+            $directReply = app(ServiceMenu::class)->describe($menuChoice, (string) $message->body);
+            $classified = [
+                'intent' => IntentCatalog::SERVICE_ENQUIRY,
+                'confidence' => 0.96,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        } elseif (! $justNamed && is_array($deterministic) && ! empty($deterministic['slots']['closing'])) {
+            $directReply = "You're welcome. Message us whenever you need sound, light, screens, or IT.";
+            $classified = [
+                'intent' => IntentCatalog::GENERAL_ENQUIRY,
+                'confidence' => 0.96,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
         if (! $justNamed) {
             $appointmentReply = app(\App\Services\Appointment\AppointmentConversationService::class)
                 ->handle($conversation, $context, $mem, (string) $message->body, $deterministic);
@@ -362,6 +382,9 @@ class BeyondAssistantService
         } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $send = $this->conversations->assistantReply($conversation, $reply);
             $sent = ! empty($send['success']);
+            if ($sent && $decision['intent'] === IntentCatalog::GREETING) {
+                $this->conversations->sendServicePoll($conversation->fresh());
+            }
             if (! $sent) {
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
             }
@@ -519,7 +542,7 @@ class BeyondAssistantService
         if (preg_match('/\b(\d{2,4})\s*(guests|people|pax)\b/i', $text, $m) && (int) $m[1] >= 20) {
             $slots['guests'] = (int) $m[1];
         }
-        if (! empty($existing['awaiting_name']) && preg_match("/^[A-Za-z][A-Za-z '\\-]{1,40}$/", trim($text)) && ! preg_match('/\b(yes|no|ok|okay|help|price|speakers?|sound|church|school|company|how|are|you|today|great|good|fine|well|and|doing)\b/i', $text)) {
+        if (! empty($existing['awaiting_name']) && preg_match("/^[A-Za-z][A-Za-z '\\-]{1,40}$/", trim($text)) && ! preg_match('/\b(yes|no|ok|okay|help|price|speakers?|sound|church|school|company|how|are|you|today|great|good|fine|well|and|doing|all|that|will|now|alright|bye|goodbye)\b/i', $text)) {
             $slots['captured_name'] = trim($text);
             $slots['awaiting_name'] = 0;
         }

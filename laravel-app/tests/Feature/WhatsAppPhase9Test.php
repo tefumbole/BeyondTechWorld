@@ -136,6 +136,31 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         $this->assertStringContainsString('Reminder:', $notice->body);
     }
 
+    public function test_greeting_lists_services_and_a_number_reads_the_catalogue()
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('products')) {
+            \Illuminate\Support\Facades\Schema::create('products', function ($table) {
+                $table->increments('id');
+                $table->string('name')->nullable();
+                $table->string('code')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+        \App\Product::create(['name' => 'JBL Speaker', 'code' => 'SPK', 'is_active' => true]);
+        $this->postWebhook($this->incoming('+237670000910', 'Hello', 'S9I1'))->assertStatus(200);
+        $hello = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString('1. Sound', $hello->body);
+        $this->postWebhook($this->incoming('+237670000910', '1', 'S9I2'))->assertStatus(200);
+        $list = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString('JBL Speaker', $list->body);
+        $this->postWebhook($this->incoming('+237670000910', 'Alright that will be all for now', 'S9I3'))->assertStatus(200);
+        $close = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString("You're welcome", $close->body);
+        $this->assertStringNotContainsString('team member will continue', $close->body);
+        $this->assertSame('AI', WhatsAppConversation::orderByDesc('id')->first()->mode);
+    }
+
     public function test_social_replies_stay_in_the_conversation()
     {
         $this->postWebhook($this->incoming('+237670000909', 'Hello', 'S9G1'))->assertStatus(200);
