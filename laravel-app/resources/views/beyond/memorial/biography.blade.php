@@ -39,12 +39,14 @@
             display: flex;
             gap: 14px;
             align-items: baseline;
-            padding: 11px 0;
+            padding: 11px 10px;
+            border-radius: 6px;
             color: #28312b;
             text-decoration: none;
             font-family: "Cormorant Garamond", serif;
             font-size: 20px;
             line-height: 1.25;
+            transition: background .15s ease, color .15s ease;
         }
         .bio-toc a:before {
             content: counter(toc, decimal-leading-zero);
@@ -55,7 +57,10 @@
             font-weight: 700;
             letter-spacing: .12em;
         }
-        .bio-toc a:hover { color: #405444; }
+        .bio-toc a:hover {
+            color: #28312b;
+            background: rgba(183, 142, 75, .18);
+        }
         .bio-intro {
             max-width: 980px;
             margin: 0 auto;
