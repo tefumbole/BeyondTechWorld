@@ -116,7 +116,7 @@
             padding: 14px 16px 10px;
             background: #050403;
         }
-        body:not(.is-landing) .nav { background: #3a2e24; }
+        body:not(.is-landing) .nav { background: #eee6d4; }
         .nav a, .nav button {
             border: 2px solid #d4af37;
             background: rgba(20, 14, 8, .92);
@@ -136,8 +136,9 @@
         body:not(.is-landing) .nav a,
         body:not(.is-landing) .nav button {
             border-color: #c4a46a;
-            background: #2a2118;
-            color: #f6efe4;
+            background: #fffcf7;
+            color: #3a2e24;
+            box-shadow: 0 2px 8px rgba(58, 46, 36, .08);
         }
         .nav a.on, .nav a:hover, .nav button:hover {
             background: var(--gold);
