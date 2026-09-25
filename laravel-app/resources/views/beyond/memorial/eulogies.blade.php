@@ -134,14 +134,27 @@
             margin: 0;
             padding: 36px 40px 40px;
         }
-        .eu-featured .eu-card {
-            background: #fffcf7;
+        .eu-featured .eu-card.is-long {
+            grid-column: auto;
+        }
+        .eu-featured .eu-card.is-long .eu-body {
+            max-width: none;
+            margin: 27px 0 0;
+            column-count: 2;
+            column-gap: 42px;
         }
         .eu-grid .eu-card { align-self: start; }
         .eu-card.is-long { grid-column: 1 / -1; }
         .eu-card.is-long .eu-body {
+            max-width: none;
+            margin: 27px 0 0;
             column-count: 2;
-            column-gap: 40px;
+            column-gap: 42px;
+            column-fill: balance;
+        }
+        .eu-card.is-long .eu-body p {
+            break-inside: avoid;
+            -webkit-column-break-inside: avoid;
         }
         .eu-card.is-long .eu-sign { column-span: all; }
         .eu-top {
@@ -301,7 +314,11 @@
                         <p>“{{ $pull }}”</p>
                     @endif
                 </aside>
-                @include('beyond.memorial.eulogy-card', ['eu' => $eulogies[0], 'num' => 1])
+                @include('beyond.memorial.eulogy-card', [
+                    'eu' => $eulogies[0],
+                    'num' => 1,
+                    'long' => strlen(trim(implode(' ', $eulogies[0]['paragraphs'] ?? []))) > 900,
+                ])
             </div>
             @if($euCount > 1)
                 <div class="eu-grid">
@@ -309,7 +326,7 @@
                         @php
                             $euLen = strlen(trim(implode(' ', $eu['paragraphs'] ?? [])));
                         @endphp
-                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2, 'long' => $euLen > 1400])
+                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2, 'long' => $euLen > 900])
                     @endforeach
                 </div>
             @endif
