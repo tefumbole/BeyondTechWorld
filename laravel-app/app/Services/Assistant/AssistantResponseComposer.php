@@ -132,29 +132,72 @@ class AssistantResponseComposer
     protected function greeting(array $context, array $params, $incoming = '')
     {
         $text = strtolower(trim((string) $incoming));
+        $menu = app(ServiceMenu::class)->text();
         if (preg_match('/\b(i\'?m (great|good|fine|well|ok|okay)|i am (great|good|fine|well))\b/', $text)) {
-            return "Glad to hear it. I'm doing well too. What can I help you with?";
+            return "Glad to hear it. I'm doing well too.\n\n".$menu;
         }
         if (preg_match('/\bhow are you\b/', $text)) {
-            return "I'm doing well, thank you. How can I help you today?\n\n".app(ServiceMenu::class)->text();
+            return "I'm doing well, thank you.\n\n".$menu;
         }
-        $known = '';
-        if (AssistantRuntimeSettings::greetByName()) {
-            if (! empty($params['captured_name'])) {
-                $known = trim((string) $params['captured_name']);
-            } elseif (! empty($context['customer_id']) || ! empty($context['employee_id']) || ! empty($context['intern_user_id'])) {
-                $known = isset($context['contact_name']) ? trim((string) $context['contact_name']) : '';
-            }
-        }
+        $known = AssistantRuntimeSettings::greetByName() ? $this->englishName($context, $params) : '';
         if ($known !== '') {
-            return 'Hi '.$known.', welcome back. How can I help you today?'."\n\n".app(ServiceMenu::class)->text();
+            return 'Hi '.$known.', how are you doing?';
         }
-        $ask = AssistantRuntimeSettings::collectUnknownName()
-            ? ' May I know your name?'
-            : '';
         $who = config('assistant.identify') ? config('assistant.display_name') : 'BeyondTechWorld';
 
-        return 'Hi, this is '.$who.'. How can I help you today?'.$ask."\n\n".app(ServiceMenu::class)->text();
+        return 'Hi, this is '.$who.'. How are you doing?';
+    }
+
+    protected function englishName(array $context, array $params)
+    {
+        $sources = [];
+        if (! empty($params['captured_name'])) {
+            $sources[] = $params['captured_name'];
+        }
+        if (! empty($context['customer_id']) && \Illuminate\Support\Facades\Schema::hasTable('customers')) {
+            $customer = \App\Customer::find($context['customer_id']);
+            if ($customer && trim((string) $customer->name) !== '' && strcasecmp(trim((string) $customer->name), trim((string) $customer->company_name)) !== 0) {
+                $sources[] = $customer->name;
+            }
+        }
+        if (! empty($context['intern_user_id'])) {
+            $user = \App\User::find($context['intern_user_id']);
+            if ($user && trim((string) $user->name) !== '') {
+                $sources[] = $user->name;
+            }
+        }
+        if (! empty($context['employee_id']) && \Illuminate\Support\Facades\Schema::hasTable('employees')) {
+            $employee = \App\Employee::find($context['employee_id']);
+            if ($employee && trim((string) $employee->name) !== '') {
+                $sources[] = $employee->name;
+            }
+        }
+        if (! empty($context['contact_name'])) {
+            $sources[] = $context['contact_name'];
+        }
+        foreach ($sources as $source) {
+            $one = $this->oneName($source);
+            if ($one !== '') {
+                return $one;
+            }
+        }
+
+        return '';
+    }
+
+    protected function oneName($full)
+    {
+        $skip = ['mr', 'mrs', 'ms', 'dr', 'engr', 'sr', 'prof', 'ltd', 'limited', 'inc', 'plc', 'company', 'enterprise', 'group', 'church', 'school', 'the', 'and'];
+        foreach (preg_split('/\s+/', trim((string) $full)) as $word) {
+            $clean = preg_replace('/[^A-Za-z]/', '', $word);
+            if (strlen($clean) < 2 || in_array(strtolower($clean), $skip, true)) {
+                continue;
+            }
+
+            return ucfirst(strtolower($clean));
+        }
+
+        return '';
     }
 
     protected function fromTool($intent, $toolResult, array $params)

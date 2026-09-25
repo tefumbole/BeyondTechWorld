@@ -382,7 +382,7 @@ class BeyondAssistantService
         } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $send = $this->conversations->assistantReply($conversation, $reply);
             $sent = ! empty($send['success']);
-            if ($sent && $decision['intent'] === IntentCatalog::GREETING) {
+            if ($sent && strpos($reply, '1. Sound') !== false) {
                 $this->conversations->sendServicePoll($conversation->fresh());
             }
             if (! $sent) {

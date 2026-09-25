@@ -150,7 +150,11 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         \App\Product::create(['name' => 'JBL Speaker', 'code' => 'SPK', 'is_active' => true]);
         $this->postWebhook($this->incoming('+237670000910', 'Hello', 'S9I1'))->assertStatus(200);
         $hello = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
-        $this->assertStringContainsString('1. Sound', $hello->body);
+        $this->assertStringContainsString('How are you doing?', $hello->body);
+        $this->assertStringNotContainsString('1. Sound', $hello->body);
+        $this->postWebhook($this->incoming('+237670000910', "I'm good and you", 'S9I1B'))->assertStatus(200);
+        $menu = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertStringContainsString('1. Sound', $menu->body);
         $this->postWebhook($this->incoming('+237670000910', '1', 'S9I2'))->assertStatus(200);
         $list = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
         $this->assertStringContainsString('JBL Speaker', $list->body);
