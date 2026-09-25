@@ -84,6 +84,7 @@ class PublicFuneralPledgeController extends Controller
             'navActive' => 'biography',
             'bio' => PaNgwayuBiography::data(),
             'photos' => [],
+            'watermark' => $this->pledges->rememberPhotos()[0],
         ]);
     }
 

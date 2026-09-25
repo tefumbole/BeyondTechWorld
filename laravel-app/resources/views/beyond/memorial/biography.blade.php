@@ -3,7 +3,36 @@
 @section('title', 'Biography · Late Pa Ngwayu Nchinda Francis')
 
 @section('styles')
-        .bio-block { margin: 0 0 28px; max-width: 46em; }
+        body.is-biography::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: url("{{ $watermark }}") center center / min(520px, 72vw) auto no-repeat;
+            opacity: .22;
+            pointer-events: none;
+            z-index: 0;
+        }
+        body.is-biography .shell,
+        body.is-biography .main {
+            position: relative;
+            z-index: 1;
+            background: transparent;
+        }
+        body.is-biography .main {
+            text-align: center;
+        }
+        body.is-biography .nav { justify-content: center; }
+        body.is-biography h1,
+        body.is-biography .meta,
+        body.is-biography .kicker,
+        body.is-biography .lead,
+        body.is-biography .foot { text-align: center; }
+        body.is-biography .lead { margin-left: auto; margin-right: auto; }
+        .bio-block {
+            margin: 0 auto 28px;
+            max-width: 46em;
+            text-align: center;
+        }
         .bio-block h2 {
             margin: 0 0 12px;
             font-family: "Source Sans Pro", sans-serif;
@@ -27,7 +56,7 @@
         .bio-quote {
             margin: 16px 0 0;
             padding: 14px 16px;
-            border-left: 3px solid var(--gold);
+            border-top: 3px solid var(--gold);
             color: var(--gold-2);
             font-family: "Cormorant Garamond", serif;
             font-size: 24px;
