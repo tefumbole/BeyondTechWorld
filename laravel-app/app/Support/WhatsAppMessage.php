@@ -375,7 +375,7 @@ class WhatsAppMessage
         return $msg;
     }
 
-    public static function bookingConfirmation($customerName, $referenceNo, $orderDate, array $lines, $grandTotal, $payingMethod, $facilityName, $facilityAddress, $facilityPhone, $bookingNote = '')
+    public static function bookingConfirmation($customerName, $referenceNo, $orderDate, array $lines, $grandTotal, $payingMethod, $facilityName, $facilityAddress, $facilityPhone, $bookingNote = '', $paymentStatus = null)
     {
         $msg = self::statusBlock('✅', 'Booking Confirmed');
         $msg .= self::greeting($customerName);
@@ -399,6 +399,9 @@ class WhatsAppMessage
         $msg .= self::bullet('Contact', $facilityPhone);
         $msg .= "\n*Payment:*\n";
         $msg .= self::bullet('Total', $grandTotal);
+        if ($paymentStatus !== null && $paymentStatus !== '') {
+            $msg .= self::bullet('Payment Status', $paymentStatus);
+        }
         $msg .= self::bullet('Method', $payingMethod);
         $msg .= "\nThank you for choosing *" . self::companyName() . '*.';
         $msg .= self::footer();

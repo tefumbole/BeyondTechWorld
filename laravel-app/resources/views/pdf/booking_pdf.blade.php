@@ -246,6 +246,8 @@
                                 {{ trans('file.Due') }}
                             @elseif($lims_sale_data->payment_status == 3)
                                 {{ trans('file.Partial') }}
+                            @elseif($lims_sale_data->payment_status == 4 || $dueAmount <= 0)
+                                {{ trans('file.Paid') }}
                             @else
                                 {{ trans('file.Paid') }}
                             @endif

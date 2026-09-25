@@ -1736,6 +1736,31 @@ class BookingController extends Controller
         }
     }
 
+    /**
+     * Human-readable booking payment status for WhatsApp / receipts.
+     */
+    public function bookingPaymentStatusLabel($booking)
+    {
+        $status = (int) ($booking->payment_status ?? 0);
+        if ($status === 1) {
+            return trans('file.Pending');
+        }
+        if ($status === 2) {
+            return trans('file.Due');
+        }
+        if ($status === 3) {
+            return trans('file.Partial');
+        }
+        if ($status === 4 || (
+            (float) ($booking->grand_total ?? 0) > 0
+            && (float) ($booking->paid_amount ?? 0) >= (float) $booking->grand_total
+        )) {
+            return trans('file.Paid');
+        }
+
+        return trans('file.Pending');
+    }
+
     public function buildBookingPdfFile($id)
     {
         $lims_sale_data = Booking::findOrFail($id);
@@ -1815,7 +1840,8 @@ class BookingController extends Controller
             $biller->name,
             $biller->address,
             $biller->phone_number,
-            (string) \App\Support\BookingNoteFormatter::forPlainText($booking_note)
+            (string) \App\Support\BookingNoteFormatter::forPlainText($booking_note),
+            $this->bookingPaymentStatusLabel($lims_sale_data)
         );
 
         $message = 'Booking created successfully';
