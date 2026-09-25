@@ -116,6 +116,7 @@
             padding: 14px 16px 10px;
             background: #050403;
         }
+        body:not(.is-landing) .nav { background: #3a2e24; }
         .nav a, .nav button {
             border: 2px solid #d4af37;
             background: rgba(20, 14, 8, .92);
@@ -131,6 +132,12 @@
             white-space: nowrap;
             flex: 0 0 auto;
             min-height: 44px;
+        }
+        body:not(.is-landing) .nav a,
+        body:not(.is-landing) .nav button {
+            border-color: #c4a46a;
+            background: #2a2118;
+            color: #f6efe4;
         }
         .nav a.on, .nav a:hover, .nav button:hover {
             background: var(--gold);
@@ -832,9 +839,15 @@
             background: rgba(183, 142, 75, .18);
         }
         .part, .eu-card, #appreciation, #rsvp { scroll-margin-top: 88px; }
+        .page-toc.cols-3 { max-width: 1100px; }
         .page-toc.cols-3 ol { grid-template-columns: 1fr 1fr 1fr; }
         @media (max-width: 900px) {
             .page-toc.cols-3 ol { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 700px) {
+            .page-toc ol,
+            .page-toc.cols-3 ol { grid-template-columns: 1fr; }
+            .page-toc a { font-size: 18px; }
         }
         @yield('styles')
     </style>
