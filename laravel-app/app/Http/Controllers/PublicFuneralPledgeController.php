@@ -83,8 +83,7 @@ class PublicFuneralPledgeController extends Controller
         return view('beyond.memorial.biography', [
             'navActive' => 'biography',
             'bio' => PaNgwayuBiography::data(),
-            'photos' => [],
-            'watermark' => $this->pledges->rememberPhotos()[0],
+            'photos' => [$this->pledges->rememberPhotos()[0]],
         ]);
     }
 
@@ -110,7 +109,7 @@ class PublicFuneralPledgeController extends Controller
 
         return view('beyond.memorial.program', [
             'navActive' => 'program',
-            'photos' => $this->pledges->rememberPhotos(),
+            'photos' => [$this->pledges->rememberPhotos()[0]],
             'funeralAt' => $data['funeral_at'],
             'campaign' => $data['campaign'],
         ]);
@@ -126,7 +125,7 @@ class PublicFuneralPledgeController extends Controller
 
         return view('beyond.memorial.hymns', [
             'navActive' => 'hymns',
-            'photos' => [],
+            'photos' => [$this->pledges->rememberPhotos()[0]],
             'funeralAt' => $data['funeral_at'],
             'campaign' => $data['campaign'],
         ]);

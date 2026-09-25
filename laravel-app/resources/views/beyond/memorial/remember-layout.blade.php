@@ -40,8 +40,23 @@
             display: grid;
             grid-template-columns: minmax(260px, 40%) 1fr;
         }
-        body.is-hymns .portrait, body.is-biography .portrait { display: none; }
-        body.is-hymns .shell, body.is-biography .shell { grid-template-columns: 1fr; }
+        body:not(.is-landing) .shell { grid-template-columns: 1fr; }
+        body:not(.is-landing) .portrait {
+            position: relative;
+            height: auto;
+            max-height: none;
+        }
+        body:not(.is-landing) .portrait img {
+            position: relative;
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 46vh;
+            object-fit: contain;
+            padding: 16px 16px 8px;
+            opacity: 1;
+        }
+        body:not(.is-landing) .portrait .caption { display: none; }
         .portrait {
             position: sticky;
             top: 0;

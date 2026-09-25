@@ -3,21 +3,6 @@
 @section('title', 'Biography · Late Pa Ngwayu Nchinda Francis')
 
 @section('styles')
-        body.is-biography::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background: url("{{ $watermark }}") center center / min(520px, 72vw) auto no-repeat;
-            opacity: .22;
-            pointer-events: none;
-            z-index: 0;
-        }
-        body.is-biography .shell,
-        body.is-biography .main {
-            position: relative;
-            z-index: 1;
-            background: transparent;
-        }
         body.is-biography .main {
             text-align: center;
         }
