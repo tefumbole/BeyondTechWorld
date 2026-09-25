@@ -4,36 +4,40 @@
 
 @section('styles')
         body.is-eulogies .main {
-            background: #14100c;
-            color: #f7f1e4;
+            background: #f3f2eb;
+            color: #29352d;
             padding: 0 0 12px;
         }
-        body.is-eulogies .foot { color: #8a7b62; padding: 8px 20px 28px; }
-        body.is-eulogies .foot a { color: #f0d57a; }
+        body.is-eulogies .foot {
+            background: #263c31;
+            color: #eaece3;
+            margin: 0;
+            padding: 35px 20px;
+        }
+        body.is-eulogies .foot a { color: #e5c385; }
         .eu-hero {
             position: relative;
             overflow: hidden;
-            background: linear-gradient(180deg, #221a12, #16110c);
-            color: #fff8e8;
-            border-bottom: 1px solid rgba(212,175,55,.22);
+            background: #263c31;
+            color: #fff;
         }
         .eu-hero:after {
             content: "“";
             position: absolute;
-            right: 6%;
-            top: -90px;
+            right: 7%;
+            top: -125px;
             font-family: "Cormorant Garamond", serif;
-            font-size: 420px;
+            font-size: 470px;
             line-height: 1;
-            color: rgba(212,175,55,.06);
+            color: rgba(255,255,255,.04);
             pointer-events: none;
         }
         .eu-hero-inner {
             position: relative;
             z-index: 1;
-            max-width: 1100px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 72px 28px 80px;
+            padding: 92px 36px 100px;
         }
         .eu-eyebrow {
             margin: 0;
@@ -41,91 +45,91 @@
             font-weight: 700;
             letter-spacing: .26em;
             text-transform: uppercase;
-            color: #d4af37;
+            color: #d8b777;
         }
         .eu-hero h1 {
-            margin: 14px 0 16px;
+            margin: 17px 0 20px;
             font-family: "Cormorant Garamond", serif;
             font-weight: 500;
-            font-size: clamp(52px, 7vw, 92px);
-            letter-spacing: -.04em;
-            line-height: 1.05;
-            color: #fff8e8;
+            font-size: clamp(57px, 7vw, 100px);
+            letter-spacing: -.05em;
+            line-height: 1.08;
+            color: #fff;
         }
         .eu-hero p {
-            max-width: 560px;
+            max-width: 600px;
             margin: 0;
-            color: #e8dcc0;
+            color: #e0e5dc;
             font-size: 18px;
             line-height: 1.75;
         }
         .eu-stats {
             display: flex;
             align-items: center;
-            gap: 18px;
-            margin-top: 32px;
+            gap: 22px;
+            margin-top: 38px;
         }
         .eu-stats strong {
             font-family: "Cormorant Garamond", serif;
             font-weight: 500;
-            font-size: 40px;
+            font-size: 38px;
             line-height: 1;
-            color: #f0d57a;
+            color: #e6c78a;
         }
         .eu-stats span {
             font-size: 12px;
             font-weight: 700;
             letter-spacing: .12em;
             text-transform: uppercase;
-            color: #c4b498;
+            color: #e1e5db;
             line-height: 1.45;
         }
         .eu-note {
-            max-width: 1100px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 36px 28px 18px;
+            padding: 45px 36px 25px;
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 20px;
         }
         .eu-note span {
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .16em;
             text-transform: uppercase;
-            color: #d4af37;
+            color: #8e7b59;
         }
-        .eu-note .line { height: 1px; flex: 1; background: rgba(212,175,55,.35); }
+        .eu-note .line { height: 1px; flex: 1; background: #d7d4c8; }
         .eu-collection {
-            max-width: 1100px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 8px 28px 64px;
+            padding: 0 36px 80px;
         }
         .eu-featured {
             display: grid;
-            grid-template-columns: 220px minmax(0, 1fr);
-            gap: 48px;
-            margin-bottom: 22px;
-            padding: 8px 8px 28px;
+            grid-template-columns: 210px minmax(0, 1fr);
+            gap: 60px;
+            margin-bottom: 20px;
+            padding: 42px 54px 53px;
         }
         .eu-aside {
-            border-right: 1px solid rgba(212,175,55,.28);
-            padding: 18px 28px 0 0;
+            border-right: 1px solid #e6e0d1;
+            padding: 0 40px 0 0;
         }
         .eu-aside span {
             display: block;
-            color: #d4af37;
+            color: #b88f4b;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .16em;
             text-transform: uppercase;
         }
         .eu-aside p {
-            margin: 18px 0 0;
+            margin: 24px 0 0;
             font-family: "Cormorant Garamond", serif;
             font-size: 28px;
             line-height: 1.35;
-            color: #fff8e8;
+            color: #3c5141;
         }
         .eu-grid {
             display: grid;
@@ -134,34 +138,37 @@
             align-items: start;
         }
         .eu-card {
-            background: linear-gradient(180deg, rgba(32,24,16,.92), rgba(16,12,10,.88));
-            border: 1px solid rgba(212,175,55,.22);
-            border-radius: 20px;
-            box-shadow: 0 16px 40px rgba(0,0,0,.28);
+            background: #fbfaf6;
+            border: 1px solid #e9e5d9;
+            box-shadow: 0 9px 29px rgba(49, 58, 46, .03);
             margin: 0;
-            padding: 32px 36px 36px;
+            padding: 36px 40px 40px;
         }
         .eu-featured .eu-card {
-            background: linear-gradient(180deg, rgba(32,24,16,.92), rgba(16,12,10,.88));
+            border: 0;
+            box-shadow: none;
+            background: transparent;
+            padding: 0;
         }
+        .eu-grid .eu-card { height: 100%; }
         .eu-top {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(212,175,55,.18);
+            gap: 16px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e8e3d8;
         }
         .eu-avatar {
             width: 49px;
             height: 49px;
             flex: none;
-            border: 2px solid #d4af37;
+            border: 1px solid #c8ad76;
             border-radius: 50%;
             display: grid;
             place-items: center;
             overflow: hidden;
-            background: rgba(212,175,55,.12);
-            color: #f0d57a;
+            background: #eee9db;
+            color: #6d613f;
             font-family: "Cormorant Garamond", serif;
             font-size: 22px;
         }
@@ -170,15 +177,15 @@
         .eu-byline h2 {
             margin: 0;
             font-family: "Cormorant Garamond", serif;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
             line-height: 1.3;
-            color: #fff6dc;
+            color: #29352d;
         }
         .eu-byline time {
             display: block;
             margin-top: 2px;
-            color: #c4b498;
+            color: #8c8e83;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .14em;
@@ -187,15 +194,15 @@
         .eu-num {
             font-family: "Cormorant Garamond", serif;
             font-size: 28px;
-            color: rgba(212,175,55,.55);
+            color: #cabda0;
         }
-        .eu-body { max-width: 820px; margin: 22px auto 0; }
+        .eu-body { max-width: 820px; margin: 27px auto 0; }
         .eu-grid .eu-body { margin-left: 0; }
         .eu-body p {
-            margin: 0 0 16px;
+            margin: 0 0 20px;
             font-size: 16px;
             line-height: 1.95;
-            color: #f6edd8;
+            color: #49544b;
         }
         .eu-grid .eu-body p { font-size: 15px; }
         .eu-body p:last-child { margin-bottom: 0; }
@@ -206,48 +213,48 @@
             gap: 12px;
             margin-top: 20px;
             padding-top: 14px;
-            border-top: 1px solid rgba(212,175,55,.18);
+            border-top: 1px solid #e7e3d8;
         }
         .eu-sign cite {
             font-family: "Cormorant Garamond", serif;
             font-style: italic;
             font-size: 18px;
-            color: #fff8e8;
+            color: #405444;
         }
         .eu-sign img {
             height: 52px;
             max-width: 180px;
             object-fit: contain;
-            filter: invert(1) sepia(.28) saturate(1.8) hue-rotate(6deg) brightness(1.2);
         }
         .eu-more {
             margin: 28px 0 0;
             text-align: center;
         }
         .eu-more a {
-            color: #f0d57a;
+            color: #405444;
             font-weight: 700;
             text-underline-offset: 4px;
         }
         .eu-empty {
-            background: #1c160f;
-            border: 1px dashed #6a5420;
-            border-radius: 16px;
+            background: #fbfaf6;
+            border: 1px dashed #d7d4c8;
             padding: 28px 22px;
-            color: #c4b498;
+            color: #667066;
             font-size: 17px;
         }
         @media (max-width: 900px) {
-            .eu-featured { grid-template-columns: 1fr; gap: 8px; }
-            .eu-aside { border-right: 0; border-bottom: 1px solid rgba(212,175,55,.28); padding: 0 0 14px; }
+            .eu-featured { grid-template-columns: 1fr; gap: 10px; padding: 30px; }
+            .eu-aside { border-right: 0; border-bottom: 1px solid #e6e0d1; padding: 0 0 12px; }
             .eu-aside p { margin: 10px 0 0; font-size: 24px; }
             .eu-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
-            .eu-hero-inner { padding: 48px 20px 56px; }
+            .eu-hero-inner { padding: 70px 24px 80px; }
             .eu-hero p { font-size: 16px; }
-            .eu-note, .eu-collection { padding-left: 18px; padding-right: 18px; }
-            .eu-card { padding: 22px 18px 24px; }
+            .eu-note { padding: 35px 24px 23px; }
+            .eu-collection { padding: 0 20px 70px; }
+            .eu-card, .eu-featured { padding: 25px 22px; }
+            .eu-body p { font-size: 15px; }
             .eu-num { font-size: 22px; }
         }
 @endsection
