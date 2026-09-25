@@ -20,7 +20,7 @@
         .hymn-card summary::-webkit-details-marker { display: none; }
         .hymn-card summary h2 {
             margin: 0;
-            font-size: clamp(22px, 3vw, 32px);
+            font-size: clamp(26.4px, 3.6vw, 38.4px);
             text-decoration: underline;
             text-underline-offset: 5px;
         }
@@ -36,7 +36,7 @@
             display: inline-block;
             margin: 0 0 8px;
             color: var(--gold);
-            font-size: 13px;
+            font-size: 15.6px;
             font-weight: 800;
             letter-spacing: .16em;
             text-transform: uppercase;
@@ -44,27 +44,27 @@
         .hymn-also {
             margin: 0 0 18px;
             color: var(--muted);
-            font-size: 15px;
+            font-size: 18px;
         }
         .hymn-verse {
             margin: 0 0 10px;
             white-space: pre-wrap;
             color: #e8dcc0;
-            font-size: 18px;
+            font-size: 21.6px;
             line-height: 1.7;
         }
         .hymn-chorus {
             margin: 0 0 22px;
             white-space: pre-wrap;
             color: var(--gold-2);
-            font-size: 17px;
+            font-size: 20.4px;
             line-height: 1.7;
             font-style: italic;
         }
         .hymn-chorus strong {
             display: block;
             font-style: normal;
-            font-size: 12px;
+            font-size: 14.4px;
             letter-spacing: .16em;
             text-transform: uppercase;
             margin-bottom: 4px;
