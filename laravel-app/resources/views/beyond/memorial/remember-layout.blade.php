@@ -832,9 +832,9 @@
             background: rgba(183, 142, 75, .18);
         }
         .part, .eu-card, #appreciation, #rsvp { scroll-margin-top: 88px; }
-        @media (max-width: 700px) {
-            .page-toc ol { grid-template-columns: 1fr; }
-            .page-toc a { font-size: 18px; }
+        .page-toc.cols-3 ol { grid-template-columns: 1fr 1fr 1fr; }
+        @media (max-width: 900px) {
+            .page-toc.cols-3 ol { grid-template-columns: 1fr 1fr; }
         }
         @yield('styles')
     </style>

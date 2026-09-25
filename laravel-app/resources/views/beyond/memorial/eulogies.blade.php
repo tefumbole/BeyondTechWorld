@@ -267,7 +267,7 @@
         </div>
     </section>
 
-    <nav class="page-toc" aria-label="Eulogy contents">
+    <nav class="page-toc cols-3" aria-label="Eulogy contents">
         <p>Contents</p>
         <ol>
             @foreach($eulogies as $index => $eu)
