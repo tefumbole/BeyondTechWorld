@@ -1557,6 +1557,11 @@ class BookingController extends Controller
         $lims_customer_data = $lims_sale_data->customer;
         $biller = $lims_sale_data->biller;
 
+        if (!$lims_customer_data) {
+            \Log::warning('Post-sign receipt skipped: booking '.$lims_sale_data->reference_no.' has no customer.');
+            return;
+        }
+
         $mail_data = [
             'email' => $lims_customer_data->email,
             'reference_no' => $lims_sale_data->reference_no,
@@ -1594,18 +1599,109 @@ class BookingController extends Controller
                 false
             );
         } catch (\Exception $e) {
-            // Continue to PDF attempt.
+            \Log::warning('Post-sign booking message failed for '.$lims_sale_data->reference_no.': '.$e->getMessage());
         }
 
+        $pdfPath = null;
+        $docUrl = null;
         try {
             $pdfPath = $this->buildBookingPdfFile($bookingId);
             $relative = 'booking_receipts/booking_invoice_' . $lims_sale_data->reference_no . '.pdf';
             $docUrl = url('public/' . ltrim($relative, '/'));
-            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_receipt.pdf', $docUrl);
-            $this->sendBookingPdfCopyToCreator($lims_sale_data, $pdfPath, 'booking_receipt.pdf', $docUrl);
+            $this->sendWhatsAppDocumentToCustomer($lims_customer_data, $pdfPath, 'booking_invoice.pdf', $docUrl);
+            $this->sendBookingPdfCopyToCreator($lims_sale_data, $pdfPath, 'booking_invoice.pdf', $docUrl);
         } catch (\Exception $e) {
-            // WhatsApp receipt optional if settings missing.
+            \Log::warning('Post-sign booking invoice PDF failed for '.$lims_sale_data->reference_no.': '.$e->getMessage());
         }
+
+        // CC contacts get the same confirmation text + invoice PDF.
+        try {
+            $this->sendBookingCcNotifications(
+                $lims_sale_data,
+                $mail_data,
+                $lims_sale_data->booking_note ?? '',
+                optional($lims_customer_data)->name ?? '',
+                $pdfPath,
+                $docUrl
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('Post-sign CC invoice delivery failed for '.$lims_sale_data->reference_no.': '.$e->getMessage());
+        }
+    }
+
+    /**
+     * WhatsApp the signed contract PDF to every CC contact on the booking.
+     */
+    public function sendBookingCcSignedContract(Booking $booking, $signedPdfPath, $signedPdfUrl = null, $fileName = 'signed_rental_agreement.pdf')
+    {
+        if (empty($booking->cc_customer_ids) || !$signedPdfPath || !file_exists($signedPdfPath)) {
+            return;
+        }
+
+        $ccIds = array_filter(explode(',', $booking->cc_customer_ids));
+        $customerName = optional($booking->customer)->name ?? 'Client';
+
+        foreach ($ccIds as $customerId) {
+            $ccCustomer = Customer::find($customerId);
+            if (!$ccCustomer || empty(trim((string) $ccCustomer->phone_number))) {
+                continue;
+            }
+
+            try {
+                $msg = \App\Support\WhatsAppMessage::bookingSignedCc(
+                    $ccCustomer->name,
+                    $booking->reference_no,
+                    $customerName
+                );
+                $this->sendWhatsAppToCustomer($ccCustomer, $msg);
+                $this->sendWhatsAppDocumentToCustomer($ccCustomer, $signedPdfPath, $fileName, $signedPdfUrl);
+            } catch (\Throwable $e) {
+                \Log::warning('Signed contract CC delivery failed for booking '.$booking->reference_no.': '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Re-send the post-sign invoice (and signed PDF when present) to the client and CC contacts.
+     */
+    public function resendPostSignaturePackage($bookingId)
+    {
+        $this->deliverPostSignatureReceipt($bookingId);
+
+        $booking = Booking::with('contract')->findOrFail($bookingId);
+        $contract = $booking->contract;
+        if (!$contract || empty($contract->signed_pdf_path)) {
+            return;
+        }
+
+        $signedPdfPath = public_path(ltrim($contract->signed_pdf_path, '/'));
+        if (!file_exists($signedPdfPath)) {
+            return;
+        }
+
+        $signedPdfUrl = url('public/' . ltrim($contract->signed_pdf_path, '/'));
+        $customer = $booking->customer;
+        if ($customer && trim((string) $customer->phone_number) !== '') {
+            try {
+                $this->sendWhatsAppToCustomer(
+                    $customer,
+                    \App\Support\WhatsAppMessage::clientSignedPendingReview(
+                        $customer->name,
+                        $booking->reference_no
+                    )
+                );
+                $this->sendWhatsAppDocumentToCustomer(
+                    $customer,
+                    $signedPdfPath,
+                    'signed_rental_agreement.pdf',
+                    $signedPdfUrl
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('Resend signed PDF to client failed for '.$booking->reference_no.': '.$e->getMessage());
+            }
+        }
+
+        $this->sendBookingCcSignedContract($booking, $signedPdfPath, $signedPdfUrl);
     }
 
     /**

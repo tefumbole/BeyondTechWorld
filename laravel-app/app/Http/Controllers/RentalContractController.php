@@ -590,6 +590,16 @@ class RentalContractController extends Controller
             }
         }
 
+        try {
+            app(BookingController::class)->sendBookingCcSignedContract(
+                $booking,
+                $signedPdfPath,
+                $signedPdfUrl
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Pending review CC signed PDF failed for booking ' . $booking->reference_no . ': ' . $e->getMessage());
+        }
+
         if ($creator) {
             $message = $customerName . ' signed booking ' . $booking->reference_no . '. Review and countersign required.';
             $creator->notify(new ContractWorkflowNotification($message, $reviewUrl, 'pending_review'));
@@ -661,6 +671,17 @@ class RentalContractController extends Controller
         $this->sendWhatsAppToCustomer($customer, $clientMsg);
         $this->sendWhatsAppDocumentToCustomer($customer, $signedPdfPath, 'signed_rental_agreement.pdf', $signedPdfUrl);
         $this->sendWhatsAppDocumentToCustomer($customer, $qrPath, 'rental_qr.png', $qrUrl);
+
+        // CC contacts get the approved signed agreement too.
+        try {
+            app(BookingController::class)->sendBookingCcSignedContract(
+                $booking,
+                $signedPdfPath,
+                $signedPdfUrl
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Approved signed PDF CC delivery failed for booking ' . $booking->reference_no . ': ' . $e->getMessage());
+        }
 
         // Deliver the final booking invoice to the client AND CC contacts once approved.
         try {

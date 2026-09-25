@@ -767,6 +767,18 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function bookingSignedCc($recipientName, $bookingRef, $customerName)
+    {
+        $msg = self::statusBlock('✅', 'Agreement Signed Copy');
+        $msg .= self::greeting($recipientName);
+        $msg .= "You are copied on the signed rental agreement for *{$customerName}* (*{$bookingRef}*).\n\n";
+        $msg .= "The signed contract PDF is attached. Our team will review and countersign shortly.\n";
+        $msg .= self::bullet('Booking Ref', $bookingRef);
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function bookingQuotationCc($recipientName, $bookingRef, array $lines, $customerName, $bookingNote = '')
     {
         $msg = self::statusBlock('📋', 'Quotation Copy');

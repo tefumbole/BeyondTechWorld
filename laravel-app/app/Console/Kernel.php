@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
         Commands\SendScheduledAnnouncements::class,
         Commands\RentalReturnReminderCron::class,
         Commands\SendBookingReminders::class,
+        Commands\ResendBookingSignedPackage::class,
         Commands\SendContractSignatureReminders::class,
         Commands\ProcessContractReminders::class,
         Commands\ProcessContractExpiryAlerts::class,
