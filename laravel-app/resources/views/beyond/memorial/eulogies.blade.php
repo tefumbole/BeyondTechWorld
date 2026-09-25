@@ -280,62 +280,26 @@
     </div>
 
     <div class="eu-collection">
-        @forelse($eulogies as $index => $eu)
-            @php
-                $name = trim((string) ($eu['name'] ?? ''));
-                $letter = $name === '' ? '·' : strtoupper(substr($name, 0, 1));
-                $num = sprintf('%02d', $index + 1);
-            @endphp
-            @if($index === 0)
-                <div class="eu-featured">
-                    <aside class="eu-aside">
-                        <span>Featured tribute@if(!empty($eu['when'])) · {{ $eu['when'] }}@endif</span>
-                        @if($pull !== '')
-                            <p>“{{ $pull }}”</p>
-                        @endif
-                    </aside>
-            @endif
-            @if($index === 1)
+        @if($euCount)
+            <div class="eu-featured">
+                <aside class="eu-aside">
+                    <span>Featured tribute@if(!empty($eulogies[0]['when'])) · {{ $eulogies[0]['when'] }}@endif</span>
+                    @if($pull !== '')
+                        <p>“{{ $pull }}”</p>
+                    @endif
+                </aside>
+                @include('beyond.memorial.eulogy-card', ['eu' => $eulogies[0], 'num' => 1])
+            </div>
+            @if($euCount > 1)
                 <div class="eu-grid">
-            @endif
-                    <article class="eu-card" id="tribute-{{ $index + 1 }}">
-                        <div class="eu-top">
-                            <div class="eu-avatar" aria-hidden="true">
-                                @if(!empty($eu['has_selfie']))
-                                    <img src="{{ $eu['selfie'] }}" alt="">
-                                @else
-                                    {{ $letter }}
-                                @endif
-                            </div>
-                            <div class="eu-byline">
-                                <h2>{{ $eu['name'] }}</h2>
-                                @if(!empty($eu['when']))
-                                    <time>{{ $eu['when'] }}</time>
-                                @endif
-                            </div>
-                            <span class="eu-num">{{ $num }}</span>
-                        </div>
-                        <div class="eu-body">
-                            @foreach(($eu['paragraphs'] ?? [$eu['body']]) as $para)
-                                <p>{{ $para }}</p>
-                            @endforeach
-                            @if(!empty($eu['has_signature']))
-                                <div class="eu-sign">
-                                    <cite>{{ $eu['name'] }}</cite>
-                                    <img src="{{ $eu['signature'] }}" alt="Signature of {{ $eu['name'] }}">
-                                </div>
-                            @endif
-                        </div>
-                    </article>
-            @if($index === 0)
+                    @foreach(array_slice($eulogies, 1) as $offset => $eu)
+                        @include('beyond.memorial.eulogy-card', ['eu' => $eu, 'num' => $offset + 2])
+                    @endforeach
                 </div>
             @endif
-            @if($index > 0 && $loop->last)
-                </div>
-            @endif
-        @empty
+        @else
             <p class="eu-empty">The eulogies written for Pa Ngwayu Francis are kept here.</p>
-        @endforelse
+        @endif
         <p class="eu-more"><a href="{{ route('funeral.pangwayu.biography') }}">Read his biography</a></p>
     </div>
 @endsection
