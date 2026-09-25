@@ -614,9 +614,12 @@ class Controller extends BaseController
 
         if ($this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
-            if (empty($publicUrl)) {
-                // Force Wasender upload path even when WHATSAPP_SERVICE=TWILIO
+            // Always upload local PDFs to Wasender. Passing a site URL often returns API
+            // success while WhatsApp never delivers the document.
+            if (is_file($path)) {
                 $publicUrl = $this->wasenderUploadLocalFile($path);
+            } elseif (empty($publicUrl)) {
+                throw new \Exception('Document file not found for WhatsApp send.');
             }
 
             return $this->wasenderAttachment($path, $customer, $publicUrl, $filename);
@@ -640,8 +643,10 @@ class Controller extends BaseController
 
         if ($this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
-            if (empty($publicUrl)) {
+            if (is_file($path)) {
                 $publicUrl = $this->wasenderUploadLocalFile($path);
+            } elseif (empty($publicUrl)) {
+                throw new \Exception('Document file not found for WhatsApp send.');
             }
 
             $recipient = (object) ['phone_number' => $phone];
