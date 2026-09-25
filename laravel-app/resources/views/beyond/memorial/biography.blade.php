@@ -4,56 +4,86 @@
 
 @section('styles')
         body.is-biography .main {
-            text-align: center;
+            background:
+                radial-gradient(ellipse 70% 28% at 50% 0%, rgba(212,175,55,.10), transparent 62%),
+                #0c0a08;
         }
         body.is-biography .nav { justify-content: center; }
-        body.is-biography h1,
-        body.is-biography .meta,
-        body.is-biography .kicker,
-        body.is-biography .lead,
-        body.is-biography .foot { text-align: center; }
-        body.is-biography .lead { margin-left: auto; margin-right: auto; }
-        .bio-block {
-            margin: 0 auto 28px;
-            max-width: 46em;
+        header.bio-block {
             text-align: center;
+            max-width: 42em;
+            margin: 8px auto 36px;
+            padding: 8px 8px 0;
         }
-        .bio-block h2 {
-            margin: 0 0 12px;
-            font-family: "Source Sans Pro", sans-serif;
-            font-size: clamp(22px, 3vw, 28px);
-            font-weight: 700;
-            letter-spacing: 0;
-            color: #fff8e8;
-            line-height: 1.25;
+        header.bio-block h1 {
+            font-size: clamp(42px, 6vw, 68px);
+            letter-spacing: -.02em;
+            margin-bottom: 10px;
         }
-        .bio-block .sub {
-            margin: 0 0 12px;
-            color: var(--muted);
+        header.bio-block .meta {
+            color: var(--gold-2);
             font-size: 16px;
+            letter-spacing: .04em;
         }
-        .bio-block p {
-            margin: 0 0 12px;
-            color: #e8dcc0;
-            font-size: 18px;
-            line-height: 1.7;
+        header.bio-block .lead {
+            margin: 22px auto 0;
+            max-width: 38em;
+            font-size: 19px;
+            line-height: 1.75;
+            color: #f3ead8;
         }
+        article.bio-block {
+            width: min(760px, 100%);
+            margin: 0 auto 16px;
+            padding: 28px 30px 24px;
+            text-align: left;
+            background: linear-gradient(180deg, rgba(255,248,232,.045), rgba(255,248,232,.02));
+            border: 1px solid rgba(212,175,55,.2);
+            border-radius: 24px;
+            box-shadow: 0 18px 50px rgba(0,0,0,.28);
+        }
+        article.bio-block h2 {
+            margin: 0 0 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(212,175,55,.22);
+            font-family: "Cormorant Garamond", serif;
+            font-size: clamp(30px, 4vw, 40px);
+            font-weight: 600;
+            letter-spacing: -.01em;
+            color: #fff8e8;
+            line-height: 1.15;
+        }
+        article.bio-block p {
+            margin: 0 0 14px;
+            color: #efe4cf;
+            font-size: 17.5px;
+            line-height: 1.75;
+        }
+        article.bio-block p:last-child { margin-bottom: 0; }
         .bio-quote {
-            margin: 16px 0 0;
-            padding: 14px 16px;
-            border-top: 3px solid var(--gold);
+            margin: 18px 0 0;
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: rgba(212,175,55,.08);
+            border: 1px solid rgba(212,175,55,.18);
             color: var(--gold-2);
             font-family: "Cormorant Garamond", serif;
-            font-size: 24px;
+            font-size: 26px;
             line-height: 1.35;
+            text-align: center;
         }
         .bio-quote span {
             display: block;
-            margin-top: 6px;
+            margin-top: 8px;
             font-family: "Source Sans Pro", sans-serif;
-            font-size: 13px;
-            letter-spacing: .06em;
+            font-size: 12px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
             color: var(--muted);
+        }
+        @media (max-width: 640px) {
+            article.bio-block { padding: 20px 16px 18px; border-radius: 18px; }
+            header.bio-block h1 { font-size: 36px; }
         }
 @endsection
 
