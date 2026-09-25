@@ -283,7 +283,11 @@
         @if($euCount)
             <div class="eu-featured">
                 <aside class="eu-aside">
-                    <span>Featured tribute@if(!empty($eulogies[0]['when'])) · {{ $eulogies[0]['when'] }}@endif</span>
+                    <span>Featured tribute
+                        @if(!empty($eulogies[0]['when']))
+                            · {{ $eulogies[0]['when'] }}
+                        @endif
+                    </span>
                     @if($pull !== '')
                         <p>“{{ $pull }}”</p>
                     @endif
