@@ -8,10 +8,30 @@
             background: linear-gradient(180deg, #221a12, #16110c);
             border: 1px solid #4a3b1c;
             border-radius: 22px;
-            padding: 22px 22px 20px;
-            box-shadow: 0 18px 40px rgba(0,0,0,.28);
-            margin-bottom: 18px;
+            margin-bottom: 14px;
+            overflow: hidden;
         }
+        .hymn-card summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 18px 22px;
+            display: block;
+        }
+        .hymn-card summary::-webkit-details-marker { display: none; }
+        .hymn-card summary h2 {
+            margin: 0;
+            font-size: clamp(22px, 3vw, 32px);
+            text-decoration: underline;
+            text-underline-offset: 5px;
+        }
+        .hymn-card summary h2::after {
+            content: " +";
+            color: var(--gold);
+            text-decoration: none;
+            display: inline-block;
+        }
+        .hymn-card[open] summary h2::after { content: " –"; }
+        .hymn-body { padding: 0 22px 18px; }
         .hymn-label {
             display: inline-block;
             margin: 0 0 8px;
@@ -20,10 +40,6 @@
             font-weight: 800;
             letter-spacing: .16em;
             text-transform: uppercase;
-        }
-        .hymn-card h2 {
-            font-size: clamp(26px, 4vw, 36px);
-            margin: 0 0 6px;
         }
         .hymn-also {
             margin: 0 0 18px;
@@ -62,9 +78,12 @@
         <h1>Hymns</h1>
     </header>
 
-    <article class="hymn-card">
-        <span class="hymn-label">Opening hymn</span>
-        <h2>When the Trumpet of the Lord Shall Sound</h2>
+    <details class="hymn-card">
+        <summary>
+            <span class="hymn-label">Opening hymn</span>
+            <h2>When the Trumpet of the Lord Shall Sound</h2>
+        </summary>
+        <div class="hymn-body">
         <p class="hymn-also">When the Roll Is Called Up Yonder</p>
 
         <p class="hymn-verse">When the trumpet of the Lord shall sound, and time shall be no more,
@@ -93,11 +112,15 @@ And the roll is called up yonder, I’ll be there.</p>
 When the roll is called up yonder,
 When the roll is called up yonder,
 When the roll is called up yonder, I’ll be there.</p>
-    </article>
+        </div>
+    </details>
 
-    <article class="hymn-card">
-        <span class="hymn-label">Closing hymn</span>
-        <h2>Farther Along</h2>
+    <details class="hymn-card">
+        <summary>
+            <span class="hymn-label">Closing hymn</span>
+            <h2>Farther Along</h2>
+        </summary>
+        <div class="hymn-body">
 
         <p class="hymn-verse">Tempted and tried, we’re oft made to wonder
 Why it should be thus all the day long;
@@ -152,5 +175,6 @@ Then we shall know and understand why.</p>
 Farther along we’ll understand why;
 Cheer up, my brother, live in the sunshine,
 We’ll understand it all by and by.</p>
-    </article>
+        </div>
+    </details>
 @endsection

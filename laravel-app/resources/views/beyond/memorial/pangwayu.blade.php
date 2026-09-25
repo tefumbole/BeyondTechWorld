@@ -366,7 +366,6 @@
             <h1>Pa Ngwayu Francis</h1>
             <p class="meta">73 years · Funeral 26 September 2026</p>
         </div>
-        <button type="button" class="btn btn-gold eulogy-top" id="openEulogy">Leave a eulogy</button>
     </header>
 
     <div class="rings" id="rings">
@@ -752,7 +751,8 @@
         canvas.addEventListener('touchend', onPadUp);
     }
     document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); stylePen(); };
-    document.getElementById('openEulogy').onclick = function () {
+    var openEu = document.getElementById('openEulogy');
+    if (openEu) openEu.onclick = function () {
         euModal.classList.add('on');
         requestAnimationFrame(function () { requestAnimationFrame(sizeCanvas); });
         document.getElementById('euPhone').focus();

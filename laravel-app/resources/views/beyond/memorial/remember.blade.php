@@ -3,8 +3,6 @@
 @section('title', 'Pa Ngwayu Francis · Church program and eulogies')
 
 @section('nav_extra')
-    <button type="button" id="openDonate">Donate</button>
-    <button type="button" id="openEulogy">Leave a eulogy</button>
 @endsection
 
 @section('content')
@@ -37,7 +35,6 @@
                 <strong>2026</strong>
             </div>
         </div>
-        <button type="button" class="eulogy-cta" id="openEulogyBottom">Add a Eulogy</button>
         <a class="eulogy-cta" href="{{ route('funeral.pangwayu.biography') }}" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;margin-top:10px;background:transparent;color:#f0d57a;">Read His Biography</a>
         <div class="qr-card">
             <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
@@ -52,7 +49,7 @@
     <section class="eulogies is-hidden" id="eulogies">
         <p class="kicker">Eulogies</p>
         <h2>Eulogies</h2>
-        <p class="lead">Enter your phone number and your name will appear from our records, or type it yourself. Sign your eulogy, and you may add a selfie before you submit.</p>
+        <p class="lead">Words already written for Pa Ngwayu Francis. New eulogies are no longer being accepted.</p>
         <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
         @forelse($eulogies as $eu)
             <article class="eulogy-box">
@@ -80,7 +77,7 @@
                 </footer>
             </article>
         @empty
-            <p class="eulogies-empty">Be the first to leave a eulogy for Pa Ngwayu Francis.</p>
+            <p class="eulogies-empty">The eulogies written for Pa Ngwayu Francis are kept here.</p>
         @endforelse
     </section>
 @endsection
@@ -530,7 +527,8 @@
         donateModal.classList.add('on');
         document.getElementById('phone').focus();
     }
-    document.getElementById('openDonate').onclick = openDonate;
+    var openDonateBtn = document.getElementById('openDonate');
+    if (openDonateBtn) openDonateBtn.onclick = openDonate;
     if (window.location.search.indexOf('donate=1') !== -1) {
         openDonate();
     }
@@ -767,7 +765,8 @@
         });
         document.getElementById('euPhone').focus();
     }
-    document.getElementById('openEulogy').onclick = openEulogyModal;
+    var openEuBtn = document.getElementById('openEulogy');
+    if (openEuBtn) openEuBtn.onclick = openEulogyModal;
     var openBottom = document.getElementById('openEulogyBottom');
     if (openBottom) openBottom.onclick = openEulogyModal;
     if (window.location.search.indexOf('memory=1') !== -1) {

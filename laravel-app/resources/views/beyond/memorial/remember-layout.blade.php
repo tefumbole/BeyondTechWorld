@@ -40,6 +40,8 @@
             display: grid;
             grid-template-columns: minmax(260px, 40%) 1fr;
         }
+        body.is-hymns .portrait { display: none; }
+        body.is-hymns .shell { grid-template-columns: 1fr; }
         .portrait {
             position: sticky;
             top: 0;
@@ -745,7 +747,7 @@
         @yield('styles')
     </style>
 </head>
-<body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}{{ ($navActive ?? '') === 'biography' ? ' is-biography' : '' }}">
+<body class="{{ ($navActive ?? '') === 'remember' ? 'is-landing' : '' }}{{ ($navActive ?? '') === 'biography' ? ' is-biography' : '' }}{{ ($navActive ?? '') === 'hymns' ? ' is-hymns' : '' }}">
 <canvas class="sky-fx" id="skyFx" aria-hidden="true"></canvas>
 <div class="glow-veil" aria-hidden="true"></div>
 <div class="shell">
@@ -767,9 +769,6 @@
         <a href="{{ route('funeral.pangwayu.program') }}" class="{{ ($navActive ?? '') === 'program' ? 'on' : '' }}">Funeral program</a>
         <a href="{{ route('funeral.pangwayu.hymns') }}" class="{{ ($navActive ?? '') === 'hymns' ? 'on' : '' }}">Hymns</a>
         <a href="{{ route('funeral.pangwayu.remember') }}#eulogies">Eulogies</a>
-        @if(($navActive ?? '') !== 'remember')
-            <a href="{{ route('funeral.pangwayu.remember') }}?donate=1">Donate</a>
-        @endif
         @yield('nav_extra')
     </nav>
     @yield('content')
