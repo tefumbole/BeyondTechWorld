@@ -784,8 +784,13 @@
         body:not(.is-landing) .kicker { color: #8e7b59; }
         body:not(.is-landing) .lead,
         body:not(.is-landing) .meta { color: #49544b; }
-        body:not(.is-landing) .foot { color: #5d635c; }
-        body:not(.is-landing) .foot a { color: #405444; }
+        body:not(.is-landing) .foot {
+            background: #3a2e24;
+            color: #f6efe4;
+            margin: 28px 0 0;
+            padding: 22px 20px;
+        }
+        body:not(.is-landing) .foot a { color: #e5c385; }
         .page-toc {
             max-width: 980px;
             margin: 0 auto 18px;

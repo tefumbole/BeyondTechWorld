@@ -9,8 +9,8 @@
             padding: 0 0 12px;
         }
         body.is-eulogies .foot {
-            background: #263c31;
-            color: #eaece3;
+            background: #3a2e24;
+            color: #f6efe4;
             margin: 0;
             padding: 35px 20px;
         }

@@ -7,8 +7,8 @@
             background: #f3f2eb;
             color: #28312b;
         }
-        body.is-biography .foot { color: #5d635c; }
-        body.is-biography .foot a { color: #405444; }
+        body.is-biography .foot { color: #f6efe4; }
+        body.is-biography .foot a { color: #e5c385; }
         .bio-toc {
             max-width: 980px;
             margin: 0 auto;
