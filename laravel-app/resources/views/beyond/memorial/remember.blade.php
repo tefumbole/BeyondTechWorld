@@ -36,15 +36,6 @@
                 <strong>2026</strong>
             </div>
         </div>
-        <a class="eulogy-cta" href="{{ route('funeral.pangwayu.biography') }}">Read His Biography</a>
-        <div class="qr-card">
-            <img src="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" alt="QR code for Pa Ngwayu Francis memorial page">
-            <div>
-                <strong>Scan to open</strong>
-                <p>Anyone who scans this code is taken straight to this memorial page.</p>
-                <a href="{{ asset('public/memorial/pangwayu/qr-remember.png') }}" download="pangwayu-remember-qr.png">Download QR</a>
-            </div>
-        </div>
     </div>
 
 @endsection
