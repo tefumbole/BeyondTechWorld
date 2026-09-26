@@ -18,13 +18,13 @@
 
     <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full py-4">
         <div class="mb-5 md:mb-8 flex flex-col items-center">
-            <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-5 drop-shadow-2xl tracking-tight">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2 drop-shadow-2xl tracking-tight">
                 {!! \App\Support\SiteContent::html('home.hero_title', 'Your Technology Bridge to <span class="text-brand-gold">Africa</span>') !!}
             </h1>
-            <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}" class="h-14 md:h-20 w-auto object-contain mb-3 md:mb-4 drop-shadow-2xl">
-            <p class="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-3xl mx-auto drop-shadow-md">
+            <p class="text-base sm:text-lg md:text-xl text-white/90 font-light max-w-3xl mx-auto drop-shadow-md mb-4 md:mb-5">
                 {{ \App\Support\SiteContent::text('home.hero_subtitle', 'Professional IT Consultancy, Enterprise Networking, and Audio-Visual Production, Cloud, AI and Cyber') }}
             </p>
+            <img src="{{ \App\Support\SiteBrand::logoUrl($general_setting ?? null) }}" alt="{{ \App\Support\SiteBrand::siteTitle($general_setting ?? null) }}" class="h-14 md:h-20 w-auto object-contain drop-shadow-2xl">
         </div>
         <div class="w-full flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 flex-wrap">
             <a href="{{ url('/trainings') }}"
