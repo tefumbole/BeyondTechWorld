@@ -51,27 +51,18 @@
             <div class="ip-stat-tile ip-stat-blue">
                 <div class="ip-meta">Expected hours</div>
                 <strong>{{ number_format($expected, 1) }}h</strong>
-                <div class="ip-meta">Weekly target (≈8h × working days, capped at 40h)</div>
             </div>
         </div>
         <div class="col-md-3 col-6 mb-3">
             <div class="ip-stat-tile ip-stat-green">
                 <div class="ip-meta">Hours accounted for</div>
                 <strong>{{ number_format($accounted, 1) }}h</strong>
-                <div class="ip-meta">
-                    @if ($logged > $accounted + 0.009)
-                        {{ number_format($logged, 1) }}h logged · only {{ number_format($accounted, 1) }}h count
-                    @else
-                        Logged toward the weekly target
-                    @endif
-                </div>
             </div>
         </div>
         <div class="col-md-3 col-6 mb-3">
             <div class="ip-stat-tile {{ $percent >= 100 ? 'ip-stat-green' : 'ip-stat-orange' }}">
                 <div class="ip-meta">% of hours worked</div>
                 <strong>{{ number_format($percent, 1) }}%</strong>
-                <div class="ip-meta">{{ number_format($accounted, 1) }} / {{ number_format($expected, 1) }}h (never above 100%)</div>
             </div>
         </div>
         <div class="col-md-3 col-6 mb-3">
@@ -79,19 +70,11 @@
                 <div class="ip-stat-tile ip-stat-orange">
                     <div class="ip-meta">Undertime</div>
                     <strong>{{ number_format($remaining, 1) }}h</strong>
-                    <div class="ip-meta">Still short of this week’s {{ number_format($expected, 1) }}h target</div>
                 </div>
             @else
                 <div class="ip-stat-tile {{ $overtime > 0.009 ? 'ip-stat-orange' : 'ip-stat-green' }}">
                     <div class="ip-meta">Overtime</div>
                     <strong>{{ number_format($overtime, 1) }}h</strong>
-                    <div class="ip-meta">
-                        @if ($overtime > 0.009)
-                            Above target — needs supervisor approval
-                        @else
-                            No overtime this week
-                        @endif
-                    </div>
                 </div>
             @endif
         </div>
