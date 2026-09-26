@@ -37,8 +37,6 @@
             Schedule: <a href="{{ route('timesheet.working-week') }}">Working Week</a>.
         </div>
 
-        @include('internship.student.partials.student-nav', ['activeNav' => 'task'])
-
         @if(!$enrolment)
             <div class="ip-card">
                 <h5 style="color:#0b3f90;font-weight:700;">No active placement</h5>

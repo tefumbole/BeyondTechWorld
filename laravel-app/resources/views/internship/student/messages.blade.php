@@ -19,8 +19,6 @@
             <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
         @endif
 
-        @include('internship.student.partials.student-nav', ['activeNav' => 'messages', 'hideOpenTask' => true])
-
         @if(!$enrolment)
             <div class="ip-card">
                 <p class="mb-0 text-muted">You need an internship enrolment before you can message a supervisor.</p>

@@ -19,8 +19,6 @@
         @endif
         @include('internship.student.partials.timesheet-reminder')
 
-        @include('internship.student.partials.student-nav')
-
         @if($enrolment)
             <div class="ip-card">
                 <div class="ip-meta">Internship program</div>

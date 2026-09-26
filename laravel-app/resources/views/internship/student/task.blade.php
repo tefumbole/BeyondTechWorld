@@ -12,7 +12,6 @@
     <div class="container-fluid ip-shell">
         <h1 class="ip-title">Task #{{ $assignment->progression_day }} — {{ $task->title }}</h1>
         <p class="ip-meta">{{ optional($assignment->enrolment->program)->displayName() ?? optional($assignment->enrolment->program)->name }} · {{ str_replace('_',' ', $assignment->status) }}</p>
-        @include('internship.student.partials.student-nav', ['activeNav' => 'task'])
 
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif

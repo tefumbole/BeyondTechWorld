@@ -13,8 +13,6 @@
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
 
-        @include('internship.student.partials.student-nav', ['activeNav' => 'upload', 'hideOpenTask' => true])
-
         @if(!$enrolment)
             <div class="ip-card">
                 <h5 style="color:#0b3f90;font-weight:700;">No active placement</h5>

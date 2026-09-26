@@ -4,7 +4,6 @@
 <section class="forms">
     <div class="container-fluid ip-shell">
         <h1 class="ip-title">Internship Portfolio</h1>
-        @include('internship.student.partials.student-nav', ['activeNav' => 'portfolio', 'hideOpenTask' => true])
         @if(!$enrolment)
             <div class="ip-card">No enrolment found.</div>
         @else
