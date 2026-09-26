@@ -362,9 +362,9 @@
 
     <header class="memorial-head">
         <div>
-            <p class="kicker">In loving memory</p>
+            <p class="kicker">Since burial</p>
             <h1>Pa Ngwayu Francis</h1>
-            <p class="meta">73 years · Funeral 26 September 2026</p>
+            <p class="meta">73 years · Laid to rest 26 September 2026</p>
         </div>
     </header>
 
@@ -506,7 +506,7 @@
     var LOOKUP = @json($lookupUrl);
     var POST = @json($pledgeUrl);
     var EULOGY = @json($eulogyUrl);
-    var END = new Date(@json($funeralAt)).getTime();
+    var END = new Date(@json($buriedAt ?? $funeralAt)).getTime();
     var filter = 'all';
     var action = 'pledge';
     var payMethod = 'momo';
@@ -524,11 +524,11 @@
     }, 8000);
 
     function tick() {
-        var left = Math.max(0, END - Date.now());
-        var d = Math.floor(left / 86400000);
-        var h = Math.floor((left % 86400000) / 3600000);
-        var m = Math.floor((left % 3600000) / 60000);
-        var s = Math.floor((left % 60000) / 1000);
+        var elapsed = Math.max(0, Date.now() - END);
+        var d = Math.floor(elapsed / 86400000);
+        var h = Math.floor((elapsed % 86400000) / 3600000);
+        var m = Math.floor((elapsed % 3600000) / 60000);
+        var s = Math.floor((elapsed % 60000) / 1000);
         document.getElementById('d').textContent = d;
         document.getElementById('h').textContent = h;
         document.getElementById('m').textContent = m;
@@ -538,7 +538,7 @@
         document.getElementById('mLabel').textContent = m === 1 ? 'Min' : 'Mins';
         document.getElementById('sLabel').textContent = s === 1 ? 'Sec' : 'Secs';
         var rings = document.querySelectorAll('.ring');
-        var parts = [d / 30, h / 24, m / 60, s / 60];
+        var parts = [Math.min(1, d / 365), h / 24, m / 60, s / 60];
         for (var i = 0; i < rings.length; i++) {
             rings[i].style.setProperty('--p', Math.min(100, Math.round(parts[i] * 100)) + '%');
         }

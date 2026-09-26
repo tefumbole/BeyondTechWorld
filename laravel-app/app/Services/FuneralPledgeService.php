@@ -91,7 +91,18 @@ class FuneralPledgeService
             'target' => (int) $campaign->target_amount,
             'percent' => $campaign->raisedPercent(),
             'funeral_at' => $this->funeralAtIso($campaign),
+            'buried_at' => $this->buriedAtIso(),
         ];
+    }
+
+    public function buriedAtIso()
+    {
+        $raw = trim((string) config('services.funeral_pledge.buried_at', '2026-09-26T15:58:00+02:00'));
+        try {
+            return Carbon::parse($raw)->toIso8601String();
+        } catch (\Throwable $e) {
+            return Carbon::parse('2026-09-26 15:58:00', 'Europe/Berlin')->toIso8601String();
+        }
     }
 
     public function createPledge(array $data)

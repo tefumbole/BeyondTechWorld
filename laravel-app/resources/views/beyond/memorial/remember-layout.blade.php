@@ -756,6 +756,14 @@
         body.is-landing .qr-card p { color: #b0a890; }
         body.is-landing .qr-card a { color: #d4af37; }
         body.is-landing .landing-home h1 { display: none; }
+        body.is-landing .since-burial {
+            margin: 0 0 12px;
+            color: #d4af37;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+            font-size: 12px;
+            font-weight: 700;
+        }
         body.is-landing .landing-home {
             flex: 0 0 auto;
             min-height: 0;
