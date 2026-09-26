@@ -18,10 +18,14 @@ class WhatsAppConversation extends Model
     const STATUS_RESOLVED = 'RESOLVED';
     const STATUS_CLOSED = 'CLOSED';
 
+    const CHANNEL_WHATSAPP = 'whatsapp';
+    const CHANNEL_WEBSITE = 'website';
+
     protected $table = 'whatsapp_conversations';
 
     protected $fillable = [
-        'contact_id', 'assigned_user_id', 'mode', 'status', 'unread_count',
+        'contact_id', 'assigned_user_id', 'mode', 'status', 'channel', 'session_token',
+        'page_context', 'unread_count',
         'first_message', 'last_message', 'last_activity_at',
         'last_incoming_at', 'last_outgoing_at',
     ];
@@ -74,5 +78,15 @@ class WhatsAppConversation extends Model
         }
 
         return max(0, $this->last_incoming_at->diffInMinutes(now()));
+    }
+
+    public function isWebsite()
+    {
+        return (string) $this->channel === self::CHANNEL_WEBSITE;
+    }
+
+    public function channelLabel()
+    {
+        return $this->isWebsite() ? 'Website' : 'WhatsApp';
     }
 }

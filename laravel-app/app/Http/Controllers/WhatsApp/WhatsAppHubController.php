@@ -10,6 +10,7 @@ use App\Services\WhatsApp\WhatsAppHubQuery;
 use App\Services\WhatsApp\WhatsAppLeadService;
 use App\User;
 use App\WhatsApp\Lead;
+use App\WhatsApp\LeadCatalog;
 use App\WhatsApp\WhatsAppCall;
 use App\WhatsApp\WhatsAppConversation;
 use App\WhatsApp\WhatsAppConversationEvent;
@@ -18,6 +19,7 @@ use App\WhatsApp\WhatsAppNote;
 use App\WhatsApp\WhatsAppSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 class WhatsAppHubController extends Controller
@@ -66,6 +68,10 @@ class WhatsAppHubController extends Controller
         if (! in_array($mode, ['AI', 'HUMAN'], true)) {
             $mode = '';
         }
+        $channel = strtolower((string) $request->get('channel', 'all'));
+        if (! in_array($channel, ['all', 'website', 'whatsapp'], true)) {
+            $channel = 'all';
+        }
         $list = $this->filteredConversations($request)->paginate(40)->appends($request->query());
         $staff = $this->staff();
         $counts = $this->inboxBadgeCounts();
@@ -81,13 +87,14 @@ class WhatsAppHubController extends Controller
                         'unread' => (int) $c->unread_count,
                         'waiting' => $c->isAwaitingStaff(),
                         'minutes' => $c->waitingMinutes(),
+                        'channel' => $c->channel ?: 'whatsapp',
                     ];
                 })->values(),
                 'counts' => $counts,
             ]);
         }
 
-        return view('whatsapp_hub.conversations', compact('list', 'q', 'filter', 'staff', 'counts', 'mode'));
+        return view('whatsapp_hub.conversations', compact('list', 'q', 'filter', 'staff', 'counts', 'mode', 'channel'));
     }
 
     public function conversation($id)
@@ -278,11 +285,27 @@ class WhatsAppHubController extends Controller
         $clarificationLimit = \App\Services\Assistant\AssistantRuntimeSettings::maxClarifications();
         $switchPreview = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->preview();
         $staff = User::query()->orderBy('name')->limit(200)->get(['id', 'name']);
+        $websiteAiEnabled = \App\Services\Assistant\AssistantRuntimeSettings::flag('website_ai_enabled', true);
+        $websiteAutoGreeting = \App\Services\Assistant\AssistantRuntimeSettings::flag('website_ai_auto_greeting', true);
+        $websiteHandover = \App\Services\Assistant\AssistantRuntimeSettings::flag('website_ai_handover_enabled', true);
+        $websiteContinueWa = \App\Services\Assistant\AssistantRuntimeSettings::flag('website_ai_continue_whatsapp', true);
+        $websiteAiName = WhatsAppSetting::getValue('website_ai_name', 'Mbole AI');
+        $websiteGreetingDelay = (int) WhatsAppSetting::getValue('website_ai_greeting_delay_ms', '600');
+        $websiteMetrics = [
+            'conversations' => Schema::hasColumn('whatsapp_conversations', 'channel')
+                ? WhatsAppConversation::where('channel', WhatsAppConversation::CHANNEL_WEBSITE)->count()
+                : 0,
+            'leads' => Schema::hasTable('leads')
+                ? Lead::where('source', LeadCatalog::SOURCE_WEBSITE)->count()
+                : 0,
+        ];
 
         return view('whatsapp_hub.settings', compact(
             'session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured',
             'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'historyLimit',
-            'clarificationLimit', 'switchPreview', 'staff'
+            'clarificationLimit', 'switchPreview', 'staff',
+            'websiteAiEnabled', 'websiteAutoGreeting', 'websiteHandover', 'websiteContinueWa',
+            'websiteAiName', 'websiteGreetingDelay', 'websiteMetrics'
         ));
     }
 
@@ -317,6 +340,16 @@ class WhatsAppHubController extends Controller
             $clarify = (int) $request->input('assistant_max_clarifications', 4);
             if ($clarify >= 1 && $clarify <= 8) {
                 WhatsAppSetting::putValue('assistant_max_clarifications', (string) $clarify);
+            }
+            WhatsAppSetting::putValue('website_ai_enabled', $request->input('website_ai_enabled') ? '1' : '0');
+            WhatsAppSetting::putValue('website_ai_auto_greeting', $request->input('website_ai_auto_greeting') ? '1' : '0');
+            WhatsAppSetting::putValue('website_ai_handover_enabled', $request->input('website_ai_handover_enabled') ? '1' : '0');
+            WhatsAppSetting::putValue('website_ai_continue_whatsapp', $request->input('website_ai_continue_whatsapp') ? '1' : '0');
+            $webName = trim((string) $request->input('website_ai_name', 'Mbole AI'));
+            WhatsAppSetting::putValue('website_ai_name', $webName !== '' ? mb_substr($webName, 0, 80) : 'Mbole AI');
+            $delay = (int) $request->input('website_ai_greeting_delay_ms', 600);
+            if ($delay >= 0 && $delay <= 10000) {
+                WhatsAppSetting::putValue('website_ai_greeting_delay_ms', (string) $delay);
             }
         }
 
@@ -538,6 +571,18 @@ class WhatsAppHubController extends Controller
         } elseif ($mode === 'HUMAN') {
             $query->where('mode', '!=', WhatsAppConversation::MODE_AI);
         }
+        $channel = strtolower((string) $request->get('channel', 'all'));
+        if (Schema::hasColumn('whatsapp_conversations', 'channel')) {
+            if ($channel === 'website') {
+                $query->where('channel', WhatsAppConversation::CHANNEL_WEBSITE);
+            } elseif ($channel === 'whatsapp') {
+                $query->where(function ($q2) {
+                    $q2->whereNull('channel')
+                        ->orWhere('channel', WhatsAppConversation::CHANNEL_WHATSAPP)
+                        ->orWhere('channel', '');
+                });
+            }
+        }
         if ($filter === 'unread') {
             $query->where('unread_count', '>', 0);
         } elseif ($filter === 'awaiting') {
@@ -553,6 +598,8 @@ class WhatsAppHubController extends Controller
             $query->whereNull('assigned_user_id');
         } elseif ($filter === 'closed') {
             $query->where('status', WhatsAppConversation::STATUS_CLOSED);
+        } elseif ($filter === 'website' && Schema::hasColumn('whatsapp_conversations', 'channel')) {
+            $query->where('channel', WhatsAppConversation::CHANNEL_WEBSITE);
         } elseif (in_array($filter, ['customers', 'employees', 'interns'], true)) {
             $role = $filter === 'interns' ? 'intern' : substr($filter, 0, -1);
             $query->whereHas('contact.links', function ($l) use ($role) {

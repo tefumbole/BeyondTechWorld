@@ -73,13 +73,18 @@ class RentalQuoteService
 
         $customer = $this->ensureCustomer($context);
         if (! $customer) {
+            $phone = isset($context['phone']) ? (string) $context['phone'] : '';
+            if ($phone === '' || strpos($phone, 'web:') === 0) {
+                return ['success' => false, 'error' => 'need_phone', 'ask' => 'Please share a WhatsApp or mobile number so we can prepare your quotation.'];
+            }
+
             return ['success' => false, 'error' => 'no_customer'];
         }
 
         $days = (int) $range['days'];
         $lineTotal = round($unit * $check['requested_qty'], 2);
         $reference = 'qr-'.date('Ymd').'-'.date('His').substr(uniqid(), -3);
-        $note = 'WhatsApp quotation for '.$check['name'].' x'.$check['requested_qty']
+        $note = ucfirst($this->quotationSource($context)).' quotation for '.$check['name'].' x'.$check['requested_qty']
             .' at the quotation price. Staff must review before it is sent.';
         if (! empty($slots['event_type'])) {
             $note .= ' Event: '.$slots['event_type'].'.';
@@ -115,7 +120,7 @@ class RentalQuoteService
             'note' => $note,
             'whatsapp_conversation_id' => isset($context['conversation_id']) ? $context['conversation_id'] : null,
             'whatsapp_lead_id' => isset($context['lead']['id']) ? $context['lead']['id'] : null,
-            'quotation_source' => 'whatsapp',
+            'quotation_source' => $this->quotationSource($context),
             'revised_from_id' => isset($slots['revised_from_id']) ? $slots['revised_from_id'] : null,
         ]);
         $quotation = Quotation::create($payload);
@@ -259,6 +264,11 @@ class RentalQuoteService
         }
         $customer = $this->ensureCustomer($context);
         if (! $customer) {
+            $phone = isset($context['phone']) ? (string) $context['phone'] : '';
+            if ($phone === '' || strpos($phone, 'web:') === 0) {
+                return ['success' => false, 'error' => 'need_phone', 'ask' => 'Please share a WhatsApp or mobile number so we can prepare your quotation.'];
+            }
+
             return ['success' => false, 'error' => 'no_customer'];
         }
         $stored = [];
@@ -286,7 +296,7 @@ class RentalQuoteService
         if ($stored === []) {
             return ['success' => false, 'error' => 'unavailable'];
         }
-        $note = 'WhatsApp quotation for '.implode(', ', $names)
+        $note = ucfirst($this->quotationSource($context)).' quotation for '.implode(', ', $names)
             .' at the quotation price. Staff must review before it is sent.';
         if (! empty($slots['event_type'])) {
             $note .= ' Event: '.$slots['event_type'].'.';
@@ -321,7 +331,7 @@ class RentalQuoteService
             'note' => $note,
             'whatsapp_conversation_id' => isset($context['conversation_id']) ? $context['conversation_id'] : null,
             'whatsapp_lead_id' => isset($context['lead']['id']) ? $context['lead']['id'] : null,
-            'quotation_source' => 'whatsapp',
+            'quotation_source' => $this->quotationSource($context),
             'revised_from_id' => isset($slots['revised_from_id']) ? $slots['revised_from_id'] : null,
         ]);
         $quotation = Quotation::create($payload);
@@ -385,8 +395,9 @@ class RentalQuoteService
 
     protected function ensureCustomer(array $context)
     {
-        $phone = isset($context['phone']) ? $context['phone'] : '';
-        if ($phone === '') {
+        $phone = isset($context['phone']) ? (string) $context['phone'] : '';
+        // Synthetic website identity (web:{token}) is not a real phone — ask for one before quoting.
+        if ($phone === '' || strpos($phone, 'web:') === 0) {
             return null;
         }
         $existing = $this->leads->findExistingCustomer($phone);
@@ -410,6 +421,22 @@ class RentalQuoteService
         $this->relink($context);
 
         return $customer;
+    }
+
+    protected function quotationSource(array $context)
+    {
+        $conversation = isset($context['conversation']) ? $context['conversation'] : null;
+        if ($conversation && method_exists($conversation, 'isWebsite') && $conversation->isWebsite()) {
+            return 'website';
+        }
+        if (! empty($context['channel']) && $context['channel'] === 'website') {
+            return 'website';
+        }
+        if (! empty($context['quotation_source']) && in_array($context['quotation_source'], ['whatsapp', 'website'], true)) {
+            return $context['quotation_source'];
+        }
+
+        return 'whatsapp';
     }
 
     protected function relink(array $context)

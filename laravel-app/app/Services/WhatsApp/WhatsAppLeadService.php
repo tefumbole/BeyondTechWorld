@@ -56,7 +56,7 @@ class WhatsAppLeadService
             'conversation_id' => $conversation->id,
             'name' => $contact->displayName(),
             'normalized_phone' => $contact->normalized_phone,
-            'source' => LeadCatalog::SOURCE_WHATSAPP,
+            'source' => $conversation->isWebsite() ? LeadCatalog::SOURCE_WEBSITE : LeadCatalog::SOURCE_WHATSAPP,
             'category' => $category,
             'summary' => mb_substr($body, 0, 500),
             'status' => LeadCatalog::STATUS_NEW,

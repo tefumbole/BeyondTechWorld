@@ -32,6 +32,7 @@
                     }
                 @endphp
                 <div class="small mt-2"><strong>{{ $stateLabel }}</strong></div>
+                <div class="small">Channel: <strong>{{ $conversation->channelLabel() }}</strong></div>
                 <div class="small">Status: {{ $conversation->status }}</div>
                 <div class="small">Assigned: {{ optional($conversation->assignee)->name ?: 'Unassigned' }}</div>
                 @if(!empty($rentalRequest))

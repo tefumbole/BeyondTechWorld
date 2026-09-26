@@ -49,8 +49,22 @@ class AssistantRuntimeSettings
     public static function maxClarifications()
     {
         $saved = (int) WhatsAppSetting::getValue('assistant_max_clarifications', '0');
+        $envWebsite = (int) env('WEBSITE_AI_MAX_CLARIFICATIONS', 0);
         $base = $saved > 0 ? $saved : (int) config('assistant.max_clarifications');
+        if ($envWebsite > 0) {
+            $base = max($base, $envWebsite);
+        }
 
         return max(1, min(8, $base));
+    }
+
+    public static function websiteAiEnabled()
+    {
+        return self::flag('website_ai_enabled', true);
+    }
+
+    public static function websiteHandoverEnabled()
+    {
+        return self::flag('website_ai_handover_enabled', true);
     }
 }

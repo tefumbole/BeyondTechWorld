@@ -168,7 +168,7 @@ class Quotation extends Model
 
     public function isAiGenerated()
     {
-        return (string) $this->quotation_source === 'whatsapp'
+        return in_array((string) $this->quotation_source, ['whatsapp', 'website'], true)
             && (int) $this->quotation_status === self::STATUS_PENDING;
     }
 

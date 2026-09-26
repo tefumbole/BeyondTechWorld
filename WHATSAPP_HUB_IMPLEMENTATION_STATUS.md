@@ -563,3 +563,11 @@ Appointments, Google Calendar, automations, management brief, and advanced analy
 ## PHASE 1 FOUNDATION (shipped)
 
 Provider abstraction, webhook, identity, conversations, tracking, calls, diagnostics, settings, queue worker. See git history around `08b1a1c` / `fb0e9be` / `f352432` / `ce2d82e`.
+
+## Website Beyond Assistant (shared reply path)
+
+- Conversations gained `channel` (`whatsapp`|`website`) and `session_token`.
+- `WhatsAppConversationService::reply` / `assistantReply` skip Wasender when `channel=website` and persist for client poll.
+- Website leads use `SOURCE_WEBSITE`; rental drafts accept `quotation_source=website` and require a real phone before customer/quote creation.
+- Public Mbole AI widget is now a real multi-turn Beyond Assistant client (`/api/website-chat/*`).
+- Details: `WEBSITE_BEYOND_ASSISTANT_IMPLEMENTATION.md`. Do not treat this as rewriting prior stage PASS/FAIL rows.

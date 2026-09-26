@@ -272,18 +272,26 @@ class WhatsAppConversationService
             'queued_at' => now(),
         ]);
 
-        $result = $this->provider->sendText($contact->normalized_phone, $body);
-        if (! empty($result['success'])) {
-            $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
-            $message->provider_message_id = $msgId ?: null;
+        if ($conversation->isWebsite()) {
+            $message->provider_message_id = 'webmsg:'.uniqid('', true);
             $message->status = WhatsAppMessage::STATUS_SENT;
             $message->sent_at = now();
             $message->save();
+            $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
         } else {
-            $message->status = WhatsAppMessage::STATUS_FAILED;
-            $message->failed_at = now();
-            $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
-            $message->save();
+            $result = $this->provider->sendText($contact->normalized_phone, $body);
+            if (! empty($result['success'])) {
+                $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->provider_message_id = $msgId ?: null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $message->save();
+            } else {
+                $message->status = WhatsAppMessage::STATUS_FAILED;
+                $message->failed_at = now();
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+            }
         }
 
         $preview = $this->preview($body, 'TEXT');
@@ -394,17 +402,37 @@ class WhatsAppConversationService
             'sender_type' => 'ASSISTANT',
             'queued_at' => now(),
         ]);
-        $result = $this->provider->sendText($contact->normalized_phone, $body);
-        if (! empty($result['success'])) {
-            $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+
+        // Re-check mode immediately before transport commit (takeover discard).
+        $conversation = WhatsAppConversation::find($conversation->id);
+        if (! $conversation || $conversation->mode !== WhatsAppConversation::MODE_AI) {
+            $message->status = WhatsAppMessage::STATUS_FAILED;
+            $message->failed_at = now();
+            $message->error = 'mode_changed';
+            $message->save();
+
+            return ['success' => false, 'error' => 'mode_changed', 'discarded' => true];
+        }
+
+        if ($conversation->isWebsite()) {
+            $message->provider_message_id = 'webmsg:'.uniqid('', true);
             $message->status = WhatsAppMessage::STATUS_SENT;
             $message->sent_at = now();
             $message->save();
+            $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
         } else {
-            $message->status = WhatsAppMessage::STATUS_FAILED;
-            $message->failed_at = now();
-            $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
-            $message->save();
+            $result = $this->provider->sendText($contact->normalized_phone, $body);
+            if (! empty($result['success'])) {
+                $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $message->save();
+            } else {
+                $message->status = WhatsAppMessage::STATUS_FAILED;
+                $message->failed_at = now();
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+            }
         }
         $preview = $this->preview($body, 'TEXT');
         $conversation->last_message = $preview;

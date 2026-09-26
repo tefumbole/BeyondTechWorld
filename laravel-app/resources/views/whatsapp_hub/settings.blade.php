@@ -73,6 +73,33 @@
                 <input type="number" min="2" max="20" name="assistant_history_limit" class="form-control mb-2" style="max-width:240px" value="{{ $historyLimit }}">
                 <label>Clarification limit</label>
                 <input type="number" min="1" max="8" name="assistant_max_clarifications" class="form-control mb-3" style="max-width:240px" value="{{ $clarificationLimit }}">
+                <hr>
+                <h5>Website Assistant (Mbole AI)</h5>
+                <p class="small text-muted">Website chats: {{ $websiteMetrics['conversations'] ?? 0 }} · Website leads: {{ $websiteMetrics['leads'] ?? 0 }}</p>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="website_ai_enabled" value="0">
+                    <input type="checkbox" name="website_ai_enabled" value="1" {{ !empty($websiteAiEnabled) ? 'checked' : '' }}>
+                    Enable website assistant widget
+                </label>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="website_ai_auto_greeting" value="0">
+                    <input type="checkbox" name="website_ai_auto_greeting" value="1" {{ !empty($websiteAutoGreeting) ? 'checked' : '' }}>
+                    Show greeting bubble on first visit
+                </label>
+                <label class="d-block mb-2">
+                    <input type="hidden" name="website_ai_handover_enabled" value="0">
+                    <input type="checkbox" name="website_ai_handover_enabled" value="1" {{ !empty($websiteHandover) ? 'checked' : '' }}>
+                    Allow handover to human from website chats
+                </label>
+                <label class="d-block mb-3">
+                    <input type="hidden" name="website_ai_continue_whatsapp" value="0">
+                    <input type="checkbox" name="website_ai_continue_whatsapp" value="1" {{ !empty($websiteContinueWa) ? 'checked' : '' }}>
+                    Show “Continue on WhatsApp” link in the widget
+                </label>
+                <label>Widget display name</label>
+                <input type="text" name="website_ai_name" class="form-control mb-2" style="max-width:320px" value="{{ $websiteAiName ?? 'Mbole AI' }}">
+                <label>Greeting delay (ms)</label>
+                <input type="number" min="0" max="10000" name="website_ai_greeting_delay_ms" class="form-control mb-3" style="max-width:240px" value="{{ $websiteGreetingDelay ?? 600 }}">
                 <button class="btn btn-primary" type="submit">Save</button>
             </form>
             <hr>

@@ -61,6 +61,15 @@ Route::get('/projects', 'BeyondController@projects')->name('beyond.projects');
 Route::get('/gallery', 'BeyondController@gallery')->name('beyond.gallery');
 Route::get('/contact', 'BeyondController@contact')->name('beyond.contact');
 Route::post('/contact', 'PublicContactController@store')->middleware('throttle:12,1')->name('beyond.contact.store');
+
+Route::prefix('api/website-chat')->group(function () {
+    Route::get('/config', 'WebsiteChatController@config')->middleware('throttle:60,1');
+    Route::post('/session', 'WebsiteChatController@session')->middleware('throttle:30,1');
+    Route::get('/messages', 'WebsiteChatController@messages')->middleware('throttle:120,1');
+    Route::post('/messages', 'WebsiteChatController@postMessage')->middleware('throttle:40,1');
+    Route::post('/minimize', 'WebsiteChatController@minimize')->middleware('throttle:30,1');
+});
+
 Route::get('/events', 'PublicEventController@index')->name('beyond.events');
 Route::get('/events/{slug}', 'PublicEventController@show')->name('beyond.event.detail');
 Route::get('/api/public/events', 'PublicEventController@apiList');

@@ -9,12 +9,17 @@
             <a class="btn btn-sm {{ ($mode ?? '') === '' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', request()->except(['mode','page'])) }}">All</a>
             <a class="btn btn-sm {{ ($mode ?? '') === 'HUMAN' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['mode' => 'HUMAN'])) }}">Human</a>
             <a class="btn btn-sm {{ ($mode ?? '') === 'AI' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['mode' => 'AI'])) }}">AI</a>
+            <span class="mx-2 text-muted">|</span>
+            <a class="btn btn-sm {{ ($channel ?? 'all') === 'all' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except(['channel','page']), ['channel' => 'all'])) }}">All channels</a>
+            <a class="btn btn-sm {{ ($channel ?? '') === 'whatsapp' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['channel' => 'whatsapp'])) }}">WhatsApp</a>
+            <a class="btn btn-sm {{ ($channel ?? '') === 'website' ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.conversations', array_merge(request()->except('page'), ['channel' => 'website'])) }}">Website</a>
         </div>
         <form method="get" class="form-inline mb-3" id="wa-inbox-filters">
             @if(!empty($mode))<input type="hidden" name="mode" value="{{ $mode }}">@endif
+            @if(!empty($channel) && $channel !== 'all')<input type="hidden" name="channel" value="{{ $channel }}">@endif
             <input type="text" name="q" value="{{ $q }}" class="form-control mr-2 mb-2" placeholder="Name, phone or message">
             <select name="filter" class="form-control mr-2 mb-2">
-                @foreach(['all'=>'All','unread'=>'Unread','awaiting'=>'Awaiting Response','mine'=>'Assigned to Me','unassigned'=>'Unassigned','customers'=>'Customers','leads'=>'Leads','employees'=>'Employees','interns'=>'Interns','closed'=>'Closed'] as $k=>$label)
+                @foreach(['all'=>'All','unread'=>'Unread','awaiting'=>'Awaiting Response','mine'=>'Assigned to Me','unassigned'=>'Unassigned','website'=>'Website','customers'=>'Customers','leads'=>'Leads','employees'=>'Employees','interns'=>'Interns','closed'=>'Closed'] as $k=>$label)
                     <option value="{{ $k }}" {{ ($filter ?? 'all') === $k ? 'selected' : '' }}>{{ $label }}</option>
                 @endforeach
             </select>
@@ -31,12 +36,13 @@
         </form>
         <div class="wa-card wa-list">
             <table class="table mb-0" id="wa-inbox-table">
-                <thead><tr><th>Contact</th><th>Phone</th><th>Last message</th><th>Waiting</th><th>Unread</th><th>Assigned</th><th>Mode</th></tr></thead>
+                <thead><tr><th>Contact</th><th>Channel</th><th>Phone</th><th>Last message</th><th>Waiting</th><th>Unread</th><th>Assigned</th><th>Mode</th></tr></thead>
                 <tbody>
                 @forelse($list as $c)
                     @php $wait = $c->waitingMinutes(); @endphp
                     <tr class="{{ $c->unread_count ? 'unread' : '' }} {{ $c->isAwaitingStaff() ? 'table-warning' : '' }}">
                         <td><a href="{{ route('whatsapp.conversation', $c->id) }}">{{ optional($c->contact)->displayName() }}</a></td>
+                        <td><span class="badge badge-{{ $c->isWebsite() ? 'info' : 'secondary' }}">{{ $c->channelLabel() }}</span></td>
                         <td>{{ optional($c->contact)->display_phone }}</td>
                         <td>{{ \Illuminate\Support\Str::limit($c->last_message, 60) }}</td>
                         <td>@if($c->isAwaitingStaff()) Customer waiting — {{ $wait }} min @else — @endif</td>
@@ -45,7 +51,7 @@
                         <td>{{ $c->mode }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-muted">No conversations match.</td></tr>
+                    <tr><td colspan="8" class="text-muted">No conversations match.</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -1,277 +1,242 @@
-@php
-    $mboleCountries = \App\Support\CountryDialCodes::list();
-    $mboleStaffWa = preg_replace('/\D+/', '', \App\Support\SiteContent::text('contact.phone', '+237675321739'));
-@endphp
-
+{{-- Mbole AI — Website Beyond Assistant (poll-based chat) --}}
 <style>
-    @keyframes mboleBob {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-6px); }
-    }
-    @keyframes mboleGlow {
-        0%, 100% { box-shadow: 0 8px 24px rgba(0, 61, 130, .35), 0 0 0 0 rgba(212, 175, 55, .45); }
-        50% { box-shadow: 0 12px 28px rgba(0, 61, 130, .45), 0 0 0 10px rgba(212, 175, 55, 0); }
-    }
-    .mbole-fab {
-        position: fixed; right: 1.15rem; bottom: 1.15rem; z-index: 95;
-        width: 4.5rem; height: 4.5rem; border-radius: 999px;
-        border: 3px solid #fff; background: #003D82; padding: 0; overflow: hidden;
-        cursor: pointer; animation: mboleBob 2.8s ease-in-out infinite, mboleGlow 2.8s ease-in-out infinite;
-    }
-    .mbole-fab img { width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
-    .mbole-fab:hover { transform: scale(1.06); }
-    .mbole-panel-bg {
-        position: fixed; inset: 0; z-index: 96; background: rgba(15, 23, 42, .45);
-    }
-    .mbole-panel {
-        position: fixed; z-index: 97; right: 1rem; bottom: 5.9rem;
-        width: min(22.5rem, calc(100vw - 1.5rem));
-        max-height: min(34rem, calc(100dvh - 7rem));
-        background: #fff; border-radius: 1.25rem; overflow: hidden;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, .28);
-        display: flex; flex-direction: column;
-        border: 1px solid rgba(212, 175, 55, .4);
-    }
-    @media (prefers-reduced-motion: reduce) {
-        .mbole-fab { animation: none; }
-    }
+#mbole-ai-root{position:fixed;right:24px;bottom:24px;z-index:99990;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+#mbole-ai-root *{box-sizing:border-box}
+.mbole-fab{width:64px;height:64px;border-radius:50%;border:0;padding:0;cursor:pointer;background:transparent;position:relative;box-shadow:0 10px 28px rgba(11,61,145,.28);animation:mbole-bob 2.8s ease-in-out infinite}
+.mbole-fab img{width:64px;height:64px;border-radius:50%;display:block;object-fit:cover;background:#0b3d91}
+.mbole-fab::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(11,61,145,.22);animation:mbole-glow 2.8s ease-in-out infinite;pointer-events:none}
+.mbole-greet{position:absolute;right:76px;bottom:12px;max-width:230px;background:#fff;color:#0f172a;border-radius:14px;padding:12px 14px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:13px;line-height:1.4}
+.mbole-greet strong{display:block;margin-bottom:4px;font-size:13px}
+.mbole-greet button{margin-top:8px;border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.mbole-panel{display:none;width:min(380px,calc(100vw - 24px));height:min(560px,calc(100vh - 48px));background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(15,23,42,.28);flex-direction:column}
+.mbole-panel.open{display:flex}
+.mbole-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0b3d91,#1d4ed8);color:#fff}
+.mbole-head img{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff}
+.mbole-head .meta{flex:1;min-width:0}
+.mbole-head .meta strong{display:block;font-size:14px;line-height:1.2}
+.mbole-head .meta span{display:block;font-size:11px;opacity:.9}
+.mbole-head .online{font-size:11px;opacity:.85}
+.mbole-head button{border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:4px 6px}
+.mbole-thread{flex:1;overflow:auto;padding:14px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}
+.mbole-msg{max-width:85%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.mbole-msg.assistant,.mbole-msg.staff{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:4px}
+.mbole-msg.visitor{align-self:flex-end;background:#0b3d91;color:#fff;border-bottom-right-radius:4px}
+.mbole-msg.staff{border-left:3px solid #f59e0b}
+.mbole-typing{align-self:flex-start;font-size:12px;color:#64748b;display:none}
+.mbole-typing.on{display:block}
+.mbole-compose{display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;background:#fff}
+.mbole-compose input{flex:1;border:1px solid #cbd5e1;border-radius:999px;padding:10px 14px;font-size:13px;outline:none}
+.mbole-compose button{border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:0 16px;font-weight:600;cursor:pointer}
+.mbole-footer{padding:0 12px 10px;background:#fff;display:flex;justify-content:space-between;align-items:center}
+.mbole-footer a{font-size:11px;color:#0b3d91;text-decoration:none}
+.mbole-footer button{border:0;background:transparent;color:#64748b;font-size:11px;cursor:pointer}
+@keyframes mbole-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes mbole-glow{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.8;transform:scale(1.04)}}
+@media (max-width:640px){
+  #mbole-ai-root{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
+  .mbole-fab,.mbole-fab img{width:54px;height:54px}
+  .mbole-greet{right:66px;max-width:190px}
+  .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
+}
+[x-cloak]{display:none!important}
 </style>
 
-<div x-data="mboleAiWidget()">
-    {{-- Always visible robot — replaces the old WhatsApp bubble on every page --}}
-    <button type="button" class="mbole-fab" @click="open = !open" :aria-expanded="open ? 'true' : 'false'" title="Chat with Mbole AI">
-        <img src="{{ url('public/branding/mbole-ai.png') }}" alt="Mbole AI" width="72" height="72" decoding="async">
-    </button>
-
-    <div x-show="open" x-cloak>
-        <div class="mbole-panel-bg" @click="open = false"></div>
-        <div class="mbole-panel" role="dialog" aria-label="Mbole AI assistant" @click.stop>
-            <div class="bg-brand-blue text-white px-3.5 py-3 flex items-center gap-2.5">
-                <img src="{{ url('public/branding/mbole-ai.png') }}" alt="" class="w-11 h-11 rounded-full object-cover bg-white/10 border border-white/20" width="44" height="44">
-                <div class="min-w-0 flex-1">
-                    <p class="m-0 font-extrabold text-sm leading-tight">Mbole AI</p>
-                    <p class="m-0 text-[11px] text-blue-100">Beyond Enterprise assistant</p>
-                </div>
-                <button type="button" class="text-blue-100 hover:text-white text-sm font-bold" @click="open = false">✕</button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto px-3.5 py-3 bg-slate-50 space-y-3" style="min-height: 10rem;">
-                <div class="flex gap-2 items-end">
-                    <img src="{{ url('public/branding/mbole-ai.png') }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0" width="32" height="32">
-                    <div class="rounded-2xl rounded-bl-md bg-white border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-sm" x-text="botPrompt"></div>
-                </div>
-                <p class="text-xs text-center m-0" x-show="statusText"
-                   :class="statusOk ? 'text-emerald-700' : 'text-amber-700'" x-text="statusText"></p>
-            </div>
-
-            <div class="border-t border-slate-200 bg-white p-3.5 space-y-2.5">
-                <div x-show="step === 'idle'">
-                    <button type="button" @click="startChat()"
-                            class="w-full rounded-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-2.5 text-sm">
-                        Let's Chat
-                    </button>
-                </div>
-
-                <div x-show="step === 'phone'" x-cloak>
-                    <label class="text-[10px] font-bold uppercase tracking-wide text-brand-blue">WhatsApp number</label>
-                    <div class="mt-1 flex gap-2">
-                        <select x-model="countryCode" @change="onPhoneChange()"
-                                class="rounded-xl border border-slate-200 px-2 py-2 text-sm font-semibold w-[5.5rem] shrink-0 bg-white">
-                            @foreach ($mboleCountries as $c)
-                                <option value="{{ $c['code'] }}">{{ $c['code'] }}</option>
-                            @endforeach
-                        </select>
-                        <input type="tel" inputmode="numeric" x-model="phoneLocal" @input="onPhoneChange()"
-                               @keydown.enter.prevent="continueFromPhone()"
-                               class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue min-w-0"
-                               placeholder="675321739">
-                    </div>
-                    <button type="button" class="mt-2 w-full rounded-full bg-brand-blue text-white font-bold py-2 text-sm disabled:opacity-50"
-                            :disabled="lookingUp || digits(phoneLocal).length < 8" @click="continueFromPhone()">
-                        <span x-text="lookingUp ? 'Looking up…' : 'Continue'"></span>
-                    </button>
-                </div>
-
-                <div x-show="step === 'name'" x-cloak>
-                    <label class="text-[10px] font-bold uppercase tracking-wide text-brand-blue">Your name</label>
-                    <input type="text" x-model="fullName" @keydown.enter.prevent="continueFromName()"
-                           class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue"
-                           placeholder="Full name">
-                    <button type="button" class="mt-2 w-full rounded-full bg-brand-blue text-white font-bold py-2 text-sm disabled:opacity-50"
-                            :disabled="!(fullName || '').trim()" @click="continueFromName()">Continue</button>
-                </div>
-
-                <div x-show="step === 'message'" x-cloak>
-                    <label class="text-[10px] font-bold uppercase tracking-wide text-brand-blue">Your message</label>
-                    <textarea x-model="message" rows="3"
-                              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue resize-none"
-                              placeholder="How can we help?"></textarea>
-                    <button type="button" class="mt-2 w-full rounded-full bg-brand-gold text-brand-blue font-extrabold py-2 text-sm disabled:opacity-50"
-                            :disabled="sending || !(message || '').trim()" @click="submit()">
-                        <span x-text="sending ? 'Sending…' : 'Send message'"></span>
-                    </button>
-                </div>
-
-                <div x-show="step === 'done'" x-cloak class="text-center py-1">
-                    <p class="text-sm font-semibold text-brand-blue m-0" x-text="doneMessage"></p>
-                    <button type="button" class="mt-2 text-sm font-bold text-brand-blue underline" @click="reset()">Start again</button>
-                    @if ($mboleStaffWa)
-                        <a href="https://wa.me/{{ $mboleStaffWa }}" target="_blank" rel="noopener"
-                           class="mt-1 block text-xs text-slate-500 hover:text-brand-blue">Open WhatsApp directly</a>
-                    @endif
-                </div>
-            </div>
-        </div>
+<div id="mbole-ai-root" aria-live="polite">
+  <div class="mbole-greet" id="mbole-greet" style="display:none" x-cloak>
+    <strong id="mbole-greet-title">Hello! How can I help?</strong>
+    <button type="button" id="mbole-greet-cta">Let's Chat</button>
+  </div>
+  <button type="button" class="mbole-fab" id="mbole-fab" aria-label="Open Mbole AI chat">
+    <img src="{{ asset('branding/mbole-ai.png') }}" alt="Mbole AI" width="64" height="64">
+  </button>
+  <div class="mbole-panel" id="mbole-panel" role="dialog" aria-label="Mbole AI chat" x-cloak>
+    <div class="mbole-head">
+      <img src="{{ asset('branding/mbole-ai.png') }}" alt="">
+      <div class="meta">
+        <strong id="mbole-name">Mbole AI</strong>
+        <span>BeyondTechWorld Assistant</span>
+        <span class="online">Online</span>
+      </div>
+      <button type="button" id="mbole-min" title="Minimize" aria-label="Minimize">–</button>
+      <button type="button" id="mbole-close" title="Close" aria-label="Close">×</button>
     </div>
+    <div class="mbole-thread" id="mbole-thread"></div>
+    <div class="mbole-typing" id="mbole-typing">Mbole is typing…</div>
+    <form class="mbole-compose" id="mbole-form" autocomplete="off">
+      <input type="text" id="mbole-input" maxlength="2000" placeholder="Type your message…" aria-label="Message">
+      <button type="submit">Send</button>
+    </form>
+    <div class="mbole-footer">
+      <a id="mbole-wa" href="#" target="_blank" rel="noopener" style="display:none">Continue on WhatsApp</a>
+      <button type="button" id="mbole-dismiss">Don't show greeting</button>
+    </div>
+  </div>
 </div>
 
 <script>
-function mboleAiWidget() {
-    return {
-        open: false,
-        step: 'idle',
-        countryCode: '+237',
-        phoneLocal: '',
-        fullName: '',
-        resolvedName: '',
-        message: '',
-        lookingUp: false,
-        sending: false,
-        statusText: '',
-        statusOk: true,
-        doneMessage: '',
-        lookupTimer: null,
-        botPrompt: 'Hello! How can I help?',
-        init() {
-            var hash = (window.location.hash || '').toLowerCase();
-            if (hash === '#contact' || hash === '#mbole-ai') {
-                this.open = true;
-                this.startChat();
-            }
-            var self = this;
-            window.addEventListener('mbole-ai-open', function () {
-                self.open = true;
-                if (self.step === 'idle') self.startChat();
-            });
-        },
-        digits(v) { return String(v || '').replace(/\D/g, ''); },
-        isCameroon() { return this.digits(this.countryCode) === '237'; },
-        startChat() {
-            this.step = 'phone';
-            this.botPrompt = 'Share your WhatsApp number — I’ll try to find your name.';
-            this.statusText = '';
-        },
-        reset() {
-            this.step = 'idle';
-            this.phoneLocal = '';
-            this.fullName = '';
-            this.resolvedName = '';
-            this.message = '';
-            this.statusText = '';
-            this.botPrompt = 'Hello! How can I help?';
-            this.sending = false;
-            this.lookingUp = false;
-        },
-        onPhoneChange() {
-            clearTimeout(this.lookupTimer);
-            this.statusText = '';
-            var self = this;
-            this.lookupTimer = setTimeout(function () {
-                if (self.isCameroon() && self.digits(self.phoneLocal).length >= 8) self.lookupName(true);
-            }, 450);
-        },
-        lookupName(silent) {
-            var self = this;
-            if (this.digits(this.phoneLocal).length < 8) return Promise.resolve('');
-            this.lookingUp = true;
-            if (!silent) this.statusText = 'Checking number…';
-            var url = @json(route('directory.phone-lookup'))
-                + '?phone=' + encodeURIComponent(this.phoneLocal)
-                + '&country_code=' + encodeURIComponent(this.countryCode);
-            return fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    self.lookingUp = false;
-                    var n = (data && (data.original_name || data.name || data.system_name)) || '';
-                    if (n) {
-                        self.fullName = n;
-                        self.resolvedName = n;
-                        self.statusOk = true;
-                        self.statusText = silent ? '' : ('Found: ' + n);
-                    } else {
-                        self.statusOk = false;
-                        self.statusText = silent ? '' : 'Name not found — please type it.';
-                    }
-                    return n;
-                })
-                .catch(function () { self.lookingUp = false; return ''; });
-        },
-        continueFromPhone() {
-            if (this.digits(this.phoneLocal).length < 8) return;
-            var self = this;
-            if (this.isCameroon()) {
-                this.lookupName(false).then(function (n) {
-                    if (n) self.goMessage();
-                    else {
-                        self.step = 'name';
-                        self.botPrompt = 'I couldn’t match that number. What’s your name?';
-                    }
-                });
-            } else {
-                this.step = 'name';
-                this.botPrompt = 'Please tell me your name.';
-                this.statusText = '';
-            }
-        },
-        continueFromName() {
-            if (!(this.fullName || '').trim()) return;
-            this.resolvedName = this.fullName.trim();
-            this.goMessage();
-        },
-        goMessage() {
-            this.step = 'message';
-            var first = (this.resolvedName || '').split(' ')[0];
-            this.botPrompt = 'Thanks' + (first ? ', ' + first : '') + '. What would you like to tell us?';
-            this.statusText = '';
-        },
-        submit() {
-            if (!(this.message || '').trim() || this.sending) return;
-            var self = this;
-            this.sending = true;
-            this.statusText = 'Sending via WhatsApp…';
-            this.statusOk = true;
-            fetch(@json(route('beyond.contact.store')), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    country_code: this.countryCode,
-                    phone: this.phoneLocal,
-                    full_name: this.fullName || this.resolvedName,
-                    message: this.message
-                })
-            }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-              .then(function (res) {
-                  self.sending = false;
-                  if (!res.ok || !res.d.ok) {
-                      self.statusOk = false;
-                      self.statusText = (res.d && res.d.message) || 'Send failed. Try again.';
-                      return;
-                  }
-                  self.doneMessage = res.d.message || 'Sent! Check WhatsApp — an assistant will follow up.';
-                  self.step = 'done';
-                  self.botPrompt = 'All set. Check your WhatsApp.';
-                  self.statusText = '';
-              }).catch(function () {
-                  self.sending = false;
-                  self.statusOk = false;
-                  self.statusText = 'Network error. Please try again.';
-              });
-        }
-    };
-}
+(function () {
+  var TOKEN_KEY = 'mbole_ai_token';
+  var DISMISS_KEY = 'mbole_ai_greet_dismissed';
+  var OPENED_KEY = 'mbole_ai_opened_once';
+  var CSRF = document.querySelector('meta[name="csrf-token"]');
+  var csrf = CSRF ? CSRF.getAttribute('content') : '';
+  var token = localStorage.getItem(TOKEN_KEY) || '';
+  var cursor = 0;
+  var pollTimer = null;
+  var sending = false;
+  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
+
+  var fab = document.getElementById('mbole-fab');
+  var panel = document.getElementById('mbole-panel');
+  var greet = document.getElementById('mbole-greet');
+  var thread = document.getElementById('mbole-thread');
+  var form = document.getElementById('mbole-form');
+  var input = document.getElementById('mbole-input');
+  var typing = document.getElementById('mbole-typing');
+  var waLink = document.getElementById('mbole-wa');
+
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = opts.headers || {};
+    headers['Accept'] = 'application/json';
+    headers['X-Requested-With'] = 'XMLHttpRequest';
+    headers['X-Page-Path'] = location.pathname;
+    if (csrf) headers['X-CSRF-TOKEN'] = csrf;
+    if (opts.json) {
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.json);
+      delete opts.json;
+    }
+    opts.headers = headers;
+    opts.credentials = 'same-origin';
+    return fetch(path, opts).then(function (r) {
+      return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; });
+    });
+  }
+
+  function appendMsg(msg) {
+    if (!msg || !msg.id) return;
+    if (thread.querySelector('[data-id="' + msg.id + '"]')) return;
+    var el = document.createElement('div');
+    el.className = 'mbole-msg ' + (msg.role || 'assistant');
+    el.setAttribute('data-id', msg.id);
+    el.textContent = msg.body || '';
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+    if (msg.id > cursor) cursor = msg.id;
+  }
+
+  function setOpen(open) {
+    panel.classList.toggle('open', !!open);
+    greet.style.display = 'none';
+    if (open) {
+      localStorage.setItem(OPENED_KEY, '1');
+      ensureSession().then(function () { poll(true); startPoll(); });
+      setTimeout(function () { input.focus(); }, 80);
+    } else {
+      stopPoll();
+    }
+  }
+
+  function ensureSession() {
+    return api('/api/website-chat/session', {
+      method: 'POST',
+      json: { token: token || null, path: location.pathname }
+    }).then(function (res) {
+      if (!res.ok || !res.body.success) throw new Error((res.body && res.body.error) || 'session failed');
+      token = res.body.token;
+      localStorage.setItem(TOKEN_KEY, token);
+      if (res.body.assistant_name) {
+        document.getElementById('mbole-name').textContent = res.body.assistant_name;
+      }
+      if (res.body.continue_whatsapp && cfg.continue_whatsapp) {
+        waLink.style.display = '';
+        waLink.href = 'https://wa.me/{{ preg_replace("/\\D/", "", config("services.whatsapp.public_number", config("services.whatsapp.business_number", "237650000000"))) }}?text=' + encodeURIComponent('Hi BeyondTechWorld — continuing my website chat (ref BTW-WEB-' + token.slice(0, 8) + ').');
+      }
+      return res.body;
+    });
+  }
+
+  function poll(initial) {
+    if (!token) return Promise.resolve();
+    var url = '/api/website-chat/messages?token=' + encodeURIComponent(token) + '&after=' + encodeURIComponent(cursor);
+    return api(url).then(function (res) {
+      if (!res.ok || !res.body.success) return;
+      (res.body.messages || []).forEach(appendMsg);
+      if (initial && !(res.body.messages || []).length && cfg.greeting && !localStorage.getItem(OPENED_KEY)) {
+        /* greeting is idle bubble only; first open can show system line once */
+      }
+    }).catch(function () {});
+  }
+
+  function startPoll() {
+    stopPoll();
+    pollTimer = setInterval(function () { poll(false); }, 4000);
+  }
+  function stopPoll() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (sending) return;
+    var body = (input.value || '').trim();
+    if (!body) return;
+    sending = true;
+    typing.classList.add('on');
+    input.value = '';
+    ensureSession().then(function () {
+      return api('/api/website-chat/messages', {
+        method: 'POST',
+        json: { token: token, body: body, path: location.pathname }
+      });
+    }).then(function (res) {
+      typing.classList.remove('on');
+      sending = false;
+      if (!res.ok || !res.body.success) {
+        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && res.body.error) || 'Sorry, something went wrong.' });
+        return;
+      }
+      (res.body.messages || []).forEach(appendMsg);
+    }).catch(function () {
+      typing.classList.remove('on');
+      sending = false;
+      appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: 'Network error. Please try again.' });
+    });
+  });
+
+  fab.addEventListener('click', function () { setOpen(true); });
+  document.getElementById('mbole-greet-cta').addEventListener('click', function () { setOpen(true); });
+  document.getElementById('mbole-close').addEventListener('click', function () { setOpen(false); });
+  document.getElementById('mbole-min').addEventListener('click', function () {
+    setOpen(false);
+    if (token) api('/api/website-chat/minimize', { method: 'POST', json: { token: token } });
+  });
+  document.getElementById('mbole-dismiss').addEventListener('click', function () {
+    localStorage.setItem(DISMISS_KEY, '1');
+    greet.style.display = 'none';
+  });
+
+  api('/api/website-chat/config').then(function (res) {
+    if (!res.ok || !res.body.success) return;
+    cfg = Object.assign(cfg, res.body);
+    if (!cfg.enabled) {
+      document.getElementById('mbole-ai-root').style.display = 'none';
+      return;
+    }
+    if (cfg.name) document.getElementById('mbole-name').textContent = cfg.name;
+    if (cfg.greeting) {
+      document.getElementById('mbole-greet-title').textContent = cfg.greeting;
+    }
+    if (!localStorage.getItem(DISMISS_KEY) && !localStorage.getItem(OPENED_KEY)) {
+      setTimeout(function () {
+        if (!panel.classList.contains('open')) greet.style.display = 'block';
+      }, cfg.greeting_delay_ms || 600);
+    }
+    if (localStorage.getItem(TOKEN_KEY)) {
+      token = localStorage.getItem(TOKEN_KEY);
+    }
+  }).catch(function () {});
+})();
 </script>

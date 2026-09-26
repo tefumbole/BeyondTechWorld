@@ -1,0 +1,36 @@
+---
+description: Website Beyond Assistant (Mbole AI) — reuse Beyond Assistant, never duplicate chatbot logic
+globs:
+  - laravel-app/app/Services/Assistant/**
+  - laravel-app/app/Services/WhatsApp/**
+  - laravel-app/app/Http/Controllers/WebsiteChatController.php
+  - laravel-app/app/Services/WebsiteChatService.php
+  - laravel-app/resources/views/beyond/partials/mbole_ai_widget.blade.php
+  - laravel-app/tests/Feature/*Website*
+alwaysApply: false
+---
+
+# Website Beyond Assistant (Mbole AI)
+
+When working on the public website chat widget or website channel:
+
+## Do
+
+- Reuse Beyond Assistant (`BeyondAssistantService`, tools, memory, rental ERP, quotation, leads, handover, call requests).
+- Treat Website as a **transport/channel** on the same conversation tables (`channel=website`).
+- Keep AI keys and WaSender credentials **server-side only**; browser posts to Laravel only.
+- Respect conversation `mode`: when HUMAN, AI must send zero replies (re-check before send).
+- Use `LeadCatalog::SOURCE_WEBSITE` for website-originated leads.
+- Prefer clarification over premature human handover (`assistant_max_clarifications` / `WEBSITE_AI_MAX_CLARIFICATIONS`).
+- Never invent ERP prices, stock, availability, or quotation numbers — tools only.
+
+## Do not
+
+- Build a separate website chatbot with duplicated business logic.
+- Call OpenAI/Wasender from browser JavaScript.
+- Hand over after a single misunderstood message without clarification.
+- Claim a call was placed when only a call request was opened.
+
+## Architecture
+
+Visitor → Mbole AI widget → Website chat API → Beyond Assistant → ERP tools → Hub inbox (same as WhatsApp).
