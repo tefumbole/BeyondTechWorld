@@ -27,6 +27,7 @@
                 </div>
             </div>
             @include('internship.student.partials.progress-board', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+            @include('internship.student.partials.hours-board', ['weekScore' => $weekScore ?? []])
         @else
             <div class="ip-card">
                 <h5 style="color:#0b3f90;font-weight:700;">No active placement</h5>
@@ -49,32 +50,32 @@
                 </a>
             </div>
             <div class="col-md-4 col-lg-2 mb-3">
-                <div class="ip-stat-tile ip-stat-green">
-                    <div class="ip-meta">Hours this week</div>
-                    <strong>{{ number_format($weekScore['logged'], 1) }}</strong>
-                    <div class="ip-meta">of {{ number_format($weekScore['expected'], 1) }}h</div>
+                <div class="ip-stat-tile {{ (($weekScore['percent'] ?? 0) >= 100) ? 'ip-stat-green' : 'ip-stat-orange' }}">
+                    <div class="ip-meta">Week hours %</div>
+                    <strong>{{ number_format((float) ($weekScore['percent'] ?? 0), 1) }}%</strong>
+                    <div class="ip-meta">{{ number_format((float) ($weekScore['accounted'] ?? 0), 1) }} / {{ number_format((float) ($weekScore['expected'] ?? 40), 1) }}h counted</div>
                 </div>
             </div>
             <div class="col-md-4 col-lg-2 mb-3">
                 <div class="ip-stat-tile ip-stat-blue">
-                    <div class="ip-meta">Total hours</div>
+                    <div class="ip-meta">Total hours logged</div>
                     <strong>{{ number_format($totalHours, 1) }}</strong>
                 </div>
             </div>
             <div class="col-md-4 col-lg-2 mb-3">
                 <div class="ip-stat-tile ip-stat-orange">
                     <div class="ip-meta">Undertime (week)</div>
-                    <strong>{{ number_format($weekScore['remaining'], 1) }}h</strong>
+                    <strong>{{ number_format((float) ($weekScore['remaining'] ?? 0), 1) }}h</strong>
                     <div class="ip-meta">Today: {{ number_format($dayBalance['remaining'], 1) }}h remaining</div>
                 </div>
             </div>
             <div class="col-md-4 col-lg-2 mb-3">
-                <div class="ip-stat-tile {{ $weekScore['overtime'] > 0 || $dayBalance['overtime'] > 0 ? 'ip-stat-orange' : 'ip-stat-green' }}">
+                <div class="ip-stat-tile {{ (($weekScore['overtime'] ?? 0) > 0 || ($dayBalance['overtime'] ?? 0) > 0) ? 'ip-stat-orange' : 'ip-stat-green' }}">
                     <div class="ip-meta">Overtime</div>
-                    <strong>{{ number_format($weekScore['overtime'], 1) }}h</strong>
+                    <strong>{{ number_format((float) ($weekScore['overtime'] ?? 0), 1) }}h</strong>
                     <div class="ip-meta">
-                        @if($weekScore['overtime'] > 0 || $dayBalance['overtime'] > 0)
-                            Supervisor approval needed
+                        @if(($weekScore['overtime'] ?? 0) > 0 || ($dayBalance['overtime'] ?? 0) > 0)
+                            Above weekly target — not counted in %
                         @else
                             None this week
                         @endif

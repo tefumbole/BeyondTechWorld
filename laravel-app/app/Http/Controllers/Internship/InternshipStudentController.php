@@ -215,6 +215,7 @@ class InternshipStudentController extends Controller
         $progress = $this->service->studentProgressSummary($enrolment);
         $awaiting = $this->awaitingAssignments($enrolment);
         $awaitingGradingCount = $awaiting->count();
+        $weekScore = app(TimesheetService::class)->weekScore(Auth::id());
 
         return view('internship.student.dashboard', compact(
             'enrolment',
@@ -225,6 +226,7 @@ class InternshipStudentController extends Controller
             'requestState',
             'gradeSummary',
             'progress',
+            'weekScore',
             'awaiting',
             'awaitingGradingCount'
         ));

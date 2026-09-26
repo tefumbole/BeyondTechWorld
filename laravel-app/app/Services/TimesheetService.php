@@ -517,22 +517,44 @@ class TimesheetService
             : Carbon::now()->startOfWeek(Carbon::MONDAY);
         $end = $start->copy()->endOfWeek(Carbon::SUNDAY);
         $ww = WorkingWeek::where('user_id', $userId)->first();
-        $expected = $ww ? $this->weeklyExpectedHours($ww) : 40.0;
+        // Standard full week is 40h; never require more than that for completion %.
+        $scheduleExpected = $ww ? $this->weeklyExpectedHours($ww) : 40.0;
+        $expected = round(min(40.0, max(0.0, (float) $scheduleExpected)), 2);
+        if ($expected <= 0) {
+            $expected = 40.0;
+        }
         $logged = round((float) TimesheetEntry::where('user_id', $userId)
             ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
             ->sum('hours'), 2);
+        // Hours that count toward the weekly target (cap at expected). Extra = overtime.
+        $accounted = round(min($logged, $expected), 2);
+        $overtime = max(0, round($logged - $expected, 2));
+        $remaining = max(0, round($expected - $accounted, 2));
+        $percent = $expected > 0
+            ? round(min(100, ($accounted / $expected) * 100), 1)
+            : 0.0;
+        $status = 'met';
+        if ($remaining > 0.009) {
+            $status = 'undertime';
+        } elseif ($overtime > 0.009) {
+            $status = 'overtime';
+        }
         $days = [];
         foreach (range(0, 6) as $i) {
             $d = $start->copy()->addDays($i);
             $dayKey = strtolower($d->format('l'));
             $dayExpected = $ww ? $this->dayHours($ww, $dayKey) : ($i < 5 ? 8.0 : 0.0);
             $dayLogged = $this->hoursLoggedOnDate($userId, $d->toDateString());
+            $dayAccounted = $dayExpected > 0
+                ? round(min($dayLogged, $dayExpected), 2)
+                : 0.0;
             $days[] = [
                 'date' => $d->toDateString(),
                 'day' => $dayKey,
                 'expected' => $dayExpected,
                 'logged' => $dayLogged,
-                'remaining' => max(0, round($dayExpected - $dayLogged, 2)),
+                'accounted' => $dayAccounted,
+                'remaining' => max(0, round($dayExpected - $dayAccounted, 2)),
                 'overtime' => max(0, round($dayLogged - $dayExpected, 2)),
             ];
         }
@@ -542,9 +564,12 @@ class TimesheetService
             'week_end' => $end->toDateString(),
             'expected' => $expected,
             'logged' => $logged,
-            'remaining' => max(0, round($expected - $logged, 2)),
-            'overtime' => max(0, round($logged - $expected, 2)),
-            'met' => $logged + 0.009 >= $expected && $expected > 0,
+            'accounted' => $accounted,
+            'remaining' => $remaining,
+            'overtime' => $overtime,
+            'percent' => $percent,
+            'status' => $status,
+            'met' => $remaining <= 0.009 && $expected > 0,
             'days' => $days,
         ];
     }
