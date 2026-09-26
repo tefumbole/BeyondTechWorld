@@ -27,6 +27,7 @@
             display: grid;
             gap: 22px;
             padding-left: 8px;
+            width: 100%;
         }
         .timeline:before {
             content: "";
