@@ -145,13 +145,10 @@
 </style>
 @endpush
 
-<section class="py-6 sm:py-8 bg-gradient-to-br from-brand-blue via-[#0052A3] to-brand-blue">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Transform Your Career?</h2>
-        <a href="{{ url('/register-now') }}" class="inline-block bg-brand-gold text-brand-blue hover:bg-[#C19B2A] px-8 py-3 text-base font-bold rounded-full shadow-lg hover:scale-105 transition-transform">
-            Enroll Now
-        </a>
-    </div>
+<section class="py-5 sm:py-6 bg-white text-center">
+    <a href="{{ url('/register-now') }}" class="inline-block bg-brand-gold text-brand-blue hover:bg-[#C19B2A] px-8 py-3 text-base font-bold rounded-full shadow-lg hover:scale-105 transition-transform">
+        Enroll Now
+    </a>
 </section>
 
 @endsection

@@ -1,139 +1,29 @@
 @extends('beyond.layout')
 
-@section('title', 'About Beyond Enterprise | Our Vision & Team')
-@section('meta_description', 'Learn about Beyond Enterprise — our history, mission, leadership, and commitment to technological excellence in Rwanda and beyond.')
+@section('title', 'About Beyond Enterprise | Our Vision & Mission')
+@section('meta_description', 'Mission and vision of Beyond Enterprise — bridging technology and innovation across Africa and beyond.')
 
 @section('content')
 
-<section class="relative py-5 sm:py-6 bg-brand-blue text-white overflow-hidden">
-    <div class="absolute inset-0 opacity-10">
-        <div class="absolute inset-0 bg-cover bg-center" style="background-image:url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');"></div>
-    </div>
-    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h1 class="text-2xl sm:text-3xl font-bold mb-1">{{ \App\Support\SiteContent::text('about.hero_title', 'Bridging Technology & Innovation') }}</h1>
-        <p class="text-sm sm:text-base text-gray-200 max-w-3xl mx-auto font-light">
-            {{ \App\Support\SiteContent::text('about.hero_subtitle', 'We are a premier IT consultancy and infrastructure firm dedicated to transforming businesses through cutting-edge technology solutions.') }}
-        </p>
-    </div>
-</section>
-
-<section class="py-16 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-                <h2 class="text-3xl font-bold text-brand-blue mb-6">{{ \App\Support\SiteContent::text('about.mission_heading', 'Our Mission') }}</h2>
-                <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+<section class="py-10 sm:py-14 bg-slate-50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid md:grid-cols-2 gap-5 sm:gap-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+                <h2 class="text-lg sm:text-xl font-extrabold tracking-wide text-brand-blue uppercase m-0">Our Vision</h2>
+                <div class="h-0.5 w-12 bg-brand-gold mt-3 mb-4"></div>
+                <p class="text-slate-600 text-sm sm:text-base leading-relaxed m-0">
+                    {{ \App\Support\SiteContent::text('about.vision_text', 'To be the trusted technology bridge connecting Africa to world-class IT infrastructure, innovation, and sustainable digital growth.') }}
+                </p>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+                <h2 class="text-lg sm:text-xl font-extrabold tracking-wide text-brand-blue uppercase m-0">Our Mission</h2>
+                <div class="h-0.5 w-12 bg-brand-gold mt-3 mb-4"></div>
+                <p class="text-slate-600 text-sm sm:text-base leading-relaxed m-0">
                     {{ \App\Support\SiteContent::text('about.mission_text', 'To empower organizations in Africa and beyond with robust, scalable, and secure technology infrastructure. We strive to be the bridge that connects complex technological challenges with simple, effective, and sustainable solutions.') }}
                 </p>
-                <div class="grid grid-cols-2 gap-6">
-                    <div class="flex items-start gap-3">
-                        <div class="bg-blue-100 p-2 rounded-lg"><i data-lucide="target" class="w-6 h-6 text-brand-blue"></i></div>
-                        <div>
-                            <h3 class="font-semibold text-gray-900">Excellence</h3>
-                            <p class="text-sm text-gray-500">World-class standards</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="bg-blue-100 p-2 rounded-lg"><i data-lucide="globe-2" class="w-6 h-6 text-brand-blue"></i></div>
-                        <div>
-                            <h3 class="font-semibold text-gray-900">Global Reach</h3>
-                            <p class="text-sm text-gray-500">International partnerships</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="relative rounded-2xl overflow-hidden shadow-2xl">
-                <img src="{{ \App\Support\SiteContent::image('about.about_image', 'https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/513a28b3-47b7-490b-b30a-f9398973361b-a4hCG.png') }}" alt="Team Collaboration" class="w-full h-full object-cover">
             </div>
         </div>
     </div>
 </section>
-
-<section class="py-16 bg-gray-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
-            @foreach ([['15+','Years Experience'],['100+','Projects Completed'],['50+','Team Members'],['10','Global Partners']] as [$value, $label])
-                <div class="text-center">
-                    <div class="text-4xl font-bold text-brand-blue mb-2">{{ $value }}</div>
-                    <div class="text-gray-600 font-medium">{{ $label }}</div>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
-
-@if(isset($leaders) && $leaders->count())
-<section id="leadership" class="py-20 bg-brand-blue">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-            <h2 class="text-4xl font-bold text-white mb-4">{{ \App\Support\SiteContent::text('about.leadership_heading', 'Our Leadership') }}</h2>
-            <div class="h-1 w-24 bg-brand-gold mx-auto"></div>
-            <p class="mt-4 text-xl text-gray-300">{{ \App\Support\SiteContent::text('about.leadership_subtext', 'The visionaries driving Beyond Enterprise forward') }}</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            @foreach($leaders as $leader)
-                <div class="group flex flex-col items-center text-center">
-                    <div class="relative mb-6">
-                        <div class="absolute inset-0 bg-gradient-to-br from-brand-gold to-[#F7E7CE] rounded-full blur opacity-75 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        <div class="relative w-48 h-48 rounded-full p-1 bg-gradient-to-br from-brand-gold to-[#8a701f]">
-                            <div class="w-full h-full rounded-full overflow-hidden border-4 border-brand-blue bg-gray-200">
-                                @if($leader->photoPublicUrl())
-                                    <img src="{{ $leader->photoPublicUrl() }}" alt="{{ $leader->name }}" class="w-full h-full object-cover">
-                                @else
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
-                                        <i data-lucide="user" class="w-16 h-16"></i>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                    <h3 class="text-2xl font-bold text-white">
-                        {{ $leader->name }}
-                        @if($leader->country)
-                            <span class="ml-1" title="{{ $leader->country }}">{{ $leader->countryFlag() ?: '' }}</span>
-                        @endif
-                    </h3>
-                    <p class="mt-1 text-sm font-semibold uppercase tracking-wide text-brand-gold">{{ $leader->title }}</p>
-                    @if($leader->description)
-                        <p class="mt-3 text-gray-300 text-sm leading-relaxed max-w-sm">{{ $leader->description }}</p>
-                    @endif
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
-@endif
-
-<section class="py-16 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-3xl font-bold text-brand-blue mb-12">{{ \App\Support\SiteContent::text('about.values_heading', 'Our Core Values') }}</h2>
-        <div class="grid md:grid-cols-3 gap-8">
-            @foreach ([
-                ['users', 'Client First', 'We prioritize our clients\' needs and success above all else.'],
-                ['award', 'Integrity', 'We conduct business with transparency, honesty, and ethical standards.'],
-                ['briefcase', 'Innovation', 'We constantly evolve and adapt to the latest technological advancements.'],
-            ] as [$icon, $title, $desc])
-                <div class="p-6 bg-gray-50 rounded-xl hover:shadow-lg transition-shadow">
-                    <i data-lucide="{{ $icon }}" class="w-12 h-12 text-brand-gold mx-auto mb-4"></i>
-                    <h3 class="text-xl font-bold text-brand-blue mb-2">{{ $title }}</h3>
-                    <p class="text-gray-600">{{ $desc }}</p>
-                </div>
-            @endforeach
-        </div>
-    </div>
-</section>
-
-<section class="py-8 sm:py-10 bg-gradient-to-r from-brand-blue to-brand-dark text-white text-center">
-    <div class="max-w-4xl mx-auto px-4">
-        <h2 class="text-2xl sm:text-3xl font-bold mb-2">{{ \App\Support\SiteContent::text('about.cta_heading', 'Ready to work with us?') }}</h2>
-        <p class="text-base sm:text-lg mb-5 opacity-90">{{ \App\Support\SiteContent::text('about.cta_text', "Let's build something extraordinary together.") }}</p>
-        <a href="#mbole-ai"
-           class="inline-flex items-center gap-2 bg-brand-gold text-brand-blue font-bold text-base px-7 py-3 rounded-full hover:bg-white hover:scale-105 transition-all">
-            <i data-lucide="bot" class="w-5 h-5"></i> Chat with Mbole AI
-        </a>
-    </div>
-</section>
-
-@include('beyond.partials.contact_section')
 
 @endsection

@@ -18,7 +18,10 @@ class PublicRentalController extends Controller
 {
     public function index()
     {
-        return view('beyond.rentals.index');
+        return view('beyond.rentals.index', [
+            'countries' => \App\Support\CountryDialCodes::list(),
+            'countryCode' => old('country_code', '+237'),
+        ]);
     }
 
     public function store(Request $request, BeyondWasenderService $whatsapp)

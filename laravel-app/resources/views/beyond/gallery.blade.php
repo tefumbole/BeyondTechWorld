@@ -7,8 +7,7 @@
 
 <section class="bg-gradient-to-r from-brand-blue via-brand-light to-brand-blue py-2.5 sm:py-3">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-        <h1 class="text-base sm:text-lg md:text-xl font-bold text-white mb-0.5">{!! \App\Support\SiteContent::html('gallery.hero_title', 'Our <span class="text-brand-gold">Gallery</span>') !!}</h1>
-        <p class="text-xs text-blue-100/90 m-0">{{ \App\Support\SiteContent::text('gallery.hero_subtitle', 'Events, projects, and moments from Beyond Enterprise') }}</p>
+        <h1 class="text-base sm:text-lg md:text-xl font-bold text-white m-0">{!! \App\Support\SiteContent::html('gallery.hero_title', 'Our <span class="text-brand-gold">Gallery</span>') !!}</h1>
     </div>
 </section>
 
