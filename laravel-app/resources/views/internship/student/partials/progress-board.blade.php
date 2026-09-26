@@ -34,7 +34,7 @@
     </div>
 @endif
 
-<div class="ip-card">
+<div class="ip-card" id="completed-tasks">
     <h5 style="font-weight:700;color:#0b3f90;margin-bottom:.75rem;">Completed tasks &amp; remarks</h5>
     @if (empty($progress['completed_tasks']))
         <p class="text-muted mb-0">No accepted tasks yet. Complete and submit your current task to build this history.</p>
