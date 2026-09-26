@@ -182,18 +182,26 @@
             max-width: 14em;
         }
         .landing-home .rings {
-            grid-template-columns: repeat(4, minmax(72px, 1fr));
-            gap: 14px;
+            grid-template-columns: repeat(4, minmax(110px, 1fr));
+            gap: 18px;
             margin: 0 0 28px;
-            max-width: 560px;
+            max-width: 820px;
+            width: 100%;
         }
         .landing-home .ring {
             width: 100%;
             height: auto;
             aspect-ratio: 1;
+            min-height: 140px;
         }
-        .landing-home .ring b { font-size: clamp(28px, 5vw, 48px); }
-        .landing-home .ring span { font-size: 12px; letter-spacing: .14em; }
+        .landing-home .ring b {
+            font-size: clamp(52px, 9vw, 92px);
+            font-weight: 700;
+        }
+        .landing-home .ring span {
+            font-size: clamp(11px, 1.6vw, 15px);
+            letter-spacing: .16em;
+        }
         .sun-row {
             display: flex;
             gap: 28px;

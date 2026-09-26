@@ -97,7 +97,7 @@ class FuneralPledgeService
 
     public function buriedAtIso()
     {
-        $raw = trim((string) config('services.funeral_pledge.buried_at', '2026-09-26T15:58:00+02:00'));
+        $raw = trim((string) config('services.funeral_pledge.buried_at', '2026-09-26T15:28:00+02:00'));
         try {
             return Carbon::parse($raw)->toIso8601String();
         } catch (\Throwable $e) {
