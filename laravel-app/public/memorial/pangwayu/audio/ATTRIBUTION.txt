@@ -2,4 +2,7 @@ It Is Well With My Soul — piano solo by Jeremy Westcott
 Source: https://archive.org/details/JeremyWestcottItIsWellWithMySoul
 License: Creative Commons Attribution 2.5 (https://creativecommons.org/licenses/by/2.5/)
 
-When the Roll Is Called Up Yonder and Farther Along — original piano arrangements of the public-domain hymns, prepared for this memorial.
+When the Roll Is Called Up Yonder — piano cover of the public-domain hymn (James M. Black, 1893).
+MIDI harmony from Hymnal.net (public domain); rendered as a FluidR3 GM piano performance for this memorial.
+
+Farther Along — original piano arrangement of the public-domain hymn, prepared for this memorial.
