@@ -18,6 +18,7 @@
 
         @if(!empty($enrolment))
             @include('internship.student.partials.progress-summary', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+            @include('internship.student.partials.hours-board', ['weekScore' => $weekScore ?? []])
         @endif
 
         @if(session('message'))
@@ -60,8 +61,6 @@
             </div>
 
             @include('internship.student.partials.progress-board', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
-
-            @include('internship.student.partials.hours-board', ['weekScore' => $weekScore ?? []])
 
             @include('internship.student.partials.supervisors', ['supervisors' => $supervisors ?? []])
 

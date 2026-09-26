@@ -8,6 +8,7 @@
 
         @if(!empty($enrolment))
             @include('internship.student.partials.progress-summary', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+            @include('internship.student.partials.hours-board', ['weekScore' => $weekScore ?? []])
         @endif
 
         @if(session('message'))
@@ -31,7 +32,6 @@
                 </div>
             </div>
             @include('internship.student.partials.progress-board', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
-            @include('internship.student.partials.hours-board', ['weekScore' => $weekScore ?? []])
         @else
             <div class="ip-card">
                 <h5 style="color:#0b3f90;font-weight:700;">No active placement</h5>
