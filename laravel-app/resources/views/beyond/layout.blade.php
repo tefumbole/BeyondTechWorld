@@ -79,10 +79,30 @@
         @media (prefers-reduced-motion: reduce) {
             .nav-logo-spin { animation: none; }
         }
+
+        /* Homepage: one screen — nav + hero + copyright footer, no page scroll */
+        body.home-lock {
+            height: 100dvh;
+            max-height: 100dvh;
+            overflow: hidden;
+        }
+        body.home-lock main {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        body.home-lock .home-hero {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        body.home-lock footer {
+            flex-shrink: 0;
+        }
     </style>
     @stack('head')
 </head>
-<body class="bg-white text-gray-800 flex flex-col min-h-screen">
+<body class="bg-white text-gray-800 flex flex-col min-h-screen @yield('body_class')">
 
 @php
     $navDefs = [
