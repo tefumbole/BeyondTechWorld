@@ -231,47 +231,16 @@
 </main>
 
 <footer class="bg-brand-navy text-white mt-auto">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-                <a href="{{ url('/') }}" class="inline-block mb-2">
-                    <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="h-[50px] w-auto object-contain">
-                </a>
-                <div class="text-2xl font-bold"><span class="text-brand-gold">{{ $siteTitle }}</span></div>
-                <p class="text-gray-300 text-sm mt-4">Your Technology Bridge to Kigali. Professional IT, networking, security, and audio-visual solutions.</p>
-            </div>
-            <div>
-                <h3 class="text-lg font-semibold text-brand-gold mb-4">Quick Links</h3>
-                <nav class="flex flex-col space-y-2 text-sm">
-                    <a href="{{ url('/') }}" class="text-gray-300 hover:text-brand-gold">Home</a>
-                    <a href="{{ url('/about') }}" class="text-gray-300 hover:text-brand-gold">About Us</a>
-                    <a href="{{ url('/services') }}" class="text-gray-300 hover:text-brand-gold">Services</a>
-                    <a href="{{ url('/projects') }}" class="text-gray-300 hover:text-brand-gold">Projects</a>
-                    <a href="{{ url('/events') }}" class="text-gray-300 hover:text-brand-gold">Events</a>
-                    <a href="{{ url('/shareholders') }}" class="text-gray-300 hover:text-brand-gold">Shareholders Portal</a>
-                </nav>
-            </div>
-            <div>
-                <h3 class="text-lg font-semibold text-brand-gold mb-4">Contact Us</h3>
-                <div class="space-y-3 text-sm">
-                    <a href="https://wa.me/237675321739" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1EBE57] text-white font-semibold px-4 py-2 rounded-md">
-                        <i data-lucide="message-circle" class="w-4 h-4"></i> Chat now
-                    </a>
-                    <a href="tel:+237675321739" class="flex items-center gap-3 text-gray-300 hover:text-brand-gold"><i data-lucide="phone" class="w-5 h-5"></i> +237 675 321 739</a>
-                    <a href="mailto:info@beyondtechworld.com" class="flex items-center gap-3 text-gray-300 hover:text-brand-gold"><i data-lucide="mail" class="w-5 h-5"></i> info@beyondtechworld.com</a>
-                    <a href="https://www.beyondtechworld.com" target="_blank" rel="noopener" class="flex items-center gap-3 text-gray-300 hover:text-brand-gold"><i data-lucide="globe" class="w-5 h-5"></i> www.beyondtechworld.com</a>
-                </div>
-            </div>
-        </div>
-        <div class="mt-12 pt-8 border-t border-gray-700 text-center">
-            <p class="text-gray-400 text-sm">© {{ date('Y') }} Beyond Enterprise. All rights reserved.</p>
-            <p class="text-gray-500 text-xs mt-2">
-                Developed By: <span class="text-gray-300 font-medium">Sr. Engr. Tefu R. Mbole</span>
-                <a href="https://wa.me/237675321739" target="_blank" rel="noopener" class="text-[#25D366] hover:underline font-semibold">+237675321739</a>
-            </p>
-            <p class="text-gray-500 text-xs mt-2">Kigali, Rwanda</p>
-            <p class="text-gray-600 text-xs mt-1">{{ \App\Support\AppVersion::bcl() }}</p>
-        </div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <p class="text-center text-sm text-gray-300 m-0 leading-relaxed">
+            © {{ date('Y') }} Beyond Enterprise. All rights reserved.
+            <span class="text-gray-500 mx-1">|</span>
+            Developed By: Sr. Engr. Tefu R. Mbole
+            <span class="text-gray-500 mx-1">|</span>
+            <a href="https://wa.me/237675321739" target="_blank" rel="noopener" class="text-gray-300 hover:text-brand-gold">+237 675 321 739</a>
+            <span class="text-gray-500 mx-1">|</span>
+            {{ \App\Support\AppVersion::bcl() }}
+        </p>
     </div>
 </footer>
 
