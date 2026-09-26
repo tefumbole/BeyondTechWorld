@@ -9,6 +9,7 @@ class AssistantToolRegistry
         return [
             'get_contact_summary' => ['description' => 'Controlled summary of the current WhatsApp contact', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
             'get_company_information' => ['description' => 'Approved company information', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
+            'search_company_knowledge' => ['description' => 'Search approved company knowledge FAQs and procedures', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => [], 'params' => ['query']],
             'get_services' => ['description' => 'Approved service list', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => []],
             'search_rental_products' => ['description' => 'Search active rental catalogue products', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => [], 'params' => ['query']],
             'check_rental_availability' => ['description' => 'Check stock and overlapping bookings for a date', 'sensitivity' => 'PUBLIC', 'write' => false, 'roles' => [], 'params' => ['query', 'qty', 'event_date']],

@@ -84,6 +84,34 @@ class AssistantToolExecutor
         return ['success' => true, 'entries' => $this->knowledge(['company', 'hours', 'support'])];
     }
 
+    protected function toolSearchCompanyKnowledge(array $params, array $context)
+    {
+        $q = trim((string) (isset($params['query']) ? $params['query'] : ''));
+        if (! Schema::hasTable('assistant_knowledge')) {
+            return ['success' => true, 'entries' => [], 'note' => 'Knowledge base unavailable.'];
+        }
+        $query = AssistantKnowledge::where('enabled', true);
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function ($inner) use ($like) {
+                $inner->where('title', 'like', $like)
+                    ->orWhere('content', 'like', $like)
+                    ->orWhere('category', 'like', $like);
+            });
+        }
+        $rows = $query->orderBy('id')->limit(8)->get();
+        $entries = [];
+        foreach ($rows as $row) {
+            $entries[] = [
+                'title' => $row->title,
+                'category' => $row->category,
+                'content' => mb_substr((string) $row->content, 0, 800),
+            ];
+        }
+
+        return ['success' => true, 'entries' => $entries, 'query' => $q];
+    }
+
     protected function toolGetServices(array $params, array $context)
     {
         return ['success' => true, 'entries' => $this->knowledge(['services', 'rental', 'internship'])];
@@ -473,12 +501,28 @@ class AssistantToolExecutor
 
     protected function toolRequestHumanHandover(array $params, array $context)
     {
+        $allowed = [
+            'USER_REQUESTED_HUMAN', 'AUTHORITY_REQUIRED', 'KNOWLEDGE_UNAVAILABLE', 'TOOL_FAILURE',
+            'REPEATED_CLARIFICATION_FAILURE', 'POLICY_REQUIRED', 'COMPLAINT_ESCALATION',
+        ];
+        $category = strtoupper(trim((string) (isset($params['reason_category']) ? $params['reason_category'] : '')));
+        if (! in_array($category, $allowed, true)) {
+            $category = 'USER_REQUESTED_HUMAN';
+        }
+        $summary = trim((string) (isset($params['summary']) ? $params['summary'] : (isset($params['reason']) ? $params['reason'] : $category)));
         $conversation = isset($context['conversation']) ? $context['conversation'] : null;
         if ($conversation) {
-            $this->handover->toHuman($conversation, isset($params['reason']) ? $params['reason'] : 'tool');
+            $this->handover->toHuman($conversation, $category.($summary !== '' ? ': '.$summary : ''));
         }
 
-        return ['success' => true, 'handed_over' => true];
+        return [
+            'success' => true,
+            'handed_over' => true,
+            'reason_category' => $category,
+            'summary' => $summary,
+            'urgency' => isset($params['urgency']) ? $params['urgency'] : 'normal',
+            'suggested_department' => isset($params['suggested_department']) ? $params['suggested_department'] : null,
+        ];
     }
 
     protected function toolListAvailableDocuments(array $params, array $context)

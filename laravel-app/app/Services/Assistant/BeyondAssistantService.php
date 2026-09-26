@@ -124,7 +124,39 @@ class BeyondAssistantService
         $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
         $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
         $menuChoice = app(ServiceMenu::class)->match((string) $message->body);
-        if (! $justNamed && $menuChoice) {
+
+        // Name capture remains deterministic UX.
+        if ($justNamed) {
+            $directReply = 'Thanks '.$slots['captured_name'].'. Are you arranging this for yourself or for an organization?';
+            $classified = [
+                'intent' => IntentCatalog::GREETING,
+                'confidence' => 0.97,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
+
+        // Explicit human / call request — never send to OpenAI chitchat first.
+        if (! isset($classified) && is_array($deterministic) && in_array($deterministic['intent'], [
+            IntentCatalog::HUMAN_REQUEST, IntentCatalog::CALL_REQUEST,
+        ], true)) {
+            $classified = $deterministic;
+        }
+
+        // Greeting / closing stay deterministic so name-capture and menu UX keep working.
+        if (! isset($classified) && is_array($deterministic) && in_array($deterministic['intent'], [
+            IntentCatalog::GREETING,
+        ], true)) {
+            $classified = $deterministic;
+        }
+
+        // High-priority operational workflows stay deterministic (attendance, OTP, docs, pending ops).
+        if (! isset($classified) && is_array($deterministic) && $this->isOperationalIntent($deterministic['intent'], $slots)) {
+            $classified = $deterministic;
+        }
+
+        if (! isset($classified) && $menuChoice) {
             $directReply = app(ServiceMenu::class)->describe($menuChoice, (string) $message->body);
             $classified = [
                 'intent' => IntentCatalog::SERVICE_ENQUIRY,
@@ -133,7 +165,7 @@ class BeyondAssistantService
                 'needs_clarification' => false,
                 'slots' => [],
             ];
-        } elseif (! $justNamed && is_array($deterministic) && ! empty($deterministic['slots']['closing'])) {
+        } elseif (! isset($classified) && is_array($deterministic) && ! empty($deterministic['slots']['closing'])) {
             $directReply = "You're welcome. Message us whenever you need sound, light, screens, or IT.";
             $classified = [
                 'intent' => IntentCatalog::GENERAL_ENQUIRY,
@@ -143,7 +175,8 @@ class BeyondAssistantService
                 'slots' => [],
             ];
         }
-        if (! $justNamed) {
+
+        if (! isset($classified)) {
             $appointmentReply = app(\App\Services\Appointment\AppointmentConversationService::class)
                 ->handle($conversation, $context, $mem, (string) $message->body, $deterministic);
             if (is_string($appointmentReply)) {
@@ -162,18 +195,10 @@ class BeyondAssistantService
                 }
             }
         }
-        if ($justNamed) {
-            $directReply = 'Thanks '.$slots['captured_name'].'. Are you arranging this for yourself or for an organization?';
-            $classified = [
-                'intent' => IntentCatalog::GREETING,
-                'confidence' => 0.97,
-                'requires_erp' => false,
-                'needs_clarification' => false,
-                'slots' => [],
-            ];
-        }
-        $high = (float) config('assistant.confidence_high');
-        if (! isset($classified) && (! $deterministic || $deterministic['confidence'] < $high)) {
+
+        // Primary path: OpenAI conversational engine (casual chat + ERP tools).
+        // UNKNOWN / missed keywords never skip this for low-confidence handover.
+        if (! isset($classified)) {
             $turn = app(ConversationalTurnService::class)->turn($conversation, $context, $mem, $slots, (string) $message->body);
             if (! empty($turn['handled'])) {
                 $directReply = $turn['reply'];
@@ -181,6 +206,9 @@ class BeyondAssistantService
                 $conversationalResult = isset($turn['tool_result']) ? $turn['tool_result'] : null;
                 if (! empty($turn['memory'])) {
                     $slots = array_merge($slots, $turn['memory']);
+                }
+                if (! empty($turn['tools_run']) && is_array($turn['tools_run'])) {
+                    $activity->tools_requested = implode(',', $turn['tools_run']);
                 }
                 if (! empty($turn['handover'])) {
                     $classified = [
@@ -204,6 +232,7 @@ class BeyondAssistantService
                 }
             }
         }
+
         if (! isset($classified) && ! empty($slots['organization'])) {
             $directReply = 'Thanks, I have noted '.$slots['organization'].'. What do you need for the event?';
             $classified = [
@@ -214,8 +243,22 @@ class BeyondAssistantService
                 'slots' => [],
             ];
         }
+
+        // Last resort: operational classify only — never treat as auto-HUMAN for UNKNOWN.
         if (! isset($classified)) {
             $classified = $this->router->classify((string) $message->body, $context, $slots);
+            if (($classified['intent'] ?? '') === IntentCatalog::UNKNOWN) {
+                $classified = [
+                    'intent' => IntentCatalog::GENERAL_ENQUIRY,
+                    'confidence' => 0.7,
+                    'requires_erp' => false,
+                    'needs_clarification' => true,
+                    'slots' => [],
+                ];
+                if ($directReply === null) {
+                    $directReply = 'Happy to help — could you share a bit more about what you need?';
+                }
+            }
         }
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
         $decision = $this->policy->decide($classified, $context['roles']);
@@ -609,6 +652,33 @@ class BeyondAssistantService
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    protected function isOperationalIntent($intent, array $slots = [])
+    {
+        $ops = [
+            IntentCatalog::ATTENDANCE_IN,
+            IntentCatalog::ATTENDANCE_OUT,
+            IntentCatalog::ATTENDANCE_STATUS,
+            IntentCatalog::ATTENDANCE_HOURS,
+            IntentCatalog::ATTENDANCE_ASSIGNMENT,
+            IntentCatalog::ATTENDANCE_CORRECTION,
+            IntentCatalog::VERIFY_OTP,
+            IntentCatalog::DOCUMENT_REQUEST,
+            IntentCatalog::BILL_REQUEST,
+            IntentCatalog::BILL_CONFIRM,
+            IntentCatalog::BILL_STATUS,
+            IntentCatalog::BILL_MEDIA,
+            IntentCatalog::MAINTENANCE_CREATE,
+            IntentCatalog::MAINTENANCE_STATUS,
+            IntentCatalog::MAINTENANCE_ATTACH,
+            IntentCatalog::INTERNSHIP_SUBMIT,
+            IntentCatalog::INTERNSHIP_TASK,
+            IntentCatalog::INTERNSHIP_STATUS,
+            IntentCatalog::INTERNSHIP_MATERIAL,
+        ];
+
+        return in_array($intent, $ops, true);
     }
 
     protected function fingerprint(WhatsAppMessage $message)

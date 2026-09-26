@@ -298,7 +298,20 @@ class WhatsAppHubQuery
             'wasender_session' => ! empty(config('services.whatsapp.wasender_session_id')) ? 'Configured' : 'Missing',
             'webhook_secret' => WaSenderSignature::isConfigured() ? 'Configured' : 'Missing',
             'assistant_enabled' => app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled(),
-            'assistant_provider' => trim((string) config('assistant.api_key')) !== '' ? 'Configured' : 'Missing',
+            'assistant_provider' => trim((string) config('assistant.api_key')) !== '' ? 'Configured' : 'Not Configured',
+            'openai_configured' => trim((string) config('assistant.api_key')) !== '',
+            'openai_enabled' => (bool) config('assistant.enabled'),
+            'openai_model' => (string) config('assistant.model'),
+            'openai_last_ok' => \Illuminate\Support\Facades\Cache::get('assistant_openai_last_ok'),
+            'openai_last_fail' => \Illuminate\Support\Facades\Cache::get('assistant_openai_last_fail'),
+            'openai_avg_latency_ms' => (function () {
+                $samples = \Illuminate\Support\Facades\Cache::get('assistant_openai_latency_samples', []);
+                if (! is_array($samples) || $samples === []) {
+                    return 0;
+                }
+
+                return (int) round(array_sum($samples) / count($samples));
+            })(),
             'assistant_last_ok' => \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')
                 ? \App\Assistant\AssistantActivity::where('status', \App\Assistant\AssistantActivity::COMPLETED)->orderByDesc('id')->first()
                 : null,

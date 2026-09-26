@@ -35,7 +35,7 @@
                 <input type="number" min="1" max="10080" name="sla_critical_minutes" class="form-control mb-3" style="max-width:240px" value="{{ $sla['sla_critical_minutes'] }}">
                 <hr>
                 <h5>Beyond Assistant</h5>
-                <p class="small text-muted">Environment switch: {{ !empty($assistantEnv) ? 'Allowed' : 'Blocked (WHATSAPP_ASSISTANT_ENABLED)' }}. Provider key: {{ !empty($assistantConfigured) ? 'Configured' : 'Missing' }}. Secrets are never shown here.</p>
+                <p class="small text-muted">Environment: {{ !empty($assistantEnv) ? 'Allowed' : 'Blocked' }}. OpenAI: {{ !empty($assistantConfigured) ? 'Configured' : 'Not Configured' }}. Secrets are never shown here.</p>
                 <label class="d-block mb-3">
                     <input type="hidden" name="assistant_enabled" value="0">
                     <input type="checkbox" name="assistant_enabled" value="1" {{ !empty($assistantEnabled) ? 'checked' : '' }}>

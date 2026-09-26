@@ -7,171 +7,366 @@ use App\Assistant\AssistantMemory;
 use App\Contracts\Ai\AiProviderInterface;
 use App\WhatsApp\WhatsAppConversation;
 use App\WhatsApp\WhatsAppMessage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Primary OpenAI conversational engine for Beyond Assistant (WhatsApp + Website).
+ */
 class ConversationalTurnService
 {
     protected $provider;
     protected $tools;
     protected $registry;
+    protected $selector;
+    protected $prompts;
 
-    public function __construct(AiProviderInterface $provider, AssistantToolExecutor $tools, AssistantToolRegistry $registry)
-    {
+    public function __construct(
+        AiProviderInterface $provider,
+        AssistantToolExecutor $tools,
+        AssistantToolRegistry $registry,
+        AssistantToolSelector $selector,
+        BeyondAssistantSystemPromptBuilder $prompts
+    ) {
         $this->provider = $provider;
         $this->tools = $tools;
         $this->registry = $registry;
+        $this->selector = $selector;
+        $this->prompts = $prompts;
     }
 
     public function turn(WhatsAppConversation $conversation, array $context, AssistantMemory $memory, array $slots, $incoming)
     {
         if (! $this->provider->isConfigured()) {
-            return $this->fallback('ai_provider_unavailable');
-        }
-        $first = $this->provider->complete($this->messages($conversation, $context, $memory, $incoming), ['json' => true]);
-        if (empty($first['ok'])) {
-            return $this->fallback('ai_provider_failed');
-        }
-        $json = $this->decode($first);
-        if ($json === null || (empty($json['reply']) && empty($json['tool']))) {
-            return ['handled' => false];
-        }
-        $facts = $this->facts($json);
-        if (! empty($json['summary'])) {
-            $facts['summary'] = mb_substr((string) $json['summary'], 0, 400);
-        }
-        if (! empty($json['call_request']) || ! empty($json['handover'])) {
-            return [
-                'handled' => true,
-                'reply' => $this->safeReply(isset($json['reply']) ? $json['reply'] : '', ! empty($json['call_request'])),
-                'handover' => true,
-                'call_request' => ! empty($json['call_request']),
-                'reason' => ! empty($json['call_request']) ? 'call_request' : 'customer_request',
-                'memory' => $facts,
-                'tool' => null,
-                'tool_result' => null,
-            ];
-        }
-        $tool = isset($json['tool']) ? (string) $json['tool'] : '';
-        if ($tool !== '' && ! $this->toolAllowed($tool)) {
-            return [
-                'handled' => true,
-                'reply' => 'I can talk that through, but that action needs a person on our team.',
-                'handover' => true,
-                'call_request' => false,
-                'reason' => 'privileged',
-                'memory' => $facts,
-                'tool' => $tool,
-                'tool_result' => ['success' => false, 'error' => 'privileged'],
-            ];
-        }
-        $toolResult = null;
-        $reply = isset($json['reply']) ? trim((string) $json['reply']) : '';
-        if ($tool !== '') {
-            $params = isset($json['tool_params']) && is_array($json['tool_params']) ? $json['tool_params'] : [];
-            unset($params['customer_id'], $params['user_id'], $params['otp_code']);
-            $params = array_merge($slots, $params);
-            $toolResult = $this->tools->execute($tool, $params, $context);
-            $second = $this->provider->complete($this->phraseMessages($incoming, $tool, $toolResult), ['json' => true]);
-            if (empty($second['ok'])) {
-                return $this->fallback('ai_provider_failed');
-            }
-            $phrased = $this->decode($second);
-            $reply = $phrased && ! empty($phrased['reply']) ? trim((string) $phrased['reply']) : $this->phraseTool($toolResult);
-            if ($reply === '') {
-                $reply = $this->phraseTool($toolResult);
-            }
-        }
-        if ($reply === '') {
-            return ['handled' => false];
+            return $this->providerFailure('ai_provider_unavailable');
         }
 
+        $roles = isset($context['roles']) ? $context['roles'] : [];
+        $memParams = $memory->parameters();
+        $openAiTools = $this->selector->openAiTools($roles, $memParams);
+        $messages = $this->buildMessages($conversation, $context, $memory, $incoming);
+        $maxIter = (int) config('assistant.max_tool_iterations', 4);
+        $toolsRun = [];
+        $lastToolResult = null;
+        $facts = [];
+
+        for ($i = 0; $i < $maxIter; $i++) {
+            $result = $this->provider->complete($messages, [
+                'tools' => $openAiTools,
+                'tool_choice' => 'auto',
+                'json' => false,
+            ]);
+            $this->recordUsage($result);
+
+            if (empty($result['ok'])) {
+                return $this->providerFailure(isset($result['error']) ? $result['error'] : 'ai_provider_failed');
+            }
+
+            // Native tool_calls path
+            if (! empty($result['tool_calls']) && is_array($result['tool_calls'])) {
+                $messages[] = [
+                    'role' => 'assistant',
+                    'content' => isset($result['content']) ? $result['content'] : null,
+                    'tool_calls' => $this->rawToolCallsForReplay($result['tool_calls']),
+                ];
+                foreach ($result['tool_calls'] as $call) {
+                    $name = isset($call['name']) ? (string) $call['name'] : '';
+                    $args = isset($call['arguments']) && is_array($call['arguments']) ? $call['arguments'] : [];
+                    $exec = $this->runTool($name, $args, $slots, $context);
+                    $toolsRun[] = $name;
+                    $lastToolResult = $exec['result'];
+                    $facts = array_merge($facts, $exec['facts']);
+                    if (! empty($exec['handover'])) {
+                        return [
+                            'handled' => true,
+                            'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
+                            'handover' => true,
+                            'call_request' => false,
+                            'reason' => $exec['reason'],
+                            'memory' => $facts,
+                            'tool' => $name,
+                            'tool_result' => $lastToolResult,
+                            'tools_run' => $toolsRun,
+                            'path' => 'TOOL_ASSISTED',
+                        ];
+                    }
+                    $messages[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => isset($call['id']) ? $call['id'] : ('call_'.$name),
+                        'content' => json_encode($this->publicResult($lastToolResult)),
+                    ];
+                }
+                continue;
+            }
+
+            // Legacy / NullAi JSON content path (tests + providers without tool_calls)
+            $json = isset($result['json']) ? $result['json'] : $this->decodeContent($result['content']);
+            if (is_array($json) && (! empty($json['tool']) || ! empty($json['reply']) || ! empty($json['handover']))) {
+                $facts = array_merge($facts, $this->facts($json));
+                if (! empty($json['handover']) || ! empty($json['call_request'])) {
+                    return [
+                        'handled' => true,
+                        'reply' => $this->safeReply(isset($json['reply']) ? $json['reply'] : '', ! empty($json['call_request'])),
+                        'handover' => true,
+                        'call_request' => ! empty($json['call_request']),
+                        'reason' => ! empty($json['call_request']) ? 'call_request' : (isset($json['reason_category']) ? $json['reason_category'] : 'USER_REQUESTED_HUMAN'),
+                        'memory' => $facts,
+                        'tool' => null,
+                        'tool_result' => null,
+                        'tools_run' => $toolsRun,
+                        'path' => 'HANDOVER',
+                    ];
+                }
+                $tool = isset($json['tool']) ? (string) $json['tool'] : '';
+                if ($tool !== '') {
+                    $params = isset($json['tool_params']) && is_array($json['tool_params']) ? $json['tool_params'] : [];
+                    $exec = $this->runTool($tool, $params, $slots, $context);
+                    $toolsRun[] = $tool;
+                    $lastToolResult = $exec['result'];
+                    $facts = array_merge($facts, $exec['facts']);
+                    if (! empty($exec['handover'])) {
+                        return [
+                            'handled' => true,
+                            'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
+                            'handover' => true,
+                            'call_request' => false,
+                            'reason' => $exec['reason'],
+                            'memory' => $facts,
+                            'tool' => $tool,
+                            'tool_result' => $lastToolResult,
+                            'tools_run' => $toolsRun,
+                            'path' => 'HANDOVER',
+                        ];
+                    }
+                    $messages[] = ['role' => 'assistant', 'content' => json_encode($json)];
+                    $messages[] = ['role' => 'user', 'content' => 'Tool result for '.$tool.': '.json_encode($this->publicResult($lastToolResult)).'. Reply to the customer naturally as JSON {"reply":""}.'];
+                    $phrase = $this->provider->complete($messages, ['json' => true]);
+                    $this->recordUsage($phrase);
+                    $phrased = isset($phrase['json']) ? $phrase['json'] : $this->decodeContent(isset($phrase['content']) ? $phrase['content'] : null);
+                    $reply = $phrased && ! empty($phrased['reply']) ? trim((string) $phrased['reply']) : $this->phraseTool($lastToolResult);
+                    if ($reply === '') {
+                        $reply = $this->phraseTool($lastToolResult);
+                    }
+
+                    return [
+                        'handled' => true,
+                        'reply' => $reply,
+                        'handover' => false,
+                        'call_request' => false,
+                        'reason' => null,
+                        'memory' => $facts,
+                        'tool' => $tool,
+                        'tool_result' => $lastToolResult,
+                        'tools_run' => $toolsRun,
+                        'clarify' => ! empty($json['clarify']),
+                        'path' => 'TOOL_ASSISTED',
+                    ];
+                }
+                $reply = isset($json['reply']) ? trim((string) $json['reply']) : '';
+                if ($reply !== '') {
+                    return [
+                        'handled' => true,
+                        'reply' => $reply,
+                        'handover' => false,
+                        'call_request' => false,
+                        'reason' => null,
+                        'memory' => $facts,
+                        'tool' => null,
+                        'tool_result' => $lastToolResult,
+                        'tools_run' => $toolsRun,
+                        'clarify' => ! empty($json['clarify']),
+                        'path' => ! empty($json['clarify']) ? 'CLARIFIED' : 'DIRECT_AI',
+                    ];
+                }
+            }
+
+            $plain = isset($result['content']) ? trim((string) $result['content']) : '';
+            if ($plain !== '' && $plain !== '{}') {
+                return [
+                    'handled' => true,
+                    'reply' => $plain,
+                    'handover' => false,
+                    'call_request' => false,
+                    'reason' => null,
+                    'memory' => $facts,
+                    'tool' => null,
+                    'tool_result' => $lastToolResult,
+                    'tools_run' => $toolsRun,
+                    'path' => 'DIRECT_AI',
+                ];
+            }
+
+            break;
+        }
+
+        // Soft clarify — NOT a human handover
         return [
             'handled' => true,
-            'reply' => $reply,
+            'reply' => 'Could you tell me a bit more about what you need — equipment rental, training/internship, or something else?',
             'handover' => false,
             'call_request' => false,
             'reason' => null,
             'memory' => $facts,
-            'tool' => $tool !== '' ? $tool : null,
-            'tool_result' => $toolResult,
-            'clarify' => ! empty($json['clarify']),
+            'tool' => null,
+            'tool_result' => $lastToolResult,
+            'tools_run' => $toolsRun,
+            'clarify' => true,
+            'path' => 'CLARIFIED',
         ];
     }
 
-    protected function fallback($reason)
+    protected function buildMessages(WhatsAppConversation $conversation, array $context, AssistantMemory $memory, $incoming)
+    {
+        $system = $this->prompts->build($context, $memory->parameters());
+        $knowledge = $this->knowledgeText();
+        if ($knowledge !== '') {
+            $system .= "\nApproved company knowledge excerpts:\n".$knowledge;
+        }
+        $messages = [['role' => 'system', 'content' => $system]];
+        foreach ($this->history($conversation) as $row) {
+            $messages[] = $row;
+        }
+        $messages[] = [
+            'role' => 'user',
+            'content' => json_encode([
+                'memory' => $memory->parameters(),
+                'incoming' => $incoming,
+                'known_name' => isset($context['contact_name']) ? $context['contact_name'] : null,
+                'channel' => method_exists($conversation, 'isWebsite') && $conversation->isWebsite() ? 'website' : 'whatsapp',
+            ]),
+        ];
+
+        return $messages;
+    }
+
+    protected function runTool($name, array $args, array $slots, array $context)
+    {
+        $name = trim((string) $name);
+        $facts = [];
+        if ($name === '' || ! $this->registry->get($name)) {
+            return [
+                'result' => ['success' => false, 'error' => 'unknown_tool'],
+                'facts' => $facts,
+                'handover' => false,
+                'reply' => '',
+                'reason' => null,
+            ];
+        }
+        unset($args['customer_id'], $args['user_id'], $args['otp_code']);
+        $params = array_merge($slots, $args);
+        $result = $this->tools->execute($name, $params, $context);
+        if ($name === 'request_human_handover' && ! empty($result['handed_over'])) {
+            return [
+                'result' => $result,
+                'facts' => ['handover_state' => 'HUMAN', 'handover_reason' => isset($result['reason_category']) ? $result['reason_category'] : 'USER_REQUESTED_HUMAN'],
+                'handover' => true,
+                'reply' => 'I am connecting you with a team member who can help further.',
+                'reason' => isset($result['reason_category']) ? $result['reason_category'] : 'USER_REQUESTED_HUMAN',
+            ];
+        }
+
+        return [
+            'result' => $result,
+            'facts' => $facts,
+            'handover' => false,
+            'reply' => '',
+            'reason' => null,
+        ];
+    }
+
+    protected function providerFailure($reason)
     {
         return [
             'handled' => true,
-            'reply' => "Thanks for your message. I've passed this to our team and someone will assist you.",
+            'reply' => "I am having trouble reaching my AI service right now. I've passed this to our team and someone will assist you. Your message was saved.",
             'handover' => true,
             'call_request' => false,
-            'reason' => $reason,
+            'reason' => 'TOOL_FAILURE',
             'memory' => [],
             'tool' => null,
             'tool_result' => null,
+            'tools_run' => [],
+            'path' => 'HANDOVER',
+            'provider_error' => $reason,
         ];
     }
 
-    protected function messages(WhatsAppConversation $conversation, array $context, AssistantMemory $memory, $incoming)
+    protected function rawToolCallsForReplay(array $calls)
     {
-        $tools = implode(', ', $this->allowedNames());
-        $knowledge = $this->knowledgeText();
-        $history = $this->history($conversation);
-        $system = 'You are '.config('assistant.display_name').', the BeyondTechWorld WhatsApp assistant. '
-            .'Speak naturally. Do not invent prices, stock, availability, balances, or documents. '
-            .'For equipment, prices, or availability set tool to one of: '.$tools.'. '
-            .'Return JSON only: {"reply":"","tool":"","tool_params":{},"summary":"","name":"","organization":"","event":"","clarify":false,"handover":false,"call_request":false}. '
-            .'Use handover only for a complaint, a discount, or an explicit request for a person. Use call_request only when they ask to be called. '
-            .'Never include reasoning. Recommendations may name only products a tool returns.';
-
-        return [
-            ['role' => 'system', 'content' => $system],
-            ['role' => 'user', 'content' => json_encode([
-                'knowledge' => $knowledge,
-                'memory' => $memory->parameters(),
-                'history' => $history,
-                'incoming' => $incoming,
-                'known_name' => isset($context['contact_name']) ? $context['contact_name'] : null,
-            ])],
-        ];
-    }
-
-    protected function phraseMessages($incoming, $tool, $toolResult)
-    {
-        $safe = $this->publicResult($toolResult);
-
-        return [
-            ['role' => 'system', 'content' => 'Phrase this ERP tool result in plain WhatsApp language. Do not add prices or products that are not in the result. Return JSON {"reply":""}.'],
-            ['role' => 'user', 'content' => json_encode([
-                'incoming' => $incoming,
-                'tool' => $tool,
-                'result' => $safe,
-            ])],
-        ];
-    }
-
-    protected function allowedNames()
-    {
-        return [
-            'get_company_information',
-            'get_services',
-            'search_rental_products',
-            'check_rental_availability',
-            'get_rental_product_information',
-            'get_customer_quotations',
-            'get_customer_quotation_details',
-            'get_quotation_status',
-        ];
-    }
-
-    protected function toolAllowed($name)
-    {
-        if (! in_array($name, $this->allowedNames(), true)) {
-            return false;
+        $out = [];
+        foreach ($calls as $call) {
+            $out[] = [
+                'id' => isset($call['id']) ? $call['id'] : uniqid('call_', true),
+                'type' => 'function',
+                'function' => [
+                    'name' => isset($call['name']) ? $call['name'] : '',
+                    'arguments' => json_encode(isset($call['arguments']) ? $call['arguments'] : []),
+                ],
+            ];
         }
-        $meta = $this->registry->get($name);
 
-        return $meta && empty($meta['write']);
+        return $out;
+    }
+
+    protected function decodeContent($content)
+    {
+        if (! is_string($content) || trim($content) === '') {
+            return null;
+        }
+        $decoded = json_decode($content, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    protected function facts(array $json)
+    {
+        $out = [];
+        foreach (['name', 'organization', 'summary', 'event', 'conversation_goal', 'event_type', 'event_date', 'location', 'guest_count', 'equipment'] as $key) {
+            if (! empty($json[$key])) {
+                $map = $key === 'event' ? 'event_type' : $key;
+                $out[$map] = is_scalar($json[$key]) ? $json[$key] : json_encode($json[$key]);
+            }
+        }
+
+        return $out;
+    }
+
+    protected function safeReply($reply, $callRequest)
+    {
+        $reply = trim((string) $reply);
+        if ($reply !== '') {
+            return $reply;
+        }
+
+        return $callRequest
+            ? 'I will open a call request for our team.'
+            : 'I am connecting you with a team member now.';
+    }
+
+    protected function publicResult($toolResult)
+    {
+        if (! is_array($toolResult)) {
+            return ['success' => false];
+        }
+        $copy = $toolResult;
+        unset($copy['otp_code'], $copy['sql'], $copy['raw']);
+
+        return $copy;
+    }
+
+    protected function phraseTool($toolResult)
+    {
+        if (! is_array($toolResult)) {
+            return 'I could not retrieve that information right now.';
+        }
+        if (! empty($toolResult['message'])) {
+            return (string) $toolResult['message'];
+        }
+        if (! empty($toolResult['success'])) {
+            return 'I found the details in our system. How would you like to proceed?';
+        }
+
+        return 'I could not complete that lookup. Could you rephrase what you need?';
     }
 
     protected function knowledgeText()
@@ -196,86 +391,32 @@ class ConversationalTurnService
             ->reverse();
         $out = [];
         foreach ($rows as $row) {
-            $out[] = [
-                'direction' => $row->direction,
-                'body' => mb_substr((string) $row->body, 0, 240),
-            ];
-        }
-
-        return $out;
-    }
-
-    protected function decode(array $result)
-    {
-        if (isset($result['json']) && is_array($result['json']) && $result['json'] !== []) {
-            return $result['json'];
-        }
-        $content = isset($result['content']) ? trim((string) $result['content']) : '';
-        if ($content === '' || $content === '{}') {
-            return null;
-        }
-        $decoded = json_decode($content, true);
-
-        return is_array($decoded) ? $decoded : null;
-    }
-
-    protected function facts(array $json)
-    {
-        $out = [];
-        foreach (['name', 'organization', 'event', 'dates', 'place', 'attendance', 'equipment', 'delivery', 'technician', 'quotation_id'] as $key) {
-            if (! empty($json[$key]) && ! is_array($json[$key])) {
-                $out[$key === 'name' ? 'captured_name' : $key] = mb_substr((string) $json[$key], 0, 120);
+            if (! $row->body) {
+                continue;
             }
+            $role = $row->direction === WhatsAppMessage::DIR_IN ? 'user' : 'assistant';
+            $out[] = ['role' => $role, 'content' => (string) $row->body];
         }
 
         return $out;
     }
 
-    protected function safeReply($reply, $call)
+    protected function recordUsage(array $result)
     {
-        $reply = trim((string) $reply);
-        if ($call) {
-            return "I've asked our team to call you. They have not called yet.";
+        $key = 'assistant_openai_last_'.(! empty($result['ok']) ? 'ok' : 'fail');
+        Cache::put($key, [
+            'at' => now()->toDateTimeString(),
+            'model' => isset($result['model']) ? $result['model'] : null,
+            'latency_ms' => isset($result['latency_ms']) ? $result['latency_ms'] : null,
+            'error' => isset($result['error']) ? mb_substr((string) $result['error'], 0, 200) : null,
+            'input_tokens' => isset($result['input_tokens']) ? $result['input_tokens'] : null,
+            'output_tokens' => isset($result['output_tokens']) ? $result['output_tokens'] : null,
+        ], now()->addDays(7));
+        if (! empty($result['ok']) && isset($result['latency_ms'])) {
+            $samples = Cache::get('assistant_openai_latency_samples', []);
+            $samples[] = (int) $result['latency_ms'];
+            $samples = array_slice($samples, -20);
+            Cache::put('assistant_openai_latency_samples', $samples, now()->addDays(7));
         }
-        if ($reply === '') {
-            return 'A BeyondTechWorld team member will continue this conversation with you shortly.';
-        }
-
-        return $reply;
-    }
-
-    protected function publicResult($toolResult)
-    {
-        if (! is_array($toolResult)) {
-            return [];
-        }
-        unset($toolResult['otp_code'], $toolResult['otp_ttl'], $toolResult['document_path']);
-
-        return $toolResult;
-    }
-
-    protected function phraseTool($toolResult)
-    {
-        if (! is_array($toolResult) || empty($toolResult['success'])) {
-            return 'I could not confirm that from our records. A team member can check it.';
-        }
-        if (! empty($toolResult['message'])) {
-            return (string) $toolResult['message'];
-        }
-        $products = isset($toolResult['products']) ? $toolResult['products'] : [];
-        if (isset($toolResult['name'])) {
-            $products = [$toolResult];
-        }
-        if ($products === []) {
-            return 'I checked our records. Tell me a bit more about what you need.';
-        }
-        $lines = [];
-        foreach (array_slice($products, 0, 5) as $product) {
-            $name = isset($product['name']) ? $product['name'] : 'Item';
-            $price = isset($product['listed_day_rate']) ? $product['listed_day_rate'] : (isset($product['unit_price']) ? $product['unit_price'] : null);
-            $lines[] = $price !== null ? $name.' at '.$price : $name;
-        }
-
-        return 'From the catalogue: '.implode('; ', $lines).'. This is not a confirmed booking.';
     }
 }

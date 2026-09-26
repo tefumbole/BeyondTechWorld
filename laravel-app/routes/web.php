@@ -510,6 +510,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/calls/{id}', 'WhatsApp\WhatsAppHubController@updateCall')->name('whatsapp.calls.update');
     Route::post('/admin/whatsapp/calls/{id}/follow-up', 'WhatsApp\WhatsAppHubController@followUpCall')->name('whatsapp.calls.followup');
     Route::get('/admin/whatsapp/diagnostics', 'WhatsApp\WhatsAppHubController@diagnostics')->name('whatsapp.diagnostics');
+    Route::post('/admin/whatsapp/diagnostics/test-openai', 'WhatsApp\WhatsAppHubController@testOpenAi')->name('whatsapp.diagnostics.test_openai');
     Route::get('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@settings')->name('whatsapp.settings');
     Route::get('/admin/whatsapp/appointments', 'WhatsApp\WhatsAppHubController@appointments')->name('whatsapp.appointments');
     Route::post('/admin/whatsapp/appointments/availability', 'WhatsApp\WhatsAppHubController@storeAvailability')->name('whatsapp.appointments.availability');

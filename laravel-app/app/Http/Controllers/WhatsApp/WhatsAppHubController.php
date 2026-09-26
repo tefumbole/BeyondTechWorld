@@ -260,6 +260,39 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.diagnostics', compact('session', 'diag'));
     }
 
+    public function testOpenAi()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai.manage', 'whatsapp.settings', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $provider = app(\App\Contracts\Ai\AiProviderInterface::class);
+        if (! $provider->isConfigured() && $provider->name() !== 'null') {
+            return redirect()->route('whatsapp.diagnostics')
+                ->with('openai_test_ok', false)
+                ->with('openai_test', 'OpenAI: Not Configured');
+        }
+        $result = $provider->complete([
+            ['role' => 'system', 'content' => 'You are Mbole AI. Reply with a short friendly greeting only. Return JSON {"reply":"..."}.'],
+            ['role' => 'user', 'content' => 'Say hello in one short sentence for a diagnostics test. Do not use tools.'],
+        ], ['json' => true, 'max_tokens' => 80]);
+
+        if (empty($result['ok'])) {
+            return redirect()->route('whatsapp.diagnostics')
+                ->with('openai_test_ok', false)
+                ->with('openai_test', 'OpenAI test failed: '.(isset($result['error']) ? $result['error'] : 'unknown'));
+        }
+        $reply = '';
+        if (! empty($result['json']['reply'])) {
+            $reply = (string) $result['json']['reply'];
+        } elseif (! empty($result['content'])) {
+            $reply = mb_substr((string) $result['content'], 0, 200);
+        }
+
+        return redirect()->route('whatsapp.diagnostics')
+            ->with('openai_test_ok', true)
+            ->with('openai_test', 'OpenAI OK ('.(isset($result['model']) ? $result['model'] : 'model').'): '.($reply !== '' ? $reply : 'response received'));
+    }
+
     public function settings()
     {
         if ($deny = $this->denyUnless(['whatsapp.settings', 'whatsapp.manage'])) {

@@ -49,7 +49,7 @@ class AssistantIntentRouter
         if (preg_match('/\b(call me|please call me|can someone call|give me a call)\b/i', $t)) {
             return $this->make(IntentCatalog::CALL_REQUEST, 0.99, false, false);
         }
-        if (preg_match('/\b(talk to (someone|a person|staff|human|the manager)|speak (to|with) (someone|staff|a person|human)|real person|this bot|not helping|human please|i need a human|i want a (person|human)|connect me|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade|i need help)\b/i', $t)) {
+        if (preg_match('/\b(talk to (someone|a person|staff|human|the manager)|speak (to|with) (someone|staff|a person|human)|real person|human please|i need a human|i want a (person|human)|connect me to (a )?(person|human|agent|staff)|my supervisor|speak with my supervisor|don\'t understand this assignment|do not understand this assignment|upload is failing|disagree with my grade)\b/i', $t)) {
             return $this->make(IntentCatalog::HUMAN_REQUEST, 0.99, false, false);
         }
         $locationFollowUp = ($t === '' && isset($memoryParams['latitude']))

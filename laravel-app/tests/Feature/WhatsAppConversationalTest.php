@@ -41,7 +41,7 @@ class WhatsAppConversationalTest extends WhatsAppHubTestCase
     {
         $this->postWebhook($this->incoming('237650100001', 'Hi', 'C1'))->assertStatus(200);
         $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->first();
-        $this->assertStringContainsString('May I know your name?', $out->body);
+        $this->assertStringContainsString('How are you doing?', $out->body);
         $this->assertStringNotContainsString('1.', $out->body);
         $this->assertStringNotContainsString('select an intent', strtolower($out->body));
     }

@@ -48,9 +48,8 @@ class AssistantPolicyService
         }
         $confidence = isset($intent['confidence']) ? (float) $intent['confidence'] : 0.0;
         $meta = IntentCatalog::meta($name);
-        $high = (float) config('assistant.confidence_high');
-        $low = (float) config('assistant.confidence_low');
 
+        // Explicit human / complaint / call — handover
         if (in_array($name, [IntentCatalog::HUMAN_REQUEST, IntentCatalog::COMPLAINT, IntentCatalog::CALL_REQUEST], true)) {
             $reason = $name === IntentCatalog::CALL_REQUEST ? 'call_request' : 'customer_request';
 
@@ -65,12 +64,12 @@ class AssistantPolicyService
         if ($meta['sensitivity'] === 'PRIVILEGED') {
             return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, 'privileged');
         }
-        if ($confidence < $low && $name !== IntentCatalog::GREETING) {
-            return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, 'low_confidence');
+
+        // UNKNOWN / low confidence must NOT mean HUMAN — OpenAI conversational path handles these.
+        if ($name === IntentCatalog::UNKNOWN) {
+            return $this->result($name, max($confidence, 0.5), IntentCatalog::ACTION_ANSWER, $meta, 'openai_conversation');
         }
-        if ($confidence < $high && ! in_array($name, [IntentCatalog::GREETING, IntentCatalog::COMPANY_INFORMATION, IntentCatalog::SERVICE_ENQUIRY], true)) {
-            return $this->result($name, $confidence, IntentCatalog::ACTION_CLARIFY, $meta, 'medium_confidence');
-        }
+
         if ($meta['sensitivity'] === 'RECOGNIZED' && ! $this->hasRole($roles, $this->rolesFor($name))) {
             return $this->result($name, $confidence, IntentCatalog::ACTION_HANDOVER, $meta, 'identity_required');
         }

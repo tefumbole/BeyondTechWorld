@@ -571,3 +571,11 @@ Provider abstraction, webhook, identity, conversations, tracking, calls, diagnos
 - Website leads use `SOURCE_WEBSITE`; rental drafts accept `quotation_source=website` and require a real phone before customer/quote creation.
 - Public Mbole AI widget is now a real multi-turn Beyond Assistant client (`/api/website-chat/*`).
 - Details: `WEBSITE_BEYOND_ASSISTANT_IMPLEMENTATION.md`. Do not treat this as rewriting prior stage PASS/FAIL rows.
+
+## OpenAI conversational engine rebuild
+
+- Root cause: UNKNOWN/low_confidence and ConversationalTurn provider-failure mapped to HUMAN (see BEYOND_ASSISTANT_OPENAI_ARCHITECTURE_AUDIT.md).
+- Routing inverted: deterministic ops + greeting/human first; OpenAI is primary conversational engine for everything else (shared WhatsApp + Website).
+- Policy no longer auto-handovers UNKNOWN; handover tool uses reason_category enum.
+- OPENAI_* env + Chat Completions tool_calls via curl OpenAiProvider; diagnostics Test OpenAI.
+- Details: BEYOND_ASSISTANT_OPENAI_IMPLEMENTATION.md. Historical stage PASS/FAIL rows unchanged.
