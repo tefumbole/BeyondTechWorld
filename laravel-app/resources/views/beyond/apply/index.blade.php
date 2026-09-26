@@ -17,22 +17,13 @@
         ];
 @endphp
 <div class="min-h-screen bg-gray-50 pb-20">
-    <div class="bg-gradient-to-r from-brand-blue via-[#004e9a] to-brand-dark text-white py-6 sm:py-8 px-4 relative overflow-hidden">
-        <div class="max-w-7xl mx-auto text-center relative z-10">
-            <h1 class="text-3xl md:text-4xl font-extrabold mb-2 tracking-tight">Apply Now</h1>
-            <p class="text-base md:text-lg text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
-                Browse real jobs and internship adverts — then apply online in minutes.
-            </p>
-        </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
 
         @if (session('warning'))
             <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-6">{{ session('warning') }}</div>
         @endif
 
-        <form method="GET" action="{{ route('apply.index') }}" class="bg-white rounded-xl shadow-xl p-6 mb-10 border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <form method="GET" action="{{ route('apply.index') }}" class="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-8 border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div class="relative w-full max-w-2xl">
                 <i data-lucide="search" class="absolute left-4 top-3.5 h-5 w-5 text-gray-400"></i>
                 <input name="q" value="{{ $search }}" placeholder="Search by job title, department, or location..."
