@@ -122,7 +122,9 @@ class TimesheetEmployeeController extends Controller
         $internPrompt = (bool) $request->get('intern') || \App\Support\InternCompliance::appliesTo($user);
         $assignment = $this->ownAssignment($request->get('assignment'), $user->id);
         if (\App\Support\InternCompliance::appliesTo($user)) {
-            if ($assignment && $assignment->scheduled_work_date) {
+            // Prefer an explicit ?date= from the dashboard "Log hours" link.
+            // Only fall back to the task's scheduled day when no date was given.
+            if (! $request->filled('date') && $assignment && $assignment->scheduled_work_date) {
                 try {
                     $prefillDate = \Carbon\Carbon::parse($assignment->scheduled_work_date)->toDateString();
                 } catch (\Throwable $e) {

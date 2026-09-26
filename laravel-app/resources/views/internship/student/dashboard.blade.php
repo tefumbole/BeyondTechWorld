@@ -102,7 +102,7 @@
                                 <div class="ip-progress-label">Checklist {{ $dayProgress['done'] }}/{{ $dayProgress['total'] }} ({{ $dayProgress['percent'] }}%)</div>
                             </div>
                             <p class="mb-0 mt-2">
-                                <a href="{{ route('timesheet.fill', ['date' => \Carbon\Carbon::parse($assignment->scheduled_work_date)->toDateString(), 'intern' => 1, 'assignment' => $assignment->id]) }}">
+                                <a href="{{ route('timesheet.fill', ['date' => \App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d'), 'intern' => 1, 'assignment' => $assignment->id]) }}">
                                     Log hours for this task
                                 </a>
                             </p>

@@ -156,7 +156,7 @@
                             @else Submit evidence
                             @endif
                         </a>
-                        <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => optional($assignment->scheduled_work_date)->toDateString() ?: (\App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d')), 'intern' => 1, 'assignment' => $assignment->id]) }}">
+                        <a class="ip-btn ip-btn-outline" href="{{ route('timesheet.fill', ['date' => \App\Support\InternCompliance::timesheetFillDate(Auth::user()) ?: date('Y-m-d'), 'intern' => 1, 'assignment' => $assignment->id]) }}">
                             <i class="dripicons-clock"></i> Log hours for this task
                         </a>
                     @elseif(!empty($requestState['can_request']))
