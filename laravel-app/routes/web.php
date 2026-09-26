@@ -60,6 +60,7 @@ Route::get('/services', 'BeyondController@services')->name('beyond.services');
 Route::get('/projects', 'BeyondController@projects')->name('beyond.projects');
 Route::get('/gallery', 'BeyondController@gallery')->name('beyond.gallery');
 Route::get('/contact', 'BeyondController@contact')->name('beyond.contact');
+Route::post('/contact', 'PublicContactController@store')->middleware('throttle:12,1')->name('beyond.contact.store');
 Route::get('/events', 'PublicEventController@index')->name('beyond.events');
 Route::get('/events/{slug}', 'PublicEventController@show')->name('beyond.event.detail');
 Route::get('/api/public/events', 'PublicEventController@apiList');

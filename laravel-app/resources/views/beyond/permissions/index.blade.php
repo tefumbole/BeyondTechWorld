@@ -4,33 +4,16 @@
 @section('meta_description', 'Request time-off permission from Beyond Enterprise.')
 
 @php
-    $startStep = 'phone';
-    if ($verifyStep) {
-        $startStep = 'otp';
-    } elseif (old('full_name') || ($draft['full_name'] ?? null) || ($user && $user->phone)) {
-        $startStep = 'details';
-    }
+    // Always begin on WhatsApp number unless verifying OTP
+    $startStep = $verifyStep ? 'otp' : 'phone';
 @endphp
 
 @section('content')
 @include('beyond.apply.partials.apply_styles')
 <style>
-    .perm-kicker { letter-spacing: .16em; font-size: .65rem; font-weight: 800; text-transform: uppercase; color: #d4af37; }
+    .perm-kicker { letter-spacing: .14em; font-size: .55rem; font-weight: 800; text-transform: uppercase; color: #d4af37; }
     .perm-label { display: flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; color: #0b3f90; }
     .perm-hint { font-size: .72rem; color: #64748b; margin-top: .3rem; line-height: 1.35; }
-    .perm-step { display: flex; gap: .75rem; align-items: flex-start; padding: .75rem .65rem; border-radius: .9rem; margin: 0; border: 1px solid transparent; transition: background .15s, border-color .15s; }
-    .perm-step-n {
-        flex-shrink: 0; width: 1.85rem; height: 1.85rem; border-radius: 999px;
-        background: #eef2f7; color: #64748b; font-weight: 800; font-size: .75rem;
-        display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0;
-    }
-    .perm-step.is-now { background: #eef4ff; border-color: rgba(11,63,144,.18); }
-    .perm-step.is-now .perm-step-n { background: #0b3f90; color: #fff; border-color: #0b3f90; }
-    .perm-step.is-done { opacity: 1; }
-    .perm-step.is-done .perm-step-n { background: #d4af37; color: #002855; border-color: #d4af37; }
-    .perm-step.is-todo { opacity: .55; }
-    .perm-step-btn { width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; }
-    .perm-step-btn:disabled { cursor: default; }
     .perm-section {
         border: 1px solid #eef2f7; border-radius: 1rem; padding: 1rem 1rem 1.05rem;
         background: linear-gradient(180deg, #fbfcfe 0%, #fff 40%);
@@ -89,11 +72,10 @@
     .perm-actions .perm-go { flex: 1; margin-top: 0 !important; }
     .perm-sticky { display: none; }
     .perm-sticky.perm-sticky-hide { display: none !important; }
+    .perm-hero { padding-top: .45rem !important; padding-bottom: .5rem !important; }
+    .perm-hero h1 { font-size: 1.05rem !important; line-height: 1.2; margin: 0 !important; }
     @media (max-width: 640px) {
-        .perm-hero { padding-top: 1.15rem !important; padding-bottom: 1.35rem !important; }
-        .perm-hero h1 { font-size: 1.55rem !important; line-height: 1.15; }
-        .perm-hero p { font-size: .9rem !important; }
-        .perm-wrap { margin-top: -.65rem; padding-left: .75rem; padding-right: .75rem; }
+        .perm-wrap { margin-top: -.35rem; padding-left: .75rem; padding-right: .75rem; }
         .perm-form-card { padding: 1rem .9rem 1.15rem !important; border-radius: 1rem; }
         .perm-section { padding: .9rem .85rem .95rem; }
         .perm-inline-submit { display: none !important; }
@@ -120,6 +102,7 @@
             box-shadow: 0 12px 32px rgba(15,23,42,.14); padding-bottom: 0;
         }
         .perm-sheet-handle { display: none; }
+        .perm-hero h1 { font-size: 1.2rem !important; }
     }
 </style>
 
@@ -127,45 +110,13 @@
      x-data="permissionApply()"
      x-init="boot()">
     <div class="relative overflow-hidden bg-brand-blue text-white perm-hero">
-        <div class="absolute inset-0 opacity-30" style="background:linear-gradient(120deg,rgba(212,175,55,.38),transparent 48%),radial-gradient(circle at 85% 15%,rgba(255,255,255,.14),transparent 42%);"></div>
-        <div class="relative max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14">
-            <p class="perm-kicker m-0">Permission request</p>
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mt-2 mb-2">Apply for Permission</h1>
-            <p class="text-blue-100 text-base md:text-lg max-w-2xl m-0 leading-relaxed">
-                WhatsApp first. We find your name, you add job title, subject and reason, then verify with a code.
-            </p>
-            <div class="flex flex-wrap gap-2 mt-3">
-                <template x-for="s in stages" :key="s.id">
-                    <span class="text-[11px] font-bold rounded-full px-2.5 py-1 border"
-                          :class="stageStatus(s.id) === 'now' ? 'bg-brand-gold text-brand-dark border-brand-gold' : (stageStatus(s.id) === 'done' ? 'bg-white/15 border-brand-gold/50 text-white' : 'bg-white/10 border-white/15')">
-                        <span x-text="s.n + ' · ' + s.title"></span>
-                    </span>
-                </template>
-            </div>
+        <div class="relative max-w-2xl mx-auto px-4 text-center">
+            <h1 class="font-extrabold tracking-tight">Apply for Permission</h1>
         </div>
     </div>
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 -mt-8 relative z-10 perm-wrap">
-        <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-            <aside class="lg:col-span-4 apply-panel p-5 md:p-7 mb-2 lg:mb-0">
-                <h2 class="text-lg font-extrabold text-brand-blue m-0 mb-1">Your progress</h2>
-                <p class="text-sm text-slate-500 m-0 mb-3">Each stage lights up as you complete it.</p>
-                <div class="space-y-1.5">
-                    <template x-for="s in stages" :key="s.id">
-                        <button type="button" class="perm-step-btn" @click="goStage(s.id)" :disabled="stageStatus(s.id) === 'todo'">
-                            <div class="perm-step" :class="'is-' + stageStatus(s.id)">
-                                <span class="perm-step-n" x-text="stageStatus(s.id) === 'done' ? '✓' : s.n"></span>
-                                <div>
-                                    <p class="font-bold m-0" :class="stageStatus(s.id) === 'now' ? 'text-brand-blue' : 'text-slate-800'" x-text="s.title"></p>
-                                    <p class="text-sm m-0 mt-0.5" :class="stageStatus(s.id) === 'now' ? 'text-slate-600' : 'text-slate-500'" x-text="s.hint"></p>
-                                </div>
-                            </div>
-                        </button>
-                    </template>
-                </div>
-            </aside>
-
-            <div class="lg:col-span-8 apply-panel perm-form-card p-5 sm:p-7 md:p-8">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 -mt-3 relative z-10 perm-wrap">
+        <div class="apply-panel perm-form-card p-5 sm:p-7 md:p-8">
                 @if(session('success'))
                     <div class="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-2.5 text-sm font-medium">{{ session('success') }}</div>
                 @endif
@@ -402,7 +353,6 @@
                         <a href="{{ url('/forgot-password') }}" class="text-brand-blue font-bold hover:underline">Reset password</a>
                     </p>
                 </form>
-            </div>
         </div>
     </div>
 

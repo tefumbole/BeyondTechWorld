@@ -5,13 +5,13 @@
 
 @section('content')
 
-<section class="relative py-20 bg-brand-blue text-white overflow-hidden">
+<section class="relative py-5 sm:py-6 bg-brand-blue text-white overflow-hidden">
     <div class="absolute inset-0 opacity-10">
         <div class="absolute inset-0 bg-cover bg-center" style="background-image:url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');"></div>
     </div>
     <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h1 class="text-4xl md:text-6xl font-bold mb-6">{{ \App\Support\SiteContent::text('about.hero_title', 'Bridging Technology & Innovation') }}</h1>
-        <p class="text-xl md:text-2xl text-gray-200 max-w-3xl mx-auto font-light">
+        <h1 class="text-2xl sm:text-3xl font-bold mb-1">{{ \App\Support\SiteContent::text('about.hero_title', 'Bridging Technology & Innovation') }}</h1>
+        <p class="text-sm sm:text-base text-gray-200 max-w-3xl mx-auto font-light">
             {{ \App\Support\SiteContent::text('about.hero_subtitle', 'We are a premier IT consultancy and infrastructure firm dedicated to transforming businesses through cutting-edge technology solutions.') }}
         </p>
     </div>
@@ -52,7 +52,7 @@
 <section class="py-16 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
-            @foreach ([['15+','Years Experience'],['500+','Projects Completed'],['50+','Team Members'],['20+','Global Partners']] as [$value, $label])
+            @foreach ([['15+','Years Experience'],['100+','Projects Completed'],['50+','Team Members'],['10','Global Partners']] as [$value, $label])
                 <div class="text-center">
                     <div class="text-4xl font-bold text-brand-blue mb-2">{{ $value }}</div>
                     <div class="text-gray-600 font-medium">{{ $label }}</div>
@@ -123,13 +123,13 @@
     </div>
 </section>
 
-<section class="py-16 bg-gradient-to-r from-brand-blue to-brand-dark text-white text-center">
+<section class="py-8 sm:py-10 bg-gradient-to-r from-brand-blue to-brand-dark text-white text-center">
     <div class="max-w-4xl mx-auto px-4">
-        <h2 class="text-3xl font-bold mb-6">{{ \App\Support\SiteContent::text('about.cta_heading', 'Ready to work with us?') }}</h2>
-        <p class="text-xl mb-8 opacity-90">{{ \App\Support\SiteContent::text('about.cta_text', "Let's build something extraordinary together.") }}</p>
-        <a href="https://wa.me/237675321739" target="_blank" rel="noopener"
-           class="inline-flex items-center gap-2 bg-brand-gold text-brand-blue font-bold text-lg px-8 py-4 rounded-full hover:bg-white hover:scale-105 transition-all">
-            <i data-lucide="message-circle" class="w-5 h-5"></i> Chat on WhatsApp
+        <h2 class="text-2xl sm:text-3xl font-bold mb-2">{{ \App\Support\SiteContent::text('about.cta_heading', 'Ready to work with us?') }}</h2>
+        <p class="text-base sm:text-lg mb-5 opacity-90">{{ \App\Support\SiteContent::text('about.cta_text', "Let's build something extraordinary together.") }}</p>
+        <a href="#mbole-ai"
+           class="inline-flex items-center gap-2 bg-brand-gold text-brand-blue font-bold text-base px-7 py-3 rounded-full hover:bg-white hover:scale-105 transition-all">
+            <i data-lucide="bot" class="w-5 h-5"></i> Chat with Mbole AI
         </a>
     </div>
 </section>

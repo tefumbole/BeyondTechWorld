@@ -5,20 +5,22 @@
 
 @section('content')
 
-@include('beyond.partials.hero', [
-    'title' => \App\Support\SiteContent::html('gallery.hero_title', 'Our <span class="text-brand-gold">Gallery</span>'),
-    'subtitle' => \App\Support\SiteContent::text('gallery.hero_subtitle', 'Events, projects, and moments from Beyond Enterprise'),
-])
+<section class="bg-gradient-to-r from-brand-blue via-brand-light to-brand-blue py-2.5 sm:py-3">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+        <h1 class="text-base sm:text-lg md:text-xl font-bold text-white mb-0.5">{!! \App\Support\SiteContent::html('gallery.hero_title', 'Our <span class="text-brand-gold">Gallery</span>') !!}</h1>
+        <p class="text-xs text-blue-100/90 m-0">{{ \App\Support\SiteContent::text('gallery.hero_subtitle', 'Events, projects, and moments from Beyond Enterprise') }}</p>
+    </div>
+</section>
 
-<section class="py-16 bg-white">
+<section class="py-6 sm:py-8 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @if ($items->isEmpty())
-            <div class="text-center py-20 text-gray-500">
-                <i data-lucide="image" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
-                <p class="text-lg">Gallery items will appear here once added in Site Content.</p>
+            <div class="text-center py-12 text-gray-500">
+                <i data-lucide="image" class="w-12 h-12 mx-auto mb-3 text-gray-300"></i>
+                <p class="text-base">Gallery items will appear here once added in Site Content.</p>
             </div>
         @else
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($items as $item)
                     @include('beyond.partials.gallery_item', ['item' => $item])
                 @endforeach

@@ -6,18 +6,18 @@
 @section('content')
 
 <div class="min-h-screen bg-gray-50 flex flex-col">
-    <div class="relative h-[300px] w-full bg-brand-blue overflow-hidden">
+    <div class="relative w-full bg-brand-blue overflow-hidden py-5 sm:py-6">
         <div class="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-overlay" style="background-image:url('https://images.unsplash.com/photo-1693045181224-9fc2f954f054');"></div>
         <div class="absolute inset-0 bg-gradient-to-t from-brand-blue via-transparent to-transparent"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center text-white z-10">
-            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-2">Register Now</h1>
-            <p class="text-lg md:text-xl text-blue-100 max-w-2xl">
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center text-white z-10">
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Register Now</h1>
+            <p class="text-sm sm:text-base text-blue-100 max-w-2xl">
                 Join Beyond Enterprise and elevate your skills with our premium courses. Select your courses below to get started.
             </p>
         </div>
     </div>
 
-    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 z-20 pb-16 w-full" x-data="registerForm()">
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 z-20 pb-16 w-full" x-data="registerForm()">
         <div class="bg-white rounded-xl shadow-xl border p-6 md:p-8">
 
             @if ($errors->any())
