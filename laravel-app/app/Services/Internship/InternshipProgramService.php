@@ -1759,6 +1759,85 @@ class InternshipProgramService
     }
 
     /**
+     * Dashboard progress for an intern: completed tasks + remarks, overall score,
+     * and how many curriculum tasks remain.
+     *
+     * @return array{
+     *   planned:int,
+     *   completed:int,
+     *   remaining:int,
+     *   progress_percent:float,
+     *   scored_count:int,
+     *   overall_score:?float,
+     *   overall_percent:?float,
+     *   current:?InternshipTaskAssignment,
+     *   completed_tasks:array<int, array{assignment:InternshipTaskAssignment,score:?int,feedback:?string,grader:?string,graded_at:?\Carbon\Carbon,auto_accepted:bool}>
+     * }
+     */
+    public function studentProgressSummary(InternshipEnrolment $enrolment = null)
+    {
+        $empty = [
+            'planned' => 0,
+            'completed' => 0,
+            'remaining' => 0,
+            'progress_percent' => 0.0,
+            'scored_count' => 0,
+            'overall_score' => null,
+            'overall_percent' => null,
+            'current' => null,
+            'completed_tasks' => [],
+        ];
+        if (! $enrolment) {
+            return $empty;
+        }
+
+        $planned = max(1, (int) $enrolment->plannedDurationDays());
+        $completed = max(0, (int) $enrolment->completed_count);
+        $remaining = max(0, $planned - $completed);
+        $progressPercent = round(min(100, ($completed / $planned) * 100), 1);
+
+        $passed = InternshipTaskAssignment::with(['task', 'latestSubmission.grades.grader'])
+            ->where('enrolment_id', $enrolment->id)
+            ->where('status', 'passed')
+            ->orderBy('progression_day')
+            ->get();
+
+        $completedTasks = [];
+        $scoreSum = 0;
+        $scoredCount = 0;
+        foreach ($passed as $assignment) {
+            $grade = optional($assignment->latestSubmission)->grades->first();
+            $score = $grade ? (int) $grade->score : null;
+            if ($score !== null) {
+                $scoreSum += $score;
+                $scoredCount++;
+            }
+            $completedTasks[] = [
+                'assignment' => $assignment,
+                'score' => $score,
+                'feedback' => $grade ? trim((string) $grade->feedback) : null,
+                'grader' => $grade ? optional($grade->grader)->name : null,
+                'graded_at' => $grade ? $grade->graded_at : null,
+                'auto_accepted' => $grade ? (bool) $grade->auto_accepted : false,
+            ];
+        }
+
+        $overall = $scoredCount > 0 ? round($scoreSum / $scoredCount, 1) : null;
+
+        return [
+            'planned' => $planned,
+            'completed' => $completed,
+            'remaining' => $remaining,
+            'progress_percent' => $progressPercent,
+            'scored_count' => $scoredCount,
+            'overall_score' => $overall,
+            'overall_percent' => $overall,
+            'current' => $enrolment->currentOpenAssignment(),
+            'completed_tasks' => $completedTasks,
+        ];
+    }
+
+    /**
      * Latest grade + review SLA for the intern’s current or last assignment.
      *
      * @return array{status:string,label:string,score:?int,decision:?string,feedback:?string,grader:?string,auto_accepted:bool,deadline:?\Carbon\Carbon,waiting_hours:?int}

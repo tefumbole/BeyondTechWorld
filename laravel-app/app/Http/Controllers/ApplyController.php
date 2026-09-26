@@ -52,6 +52,24 @@ class ApplyController extends Controller
             return redirect()->route('apply.index')->with('warning', 'That posting is currently closed.');
         }
 
+        // Placed interns should not land back on the public program list.
+        $beyond = Auth::guard('beyond')->user();
+        if ($beyond && $job->isInternship()) {
+            $app = Application::where(function ($q) use ($beyond) {
+                $q->where('user_id', $beyond->id);
+                if (! empty($beyond->email)) {
+                    $q->orWhere('email', $beyond->email);
+                }
+            })
+                ->where('job_id', $job->id)
+                ->whereIn('status', ['selected', 'shortlisted', 'hired'])
+                ->orderByDesc('created_at')
+                ->first();
+            if ($app) {
+                return redirect()->route('applicant.dashboard');
+            }
+        }
+
         if ($request->boolean('apply')) {
             return redirect()->route('apply.form', $job->id);
         }

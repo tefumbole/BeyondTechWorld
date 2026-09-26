@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Application;
+use App\BeyondUser;
 use App\Customer;
 use App\GeneralSetting;
 use App\Http\Controllers\LetterController;
@@ -424,6 +425,22 @@ HTML;
             $user->password = bcrypt($plain);
             $user->is_active = 1;
             $user->save();
+        }
+
+        // Keep the Beyond applicant portal password in sync so WhatsApp login
+        // credentials open the internship workspace instead of a second dead account.
+        $email = strtolower(trim((string) $application->email));
+        if ($email === '') {
+            return;
+        }
+        try {
+            $beyond = BeyondUser::whereRaw('LOWER(email) = ?', [$email])->first();
+            if ($beyond) {
+                $beyond->password_hash = app(\App\Services\BeyondAuthService::class)->hashPassword($plain);
+                $beyond->save();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Could not sync Beyond password for intern '.$email.': '.$e->getMessage());
         }
     }
 }

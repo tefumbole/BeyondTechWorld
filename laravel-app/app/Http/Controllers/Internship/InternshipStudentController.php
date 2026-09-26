@@ -84,6 +84,7 @@ class InternshipStudentController extends Controller
             ? $this->service->studentTaskRequestState($enrolment, $user)
             : null;
         $gradeSummary = $this->service->studentGradeSummary($assignment ?: $lastPassed);
+        $progress = $this->service->studentProgressSummary($enrolment);
 
         $timesheet = app(TimesheetService::class);
         $weekScore = $timesheet->weekScore($user->id);
@@ -134,6 +135,7 @@ class InternshipStudentController extends Controller
             'supervisors',
             'requestState',
             'gradeSummary',
+            'progress',
             'weekScore',
             'dayBalance',
             'totalHours',
@@ -163,6 +165,7 @@ class InternshipStudentController extends Controller
         $supervisors = [];
         $requestState = ['can_request' => false, 'message' => 'Open My Task from Internships if this page is incomplete.'];
         $gradeSummary = [];
+        $progress = $this->service->studentProgressSummary($enrolment);
         $weekScore = ['logged' => 0, 'expected' => 0, 'remaining' => 0, 'overtime' => 0, 'met' => false, 'days' => []];
         $dayBalance = ['logged' => 0, 'expected' => 0, 'remaining' => 0, 'overtime' => 0];
         $totalHours = 0;
@@ -181,6 +184,7 @@ class InternshipStudentController extends Controller
             'supervisors',
             'requestState',
             'gradeSummary',
+            'progress',
             'weekScore',
             'dayBalance',
             'totalHours',
@@ -208,6 +212,7 @@ class InternshipStudentController extends Controller
             ? $this->service->studentTaskRequestState($enrolment, Auth::user())
             : null;
         $gradeSummary = $this->service->studentGradeSummary($assignment ?: $lastPassed);
+        $progress = $this->service->studentProgressSummary($enrolment);
         $awaiting = $this->awaitingAssignments($enrolment);
         $awaitingGradingCount = $awaiting->count();
 
@@ -219,6 +224,7 @@ class InternshipStudentController extends Controller
             'supervisors',
             'requestState',
             'gradeSummary',
+            'progress',
             'awaiting',
             'awaitingGradingCount'
         ));

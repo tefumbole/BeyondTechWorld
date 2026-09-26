@@ -160,13 +160,12 @@ class BeyondAuthController extends Controller
     }
 
     /**
-     * Resolve the post-login destination. For admin-role Beyond users we also
-     * sign them into the POS (web guard) so a single Beyond login + OTP lands
-     * directly on the admin dashboard — no second login window.
+     * Resolve the post-login destination. Admin and placed Intern Beyond users
+     * are bridged into the ERP (web) guard so WhatsApp /admin links work in one login.
      */
     protected function loginRedirect(Request $request, $user, $profile)
     {
-        if ($this->bridgePosAdmin($user)) {
+        if ($this->bridgePosAdmin($user) || $this->bridgeIntern($user)) {
             $webUser = Auth::guard('web')->user();
             if ($webUser) {
                 return \App\Support\AuthIntended::afterLogin($webUser);
@@ -193,7 +192,41 @@ class BeyondAuthController extends Controller
             return false;
         }
 
-        $posUser = \App\User::where('email', $user->email)
+        return $this->loginMatchingErpUser($user);
+    }
+
+    /**
+     * Placed interns often keep a Beyond "applicant" portal account. Bridge them
+     * into their ERP Intern row so /admin/internship/student/task/{id} works.
+     */
+    protected function bridgeIntern($user)
+    {
+        $email = strtolower(trim((string) ($user->email ?? '')));
+        if ($email === '') {
+            return false;
+        }
+
+        $posUser = User::where('is_active', 1)
+            ->where(function ($q) {
+                $q->where('is_deleted', 0)->orWhere('is_deleted', false)->orWhereNull('is_deleted');
+            })
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $posUser || ! \App\Support\InternCompliance::appliesTo($posUser)) {
+            return false;
+        }
+
+        $posUser->otp_verify = 1;
+        $posUser->save();
+        Auth::guard('web')->login($posUser, true);
+
+        return true;
+    }
+
+    protected function loginMatchingErpUser($user)
+    {
+        $posUser = User::where('email', $user->email)
             ->where('is_active', 1)
             ->where('is_deleted', 0)
             ->first();

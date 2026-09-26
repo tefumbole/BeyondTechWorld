@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\User;
+use App\InternshipEnrolment;
 use Illuminate\Http\Request;
 
 /**
@@ -48,6 +49,21 @@ class AuthIntended
 
         $intern = InternCompliance::postLoginRedirect($user);
         if ($intern) {
+            // Prefer the open internship task over a bare /admin landing when
+            // timesheets are already up to date.
+            if ($intern === url('/admin') || $intern === '/admin') {
+                $open = InternshipEnrolment::where('student_user_id', $user->id)
+                    ->whereIn('status', ['active', 'paused'])
+                    ->orderByDesc('id')
+                    ->first();
+                if ($open) {
+                    $assignment = $open->currentOpenAssignment();
+                    if ($assignment) {
+                        return url('/admin/internship/student/task/'.$assignment->id);
+                    }
+                }
+            }
+
             return $intern;
         }
 

@@ -26,6 +26,7 @@
                     · <span class="ip-badge {{ $enrolment->status === 'active' ? 'active' : 'warn' }}">{{ ucfirst($enrolment->status) }}</span>
                 </div>
             </div>
+            @include('internship.student.partials.progress-board', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
         @else
             <div class="ip-card">
                 <h5 style="color:#0b3f90;font-weight:700;">No active placement</h5>

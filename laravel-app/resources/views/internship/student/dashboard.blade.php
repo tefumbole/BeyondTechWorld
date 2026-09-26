@@ -55,6 +55,8 @@
                 </div>
             </div>
 
+            @include('internship.student.partials.progress-board', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+
             @include('internship.student.partials.supervisors', ['supervisors' => $supervisors ?? []])
 
             @if(!empty($awaiting) && $awaiting->count())
