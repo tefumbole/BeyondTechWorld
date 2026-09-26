@@ -16,6 +16,10 @@
             </form>
         </div>
 
+        @if(!empty($enrolment))
+            @include('internship.student.partials.progress-summary', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+        @endif
+
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif

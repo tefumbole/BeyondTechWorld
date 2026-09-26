@@ -6,6 +6,10 @@
         <h1 class="ip-title"><i class="dripicons-meter"></i> My Dashboard</h1>
         <p class="ip-meta mb-3">Your internship program, this week’s hours, and what you can submit next.</p>
 
+        @if(!empty($enrolment))
+            @include('internship.student.partials.progress-summary', ['progress' => $progress ?? [], 'assignment' => $assignment ?? null])
+        @endif
+
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
