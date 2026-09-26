@@ -681,13 +681,12 @@
         body.is-landing .portrait .wash,
         body.is-landing .portrait .caption { display: none; }
         .sky-fx {
-            display: none;
+            display: block;
             position: fixed;
             inset: 0;
             z-index: 8;
             pointer-events: none;
         }
-        body.is-landing .sky-fx { display: none; }
         body.is-landing .glow-veil { display: none; }
         @keyframes veilPulse {
             0%, 100% { opacity: .7; }
@@ -697,7 +696,7 @@
         @media (prefers-reduced-motion: reduce) {
             body.is-landing .portrait img { animation: none; }
             body.is-landing .glow-veil { animation: none; }
-            body.is-landing .sky-fx { display: none; }
+            .sky-fx { display: none !important; }
         }
         body.is-landing .main {
             position: relative;
@@ -935,6 +934,124 @@
         nextPhoto();
         setInterval(nextPhoto, 15000);
     }, 15000);
+})();
+</script>
+<script>
+(function skyCeremony() {
+    var canvas = document.getElementById('skyFx');
+    if (!canvas) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var stars = [];
+    var petals = [];
+    var sparks = [];
+    var onDark = document.body.classList.contains('is-landing');
+    function size() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    function makeStar() {
+        return {
+            x: Math.random() * canvas.width,
+            y: -20 - Math.random() * canvas.height,
+            s: 0.7 + Math.random() * 2.1,
+            v: 0.4 + Math.random() * 1.25,
+            drift: -0.28 + Math.random() * 0.56,
+            a: onDark ? (0.4 + Math.random() * 0.6) : (0.55 + Math.random() * 0.45),
+            tw: Math.random() * Math.PI * 2
+        };
+    }
+    function makePetal() {
+        return {
+            x: Math.random() * canvas.width,
+            y: -30 - Math.random() * 80,
+            r: 4 + Math.random() * 7,
+            v: 0.45 + Math.random() * 0.9,
+            drift: -0.4 + Math.random() * 0.8,
+            rot: Math.random() * Math.PI * 2,
+            spin: -0.02 + Math.random() * 0.04,
+            a: onDark ? (0.28 + Math.random() * 0.45) : (0.35 + Math.random() * 0.4)
+        };
+    }
+    function makeSpark() {
+        return {
+            x: (0.12 + Math.random() * 0.76) * canvas.width,
+            y: canvas.height * (0.55 + Math.random() * 0.4),
+            s: 0.8 + Math.random() * 1.6,
+            v: -0.25 - Math.random() * 0.55,
+            a: 0.25 + Math.random() * 0.45,
+            life: 80 + Math.random() * 140
+        };
+    }
+    size();
+    var mobile = canvas.width < 760;
+    var starN = mobile ? 36 : 85;
+    var petalN = mobile ? 14 : 30;
+    var sparkN = mobile ? 10 : 20;
+    for (var i = 0; i < starN; i++) stars.push(makeStar());
+    for (var j = 0; j < petalN; j++) petals.push(makePetal());
+    for (var k = 0; k < sparkN; k++) sparks.push(makeSpark());
+    window.addEventListener('resize', size);
+    function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var n;
+        for (n = 0; n < stars.length; n++) {
+            var st = stars[n];
+            st.y += st.v;
+            st.x += st.drift;
+            st.tw += 0.045;
+            if (st.y > canvas.height + 12) {
+                stars[n] = makeStar();
+                stars[n].y = -12;
+                continue;
+            }
+            var glow = st.a * (0.65 + 0.35 * Math.sin(st.tw));
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255, 228, 150,' + glow + ')';
+            ctx.arc(st.x, st.y, st.s, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(212, 175, 55,' + (glow * 0.55) + ')';
+            ctx.lineWidth = 1;
+            ctx.moveTo(st.x, st.y - st.s * 5.5);
+            ctx.lineTo(st.x, st.y + st.s * 2.2);
+            ctx.stroke();
+        }
+        for (n = 0; n < petals.length; n++) {
+            var p = petals[n];
+            p.y += p.v;
+            p.x += p.drift + Math.sin(p.rot) * 0.25;
+            p.rot += p.spin;
+            if (p.y > canvas.height + 20) {
+                petals[n] = makePetal();
+                continue;
+            }
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = 'rgba(255, 248, 232,' + p.a + ')';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.r, p.r * 0.45, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        for (n = 0; n < sparks.length; n++) {
+            var sp = sparks[n];
+            sp.y += sp.v;
+            sp.life -= 1;
+            if (sp.life < 0 || sp.y < canvas.height * 0.2) {
+                sparks[n] = makeSpark();
+                continue;
+            }
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255, 210, 120,' + sp.a + ')';
+            ctx.arc(sp.x, sp.y, sp.s, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
 })();
 </script>
 @yield('scripts')
