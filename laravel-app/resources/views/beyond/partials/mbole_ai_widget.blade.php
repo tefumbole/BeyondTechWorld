@@ -2,16 +2,16 @@
 <style>
 #mbole-ai-root{position:fixed;right:24px;bottom:24px;z-index:99990;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 #mbole-ai-root *{box-sizing:border-box}
-.mbole-fab{width:64px;height:64px;border-radius:50%;border:0;padding:0;cursor:pointer;background:transparent;position:relative;box-shadow:0 10px 28px rgba(11,61,145,.28);animation:mbole-bob 2.8s ease-in-out infinite}
-.mbole-fab img{width:64px;height:64px;border-radius:50%;display:block;object-fit:cover;background:#0b3d91}
-.mbole-fab::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(11,61,145,.22);animation:mbole-glow 2.8s ease-in-out infinite;pointer-events:none}
-.mbole-greet{position:absolute;right:76px;bottom:12px;max-width:230px;background:#fff;color:#0f172a;border-radius:14px;padding:12px 14px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:13px;line-height:1.4}
+.mbole-fab{width:92px;height:104px;border-radius:18px;border:0;padding:4px;cursor:pointer;background:transparent;position:relative;box-shadow:none;animation:mbole-bob 2.8s ease-in-out infinite}
+.mbole-fab img{width:100%;height:100%;border-radius:0;display:block;object-fit:contain;object-position:center bottom;background:transparent;filter:drop-shadow(0 10px 18px rgba(11,61,145,.35))}
+.mbole-fab::after{content:"";position:absolute;left:50%;bottom:2px;width:48px;height:10px;margin-left:-24px;border-radius:50%;background:radial-gradient(ellipse,rgba(11,61,145,.28),transparent 70%);animation:mbole-glow 2.8s ease-in-out infinite;pointer-events:none}
+.mbole-greet{position:absolute;right:108px;bottom:28px;max-width:230px;background:#fff;color:#0f172a;border-radius:14px;padding:12px 14px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:13px;line-height:1.4}
 .mbole-greet strong{display:block;margin-bottom:4px;font-size:13px}
 .mbole-greet button{margin-top:8px;border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
 .mbole-panel{display:none;width:min(380px,calc(100vw - 24px));height:min(560px,calc(100vh - 48px));background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(15,23,42,.28);flex-direction:column}
 .mbole-panel.open{display:flex}
 .mbole-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0b3d91,#1d4ed8);color:#fff}
-.mbole-head img{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#fff}
+.mbole-head img{width:44px;height:48px;border-radius:10px;object-fit:contain;object-position:center;background:rgba(255,255,255,.12)}
 .mbole-head .meta{flex:1;min-width:0}
 .mbole-head .meta strong{display:block;font-size:14px;line-height:1.2}
 .mbole-head .meta span{display:block;font-size:11px;opacity:.9}
@@ -34,8 +34,8 @@
 @keyframes mbole-glow{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.8;transform:scale(1.04)}}
 @media (max-width:640px){
   #mbole-ai-root{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
-  .mbole-fab,.mbole-fab img{width:54px;height:54px}
-  .mbole-greet{right:66px;max-width:190px}
+  .mbole-fab{width:76px;height:88px}
+  .mbole-greet{right:90px;bottom:22px;max-width:190px}
   .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
 }
 [x-cloak]{display:none!important}
@@ -47,11 +47,11 @@
     <button type="button" id="mbole-greet-cta">Let's Chat</button>
   </div>
   <button type="button" class="mbole-fab" id="mbole-fab" aria-label="Open Mbole AI chat">
-    <img src="{{ asset('branding/mbole-ai.png') }}" alt="Mbole AI" width="64" height="64">
+    <img src="{{ asset('branding/mbole-ai.png') }}?v=2" alt="Mbole AI" width="92" height="104">
   </button>
   <div class="mbole-panel" id="mbole-panel" role="dialog" aria-label="Mbole AI chat" x-cloak>
     <div class="mbole-head">
-      <img src="{{ asset('branding/mbole-ai.png') }}" alt="">
+      <img src="{{ asset('branding/mbole-ai.png') }}?v=2" alt="">
       <div class="meta">
         <strong id="mbole-name">Mbole AI</strong>
         <span>BeyondTechWorld Assistant</span>

@@ -98,7 +98,7 @@ class WebsiteChatController extends Controller
             'greeting_delay_ms' => (int) WhatsAppSetting::getValue('website_ai_greeting_delay_ms', '600'),
             'handover_enabled' => AssistantRuntimeSettings::flag('website_ai_handover_enabled', true),
             'continue_whatsapp' => $this->chat->continueWhatsAppEnabled(),
-            'avatar' => asset('branding/mbole-ai.png'),
+            'avatar' => asset('branding/mbole-ai.png').'?v=2',
         ]);
     }
 
