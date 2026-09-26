@@ -617,8 +617,9 @@
             .nav a, .nav button { padding: 10px 14px; font-size: 14px; }
             .landing-home { min-height: auto; padding-bottom: 12px; }
             .landing-home .rings { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; max-width: 100%; }
-            .landing-home .ring b { font-size: 20px; }
-            .landing-home .ring span { font-size: 9px; letter-spacing: .08em; }
+            .landing-home .ring { min-height: 86px; }
+            .landing-home .ring b { font-size: clamp(28px, 11vw, 44px); }
+            .landing-home .ring span { font-size: 10px; letter-spacing: .08em; }
             .sun-row { gap: 18px; }
             .sheet {
                 max-width: 100%;
@@ -757,11 +758,11 @@
         body.is-landing .qr-card a { color: #d4af37; }
         body.is-landing .landing-home h1 { display: none; }
         body.is-landing .since-burial {
-            margin: 0 0 12px;
+            margin: 0 0 16px;
             color: #d4af37;
-            letter-spacing: .16em;
+            letter-spacing: .2em;
             text-transform: uppercase;
-            font-size: 12px;
+            font-size: clamp(13px, 2vw, 16px);
             font-weight: 700;
         }
         body.is-landing .landing-home {
@@ -773,8 +774,22 @@
             padding: 8px 0 0;
         }
         body.is-landing .landing-home .rings {
-            margin: 0 auto 18px;
-            max-width: 520px;
+            margin: 0 auto 22px;
+            max-width: min(920px, 100%);
+        }
+        body.is-landing .landing-home .ring {
+            min-height: clamp(120px, 18vw, 180px);
+            border-color: #d4af37;
+            box-shadow: 0 0 0 1px rgba(212, 175, 55, .25), 0 8px 28px rgba(0, 0, 0, .45);
+        }
+        body.is-landing .landing-home .ring b {
+            font-size: clamp(56px, 10vw, 100px);
+            color: #fff8e8;
+            text-shadow: 0 2px 18px rgba(212, 175, 55, .35);
+        }
+        body.is-landing .landing-home .ring span {
+            font-size: clamp(12px, 1.8vw, 16px);
+            color: #d4af37;
         }
         body.is-landing .sun-row {
             justify-content: center;
@@ -815,6 +830,8 @@
             body.is-landing .nav { justify-content: flex-start; }
             body.is-landing .eulogy-cta { width: min(100%, 320px); font-size: 16px; }
             body.is-landing .landing-home .rings { margin-bottom: 14px; }
+            body.is-landing .landing-home .ring { min-height: 92px; }
+            body.is-landing .landing-home .ring b { font-size: clamp(32px, 12vw, 48px); }
         }
         body:not(.is-landing) { background: #f3f2eb; }
         body:not(.is-landing) .main { background: #f3f2eb; color: #29352d; }

@@ -101,7 +101,7 @@ class FuneralPledgeService
         try {
             return Carbon::parse($raw)->toIso8601String();
         } catch (\Throwable $e) {
-            return Carbon::parse('2026-09-26 15:58:00', 'Europe/Berlin')->toIso8601String();
+            return Carbon::parse('2026-09-26 15:28:00', 'Europe/Berlin')->toIso8601String();
         }
     }
 

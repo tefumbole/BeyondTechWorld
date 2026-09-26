@@ -95,8 +95,8 @@ return [
             'enabled' => filter_var(env('FUNERAL_PLEDGE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
             'admin_phone' => env('FUNERAL_PLEDGE_ADMIN_PHONE', '237677318405'),
             'cc_phones' => env('FUNERAL_PLEDGE_CC_PHONES', '237677124575'),
-            // Laid to rest ~6 hours before 26 Sep 2026 21:58 CEST — count-up clock starts here.
-            'buried_at' => env('FUNERAL_BURIED_AT', '2026-09-26T15:58:00+02:00'),
+            // Laid to rest ~6.5 hours before 26 Sep 2026 21:58 CEST (6h + 30m).
+            'buried_at' => env('FUNERAL_BURIED_AT', '2026-09-26T15:28:00+02:00'),
         ],
 
         'stripe' => [
