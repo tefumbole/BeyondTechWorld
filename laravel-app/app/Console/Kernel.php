@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         Commands\SendBookingReminders::class,
         Commands\ResendBookingSignedPackage::class,
         Commands\SendBookingInvoiceWhatsApp::class,
+        Commands\ThankFuneralContributors::class,
         Commands\SendContractSignatureReminders::class,
         Commands\ProcessContractReminders::class,
         Commands\ProcessContractExpiryAlerts::class,
