@@ -12,36 +12,36 @@
 
 @section('content')
 
-<section class="bg-gradient-to-br from-brand-blue via-[#0052A3] to-brand-blue pt-24 pb-20">
+<section class="bg-gradient-to-br from-brand-blue via-[#0052A3] to-brand-blue py-5 sm:py-6">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
             Professional <span class="text-brand-gold">IT Training</span>
         </h1>
-        <p class="text-xl md:text-2xl text-blue-100 mb-4 max-w-4xl mx-auto">Master cutting-edge technologies with industry-leading programs</p>
-        <p class="text-lg text-blue-200 mb-8 max-w-3xl mx-auto">Hands-on training in AI, Cloud, Security, Networking, and more — designed for 2026 and beyond</p>
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-            <a href="#programs" class="bg-brand-gold hover:bg-[#C19B2A] text-brand-blue px-8 py-4 text-lg font-bold shadow-lg hover:scale-105 transition-transform rounded-full">Explore Programs</a>
-            <a href="{{ url('/register-now') }}" class="border-2 border-white text-white hover:bg-white hover:text-brand-blue px-8 py-4 text-lg font-bold shadow-lg hover:scale-105 transition-all rounded-full">Register Now</a>
+        <p class="text-sm sm:text-base text-blue-100 mb-1 max-w-3xl mx-auto">Master cutting-edge technologies with industry-leading programs</p>
+        <p class="text-xs sm:text-sm text-blue-200 mb-4 max-w-2xl mx-auto">Hands-on training in AI, Cloud, Security, Networking, and more — designed for 2026 and beyond</p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="#programs" class="bg-brand-gold hover:bg-[#C19B2A] text-brand-blue px-6 py-2.5 text-sm font-bold shadow-lg hover:scale-105 transition-transform rounded-full">Explore Programs</a>
+            <a href="{{ url('/register-now') }}" class="border-2 border-white text-white hover:bg-white hover:text-brand-blue px-6 py-2.5 text-sm font-bold shadow-lg hover:scale-105 transition-all rounded-full">Register Now</a>
         </div>
     </div>
 </section>
 
-<section class="py-12 bg-white border-b border-gray-200">
+<section class="py-6 bg-white border-b border-gray-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div><div class="text-4xl font-bold text-brand-blue mb-2">{{ count($programs) }}</div><div class="text-gray-600">Training Programs</div></div>
-            <div><div class="text-4xl font-bold text-brand-blue mb-2">8-14</div><div class="text-gray-600">Weeks Duration</div></div>
-            <div><div class="text-4xl font-bold text-brand-blue mb-2">100%</div><div class="text-gray-600">Hands-on Labs</div></div>
-            <div><div class="text-4xl font-bold text-brand-blue mb-2">24/7</div><div class="text-gray-600">Support Access</div></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
+            <div><div class="text-2xl sm:text-3xl font-bold text-brand-blue mb-1">{{ count($programs) }}</div><div class="text-gray-600 text-sm">Training Programs</div></div>
+            <div><div class="text-2xl sm:text-3xl font-bold text-brand-blue mb-1">8-14</div><div class="text-gray-600 text-sm">Weeks Duration</div></div>
+            <div><div class="text-2xl sm:text-3xl font-bold text-brand-blue mb-1">100%</div><div class="text-gray-600 text-sm">Hands-on Labs</div></div>
+            <div><div class="text-2xl sm:text-3xl font-bold text-brand-blue mb-1">24/7</div><div class="text-gray-600 text-sm">Support Access</div></div>
         </div>
     </div>
 </section>
 
-<section id="programs" class="py-20 bg-gradient-to-b from-gray-50 to-white" x-data="{ expanded: null }">
+<section id="programs" class="py-10 sm:py-12 bg-gradient-to-b from-gray-50 to-white" x-data="{ expanded: null }">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-            <h2 class="text-4xl md:text-5xl font-bold text-brand-blue mb-4">Our Courses</h2>
-            <p class="text-xl text-gray-600 max-w-3xl mx-auto">Courses managed in Course Manager appear here. Select a program to explore the curriculum and register.</p>
+        <div class="text-center mb-8">
+            <h2 class="text-2xl sm:text-3xl font-bold text-brand-blue mb-2">Our Courses</h2>
+            <p class="text-base text-gray-600 max-w-3xl mx-auto">Courses managed in Course Manager appear here. Select a program to explore the curriculum and register.</p>
         </div>
         <div class="space-y-6">
             @forelse ($programs as $module)
