@@ -1,7 +1,4 @@
 {{-- Mbole AI — Website Beyond Assistant (poll-based chat) --}}
-@php
-    $mboleCountries = \App\Support\CountryDialCodes::all();
-@endphp
 <style>
 #mbole-ai-root{position:fixed;right:24px;bottom:24px;z-index:99990;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 #mbole-ai-root *{box-sizing:border-box}
@@ -41,13 +38,36 @@
 .mbole-gate-title svg{width:18px;height:18px;flex-shrink:0;color:#c9a227}
 .mbole-gate-sub{margin:0 0 14px;color:#64748b;font-size:13px;line-height:1.4}
 .mbole-gate label{display:block;margin:0 0 6px;color:#0b3d91;font-size:13px;font-weight:700}
-.mbole-gate-row{display:flex;gap:8px;align-items:stretch}
-.mbole-gate-row select,.mbole-gate-row input[type="tel"],.mbole-gate-row input[type="text"]{
+.mbole-gate-row{display:flex;gap:8px;align-items:stretch;position:relative}
+.mbole-gate-row input[type="tel"],.mbole-gate-row input[type="text"]{
   border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:14px;color:#0f172a;background:#fff;outline:none;min-width:0
 }
-.mbole-gate-row select{width:42%;font-weight:700;color:#0b3d91;cursor:pointer}
 .mbole-gate-row input{flex:1}
-.mbole-gate-row select:focus,.mbole-gate-row input:focus{border-color:#0b3d91;box-shadow:0 0 0 3px rgba(11,61,145,.12)}
+.mbole-gate-row input:focus{border-color:#0b3d91;box-shadow:0 0 0 3px rgba(11,61,145,.12)}
+.mbole-cc{position:relative;width:48%;flex-shrink:0}
+.mbole-cc-btn{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;
+  border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;
+  color:#0b3d91;background:#fff;cursor:pointer;text-align:left;min-height:44px
+}
+.mbole-cc-btn:focus,.mbole-cc.open .mbole-cc-btn{border-color:#0b3d91;box-shadow:0 0 0 3px rgba(11,61,145,.12);outline:none}
+.mbole-cc-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbole-cc-btn svg{width:14px;height:14px;flex-shrink:0;opacity:.7}
+.mbole-cc-menu{
+  display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;
+  background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 16px 40px rgba(15,23,42,.18);
+  max-height:260px;overflow:hidden;flex-direction:column
+}
+.mbole-cc.open .mbole-cc-menu{display:flex}
+.mbole-cc-search{margin:8px;border:1px solid #cbd5e1;border-radius:8px;padding:9px 10px;font-size:13px;outline:none}
+.mbole-cc-search:focus{border-color:#0b3d91}
+.mbole-cc-list{overflow:auto;flex:1;padding:0 4px 6px}
+.mbole-cc-item{
+  display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;
+  padding:9px 10px;font-size:13px;color:#0f172a;cursor:pointer
+}
+.mbole-cc-item:hover,.mbole-cc-item.is-active{background:#eff6ff;color:#0b3d91;font-weight:600}
+.mbole-cc-empty{padding:10px;font-size:12px;color:#94a3b8;text-align:center}
 .mbole-gate-hint{margin:8px 0 0;color:#94a3b8;font-size:12px}
 .mbole-gate-err{margin:10px 0 0;color:#b91c1c;font-size:12px;display:none}
 .mbole-gate-err.on{display:block}
@@ -63,7 +83,7 @@
   .mbole-greet{right:90px;bottom:22px;max-width:190px}
   .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
   .mbole-gate-row{flex-direction:column}
-  .mbole-gate-row select{width:100%}
+  .mbole-cc{width:100%}
 }
 </style>
 
@@ -95,11 +115,17 @@
       <p class="mbole-gate-sub">Pick a Country and put the phone number.</p>
       <label for="mbole-phone-local">Phone number *</label>
       <div class="mbole-gate-row">
-        <select id="mbole-country" aria-label="Country code">
-          @foreach ($mboleCountries as $code => $label)
-            <option value="{{ $code }}" @if($code === '+237') selected @endif>{{ $label }}</option>
-          @endforeach
-        </select>
+        <div class="mbole-cc" id="mbole-cc">
+          <input type="hidden" id="mbole-country" value="+237">
+          <button type="button" class="mbole-cc-btn" id="mbole-cc-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Country code">
+            <span id="mbole-cc-label">Cameroon (+237)</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="mbole-cc-menu" id="mbole-cc-menu" role="listbox" hidden>
+            <input type="search" class="mbole-cc-search" id="mbole-cc-search" placeholder="Search country or +code" autocomplete="off" enterkeyhint="search" inputmode="search" aria-label="Search country">
+            <div class="mbole-cc-list" id="mbole-cc-list"></div>
+          </div>
+        </div>
         <input type="tel" id="mbole-phone-local" inputmode="numeric" autocomplete="tel-national" placeholder="National number" maxlength="15" aria-label="Phone number">
       </div>
       <p class="mbole-gate-hint">Do not type a country code in this box.</p>
@@ -146,6 +172,8 @@
   var sending = false;
   var onboarding = 'need_phone';
   var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
+  var countries = @json(\App\Support\CountryDialCodes::list());
+  var countryCode = '+237';
 
   var fab = document.getElementById('mbole-fab');
   var panel = document.getElementById('mbole-panel');
@@ -165,6 +193,93 @@
   var nameLocal = document.getElementById('mbole-name-local');
   var nameErr = document.getElementById('mbole-name-err');
   var nameGo = document.getElementById('mbole-name-go');
+  var ccRoot = document.getElementById('mbole-cc');
+  var ccBtn = document.getElementById('mbole-cc-btn');
+  var ccMenu = document.getElementById('mbole-cc-menu');
+  var ccSearch = document.getElementById('mbole-cc-search');
+  var ccList = document.getElementById('mbole-cc-list');
+  var ccLabel = document.getElementById('mbole-cc-label');
+
+  function countryLabel(code) {
+    for (var i = 0; i < countries.length; i++) {
+      if (countries[i].code === code) return countries[i].label;
+    }
+    return code;
+  }
+
+  function setCountry(code) {
+    countryCode = code || '+237';
+    countryEl.value = countryCode;
+    ccLabel.textContent = countryLabel(countryCode);
+  }
+
+  function closeCc() {
+    ccRoot.classList.remove('open');
+    ccMenu.hidden = true;
+    ccBtn.setAttribute('aria-expanded', 'false');
+    ccSearch.value = '';
+  }
+
+  function openCc() {
+    ccRoot.classList.add('open');
+    ccMenu.hidden = false;
+    ccBtn.setAttribute('aria-expanded', 'true');
+    renderCcList(ccSearch.value);
+    setTimeout(function () { try { ccSearch.focus(); ccSearch.select(); } catch (e) {} }, 30);
+  }
+
+  function renderCcList(query) {
+    var q = String(query || '').trim().toLowerCase();
+    ccList.innerHTML = '';
+    var matches = countries.filter(function (c) {
+      if (!q) return true;
+      return (c.label + ' ' + c.code).toLowerCase().indexOf(q) !== -1;
+    });
+    if (!matches.length) {
+      var empty = document.createElement('div');
+      empty.className = 'mbole-cc-empty';
+      empty.textContent = 'No matches.';
+      ccList.appendChild(empty);
+      return;
+    }
+    matches.forEach(function (c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mbole-cc-item' + (c.code === countryCode ? ' is-active' : '');
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', c.code === countryCode ? 'true' : 'false');
+      btn.textContent = c.label;
+      btn.addEventListener('click', function () {
+        setCountry(c.code);
+        closeCc();
+        try { phoneLocal.focus(); } catch (e) {}
+      });
+      ccList.appendChild(btn);
+    });
+  }
+
+  ccBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (ccRoot.classList.contains('open')) closeCc();
+    else openCc();
+  });
+  ccSearch.addEventListener('input', function () { renderCcList(ccSearch.value); });
+  ccSearch.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { e.preventDefault(); closeCc(); }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var first = ccList.querySelector('.mbole-cc-item');
+      if (first) first.click();
+    }
+  });
+  document.addEventListener('click', function (e) {
+    if (!ccRoot.contains(e.target)) closeCc();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && ccRoot.classList.contains('open')) closeCc();
+  });
+  setCountry('+237');
+  renderCcList('');
 
   function applyOnboarding(step) {
     if (step) onboarding = step;
@@ -349,7 +464,7 @@
       phoneLocal.focus();
       return;
     }
-    sendBody(combinePhone(countryEl.value, phoneLocal.value), phoneGo, phoneErr);
+    sendBody(combinePhone(countryCode || countryEl.value, phoneLocal.value), phoneGo, phoneErr);
   });
   phoneLocal.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); phoneGo.click(); }
