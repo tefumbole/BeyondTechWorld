@@ -285,6 +285,14 @@
     scheduleIdleCheck();
   }
 
+  function confirmEndChat() {
+    var ok = window.confirm('Closing will end this chat. Are you sure you want to end the conversation?');
+    if (!ok) return false;
+    startFreshChat('close');
+    setOpen(false);
+    return true;
+  }
+
   function countryLabel(code) {
     for (var i = 0; i < countries.length; i++) {
       if (countries[i].code === code) return countries[i].label;
@@ -707,7 +715,10 @@
 
   fab.addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-greet-cta').addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
-  document.getElementById('mbole-close').addEventListener('click', function () { setOpen(false); });
+  document.getElementById('mbole-close').addEventListener('click', function (e) {
+    e.preventDefault();
+    confirmEndChat();
+  });
   document.getElementById('mbole-min').addEventListener('click', function () {
     setOpen(false);
     if (token) api('/api/website-chat/minimize', { method: 'POST', json: { token: token } });
