@@ -104,4 +104,45 @@ class EventSolutionBuilderTest extends WhatsAppHubTestCase
         $this->assertSame(48.0, (float) $result['area_m2']);
         $this->assertSame(1920000.0, (float) $result['price']);
     }
+
+    public function test_screen_math_is_deterministic()
+    {
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_27_110000_update_event_lighting_and_screen_pricing.php',
+            '--force' => true,
+        ]);
+        $svc = app(\App\Services\Event\ScreenPricingService::class);
+        $threeByTwo = $svc->calculate(3, 2);
+        $this->assertSame(6.0, (float) $threeByTwo['area_m2']);
+        $this->assertSame(360000.0, (float) $threeByTwo['price']);
+    }
+
+    public function test_extras_checkbox_ui()
+    {
+        $ui = app(\App\Services\Event\EventPackageCatalogService::class)->extrasCheckboxGroup();
+        $this->assertSame('checkbox', $ui['mode']);
+        $values = array_column($ui['options'], 'value');
+        $this->assertContains('lights', $values);
+        $this->assertContains('screens', $values);
+        $this->assertContains('stage', $values);
+    }
+
+    public function test_playback_maps_to_basic_sound_package()
+    {
+        $solution = app(EventSolutionBuilderService::class)->build([
+            'event_type' => 'wedding',
+            'event_date' => '2026-09-30',
+            'sound_mode' => 'PLAYBACK',
+            'within_town' => true,
+        ]);
+        $sound = null;
+        foreach ($solution['commercial_lines'] as $row) {
+            if (($row['key'] ?? '') === 'SOUND') {
+                $sound = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($sound);
+        $this->assertSame('BASIC', $sound['code'] ?? null);
+    }
 }

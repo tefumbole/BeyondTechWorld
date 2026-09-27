@@ -160,8 +160,7 @@ class AssistantToolExecutor
                 'redirect' => 'build_event_solution',
                 'availability_checked' => false,
                 'message' => 'That sounds like an event sound/lighting request, not a single catalogue SKU. Collect event date/venue/guests and use build_event_solution / get_sound_experience_options instead of checking one random product.',
-                'ui' => app(\App\Services\Event\EventPackageCatalogService::class)
-                    ->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?'),
+                'ui' => app(\App\Services\Event\EventPackageCatalogService::class)->soundModeGroup(),
             ];
         }
         if (! $range) {
@@ -207,14 +206,27 @@ class AssistantToolExecutor
 
     protected function toolGetSoundExperienceOptions(array $params, array $context)
     {
-        $ui = app(\App\Services\Event\EventPackageCatalogService::class)
-            ->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?');
+        $ui = app(\App\Services\Event\EventPackageCatalogService::class)->soundModeGroup();
 
         return [
             'success' => true,
             'options' => $ui['options'],
             'ui' => $ui,
-            'message' => "For the sound setup, which option would you prefer?\n🎵 Playback — No Live Instruments\n🎹 Playback + Piano Bar\n🎸 Full Live Setup",
+            'message' => "Great — what date is the wedding/event?\n\nFor the sound setup, which option would you prefer?\n🎵 Playback — basic sound, no live instruments\n🎹 Piano Bar — playback + piano/keyboard\n🎸 Full Setup — live band / full instruments\n\nPlayback uses our Basic Sound package from the catalogue.",
+            'next_step' => 'After sound mode is chosen, call get_event_extras_options for Lights/Screens/Stage checkboxes.',
+        ];
+    }
+
+    protected function toolGetEventExtrasOptions(array $params, array $context)
+    {
+        $ui = app(\App\Services\Event\EventPackageCatalogService::class)->extrasCheckboxGroup();
+
+        return [
+            'success' => true,
+            'options' => $ui['options'],
+            'ui' => $ui,
+            'message' => "Do you also need any of these? You can select more than one:\n💡 Lights\n🖥️ Screens\n🎭 Stage\n🚫 None of these",
+            'next_step' => 'If lights selected → get_lighting_packages. If screens → ask size then calculate_screen_price. If stage → ask size then calculate_stage_price.',
         ];
     }
 
@@ -229,9 +241,32 @@ class AssistantToolExecutor
     protected function toolGetLightingPackages(array $params, array $context)
     {
         $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
-        $ui = $catalog->optionGroup('LIGHTING', 'Would you also like lighting for the event?');
+        $ui = $catalog->lightingTierGroup();
 
-        return ['success' => true, 'packages' => $catalog->packages('LIGHTING'), 'ui' => $ui];
+        return [
+            'success' => true,
+            'packages' => $catalog->packages('LIGHTING'),
+            'ui' => $ui,
+            'message' => "Which lighting package do you need?\n💡 Basic Lights (No Moving heads)\n✨ Standard Lights (Par Lights with Par Robots)\n🌟 Premium (All Lights)",
+        ];
+    }
+
+    protected function toolCalculateScreenPrice(array $params, array $context)
+    {
+        $length = isset($params['length_m']) ? $params['length_m'] : (isset($params['screen_length_m']) ? $params['screen_length_m'] : null);
+        $width = isset($params['width_m']) ? $params['width_m'] : (isset($params['screen_width_m']) ? $params['screen_width_m'] : null);
+        if (($length === null || $width === null) && ! empty($params['text'])) {
+            $parsed = app(\App\Services\Event\ScreenPricingService::class)->parseDimensions($params['text']);
+            if ($parsed) {
+                $length = $parsed[0];
+                $width = $parsed[1];
+            }
+        }
+        if ($length === null || $width === null) {
+            return ['success' => false, 'error' => 'need_dimensions', 'message' => 'What LED screen size do you need? For example, 3m × 2m.'];
+        }
+
+        return app(\App\Services\Event\ScreenPricingService::class)->calculate($length, $width);
     }
 
     protected function toolGetPackageDetails(array $params, array $context)
@@ -388,6 +423,8 @@ class AssistantToolExecutor
             'want_stage' => isset($params['want_stage']) ? $bool($params['want_stage']) : null,
             'stage_length_m' => isset($params['stage_length_m']) ? $params['stage_length_m'] : null,
             'stage_width_m' => isset($params['stage_width_m']) ? $params['stage_width_m'] : null,
+            'screen_length_m' => isset($params['screen_length_m']) ? $params['screen_length_m'] : null,
+            'screen_width_m' => isset($params['screen_width_m']) ? $params['screen_width_m'] : null,
             'truss_package' => isset($params['truss_package']) ? strtoupper((string) $params['truss_package']) : null,
             'within_town' => isset($params['within_town']) ? $bool($params['within_town']) : true,
             'location_scope' => isset($params['location_scope']) ? $params['location_scope'] : null,

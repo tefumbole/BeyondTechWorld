@@ -75,21 +75,19 @@ class ServiceMenu
             ];
         }
         if ($key === 'sound') {
-            $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
-            $ui = $catalog->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?');
+            $ui = app(\App\Services\Event\EventPackageCatalogService::class)->soundModeGroup();
 
             return [
-                'reply' => "Great — let's design a sound solution for your event (not a single random speaker).\n\nFor the sound setup, which option would you prefer?\n\n🎵 Playback — No Live Instruments\n🎹 Playback + Piano Bar\n🎸 Full Live Setup\n\nAlso share the event date and venue if you haven't yet.",
+                'reply' => "Great — let's plan your event sound.\n\nWhat date is the event?\n\nFor the sound setup, which option would you prefer?\n\n🎵 Playback — basic sound, no live instruments\n🎹 Piano Bar — playback + piano/keyboard\n🎸 Full Setup — live band / full instruments",
                 'ui' => $ui,
                 'choices' => $ui['options'],
             ];
         }
         if ($key === 'light') {
-            $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
-            $ui = $catalog->optionGroup('LIGHTING', 'Would you also like lighting for the event?');
+            $ui = app(\App\Services\Event\EventPackageCatalogService::class)->lightingTierGroup();
 
             return [
-                'reply' => "Happy to plan lighting for your event.\n\n💡 Basic Lighting\n✨ Standard Lighting\n🌟 Premium Lighting\n🚫 No Lighting\n\nWhat is the event date and venue?",
+                'reply' => "Which lighting package do you need?\n\n💡 Basic Lights (No Moving heads)\n✨ Standard Lights (Par Lights with Par Robots)\n🌟 Premium (All Lights)\n\nWhat is the event date and venue?",
                 'ui' => $ui,
                 'choices' => $ui['options'],
             ];

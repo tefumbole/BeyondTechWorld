@@ -591,9 +591,15 @@ class WebsiteChatService
         if (isset($media['ui']) && is_array($media['ui'])) {
             $payload['ui'] = [
                 'type' => isset($media['ui']['type']) ? $media['ui']['type'] : 'OPTION_GROUP',
+                'mode' => isset($media['ui']['mode']) ? $media['ui']['mode'] : 'radio',
                 'category' => isset($media['ui']['category']) ? $media['ui']['category'] : null,
                 'prompt' => isset($media['ui']['prompt']) ? $media['ui']['prompt'] : null,
+                'confirm_label' => isset($media['ui']['confirm_label']) ? $media['ui']['confirm_label'] : 'Continue',
             ];
+            if (($payload['ui']['mode'] ?? '') === 'checkbox') {
+                $payload['choice_mode'] = 'checkbox';
+                $payload['confirm_label'] = $payload['ui']['confirm_label'];
+            }
         }
 
         return $payload;

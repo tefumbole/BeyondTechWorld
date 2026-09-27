@@ -39,6 +39,13 @@
 .mbole-choice.is-on .radio::after{
   content:"";position:absolute;inset:3px;border-radius:50%;background:#0b3d91
 }
+.mbole-choices.is-check .mbole-choice .radio{border-radius:4px}
+.mbole-choices.is-check .mbole-choice.is-on .radio::after{border-radius:2px;inset:3px}
+.mbole-choice-confirm{
+  margin-top:8px;width:100%;border:0;border-radius:12px;padding:10px 14px;background:#0b3d91;color:#fff;
+  font-size:13px;font-weight:700;cursor:pointer
+}
+.mbole-choice-confirm:disabled{opacity:.55;cursor:default}
 .mbole-choice:disabled,.mbole-choice.is-used{opacity:.55;cursor:default;pointer-events:none}
 .mbole-typing{align-self:flex-start;font-size:12px;color:#64748b;display:none;padding:0 14px 8px}
 .mbole-typing.on{display:block}
@@ -427,6 +434,7 @@
     if (thread.querySelector('[data-id="' + msg.id + '"]')) return;
     var el = document.createElement('div');
     var hasChoices = msg.role === 'assistant' && msg.choices && msg.choices.length;
+    var multi = hasChoices && (msg.choice_mode === 'checkbox' || (msg.ui && msg.ui.mode === 'checkbox'));
     el.className = 'mbole-msg ' + (msg.role || 'assistant') + (hasChoices ? ' has-choices' : '');
     el.setAttribute('data-id', msg.id);
     if (hasChoices) {
@@ -435,20 +443,40 @@
       text.textContent = msg.body || '';
       el.appendChild(text);
       var wrap = document.createElement('div');
-      wrap.className = 'mbole-choices';
-      wrap.setAttribute('role', 'radiogroup');
-      wrap.setAttribute('aria-label', 'Choose a service');
+      wrap.className = 'mbole-choices' + (multi ? ' is-check' : '');
+      wrap.setAttribute('role', multi ? 'group' : 'radiogroup');
+      wrap.setAttribute('aria-label', multi ? 'Select all that apply' : 'Choose an option');
       msg.choices.forEach(function (choice) {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'mbole-choice';
-        btn.setAttribute('role', 'radio');
+        btn.setAttribute('role', multi ? 'checkbox' : 'radio');
         btn.setAttribute('aria-checked', 'false');
         btn.setAttribute('data-value', choice.value || choice.label || '');
         btn.innerHTML = '<span class="radio" aria-hidden="true"></span><span></span>';
         btn.querySelector('span:last-child').textContent = choice.label || choice.value || '';
         btn.addEventListener('click', function () {
-          if (sending) return;
+          if (sending || wrap.classList.contains('is-locked')) return;
+          if (multi) {
+            var val = (btn.getAttribute('data-value') || '').toLowerCase();
+            if (val === 'none') {
+              wrap.querySelectorAll('.mbole-choice').forEach(function (b) {
+                b.classList.remove('is-on');
+                b.setAttribute('aria-checked', 'false');
+              });
+              btn.classList.add('is-on');
+              btn.setAttribute('aria-checked', 'true');
+            } else {
+              var noneBtn = wrap.querySelector('.mbole-choice[data-value="none"]');
+              if (noneBtn) {
+                noneBtn.classList.remove('is-on');
+                noneBtn.setAttribute('aria-checked', 'false');
+              }
+              var on = btn.classList.toggle('is-on');
+              btn.setAttribute('aria-checked', on ? 'true' : 'false');
+            }
+            return;
+          }
           wrap.querySelectorAll('.mbole-choice').forEach(function (b) {
             b.classList.remove('is-on');
             b.setAttribute('aria-checked', 'false');
@@ -463,6 +491,31 @@
         });
         wrap.appendChild(btn);
       });
+      if (multi) {
+        var confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'mbole-choice-confirm';
+        confirm.textContent = (msg.confirm_label || (msg.ui && msg.ui.confirm_label) || 'Continue');
+        confirm.addEventListener('click', function () {
+          if (sending || wrap.classList.contains('is-locked')) return;
+          var selected = [];
+          wrap.querySelectorAll('.mbole-choice.is-on').forEach(function (b) {
+            selected.push(b.getAttribute('data-value') || '');
+          });
+          if (!selected.length) return;
+          wrap.classList.add('is-locked');
+          wrap.querySelectorAll('.mbole-choice').forEach(function (b) {
+            b.disabled = true;
+            b.classList.add('is-used');
+          });
+          confirm.disabled = true;
+          var payload = selected.indexOf('none') !== -1
+            ? 'extras:none'
+            : ('extras:' + selected.filter(function (s) { return s && s !== 'none'; }).join(','));
+          sendChatMessage(payload);
+        });
+        wrap.appendChild(confirm);
+      }
       el.appendChild(wrap);
     } else {
       el.textContent = msg.body || '';

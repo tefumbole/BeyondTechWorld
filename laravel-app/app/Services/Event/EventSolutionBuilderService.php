@@ -15,6 +15,7 @@ class EventSolutionBuilderService
     protected $catalog;
     protected $availability;
     protected $stage;
+    protected $screen;
     protected $truss;
     protected $transport;
 
@@ -22,12 +23,14 @@ class EventSolutionBuilderService
         EventPackageCatalogService $catalog,
         RentalAvailabilityService $availability,
         StagePricingService $stage,
+        ScreenPricingService $screen,
         TrussPricingService $truss,
         TransportPricingService $transport
     ) {
         $this->catalog = $catalog;
         $this->availability = $availability;
         $this->stage = $stage;
+        $this->screen = $screen;
         $this->truss = $truss;
         $this->transport = $transport;
     }
@@ -38,6 +41,11 @@ class EventSolutionBuilderService
         $commercial = [];
         $warnings = [];
         $pending = [];
+
+        // Map sound experience → DB sound package when not explicitly chosen.
+        if (empty($requirements['sound_package']) && ! empty($requirements['sound_mode'])) {
+            $requirements['sound_package'] = $this->soundPackageForMode($requirements['sound_mode']);
+        }
 
         $range = null;
         if (! empty($requirements['event_date'])) {
@@ -66,8 +74,8 @@ class EventSolutionBuilderService
             $warnings = array_merge($warnings, $light['warnings']);
         }
 
-        if (! empty($requirements['want_screen'])) {
-            $screen = $this->resolveScreen($range);
+        if (! empty($requirements['want_screen']) || (! empty($requirements['screen_length_m']) && ! empty($requirements['screen_width_m']))) {
+            $screen = $this->resolveScreen($range, $requirements);
             if (! empty($screen['pending_pricing'])) {
                 $pending[] = $screen['message'];
             }
@@ -326,54 +334,79 @@ class EventSolutionBuilderService
         return compact('commercial', 'equipment', 'warnings');
     }
 
-    protected function resolveScreen($range)
+    protected function soundPackageForMode($mode)
     {
+        $mode = strtoupper(trim((string) $mode));
+        $map = [
+            'PLAYBACK' => 'BASIC',
+            'PLAYBACK_PIANO' => 'STANDARD',
+            'PIANO' => 'STANDARD',
+            'PIANO_BAR' => 'STANDARD',
+            'FULL_LIVE' => 'PREMIUM',
+            'FULL_SETUP' => 'PREMIUM',
+        ];
+
+        return isset($map[$mode]) ? $map[$mode] : 'BASIC';
+    }
+
+    protected function resolveScreen($range, array $requirements = [])
+    {
+        $length = isset($requirements['screen_length_m']) ? $requirements['screen_length_m'] : null;
+        $width = isset($requirements['screen_width_m']) ? $requirements['screen_width_m'] : null;
+        $priced = null;
+        if ($length && $width) {
+            $priced = $this->screen->calculate($length, $width);
+        }
+
         $product = $this->availability->search('led screen', 3)->first();
         if (! $product) {
             $product = $this->availability->search('led', 3)->first();
         }
-        if (! $product) {
-            return [
-                'commercial' => [
-                    'key' => 'SCREEN',
-                    'label' => 'LED Screen',
-                    'price' => null,
-                    'pending_pricing' => true,
-                ],
-                'equipment' => [],
-                'pending_pricing' => true,
-                'message' => 'LED screen requirement noted — Pending Pricing (no catalogue price found).',
-            ];
-        }
-        $unit = Schema::hasColumn('products', 'rent_price_per_day') ? (float) $product->rent_price_per_day : 0;
-        if ($unit <= 0 && Schema::hasColumn('products', 'price')) {
-            $unit = (float) $product->price;
-        }
-        $available = true;
-        $availableQty = null;
-        if ($range && ! empty($range['start'])) {
-            $check = $this->availability->assess($product, 1, $range['start'], $range['end']);
-            $available = ! empty($check['available']);
-            $availableQty = isset($check['available_qty']) ? $check['available_qty'] : null;
-        }
 
-        return [
-            'commercial' => [
-                'key' => 'SCREEN',
-                'label' => $product->name,
-                'price' => $unit > 0 ? $unit : null,
-                'pending_pricing' => $unit <= 0,
-            ],
-            'equipment' => [[
+        $equipment = [];
+        if ($product) {
+            $available = true;
+            $availableQty = null;
+            if ($range && ! empty($range['start'])) {
+                $check = $this->availability->assess($product, 1, $range['start'], $range['end']);
+                $available = ! empty($check['available']);
+                $availableQty = isset($check['available_qty']) ? $check['available_qty'] : null;
+            }
+            $equipment[] = [
                 'category_key' => 'LED_SCREEN',
                 'product_id' => $product->id,
                 'name' => $product->name,
                 'requested_qty' => 1,
                 'available' => $available,
                 'available_qty' => $availableQty,
-            ]],
-            'pending_pricing' => $unit <= 0,
-            'message' => $unit > 0 ? null : 'LED screen Pending Pricing.',
+            ];
+        }
+
+        if ($priced) {
+            return [
+                'commercial' => [
+                    'key' => 'SCREEN',
+                    'label' => 'LED Screen '.$priced['length_m'].'m × '.$priced['width_m'].'m ('.$priced['area_m2'].' m²)',
+                    'price' => $priced['price'],
+                    'currency' => 'XAF',
+                    'pending_pricing' => false,
+                ],
+                'equipment' => $equipment,
+                'pending_pricing' => false,
+                'message' => $priced['message'],
+            ];
+        }
+
+        return [
+            'commercial' => [
+                'key' => 'SCREEN',
+                'label' => 'LED Screen',
+                'price' => null,
+                'pending_pricing' => true,
+            ],
+            'equipment' => $equipment,
+            'pending_pricing' => true,
+            'message' => 'LED screen size needed before pricing (e.g. 3m × 2m at 60,000 CFA per m²).',
         ];
     }
 

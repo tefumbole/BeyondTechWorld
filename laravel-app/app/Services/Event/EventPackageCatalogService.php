@@ -35,12 +35,25 @@ class EventPackageCatalogService
             ->first();
     }
 
-    public function optionGroup($category, $prompt = null)
+    public function optionGroup($category, $prompt = null, $mode = 'radio')
     {
         $options = [];
         foreach ($this->packages($category) as $pkg) {
+            // Hide NONE from lighting radio when presenting tiers after extras selected.
+            if ($category === 'LIGHTING' && $pkg['code'] === 'NONE' && $mode === 'radio') {
+                // keep NONE for explicit "no lights" lists; callers can filter
+            }
             $label = ($pkg['icon'] ? $pkg['icon'].' ' : '').$pkg['name'];
-            if ((float) $pkg['base_price'] > 0) {
+            if (! empty($pkg['description']) && in_array(strtoupper((string) $category), ['LIGHTING', 'SOUND_MODE'], true)) {
+                // Prefer short description for lighting/mode clarity.
+                $label = ($pkg['icon'] ? $pkg['icon'].' ' : '').$pkg['name'];
+                if ((float) $pkg['base_price'] > 0) {
+                    $label .= ' — '.number_format((float) $pkg['base_price'], 0).' CFA';
+                }
+                if ($pkg['description']) {
+                    $label .= ' · '.$pkg['description'];
+                }
+            } elseif ((float) $pkg['base_price'] > 0) {
                 $label .= ' — '.number_format((float) $pkg['base_price'], 0).' CFA';
             }
             $options[] = [
@@ -55,10 +68,68 @@ class EventPackageCatalogService
 
         return [
             'type' => 'OPTION_GROUP',
+            'mode' => $mode === 'checkbox' ? 'checkbox' : 'radio',
             'category' => strtoupper((string) $category),
             'prompt' => $prompt,
             'options' => $options,
         ];
+    }
+
+    public function extrasCheckboxGroup()
+    {
+        return [
+            'type' => 'OPTION_GROUP',
+            'mode' => 'checkbox',
+            'category' => 'EXTRAS',
+            'prompt' => 'Do you also need any of these? Select all that apply.',
+            'confirm_label' => 'Continue',
+            'options' => [
+                ['value' => 'lights', 'label' => '💡 Lights'],
+                ['value' => 'screens', 'label' => '🖥️ Screens'],
+                ['value' => 'stage', 'label' => '🎭 Stage'],
+                ['value' => 'none', 'label' => '🚫 None of these'],
+            ],
+        ];
+    }
+
+    public function lightingTierGroup()
+    {
+        $ui = $this->optionGroup('LIGHTING', 'Which lighting package do you need?');
+        $ui['options'] = array_values(array_filter($ui['options'], function ($o) {
+            return strtoupper($o['code']) !== 'NONE';
+        }));
+        // Clearer business labels
+        foreach ($ui['options'] as &$opt) {
+            $code = strtoupper($opt['code']);
+            if ($code === 'BASIC') {
+                $opt['label'] = '💡 Basic Lights (No Moving heads) — '.number_format((float) $opt['price'], 0).' CFA';
+            } elseif ($code === 'STANDARD') {
+                $opt['label'] = '✨ Standard Lights (Par Lights with Par Robots) — '.number_format((float) $opt['price'], 0).' CFA';
+            } elseif ($code === 'PREMIUM') {
+                $opt['label'] = '🌟 Premium (All Lights) — '.number_format((float) $opt['price'], 0).' CFA';
+            }
+        }
+        unset($opt);
+
+        return $ui;
+    }
+
+    public function soundModeGroup()
+    {
+        $ui = $this->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?');
+        foreach ($ui['options'] as &$opt) {
+            $code = strtoupper($opt['code']);
+            if ($code === 'PLAYBACK') {
+                $opt['label'] = '🎵 Playback — basic sound, no live instruments';
+            } elseif ($code === 'PLAYBACK_PIANO') {
+                $opt['label'] = '🎹 Piano Bar — playback + piano/keyboard';
+            } elseif ($code === 'FULL_LIVE') {
+                $opt['label'] = '🎸 Full Setup — live band / full instruments';
+            }
+        }
+        unset($opt);
+
+        return $ui;
     }
 
     public function serialize(EventPackage $p)
