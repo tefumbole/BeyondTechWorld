@@ -158,7 +158,14 @@ class BeyondAssistantService
         }
 
         if (! isset($classified) && $menuChoice) {
-            $directReply = app(ServiceMenu::class)->describe($menuChoice, (string) $message->body);
+            $payload = app(ServiceMenu::class)->describePayload($menuChoice, (string) $message->body);
+            $directReply = $payload['reply'];
+            if (! empty($payload['choices'])) {
+                $slots['pending_ui'] = [
+                    'choices' => $payload['choices'],
+                    'ui' => isset($payload['ui']) ? $payload['ui'] : null,
+                ];
+            }
             $classified = [
                 'intent' => IntentCatalog::SERVICE_ENQUIRY,
                 'confidence' => 0.96,
@@ -432,7 +439,24 @@ class BeyondAssistantService
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';
             }
         } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
-            $send = $this->conversations->assistantReply($conversation, $reply);
+            $media = null;
+            if (! empty($slots['pending_ui']['choices'])) {
+                $media = [
+                    'choices' => $slots['pending_ui']['choices'],
+                    'ui' => isset($slots['pending_ui']['ui']) ? $slots['pending_ui']['ui'] : null,
+                ];
+            } elseif (! empty($turnDiag['ui'])) {
+                $media = [
+                    'ui' => $turnDiag['ui'],
+                    'choices' => isset($turnDiag['ui']['options']) ? $turnDiag['ui']['options'] : (isset($turnDiag['choices']) ? $turnDiag['choices'] : null),
+                ];
+            } elseif (is_array($conversationalResult) && ! empty($conversationalResult['ui'])) {
+                $media = [
+                    'ui' => $conversationalResult['ui'],
+                    'choices' => isset($conversationalResult['ui']['options']) ? $conversationalResult['ui']['options'] : null,
+                ];
+            }
+            $send = $this->conversations->assistantReply($conversation, $reply, $media);
             $sent = ! empty($send['success']);
             if ($sent && strpos($reply, '1. Sound') !== false) {
                 // Website replies already embed clickable choices; WhatsApp still gets a poll.

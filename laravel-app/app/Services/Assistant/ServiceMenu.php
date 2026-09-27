@@ -2,9 +2,6 @@
 
 namespace App\Services\Assistant;
 
-use App\Product;
-use Illuminate\Support\Facades\Schema;
-
 class ServiceMenu
 {
     public function text()
@@ -23,11 +20,11 @@ class ServiceMenu
     public function choices()
     {
         return [
-            ['value' => '1', 'label' => 'Sound'],
-            ['value' => '2', 'label' => 'Light'],
-            ['value' => '3', 'label' => 'Screens'],
-            ['value' => '4', 'label' => 'IT services'],
-            ['value' => '5', 'label' => 'Others and specify'],
+            ['value' => '1', 'label' => '🔊 Sound'],
+            ['value' => '2', 'label' => '💡 Light'],
+            ['value' => '3', 'label' => '🖥️ Screens'],
+            ['value' => '4', 'label' => '💻 IT services'],
+            ['value' => '5', 'label' => '➕ Others and specify'],
         ];
     }
 
@@ -58,46 +55,64 @@ class ServiceMenu
         return null;
     }
 
-    public function describe($key, $text)
+    /**
+     * Event-first replies — never dump a random product catalogue SKU list.
+     *
+     * @return array{reply:string,ui?:array,choices?:array}
+     */
+    public function describePayload($key, $text)
     {
         if ($key === 'other') {
             $extra = trim(preg_replace('/^(5|others?( and specify)?)\b[:\-\s.]*/i', '', (string) $text));
             if ($extra === '') {
-                return 'Tell me what you need, and I will check it against the product list.';
+                return [
+                    'reply' => "Tell me what you need for your event — for example sound, lighting, LED screen, stage or truss — and I'll build a suitable BeyondTechWorld solution.",
+                ];
             }
 
-            return $this->catalogue([$extra], 'that request');
+            return [
+                'reply' => "Got it: {$extra}. What is the event date and venue so I can shape the right package?",
+            ];
         }
-        $terms = [
-            'sound' => ['speaker', 'microphone', 'mixer', 'amplifier', 'sound'],
-            'light' => ['light', 'lighting', 'par', 'beam', 'wash'],
-            'screen' => ['screen', 'projector', 'display', 'monitor'],
-            'it' => ['laptop', 'computer', 'network', 'router', 'cctv'],
-        ];
+        if ($key === 'sound') {
+            $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
+            $ui = $catalog->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?');
 
-        return $this->catalogue(isset($terms[$key]) ? $terms[$key] : [], $key);
+            return [
+                'reply' => "Great — let's design a sound solution for your event (not a single random speaker).\n\nFor the sound setup, which option would you prefer?\n\n🎵 Playback — No Live Instruments\n🎹 Playback + Piano Bar\n🎸 Full Live Setup\n\nAlso share the event date and venue if you haven't yet.",
+                'ui' => $ui,
+                'choices' => $ui['options'],
+            ];
+        }
+        if ($key === 'light') {
+            $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
+            $ui = $catalog->optionGroup('LIGHTING', 'Would you also like lighting for the event?');
+
+            return [
+                'reply' => "Happy to plan lighting for your event.\n\n💡 Basic Lighting\n✨ Standard Lighting\n🌟 Premium Lighting\n🚫 No Lighting\n\nWhat is the event date and venue?",
+                'ui' => $ui,
+                'choices' => $ui['options'],
+            ];
+        }
+        if ($key === 'screen') {
+            return [
+                'reply' => "Would you like an LED screen as part of the setup?\n\n🖥️ LED Screen — yes, please check catalogue options\n🚫 No screen\n\nShare the event date and venue so I can check real availability.",
+                'choices' => [
+                    ['value' => 'screen:yes', 'label' => '🖥️ LED Screen'],
+                    ['value' => 'screen:no', 'label' => '🚫 No screen'],
+                ],
+            ];
+        }
+
+        return [
+            'reply' => 'Tell me a bit about the event (date, venue, guests) and what IT support you need.',
+        ];
     }
 
-    protected function catalogue(array $terms, $label)
+    public function describe($key, $text)
     {
-        if (! Schema::hasTable('products') || count($terms) === 0) {
-            return 'Nothing in the product list matches '.$label.' yet.';
-        }
-        $query = Product::query()->where('is_active', true)->where(function ($inner) use ($terms) {
-            foreach ($terms as $term) {
-                $inner->orWhere('name', 'like', '%'.$term.'%')->orWhere('code', 'like', '%'.$term.'%');
-            }
-        });
-        $rows = $query->orderBy('name')->limit(8)->get(['name']);
-        if ($rows->isEmpty()) {
-            return 'Nothing in the product list matches '.$label.' yet.';
-        }
-        $lines = ['From the product list for '.$label.':'];
-        foreach ($rows as $row) {
-            $lines[] = '- '.$row->name;
-        }
-        $lines[] = 'Tell me the date if you want me to check availability. This is not a booking.';
+        $payload = $this->describePayload($key, $text);
 
-        return implode("\n", $lines);
+        return $payload['reply'];
     }
 }

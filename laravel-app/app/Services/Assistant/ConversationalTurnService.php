@@ -88,6 +88,9 @@ class ConversationalTurnService
                     $toolsRun[] = $name;
                     $lastToolResult = $exec['result'];
                     $facts = array_merge($facts, $exec['facts']);
+                    if (! empty($exec['result']['ui'])) {
+                        $facts['_ui'] = $exec['result']['ui'];
+                    }
                     if (! empty($exec['handover'])) {
                         return $this->finish([
                             'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
@@ -241,6 +244,10 @@ class ConversationalTurnService
         $payload['latency_ms'] = (int) round((microtime(true) - $started) * 1000);
         if (empty($payload['response_source'])) {
             $payload['response_source'] = isset($payload['path']) ? $payload['path'] : 'OPENAI_DIRECT';
+        }
+        if (empty($payload['ui']) && ! empty($payload['memory']['_ui'])) {
+            $payload['ui'] = $payload['memory']['_ui'];
+            unset($payload['memory']['_ui']);
         }
         $this->recordDiagnostics($payload);
 

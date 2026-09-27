@@ -36,8 +36,11 @@ class RentalQuoteService
             $range = ['start' => $today, 'end' => $today, 'days' => 1];
         }
         $query = isset($slots['product']) ? $slots['product'] : (isset($slots['query']) ? $slots['query'] : '');
+        if (! empty($slots['use_proposal_lines']) && ! empty($slots['proposal_lines']) && is_array($slots['proposal_lines'])) {
+            return $this->draftFromLines($slots['proposal_lines'], $range, $slots, $context);
+        }
         $proposalLines = $this->usableLines($slots, $context);
-        $generic = in_array(strtolower(trim((string) $query)), ['sound', 'audio', 'lighting', 'light', 'lights', 'led'], true);
+        $generic = in_array(strtolower(trim((string) $query)), ['sound', 'audio', 'lighting', 'light', 'lights', 'led', 'speaker', 'speakers'], true);
         if ($proposalLines && ($generic || trim((string) $query) === '' || $this->availability->search($query, 1)->isEmpty())) {
             return $this->draftFromLines($proposalLines, $range, $slots, $context);
         }

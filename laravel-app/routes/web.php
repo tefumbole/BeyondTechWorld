@@ -545,6 +545,11 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/conversations/{id}/enable-ai', 'WhatsApp\WhatsAppAssistantController@enableAi')->name('whatsapp.conversation.enable_ai');
     Route::post('/admin/whatsapp/conversations/{id}/suggest', 'WhatsApp\WhatsAppAssistantController@suggest')->name('whatsapp.conversation.suggest');
 
+    Route::get('/admin/event-packages', 'EventPackageAdminController@index')->name('event-packages.index');
+    Route::post('/admin/event-packages/{id}', 'EventPackageAdminController@updatePackage')->name('event-packages.update');
+    Route::post('/admin/event-packages/rules/{id}', 'EventPackageAdminController@updateRule')->name('event-packages.rules.update');
+    Route::post('/admin/event-packages/{id}/components', 'EventPackageAdminController@storeComponent')->name('event-packages.components.store');
+
     // Course Manager (AlphaBridge-style)
     Route::get('/admin/courses', 'CourseManagerController@index')->name('courses.index');
     Route::get('/admin/courses/create', 'CourseManagerController@create')->name('courses.create');

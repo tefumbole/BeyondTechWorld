@@ -47,12 +47,28 @@ class QuotationApprovalController extends Controller
             return back()->with('not_permitted', 'Please provide a valid signature (draw in the pad, then confirm).')->withInput();
         }
 
-        $quotation->quotation_status = Quotation::STATUS_APPROVED;
         $quotation->client_signature_path = $sigPath;
         $quotation->client_signed_at = now();
         $quotation->client_comment = $data['client_comment'] ?? null;
         $quotation->client_responded_at = now();
         $quotation->client_approval_token = null;
+
+        // AI/Website/WhatsApp drafts: customer acceptance waits for admin final approval.
+        // Do not jump straight to STATUS_APPROVED (sale-ready).
+        $aiChannel = in_array((string) $quotation->quotation_source, ['whatsapp', 'website'], true);
+        if ($aiChannel) {
+            app(\App\Services\Event\EventQuotationService::class)->markCustomerAccepted($quotation);
+            $quotation = $quotation->fresh(['customer', 'biller', 'user']);
+            $this->notifyStakeholders($quotation, 'customer_accepted');
+
+            return view('quotation.client_responded', [
+                'quotation' => $quotation,
+                'general_setting' => GeneralSetting::first(),
+                'pending_admin' => true,
+            ]);
+        }
+
+        $quotation->quotation_status = Quotation::STATUS_APPROVED;
         $quotation->save();
 
         // Force persist in case PDO string status comparisons left the row on awaiting.

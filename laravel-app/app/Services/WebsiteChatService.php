@@ -557,6 +557,9 @@ class WebsiteChatService
         $body = (string) $m->body;
         $media = $m->media();
         $choices = isset($media['choices']) && is_array($media['choices']) ? $media['choices'] : null;
+        if (! $choices && isset($media['ui']['options']) && is_array($media['ui']['options'])) {
+            $choices = $media['ui']['options'];
+        }
 
         // Legacy rows that still contain the WhatsApp numbered menu.
         if (! $choices && strpos($body, '1. Sound') !== false) {
@@ -584,6 +587,13 @@ class WebsiteChatService
                     'label' => (string) ($c['label'] ?? $c['value'] ?? ''),
                 ];
             }, $choices));
+        }
+        if (isset($media['ui']) && is_array($media['ui'])) {
+            $payload['ui'] = [
+                'type' => isset($media['ui']['type']) ? $media['ui']['type'] : 'OPTION_GROUP',
+                'category' => isset($media['ui']['category']) ? $media['ui']['category'] : null,
+                'prompt' => isset($media['ui']['prompt']) ? $media['ui']['prompt'] : null,
+            ];
         }
 
         return $payload;

@@ -49,6 +49,7 @@ class Quotation extends Model
         'whatsapp_lead_id',
         'quotation_source',
         'revised_from_id',
+        'workflow_state',
     ];
 
     protected $dates = [

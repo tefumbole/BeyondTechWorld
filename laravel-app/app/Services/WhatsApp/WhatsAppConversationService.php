@@ -402,7 +402,7 @@ class WhatsAppConversationService
         return $conversation;
     }
 
-    public function assistantReply(WhatsAppConversation $conversation, $body)
+    public function assistantReply(WhatsAppConversation $conversation, $body, array $media = null)
     {
         $body = trim((string) $body);
         if ($body === '') {
@@ -419,7 +419,15 @@ class WhatsAppConversationService
 
         $mediaJson = null;
         $hadServiceMenu = strpos($body, '1. Sound') !== false;
-        if ($conversation->isWebsite() && $hadServiceMenu) {
+        if ($conversation->isWebsite() && is_array($media) && (! empty($media['choices']) || ! empty($media['ui']))) {
+            $payload = array_filter([
+                'choices' => isset($media['choices']) ? $media['choices'] : null,
+                'ui' => isset($media['ui']) ? $media['ui'] : null,
+            ], function ($v) {
+                return $v !== null;
+            });
+            $mediaJson = json_encode($payload);
+        } elseif ($conversation->isWebsite() && $hadServiceMenu) {
             $menu = app(\App\Services\Assistant\ServiceMenu::class);
             $body = trim(preg_replace('/\n*You can tap a service below.*$/s', "\n\n".$menu->websitePrompt(), $body));
             if ($body === '' || $body === $menu->websitePrompt()) {

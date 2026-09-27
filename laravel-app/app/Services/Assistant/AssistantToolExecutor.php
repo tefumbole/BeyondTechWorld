@@ -150,10 +150,24 @@ class AssistantToolExecutor
         $availability = app(RentalAvailabilityService::class);
         $range = $availability->resolveRange($params);
         $query = isset($params['product']) ? $params['product'] : (isset($params['query']) ? $params['query'] : '');
+        $qNorm = strtolower(trim((string) $query));
+        $vague = in_array($qNorm, ['', 'speaker', 'speakers', 'sound', 'audio', 'lighting', 'light', 'lights', 'mic', 'microphone', 'mixer'], true)
+            || preg_match('/^(some|any)?\s*speakers?$/i', $qNorm);
+        if ($vague) {
+            return [
+                'success' => true,
+                'event_first' => true,
+                'redirect' => 'build_event_solution',
+                'availability_checked' => false,
+                'message' => 'That sounds like an event sound/lighting request, not a single catalogue SKU. Collect event date/venue/guests and use build_event_solution / get_sound_experience_options instead of checking one random product.',
+                'ui' => app(\App\Services\Event\EventPackageCatalogService::class)
+                    ->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?'),
+            ];
+        }
         if (! $range) {
             return $this->toolSearchRentalProducts($params, $context);
         }
-        $products = $availability->search($query, 1);
+        $products = $availability->search($query, 5);
         $product = $products->first();
         if (! $product) {
             $proposal = $this->proposalAvailability($params, $context, $range);
@@ -164,17 +178,223 @@ class AssistantToolExecutor
             return ['success' => true, 'products' => [], 'availability_checked' => true, 'available' => false, 'reason' => 'not_found'];
         }
         $qty = isset($params['qty']) ? (int) $params['qty'] : 1;
-        $check = $availability->assess($product, $qty, $range['start'], $range['end']);
+        $chosen = null;
+        $check = null;
+        foreach ($products as $candidate) {
+            $assessed = $availability->assess($candidate, $qty, $range['start'], $range['end']);
+            if (! empty($assessed['available'])) {
+                $chosen = $candidate;
+                $check = $assessed;
+                break;
+            }
+            if ($check === null) {
+                $chosen = $candidate;
+                $check = $assessed;
+            }
+        }
         $check['days'] = $range['days'];
         $check['products'] = [$check];
         if (empty($check['available'])) {
-            $check['alternatives'] = $availability->alternatives($product, $qty, $range['start'], $range['end']);
+            $check['alternatives'] = $availability->alternatives($chosen, $qty, $range['start'], $range['end']);
+            $check['message'] = 'That specific item is tight on '.$range['start'].'. Here are suitable alternatives from inventory — or we can build a full event sound package instead.';
         }
         if (! empty($check['priced']) && ! empty($check['available'])) {
             $check['estimate_total'] = round($check['day_rate'] * $check['requested_qty'] * $range['days'], 2);
         }
 
         return $check;
+    }
+
+    protected function toolGetSoundExperienceOptions(array $params, array $context)
+    {
+        $ui = app(\App\Services\Event\EventPackageCatalogService::class)
+            ->optionGroup('SOUND_MODE', 'For the sound setup, which option would you prefer?');
+
+        return [
+            'success' => true,
+            'options' => $ui['options'],
+            'ui' => $ui,
+            'message' => "For the sound setup, which option would you prefer?\n🎵 Playback — No Live Instruments\n🎹 Playback + Piano Bar\n🎸 Full Live Setup",
+        ];
+    }
+
+    protected function toolGetSoundPackages(array $params, array $context)
+    {
+        $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
+        $ui = $catalog->optionGroup('SOUND', 'Which sound package would you like to explore?');
+
+        return ['success' => true, 'packages' => $catalog->packages('SOUND'), 'ui' => $ui];
+    }
+
+    protected function toolGetLightingPackages(array $params, array $context)
+    {
+        $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
+        $ui = $catalog->optionGroup('LIGHTING', 'Would you also like lighting for the event?');
+
+        return ['success' => true, 'packages' => $catalog->packages('LIGHTING'), 'ui' => $ui];
+    }
+
+    protected function toolGetPackageDetails(array $params, array $context)
+    {
+        $category = isset($params['category']) ? $params['category'] : '';
+        $code = isset($params['code']) ? $params['code'] : '';
+        $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
+        $pkg = $catalog->find($category, $code);
+        if (! $pkg) {
+            return ['success' => false, 'error' => 'not_found'];
+        }
+        $pkg->load('components');
+
+        return ['success' => true, 'package' => $catalog->serialize($pkg)];
+    }
+
+    protected function toolSearchEventProducts(array $params, array $context)
+    {
+        $category = isset($params['category']) ? $params['category'] : (isset($params['query']) ? $params['query'] : 'speaker');
+
+        return app(\App\Services\Event\EventSolutionBuilderService::class)->searchSuitableProducts($category, $params, 8);
+    }
+
+    protected function toolCheckEventEquipmentAvailability(array $params, array $context)
+    {
+        $solution = app(\App\Services\Event\EventSolutionBuilderService::class)->build($this->eventRequirementsFromParams($params));
+
+        return [
+            'success' => true,
+            'equipment_available' => ! empty($solution['equipment_available']),
+            'equipment_lines' => $solution['equipment_lines'],
+            'warnings' => $solution['warnings'],
+            'multiple_events_per_day_supported' => true,
+            'message' => ! empty($solution['equipment_available'])
+                ? 'Equipment can be allocated for this date based on remaining inventory (other events that day do not block the company).'
+                : 'Some package lines need alternatives or staff review for this date.',
+        ];
+    }
+
+    protected function toolCalculateStagePrice(array $params, array $context)
+    {
+        $length = isset($params['length_m']) ? $params['length_m'] : null;
+        $width = isset($params['width_m']) ? $params['width_m'] : null;
+        if (($length === null || $width === null) && ! empty($params['text'])) {
+            $parsed = app(\App\Services\Event\StagePricingService::class)->parseDimensions($params['text']);
+            if ($parsed) {
+                $length = $parsed[0];
+                $width = $parsed[1];
+            }
+        }
+        if ($length === null || $width === null) {
+            return ['success' => false, 'error' => 'need_dimensions', 'message' => 'What stage size would you like? For example, 4m × 4m.'];
+        }
+
+        return app(\App\Services\Event\StagePricingService::class)->calculate($length, $width);
+    }
+
+    protected function toolGetTrussOptions(array $params, array $context)
+    {
+        $options = app(\App\Services\Event\TrussPricingService::class)->options();
+        $ui = [
+            'type' => 'OPTION_GROUP',
+            'category' => 'TRUSS',
+            'prompt' => 'Would you also need truss?',
+            'options' => array_map(function ($o) {
+                $label = (isset($o['icon']) ? $o['icon'] : '').' '.$o['name'];
+                if ((float) $o['price'] > 0) {
+                    $label .= ' — '.number_format((float) $o['price'], 0).' CFA';
+                }
+
+                return ['value' => 'truss:'.strtolower($o['code']), 'label' => trim($label), 'code' => $o['code'], 'price' => $o['price']];
+            }, $options),
+        ];
+
+        return ['success' => true, 'options' => $options, 'ui' => $ui];
+    }
+
+    protected function toolCalculateTransportPrice(array $params, array $context)
+    {
+        $within = ! empty($params['within_town']) && ! in_array(strtolower((string) $params['within_town']), ['0', 'false', 'no'], true);
+
+        return app(\App\Services\Event\TransportPricingService::class)->calculate([
+            'within_town' => $within,
+            'sound_package' => isset($params['sound_package']) ? $params['sound_package'] : null,
+            'lighting_package' => isset($params['lighting_package']) ? $params['lighting_package'] : null,
+            'transport_tier' => isset($params['transport_tier']) ? $params['transport_tier'] : null,
+            'location_scope' => isset($params['location_scope']) ? $params['location_scope'] : null,
+        ]);
+    }
+
+    protected function toolBuildEventSolution(array $params, array $context)
+    {
+        $solution = app(\App\Services\Event\EventSolutionBuilderService::class)->build($this->eventRequirementsFromParams($params));
+        $solution['ui'] = [
+            'type' => 'QUOTATION_SUMMARY',
+            'summary' => $solution['summary_text'],
+            'options' => [
+                ['value' => 'quotation:prepare', 'label' => '✅ Prepare formal quotation'],
+                ['value' => 'quotation:revise', 'label' => '✏️ Change something'],
+            ],
+        ];
+
+        return $solution;
+    }
+
+    protected function toolCalculateEventEstimate(array $params, array $context)
+    {
+        return $this->toolBuildEventSolution($params, $context);
+    }
+
+    protected function toolCreateEventQuotationDraft(array $params, array $context)
+    {
+        $solution = app(\App\Services\Event\EventSolutionBuilderService::class)->build($this->eventRequirementsFromParams($params));
+
+        return app(\App\Services\Event\EventQuotationService::class)->createDraftFromSolution($solution, $params, $context);
+    }
+
+    protected function toolGenerateQuotationReview(array $params, array $context)
+    {
+        $id = isset($params['quotation_id']) ? (int) $params['quotation_id'] : 0;
+
+        return app(\App\Services\Event\EventQuotationService::class)->generateCustomerReview($id, $context);
+    }
+
+    protected function toolGetQuotationReviewStatus(array $params, array $context)
+    {
+        $id = isset($params['quotation_id']) ? (int) $params['quotation_id'] : 0;
+
+        return app(\App\Services\Event\EventQuotationService::class)->reviewStatus($id);
+    }
+
+    protected function eventRequirementsFromParams(array $params)
+    {
+        $bool = function ($v) {
+            if (is_bool($v)) {
+                return $v;
+            }
+            $s = strtolower(trim((string) $v));
+
+            return in_array($s, ['1', 'true', 'yes', 'y'], true);
+        };
+
+        return array_filter([
+            'event_type' => isset($params['event_type']) ? $params['event_type'] : null,
+            'event_date' => isset($params['event_date']) ? $params['event_date'] : null,
+            'event_end_date' => isset($params['event_end_date']) ? $params['event_end_date'] : (isset($params['event_end']) ? $params['event_end'] : null),
+            'venue' => isset($params['venue']) ? $params['venue'] : (isset($params['location']) ? $params['location'] : null),
+            'location' => isset($params['location']) ? $params['location'] : null,
+            'guest_count' => isset($params['guest_count']) ? $params['guest_count'] : (isset($params['guests']) ? $params['guests'] : null),
+            'sound_mode' => isset($params['sound_mode']) ? $params['sound_mode'] : null,
+            'sound_package' => isset($params['sound_package']) ? strtoupper((string) $params['sound_package']) : null,
+            'lighting_package' => isset($params['lighting_package']) ? strtoupper((string) $params['lighting_package']) : null,
+            'want_screen' => isset($params['want_screen']) ? $bool($params['want_screen']) : null,
+            'want_stage' => isset($params['want_stage']) ? $bool($params['want_stage']) : null,
+            'stage_length_m' => isset($params['stage_length_m']) ? $params['stage_length_m'] : null,
+            'stage_width_m' => isset($params['stage_width_m']) ? $params['stage_width_m'] : null,
+            'truss_package' => isset($params['truss_package']) ? strtoupper((string) $params['truss_package']) : null,
+            'within_town' => isset($params['within_town']) ? $bool($params['within_town']) : true,
+            'location_scope' => isset($params['location_scope']) ? $params['location_scope'] : null,
+            'transport_tier' => isset($params['transport_tier']) ? $params['transport_tier'] : null,
+        ], function ($v) {
+            return $v !== null && $v !== '';
+        });
     }
 
     protected function proposalAvailability(array $params, array $context, array $range)
