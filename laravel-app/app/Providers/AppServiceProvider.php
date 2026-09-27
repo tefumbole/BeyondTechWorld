@@ -33,8 +33,7 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Calendar\GoogleCalendarProvider::class
         );
         $this->app->bind(\App\Contracts\Ai\AiProviderInterface::class, function () {
-            $provider = strtolower((string) config('assistant.provider'));
-            if ($provider === 'null' || trim((string) config('assistant.api_key')) === '') {
+            if (! \App\Services\Assistant\AssistantAiConfig::shouldUseOpenAi()) {
                 return new \App\Services\Assistant\Providers\NullAiProvider();
             }
 

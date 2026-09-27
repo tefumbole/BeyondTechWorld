@@ -219,7 +219,7 @@ class AssistantResponseComposer
         if ($intent === IntentCatalog::COMPANY_INFORMATION || $intent === IntentCatalog::SERVICE_ENQUIRY || $intent === IntentCatalog::GENERAL_ENQUIRY) {
             $entries = isset($toolResult['entries']) ? $toolResult['entries'] : [];
             if ($entries === []) {
-                return 'BeyondTechWorld offers event production, equipment rental, IT services, training and internships. How can we help?';
+                return 'I do not have a matching knowledge-base entry for that yet. Ask me another way, or ask for a human if you need staff help.';
             }
             $bits = [];
             foreach (array_slice($entries, 0, 3) as $entry) {

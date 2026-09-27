@@ -49,17 +49,29 @@ class ConversationalTurnService
         $toolsRun = [];
         $lastToolResult = null;
         $facts = [];
+        $lastModel = AssistantAiConfig::model();
+        $toolChoice = 'auto';
+        $started = microtime(true);
 
         for ($i = 0; $i < $maxIter; $i++) {
             $result = $this->provider->complete($messages, [
                 'tools' => $openAiTools,
-                'tool_choice' => 'auto',
+                'tool_choice' => $toolChoice,
                 'json' => false,
             ]);
             $this->recordUsage($result);
+            if (! empty($result['model'])) {
+                $lastModel = $result['model'];
+            }
 
             if (empty($result['ok'])) {
-                return $this->providerFailure(isset($result['error']) ? $result['error'] : 'ai_provider_failed');
+                return $this->providerFailure(
+                    isset($result['error']) ? $result['error'] : 'ai_provider_failed',
+                    $lastModel,
+                    $openAiTools,
+                    $toolChoice,
+                    $started
+                );
             }
 
             // Native tool_calls path
@@ -77,8 +89,7 @@ class ConversationalTurnService
                     $lastToolResult = $exec['result'];
                     $facts = array_merge($facts, $exec['facts']);
                     if (! empty($exec['handover'])) {
-                        return [
-                            'handled' => true,
+                        return $this->finish([
                             'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
                             'handover' => true,
                             'call_request' => false,
@@ -87,8 +98,9 @@ class ConversationalTurnService
                             'tool' => $name,
                             'tool_result' => $lastToolResult,
                             'tools_run' => $toolsRun,
-                            'path' => 'TOOL_ASSISTED',
-                        ];
+                            'path' => 'HUMAN_HANDOVER',
+                            'response_source' => 'HUMAN_HANDOVER',
+                        ], $lastModel, $openAiTools, $toolChoice, $started);
                     }
                     $messages[] = [
                         'role' => 'tool',
@@ -104,8 +116,7 @@ class ConversationalTurnService
             if (is_array($json) && (! empty($json['tool']) || ! empty($json['reply']) || ! empty($json['handover']))) {
                 $facts = array_merge($facts, $this->facts($json));
                 if (! empty($json['handover']) || ! empty($json['call_request'])) {
-                    return [
-                        'handled' => true,
+                    return $this->finish([
                         'reply' => $this->safeReply(isset($json['reply']) ? $json['reply'] : '', ! empty($json['call_request'])),
                         'handover' => true,
                         'call_request' => ! empty($json['call_request']),
@@ -114,8 +125,9 @@ class ConversationalTurnService
                         'tool' => null,
                         'tool_result' => null,
                         'tools_run' => $toolsRun,
-                        'path' => 'HANDOVER',
-                    ];
+                        'path' => 'HUMAN_HANDOVER',
+                        'response_source' => 'HUMAN_HANDOVER',
+                    ], $lastModel, $openAiTools, $toolChoice, $started);
                 }
                 $tool = isset($json['tool']) ? (string) $json['tool'] : '';
                 if ($tool !== '') {
@@ -125,8 +137,7 @@ class ConversationalTurnService
                     $lastToolResult = $exec['result'];
                     $facts = array_merge($facts, $exec['facts']);
                     if (! empty($exec['handover'])) {
-                        return [
-                            'handled' => true,
+                        return $this->finish([
                             'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
                             'handover' => true,
                             'call_request' => false,
@@ -135,8 +146,9 @@ class ConversationalTurnService
                             'tool' => $tool,
                             'tool_result' => $lastToolResult,
                             'tools_run' => $toolsRun,
-                            'path' => 'HANDOVER',
-                        ];
+                            'path' => 'HUMAN_HANDOVER',
+                            'response_source' => 'HUMAN_HANDOVER',
+                        ], $lastModel, $openAiTools, $toolChoice, $started);
                     }
                     $messages[] = ['role' => 'assistant', 'content' => json_encode($json)];
                     $messages[] = ['role' => 'user', 'content' => 'Tool result for '.$tool.': '.json_encode($this->publicResult($lastToolResult)).'. Reply to the customer naturally as JSON {"reply":""}.'];
@@ -148,8 +160,7 @@ class ConversationalTurnService
                         $reply = $this->phraseTool($lastToolResult);
                     }
 
-                    return [
-                        'handled' => true,
+                    return $this->finish([
                         'reply' => $reply,
                         'handover' => false,
                         'call_request' => false,
@@ -160,12 +171,14 @@ class ConversationalTurnService
                         'tools_run' => $toolsRun,
                         'clarify' => ! empty($json['clarify']),
                         'path' => 'TOOL_ASSISTED',
-                    ];
+                        'response_source' => 'OPENAI_TOOL_ASSISTED',
+                    ], $lastModel, $openAiTools, $toolChoice, $started);
                 }
                 $reply = isset($json['reply']) ? trim((string) $json['reply']) : '';
                 if ($reply !== '') {
-                    return [
-                        'handled' => true,
+                    $isClarify = ! empty($json['clarify']);
+
+                    return $this->finish([
                         'reply' => $reply,
                         'handover' => false,
                         'call_request' => false,
@@ -174,16 +187,16 @@ class ConversationalTurnService
                         'tool' => null,
                         'tool_result' => $lastToolResult,
                         'tools_run' => $toolsRun,
-                        'clarify' => ! empty($json['clarify']),
-                        'path' => ! empty($json['clarify']) ? 'CLARIFIED' : 'DIRECT_AI',
-                    ];
+                        'clarify' => $isClarify,
+                        'path' => $isClarify ? 'CLARIFIED' : 'DIRECT_AI',
+                        'response_source' => $isClarify ? 'CLARIFICATION' : 'OPENAI_DIRECT',
+                    ], $lastModel, $openAiTools, $toolChoice, $started);
                 }
             }
 
             $plain = isset($result['content']) ? trim((string) $result['content']) : '';
-            if ($plain !== '' && $plain !== '{}') {
-                return [
-                    'handled' => true,
+            if ($plain !== '' && $plain !== '{}' && $plain !== 'null') {
+                return $this->finish([
                     'reply' => $plain,
                     'handover' => false,
                     'call_request' => false,
@@ -192,17 +205,17 @@ class ConversationalTurnService
                     'tool' => null,
                     'tool_result' => $lastToolResult,
                     'tools_run' => $toolsRun,
-                    'path' => 'DIRECT_AI',
-                ];
+                    'path' => count($toolsRun) ? 'TOOL_ASSISTED' : 'DIRECT_AI',
+                    'response_source' => count($toolsRun) ? 'OPENAI_TOOL_ASSISTED' : 'OPENAI_DIRECT',
+                ], $lastModel, $openAiTools, $toolChoice, $started);
             }
 
             break;
         }
 
-        // Soft clarify — NOT a human handover
-        return [
-            'handled' => true,
-            'reply' => 'Could you tell me a bit more about what you need — equipment rental, training/internship, or something else?',
+        // Empty model output — NEVER convert into a rental/internship business menu.
+        return $this->finish([
+            'reply' => 'Sorry — I had trouble forming a reply just now. Could you say that again in another way?',
             'handover' => false,
             'call_request' => false,
             'reason' => null,
@@ -211,8 +224,47 @@ class ConversationalTurnService
             'tool_result' => $lastToolResult,
             'tools_run' => $toolsRun,
             'clarify' => true,
-            'path' => 'CLARIFIED',
-        ];
+            'path' => 'FALLBACK_ERROR',
+            'response_source' => 'FALLBACK_ERROR',
+            'provider_error' => 'empty_model_response',
+        ], $lastModel, $openAiTools, $toolChoice, $started);
+    }
+
+    protected function finish(array $payload, $model, array $tools, $toolChoice, $started)
+    {
+        $payload['handled'] = true;
+        $payload['model'] = $model;
+        $payload['tool_choice'] = $toolChoice;
+        $payload['tools_offered'] = array_values(array_filter(array_map(function ($t) {
+            return isset($t['function']['name']) ? $t['function']['name'] : null;
+        }, $tools)));
+        $payload['latency_ms'] = (int) round((microtime(true) - $started) * 1000);
+        if (empty($payload['response_source'])) {
+            $payload['response_source'] = isset($payload['path']) ? $payload['path'] : 'OPENAI_DIRECT';
+        }
+        $this->recordDiagnostics($payload);
+
+        return $payload;
+    }
+
+    protected function recordDiagnostics(array $payload)
+    {
+        Cache::put('assistant_last_turn_diag', [
+            'at' => now()->toDateTimeString(),
+            'response_source' => isset($payload['response_source']) ? $payload['response_source'] : null,
+            'path' => isset($payload['path']) ? $payload['path'] : null,
+            'model' => isset($payload['model']) ? $payload['model'] : null,
+            'latency_ms' => isset($payload['latency_ms']) ? $payload['latency_ms'] : null,
+            'tool_choice' => isset($payload['tool_choice']) ? $payload['tool_choice'] : null,
+            'tools_offered_count' => isset($payload['tools_offered']) ? count($payload['tools_offered']) : 0,
+            'tools_run' => isset($payload['tools_run']) ? $payload['tools_run'] : [],
+            'handover' => ! empty($payload['handover']),
+            'handover_reason' => isset($payload['reason']) ? $payload['reason'] : null,
+            'provider_error' => isset($payload['provider_error']) ? mb_substr((string) $payload['provider_error'], 0, 200) : null,
+            'tool_status' => isset($payload['tool_result']['success'])
+                ? (! empty($payload['tool_result']['success']) ? 'ok' : 'failed')
+                : null,
+        ], now()->addDays(7));
     }
 
     protected function buildMessages(WhatsAppConversation $conversation, array $context, AssistantMemory $memory, $incoming)
@@ -226,15 +278,19 @@ class ConversationalTurnService
         foreach ($this->history($conversation) as $row) {
             $messages[] = $row;
         }
-        $messages[] = [
-            'role' => 'user',
-            'content' => json_encode([
-                'memory' => $memory->parameters(),
-                'incoming' => $incoming,
-                'known_name' => isset($context['contact_name']) ? $context['contact_name'] : null,
-                'channel' => method_exists($conversation, 'isWebsite') && $conversation->isWebsite() ? 'website' : 'whatsapp',
-            ]),
-        ];
+        // Send the visitor message as plain text so the model answers naturally.
+        $messages[] = ['role' => 'user', 'content' => (string) $incoming];
+        $meta = array_filter([
+            'known_name' => isset($context['contact_name']) ? $context['contact_name'] : null,
+            'channel' => method_exists($conversation, 'isWebsite') && $conversation->isWebsite() ? 'website' : 'whatsapp',
+            'memory' => $memory->parameters() ?: null,
+        ]);
+        if ($meta) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => 'Session context (for you only, do not recite unless useful): '.json_encode($meta),
+            ];
+        }
 
         return $messages;
     }
@@ -274,21 +330,23 @@ class ConversationalTurnService
         ];
     }
 
-    protected function providerFailure($reason)
+    protected function providerFailure($reason, $model = null, array $tools = [], $toolChoice = 'auto', $started = null)
     {
-        return [
-            'handled' => true,
-            'reply' => "I am having trouble reaching my AI service right now. I've passed this to our team and someone will assist you. Your message was saved.",
-            'handover' => true,
+        $started = $started ?: microtime(true);
+
+        return $this->finish([
+            'reply' => "I'm having trouble reaching my AI service right now. Please try again in a moment, or ask for a human if you need urgent help.",
+            'handover' => false,
             'call_request' => false,
-            'reason' => 'TOOL_FAILURE',
+            'reason' => null,
             'memory' => [],
             'tool' => null,
             'tool_result' => null,
             'tools_run' => [],
-            'path' => 'HANDOVER',
+            'path' => 'FALLBACK_ERROR',
+            'response_source' => 'FALLBACK_ERROR',
             'provider_error' => $reason,
-        ];
+        ], $model ?: AssistantAiConfig::model(), $tools, $toolChoice, $started);
     }
 
     protected function rawToolCallsForReplay(array $calls)

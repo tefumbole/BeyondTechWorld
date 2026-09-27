@@ -121,6 +121,7 @@ class BeyondAssistantService
         $directReply = null;
         $conversationalTool = null;
         $conversationalResult = null;
+        $turnDiag = null;
         $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
         $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
         $menuChoice = app(ServiceMenu::class)->match((string) $message->body);
@@ -204,11 +205,19 @@ class BeyondAssistantService
                 $directReply = $turn['reply'];
                 $conversationalTool = isset($turn['tool']) ? $turn['tool'] : null;
                 $conversationalResult = isset($turn['tool_result']) ? $turn['tool_result'] : null;
+                $turnDiag = $turn;
                 if (! empty($turn['memory'])) {
                     $slots = array_merge($slots, $turn['memory']);
                 }
                 if (! empty($turn['tools_run']) && is_array($turn['tools_run'])) {
                     $activity->tools_requested = implode(',', $turn['tools_run']);
+                }
+                if (! empty($turn['response_source'])) {
+                    $activity->tools_executed = mb_substr(
+                        ($activity->tools_executed ? $activity->tools_executed.';' : '').'src='.$turn['response_source'],
+                        0,
+                        190
+                    );
                 }
                 if (! empty($turn['handover'])) {
                     $classified = [
@@ -244,7 +253,7 @@ class BeyondAssistantService
             ];
         }
 
-        // Last resort: operational classify only — never treat as auto-HUMAN for UNKNOWN.
+        // Last resort only if conversational engine did not run/return. Never business-menu clarify.
         if (! isset($classified)) {
             $classified = $this->router->classify((string) $message->body, $context, $slots);
             if (($classified['intent'] ?? '') === IntentCatalog::UNKNOWN) {
@@ -252,12 +261,12 @@ class BeyondAssistantService
                     'intent' => IntentCatalog::GENERAL_ENQUIRY,
                     'confidence' => 0.7,
                     'requires_erp' => false,
-                    'needs_clarification' => true,
+                    'needs_clarification' => false,
                     'slots' => [],
                 ];
-                if ($directReply === null) {
-                    $directReply = 'Happy to help — could you share a bit more about what you need?';
-                }
+            }
+            if ($directReply === null) {
+                $directReply = "I'm having trouble forming a reply right now. Please try again in a moment.";
             }
         }
         $slots = array_merge($slots, isset($classified['slots']) ? $classified['slots'] : []);
@@ -456,9 +465,24 @@ class BeyondAssistantService
         if ($activity->status === AssistantActivity::STARTED) {
             $activity->status = $sent ? AssistantActivity::COMPLETED : AssistantActivity::FAILED;
         }
+        if ($turnDiag && ! empty($turnDiag['provider_error']) && empty($activity->error)) {
+            $activity->error = mb_substr('provider:'.$turnDiag['provider_error'], 0, 240);
+        }
+        if ($turnDiag && ! empty($turnDiag['model'])) {
+            $activity->model = $turnDiag['model'];
+        }
         $activity->save();
 
-        return ['skipped' => false, 'sent' => $sent, 'intent' => $decision['intent'], 'action' => $decision['action'], 'reply' => $reply];
+        return [
+            'skipped' => false,
+            'sent' => $sent,
+            'intent' => $decision['intent'],
+            'action' => $decision['action'],
+            'reply' => $reply,
+            'response_source' => isset($turnDiag['response_source']) ? $turnDiag['response_source'] : null,
+            'model' => isset($turnDiag['model']) ? $turnDiag['model'] : null,
+            'tool_choice' => isset($turnDiag['tool_choice']) ? $turnDiag['tool_choice'] : null,
+        ];
     }
 
     public function suggest(\App\WhatsApp\WhatsAppConversation $conversation)

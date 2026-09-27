@@ -38,12 +38,25 @@
         <div class="wa-card">
             <h5>Beyond Assistant / OpenAI</h5>
             <p>OpenAI configured: {{ !empty($diag['openai_configured']) ? 'YES' : 'NO' }} · Enabled: {{ !empty($diag['openai_enabled']) ? 'YES' : 'NO' }}</p>
-            <p>Model: {{ $diag['openai_model'] ?? '—' }} · Hub switch: {{ !empty($diag['assistant_enabled']) ? 'Yes' : 'No' }} · Key: {{ $diag['assistant_provider'] }}</p>
+            <p>Model: {{ $diag['openai_model'] ?? '—' }} · Bound provider: {{ $diag['openai_provider_bound'] ?? '—' }} · Hub switch: {{ !empty($diag['assistant_enabled']) ? 'Yes' : 'No' }} · Key: {{ $diag['assistant_provider'] }}</p>
             <p>Last OpenAI success: {{ !empty($diag['openai_last_ok']['at']) ? $diag['openai_last_ok']['at'] : '—' }}
                 @if(!empty($diag['openai_last_ok']['latency_ms'])) ({{ $diag['openai_last_ok']['latency_ms'] }} ms)@endif
             </p>
             <p>Last OpenAI failure: {{ !empty($diag['openai_last_fail']['error']) ? $diag['openai_last_fail']['error'] : '—' }}
                 @if(!empty($diag['openai_last_fail']['at'])) · {{ $diag['openai_last_fail']['at'] }}@endif
+            </p>
+            @php $turn = $diag['assistant_last_turn_diag'] ?? null; @endphp
+            <p>Last turn path:
+                @if($turn)
+                    source={{ $turn['response_source'] ?? '—' }}
+                    · model={{ $turn['model'] ?? '—' }}
+                    · tool_choice={{ $turn['tool_choice'] ?? '—' }}
+                    · tools_run={{ !empty($turn['tools_run']) ? implode(',', $turn['tools_run']) : 'none' }}
+                    · {{ $turn['latency_ms'] ?? '?' }} ms
+                    @if(!empty($turn['provider_error'])) · err={{ $turn['provider_error'] }}@endif
+                @else
+                    —
+                @endif
             </p>
             <p>Recent avg latency: {{ $diag['openai_avg_latency_ms'] ?? 0 }} ms · Activity avg: {{ $diag['assistant_avg_ms'] }} ms · Handovers: {{ $diag['assistant_handovers'] }}</p>
             <p>Last activity success: {{ optional($diag['assistant_last_ok'])->created_at ?: '—' }} · Last activity failure: {{ optional($diag['assistant_last_fail'])->error ?: '—' }}</p>
@@ -52,7 +65,12 @@
             @endforeach
             <form method="post" action="{{ route('whatsapp.diagnostics.test_openai') }}" class="mt-3">
                 @csrf
-                <button type="submit" class="btn btn-outline-primary btn-sm">Test OpenAI</button>
+                <div class="form-group mb-2">
+                    <label class="small text-muted">Direct-answer diagnostic (bypasses website/WhatsApp routing)</label>
+                    <input type="text" name="message" class="form-control form-control-sm" value="What is the difference between a line array and a point source speaker?">
+                </div>
+                <label class="small d-block mb-2"><input type="checkbox" name="with_tools" value="1" checked> Offer ERP tools (tool_choice=auto)</label>
+                <button type="submit" class="btn btn-outline-primary btn-sm">Test OpenAI direct answer</button>
             </form>
             @if(session('openai_test'))
                 <div class="alert alert-{{ session('openai_test_ok') ? 'success' : 'warning' }} mt-3 mb-0">{{ session('openai_test') }}</div>

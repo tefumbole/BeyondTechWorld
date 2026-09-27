@@ -3,6 +3,7 @@
 namespace App\Services\Assistant\Providers;
 
 use App\Contracts\Ai\AiProviderInterface;
+use App\Services\Assistant\AssistantAiConfig;
 
 class OpenAiProvider implements AiProviderInterface
 {
@@ -14,7 +15,7 @@ class OpenAiProvider implements AiProviderInterface
         }
 
         $payload = [
-            'model' => isset($options['model']) ? $options['model'] : config('assistant.model'),
+            'model' => isset($options['model']) ? $options['model'] : AssistantAiConfig::model(),
             'messages' => $messages,
             'temperature' => isset($options['temperature']) ? $options['temperature'] : config('assistant.temperature'),
             'max_tokens' => isset($options['max_tokens']) ? $options['max_tokens'] : config('assistant.max_output_tokens'),
@@ -23,6 +24,7 @@ class OpenAiProvider implements AiProviderInterface
         $useTools = ! empty($options['tools']) && is_array($options['tools']);
         if ($useTools) {
             $payload['tools'] = $options['tools'];
+            // General conversation must be allowed to answer with no tool.
             $payload['tool_choice'] = isset($options['tool_choice']) ? $options['tool_choice'] : 'auto';
         } elseif (! empty($options['json'])) {
             $payload['response_format'] = ['type' => 'json_object'];
@@ -35,7 +37,7 @@ class OpenAiProvider implements AiProviderInterface
             CURLOPT_TIMEOUT => (int) config('assistant.timeout'),
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Authorization: Bearer '.config('assistant.api_key'),
+                'Authorization: Bearer '.AssistantAiConfig::apiKey(),
             ],
             CURLOPT_POSTFIELDS => json_encode($payload),
         ]);
@@ -81,7 +83,7 @@ class OpenAiProvider implements AiProviderInterface
             'tool_calls' => $toolCalls !== [] ? $toolCalls : null,
             'error' => null,
             'provider' => 'openai',
-            'model' => isset($decoded['model']) ? $decoded['model'] : config('assistant.model'),
+            'model' => isset($decoded['model']) ? $decoded['model'] : AssistantAiConfig::model(),
             'input_tokens' => isset($decoded['usage']['prompt_tokens']) ? (int) $decoded['usage']['prompt_tokens'] : null,
             'output_tokens' => isset($decoded['usage']['completion_tokens']) ? (int) $decoded['usage']['completion_tokens'] : null,
             'latency_ms' => (int) round((microtime(true) - $started) * 1000),
@@ -90,7 +92,7 @@ class OpenAiProvider implements AiProviderInterface
 
     public function isConfigured()
     {
-        return trim((string) config('assistant.api_key')) !== '';
+        return AssistantAiConfig::isConfigured();
     }
 
     public function name()
@@ -107,7 +109,7 @@ class OpenAiProvider implements AiProviderInterface
             'tool_calls' => null,
             'error' => $error,
             'provider' => 'openai',
-            'model' => config('assistant.model'),
+            'model' => AssistantAiConfig::model(),
             'input_tokens' => null,
             'output_tokens' => null,
             'latency_ms' => $started ? (int) round((microtime(true) - $started) * 1000) : null,

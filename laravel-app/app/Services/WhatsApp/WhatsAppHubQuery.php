@@ -298,12 +298,15 @@ class WhatsAppHubQuery
             'wasender_session' => ! empty(config('services.whatsapp.wasender_session_id')) ? 'Configured' : 'Missing',
             'webhook_secret' => WaSenderSignature::isConfigured() ? 'Configured' : 'Missing',
             'assistant_enabled' => app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled(),
-            'assistant_provider' => trim((string) config('assistant.api_key')) !== '' ? 'Configured' : 'Not Configured',
-            'openai_configured' => trim((string) config('assistant.api_key')) !== '',
+            'assistant_provider' => \App\Services\Assistant\AssistantAiConfig::isConfigured() ? 'Configured' : 'Not Configured',
+            'openai_configured' => \App\Services\Assistant\AssistantAiConfig::isConfigured(),
             'openai_enabled' => (bool) config('assistant.enabled'),
-            'openai_model' => (string) config('assistant.model'),
+            'openai_model' => \App\Services\Assistant\AssistantAiConfig::model(),
+            'openai_provider_bound' => app(\App\Contracts\Ai\AiProviderInterface::class)->name(),
             'openai_last_ok' => \Illuminate\Support\Facades\Cache::get('assistant_openai_last_ok'),
             'openai_last_fail' => \Illuminate\Support\Facades\Cache::get('assistant_openai_last_fail'),
+            'assistant_last_turn_diag' => \Illuminate\Support\Facades\Cache::get('assistant_last_turn_diag'),
+            'assistant_direct_test_last' => \Illuminate\Support\Facades\Cache::get('assistant_direct_test_last'),
             'openai_avg_latency_ms' => (function () {
                 $samples = \Illuminate\Support\Facades\Cache::get('assistant_openai_latency_samples', []);
                 if (! is_array($samples) || $samples === []) {

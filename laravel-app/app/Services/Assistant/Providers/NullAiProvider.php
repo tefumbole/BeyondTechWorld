@@ -45,7 +45,8 @@ class NullAiProvider implements AiProviderInterface
 
     public function isConfigured()
     {
-        return true;
+        // Scripted unit tests are "configured"; empty Null must never pretend to be OpenAI in production.
+        return $this->scripted !== [];
     }
 
     public function name()

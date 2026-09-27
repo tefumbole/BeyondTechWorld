@@ -177,16 +177,23 @@ class WhatsAppConversationalTest extends WhatsAppHubTestCase
         $this->assertSame($before, WhatsAppMessage::where('sender_type', 'ASSISTANT')->count());
     }
 
-    public function test_provider_failure_hands_over_without_inventing()
+    public function test_provider_failure_does_not_invent_business_menu()
     {
         $fake = new NullAiProvider();
         $fake->fail = true;
+        $fake->scripted = [['reply' => 'unused']]; // so isConfigured() is true and complete() is reached
         $this->app->instance(AiProviderInterface::class, $fake);
         $this->postWebhook($this->incoming('237650100011', 'Could you walk me through a site survey?', 'C11'))->assertStatus(200);
         $this->assertSame(1, WhatsAppMessage::where('direction', 'INCOMING')->count());
         $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->first();
-        $this->assertStringContainsString('passed this to our team', $out->body);
-        $this->assertSame(WhatsAppConversation::MODE_HUMAN, WhatsAppConversation::first()->mode);
+        $this->assertNotNull($out);
+        $this->assertStringContainsString('having trouble reaching my AI service', $out->body);
+        $this->assertStringNotContainsString('equipment rental', strtolower($out->body));
+        $this->assertStringNotContainsString('training/internship', strtolower($out->body));
+        // Provider failure must not force HUMAN ownership.
+        $this->assertSame(WhatsAppConversation::MODE_AI, WhatsAppConversation::first()->mode);
+        $diag = \Illuminate\Support\Facades\Cache::get('assistant_last_turn_diag');
+        $this->assertSame('FALLBACK_ERROR', $diag['response_source']);
     }
 
     public function test_checkout_and_otp_win_over_chat()

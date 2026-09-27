@@ -98,6 +98,53 @@ class OpenAiConversationalEngineTest extends WhatsAppHubTestCase
         $this->assertNotSame(\App\Assistant\IntentCatalog::ACTION_HANDOVER, $decision['action']);
     }
 
+    public function test_general_av_question_gets_openai_direct_not_business_menu()
+    {
+        $fake = new NullAiProvider();
+        $fake->scripted = [
+            ['content' => 'A line array stacks speakers to control vertical coverage for large audiences; a point source radiates from one point and suits smaller rooms.'],
+        ];
+        $this->app->instance(AiProviderInterface::class, $fake);
+
+        $this->postWebhook($this->incoming(
+            '237650900010',
+            'what is the difference between line array and point source speaker',
+            'LA1'
+        ))->assertStatus(200);
+
+        $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertNotNull($out);
+        $this->assertStringContainsString('line array', strtolower($out->body));
+        $this->assertStringNotContainsString('equipment rental', strtolower($out->body));
+        $this->assertStringNotContainsString('training/internship', strtolower($out->body));
+        $this->assertStringNotContainsString('or something else', strtolower($out->body));
+
+        $diag = \Illuminate\Support\Facades\Cache::get('assistant_last_turn_diag');
+        $this->assertNotNull($diag);
+        $this->assertSame('OPENAI_DIRECT', $diag['response_source']);
+        $this->assertSame('auto', $diag['tool_choice']);
+    }
+
+    public function test_missing_openai_key_does_not_show_business_menu()
+    {
+        $fake = new NullAiProvider();
+        $fake->scripted = [];
+        $this->app->instance(AiProviderInterface::class, $fake);
+
+        $this->postWebhook($this->incoming(
+            '237650900011',
+            'Explain gain before feedback briefly',
+            'GB1'
+        ))->assertStatus(200);
+
+        $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertNotNull($out);
+        $this->assertStringNotContainsString('equipment rental', strtolower($out->body));
+        $this->assertStringNotContainsString('training/internship', strtolower($out->body));
+        $diag = \Illuminate\Support\Facades\Cache::get('assistant_last_turn_diag');
+        $this->assertSame('FALLBACK_ERROR', $diag['response_source']);
+    }
+
     protected function incoming($phone, $body, $id)
     {
         return [
