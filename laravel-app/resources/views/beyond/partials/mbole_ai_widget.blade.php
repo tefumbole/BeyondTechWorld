@@ -181,11 +181,14 @@
   var TOKEN_KEY = 'mbole_ai_token';
   var DISMISS_KEY = 'mbole_ai_greet_dismissed';
   var OPENED_KEY = 'mbole_ai_opened_once';
+  var LAST_ACTIVE_KEY = 'mbole_ai_last_active';
+  var IDLE_MS = 5 * 60 * 1000;
   var CSRF = document.querySelector('meta[name="csrf-token"]');
   var csrf = CSRF ? CSRF.getAttribute('content') : '';
   var token = localStorage.getItem(TOKEN_KEY) || '';
   var cursor = 0;
   var pollTimer = null;
+  var idleTimer = null;
   var sending = false;
   var onboarding = 'need_phone';
   var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
@@ -216,6 +219,64 @@
   var ccSearch = document.getElementById('mbole-cc-search');
   var ccList = document.getElementById('mbole-cc-list');
   var ccLabel = document.getElementById('mbole-cc-label');
+
+  function nowMs() { return Date.now(); }
+
+  function touchActivity() {
+    try { localStorage.setItem(LAST_ACTIVE_KEY, String(nowMs())); } catch (e) {}
+    scheduleIdleCheck();
+  }
+
+  function lastActivityMs() {
+    var raw = 0;
+    try { raw = parseInt(localStorage.getItem(LAST_ACTIVE_KEY) || '0', 10) || 0; } catch (e) { raw = 0; }
+    return raw;
+  }
+
+  function isIdleExpired() {
+    var last = lastActivityMs();
+    if (!last) return false;
+    return (nowMs() - last) >= IDLE_MS;
+  }
+
+  function scheduleIdleCheck() {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (isIdleExpired()) {
+        startFreshChat('idle');
+      } else {
+        scheduleIdleCheck();
+      }
+    }, Math.min(30000, IDLE_MS));
+  }
+
+  function startFreshChat(reason) {
+    stopPoll();
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    token = '';
+    cursor = 0;
+    sending = false;
+    typing.classList.remove('on');
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.setItem(LAST_ACTIVE_KEY, String(nowMs()));
+    } catch (e) {}
+    thread.innerHTML = '';
+    if (phoneLocal) phoneLocal.value = '';
+    if (nameLocal) nameLocal.value = '';
+    if (input) input.value = '';
+    showErr(phoneErr, '');
+    showErr(nameErr, '');
+    applyOnboarding('need_phone');
+    if (reason === 'idle' && panel.classList.contains('open')) {
+      appendMsg({
+        id: 'idle-' + nowMs(),
+        role: 'assistant',
+        body: 'This chat ended after 5 minutes of inactivity. Starting a new conversation — please confirm your phone number to continue.'
+      });
+    }
+    scheduleIdleCheck();
+  }
 
   function countryLabel(code) {
     for (var i = 0; i < countries.length; i++) {
@@ -414,6 +475,7 @@
   function sendChatMessage(body) {
     body = String(body || '').trim();
     if (!body || sending || onboarding !== 'ready') return Promise.resolve();
+    touchActivity();
     sending = true;
     typing.classList.add('on');
     return ensureSession().then(function () {
@@ -424,6 +486,7 @@
     }).then(function (res) {
       typing.classList.remove('on');
       sending = false;
+      touchActivity();
       if (!res.ok || !res.body.success) {
         appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.' });
         return;
@@ -446,6 +509,10 @@
     greet.style.display = 'none';
     if (open) {
       localStorage.setItem(OPENED_KEY, '1');
+      if (isIdleExpired()) {
+        startFreshChat('idle');
+      }
+      touchActivity();
       ensureSession().then(function (body) {
         applyOnboarding(body.onboarding || onboarding);
         if (onboarding === 'ready') {
@@ -503,6 +570,7 @@
 
   function sendBody(body, goBtn, errEl) {
     if (sending) return Promise.resolve();
+    touchActivity();
     sending = true;
     if (goBtn) goBtn.disabled = true;
     typing.classList.add('on');
@@ -515,6 +583,7 @@
       typing.classList.remove('on');
       sending = false;
       if (goBtn) goBtn.disabled = false;
+      touchActivity();
       if (!res.ok || !res.body.success) {
         showErr(errEl, (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.');
         return res;
@@ -575,6 +644,14 @@
     sendChatMessage(body);
   });
 
+  // Any interaction inside the open panel counts as activity.
+  panel.addEventListener('click', function () { touchActivity(); });
+  panel.addEventListener('keydown', function () { touchActivity(); });
+  if (input) {
+    input.addEventListener('input', function () { touchActivity(); });
+    input.addEventListener('focus', function () { touchActivity(); });
+  }
+
   fab.addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-greet-cta').addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-close').addEventListener('click', function () { setOpen(false); });
@@ -589,7 +666,14 @@
   });
   window.addEventListener('mbole-ai-open', function () { setOpen(true); });
 
-  applyOnboarding(onboarding);
+  // Expire stale sessions from a previous visit before wiring onboarding UI.
+  if (token && isIdleExpired()) {
+    startFreshChat('idle');
+  } else {
+    applyOnboarding(onboarding);
+    if (token) touchActivity();
+    else scheduleIdleCheck();
+  }
 
   api('/api/website-chat/config').then(function (res) {
     if (!res.ok || !res.body.success) return;
@@ -612,6 +696,7 @@
     }
     if (localStorage.getItem(TOKEN_KEY)) {
       token = localStorage.getItem(TOKEN_KEY);
+      if (isIdleExpired()) startFreshChat('idle');
     }
   }).catch(function () {});
 })();
