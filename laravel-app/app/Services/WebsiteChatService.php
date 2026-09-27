@@ -232,7 +232,7 @@ class WebsiteChatService
             return self::ONBOARD_NEED_PHONE;
         }
         $phone = (string) $contact->normalized_phone;
-        if ($phone === '' || strpos($phone, 'web:') === 0) {
+        if ($phone === '' || $this->isWebsitePlaceholder($phone)) {
             return self::ONBOARD_NEED_PHONE;
         }
         $name = trim((string) $contact->wa_name);
@@ -241,6 +241,12 @@ class WebsiteChatService
         }
 
         return self::ONBOARD_READY;
+    }
+
+    protected function isWebsitePlaceholder($phone)
+    {
+        // Synthetic contact keys are "web…" until the visitor shares a real MSISDN.
+        return strpos((string) $phone, 'web') === 0;
     }
 
     protected function sessionPayload($token, WhatsAppConversation $conversation)
@@ -382,7 +388,7 @@ class WebsiteChatService
             WhatsAppMessage::where('conversation_id', $conversation->id)
                 ->where('contact_id', $contact->id)
                 ->update(['contact_id' => $existing->id]);
-            if (strpos((string) $contact->normalized_phone, 'web:') === 0) {
+            if ($this->isWebsitePlaceholder((string) $contact->normalized_phone)) {
                 try {
                     $contact->delete();
                 } catch (\Exception $e) {
@@ -468,7 +474,8 @@ class WebsiteChatService
 
     protected function ensureWebsiteContact($token)
     {
-        $synthetic = 'web:'.$token;
+        // normalized_phone is varchar(32): keep a short synthetic key until identity is collected.
+        $synthetic = 'web'.substr((string) $token, 0, 29);
         $contact = WhatsAppContact::firstOrNew(['normalized_phone' => $synthetic]);
         if (! $contact->exists) {
             $contact->display_phone = 'Website visitor';
