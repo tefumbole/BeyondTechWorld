@@ -25,5 +25,8 @@ class VerifyCsrfToken extends Middleware
         // the session cookie, so CSRF would block family members from submitting.
         'pangwayu/eulogy',
         'mambole/submit',
+        // Website chat widget POSTs from the public site; CSRF cookies are
+        // unreliable across cache/CDN and caused silent "Network error" sends.
+        'api/website-chat/*',
     ];
 }

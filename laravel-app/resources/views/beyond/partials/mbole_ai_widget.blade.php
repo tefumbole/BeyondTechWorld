@@ -85,7 +85,8 @@
   var cursor = 0;
   var pollTimer = null;
   var sending = false;
-  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
+  var onboarding = 'need_phone';
+  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hi! Share your WhatsApp number to start.', greeting_delay_ms: 600, continue_whatsapp: true };
 
   var fab = document.getElementById('mbole-fab');
   var panel = document.getElementById('mbole-panel');
@@ -95,6 +96,17 @@
   var input = document.getElementById('mbole-input');
   var typing = document.getElementById('mbole-typing');
   var waLink = document.getElementById('mbole-wa');
+
+  function applyOnboarding(step) {
+    if (step) onboarding = step;
+    if (onboarding === 'need_phone') {
+      input.placeholder = 'Your WhatsApp number…';
+    } else if (onboarding === 'need_name') {
+      input.placeholder = 'Your name…';
+    } else {
+      input.placeholder = 'Type your message…';
+    }
+  }
 
   function api(path, opts) {
     opts = opts || {};
@@ -111,7 +123,11 @@
     opts.headers = headers;
     opts.credentials = 'same-origin';
     return fetch(path, opts).then(function (r) {
-      return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; });
+      return r.text().then(function (text) {
+        var j = {};
+        try { j = text ? JSON.parse(text) : {}; } catch (e) { j = { error: text || ('HTTP ' + r.status) }; }
+        return { ok: r.ok, status: r.status, body: j };
+      });
     });
   }
 
@@ -136,7 +152,9 @@
     greet.style.display = 'none';
     if (open) {
       localStorage.setItem(OPENED_KEY, '1');
-      ensureSession().then(function () { poll(true); startPoll(); }).catch(function () {});
+      ensureSession().then(function () { return poll(true); }).then(function () { startPoll(); }).catch(function (err) {
+        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (err && err.message) || 'Could not start chat. Please refresh and try again.' });
+      });
       setTimeout(function () { try { input.focus(); } catch (e) {} }, 80);
     } else {
       stopPoll();
@@ -148,9 +166,10 @@
       method: 'POST',
       json: { token: token || null, path: location.pathname }
     }).then(function (res) {
-      if (!res.ok || !res.body.success) throw new Error((res.body && res.body.error) || 'session failed');
+      if (!res.ok || !res.body.success) throw new Error((res.body && (res.body.error || res.body.message)) || 'Could not start chat.');
       token = res.body.token;
       localStorage.setItem(TOKEN_KEY, token);
+      applyOnboarding(res.body.onboarding || onboarding);
       if (res.body.assistant_name) {
         document.getElementById('mbole-name').textContent = res.body.assistant_name;
       }
@@ -167,10 +186,8 @@
     var url = '/api/website-chat/messages?token=' + encodeURIComponent(token) + '&after=' + encodeURIComponent(cursor);
     return api(url).then(function (res) {
       if (!res.ok || !res.body.success) return;
+      applyOnboarding(res.body.onboarding || onboarding);
       (res.body.messages || []).forEach(appendMsg);
-      if (initial && !(res.body.messages || []).length && cfg.greeting && !localStorage.getItem(OPENED_KEY)) {
-        /* greeting is idle bubble only; first open can show system line once */
-      }
     }).catch(function () {});
   }
 
@@ -200,14 +217,15 @@
       typing.classList.remove('on');
       sending = false;
       if (!res.ok || !res.body.success) {
-        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && res.body.error) || 'Sorry, something went wrong.' });
+        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.' });
         return;
       }
+      applyOnboarding(res.body.onboarding || onboarding);
       (res.body.messages || []).forEach(appendMsg);
-    }).catch(function () {
+    }).catch(function (err) {
       typing.classList.remove('on');
       sending = false;
-      appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: 'Network error. Please try again.' });
+      appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (err && err.message) || 'Network error. Please try again.' });
     });
   });
 
@@ -224,6 +242,8 @@
     greet.style.display = 'none';
   });
   window.addEventListener('mbole-ai-open', function () { setOpen(true); });
+
+  applyOnboarding(onboarding);
 
   api('/api/website-chat/config').then(function (res) {
     if (!res.ok || !res.body.success) return;

@@ -475,10 +475,20 @@ class PeopleDirectoryService
             return $existing;
         }
         if (strlen($tail) >= 8) {
-            return Customer::whereRaw(
-                "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone_number,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
-                [$tail]
-            )->orderByDesc('is_active')->orderByDesc('id')->first();
+            try {
+                return Customer::whereRaw(
+                    "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone_number,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                    [$tail]
+                )->orderByDesc('is_active')->orderByDesc('id')->first();
+            } catch (\Throwable $e) {
+                // SQLite and some drivers lack RIGHT(); fall back to PHP matching.
+                return Customer::orderByDesc('is_active')->orderByDesc('id')->get()
+                    ->first(function ($row) use ($tail) {
+                        $digits = preg_replace('/\D/', '', (string) $row->phone_number);
+
+                        return strlen($digits) >= 8 && substr($digits, -9) === $tail;
+                    });
+            }
         }
 
         return null;
