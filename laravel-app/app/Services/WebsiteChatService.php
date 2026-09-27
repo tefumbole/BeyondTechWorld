@@ -209,7 +209,7 @@ class WebsiteChatService
             return null;
         }
 
-        return 'Hi! Share your WhatsApp number to start.';
+        return 'Hello! How can I help?';
     }
 
     public function continueWhatsAppEnabled()
@@ -265,23 +265,8 @@ class WebsiteChatService
 
     protected function ensureOnboardingPrompt(WhatsAppConversation $conversation)
     {
-        $contact = $conversation->contact;
-        if ($this->onboardingState($contact) !== self::ONBOARD_NEED_PHONE) {
-            return;
-        }
-
-        $exists = WhatsAppMessage::where('conversation_id', $conversation->id)
-            ->where('direction', WhatsAppMessage::DIR_OUT)
-            ->where('sender_type', 'ASSISTANT')
-            ->exists();
-        if ($exists) {
-            return;
-        }
-
-        $this->postAssistant(
-            $conversation,
-            "Hi! Before we chat, please share your WhatsApp number (e.g. 675321739 or +237…)."
-        );
+        // Phone capture is handled by the widget UI (country + number form),
+        // not by an assistant chat prompt.
     }
 
     protected function handlePhoneStep(WhatsAppConversation $conversation, $token, WhatsAppMessage $inbound, $body)

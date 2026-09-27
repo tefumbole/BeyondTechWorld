@@ -41,9 +41,8 @@ class WebsiteChatTest extends WhatsAppHubTestCase
         $this->assertSame('need_phone', $first['onboarding']);
 
         $poll = $this->getJson('/api/website-chat/messages?token='.$first['token'].'&after=0')->assertStatus(200)->json();
-        $this->assertTrue(collect($poll['messages'])->contains(function ($m) {
-            return $m['role'] === 'assistant' && stripos($m['body'], 'WhatsApp number') !== false;
-        }));
+        // Phone is collected by the widget form — no chat prompt is seeded.
+        $this->assertSame([], $poll['messages']);
     }
 
     public function test_cameroon_phone_uses_campay_name_not_system()

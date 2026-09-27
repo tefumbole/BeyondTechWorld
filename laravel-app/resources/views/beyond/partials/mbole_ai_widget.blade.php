@@ -1,4 +1,7 @@
 {{-- Mbole AI — Website Beyond Assistant (poll-based chat) --}}
+@php
+    $mboleCountries = \App\Support\CountryDialCodes::all();
+@endphp
 <style>
 #mbole-ai-root{position:fixed;right:24px;bottom:24px;z-index:99990;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 #mbole-ai-root *{box-sizing:border-box}
@@ -24,7 +27,7 @@
 .mbole-msg.assistant,.mbole-msg.staff{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:4px}
 .mbole-msg.visitor{align-self:flex-end;background:#0b3d91;color:#fff;border-bottom-right-radius:4px}
 .mbole-msg.staff{border-left:3px solid #f59e0b}
-.mbole-typing{align-self:flex-start;font-size:12px;color:#64748b;display:none}
+.mbole-typing{align-self:flex-start;font-size:12px;color:#64748b;display:none;padding:0 14px 8px}
 .mbole-typing.on{display:block}
 .mbole-compose{display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;background:#fff}
 .mbole-compose input{flex:1;border:1px solid #cbd5e1;border-radius:999px;padding:10px 14px;font-size:13px;outline:none}
@@ -32,6 +35,26 @@
 .mbole-footer{padding:0 12px 10px;background:#fff;display:flex;justify-content:space-between;align-items:center}
 .mbole-footer a{font-size:11px;color:#0b3d91;text-decoration:none}
 .mbole-footer button{border:0;background:transparent;color:#64748b;font-size:11px;cursor:pointer}
+.mbole-gate{flex:1;overflow:auto;padding:18px 16px 16px;background:#fff;display:none}
+.mbole-gate.on{display:block}
+.mbole-gate-title{display:flex;align-items:center;gap:8px;margin:0 0 6px;color:#0b3d91;font-size:16px;font-weight:800}
+.mbole-gate-title svg{width:18px;height:18px;flex-shrink:0;color:#c9a227}
+.mbole-gate-sub{margin:0 0 14px;color:#64748b;font-size:13px;line-height:1.4}
+.mbole-gate label{display:block;margin:0 0 6px;color:#0b3d91;font-size:13px;font-weight:700}
+.mbole-gate-row{display:flex;gap:8px;align-items:stretch}
+.mbole-gate-row select,.mbole-gate-row input[type="tel"],.mbole-gate-row input[type="text"]{
+  border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:14px;color:#0f172a;background:#fff;outline:none;min-width:0
+}
+.mbole-gate-row select{width:42%;font-weight:700;color:#0b3d91;cursor:pointer}
+.mbole-gate-row input{flex:1}
+.mbole-gate-row select:focus,.mbole-gate-row input:focus{border-color:#0b3d91;box-shadow:0 0 0 3px rgba(11,61,145,.12)}
+.mbole-gate-hint{margin:8px 0 0;color:#94a3b8;font-size:12px}
+.mbole-gate-err{margin:10px 0 0;color:#b91c1c;font-size:12px;display:none}
+.mbole-gate-err.on{display:block}
+.mbole-gate-go{margin-top:16px;width:100%;border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer}
+.mbole-gate-go:disabled{opacity:.65;cursor:wait}
+.mbole-chat-wrap{flex:1;min-height:0;display:none;flex-direction:column}
+.mbole-chat-wrap.on{display:flex}
 @keyframes mbole-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes mbole-glow{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.8;transform:scale(1.04)}}
 @media (max-width:640px){
@@ -39,6 +62,8 @@
   .mbole-fab{width:76px;height:88px}
   .mbole-greet{right:90px;bottom:22px;max-width:190px}
   .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
+  .mbole-gate-row{flex-direction:column}
+  .mbole-gate-row select{width:100%}
 }
 </style>
 
@@ -61,15 +86,49 @@
       <button type="button" id="mbole-min" title="Minimize" aria-label="Minimize">–</button>
       <button type="button" id="mbole-close" title="Close" aria-label="Close">×</button>
     </div>
-    <div class="mbole-thread" id="mbole-thread"></div>
-    <div class="mbole-typing" id="mbole-typing">Mbole is typing…</div>
-    <form class="mbole-compose" id="mbole-form" autocomplete="off">
-      <input type="text" id="mbole-input" maxlength="2000" placeholder="Type your message…" aria-label="Message">
-      <button type="submit">Send</button>
-    </form>
-    <div class="mbole-footer">
-      <a id="mbole-wa" href="#" target="_blank" rel="noopener" style="display:none">Continue on WhatsApp</a>
-      <button type="button" id="mbole-dismiss">Don't show greeting</button>
+
+    <div class="mbole-gate on" id="mbole-phone-gate">
+      <h3 class="mbole-gate-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        Phone Number
+      </h3>
+      <p class="mbole-gate-sub">Pick a Country and put the phone number.</p>
+      <label for="mbole-phone-local">Phone number *</label>
+      <div class="mbole-gate-row">
+        <select id="mbole-country" aria-label="Country code">
+          @foreach ($mboleCountries as $code => $label)
+            <option value="{{ $code }}" @if($code === '+237') selected @endif>{{ $label }}</option>
+          @endforeach
+        </select>
+        <input type="tel" id="mbole-phone-local" inputmode="numeric" autocomplete="tel-national" placeholder="National number" maxlength="15" aria-label="Phone number">
+      </div>
+      <p class="mbole-gate-hint">Do not type a country code in this box.</p>
+      <p class="mbole-gate-err" id="mbole-phone-err"></p>
+      <button type="button" class="mbole-gate-go" id="mbole-phone-go">Continue</button>
+    </div>
+
+    <div class="mbole-gate" id="mbole-name-gate">
+      <h3 class="mbole-gate-title">Your name</h3>
+      <p class="mbole-gate-sub">We couldn’t find a name for that number. What should I call you?</p>
+      <label for="mbole-name-local">Full name *</label>
+      <div class="mbole-gate-row">
+        <input type="text" id="mbole-name-local" autocomplete="name" placeholder="Your name" maxlength="80" aria-label="Your name" style="flex:1;width:100%">
+      </div>
+      <p class="mbole-gate-err" id="mbole-name-err"></p>
+      <button type="button" class="mbole-gate-go" id="mbole-name-go">Continue</button>
+    </div>
+
+    <div class="mbole-chat-wrap" id="mbole-chat-wrap">
+      <div class="mbole-thread" id="mbole-thread"></div>
+      <div class="mbole-typing" id="mbole-typing">Mbole is typing…</div>
+      <form class="mbole-compose" id="mbole-form" autocomplete="off">
+        <input type="text" id="mbole-input" maxlength="2000" placeholder="Type your message…" aria-label="Message">
+        <button type="submit">Send</button>
+      </form>
+      <div class="mbole-footer">
+        <a id="mbole-wa" href="#" target="_blank" rel="noopener" style="display:none">Continue on WhatsApp</a>
+        <button type="button" id="mbole-dismiss">Don't show greeting</button>
+      </div>
     </div>
   </div>
 </div>
@@ -86,7 +145,7 @@
   var pollTimer = null;
   var sending = false;
   var onboarding = 'need_phone';
-  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hi! Share your WhatsApp number to start.', greeting_delay_ms: 600, continue_whatsapp: true };
+  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
 
   var fab = document.getElementById('mbole-fab');
   var panel = document.getElementById('mbole-panel');
@@ -96,16 +155,54 @@
   var input = document.getElementById('mbole-input');
   var typing = document.getElementById('mbole-typing');
   var waLink = document.getElementById('mbole-wa');
+  var phoneGate = document.getElementById('mbole-phone-gate');
+  var nameGate = document.getElementById('mbole-name-gate');
+  var chatWrap = document.getElementById('mbole-chat-wrap');
+  var countryEl = document.getElementById('mbole-country');
+  var phoneLocal = document.getElementById('mbole-phone-local');
+  var phoneErr = document.getElementById('mbole-phone-err');
+  var phoneGo = document.getElementById('mbole-phone-go');
+  var nameLocal = document.getElementById('mbole-name-local');
+  var nameErr = document.getElementById('mbole-name-err');
+  var nameGo = document.getElementById('mbole-name-go');
 
   function applyOnboarding(step) {
     if (step) onboarding = step;
+    phoneGate.classList.toggle('on', onboarding === 'need_phone');
+    nameGate.classList.toggle('on', onboarding === 'need_name');
+    chatWrap.classList.toggle('on', onboarding === 'ready');
     if (onboarding === 'need_phone') {
-      input.placeholder = 'Your WhatsApp number…';
+      setTimeout(function () { try { phoneLocal.focus(); } catch (e) {} }, 60);
     } else if (onboarding === 'need_name') {
-      input.placeholder = 'Your name…';
+      setTimeout(function () { try { nameLocal.focus(); } catch (e) {} }, 60);
     } else {
-      input.placeholder = 'Type your message…';
+      setTimeout(function () { try { input.focus(); } catch (e) {} }, 60);
     }
+  }
+
+  function showErr(el, msg) {
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.classList.add('on');
+    } else {
+      el.textContent = '';
+      el.classList.remove('on');
+    }
+  }
+
+  function digitsOnly(v) {
+    return String(v || '').replace(/\D/g, '');
+  }
+
+  function combinePhone(code, local) {
+    var codeDigits = digitsOnly(code);
+    var localDigits = digitsOnly(local);
+    if (localDigits.charAt(0) === '0') localDigits = localDigits.replace(/^0+/, '');
+    if (codeDigits && localDigits.indexOf(codeDigits) === 0 && localDigits.length - codeDigits.length >= 7) {
+      localDigits = localDigits.slice(codeDigits.length);
+    }
+    return '+' + codeDigits + localDigits;
   }
 
   function api(path, opts) {
@@ -152,10 +249,16 @@
     greet.style.display = 'none';
     if (open) {
       localStorage.setItem(OPENED_KEY, '1');
-      ensureSession().then(function () { return poll(true); }).then(function () { startPoll(); }).catch(function (err) {
-        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (err && err.message) || 'Could not start chat. Please refresh and try again.' });
+      ensureSession().then(function (body) {
+        applyOnboarding(body.onboarding || onboarding);
+        if (onboarding === 'ready') {
+          return poll(true).then(function () { startPoll(); });
+        }
+        stopPoll();
+      }).catch(function (err) {
+        showErr(phoneErr, (err && err.message) || 'Could not start chat. Please refresh and try again.');
+        applyOnboarding('need_phone');
       });
-      setTimeout(function () { try { input.focus(); } catch (e) {} }, 80);
     } else {
       stopPoll();
     }
@@ -169,7 +272,6 @@
       if (!res.ok || !res.body.success) throw new Error((res.body && (res.body.error || res.body.message)) || 'Could not start chat.');
       token = res.body.token;
       localStorage.setItem(TOKEN_KEY, token);
-      applyOnboarding(res.body.onboarding || onboarding);
       if (res.body.assistant_name) {
         document.getElementById('mbole-name').textContent = res.body.assistant_name;
       }
@@ -182,12 +284,14 @@
   }
 
   function poll(initial) {
-    if (!token) return Promise.resolve();
+    if (!token || onboarding !== 'ready') return Promise.resolve();
     var url = '/api/website-chat/messages?token=' + encodeURIComponent(token) + '&after=' + encodeURIComponent(cursor);
     return api(url).then(function (res) {
       if (!res.ok || !res.body.success) return;
       applyOnboarding(res.body.onboarding || onboarding);
-      (res.body.messages || []).forEach(appendMsg);
+      if (onboarding === 'ready') {
+        (res.body.messages || []).forEach(appendMsg);
+      }
     }).catch(function () {});
   }
 
@@ -200,9 +304,74 @@
     pollTimer = null;
   }
 
+  function sendBody(body, goBtn, errEl) {
+    if (sending) return Promise.resolve();
+    sending = true;
+    if (goBtn) goBtn.disabled = true;
+    typing.classList.add('on');
+    return ensureSession().then(function () {
+      return api('/api/website-chat/messages', {
+        method: 'POST',
+        json: { token: token, body: body, path: location.pathname }
+      });
+    }).then(function (res) {
+      typing.classList.remove('on');
+      sending = false;
+      if (goBtn) goBtn.disabled = false;
+      if (!res.ok || !res.body.success) {
+        showErr(errEl, (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.');
+        return res;
+      }
+      showErr(errEl, '');
+      applyOnboarding(res.body.onboarding || onboarding);
+      if (onboarding === 'ready') {
+        (res.body.messages || []).forEach(function (m) {
+          // Skip echoing the raw phone / name the visitor just typed in the gate.
+          if (m.role === 'visitor') return;
+          appendMsg(m);
+        });
+        startPoll();
+      }
+      return res;
+    }).catch(function (err) {
+      typing.classList.remove('on');
+      sending = false;
+      if (goBtn) goBtn.disabled = false;
+      showErr(errEl, (err && err.message) || 'Network error. Please try again.');
+    });
+  }
+
+  phoneGo.addEventListener('click', function () {
+    showErr(phoneErr, '');
+    var local = digitsOnly(phoneLocal.value);
+    if (local.length < 8) {
+      showErr(phoneErr, 'Enter a valid national phone number.');
+      phoneLocal.focus();
+      return;
+    }
+    sendBody(combinePhone(countryEl.value, phoneLocal.value), phoneGo, phoneErr);
+  });
+  phoneLocal.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); phoneGo.click(); }
+  });
+
+  nameGo.addEventListener('click', function () {
+    showErr(nameErr, '');
+    var name = (nameLocal.value || '').trim();
+    if (name.length < 2) {
+      showErr(nameErr, 'Please enter your name.');
+      nameLocal.focus();
+      return;
+    }
+    sendBody(name, nameGo, nameErr);
+  });
+  nameLocal.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); nameGo.click(); }
+  });
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    if (sending) return;
+    if (sending || onboarding !== 'ready') return;
     var body = (input.value || '').trim();
     if (!body) return;
     sending = true;
