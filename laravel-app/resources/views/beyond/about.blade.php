@@ -27,12 +27,11 @@
 </section>
 
 @if(isset($leaders) && $leaders->count())
-<section id="leadership" class="py-16 sm:py-20 bg-brand-blue">
+<section id="leadership" class="py-8 sm:py-10 bg-brand-blue">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-12 sm:mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-4">{{ \App\Support\SiteContent::text('about.leadership_heading', 'Our Leadership') }}</h2>
+        <div class="text-center mb-8 sm:mb-10">
+            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">{{ \App\Support\SiteContent::text('about.leadership_heading', 'Our Leadership') }}</h2>
             <div class="h-1 w-24 bg-brand-gold mx-auto"></div>
-            <p class="mt-4 text-lg sm:text-xl text-gray-300">{{ \App\Support\SiteContent::text('about.leadership_subtext', 'The visionaries driving Beyond Enterprise forward') }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             @foreach($leaders as $leader)

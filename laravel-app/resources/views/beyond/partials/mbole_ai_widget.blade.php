@@ -9,7 +9,9 @@
 .mbole-greet strong{display:block;margin-bottom:4px;font-size:13px}
 .mbole-greet button{margin-top:8px;border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
 .mbole-panel{display:none;width:min(380px,calc(100vw - 24px));height:min(560px,calc(100vh - 48px));background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(15,23,42,.28);flex-direction:column}
-.mbole-panel.open{display:flex}
+.mbole-panel.open{display:flex!important}
+#mbole-ai-root.is-open .mbole-fab{visibility:hidden;pointer-events:none}
+#mbole-ai-root.is-open .mbole-greet{display:none!important}
 .mbole-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0b3d91,#1d4ed8);color:#fff}
 .mbole-head img{width:44px;height:48px;border-radius:10px;object-fit:contain;object-position:center;background:rgba(255,255,255,.12)}
 .mbole-head .meta{flex:1;min-width:0}
@@ -38,18 +40,17 @@
   .mbole-greet{right:90px;bottom:22px;max-width:190px}
   .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
 }
-[x-cloak]{display:none!important}
 </style>
 
 <div id="mbole-ai-root" aria-live="polite">
-  <div class="mbole-greet" id="mbole-greet" style="display:none" x-cloak>
+  <div class="mbole-greet" id="mbole-greet" style="display:none" hidden>
     <strong id="mbole-greet-title">Hello! How can I help?</strong>
     <button type="button" id="mbole-greet-cta">Let's Chat</button>
   </div>
   <button type="button" class="mbole-fab" id="mbole-fab" aria-label="Open Mbole AI chat">
     <img src="{{ asset('branding/mbole-ai.png') }}?v=2" alt="Mbole AI" width="92" height="104">
   </button>
-  <div class="mbole-panel" id="mbole-panel" role="dialog" aria-label="Mbole AI chat" x-cloak>
+  <div class="mbole-panel" id="mbole-panel" role="dialog" aria-label="Mbole AI chat" aria-hidden="true">
     <div class="mbole-head">
       <img src="{{ asset('branding/mbole-ai.png') }}?v=2" alt="">
       <div class="meta">
@@ -127,12 +128,16 @@
   }
 
   function setOpen(open) {
+    var root = document.getElementById('mbole-ai-root');
     panel.classList.toggle('open', !!open);
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (root) root.classList.toggle('is-open', !!open);
+    greet.hidden = true;
     greet.style.display = 'none';
     if (open) {
       localStorage.setItem(OPENED_KEY, '1');
-      ensureSession().then(function () { poll(true); startPoll(); });
-      setTimeout(function () { input.focus(); }, 80);
+      ensureSession().then(function () { poll(true); startPoll(); }).catch(function () {});
+      setTimeout(function () { try { input.focus(); } catch (e) {} }, 80);
     } else {
       stopPoll();
     }
@@ -206,8 +211,8 @@
     });
   });
 
-  fab.addEventListener('click', function () { setOpen(true); });
-  document.getElementById('mbole-greet-cta').addEventListener('click', function () { setOpen(true); });
+  fab.addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
+  document.getElementById('mbole-greet-cta').addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-close').addEventListener('click', function () { setOpen(false); });
   document.getElementById('mbole-min').addEventListener('click', function () {
     setOpen(false);
@@ -215,8 +220,10 @@
   });
   document.getElementById('mbole-dismiss').addEventListener('click', function () {
     localStorage.setItem(DISMISS_KEY, '1');
+    greet.hidden = true;
     greet.style.display = 'none';
   });
+  window.addEventListener('mbole-ai-open', function () { setOpen(true); });
 
   api('/api/website-chat/config').then(function (res) {
     if (!res.ok || !res.body.success) return;
@@ -231,7 +238,10 @@
     }
     if (!localStorage.getItem(DISMISS_KEY) && !localStorage.getItem(OPENED_KEY)) {
       setTimeout(function () {
-        if (!panel.classList.contains('open')) greet.style.display = 'block';
+        if (!panel.classList.contains('open')) {
+          greet.hidden = false;
+          greet.style.display = 'block';
+        }
       }, cfg.greeting_delay_ms || 600);
     }
     if (localStorage.getItem(TOKEN_KEY)) {

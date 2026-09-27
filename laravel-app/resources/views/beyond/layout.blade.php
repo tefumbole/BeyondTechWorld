@@ -187,17 +187,15 @@
         'trainings'    => ['label' => 'Training', 'url' => url('/trainings')],
         'events'       => ['label' => 'Events', 'url' => url('/events')],
         'rentals'      => ['label' => 'Rentals', 'url' => url('/rentals')],
-        'register'     => ['label' => 'Register Now', 'url' => url('/register-now')],
         'apply'        => ['label' => 'Apply Now', 'url' => url('/apply-now'), 'special' => true],
         'permissions'  => ['label' => 'Permissions', 'url' => url('/permissions')],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
         'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
-        'shareholders' => ['label' => 'Shareholders', 'url' => url('/shareholders')],
     ];
     $navLinks = [];
     foreach (\App\Support\SiteMenu::landingOrder() as $navKey) {
-        // Legacy saved menus may still include "contact" — skip; contact lives on About Us
-        if ($navKey === 'contact') {
+        // Legacy saved menus may still include removed/hidden keys
+        if (in_array($navKey, ['contact', 'register', 'shareholders'], true)) {
             continue;
         }
         if (isset($navDefs[$navKey])) {

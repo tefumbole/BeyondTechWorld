@@ -18,12 +18,12 @@ class SiteMenu
             'trainings'    => 'Training',
             'events'       => 'Events',
             'rentals'      => 'Rentals',
-            'register'     => 'Register Now',
             'apply'        => 'Apply Now',
             'permissions'  => 'Permissions',
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
-            'shareholders' => 'Shareholders',
+            // Register Now removed — Training already covers course signup
+            // Shareholders hidden from public nav (routes remain available)
             // Contact is merged into About Us (#contact) — not a separate nav item
         ];
     }
