@@ -8,8 +8,9 @@
 .mbole-greet{position:absolute;right:108px;bottom:28px;max-width:230px;background:#fff;color:#0f172a;border-radius:14px;padding:12px 14px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:13px;line-height:1.4}
 .mbole-greet strong{display:block;margin-bottom:4px;font-size:13px}
 .mbole-greet button{margin-top:8px;border:0;background:#0b3d91;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
-.mbole-panel{display:none;width:min(380px,calc(100vw - 24px));height:min(560px,calc(100vh - 48px));background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(15,23,42,.28);flex-direction:column}
+.mbole-panel{display:none;width:min(380px,calc(100vw - 24px));height:auto;max-height:min(560px,calc(100vh - 48px));background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 22px 60px rgba(15,23,42,.28);flex-direction:column}
 .mbole-panel.open{display:flex!important}
+.mbole-panel.is-chat{height:min(560px,calc(100vh - 48px))}
 #mbole-ai-root.is-open .mbole-fab{visibility:hidden;pointer-events:none}
 #mbole-ai-root.is-open .mbole-greet{display:none!important}
 .mbole-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0b3d91,#1d4ed8);color:#fff}
@@ -32,7 +33,7 @@
 .mbole-footer{padding:0 12px 10px;background:#fff;display:flex;justify-content:space-between;align-items:center}
 .mbole-footer a{font-size:11px;color:#0b3d91;text-decoration:none}
 .mbole-footer button{border:0;background:transparent;color:#64748b;font-size:11px;cursor:pointer}
-.mbole-gate{flex:1;overflow:auto;padding:18px 16px 16px;background:#fff;display:none}
+.mbole-gate{flex:0 0 auto;overflow:visible;padding:16px 16px 18px;background:#fff;display:none}
 .mbole-gate.on{display:block}
 .mbole-gate-title{display:flex;align-items:center;gap:8px;margin:0 0 6px;color:#0b3d91;font-size:16px;font-weight:800}
 .mbole-gate-title svg{width:18px;height:18px;flex-shrink:0;color:#c9a227}
@@ -81,7 +82,8 @@
   #mbole-ai-root{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}
   .mbole-fab{width:76px;height:88px}
   .mbole-greet{right:90px;bottom:22px;max-width:190px}
-  .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:min(92vh,720px);border-radius:18px 18px 0 0}
+  .mbole-panel{position:fixed;inset:auto 0 0 0;width:100vw;height:auto;max-height:min(92vh,720px);border-radius:18px 18px 0 0}
+  .mbole-panel.is-chat{height:min(92vh,720px)}
   .mbole-gate-row{flex-direction:column}
   .mbole-cc{width:100%}
 }
@@ -286,6 +288,7 @@
     phoneGate.classList.toggle('on', onboarding === 'need_phone');
     nameGate.classList.toggle('on', onboarding === 'need_name');
     chatWrap.classList.toggle('on', onboarding === 'ready');
+    panel.classList.toggle('is-chat', onboarding === 'ready');
     if (onboarding === 'need_phone') {
       setTimeout(function () { try { phoneLocal.focus(); } catch (e) {} }, 60);
     } else if (onboarding === 'need_name') {
