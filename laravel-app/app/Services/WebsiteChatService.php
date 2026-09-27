@@ -554,13 +554,39 @@ class WebsiteChatService
             $role = $m->sender_type === 'STAFF' ? 'staff' : 'assistant';
         }
 
-        return [
+        $body = (string) $m->body;
+        $media = $m->media();
+        $choices = isset($media['choices']) && is_array($media['choices']) ? $media['choices'] : null;
+
+        // Legacy rows that still contain the WhatsApp numbered menu.
+        if (! $choices && strpos($body, '1. Sound') !== false) {
+            $menu = app(\App\Services\Assistant\ServiceMenu::class);
+            $choices = $menu->choices();
+            $body = trim(preg_replace('/\n*You can tap a service below.*$/s', "\n\n".$menu->websitePrompt(), $body));
+            if ($body === '') {
+                $body = $menu->websitePrompt();
+            }
+        } elseif (! $choices && preg_match('/^which service do you need\??$/i', trim($body))) {
+            $choices = app(\App\Services\Assistant\ServiceMenu::class)->choices();
+        }
+
+        $payload = [
             'id' => (int) $m->id,
             'role' => $role,
-            'body' => (string) $m->body,
+            'body' => $body,
             'created_at' => optional($m->created_at)->toIso8601String(),
             'sender_type' => $m->sender_type,
         ];
+        if ($choices) {
+            $payload['choices'] = array_values(array_map(function ($c) {
+                return [
+                    'value' => (string) ($c['value'] ?? ''),
+                    'label' => (string) ($c['label'] ?? $c['value'] ?? ''),
+                ];
+            }, $choices));
+        }
+
+        return $payload;
     }
 
     protected function normalizeToken($token)

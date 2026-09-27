@@ -21,10 +21,25 @@
 .mbole-head .online{font-size:11px;opacity:.85}
 .mbole-head button{border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:4px 6px}
 .mbole-thread{flex:1;overflow:auto;padding:14px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}
-.mbole-msg{max-width:85%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.mbole-msg{max-width:92%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
 .mbole-msg.assistant,.mbole-msg.staff{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;color:#0f172a;border-bottom-left-radius:4px}
 .mbole-msg.visitor{align-self:flex-end;background:#0b3d91;color:#fff;border-bottom-right-radius:4px}
 .mbole-msg.staff{border-left:3px solid #f59e0b}
+.mbole-msg.has-choices{white-space:normal;max-width:100%;width:100%}
+.mbole-msg-text{white-space:pre-wrap}
+.mbole-choices{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.mbole-choice{
+  display:flex;align-items:center;gap:10px;width:100%;border:1px solid #cbd5e1;border-radius:12px;
+  padding:9px 12px;background:#fff;color:#0b3d91;font-size:13px;font-weight:650;cursor:pointer;text-align:left
+}
+.mbole-choice:hover{border-color:#0b3d91;background:#eff6ff}
+.mbole-choice .radio{
+  width:16px;height:16px;border:2px solid #0b3d91;border-radius:50%;flex-shrink:0;position:relative;background:#fff
+}
+.mbole-choice.is-on .radio::after{
+  content:"";position:absolute;inset:3px;border-radius:50%;background:#0b3d91
+}
+.mbole-choice:disabled,.mbole-choice.is-used{opacity:.55;cursor:default;pointer-events:none}
 .mbole-typing{align-self:flex-start;font-size:12px;color:#64748b;display:none;padding:0 14px 8px}
 .mbole-typing.on{display:block}
 .mbole-compose{display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;background:#fff}
@@ -350,12 +365,76 @@
     if (!msg || !msg.id) return;
     if (thread.querySelector('[data-id="' + msg.id + '"]')) return;
     var el = document.createElement('div');
-    el.className = 'mbole-msg ' + (msg.role || 'assistant');
+    var hasChoices = msg.role === 'assistant' && msg.choices && msg.choices.length;
+    el.className = 'mbole-msg ' + (msg.role || 'assistant') + (hasChoices ? ' has-choices' : '');
     el.setAttribute('data-id', msg.id);
-    el.textContent = msg.body || '';
+    if (hasChoices) {
+      var text = document.createElement('div');
+      text.className = 'mbole-msg-text';
+      text.textContent = msg.body || '';
+      el.appendChild(text);
+      var wrap = document.createElement('div');
+      wrap.className = 'mbole-choices';
+      wrap.setAttribute('role', 'radiogroup');
+      wrap.setAttribute('aria-label', 'Choose a service');
+      msg.choices.forEach(function (choice) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mbole-choice';
+        btn.setAttribute('role', 'radio');
+        btn.setAttribute('aria-checked', 'false');
+        btn.setAttribute('data-value', choice.value || choice.label || '');
+        btn.innerHTML = '<span class="radio" aria-hidden="true"></span><span></span>';
+        btn.querySelector('span:last-child').textContent = choice.label || choice.value || '';
+        btn.addEventListener('click', function () {
+          if (sending) return;
+          wrap.querySelectorAll('.mbole-choice').forEach(function (b) {
+            b.classList.remove('is-on');
+            b.setAttribute('aria-checked', 'false');
+            b.disabled = true;
+            b.classList.add('is-used');
+          });
+          btn.classList.add('is-on');
+          btn.setAttribute('aria-checked', 'true');
+          var value = btn.getAttribute('data-value') || '';
+          var label = (choice.label || value);
+          sendChatMessage(value || label);
+        });
+        wrap.appendChild(btn);
+      });
+      el.appendChild(wrap);
+    } else {
+      el.textContent = msg.body || '';
+    }
     thread.appendChild(el);
     thread.scrollTop = thread.scrollHeight;
     if (msg.id > cursor) cursor = msg.id;
+  }
+
+  function sendChatMessage(body) {
+    body = String(body || '').trim();
+    if (!body || sending || onboarding !== 'ready') return Promise.resolve();
+    sending = true;
+    typing.classList.add('on');
+    return ensureSession().then(function () {
+      return api('/api/website-chat/messages', {
+        method: 'POST',
+        json: { token: token, body: body, path: location.pathname }
+      });
+    }).then(function (res) {
+      typing.classList.remove('on');
+      sending = false;
+      if (!res.ok || !res.body.success) {
+        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.' });
+        return;
+      }
+      applyOnboarding(res.body.onboarding || onboarding);
+      (res.body.messages || []).forEach(appendMsg);
+    }).catch(function (err) {
+      typing.classList.remove('on');
+      sending = false;
+      appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (err && err.message) || 'Network error. Please try again.' });
+    });
   }
 
   function setOpen(open) {
@@ -492,28 +571,8 @@
     if (sending || onboarding !== 'ready') return;
     var body = (input.value || '').trim();
     if (!body) return;
-    sending = true;
-    typing.classList.add('on');
     input.value = '';
-    ensureSession().then(function () {
-      return api('/api/website-chat/messages', {
-        method: 'POST',
-        json: { token: token, body: body, path: location.pathname }
-      });
-    }).then(function (res) {
-      typing.classList.remove('on');
-      sending = false;
-      if (!res.ok || !res.body.success) {
-        appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.' });
-        return;
-      }
-      applyOnboarding(res.body.onboarding || onboarding);
-      (res.body.messages || []).forEach(appendMsg);
-    }).catch(function (err) {
-      typing.classList.remove('on');
-      sending = false;
-      appendMsg({ id: 'err-' + Date.now(), role: 'assistant', body: (err && err.message) || 'Network error. Please try again.' });
-    });
+    sendChatMessage(body);
   });
 
   fab.addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });

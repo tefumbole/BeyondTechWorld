@@ -12,6 +12,25 @@ class ServiceMenu
         return "You can tap a service below, or reply with a number:\n1. Sound\n2. Light\n3. Screens\n4. IT services\n5. Others and specify";
     }
 
+    public function websitePrompt()
+    {
+        return 'Pick a service below:';
+    }
+
+    /**
+     * @return array<int, array{value:string,label:string}>
+     */
+    public function choices()
+    {
+        return [
+            ['value' => '1', 'label' => 'Sound'],
+            ['value' => '2', 'label' => 'Light'],
+            ['value' => '3', 'label' => 'Screens'],
+            ['value' => '4', 'label' => 'IT services'],
+            ['value' => '5', 'label' => 'Others and specify'],
+        ];
+    }
+
     public function options()
     {
         return ['1. Sound', '2. Light', '3. Screens', '4. IT services', '5. Others and specify'];

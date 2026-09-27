@@ -426,7 +426,10 @@ class BeyondAssistantService
             $send = $this->conversations->assistantReply($conversation, $reply);
             $sent = ! empty($send['success']);
             if ($sent && strpos($reply, '1. Sound') !== false) {
-                $this->conversations->sendServicePoll($conversation->fresh());
+                // Website replies already embed clickable choices; WhatsApp still gets a poll.
+                if (! $conversation->fresh()->isWebsite()) {
+                    $this->conversations->sendServicePoll($conversation->fresh());
+                }
             }
             if (! $sent) {
                 $activity->error = isset($send['error']) ? $send['error'] : 'send_failed';

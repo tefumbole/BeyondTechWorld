@@ -328,6 +328,30 @@ class WhatsAppConversationService
             return ['success' => false];
         }
         $menu = app(\App\Services\Assistant\ServiceMenu::class);
+
+        // Website chat: interactive choices in the widget — never send a Wasender poll
+        // to a visitor who is already chatting on the site.
+        if ($conversation->isWebsite()) {
+            $message = WhatsAppMessage::create([
+                'conversation_id' => $conversation->id,
+                'contact_id' => $contact->id,
+                'direction' => WhatsAppMessage::DIR_OUT,
+                'type' => 'TEXT',
+                'provider_message_id' => 'webmsg:'.uniqid('', true),
+                'body' => $menu->websitePrompt(),
+                'media_json' => json_encode(['choices' => $menu->choices()]),
+                'status' => WhatsAppMessage::STATUS_SENT,
+                'sender_type' => 'ASSISTANT',
+                'sent_at' => now(),
+            ]);
+            $conversation->last_message = mb_substr($menu->websitePrompt(), 0, 120);
+            $conversation->last_activity_at = now();
+            $conversation->last_outgoing_at = now();
+            $conversation->save();
+
+            return ['success' => true, 'channel' => 'website', 'message' => $message];
+        }
+
         $wasender = app(\App\Services\BeyondWasenderService::class);
         if (! $wasender->isConfigured()) {
             return ['success' => false, 'error' => 'not_configured'];
@@ -392,16 +416,31 @@ class WhatsAppConversationService
         if (! $contact || $contact->isBlocked()) {
             return ['success' => false, 'error' => 'Contact is blocked or missing.'];
         }
-        $message = WhatsAppMessage::create([
+
+        $mediaJson = null;
+        $hadServiceMenu = strpos($body, '1. Sound') !== false;
+        if ($conversation->isWebsite() && $hadServiceMenu) {
+            $menu = app(\App\Services\Assistant\ServiceMenu::class);
+            $body = trim(preg_replace('/\n*You can tap a service below.*$/s', "\n\n".$menu->websitePrompt(), $body));
+            if ($body === '' || $body === $menu->websitePrompt()) {
+                $body = $menu->websitePrompt();
+            }
+            $mediaJson = json_encode(['choices' => $menu->choices()]);
+        }
+
+        $message = WhatsAppMessage::create(array_filter([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
             'direction' => WhatsAppMessage::DIR_OUT,
             'type' => 'TEXT',
             'body' => $body,
+            'media_json' => $mediaJson,
             'status' => WhatsAppMessage::STATUS_QUEUED,
             'sender_type' => 'ASSISTANT',
             'queued_at' => now(),
-        ]);
+        ], function ($v) {
+            return $v !== null;
+        }));
 
         // Re-check mode immediately before transport commit (takeover discard).
         $conversation = WhatsAppConversation::find($conversation->id);
@@ -419,7 +458,7 @@ class WhatsAppConversationService
             $message->status = WhatsAppMessage::STATUS_SENT;
             $message->sent_at = now();
             $message->save();
-            $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website'];
+            $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website', 'had_service_menu' => $hadServiceMenu];
         } else {
             $result = $this->provider->sendText($contact->normalized_phone, $body);
             if (! empty($result['success'])) {
