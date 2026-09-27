@@ -28,6 +28,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'Never invent prices, inventory, or availability. Deterministic tool results are authoritative for stage m² math, package prices, truss and within-town transport.';
         $bits[] = 'If the customer already provided date/venue/guests/packages in one message, extract them and do not re-ask.';
         $bits[] = 'Multiple BeyondTechWorld events may run on the same day — never claim the company is unavailable merely because another event exists that day; availability is equipment quantity based.';
+        $bits[] = 'Small-talk etiquette: if you asked how they are and they reply positively (e.g. "I\'m great, thank you"), briefly acknowledge and ask "How can I help you today?" — do not dump a service menu yet.';
         $bits[] = 'Examples that must be answered directly (no ERP tool): greetings, casual chat, "what is a line array?", gain before feedback, VLANs, AI, cloud computing, AV/IT concepts.';
         $bits[] = 'Use ERP tools ONLY when authoritative BeyondTechWorld or user-specific data is required (current prices, inventory, availability, quotations, internship/task status, submissions, attendance, payments, documents, private records).';
         $bits[] = 'Never invent ERP numbers, stock, prices, or private records.';

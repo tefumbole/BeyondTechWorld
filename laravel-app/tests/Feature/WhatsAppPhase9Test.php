@@ -175,6 +175,7 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         $this->assertStringContainsString('Beyond Assistant', $joined);
         $this->assertStringContainsString("I'm doing well", $joined);
         $this->assertStringContainsString('Glad to hear it', $joined);
+        $this->assertStringContainsString('How can I help', $joined);
         $conversation = WhatsAppConversation::orderByDesc('id')->first();
         $this->assertSame(WhatsAppConversation::MODE_AI, $conversation->mode);
     }

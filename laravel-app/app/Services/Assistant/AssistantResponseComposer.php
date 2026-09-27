@@ -132,12 +132,12 @@ class AssistantResponseComposer
     protected function greeting(array $context, array $params, $incoming = '')
     {
         $text = strtolower(trim((string) $incoming));
-        $menu = app(ServiceMenu::class)->text();
-        if (preg_match('/\b(i\'?m (great|good|fine|well|ok|okay)|i am (great|good|fine|well))\b/', $text)) {
-            return "Glad to hear it. I'm doing well too.\n\n".$menu;
+        // After "how are you?" the customer answered — acknowledge, then offer help.
+        if (preg_match('/\b(i\'?m (great|good|fine|well|ok|okay|excellent|awesome)|i am (great|good|fine|well|ok|okay)|doing (great|good|fine|well)|feeling (great|good|fine|well)|not bad|pretty good|all good)\b/', $text)) {
+            return "Glad to hear it! How can I help you today?";
         }
         if (preg_match('/\bhow are you\b/', $text)) {
-            return "I'm doing well, thank you.\n\n".$menu;
+            return "I'm doing well, thank you! How can I help you today?";
         }
         $known = AssistantRuntimeSettings::greetByName() ? $this->englishName($context, $params) : '';
         if ($known !== '') {
