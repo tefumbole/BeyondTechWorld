@@ -6,7 +6,7 @@
     <div class="container-fluid wa-shell">
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
-        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Names are the ones people saved on WhatsApp.</p>
+        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. A name is the one on WhatsApp, then a name saved for that number, then the Cameroon mobile-money name.</p>
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
         <p class="mb-3">
             <input id="contact-filter" type="search" class="form-control" style="max-width:420px" placeholder="Search a name or phone number">
@@ -23,7 +23,7 @@
                         $phone = trim((string) $contact['phone']);
                     @endphp
                     <tr data-name="{{ $name }}" data-phone="{{ $phone }}">
-                        <td class="contact-name">{{ $name !== '' ? $name : 'No WhatsApp name' }}</td>
+                        <td class="contact-name">{{ $name !== '' ? $name : 'Looking up name…' }}</td>
                         <td class="contact-phone">{{ $phone !== '' ? $phone : '—' }}</td>
                     </tr>
                 @empty
@@ -61,6 +61,41 @@
                     });
                     if (none) none.style.display = q && !shown ? '' : 'none';
                 });
+
+                var namesUrl = @json(route('whatsapp.groups.names', ['jid' => $jid]));
+                function unnamed() {
+                    return rows().filter(function (row) {
+                        var label = row.querySelector('.contact-name');
+                        return label && (label.textContent === 'Looking up name…' || label.textContent === 'No WhatsApp name');
+                    });
+                }
+                function refreshNames() {
+                    if (!unnamed().length) return;
+                    fetch(namesUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                        .then(function (response) { return response.json(); })
+                        .then(function (payload) {
+                            var contacts = payload && payload.contacts ? payload.contacts : [];
+                            contacts.forEach(function (contact) {
+                                var match = rows().filter(function (row) {
+                                    return (row.getAttribute('data-phone') || '') === (contact.phone || '');
+                                })[0];
+                                if (!match) return;
+                                var label = match.querySelector('.contact-name');
+                                if (!label) return;
+                                if (contact.name) {
+                                    label.textContent = contact.name;
+                                    match.setAttribute('data-name', contact.name);
+                                } else if (!contact.pending) {
+                                    label.textContent = 'No name';
+                                }
+                            });
+                            if (unnamed().length) setTimeout(refreshNames, 8000);
+                        })
+                        .catch(function () {
+                            if (unnamed().length) setTimeout(refreshNames, 15000);
+                        });
+                }
+                if (unnamed().length) setTimeout(refreshNames, 8000);
             })();
         </script>
     </div>

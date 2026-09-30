@@ -482,7 +482,9 @@ class WhatsAppHubController extends Controller
         if (substr($jid, -5) !== '@g.us') {
             return redirect()->route('whatsapp.groups');
         }
-        $export = app(\App\Services\WhatsApp\GroupContactExportService::class)->rowsForGroup($jid);
+        $groups = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        $groups->scheduleContactNames($jid);
+        $export = $groups->rowsForGroup($jid);
         $groupName = isset($export['name']) ? $export['name'] : 'Group';
         $contacts = isset($export['rows']) ? $export['rows'] : [];
         usort($contacts, function ($a, $b) {
@@ -499,6 +501,21 @@ class WhatsAppHubController extends Controller
         $listError = empty($export['success']) ? (isset($export['error']) ? $export['error'] : 'Could not load this group.') : null;
 
         return view('whatsapp_hub.group', compact('groupName', 'contacts', 'jid', 'listError'));
+    }
+
+    public function groupContactNames(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->query('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return response()->json(['contacts' => []]);
+        }
+
+        return response()->json([
+            'contacts' => app(\App\Services\WhatsApp\GroupContactExportService::class)->contactNameRows($jid),
+        ]);
     }
 
     public function exportGroupContacts(Request $request)

@@ -386,49 +386,154 @@ class GroupContactExportService
      */
     public function withRegisteredNames(array $rows)
     {
-        $map = $this->profileNames();
-        $misses = $this->profileMisses();
-        $lookups = 0;
-        $changed = false;
+        $map = $this->profileNames(false);
+        $others = $this->namesSavedByOthers();
         foreach ($rows as $i => $row) {
             $phone = isset($row['phone']) ? (string) $row['phone'] : '';
+            $current = trim((string) (isset($row['name']) ? $row['name'] : ''));
+            if ($this->isPersonName($current, $phone)) {
+                continue;
+            }
             $registered = $this->registeredWhatsAppName($phone, $map);
-            if ($registered !== '') {
+            if ($this->isPersonName($registered, $phone)) {
                 $rows[$i]['name'] = $registered;
                 continue;
             }
-            $current = trim((string) (isset($row['name']) ? $row['name'] : ''));
             $digits = preg_replace('/\D+/', '', $phone);
-            $unnamed = $current === '' || $current === $digits || preg_match('/^\d+$/', $current);
-            if (! $unnamed) {
+            $tail = $digits !== '' ? substr($digits, -9) : '';
+            if ($tail !== '' && isset($others[$tail]) && $this->isPersonName($others[$tail], $phone)) {
+                $rows[$i]['name'] = $others[$tail];
                 continue;
             }
-            $tail = $digits !== '' ? substr($digits, -9) : '';
-            $alreadyMissed = ($digits !== '' && isset($misses[$digits])) || ($tail !== '' && isset($misses[$tail]));
-            if (! $alreadyMissed && $digits !== '' && $lookups < 40) {
-                $lookups++;
-                $found = $this->lookupRegisteredName($digits);
-                if ($found === null) {
-                    continue;
-                }
-                if ($found !== '') {
-                    $map[$digits] = $found;
-                    if (strlen($digits) > 9) {
-                        $map[substr($digits, -9)] = $found;
-                    }
-                    $rows[$i]['name'] = $found;
-                    $changed = true;
-                    continue;
-                }
-                $misses[$digits] = 1;
-                $changed = true;
-            }
             $known = $this->knownName($phone);
-            $rows[$i]['name'] = ($known !== '' && ! preg_match('/^\d+$/', $known)) ? $known : '';
+            if ($this->isPersonName($known, $phone)) {
+                $rows[$i]['name'] = $known;
+            }
         }
-        if ($changed) {
+
+        return $rows;
+    }
+
+    public function scheduleContactNames($jid)
+    {
+        $jid = trim((string) $jid);
+        if (substr($jid, -5) !== '@g.us') {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Cache::add('wa_contact_names_'.$jid, 1, 20)) {
+            return;
+        }
+        \App\Jobs\ResolveWhatsAppContactNamesJob::dispatch($jid)
+            ->onConnection('database')
+            ->onQueue('whatsapp');
+    }
+
+    public function resolveContactNames($jid = null, $limit = 12)
+    {
+        $jid = trim((string) $jid);
+        $files = [];
+        if (substr($jid, -5) === '@g.us') {
+            $path = $this->membersPath($jid);
+            if (is_file($path)) {
+                $files[$jid] = $path;
+            }
+        } else {
+            foreach ($this->readDirectory() as $id => $row) {
+                if (substr((string) $id, -5) !== '@g.us') {
+                    continue;
+                }
+                $path = $this->membersPath($id);
+                if (is_file($path)) {
+                    $files[(string) $id] = $path;
+                }
+            }
+        }
+        $others = $this->namesSavedByOthers();
+        $map = $this->profileNames(false);
+        $used = 0;
+        $remaining = 0;
+        foreach ($files as $groupJid => $path) {
+            $people = json_decode((string) file_get_contents($path), true);
+            if (! is_array($people)) {
+                continue;
+            }
+            $dirty = false;
+            foreach ($people as $i => $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+                $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                if ($this->isPersonName($current, $phone)) {
+                    continue;
+                }
+                $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
+                if ($checked && (time() - $checked) < 6 * 3600) {
+                    continue;
+                }
+                if ($used >= (int) $limit) {
+                    $remaining++;
+                    continue;
+                }
+                $used++;
+                $resolved = $this->resolvePersonName($phone, $map, $others);
+                if ($resolved === null) {
+                    $attempts = isset($person['name_attempts']) ? (int) $person['name_attempts'] : 0;
+                    $attempts++;
+                    $people[$i]['name_attempts'] = $attempts;
+                    if ($attempts >= 2) {
+                        $people[$i]['name_checked'] = time();
+                    } else {
+                        $remaining++;
+                    }
+                    $dirty = true;
+                    continue;
+                }
+                unset($people[$i]['name_attempts']);
+                if ($resolved !== '') {
+                    $people[$i]['name'] = $resolved;
+                    unset($people[$i]['name_checked']);
+                    $digits = preg_replace('/\D+/', '', $phone);
+                    if ($digits !== '') {
+                        $map[$digits] = $resolved;
+                        if (strlen($digits) > 9) {
+                            $map[substr($digits, -9)] = $resolved;
+                        }
+                        $others[substr($digits, -9)] = $resolved;
+                    }
+                } else {
+                    $people[$i]['name_checked'] = time();
+                }
+                $dirty = true;
+                usleep(200000);
+            }
+            if ($dirty) {
+                $this->writeMembers($groupJid, $people);
+            }
+        }
+        if ($map) {
             $this->writeProfileNames($map);
-            $this->writeProfileMisses($misses);
+        }
+
+        return $remaining;
+    }
+
+    public function contactNameRows($jid)
+    {
+        $people = $this->readMembers($jid);
+        $rows = [];
+        foreach ($people as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $name = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
+            $rows[] = [
+                'phone' => $phone,
+                'name' => $this->isPersonName($name, $phone) ? $name : '',
+                'pending' => ! $this->isPersonName($name, $phone) && ! ($checked && (time() - $checked) < 6 * 3600),
+            ];
         }
 
         return $rows;
@@ -499,7 +604,7 @@ class GroupContactExportService
         return false;
     }
 
-    protected function profileNames()
+    protected function profileNames($allowRefresh = true)
     {
         $path = storage_path('app/whatsapp-profile-names.json');
         $cached = [];
@@ -508,9 +613,12 @@ class GroupContactExportService
             if (is_array($decoded)) {
                 $cached = $decoded;
             }
-            if ($cached && (time() - filemtime($path)) < 12 * 3600) {
+            if (! $allowRefresh || ($cached && (time() - filemtime($path)) < 12 * 3600)) {
                 return $cached;
             }
+        }
+        if (! $allowRefresh) {
+            return $cached;
         }
         $listed = app(BeyondWasenderService::class)->listContacts();
         if (empty($listed['success']) || empty($listed['contacts'])) {
@@ -604,6 +712,144 @@ class GroupContactExportService
         }
 
         return '';
+    }
+
+    protected function resolvePersonName($phone, array $map, array $others)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $fromMap = $this->registeredWhatsAppName($phone, $map);
+        if ($this->isPersonName($fromMap, $digits)) {
+            return $fromMap;
+        }
+        $record = $this->lookupContactRecord($digits);
+        if (is_array($record)) {
+            if ($this->isPersonName($record['profile'], $digits)) {
+                return $record['profile'];
+            }
+            if ($this->isPersonName($record['book'], $digits)) {
+                return $record['book'];
+            }
+        }
+        $tail = $digits !== '' ? substr($digits, -9) : '';
+        if ($tail !== '' && isset($others[$tail]) && $this->isPersonName($others[$tail], $digits)) {
+            return $others[$tail];
+        }
+        $known = $this->knownName($phone);
+        if ($this->isPersonName($known, $digits)) {
+            return $known;
+        }
+        if (! $this->isCameroon($digits)) {
+            return $record === null ? null : '';
+        }
+        try {
+            $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        $name = isset($hit['name']) ? trim((string) $hit['name']) : '';
+        if ($this->isPersonName($name, $digits)) {
+            return $name;
+        }
+
+        return '';
+    }
+
+    protected function lookupContactRecord($phone)
+    {
+        $digits = ltrim(preg_replace('/\D+/', '', (string) $phone), '0');
+        if ($digits === '' || ! app(BeyondWasenderService::class)->isConfigured()) {
+            return ['profile' => '', 'book' => ''];
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/contacts/'.rawurlencode($digits));
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPGET => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($err || $http >= 400 || ! is_string($body)) {
+            return null;
+        }
+        $decoded = json_decode($body, true);
+        $data = is_array($decoded) && isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : [];
+        $profile = '';
+        foreach (['notify', 'pushName', 'pushname', 'verifiedName'] as $key) {
+            $value = trim((string) (isset($data[$key]) ? $data[$key] : ''));
+            if ($this->isPersonName($value, $digits)) {
+                $profile = $value;
+                break;
+            }
+        }
+        $book = trim((string) (isset($data['name']) ? $data['name'] : ''));
+
+        return [
+            'profile' => $profile,
+            'book' => $this->isPersonName($book, $digits) ? $book : '',
+        ];
+    }
+
+    protected function namesSavedByOthers()
+    {
+        $map = [];
+        $paths = glob(storage_path('app/whatsapp-group-members/*.json'));
+        if (! is_array($paths)) {
+            return $map;
+        }
+        foreach ($paths as $path) {
+            $people = json_decode((string) file_get_contents($path), true);
+            if (! is_array($people)) {
+                continue;
+            }
+            foreach ($people as $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $phone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+                $name = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                if (! $this->isPersonName($name, $phone)) {
+                    continue;
+                }
+                $tail = substr($phone, -9);
+                if ($tail !== '' && ! isset($map[$tail])) {
+                    $map[$tail] = $name;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    protected function isPersonName($name, $phone = '')
+    {
+        $name = trim((string) $name);
+        if ($name === '' || preg_match('/^\d+$/', $name) || preg_match('/^\+?\d{8,}$/', $name)) {
+            return false;
+        }
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits !== '' && strcasecmp($name, $digits) === 0) {
+            return false;
+        }
+        $upper = strtoupper($name);
+
+        return ! in_array($upper, ['N/A', 'NA', 'NAN', 'NULL', 'NONE', 'NO WHATSAPP NAME', 'NO NAME'], true);
+    }
+
+    protected function isCameroon($digits)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $digits);
+        if (strpos($digits, '237') === 0 && strlen($digits) >= 11) {
+            return true;
+        }
+
+        return strlen($digits) === 9 && isset($digits[0]) && $digits[0] === '6';
     }
 
     protected function registeredWhatsAppName($phone, array $map)
