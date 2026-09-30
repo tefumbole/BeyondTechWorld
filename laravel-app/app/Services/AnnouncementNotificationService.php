@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Controllers\Controller;
 use App\Services\Messaging\NotificationRouter;
+use App\Services\WhatsApp\GroupContactExportService;
 use App\Support\AnnouncementPersonalization;
 use App\WaAnnouncement;
 use Illuminate\Support\Facades\Log;
@@ -38,7 +39,7 @@ class AnnouncementNotificationService extends Controller
      */
     protected function twilioVars(WaAnnouncement $announcement, array $person, $isCc = false)
     {
-        $name = trim((string) ($person['name'] ?? ''));
+        $name = AnnouncementPersonalization::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
         $subject = trim((string) ($announcement->subject ?? ''));
         $reference = trim((string) ($announcement->reference ?? ''));
         $header = trim((string) ($announcement->header ?? ''));
@@ -270,34 +271,37 @@ class AnnouncementNotificationService extends Controller
 
     protected function personalName(array $person)
     {
+        $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+        $groups = app(GroupContactExportService::class);
         if (! empty($person['name_edited'])) {
-            $edited = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            $edited = AnnouncementPersonalization::usableName(isset($person['name']) ? $person['name'] : '', $phone);
             if ($edited !== '') {
                 return $edited;
             }
         }
-        $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+        $resolved = $groups->nameForPhone($phone, true);
+        if ($resolved !== '') {
+            return $resolved;
+        }
         $customerName = '';
         if ($phone !== '') {
             $customer = app(PeopleDirectoryService::class)->findCustomerByLoosePhone($phone);
             if ($customer) {
-                $customerName = trim((string) $customer->name);
+                $customerName = AnnouncementPersonalization::usableName($customer->name, $phone);
             }
         }
-        if ($customerName !== '' && ! in_array(strtoupper($customerName), ['N/A', 'NAN'], true)) {
+        if ($customerName !== '') {
             return $customerName;
         }
-        $self = trim((string) (isset($person['wa_name']) ? $person['wa_name'] : ''));
+        $self = AnnouncementPersonalization::usableName(isset($person['wa_name']) ? $person['wa_name'] : '', $phone);
         if ($self === '' && $phone !== '') {
-            $self = $this->whatsappProfileName($phone);
+            $self = AnnouncementPersonalization::usableName($this->whatsappProfileName($phone), $phone);
         }
         if ($self !== '') {
             return $self;
         }
-        $existing = trim((string) (isset($person['name']) ? $person['name'] : ''));
-        $digits = preg_replace('/\D+/', '', $existing);
 
-        return ($existing !== '' && $existing !== $digits) ? $existing : '';
+        return AnnouncementPersonalization::usableName(isset($person['name']) ? $person['name'] : '', $phone);
     }
 
     protected function whatsappProfileName($phone)
@@ -333,9 +337,13 @@ class AnnouncementNotificationService extends Controller
             $when = $announcement->scheduled_for
                 ? $announcement->scheduled_for->format('d M Y H:i')
                 : 'soon';
-            $name = $person['name'] ?: 'Team';
+            $name = AnnouncementPersonalization::usableName($this->personalName($person), $phone);
             $msg = \App\Support\WhatsAppMessage::statusBlock('⏰', 'Announcement Reminder');
-            $msg .= \App\Support\WhatsAppMessage::greeting($name);
+            if ($name !== '') {
+                $msg .= \App\Support\WhatsAppMessage::greeting($name);
+            } else {
+                $msg .= "Hello,\n\n";
+            }
             $msg .= "This is a reminder for the following announcement.\n\n";
             if ($announcement->reference) {
                 $msg .= \App\Support\WhatsAppMessage::bullet('Reference', $announcement->reference);

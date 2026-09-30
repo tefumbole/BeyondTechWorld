@@ -44,6 +44,7 @@ class AnnouncementPersonalization
         if (! $personalized) {
             $person['name'] = '';
         }
+        $person['name'] = self::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
         $institution = trim((string) ($announcement->header ?: WhatsAppMessage::companyName()));
         $reference = trim((string) ($announcement->reference ?? ''));
         $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
@@ -82,6 +83,29 @@ class AnnouncementPersonalization
         return trim($msg)."\n";
     }
 
+    public static function usableName($name, $phone = '')
+    {
+        $name = trim((string) $name);
+        $compact = preg_replace('/[\s\-\(\)]+/', '', $name);
+        $digits = preg_replace('/\D+/', '', $name);
+        $phoneDigits = preg_replace('/\D+/', '', (string) $phone);
+        if ($name === '' || preg_match('/^\d+$/', $digits) && $digits === preg_replace('/\D+/', '', $compact)) {
+            return '';
+        }
+        if ($phoneDigits !== '' && $digits === $phoneDigits) {
+            return '';
+        }
+        if (preg_match('/^\+?\d{8,}$/', $compact)) {
+            return '';
+        }
+        $upper = strtoupper($name);
+        if (in_array($upper, ['N/A', 'NA', 'NAN', 'NULL', 'NONE', 'NO WHATSAPP NAME', 'NO NAME'], true)) {
+            return '';
+        }
+
+        return $name;
+    }
+
     /**
      * Clean body for Twilio beyond_notice {{3}} — no Ref/header/subject wrappers
      * (those map to other template variables and the template already greets the client).
@@ -89,6 +113,7 @@ class AnnouncementPersonalization
     public static function buildTwilioBody($announcement, array $person, $isCc = false)
     {
         $settingsInstitution = $announcement->header ?: 'Beyond Enterprise';
+        $person['name'] = self::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
         $vars = self::recipientVars($person, $announcement->reference ?: '', $settingsInstitution);
         $body = trim(self::personalize($announcement->body ?: '', $vars));
         $footer = trim(self::personalize($announcement->footer ?: '', $vars));

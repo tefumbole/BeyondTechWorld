@@ -476,6 +476,8 @@ class AnnouncementService
                 $reminder->save();
                 continue;
             }
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->fillAnnouncementRecipients($a, true);
+            $a = $a->fresh();
             $this->notify->sendReminder($a);
             $reminder->is_sent = true;
             $reminder->save();

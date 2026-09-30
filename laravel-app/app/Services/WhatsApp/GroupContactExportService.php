@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Schema;
 
 class GroupContactExportService
 {
+    protected $othersCache = null;
+
+    protected $contactList = null;
+
     public function allRows()
     {
         $wasender = app(BeyondWasenderService::class);
@@ -525,7 +529,7 @@ class GroupContactExportService
                 }
             }
         }
-        $others = $this->namesSavedByOthers();
+        $others = $this->savedNames();
         $map = $this->profileNames(false);
         $used = 0;
         $remaining = 0;
@@ -578,6 +582,7 @@ class GroupContactExportService
                         }
                         $others[substr($digits, -9)] = $resolved;
                     }
+                    $this->othersCache = $others;
                 } else {
                     $people[$i]['name_checked'] = time();
                 }
@@ -591,8 +596,137 @@ class GroupContactExportService
         if ($map) {
             $this->writeProfileNames($map);
         }
+        $this->fillAnnouncementRecipients(null, false);
 
         return $remaining;
+    }
+
+    public function resolveUncheckedGroup($jid, $limit = 20)
+    {
+        $jid = trim((string) $jid);
+        $people = $this->readMembers($jid);
+        $dirty = false;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $name = isset($person['name']) ? (string) $person['name'] : '';
+            if ($this->isPersonName($name, $phone)) {
+                continue;
+            }
+            unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+            $dirty = true;
+        }
+        if ($dirty) {
+            $this->writeMembers($jid, $people);
+        }
+        $remaining = $this->resolveContactNames($jid, $limit);
+        $this->fillAnnouncementRecipients(null, true);
+
+        return $remaining;
+    }
+
+    public function localPersonName($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        $fromMap = $this->registeredWhatsAppName($phone, $this->profileNames(false));
+        if ($this->isPersonName($fromMap, $digits)) {
+            return $fromMap;
+        }
+        $tail = substr($digits, -9);
+        $others = $this->savedNames();
+        if ($tail !== '' && isset($others[$tail]) && $this->isPersonName($others[$tail], $digits)) {
+            return $others[$tail];
+        }
+        $known = $this->knownName($phone);
+        if ($this->isPersonName($known, $digits)) {
+            return $known;
+        }
+        $customer = $this->customerName($digits);
+        if ($this->isPersonName($customer, $digits)) {
+            return $customer;
+        }
+
+        return '';
+    }
+
+    public function nameForPhone($phone, $live = false)
+    {
+        $local = $this->localPersonName($phone);
+        if ($local !== '') {
+            return $local;
+        }
+        if (! $live || $this->recentlyChecked($phone)) {
+            return '';
+        }
+        $resolved = $this->resolvePersonName($phone, $this->profileNames(false), $this->savedNames());
+        if (! is_string($resolved) || ! $this->isPersonName($resolved, $phone)) {
+            return '';
+        }
+        $this->storeResolvedName($phone, $resolved);
+
+        return $resolved;
+    }
+
+    public function fillAnnouncementRecipients($announcement = null, $live = false)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('wa_announcements')) {
+            return 0;
+        }
+        $query = \App\WaAnnouncement::query()->where('status', '!=', 'deleted')->orderByDesc('updated_at');
+        if ($announcement) {
+            $query->where('id', $announcement->id);
+        } else {
+            $query->limit(120);
+        }
+        $updated = 0;
+        $liveBudget = 20;
+        foreach ($query->get() as $row) {
+            $changed = false;
+            foreach (['recipients_json', 'cc_json'] as $field) {
+                $people = json_decode((string) $row->{$field}, true);
+                if (! is_array($people)) {
+                    continue;
+                }
+                foreach ($people as $i => $person) {
+                    if (! is_array($person)) {
+                        continue;
+                    }
+                    $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+                    $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                    if (! empty($person['name_edited']) && $this->isPersonName($current, $phone)) {
+                        continue;
+                    }
+                    if ($this->isPersonName($current, $phone)) {
+                        continue;
+                    }
+                    $label = $this->localPersonName($phone);
+                    if ($label === '' && $live && $liveBudget > 0) {
+                        $liveBudget--;
+                        $label = $this->nameForPhone($phone, true);
+                    }
+                    if (! $this->isPersonName($label, $phone)) {
+                        continue;
+                    }
+                    $people[$i]['name'] = $label;
+                    $people[$i]['wa_name'] = $label;
+                    $changed = true;
+                }
+                if ($changed) {
+                    $row->{$field} = json_encode(array_values($people));
+                }
+            }
+            if ($changed) {
+                $row->save();
+                $updated++;
+            }
+        }
+
+        return $updated;
     }
 
     public function contactNameRows($jid)
@@ -815,6 +949,14 @@ class GroupContactExportService
         if ($this->isPersonName($known, $digits)) {
             return $known;
         }
+        $customer = $this->customerName($digits);
+        if ($this->isPersonName($customer, $digits)) {
+            return $customer;
+        }
+        $savedOnPhone = $this->uniqueAddressBookName($digits);
+        if ($this->isPersonName($savedOnPhone, $digits)) {
+            return $savedOnPhone;
+        }
         if (! $this->isCameroon($digits)) {
             return $record === null ? null : '';
         }
@@ -826,6 +968,175 @@ class GroupContactExportService
         $name = isset($hit['name']) ? trim((string) $hit['name']) : '';
         if ($this->isPersonName($name, $digits)) {
             return $name;
+        }
+
+        return $record === null ? null : '';
+    }
+
+    protected function recentlyChecked($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $tail = strlen($digits) >= 8 ? substr($digits, -9) : '';
+        if ($digits === '') {
+            return false;
+        }
+        $paths = glob(storage_path('app/whatsapp-group-members/*.json'));
+        if (! is_array($paths)) {
+            return false;
+        }
+        $saw = false;
+        foreach ($paths as $path) {
+            $people = json_decode((string) file_get_contents($path), true);
+            if (! is_array($people)) {
+                continue;
+            }
+            foreach ($people as $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $rowPhone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+                if ($rowPhone !== $digits && ($tail === '' || substr($rowPhone, -9) !== $tail)) {
+                    continue;
+                }
+                $saw = true;
+                $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
+                if (! $checked || (time() - $checked) >= 6 * 3600) {
+                    return false;
+                }
+            }
+        }
+
+        return $saw;
+    }
+
+    protected function savedNames()
+    {
+        if ($this->othersCache === null) {
+            $this->othersCache = $this->namesSavedByOthers();
+        }
+
+        return $this->othersCache;
+    }
+
+    protected function storeResolvedName($phone, $name)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $name = trim((string) $name);
+        if ($digits === '' || ! $this->isPersonName($name, $digits)) {
+            return;
+        }
+        $tail = substr($digits, -9);
+        $paths = glob(storage_path('app/whatsapp-group-members/*.json'));
+        if (is_array($paths)) {
+            foreach ($paths as $path) {
+                $people = json_decode((string) file_get_contents($path), true);
+                if (! is_array($people)) {
+                    continue;
+                }
+                $dirty = false;
+                foreach ($people as $i => $person) {
+                    if (! is_array($person)) {
+                        continue;
+                    }
+                    $rowPhone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+                    if ($rowPhone !== $digits && ($tail === '' || substr($rowPhone, -9) !== $tail)) {
+                        continue;
+                    }
+                    if ($this->isPersonName(isset($person['name']) ? $person['name'] : '', $rowPhone)) {
+                        continue;
+                    }
+                    $people[$i]['name'] = $name;
+                    unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                    $dirty = true;
+                }
+                if ($dirty) {
+                    file_put_contents($path, json_encode(array_values($people)));
+                }
+            }
+        }
+        $map = $this->profileNames(false);
+        $map[$digits] = $name;
+        if ($tail !== '') {
+            $map[$tail] = $name;
+        }
+        $this->writeProfileNames($map);
+        $others = $this->savedNames();
+        if ($tail !== '') {
+            $others[$tail] = $name;
+            $this->othersCache = $others;
+        }
+    }
+
+    protected function customerName($digits)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $digits);
+        if ($digits === '' || ! \Illuminate\Support\Facades\Schema::hasTable('customers')) {
+            return '';
+        }
+        try {
+            $customer = app(\App\Services\PeopleDirectoryService::class)->findCustomerByLoosePhone($digits);
+        } catch (\Throwable $e) {
+            $customer = null;
+        }
+        if ($customer && $this->isPersonName($customer->name, $digits)) {
+            return trim((string) $customer->name);
+        }
+        $tail = substr($digits, -8);
+        if (strlen($tail) < 8) {
+            return '';
+        }
+        $rows = \App\Customer::query()->where('phone_number', 'like', '%'.$tail)->limit(8)->get(['name', 'phone_number']);
+        $names = [];
+        foreach ($rows as $row) {
+            $rowDigits = preg_replace('/\D+/', '', (string) $row->phone_number);
+            if (substr($rowDigits, -8) !== $tail) {
+                continue;
+            }
+            $label = trim((string) $row->name);
+            if ($this->isPersonName($label, $digits)) {
+                $names[$label] = true;
+            }
+        }
+
+        return count($names) === 1 ? (string) array_keys($names)[0] : '';
+    }
+
+    protected function uniqueAddressBookName($digits)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $digits);
+        $tail = strlen($digits) >= 8 ? substr($digits, -8) : '';
+        if ($tail === '') {
+            return '';
+        }
+        if ($this->contactList === null) {
+            $listed = app(BeyondWasenderService::class)->listContacts();
+            $this->contactList = (isset($listed['contacts']) && is_array($listed['contacts'])) ? $listed['contacts'] : [];
+        }
+        $exact = [];
+        $suffix = [];
+        foreach ($this->contactList as $contact) {
+            if (! is_array($contact)) {
+                continue;
+            }
+            $phone = preg_replace('/\D+/', '', (string) (isset($contact['phone']) ? $contact['phone'] : ''));
+            $label = trim((string) (isset($contact['wa_name']) ? $contact['wa_name'] : ''));
+            if (! $this->isPersonName($label, $phone)) {
+                $label = trim((string) (isset($contact['name']) ? $contact['name'] : ''));
+            }
+            if (! $this->isPersonName($label, $phone)) {
+                continue;
+            }
+            if ($phone === $digits) {
+                $exact[$label] = true;
+            } elseif (substr($phone, -8) === $tail) {
+                $suffix[$label] = true;
+            }
+        }
+        if (count($exact) === 1) {
+            return (string) array_keys($exact)[0];
+        }
+        if (! $exact && count($suffix) === 1) {
+            return (string) array_keys($suffix)[0];
         }
 
         return '';
