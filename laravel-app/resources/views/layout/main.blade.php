@@ -2201,6 +2201,7 @@
                                     <li><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
                                     <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
+                                    <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
                                     <li><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
                                     <li><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
@@ -3875,6 +3876,7 @@
                   'warehouse-menu': 'dripicons-home',
                   'biller-list-menu': 'dripicons-user-id',
                   'customer-group-menu': 'dripicons-user-group',
+                  'whatsapp-groups-menu': 'dripicons-user-group',
                   'brand-menu': 'dripicons-star',
                   'unit-menu': 'dripicons-scale',
                   'currency-menu': 'dripicons-wallet',
