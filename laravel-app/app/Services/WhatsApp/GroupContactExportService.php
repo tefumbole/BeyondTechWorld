@@ -13,6 +13,8 @@ class GroupContactExportService
 
     protected $contactList = null;
 
+    protected $contactNames = null;
+
     public function allRows()
     {
         $wasender = app(BeyondWasenderService::class);
@@ -529,6 +531,7 @@ class GroupContactExportService
                 }
             }
         }
+        $this->registerResolvedContacts();
         $others = $this->savedNames();
         $map = $this->profileNames(false);
         $used = 0;
@@ -546,6 +549,14 @@ class GroupContactExportService
                 $phone = isset($person['phone']) ? (string) $person['phone'] : '';
                 $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
                 if ($this->isPersonName($current, $phone)) {
+                    $this->rememberContact($phone, $current);
+                    continue;
+                }
+                $known = $this->knownName($phone);
+                if ($this->isPersonName($known, $phone)) {
+                    $people[$i]['name'] = $known;
+                    unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                    $dirty = true;
                     continue;
                 }
                 $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
@@ -573,6 +584,7 @@ class GroupContactExportService
                 unset($people[$i]['name_attempts']);
                 if ($resolved !== '') {
                     $people[$i]['name'] = $resolved;
+                    $this->rememberContact($phone, $resolved);
                     unset($people[$i]['name_checked']);
                     $digits = preg_replace('/\D+/', '', $phone);
                     if ($digits !== '') {
@@ -1052,6 +1064,7 @@ class GroupContactExportService
             $map[$tail] = $name;
         }
         $this->writeProfileNames($map);
+        $this->rememberContact($phone, $name);
         $others = $this->savedNames();
         if ($tail !== '') {
             $others[$tail] = $name;
@@ -1215,22 +1228,128 @@ class GroupContactExportService
         return '';
     }
 
+    public function registerResolvedContacts($force = false)
+    {
+        if (! Schema::hasTable('whatsapp_contacts')) {
+            return 0;
+        }
+        if (! $force && ! \Illuminate\Support\Facades\Cache::add('wa_contacts_registered', 1, 6 * 3600)) {
+            return 0;
+        }
+        $saved = 0;
+        $paths = glob(storage_path('app/whatsapp-group-members/*.json'));
+        if (is_array($paths)) {
+            foreach ($paths as $path) {
+                $people = json_decode((string) file_get_contents($path), true);
+                if (! is_array($people)) {
+                    continue;
+                }
+                foreach ($people as $person) {
+                    if (! is_array($person)) {
+                        continue;
+                    }
+                    $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+                    $name = isset($person['name']) ? (string) $person['name'] : '';
+                    if ($this->rememberContact($phone, $name)) {
+                        $saved++;
+                    }
+                }
+            }
+        }
+        foreach ($this->profileNames(false) as $phone => $name) {
+            if ($this->rememberContact($phone, $name)) {
+                $saved++;
+            }
+        }
+
+        return $saved;
+    }
+
+    public function rememberContact($phone, $name)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $name = trim((string) $name);
+        if ($digits === '' || ! $this->isPersonName($name, $digits) || ! Schema::hasTable('whatsapp_contacts')) {
+            return false;
+        }
+        $map = $this->contactNameMap();
+        if (isset($map[$digits]) && $this->isPersonName($map[$digits], $digits)) {
+            return false;
+        }
+        $contact = WhatsAppContact::where('normalized_phone', $digits)->first();
+        if (! $contact) {
+            $contact = new WhatsAppContact();
+            $contact->normalized_phone = $digits;
+            $contact->display_phone = '+'.$digits;
+        }
+        $existing = trim((string) $contact->wa_name);
+        if ($this->isPersonName($existing, $digits)) {
+            $this->contactNames[$digits] = $existing;
+            if (strlen($digits) > 9) {
+                $this->contactNames[substr($digits, -9)] = $existing;
+            }
+
+            return false;
+        }
+        $contact->wa_name = $name;
+        if (trim((string) $contact->display_phone) === '') {
+            $contact->display_phone = '+'.$digits;
+        }
+        $contact->save();
+        $this->contactNames[$digits] = $name;
+        if (strlen($digits) > 9) {
+            $this->contactNames[substr($digits, -9)] = $name;
+        }
+
+        return true;
+    }
+
+    protected function contactNameMap()
+    {
+        if ($this->contactNames !== null) {
+            return $this->contactNames;
+        }
+        $this->contactNames = [];
+        if (! Schema::hasTable('whatsapp_contacts')) {
+            return $this->contactNames;
+        }
+        $rows = WhatsAppContact::query()->get(['normalized_phone', 'wa_name']);
+        foreach ($rows as $row) {
+            $digits = preg_replace('/\D+/', '', (string) $row->normalized_phone);
+            $name = trim((string) $row->wa_name);
+            if ($digits === '' || ! $this->isPersonName($name, $digits)) {
+                continue;
+            }
+            $this->contactNames[$digits] = $name;
+            if (strlen($digits) > 9) {
+                $this->contactNames[substr($digits, -9)] = $name;
+            }
+        }
+
+        return $this->contactNames;
+    }
+
     protected function knownName($phone)
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);
         if ($digits === '') {
             return '';
         }
-        if (Schema::hasTable('whatsapp_contacts')) {
-            $contact = WhatsAppContact::where('normalized_phone', $digits)->first();
-            if ($contact && trim((string) $contact->wa_name) !== '') {
-                return trim((string) $contact->wa_name);
-            }
+        $map = $this->contactNameMap();
+        if (isset($map[$digits]) && $this->isPersonName($map[$digits], $digits)) {
+            return $map[$digits];
+        }
+        $tail = substr($digits, -9);
+        if ($tail !== '' && isset($map[$tail]) && $this->isPersonName($map[$tail], $digits)) {
+            return $map[$tail];
         }
         if (Schema::hasTable('whatsapp_group_participants')) {
             $saved = WhatsAppGroupParticipant::where('phone', $digits)->whereNotNull('display_name')->first();
-            if ($saved && trim((string) $saved->display_name) !== '') {
-                return trim((string) $saved->display_name);
+            if ($saved && $this->isPersonName($saved->display_name, $digits)) {
+                $name = trim((string) $saved->display_name);
+                $this->rememberContact($digits, $name);
+
+                return $name;
             }
         }
 

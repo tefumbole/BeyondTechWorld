@@ -76,12 +76,12 @@ class AnnouncementPersonalization
         if ($body !== '') {
             $msg .= $body."\n";
         }
-        if ($footer !== '') {
-            $msg .= "\n_".$footer."_";
+        $signoff = $footer;
+        if ($signoff === '') {
+            $signoff = trim(WhatsAppMessage::companyName());
         }
-        $company = trim(WhatsAppMessage::companyName());
-        if ($company !== '' && strcasecmp($company, $footer) !== 0 && strcasecmp($company, $header) !== 0) {
-            $msg .= "\n\n_".$company.'_';
+        if ($signoff !== '') {
+            $msg .= "\n\n_".$signoff.'_';
         }
 
         return trim($msg)."\n";

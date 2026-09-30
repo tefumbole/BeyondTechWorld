@@ -232,7 +232,8 @@
 
                     <div class="form-group mt-3">
                         <label class="an-label">Footer (optional)</label>
-                        <input type="text" name="footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" placeholder="Beyond Enterprise">
+                        <input type="text" name="footer" id="an-footer" class="an-field" value="{{ old('footer', $clone['footer'] ?? '') }}" data-system="{{ \App\Support\WhatsAppMessage::companyName() }}" placeholder="For example Nkwen Praise Team">
+                        <p class="text-muted small mb-0">If you type a footer, that is the only sign-off. Leave it blank to use {{ \App\Support\WhatsAppMessage::companyName() }}.</p>
                     </div>
 
                     <div class="an-drop">
@@ -686,7 +687,9 @@ window.AN_PRESELECT = @json([
     }
     function previewHtml(person) {
         var header = (document.querySelector('[name=header]').value || '').trim();
-        var footer = (document.querySelector('[name=footer]').value || '').trim();
+        var footerInput = document.getElementById('an-footer');
+        var footer = footerInput ? footerInput.value.trim() : '';
+        if (!footer && footerInput) footer = (footerInput.getAttribute('data-system') || '').trim();
         var name = displayName(person);
         var phone = person && person.phone ? person.phone : '';
         var body = esc(document.getElementById('an-preview-body').value || '');
@@ -754,6 +757,8 @@ window.AN_PRESELECT = @json([
             paintSample();
         });
     }
+    var footerInput = document.getElementById('an-footer');
+    if (footerInput) footerInput.addEventListener('input', paintSample);
     var previewSearch = document.getElementById('an-preview-search');
     if (previewSearch) previewSearch.addEventListener('input', renderPreviewList);
     if (previewBtn) {

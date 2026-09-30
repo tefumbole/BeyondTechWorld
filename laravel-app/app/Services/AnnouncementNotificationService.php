@@ -341,7 +341,13 @@ class AnnouncementNotificationService extends Controller
             }
             $msg .= \App\Support\WhatsAppMessage::bullet('Subject', $announcement->subject ?: 'Announcement');
             $msg .= \App\Support\WhatsAppMessage::bullet('Scheduled', $when);
-            $msg .= \App\Support\WhatsAppMessage::footer();
+            $signoff = trim((string) $announcement->footer);
+            if ($signoff === '') {
+                $signoff = \App\Support\WhatsAppMessage::companyName();
+            }
+            if (trim($signoff) !== '') {
+                $msg .= "\n_".trim($signoff).'_';
+            }
             if ($this->sendPhone($phone, $msg)) {
                 $sent++;
             }
