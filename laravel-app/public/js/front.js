@@ -43,8 +43,14 @@ $(document).ready(function () {
         });
     }
 
-    //Custom select
-    $('select').selectpicker();
+    // Custom select. Skip any select already turned into a dropdown so the menu is not drawn twice.
+    $('select').each(function () {
+        var $el = $(this);
+        if ($el.data('selectpicker') || $el.parent().hasClass('bootstrap-select')) {
+            return;
+        }
+        $el.selectpicker();
+    });
     
     $('[data-toggle="tooltip"]').tooltip();
 

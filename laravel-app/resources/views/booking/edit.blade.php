@@ -88,7 +88,7 @@
                                             <input type="hidden" name="biller_id_hidden" value="{{$lims_sale_data->biller_id}}" />
                                             <select required name="biller_id" class="selectpicker form-control" data-live-search="true" title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}" @if($lims_sale_data->biller_id == $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if($lims_sale_data->biller_id == $biller->id) selected @endif>{{ trim((string) $biller->company_name) !== '' && strcasecmp(trim((string) $biller->company_name), trim((string) $biller->name)) !== 0 ? $biller->name.' ('.$biller->company_name.')' : $biller->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -110,7 +110,6 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <small class="text-muted">CC contacts receive the equipment list via WhatsApp without pricing.</small>
                                         </div>
                                     </div>
                                 </div>
@@ -122,7 +121,6 @@
                                 <div class="row mt-3" id="global-dates-section">
                                     <div class="col-md-12">
                                         <h5>Default Rental Period</h5>
-                                        <p class="text-muted small mb-3">Set From and To dates here once — use &ldquo;Apply to All Items&rdquo; to update every row.</p>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="form-group">
@@ -645,13 +643,14 @@
                 altFormat: 'd/m/Y, H:i',
                 time_24hr: true,
                 minuteIncrement: 15,
+                disableMobile: true,
                 allowInput: true,
                 clickOpens: true,
                 appendTo: document.body,
-                defaultDate: node.value ? node.value : new Date(),
+                defaultDate: node.value ? node.value : undefined,
                 onOpen: function (selectedDates, dateStr, instance) {
                     if (!instance.input.value) {
-                        instance.setDate(new Date(), false);
+                        instance.setDate(defaultRentalStartDate(), false);
                     }
                 }
             });
@@ -848,8 +847,14 @@ for(rowindex  =0; rowindex <= rownumber; rowindex++){
     $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.sale-unit').val(temp_unit_name[0]);
 }
 
-$('.selectpicker').selectpicker({
-    style: 'btn-link',
+$('select.selectpicker').each(function () {
+    var $el = $(this);
+    if ($el.data('selectpicker') || $el.parent().hasClass('bootstrap-select')) {
+        return;
+    }
+    $el.selectpicker({
+        style: 'btn-link',
+    });
 });
 
 $('[data-toggle="tooltip"]').tooltip();

@@ -34,7 +34,8 @@ class ProductController extends Controller
                 $all_permission[] = $permission->name;
             if(empty($all_permission))
                 $all_permission[] = 'dummy text';
-            return view('product.index', compact('all_permission'));
+            $brands = Brand::where('is_active', true)->orderBy('title')->get(['id', 'title']);
+            return view('product.index', compact('all_permission', 'brands'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -215,6 +216,7 @@ class ProductController extends Controller
                 $nestedData['image'] = '<img src="'.url('public/images/product', $product_image).'" height="80" width="80">';
                 $nestedData['name'] = $product->name;
                 $nestedData['code'] = $product->code;
+                $nestedData['brand_id'] = $product->brand_id ? (int) $product->brand_id : '';
                 if($product->brand_id)
                     $nestedData['brand'] = $product->brand->title;
                 else
@@ -280,6 +282,66 @@ class ProductController extends Controller
         );
 
         echo json_encode($json_data);
+    }
+
+    public function inlineUpdate(Request $request)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || ! $role->hasPermissionTo('products-edit')) {
+            return response()->json(['ok' => false, 'error' => 'You cannot edit products.'], 403);
+        }
+
+        $product = Product::where('is_active', true)->find($request->input('id'));
+        if (! $product) {
+            return response()->json(['ok' => false, 'error' => 'Product was not found.'], 404);
+        }
+
+        $name = trim(strip_tags((string) $request->input('name')));
+        if ($name === '') {
+            return response()->json(['ok' => false, 'error' => 'Enter a product name.'], 422);
+        }
+        $taken = Product::where('is_active', true)
+            ->where('id', '!=', $product->id)
+            ->where('name', $name)
+            ->exists();
+        if ($taken) {
+            return response()->json(['ok' => false, 'error' => 'Another product already uses that name.'], 422);
+        }
+
+        if (! is_numeric($request->input('price')) || ! is_numeric($request->input('cost'))) {
+            return response()->json(['ok' => false, 'error' => 'Price and cost must be numbers.'], 422);
+        }
+
+        $brandId = $request->input('brand_id');
+        if ($brandId === null || $brandId === '' || $brandId === '0') {
+            $brandId = null;
+        } else {
+            $brand = Brand::where('is_active', true)->find($brandId);
+            if (! $brand) {
+                return response()->json(['ok' => false, 'error' => 'Choose a brand from the list.'], 422);
+            }
+            $brandId = $brand->id;
+        }
+
+        $product->name = $name;
+        $product->price = $request->input('price');
+        $product->cost = $request->input('cost');
+        $product->brand_id = $brandId;
+        $product->save();
+
+        $priceWorth = $product->qty * $product->price;
+        $costWorth = $product->qty * $product->cost;
+        if (config('currency_position') == 'prefix') {
+            $stockWorth = config('currency').' '.$priceWorth.' / '.config('currency').' '.$costWorth;
+        } else {
+            $stockWorth = $priceWorth.' '.config('currency').' / '.$costWorth.' '.config('currency');
+        }
+
+        return response()->json([
+            'ok' => true,
+            'name' => $product->name,
+            'stock_worth' => $stockWorth,
+        ]);
     }
 
     public function productDataVendor(Request $request)
@@ -454,6 +516,7 @@ class ProductController extends Controller
                 $nestedData['image'] = '<img src="'.url('public/images/product', $product_image).'" height="80" width="80">';
                 $nestedData['name'] = $product->name;
                 $nestedData['code'] = $product->code;
+                $nestedData['brand_id'] = $product->brand_id ? (int) $product->brand_id : '';
                 if($product->brand_id)
                     $nestedData['brand'] = $product->brand->title;
                 else

@@ -146,6 +146,8 @@
     var user_verified = <?php echo json_encode(env('USER_VERIFIED')) ?>;
     var is_admin_user = <?php echo json_encode(in_array(Auth::user()->role_id, [1, 2])) ?>;
     var can_manage_products = user_verified == '1' || is_admin_user;
+    var can_edit_products = all_permission.indexOf('products-edit') !== -1;
+    var productBrands = <?php echo json_encode($brands) ?>;
     $.ajaxSetup({
         headers: {
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -161,7 +163,10 @@
         }
     });
 
-    $(document).on("click", "tr.product-link td:not(:first-child, :last-child)", function() {
+    $(document).on("click", "tr.product-link td:not(:first-child, :last-child)", function(e) {
+        if ($(e.target).closest('input, select, option, button, .product-inline').length) {
+            return;
+        }
         productDetails( $(this).parent().data('product'), $(this).parent().data('imagedata') );
     });
 
@@ -355,6 +360,58 @@
                     'targets': [0, 1, 9, 10, 11]
                 },
                 {
+                    targets: 2,
+                    render: function (data, type, row) {
+                        if (type !== 'display' || !can_edit_products) {
+                            return data;
+                        }
+                        return '<input type="text" class="form-control product-inline product-inline-name" data-id="'+row.id+'" value="'+inlineAttr(data)+'">';
+                    }
+                },
+                {
+                    targets: 4,
+                    render: function (data, type, row) {
+                        if (type !== 'display' || !can_edit_products) {
+                            return data;
+                        }
+                        var html = '<select class="form-control product-inline product-inline-brand" data-id="'+row.id+'">';
+                        html += '<option value="">N/A</option>';
+                        for (var i = 0; i < productBrands.length; i++) {
+                            var brand = productBrands[i];
+                            html += '<option value="'+brand.id+'"'+(String(brand.id) === String(row.brand_id) ? ' selected' : '')+'>'+inlineAttr(brand.title)+'</option>';
+                        }
+                        html += '</select>';
+                        return html;
+                    }
+                },
+                {
+                    targets: 8,
+                    render: function (data, type, row) {
+                        if (type !== 'display' || !can_edit_products) {
+                            return data;
+                        }
+                        return '<input type="number" step="any" class="form-control product-inline product-inline-price" data-id="'+row.id+'" value="'+inlineAttr(data)+'">';
+                    }
+                },
+                {
+                    targets: 9,
+                    render: function (data, type, row) {
+                        if (type !== 'display' || !can_edit_products) {
+                            return data;
+                        }
+                        return '<input type="number" step="any" class="form-control product-inline product-inline-cost" data-id="'+row.id+'" value="'+inlineAttr(data)+'">';
+                    }
+                },
+                {
+                    targets: 10,
+                    render: function (data, type) {
+                        if (type !== 'display') {
+                            return data;
+                        }
+                        return '<span class="product-inline-worth">'+data+'</span>';
+                    }
+                },
+                {
                     'render': function(data, type, row, meta){
                         if(type === 'display'){
                             data = '<div class="checkbox"><input type="checkbox" class="dt-checkboxes"><label></label></div>';
@@ -509,7 +566,56 @@
     if(all_permission.indexOf("products-delete") == -1)
         $('.buttons-delete').addClass('d-none');
 
-    $('select').selectpicker();
+    function inlineAttr(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;');
+    }
+
+    function saveProductInline($field) {
+        var $row = $field.closest('tr');
+        var id = $field.data('id');
+        $row.find('.product-inline-status').remove();
+        $.ajax({
+            url: '{{ route('products.inline-update') }}',
+            type: 'POST',
+            data: {
+                id: id,
+                name: $row.find('.product-inline-name').val(),
+                price: $row.find('.product-inline-price').val(),
+                cost: $row.find('.product-inline-cost').val(),
+                brand_id: $row.find('.product-inline-brand').val()
+            },
+            success: function (res) {
+                if (res.stock_worth) {
+                    $row.find('.product-inline-worth').text(res.stock_worth);
+                }
+                $field.after('<small class="product-inline-status text-success">Saved</small>');
+            },
+            error: function (xhr) {
+                var message = 'Could not save.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    message = xhr.responseJSON.error;
+                }
+                $field.after('<small class="product-inline-status text-danger">'+inlineAttr(message)+'</small>');
+            }
+        });
+    }
+
+    $(document).on('change', '.product-inline-name, .product-inline-price, .product-inline-cost, .product-inline-brand', function () {
+        saveProductInline($(this));
+    });
 
 </script>
+<style>
+    #product-data-table .product-inline {
+        min-width: 110px;
+        height: 34px;
+        padding: 4px 8px;
+    }
+    #product-data-table .product-inline-name {
+        min-width: 180px;
+    }
+</style>
 @endsection

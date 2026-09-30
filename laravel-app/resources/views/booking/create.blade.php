@@ -456,7 +456,7 @@
                                             <label>{{trans('file.Biller')}} *</label>
                                             <select required name="biller_id" id="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}" @if($selectedBillerId && (int)$biller->id === $selectedBillerId) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if($selectedBillerId && (int)$biller->id === $selectedBillerId) selected @endif>{{ trim((string) $biller->company_name) !== '' && strcasecmp(trim((string) $biller->company_name), trim((string) $biller->name)) !== 0 ? $biller->name.' ('.$biller->company_name.')' : $biller->name }}</option>
                                                 @endforeach
                                             </select>
                                             <input type="hidden" id="default_warehouse_id" value="{{ $selectedWarehouseId ?: '' }}">
@@ -475,14 +475,12 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <small class="text-muted">CC contacts receive the equipment list via WhatsApp without pricing.</small>
                                         </div>
                                     </div>
                                 </div>
                         </div>
                         <div class="booking-section" id="global-dates-section">
                             <div class="booking-section-title">Default Rental Period</div>
-                            <p class="text-muted small mb-1">New items inherit these dates. Use &ldquo;Apply to All Items&rdquo; to update existing rows.</p>
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group">
@@ -756,7 +754,6 @@
                                         <input type="radio" class="custom-control-input" id="contract_type_studio_rental" name="contract_type" value="studio_rental">
                                         <label class="custom-control-label" for="contract_type_studio_rental"><strong>Studio Rental Agreement</strong> (hourly / daily / monthly sessions)</label>
                                     </div>
-                                    <p class="text-muted mb-0">When a contract type is selected, use <strong>Save &amp; Send for Signature</strong> to WhatsApp the agreement link to the client. The booking receipt is generated only after the client signs. Signature is allowed only once.</p>
                                     <input type="hidden" name="send_for_signature" id="send_for_signature" value="0">
                                 </div>
                                 <div class="form-group mt-3">
@@ -1031,13 +1028,14 @@
                 altFormat: 'd/m/Y, H:i',
                 time_24hr: true,
                 minuteIncrement: 15,
+                disableMobile: true,
                 allowInput: true,
                 clickOpens: true,
                 appendTo: document.body,
-                defaultDate: node.value ? node.value : new Date(),
+                defaultDate: node.value ? node.value : undefined,
                 onOpen: function (selectedDates, dateStr, instance) {
                     if (!instance.input.value) {
-                        instance.setDate(new Date(), false);
+                        instance.setDate(defaultRentalStartDate(), false);
                     }
                 }
             });
@@ -1121,6 +1119,16 @@
 
     initRentalDatePickers(document.getElementById('global-dates-section'));
     ensureDefaultGlobalDates();
+
+    $('.payment-form').on('submit', function () {
+        $(this).find('input[type="datetime-local"]').each(function () {
+            this.step = 'any';
+            this.removeAttribute('step');
+            if (this.value && this.value.length > 16) {
+                this.value = this.value.slice(0, 16);
+            }
+        });
+    });
 
     $('#apply-global-dates').on('click', function () {
         $('table.order-list tbody tr').each(function () {
@@ -1328,8 +1336,14 @@ var row_product_price;
 var pos;
 var role_id = <?php echo json_encode(Auth::user()->role_id)?>;
 
-$('.selectpicker').selectpicker({
-    style: 'btn-link',
+$('select.selectpicker').each(function () {
+    var $el = $(this);
+    if ($el.data('selectpicker') || $el.parent().hasClass('bootstrap-select')) {
+        return;
+    }
+    $el.selectpicker({
+        style: 'btn-link',
+    });
 });
 
 $('[data-toggle="tooltip"]').tooltip();

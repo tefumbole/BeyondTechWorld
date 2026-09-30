@@ -64,7 +64,7 @@
         <script type="text/javascript" src="<?php echo asset('public/vendor/jquery-validation/jquery.validate.min.js') ?>"></script>
         <script type="text/javascript" src="<?php echo asset('public/vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js')?>"></script>
 
-        <script type="text/javascript" src="<?php echo asset('public/js/front.js') ?>?v={{ \App\Support\AppVersion::erp() }}"></script>
+        <script type="text/javascript" src="<?php echo asset('public/js/front.js') ?>?v={{ \App\Support\AppVersion::erp() }}-{{ @filemtime(public_path('js/front.js')) }}"></script>
 
         @if(optional(Route::current())->getName() != '/')
         <script type="text/javascript" src="<?php echo asset('public/vendor/daterange/js/moment.min.js') ?>"></script>
@@ -1403,7 +1403,7 @@
                         ])->first() : null;
                         ?>
                         @if($category_permission_active || $index_permission_active || $print_barcode_active || $stock_count_active || $adjustment_active)
-                            <li><a href="#product" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-list"></i><span>{{__('file.product')}}</span><span></a>
+                            <li><a href="#product" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-list"></i><span>{{__('file.product')}}</span></a>
                                 <ul id="product" class="collapse list-unstyled ">
                                     @if($category_permission_active)
                                         <li id="category-menu"><a href="{{route('category.index')}}">{{__('file.category')}}</a></li>
@@ -3787,8 +3787,14 @@
               }
           });
 
-          $('.selectpicker').selectpicker({
-              style: 'btn-link',
+          $('select.selectpicker').each(function () {
+              var $el = $(this);
+              if ($el.data('selectpicker') || $el.parent().hasClass('bootstrap-select')) {
+                  return;
+              }
+              $el.selectpicker({
+                  style: 'btn-link',
+              });
           });
 
           (function () {
@@ -3947,13 +3953,15 @@
                   $parentLi.children('a').addClass('menu-parent-active').attr('aria-expanded', 'true');
                   $('#beyond-module-tabs-label').text(parentLabel);
                   $nav.empty();
+                  var seenHref = {};
 
                   $submenu.find('> li > a').each(function (index) {
                       var $link = $(this);
                       var href = $link.attr('href');
-                      if (!href || href === '#' || href.indexOf('javascript') === 0) {
+                      if (!href || href === '#' || href.indexOf('javascript') === 0 || seenHref[href]) {
                           return;
                       }
+                      seenHref[href] = true;
 
                       var $li = $link.closest('li');
                       var $badge = $link.find('.beyond-attention-badge, .badge-count, .badge').first();
