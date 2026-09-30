@@ -23,6 +23,9 @@
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
 
 <style>
     .an-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
@@ -68,6 +71,7 @@
             <input type="hidden" name="cloned_from_id" value="{{ $clone['cloned_from_id'] ?? '' }}">
             <input type="hidden" name="send_mode" id="an-send-mode" value="now">
             <input type="hidden" name="send_whatsapp" value="1">
+            <input type="hidden" name="audience" id="an-audience" value="people">
 
             <div class="an-layout">
                 <div class="an-page-card">
@@ -121,6 +125,31 @@
                     </div>
 
                     <div class="form-group mb-0">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
+                            <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Send to *</label>
+                        </div>
+                        <div class="mb-3">
+                            <button type="button" class="an-pill active an-audience" data-audience="people">Selected people</button>
+                            <button type="button" class="an-pill an-audience" data-audience="group">WhatsApp group</button>
+                            <button type="button" class="an-pill an-audience" data-audience="contacts">All WhatsApp contacts</button>
+                        </div>
+                        <div id="an-group-box" class="mb-3" style="display:none;">
+                            <label class="an-label">Group</label>
+                            <select name="group_jid" id="an-group-jid" class="an-field">
+                                <option value="">Choose a group</option>
+                                @foreach(($waGroups ?? []) as $group)
+                                    <option value="{{ $group['jid'] }}" data-members="{{ $group['members'] }}">{{ $group['name'] }}@if($group['members'] !== null) ({{ number_format($group['members']) }} contacts)@endif</option>
+                                @endforeach
+                            </select>
+                            <div class="an-info">The message is posted in the selected WhatsApp group, so everyone in that group receives it.</div>
+                            @if(empty($waGroups))
+                                <div class="an-info">No group names are saved yet. Open WhatsApp Hub → Groups and leave it open until the names finish loading, then come back here.</div>
+                            @endif
+                        </div>
+                        <div id="an-contacts-box" class="mb-3" style="display:none;">
+                            <div class="an-info">A personal WhatsApp message is sent to every contact saved on the connected WhatsApp account.</div>
+                        </div>
+                        <div id="an-people-box">
                         <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
                             <label class="an-label mb-0" style="color:#0b3f90;font-weight:700;font-size:15px;">Select Recipients *</label>
                             <button type="button" class="an-btn-outline" id="an-add-recipient-btn" style="white-space:nowrap;">
@@ -180,6 +209,7 @@
                         <div class="an-user-list an-clist" style="max-height:140px;"></div>
                         <div class="an-cchips mt-2"></div>
                         <div class="an-chiddens"></div>
+                        </div>
                     </div>
 
                     <div class="form-group mt-3">
@@ -517,11 +547,51 @@ window.AN_PRESELECT = @json([
     });
 
     document.getElementById('an-form').addEventListener('submit', function (e) {
+        var audience = document.getElementById('an-audience').value;
+        if (audience === 'group') {
+            if (!document.getElementById('an-group-jid').value) {
+                e.preventDefault();
+                alert('Choose a WhatsApp group.');
+            }
+            return;
+        }
+        if (audience === 'contacts') {
+            return;
+        }
         if (!recipients.length) {
             e.preventDefault();
             alert('Select at least one recipient.');
         }
     });
+
+    document.querySelectorAll('.an-audience').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.an-audience').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var audience = btn.getAttribute('data-audience');
+            document.getElementById('an-audience').value = audience;
+            document.getElementById('an-people-box').style.display = audience === 'people' ? '' : 'none';
+            document.getElementById('an-group-box').style.display = audience === 'group' ? '' : 'none';
+            document.getElementById('an-contacts-box').style.display = audience === 'contacts' ? '' : 'none';
+            var count = document.getElementById('an-count');
+            if (audience === 'contacts') {
+                count.textContent = 'All';
+            } else if (audience === 'group') {
+                var opt = document.getElementById('an-group-jid').selectedOptions[0];
+                count.textContent = opt && opt.getAttribute('data-members') ? opt.getAttribute('data-members') : '1';
+            } else {
+                count.textContent = String(recipients.length);
+            }
+        });
+    });
+    var groupPick = document.getElementById('an-group-jid');
+    if (groupPick) {
+        groupPick.addEventListener('change', function () {
+            if (document.getElementById('an-audience').value !== 'group') return;
+            var opt = groupPick.selectedOptions[0];
+            document.getElementById('an-count').textContent = opt && opt.getAttribute('data-members') ? opt.getAttribute('data-members') : '1';
+        });
+    }
 
     refreshRecipients();
     refreshCc();

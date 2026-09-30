@@ -591,6 +591,68 @@ class BeyondWasenderService
         return ['success' => true, 'groups' => array_values($rows)];
     }
 
+    public function listContacts()
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'contacts' => [], 'error' => 'WhatsApp is not configured.'];
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $rows = [];
+        $page = 1;
+        $totalPages = 1;
+        do {
+            $fetched = $this->getJson($base.'/contacts?paginated=true&page='.$page.'&limit=100');
+            if (! empty($fetched['error'])) {
+                if ($rows) {
+                    break;
+                }
+
+                return ['success' => false, 'contacts' => [], 'error' => $fetched['error']];
+            }
+            $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
+            $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : $data;
+            $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+            if (! is_array($items)) {
+                break;
+            }
+            foreach ($items as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $id = isset($row['jid']) ? (string) $row['jid'] : (isset($row['id']) ? (string) $row['id'] : '');
+                if ($id === '' || substr($id, -5) === '@g.us') {
+                    continue;
+                }
+                $phone = '';
+                if (preg_match('/^(\d{6,15})@/i', $id, $m)) {
+                    $phone = $m[1];
+                } elseif (preg_match('/^(\d{8,15})$/', preg_replace('/\D+/', '', $id), $m)) {
+                    $phone = $m[1];
+                }
+                if ($phone === '' || isset($rows[$phone])) {
+                    continue;
+                }
+                $name = '';
+                foreach (['name', 'notify', 'verifiedName', 'pushName'] as $key) {
+                    if (! empty($row[$key]) && is_string($row[$key])) {
+                        $name = trim($row[$key]);
+                        break;
+                    }
+                }
+                $rows[$phone] = [
+                    'id' => 'wa:'.$phone,
+                    'kind' => 'contact',
+                    'name' => $name !== '' ? $name : $phone,
+                    'phone' => $phone,
+                    'email' => '',
+                ];
+            }
+            $page++;
+        } while ($page <= $totalPages && $page <= 40);
+
+        return ['success' => true, 'contacts' => array_values($rows)];
+    }
+
     public function groupParticipants($groupJid)
     {
         if (! $this->isConfigured()) {
@@ -745,5 +807,31 @@ class BeyondWasenderService
             'success' => true,
             'msg_id' => is_array($decoded) && isset($decoded['data']['msgId']) ? $decoded['data']['msgId'] : null,
         ];
+    }
+
+    public function sendGroupDocument($groupJid, $localPath, $fileName = null, $caption = null)
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
+        }
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Document file not found.'];
+        }
+        $fileName = $fileName ?: basename($localPath);
+        $publicUrl = $this->uploadLocalFile($localPath);
+        if (empty($publicUrl)) {
+            return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
+        }
+        $posted = $this->postSendMessage([
+            'to' => (string) $groupJid,
+            'documentUrl' => $publicUrl,
+            'fileName' => $fileName,
+            'text' => $caption !== null && $caption !== '' ? (string) $caption : $fileName,
+        ], 60);
+        if (empty($posted['success'])) {
+            return ['success' => false, 'error' => isset($posted['error']) ? $posted['error'] : 'send failed'];
+        }
+
+        return ['success' => true];
     }
 }

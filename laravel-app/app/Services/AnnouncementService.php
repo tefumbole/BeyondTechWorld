@@ -148,10 +148,20 @@ class AnnouncementService
     public function create(array $data, $adminId = null)
     {
         $settings = $this->settings();
-        $recipientIds = array_values(array_unique(array_filter($data['recipient_ids'] ?? [])));
-        $ccIds = array_values(array_unique(array_filter($data['cc_ids'] ?? [])));
-        $recipients = $this->resolvePeople($recipientIds);
-        $ccs = $this->resolvePeople($ccIds);
+        $audience = isset($data['audience']) ? (string) $data['audience'] : 'people';
+        if ($audience === 'group') {
+            $resolved = $this->groupRecipient(isset($data['group_jid']) ? $data['group_jid'] : '');
+            $recipients = [$resolved];
+            $ccs = [];
+        } elseif ($audience === 'contacts') {
+            $recipients = $this->whatsappContacts();
+            $ccs = [];
+        } else {
+            $recipientIds = array_values(array_unique(array_filter($data['recipient_ids'] ?? [])));
+            $ccIds = array_values(array_unique(array_filter($data['cc_ids'] ?? [])));
+            $recipients = $this->resolvePeople($recipientIds);
+            $ccs = $this->resolvePeople($ccIds);
+        }
 
         $sendMode = $data['send_mode'] ?? 'now';
         $scheduleAt = ! empty($data['schedule_at']) ? Carbon::parse($data['schedule_at']) : null;
@@ -192,10 +202,69 @@ class AnnouncementService
         }
 
         if (! $isScheduled && ! empty($data['send_whatsapp'])) {
-            $this->notify->dispatchAnnouncement($announcement->fresh());
+            $this->startDelivery($announcement->fresh());
         }
 
         return $announcement->fresh();
+    }
+
+    public function startDelivery(WaAnnouncement $announcement)
+    {
+        $recipients = $announcement->recipients();
+        $contactSend = false;
+        foreach ($recipients as $person) {
+            if (isset($person['kind']) && $person['kind'] === 'contact') {
+                $contactSend = true;
+                break;
+            }
+        }
+        if ($contactSend && count($recipients) > 5) {
+            $announcement->status = 'sending';
+            $announcement->whatsapp_status = 'sending';
+            $announcement->is_scheduled = false;
+            $announcement->save();
+            \App\Jobs\SendWaAnnouncementBatchJob::dispatch($announcement->id)
+                ->onConnection('database')
+                ->onQueue('whatsapp');
+
+            return;
+        }
+        $this->notify->dispatchAnnouncement($announcement);
+    }
+
+    protected function groupRecipient($jid)
+    {
+        $jid = trim((string) $jid);
+        foreach (app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups() as $group) {
+            if ($group['jid'] !== $jid) {
+                continue;
+            }
+
+            return [
+                'id' => 'group',
+                'kind' => 'group',
+                'group_jid' => $jid,
+                'name' => $group['name'],
+                'phone' => '',
+                'email' => '',
+            ];
+        }
+
+        throw new \InvalidArgumentException('Choose a WhatsApp group from the list. Open Groups first if the name is still loading.');
+    }
+
+    protected function whatsappContacts()
+    {
+        $listed = app(BeyondWasenderService::class)->listContacts();
+        if (empty($listed['success'])) {
+            throw new \InvalidArgumentException(isset($listed['error']) ? $listed['error'] : 'Could not load WhatsApp contacts.');
+        }
+        $contacts = isset($listed['contacts']) ? $listed['contacts'] : [];
+        if (! $contacts) {
+            throw new \InvalidArgumentException('No WhatsApp contacts were returned for this account.');
+        }
+
+        return $contacts;
     }
 
     public function cloneAnnouncement(WaAnnouncement $source)
@@ -233,7 +302,7 @@ class AnnouncementService
         $count = 0;
         foreach ($due as $a) {
             if ($a->send_whatsapp) {
-                $this->notify->dispatchAnnouncement($a);
+                $this->startDelivery($a);
                 $count++;
             } else {
                 $a->status = 'sent';

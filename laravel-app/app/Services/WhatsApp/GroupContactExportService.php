@@ -123,6 +123,27 @@ class GroupContactExportService
         return ['success' => true, 'groups' => $rows];
     }
 
+    public function namedGroups()
+    {
+        $rows = [];
+        foreach ($this->readDirectory() as $jid => $known) {
+            $name = trim((string) (isset($known['name']) ? $known['name'] : ''));
+            if ($name === '' || substr((string) $jid, -5) !== '@g.us') {
+                continue;
+            }
+            $rows[] = [
+                'jid' => (string) $jid,
+                'name' => $name,
+                'members' => isset($known['members']) ? (int) $known['members'] : null,
+            ];
+        }
+        usort($rows, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return $rows;
+    }
+
     public function enrich(array $jids)
     {
         $saved = $this->readDirectory();

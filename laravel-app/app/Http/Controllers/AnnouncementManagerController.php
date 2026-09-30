@@ -99,6 +99,7 @@ class AnnouncementManagerController extends Controller
         $categories = $this->announcements->categories();
         $templates = $this->announcements->templates();
         $settings = $this->announcements->settings();
+        $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
         $clone = null;
         if ($request->filled('clone')) {
             $src = WaAnnouncement::find($request->get('clone'));
@@ -118,12 +119,13 @@ class AnnouncementManagerController extends Controller
             }
         }
 
-        return view('announcement_manager.compose', compact('users', 'categories', 'templates', 'settings', 'clone'));
+        return view('announcement_manager.compose', compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups'));
     }
 
     public function store(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');
+        @set_time_limit(180);
 
         $attachmentPath = null;
         $attachmentName = null;
@@ -139,7 +141,8 @@ class AnnouncementManagerController extends Controller
             $attachmentName = $file->getClientOriginalName();
         }
 
-        $row = $this->announcements->create([
+        try {
+            $row = $this->announcements->create([
             'subject' => $request->input('subject'),
             'header' => $request->input('header'),
             'body' => $request->input('body'),
@@ -147,6 +150,8 @@ class AnnouncementManagerController extends Controller
             'category_id' => $request->input('category_id') ?: null,
             'recipient_ids' => $request->input('recipient_ids', []),
             'cc_ids' => $request->input('cc_ids', []),
+            'audience' => $request->input('audience', 'people'),
+            'group_jid' => $request->input('group_jid'),
             'send_whatsapp' => $request->has('send_whatsapp') ? true : ((string) $request->input('send_whatsapp', '1') === '1'),
             'send_mode' => $request->input('send_mode', 'now'),
             'schedule_at' => $request->input('schedule_at'),
@@ -155,6 +160,9 @@ class AnnouncementManagerController extends Controller
             'attachment_name' => $attachmentName,
             'cloned_from_id' => $request->input('cloned_from_id'),
         ], Auth::id());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('not_permitted', $e->getMessage());
+        }
 
         if ($request->filled('save_as_template') || $request->input('save_as_template') == '1') {
             $this->announcements->storeTemplate([
@@ -167,6 +175,13 @@ class AnnouncementManagerController extends Controller
         }
 
         $row = $row->fresh();
+        if ($row->whatsapp_status === 'sending') {
+            $count = count($row->recipients());
+
+            return redirect()->route('announcements.index')
+                ->with('message', 'Announcement is going out to '.$count.' WhatsApp contact'.($count === 1 ? '' : 's').' ('.$row->reference.'). Delivery continues in the background.');
+        }
+
         if ($row->status === 'scheduled') {
             return redirect()->route('announcements.index')
                 ->with('message', 'Announcement scheduled (' . $row->reference . ').');
@@ -175,7 +190,8 @@ class AnnouncementManagerController extends Controller
         $failures = [];
         foreach (($row->send_results_json ? json_decode($row->send_results_json, true) : []) ?: [] as $r) {
             if (empty($r['ok'])) {
-                $failures[] = ($r['name'] ?? 'Recipient') . ' (' . ($r['phone'] ?? 'no phone') . ')';
+                $failures[] = ($r['name'] ?? 'Recipient') . ' (' . ($r['phone'] ?? 'no phone') . ')'
+                    . (! empty($r['error']) ? ': '.$r['error'] : '');
             }
         }
 

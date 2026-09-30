@@ -86,11 +86,91 @@ class AnnouncementNotificationService extends Controller
      */
     public function dispatchAnnouncement(WaAnnouncement $announcement)
     {
-        $results = [];
-        $sent = 0;
-        $ccSent = 0;
+        $recipients = $announcement->recipients();
+        if (count($recipients) === 1 && isset($recipients[0]['kind']) && $recipients[0]['kind'] === 'group') {
+            return $this->dispatchGroup($announcement, $recipients[0]);
+        }
 
+        return $this->deliverPeople($announcement, $recipients, $announcement->ccRecipients(), true);
+    }
+
+    /**
+     * Send the next slice of a large contact list. Returns how many people are still waiting.
+     */
+    public function deliverContactBatch(WaAnnouncement $announcement, $limit = 5)
+    {
+        $done = [];
+        $existing = $announcement->send_results_json ? json_decode($announcement->send_results_json, true) : [];
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+        foreach ($existing as $row) {
+            if (! empty($row['phone'])) {
+                $done[(string) $row['phone']] = true;
+            }
+        }
+        $pending = [];
         foreach ($announcement->recipients() as $person) {
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            if ($phone === '' || isset($done[$phone])) {
+                continue;
+            }
+            $pending[] = $person;
+        }
+        $batch = array_slice($pending, 0, max(1, (int) $limit));
+        $sentNow = $this->deliverPeople($announcement, $batch, [], false, $existing);
+
+        return count($pending) - count($batch);
+    }
+
+    protected function dispatchGroup(WaAnnouncement $announcement, array $group)
+    {
+        $person = [
+            'name' => isset($group['name']) ? $group['name'] : 'everyone',
+            'phone' => '',
+            'email' => '',
+        ];
+        $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
+        $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
+        $wasender = app(BeyondWasenderService::class);
+        $posted = $jid !== '' ? $wasender->sendGroupText($jid, $msg) : ['success' => false, 'error' => 'Missing group'];
+        $ok = ! empty($posted['success']);
+        if ($ok && ! empty($announcement->attachment_path)) {
+            $full = public_path($announcement->attachment_path);
+            if (is_file($full)) {
+                $wasender->sendGroupDocument(
+                    $jid,
+                    $full,
+                    $announcement->attachment_name ?: basename($full),
+                    $announcement->subject ?: 'Announcement'
+                );
+            }
+        }
+        $announcement->sent_count = $ok ? 1 : 0;
+        $announcement->cc_sent_count = 0;
+        $announcement->send_results_json = json_encode([[
+            'type' => 'group',
+            'id' => $jid,
+            'name' => $person['name'],
+            'phone' => '',
+            'ok' => $ok,
+            'error' => $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group'),
+        ]]);
+        $announcement->status = 'sent';
+        $announcement->whatsapp_status = $ok ? 'sent' : 'pending';
+        $announcement->is_scheduled = false;
+        $announcement->save();
+
+        return ['sent' => $ok ? 1 : 0, 'cc' => 0, 'whatsapp_status' => $announcement->whatsapp_status];
+    }
+
+    protected function deliverPeople(WaAnnouncement $announcement, array $recipients, array $ccs, $finalize, array $existingResults = [])
+    {
+        $results = $existingResults;
+        $sent = (int) $announcement->sent_count;
+        $ccSent = (int) $announcement->cc_sent_count;
+
+        foreach ($recipients as $person) {
             $phone = $person['phone'] ?? '';
             $ok = false;
             if ($announcement->send_whatsapp) {
@@ -113,7 +193,7 @@ class AnnouncementNotificationService extends Controller
             usleep(6000000); // 6s between recipients
         }
 
-        foreach ($announcement->ccRecipients() as $person) {
+        foreach ($ccs as $person) {
             $phone = $person['phone'] ?? '';
             $ok = false;
             if ($announcement->send_whatsapp) {
@@ -135,24 +215,25 @@ class AnnouncementNotificationService extends Controller
             usleep(6000000);
         }
 
-        $total = count($announcement->recipients()) + count($announcement->ccRecipients());
-        $okCount = $sent + $ccSent;
-        $whatsappStatus = 'sent';
-        if ($okCount === 0 && $total > 0) {
-            $whatsappStatus = 'pending';
-        } elseif ($okCount < $total) {
-            $whatsappStatus = 'partial';
-        }
-
         $announcement->sent_count = $sent;
         $announcement->cc_sent_count = $ccSent;
         $announcement->send_results_json = json_encode($results);
-        $announcement->status = 'sent';
-        $announcement->whatsapp_status = $whatsappStatus;
-        $announcement->is_scheduled = false;
+        if ($finalize) {
+            $total = count($announcement->recipients()) + count($announcement->ccRecipients());
+            $okCount = $sent + $ccSent;
+            $whatsappStatus = 'sent';
+            if ($okCount === 0 && $total > 0) {
+                $whatsappStatus = 'pending';
+            } elseif ($okCount < $total) {
+                $whatsappStatus = 'partial';
+            }
+            $announcement->status = 'sent';
+            $announcement->whatsapp_status = $whatsappStatus;
+            $announcement->is_scheduled = false;
+        }
         $announcement->save();
 
-        return ['sent' => $sent, 'cc' => $ccSent, 'whatsapp_status' => $whatsappStatus];
+        return ['sent' => $sent, 'cc' => $ccSent, 'whatsapp_status' => $announcement->whatsapp_status];
     }
 
     public function sendReminder(WaAnnouncement $announcement)
