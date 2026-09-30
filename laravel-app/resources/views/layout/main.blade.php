@@ -1331,6 +1331,16 @@
                 margin-left: 0 !important;
                 width: 100% !important;
             }
+
+            .bootstrap-select.form-control,
+            .bootstrap-select {
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
         </style>
       </head>
 

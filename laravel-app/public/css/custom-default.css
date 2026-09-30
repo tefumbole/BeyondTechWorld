@@ -449,14 +449,18 @@ a:focus,button:focus,.btn:focus {
 }
 
 .bootstrap-select.form-control {
-	border: 1px solid;
+	border: 0;
+	padding: 0;
+	height: auto;
+	background: transparent;
+	box-shadow: none;
 }
 
 .bootstrap-select .btn-link {
 	color: #7c5cc4;
 }
 
-.form-control, .input-group-text, .bootstrap-select.form-control {
+.form-control, .input-group-text {
     background-color: #fdfdff;
     border-color: #e4e6fc;
 }

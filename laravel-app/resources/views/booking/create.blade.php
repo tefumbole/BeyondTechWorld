@@ -99,7 +99,7 @@
     .booking-create-page .form-group {
         margin-bottom: 0.45rem;
     }
-    .booking-create-page .form-control,
+    .booking-create-page .form-control:not(.bootstrap-select),
     .booking-create-page .bootstrap-select > .dropdown-toggle {
         min-height: 34px !important;
         height: 34px;
@@ -107,7 +107,16 @@
         padding-bottom: 4px !important;
         font-size: 13px;
         border-radius: 8px !important;
-        border-color: #d7e0ef !important;
+        border: 1px solid #d7e0ef !important;
+        box-shadow: none !important;
+    }
+    .booking-create-page .bootstrap-select.form-control,
+    .booking-create-page .bootstrap-select {
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
         box-shadow: none !important;
     }
     .booking-create-page .bootstrap-select .dropdown-toggle .filter-option-inner-inner {
