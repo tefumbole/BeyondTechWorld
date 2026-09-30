@@ -2192,6 +2192,7 @@
                                     <li><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
                                     <li><a href="{{ route('whatsapp.conversations') }}">Conversations</a></li>
                                     <li><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
+                                    <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
                                     <li><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>
                                     <li><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
                                     <li><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
@@ -2201,7 +2202,6 @@
                                     <li><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
                                     <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
-                                    <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
                                     <li><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
                                     <li><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
