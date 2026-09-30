@@ -677,18 +677,26 @@ window.AN_PRESELECT = @json([
         });
         syncPersonalize();
     }
+    function displayName(person) {
+        var name = person && person.name ? String(person.name).trim() : '';
+        var phone = person && person.phone ? String(person.phone).replace(/\D/g, '') : '';
+        var digits = name.replace(/\D/g, '');
+        if (!name || /^\d{6,}$/.test(name.replace(/[\s+\-()]/g, '')) || (phone && digits === phone)) return '';
+        return name;
+    }
     function previewHtml(person) {
         var header = (document.querySelector('[name=header]').value || '').trim();
         var footer = (document.querySelector('[name=footer]').value || '').trim();
-        var name = person && person.name ? person.name : 'Friend';
+        var name = displayName(person);
         var phone = person && person.phone ? person.phone : '';
-        var body = document.getElementById('an-preview-body').value || '';
-        body = body.replace(/\{name\}/ig, name).replace(/\{phone\}/ig, phone).replace(/\{date\}/ig, new Date().toLocaleDateString());
+        var body = esc(document.getElementById('an-preview-body').value || '');
+        var shownName = name ? '<strong>'+esc(name)+'</strong>' : '';
+        body = body.replace(/\{name\}/ig, shownName).replace(/\{phone\}/ig, esc(phone)).replace(/\{date\}/ig, new Date().toLocaleDateString());
         body = body.replace(/^\s*Dear\s+[^,\n]*,\s*/i, '').trim();
         var html = '';
         if (header) html += '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">📢 '+esc(header)+'</div>';
-        html += '<div style="margin-bottom:12px;">Dear <strong>'+esc(name)+'</strong>,</div>';
-        html += '<div style="white-space:pre-wrap;line-height:1.5;">'+esc(body)+'</div>';
+        html += '<div style="margin-bottom:12px;">'+(name ? 'Dear <strong>'+esc(name)+'</strong>,' : 'Hello,')+'</div>';
+        html += '<div style="white-space:pre-wrap;line-height:1.5;">'+body+'</div>';
         if (footer) html += '<div style="margin-top:14px;color:#64748b;font-style:italic;">'+esc(footer)+'</div>';
         return html;
     }

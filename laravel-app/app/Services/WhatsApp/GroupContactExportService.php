@@ -646,10 +646,6 @@ class GroupContactExportService
         if ($this->isPersonName($known, $digits)) {
             return $known;
         }
-        $customer = $this->customerName($digits);
-        if ($this->isPersonName($customer, $digits)) {
-            return $customer;
-        }
 
         return '';
     }
@@ -949,10 +945,6 @@ class GroupContactExportService
         if ($this->isPersonName($known, $digits)) {
             return $known;
         }
-        $customer = $this->customerName($digits);
-        if ($this->isPersonName($customer, $digits)) {
-            return $customer;
-        }
         $savedOnPhone = $this->uniqueAddressBookName($digits);
         if ($this->isPersonName($savedOnPhone, $digits)) {
             return $savedOnPhone;
@@ -1065,40 +1057,6 @@ class GroupContactExportService
             $others[$tail] = $name;
             $this->othersCache = $others;
         }
-    }
-
-    protected function customerName($digits)
-    {
-        $digits = preg_replace('/\D+/', '', (string) $digits);
-        if ($digits === '' || ! \Illuminate\Support\Facades\Schema::hasTable('customers')) {
-            return '';
-        }
-        try {
-            $customer = app(\App\Services\PeopleDirectoryService::class)->findCustomerByLoosePhone($digits);
-        } catch (\Throwable $e) {
-            $customer = null;
-        }
-        if ($customer && $this->isPersonName($customer->name, $digits)) {
-            return trim((string) $customer->name);
-        }
-        $tail = substr($digits, -8);
-        if (strlen($tail) < 8) {
-            return '';
-        }
-        $rows = \App\Customer::query()->where('phone_number', 'like', '%'.$tail)->limit(8)->get(['name', 'phone_number']);
-        $names = [];
-        foreach ($rows as $row) {
-            $rowDigits = preg_replace('/\D+/', '', (string) $row->phone_number);
-            if (substr($rowDigits, -8) !== $tail) {
-                continue;
-            }
-            $label = trim((string) $row->name);
-            if ($this->isPersonName($label, $digits)) {
-                $names[$label] = true;
-            }
-        }
-
-        return count($names) === 1 ? (string) array_keys($names)[0] : '';
     }
 
     protected function uniqueAddressBookName($digits)

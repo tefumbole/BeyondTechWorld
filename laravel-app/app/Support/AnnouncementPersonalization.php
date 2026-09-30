@@ -48,6 +48,10 @@ class AnnouncementPersonalization
         $institution = trim((string) ($announcement->header ?: WhatsAppMessage::companyName()));
         $reference = trim((string) ($announcement->reference ?? ''));
         $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
+        if ($person['name'] !== '') {
+            $vars['name'] = '*'.$person['name'].'*';
+            $vars['Name'] = '*'.$person['name'].'*';
+        }
 
         $body = trim(self::personalize($announcement->body ?: '', $vars));
         $footer = trim(self::personalize($announcement->footer ?: '', $vars));

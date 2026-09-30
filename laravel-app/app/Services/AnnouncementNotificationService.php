@@ -283,16 +283,6 @@ class AnnouncementNotificationService extends Controller
         if ($resolved !== '') {
             return $resolved;
         }
-        $customerName = '';
-        if ($phone !== '') {
-            $customer = app(PeopleDirectoryService::class)->findCustomerByLoosePhone($phone);
-            if ($customer) {
-                $customerName = AnnouncementPersonalization::usableName($customer->name, $phone);
-            }
-        }
-        if ($customerName !== '') {
-            return $customerName;
-        }
         $self = AnnouncementPersonalization::usableName(isset($person['wa_name']) ? $person['wa_name'] : '', $phone);
         if ($self === '' && $phone !== '') {
             $self = AnnouncementPersonalization::usableName($this->whatsappProfileName($phone), $phone);
@@ -337,10 +327,11 @@ class AnnouncementNotificationService extends Controller
             $when = $announcement->scheduled_for
                 ? $announcement->scheduled_for->format('d M Y H:i')
                 : 'soon';
-            $name = AnnouncementPersonalization::usableName($this->personalName($person), $phone);
-            $msg = \App\Support\WhatsAppMessage::statusBlock('⏰', 'Announcement Reminder');
+            $person['name'] = $this->personalName($person);
+            $name = AnnouncementPersonalization::usableName($person['name'], $phone);
+            $msg = "⏰ *Reminder*\n\n";
             if ($name !== '') {
-                $msg .= \App\Support\WhatsAppMessage::greeting($name);
+                $msg .= 'Dear *'.$name."*,\n\n";
             } else {
                 $msg .= "Hello,\n\n";
             }
@@ -354,7 +345,7 @@ class AnnouncementNotificationService extends Controller
             if ($this->sendPhone($phone, $msg)) {
                 $sent++;
             }
-            usleep(3000000);
+            usleep(5000000);
         }
 
         return $sent;
