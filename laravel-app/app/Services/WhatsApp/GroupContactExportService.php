@@ -111,6 +111,7 @@ class GroupContactExportService
                 'members' => $count === null ? null : (int) $count,
                 'known' => $named,
                 'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
+                'last_sent' => isset($known['last_sent_at']) ? (int) $known['last_sent_at'] : 0,
             ];
         }
         usort($rows, function ($a, $b) {
@@ -150,9 +151,23 @@ class GroupContactExportService
 
     public function announcementGroups()
     {
+        $this->backfillLastSent();
         $summary = $this->memberships();
         $groups = isset($summary['groups']) ? $summary['groups'] : [];
         if ($groups) {
+            usort($groups, function ($a, $b) {
+                $left = isset($a['last_sent']) ? (int) $a['last_sent'] : 0;
+                $right = isset($b['last_sent']) ? (int) $b['last_sent'] : 0;
+                if ($left !== $right) {
+                    return $right - $left;
+                }
+                if ($a['known'] !== $b['known']) {
+                    return $a['known'] ? -1 : 1;
+                }
+
+                return strcasecmp($a['name'], $b['name']);
+            });
+
             return $groups;
         }
         $rows = [];
@@ -202,6 +217,68 @@ class GroupContactExportService
         $row['uses'] = (isset($row['uses']) ? (int) $row['uses'] : 0) + 1;
         $saved[$jid] = $row;
         $this->writeDirectory($saved);
+    }
+
+    public function rememberSent($jid, $at = null)
+    {
+        $jid = trim((string) $jid);
+        if (substr($jid, -5) !== '@g.us') {
+            return;
+        }
+        $at = $at ? (int) $at : time();
+        $saved = $this->readDirectory();
+        $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+        $previous = isset($row['last_sent_at']) ? (int) $row['last_sent_at'] : 0;
+        if ($at < $previous) {
+            return;
+        }
+        $row['last_sent_at'] = $at;
+        $row['uses'] = (isset($row['uses']) ? (int) $row['uses'] : 0) + 1;
+        $saved[$jid] = $row;
+        $this->writeDirectory($saved);
+    }
+
+    protected function backfillLastSent()
+    {
+        if (! \Illuminate\Support\Facades\Cache::add('wa_group_sent_backfill', 1, 86400)) {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('wa_announcements')) {
+            return;
+        }
+        $saved = $this->readDirectory();
+        $changed = false;
+        $rows = \App\WaAnnouncement::query()->orderByDesc('id')->limit(300)->get(['recipients_json', 'created_at', 'updated_at']);
+        foreach ($rows as $announcement) {
+            $people = json_decode((string) $announcement->recipients_json, true);
+            if (! is_array($people)) {
+                continue;
+            }
+            $at = strtotime((string) ($announcement->updated_at ?: $announcement->created_at)) ?: 0;
+            if ($at <= 0) {
+                continue;
+            }
+            foreach ($people as $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $jid = isset($person['group_jid']) ? trim((string) $person['group_jid']) : '';
+                if (substr($jid, -5) !== '@g.us') {
+                    continue;
+                }
+                $previous = isset($saved[$jid]['last_sent_at']) ? (int) $saved[$jid]['last_sent_at'] : 0;
+                if ($at <= $previous) {
+                    continue;
+                }
+                $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+                $row['last_sent_at'] = $at;
+                $saved[$jid] = $row;
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $this->writeDirectory($saved);
+        }
     }
 
     public function unresolvedJids()

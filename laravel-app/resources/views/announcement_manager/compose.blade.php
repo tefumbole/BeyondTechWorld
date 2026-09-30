@@ -144,7 +144,7 @@
                             <p id="an-group-progress" class="text-muted small mb-2" style="display:none"></p>
                             <div id="an-group-list" class="an-user-list" style="max-height:280px;">
                                 @forelse(($waGroups ?? []) as $group)
-                                    <label class="an-user-item an-group-row" data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                    <label class="an-user-item an-group-row" data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" data-sent="{{ (int) ($group['last_sent'] ?? 0) }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                                         <input type="checkbox" name="group_jids[]" value="{{ $group['jid'] }}">
                                         <span>
                                             <span class="an-group-label">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</span>
@@ -152,6 +152,9 @@
                                                 <span class="meta an-group-count"> · {{ number_format($group['members']) }} contacts</span>
                                             @else
                                                 <span class="meta an-group-count"></span>
+                                            @endif
+                                            @if(!empty($group['last_sent']))
+                                                <span class="meta"> · recent</span>
                                             @endif
                                         </span>
                                     </label>
@@ -844,16 +847,6 @@ window.AN_PRESELECT = @json([
             if (count && group.members !== null && group.members !== undefined) {
                 count.textContent = ' · ' + Number(group.members).toLocaleString() + ' contacts';
             }
-            var body = row.parentNode;
-            var placed = false;
-            Array.prototype.slice.call(body.querySelectorAll('.an-group-row[data-known="1"]')).forEach(function (other) {
-                if (other === row || placed) return;
-                var otherName = other.querySelector('.an-group-label').textContent;
-                if (group.name.toLowerCase() < otherName.toLowerCase()) {
-                    body.insertBefore(row, other);
-                    placed = true;
-                }
-            });
             renderGroupChips();
         }
         function tick() {

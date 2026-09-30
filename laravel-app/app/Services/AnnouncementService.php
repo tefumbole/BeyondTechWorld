@@ -229,6 +229,7 @@ class AnnouncementService
                 break;
             }
         }
+        $this->markGroupsSent($recipients);
         if ($contactSend && count($recipients) > 5) {
             $announcement->status = 'sending';
             $announcement->whatsapp_status = 'sending';
@@ -241,6 +242,20 @@ class AnnouncementService
             return;
         }
         $this->notify->dispatchAnnouncement($announcement);
+    }
+
+    protected function markGroupsSent(array $recipients)
+    {
+        $groups = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        $seen = [];
+        foreach ($recipients as $person) {
+            $jid = isset($person['group_jid']) ? trim((string) $person['group_jid']) : '';
+            if (substr($jid, -5) !== '@g.us' || isset($seen[$jid])) {
+                continue;
+            }
+            $seen[$jid] = true;
+            $groups->rememberSent($jid);
+        }
     }
 
     protected function groupRecipients(array $jids)
@@ -333,6 +348,7 @@ class AnnouncementService
                     'phone' => $digits,
                     'email' => '',
                     'group' => $group['name'],
+                    'group_jid' => $group['group_jid'],
                 ];
             }
         }
