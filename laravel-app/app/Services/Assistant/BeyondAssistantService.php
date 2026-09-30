@@ -122,9 +122,47 @@ class BeyondAssistantService
         $conversationalTool = null;
         $conversationalResult = null;
         $turnDiag = null;
+        $presentation = app(\App\Services\Event\EventOptionPresentation::class);
+        $incoming = (string) $message->body;
+        // Never reuse a previous turn's choice cards from memory.
+        unset($slots['pending_ui']);
+
+        // Map 1/2/3 (or short labels) onto the last option group so ServiceMenu does not steal "1" = Sound.
+        if (! empty($slots['awaiting_option_group'])) {
+            $resolvedChoice = $presentation->resolveIncomingChoice($slots['awaiting_option_group'], $incoming);
+            if ($resolvedChoice) {
+                $incoming = $resolvedChoice;
+                $slots['text'] = $resolvedChoice;
+                unset($slots['awaiting_option_group']);
+            }
+        }
+        // Legacy LED Screen / No screen clicks — advance the flow; never re-show those buttons.
+        if (preg_match('/^screen:(yes|no)$/i', trim($incoming), $screenChoice)) {
+            $wantScreen = strtolower($screenChoice[1]) === 'yes';
+            $slots['want_screen'] = $wantScreen;
+            unset($slots['pending_ui'], $slots['awaiting_option_group']);
+            if ($wantScreen) {
+                $directReply = app(\App\Services\Event\ScreenPricingService::class)->sizePrompt();
+                $slots['awaiting_screen_size'] = 1;
+            } else {
+                $extras = $presentation->extrasUiWithoutScreen();
+                $directReply = "Got it — no LED screen.\n\n".$extras['prompt'];
+                $slots['pending_ui'] = $presentation->mediaFromUi($extras);
+                $slots['awaiting_option_group'] = 'EXTRAS';
+                unset($slots['awaiting_screen_size']);
+            }
+            $classified = [
+                'intent' => IntentCatalog::SERVICE_ENQUIRY,
+                'confidence' => 0.96,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
+
         $justNamed = ! empty($slots['captured_name']) && ! empty($mem->parameters()['awaiting_name']);
-        $deterministic = $justNamed ? null : $this->router->deterministic((string) $message->body, $slots);
-        $menuChoice = app(ServiceMenu::class)->match((string) $message->body);
+        $deterministic = $justNamed ? null : $this->router->deterministic($incoming, $slots);
+        $menuChoice = isset($classified) ? null : app(ServiceMenu::class)->match($incoming);
 
         // Name capture remains deterministic UX.
         if ($justNamed) {
@@ -158,13 +196,24 @@ class BeyondAssistantService
         }
 
         if (! isset($classified) && $menuChoice) {
-            $payload = app(ServiceMenu::class)->describePayload($menuChoice, (string) $message->body);
+            $payload = app(ServiceMenu::class)->describePayload($menuChoice, $incoming);
             $directReply = $payload['reply'];
             if (! empty($payload['choices'])) {
                 $slots['pending_ui'] = [
                     'choices' => $payload['choices'],
                     'ui' => isset($payload['ui']) ? $payload['ui'] : null,
                 ];
+            } else {
+                unset($slots['pending_ui']);
+            }
+            if ($menuChoice === 'screen') {
+                $slots['awaiting_screen_size'] = 1;
+            }
+            if (! empty($payload['ui'])) {
+                $group = $presentation->awaitingGroupFromUi($payload['ui']);
+                if ($group) {
+                    $slots['awaiting_option_group'] = $group;
+                }
             }
             $classified = [
                 'intent' => IntentCatalog::SERVICE_ENQUIRY,
@@ -174,19 +223,24 @@ class BeyondAssistantService
                 'slots' => [],
             ];
         } elseif (! isset($classified) && is_array($deterministic) && ! empty($deterministic['slots']['closing'])) {
-            $directReply = "You're welcome. Message us whenever you need sound, light, screens, or IT.";
+            $directReply = "You're welcome. If you need anything later, just message us. Have a great day!";
+            unset(
+                $slots['pending_ui'],
+                $slots['awaiting_option_group'],
+                $slots['awaiting_screen_size']
+            );
             $classified = [
                 'intent' => IntentCatalog::GENERAL_ENQUIRY,
                 'confidence' => 0.96,
                 'requires_erp' => false,
                 'needs_clarification' => false,
-                'slots' => [],
+                'slots' => ['closing' => true],
             ];
         }
 
         if (! isset($classified)) {
             $appointmentReply = app(\App\Services\Appointment\AppointmentConversationService::class)
-                ->handle($conversation, $context, $mem, (string) $message->body, $deterministic);
+                ->handle($conversation, $context, $mem, $incoming, $deterministic);
             if (is_string($appointmentReply)) {
                 $directReply = $appointmentReply;
                 $classified = [
@@ -207,7 +261,7 @@ class BeyondAssistantService
         // Primary path: OpenAI conversational engine (casual chat + ERP tools).
         // UNKNOWN / missed keywords never skip this for low-confidence handover.
         if (! isset($classified)) {
-            $turn = app(ConversationalTurnService::class)->turn($conversation, $context, $mem, $slots, (string) $message->body);
+            $turn = app(ConversationalTurnService::class)->turn($conversation, $context, $mem, $slots, $incoming);
             if (! empty($turn['handled'])) {
                 $directReply = $turn['reply'];
                 $conversationalTool = isset($turn['tool']) ? $turn['tool'] : null;
@@ -262,7 +316,7 @@ class BeyondAssistantService
 
         // Last resort only if conversational engine did not run/return. Never business-menu clarify.
         if (! isset($classified)) {
-            $classified = $this->router->classify((string) $message->body, $context, $slots);
+            $classified = $this->router->classify($incoming, $context, $slots);
             if (($classified['intent'] ?? '') === IntentCatalog::UNKNOWN) {
                 $classified = [
                     'intent' => IntentCatalog::GENERAL_ENQUIRY,
@@ -440,24 +494,72 @@ class BeyondAssistantService
             }
         } elseif ($conversation->mode === \App\WhatsApp\WhatsAppConversation::MODE_AI || $decision['action'] === IntentCatalog::ACTION_HANDOVER) {
             $media = null;
-            if (! empty($slots['pending_ui']['choices'])) {
+            $isClosing = ! empty($slots['closing']) || $this->isClosingReply($reply);
+            if (! $isClosing && ! empty($slots['pending_ui']['choices'])) {
                 $media = [
                     'choices' => $slots['pending_ui']['choices'],
                     'ui' => isset($slots['pending_ui']['ui']) ? $slots['pending_ui']['ui'] : null,
                 ];
-            } elseif (! empty($turnDiag['ui'])) {
+            } elseif (! $isClosing && ! empty($turnDiag['ui'])) {
                 $media = [
                     'ui' => $turnDiag['ui'],
                     'choices' => isset($turnDiag['ui']['options']) ? $turnDiag['ui']['options'] : (isset($turnDiag['choices']) ? $turnDiag['choices'] : null),
                 ];
-            } elseif (is_array($conversationalResult) && ! empty($conversationalResult['ui'])) {
+            } elseif (! $isClosing && is_array($conversationalResult) && ! empty($conversationalResult['ui'])) {
                 $media = [
                     'ui' => $conversationalResult['ui'],
                     'choices' => isset($conversationalResult['ui']['options']) ? $conversationalResult['ui']['options'] : null,
                 ];
             }
+
+            // Safety net: plain-text Playback/Piano/Full or extras lists still get clickable cards.
+            if (! $isClosing && (! is_array($media) || (empty($media['choices']) && empty($media['ui']['options']))) && is_string($reply)) {
+                $inferred = $presentation->inferUiFromReply($reply);
+                if ($inferred) {
+                    $reply = $presentation->tidyReplyForUi($reply, $inferred);
+                    $media = $presentation->mediaFromUi($inferred);
+                }
+            }
+
+            // Never re-attach the obsolete LED Screen / No screen radio pair.
+            if (is_array($media) && $this->isLegacyScreenYesNoMedia($media)) {
+                $media = null;
+            }
+
+            // Screen size step: typed Height×Width or total m² only — never yes/no buttons.
+            if (! $isClosing && is_string($reply) && $this->isScreenSizePrompt($reply)) {
+                $reply = app(\App\Services\Event\ScreenPricingService::class)->sizePrompt();
+                $media = null;
+                $slots['awaiting_screen_size'] = 1;
+                unset($slots['awaiting_option_group'], $slots['pending_ui']);
+            } elseif ($isClosing) {
+                $media = null;
+                unset($slots['pending_ui'], $slots['awaiting_option_group'], $slots['awaiting_screen_size']);
+            } elseif (! empty($media['ui'])) {
+                $group = $presentation->awaitingGroupFromUi($media['ui']);
+                if ($group) {
+                    $slots['awaiting_option_group'] = $group;
+                }
+                unset($slots['awaiting_screen_size']);
+            } elseif (! empty($media['choices'])) {
+                // Keep awaiting group if choices came without ui envelope.
+                if (empty($slots['awaiting_option_group'])) {
+                    $sample = strtolower((string) ($media['choices'][0]['value'] ?? ''));
+                    if (strpos($sample, 'sound_mode:') === 0) {
+                        $slots['awaiting_option_group'] = 'SOUND_MODE';
+                    } elseif (strpos($sample, 'lighting:') === 0) {
+                        $slots['awaiting_option_group'] = 'LIGHTING';
+                    } elseif (in_array($sample, ['lights', 'screens', 'stage', 'none'], true) || strpos($sample, 'extras:') === 0) {
+                        $slots['awaiting_option_group'] = 'EXTRAS';
+                    }
+                }
+            }
+
+            unset($slots['pending_ui']);
             $send = $this->conversations->assistantReply($conversation, $reply, $media);
             $sent = ! empty($send['success']);
+            // Persist cleaned slots so choice cards cannot resurrect next turn.
+            $this->memory->remember($mem, $decision['intent'], $slots);
             if ($sent && strpos($reply, '1. Sound') !== false) {
                 // Website replies already embed clickable choices; WhatsApp still gets a poll.
                 if (! $conversation->fresh()->isWebsite()) {
@@ -730,6 +832,45 @@ class BeyondAssistantService
         ];
 
         return in_array($intent, $ops, true);
+    }
+
+    protected function isScreenSizePrompt($reply)
+    {
+        $t = strtolower((string) $reply);
+        if ($t === '') {
+            return false;
+        }
+        if (strpos($t, 'screen') === false && strpos($t, 'led') === false) {
+            return false;
+        }
+
+        return (bool) preg_match('/\b(height|width|square\s*met|m\s*²|m2|dimensions?|size of the|how (big|large)|metres?|meters?)\b/i', $t);
+    }
+
+    protected function isClosingReply($reply)
+    {
+        $t = strtolower((string) $reply);
+
+        return (bool) preg_match('/\b(have a great day|feel free to reach out|if you need anything|you\'re welcome|goodbye|bye for now)\b/i', $t);
+    }
+
+    protected function isLegacyScreenYesNoMedia(array $media)
+    {
+        $choices = [];
+        if (! empty($media['choices']) && is_array($media['choices'])) {
+            $choices = $media['choices'];
+        } elseif (! empty($media['ui']['options']) && is_array($media['ui']['options'])) {
+            $choices = $media['ui']['options'];
+        }
+        if (count($choices) < 2) {
+            return false;
+        }
+        $values = [];
+        foreach ($choices as $c) {
+            $values[] = strtolower((string) (isset($c['value']) ? $c['value'] : ''));
+        }
+
+        return in_array('screen:yes', $values, true) && in_array('screen:no', $values, true);
     }
 
     protected function fingerprint(WhatsAppMessage $message)

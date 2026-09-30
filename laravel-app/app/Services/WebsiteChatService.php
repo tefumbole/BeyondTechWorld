@@ -581,6 +581,15 @@ class WebsiteChatService
             'sender_type' => $m->sender_type,
         ];
         if ($choices) {
+            $values = array_map(function ($c) {
+                return strtolower((string) ($c['value'] ?? ''));
+            }, $choices);
+            // Drop obsolete LED Screen / No screen pair — it must not stick on later replies.
+            if (in_array('screen:yes', $values, true) && in_array('screen:no', $values, true)) {
+                $choices = null;
+            }
+        }
+        if ($choices) {
             $payload['choices'] = array_values(array_map(function ($c) {
                 return [
                     'value' => (string) ($c['value'] ?? ''),

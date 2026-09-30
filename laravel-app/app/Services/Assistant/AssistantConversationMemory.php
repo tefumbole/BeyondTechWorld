@@ -28,6 +28,9 @@ class AssistantConversationMemory
     public function remember(AssistantMemory $memory, $intent, array $params = [], array $missing = [])
     {
         $merged = array_merge($memory->parameters(), $params);
+        // Ephemeral UI payloads must never stick across turns (caused LED Screen buttons
+        // to reappear on every reply, including "end conversation").
+        unset($merged['pending_ui']);
         $memory->active_intent = $intent;
         $memory->setParameters($merged);
         $memory->setMissing($missing);

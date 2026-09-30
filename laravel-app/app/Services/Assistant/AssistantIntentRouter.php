@@ -159,7 +159,7 @@ class AssistantIntentRouter
         if (preg_match('/\b(previous quotation|old quotation|same equipment|same quotation|what did i (rent|book) last)\b/i', $t)) {
             return $this->make(IntentCatalog::PREVIOUS_QUOTATION, 0.95, true, false);
         }
-        if (preg_match('/\b(that will be all|that\'s all|thats all|all for now|nothing else|goodbye|bye for now)\b/i', $t)) {
+        if (preg_match('/\b(that will be all|that\'s all|thats all|all for now|nothing else|goodbye|bye for now|end (the )?(conversation|chat|call|session)|close (the )?chat|stop (chatting|the chat))\b/i', $t)) {
             return $this->make(IntentCatalog::GENERAL_ENQUIRY, 0.96, false, false, ['closing' => true]);
         }
         if (preg_match('/^(hi|hello|hey|hiya|greetings|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[\s!.]*$/i', $t)) {

@@ -75,30 +75,27 @@ class ServiceMenu
             ];
         }
         if ($key === 'sound') {
-            $ui = app(\App\Services\Event\EventPackageCatalogService::class)->soundModeGroup();
+            $ui = app(\App\Services\Event\EventOptionPresentation::class)->soundUi();
 
             return [
-                'reply' => "Great — let's plan your event sound.\n\nWhat date is the event?\n\nFor the sound setup, which option would you prefer?\n\n🎵 Playback — basic sound, no live instruments\n🎹 Piano Bar — playback + piano/keyboard\n🎸 Full Setup — live band / full instruments",
+                'reply' => "Great — let's plan your event sound.\n\nWhat date is the event?\n\n".$ui['prompt'],
                 'ui' => $ui,
                 'choices' => $ui['options'],
             ];
         }
         if ($key === 'light') {
-            $ui = app(\App\Services\Event\EventPackageCatalogService::class)->lightingTierGroup();
+            $ui = app(\App\Services\Event\EventOptionPresentation::class)->lightingUi();
 
             return [
-                'reply' => "Which lighting package do you need?\n\n💡 Basic Lights (No Moving heads)\n✨ Standard Lights (Par Lights with Par Robots)\n🌟 Premium (All Lights)\n\nWhat is the event date and venue?",
+                'reply' => $ui['prompt']."\n\nWhat is the event date and venue?",
                 'ui' => $ui,
                 'choices' => $ui['options'],
             ];
         }
         if ($key === 'screen') {
             return [
-                'reply' => "Would you like an LED screen as part of the setup?\n\n🖥️ LED Screen — yes, please check catalogue options\n🚫 No screen\n\nShare the event date and venue so I can check real availability.",
-                'choices' => [
-                    ['value' => 'screen:yes', 'label' => '🖥️ LED Screen'],
-                    ['value' => 'screen:no', 'label' => '🚫 No screen'],
-                ],
+                'reply' => app(\App\Services\Event\ScreenPricingService::class)->sizePrompt()
+                    ."\n\nAlso share the event date and venue when you can.",
             ];
         }
 

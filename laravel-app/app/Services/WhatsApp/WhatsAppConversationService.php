@@ -114,6 +114,7 @@ class WhatsAppConversationService
         }
 
         $conversation = $this->openConversation($contact);
+        $conversation = $this->promoteToAiIfDefault($conversation);
         if (! empty($parsed['message_id'])) {
             $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
             if ($existing) {
@@ -663,6 +664,34 @@ class WhatsAppConversationService
             'body' => $body,
             'actor_user_id' => $actorId,
         ]);
+    }
+
+    /**
+     * When AI is the default and the assistant is on, answer unassigned chats
+     * even if they were opened earlier in Human mode.
+     */
+    protected function promoteToAiIfDefault(WhatsAppConversation $conversation)
+    {
+        if ($conversation->mode === WhatsAppConversation::MODE_AI) {
+            return $conversation;
+        }
+        try {
+            if ($this->defaultMode() !== WhatsAppConversation::MODE_AI) {
+                return $conversation;
+            }
+            if (! app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()) {
+                return $conversation;
+            }
+            if (app(ConversationAiSwitchService::class)->excludeReason($conversation) !== null) {
+                return $conversation;
+            }
+            $conversation->mode = WhatsAppConversation::MODE_AI;
+            $conversation->save();
+            $this->event($conversation, WhatsAppConversationEvent::MODE, 'Auto-switched to AI because AI mode is on');
+        } catch (\Exception $e) {
+        }
+
+        return $conversation->fresh() ?: $conversation;
     }
 
     protected function initialMode()

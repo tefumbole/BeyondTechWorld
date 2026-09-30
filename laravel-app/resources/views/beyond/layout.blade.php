@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     @php
         $siteLogoUrl = \App\Support\SiteBrand::logoUrl($general_setting ?? null);
         $siteTitle = \App\Support\SiteBrand::siteTitle($general_setting ?? null);
@@ -36,6 +36,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        img, video, svg { max-width: 100%; }
+        main { min-width: 0; }
         @keyframes floaty { 0%,100% { transform: translateY(0); opacity:.4 } 50% { transform: translateY(-20px); opacity:.9 } }
         .floaty { animation: floaty 4s ease-in-out infinite; }
         [x-cloak] { display:none !important; }
@@ -98,7 +100,7 @@
             min-height: 0;
         }
 
-        /* Transparent footer — readable on hero + soft motion */
+        /* Transparent footer — dark text on light pages; light text on home hero */
         @keyframes beyCopyIn {
             from { opacity: 0; transform: translateY(14px); }
             to { opacity: 1; transform: translateY(0); }
@@ -126,39 +128,64 @@
             align-items: center;
             gap: 0.35rem 0;
             padding: 0.7rem 1rem 0.95rem;
-            font-size: 0.8rem;
-            line-height: 1.4;
+            font-size: 0.96rem; /* +20% from 0.8rem */
+            line-height: 1.45;
             text-align: center;
             background: transparent !important;
-            color: #f8fafc;
-            text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 12px rgba(0,20,50,.55);
+            color: #0f2744;
+            text-shadow: none;
             animation: beyCopyIn .9s ease-out both, beyCopyFloat 3.6s ease-in-out .9s infinite;
         }
         .bey-foot-copy span {
             padding: 0 0.7rem;
-            color: #f8fafc;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: .01em;
         }
+        .bey-foot-copy .bey-foot-rights {
+            color: #1e3a5f;
+        }
+        .bey-foot-copy .bey-foot-dev {
+            color: #0b4f8a;
+        }
         .bey-foot-copy span + span {
-            border-left: 1px solid rgba(248, 250, 252, 0.45);
+            border-left: 1px solid rgba(15, 39, 68, 0.28);
             animation: beySepPulse 2.8s ease-in-out infinite;
         }
         .bey-foot-copy a {
-            color: #F5D76E;
+            color: #0a66c2;
             font-weight: 700;
             text-decoration: none;
             pointer-events: auto;
-            text-shadow: 0 1px 2px rgba(0,0,0,.9);
+            text-shadow: none;
         }
-        .bey-foot-copy a:hover { color: #fff; text-decoration: underline; }
+        .bey-foot-copy a:hover { color: #084a8f; text-decoration: underline; }
         .bey-foot-copy .bey-foot-ver {
-            color: #D4AF37;
+            color: #9a6b00;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
         }
+        /* Home hero: keep light-on-dark footer */
+        body.home-lock .bey-foot-copy {
+            color: #f8fafc;
+            text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 12px rgba(0,20,50,.55);
+        }
+        body.home-lock .bey-foot-copy .bey-foot-rights,
+        body.home-lock .bey-foot-copy .bey-foot-dev {
+            color: #f8fafc;
+        }
+        body.home-lock .bey-foot-copy span + span {
+            border-left-color: rgba(248, 250, 252, 0.45);
+        }
+        body.home-lock .bey-foot-copy a {
+            color: #F5D76E;
+            text-shadow: 0 1px 2px rgba(0,0,0,.9);
+        }
+        body.home-lock .bey-foot-copy a:hover { color: #fff; }
+        body.home-lock .bey-foot-copy .bey-foot-ver {
+            color: #D4AF37;
+        }
         @media (max-width: 640px) {
-            .bey-foot-copy { flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.75rem 0.8rem; font-size: 0.75rem; }
+            .bey-foot-copy { flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.75rem 0.8rem; font-size: 0.9rem; /* +20% from 0.75rem */ }
             .bey-foot-copy span { padding: 0; }
             .bey-foot-copy span + span { border-left: 0; animation: none; }
         }
@@ -171,6 +198,22 @@
             margin-top: 0;
             pointer-events: none;
             background: transparent !important;
+        }
+        @media (max-width: 768px), (max-height: 740px) {
+            body.home-lock {
+                height: auto;
+                max-height: none;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+            body.home-lock main { display: block; }
+            body.home-lock .bey-foot {
+                position: relative;
+                left: auto;
+                right: auto;
+                bottom: auto;
+                pointer-events: auto;
+            }
         }
         @media (prefers-reduced-motion: reduce) {
             .bey-foot-copy,
@@ -327,9 +370,9 @@
 
 <footer class="bey-foot mt-auto">
     <div class="bey-foot-copy">
-        <span>© {{ date('Y') }} Beyond Enterprise. All rights reserved.</span>
-        <span>Developed By: Sr. Engr. Tefu R. Mbole</span>
-        <span><a href="https://wa.me/237675321739" target="_blank" rel="noopener">+237 675 321 739</a></span>
+        <span class="bey-foot-rights">© {{ date('Y') }} Beyond Enterprise. All rights reserved.</span>
+        <span class="bey-foot-dev">Developed By: Sr. Engr. Tefu R. Mbole</span>
+        <span class="bey-foot-phone"><a href="https://wa.me/237675321739" target="_blank" rel="noopener">+237 675 321 739</a></span>
         <span class="bey-foot-ver">{{ \App\Support\AppVersion::bcl() }}</span>
     </div>
 </footer>

@@ -206,27 +206,27 @@ class AssistantToolExecutor
 
     protected function toolGetSoundExperienceOptions(array $params, array $context)
     {
-        $ui = app(\App\Services\Event\EventPackageCatalogService::class)->soundModeGroup();
+        $ui = app(\App\Services\Event\EventOptionPresentation::class)->soundUi();
 
         return [
             'success' => true,
             'options' => $ui['options'],
             'ui' => $ui,
-            'message' => "Great — what date is the wedding/event?\n\nFor the sound setup, which option would you prefer?\n🎵 Playback — basic sound, no live instruments\n🎹 Piano Bar — playback + piano/keyboard\n🎸 Full Setup — live band / full instruments\n\nPlayback uses our Basic Sound package from the catalogue.",
+            'message' => $ui['prompt'],
             'next_step' => 'After sound mode is chosen, call get_event_extras_options for Lights/Screens/Stage checkboxes.',
         ];
     }
 
     protected function toolGetEventExtrasOptions(array $params, array $context)
     {
-        $ui = app(\App\Services\Event\EventPackageCatalogService::class)->extrasCheckboxGroup();
+        $ui = app(\App\Services\Event\EventOptionPresentation::class)->extrasUi();
 
         return [
             'success' => true,
             'options' => $ui['options'],
             'ui' => $ui,
-            'message' => "Do you also need any of these? You can select more than one:\n💡 Lights\n🖥️ Screens\n🎭 Stage\n🚫 None of these",
-            'next_step' => 'If lights selected → get_lighting_packages. If screens → ask size then calculate_screen_price. If stage → ask size then calculate_stage_price.',
+            'message' => $ui['prompt'],
+            'next_step' => 'If lights selected → get_lighting_packages. If screens selected → ask Height×Width in meters OR total m² (no yes/no buttons), then calculate_screen_price. If stage → ask size then calculate_stage_price.',
         ];
     }
 
@@ -241,32 +241,45 @@ class AssistantToolExecutor
     protected function toolGetLightingPackages(array $params, array $context)
     {
         $catalog = app(\App\Services\Event\EventPackageCatalogService::class);
-        $ui = $catalog->lightingTierGroup();
+        $ui = app(\App\Services\Event\EventOptionPresentation::class)->lightingUi();
 
         return [
             'success' => true,
             'packages' => $catalog->packages('LIGHTING'),
             'ui' => $ui,
-            'message' => "Which lighting package do you need?\n💡 Basic Lights (No Moving heads)\n✨ Standard Lights (Par Lights with Par Robots)\n🌟 Premium (All Lights)",
+            'message' => $ui['prompt'],
         ];
     }
 
     protected function toolCalculateScreenPrice(array $params, array $context)
     {
-        $length = isset($params['length_m']) ? $params['length_m'] : (isset($params['screen_length_m']) ? $params['screen_length_m'] : null);
+        $pricing = app(\App\Services\Event\ScreenPricingService::class);
+        $length = isset($params['length_m']) ? $params['length_m'] : (isset($params['screen_length_m']) ? $params['screen_length_m'] : (isset($params['height_m']) ? $params['height_m'] : null));
         $width = isset($params['width_m']) ? $params['width_m'] : (isset($params['screen_width_m']) ? $params['screen_width_m'] : null);
-        if (($length === null || $width === null) && ! empty($params['text'])) {
-            $parsed = app(\App\Services\Event\ScreenPricingService::class)->parseDimensions($params['text']);
-            if ($parsed) {
+        $area = isset($params['area_m2']) ? $params['area_m2'] : (isset($params['square_meters']) ? $params['square_meters'] : null);
+        if (($length === null || $width === null) && $area === null && ! empty($params['text'])) {
+            $parsed = $pricing->parseSize($params['text']);
+            if (is_array($parsed) && isset($parsed['area'])) {
+                $area = $parsed['area'];
+            } elseif (is_array($parsed) && isset($parsed[0], $parsed[1])) {
                 $length = $parsed[0];
                 $width = $parsed[1];
             }
         }
+        if ($area !== null && $area !== '' && ($length === null || $width === null)) {
+            return $pricing->calculateArea($area);
+        }
         if ($length === null || $width === null) {
-            return ['success' => false, 'error' => 'need_dimensions', 'message' => 'What LED screen size do you need? For example, 3m × 2m.'];
+            return [
+                'success' => false,
+                'error' => 'need_dimensions',
+                'message' => $pricing->sizePrompt(),
+                'ui' => null,
+                'choices' => [],
+            ];
         }
 
-        return app(\App\Services\Event\ScreenPricingService::class)->calculate($length, $width);
+        return $pricing->calculate($length, $width);
     }
 
     protected function toolGetPackageDetails(array $params, array $context)

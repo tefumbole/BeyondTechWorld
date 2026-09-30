@@ -115,6 +115,34 @@ class EventSolutionBuilderTest extends WhatsAppHubTestCase
         $threeByTwo = $svc->calculate(3, 2);
         $this->assertSame(6.0, (float) $threeByTwo['area_m2']);
         $this->assertSame(360000.0, (float) $threeByTwo['price']);
+
+        $byArea = $svc->calculateArea(6);
+        $this->assertSame(6.0, (float) $byArea['area_m2']);
+        $this->assertSame(360000.0, (float) $byArea['price']);
+
+        $this->assertSame([3.0, 2.0], $svc->parseDimensions('height 3 width 2'));
+        $areaOnly = $svc->parseSize('6 m²');
+        $this->assertSame(6.0, (float) $areaOnly['area']);
+        $this->assertStringContainsString('Height and Width', $svc->sizePrompt());
+    }
+
+    public function test_sound_options_are_numbered_and_clickable()
+    {
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_09_27_110000_update_event_lighting_and_screen_pricing.php',
+            '--force' => true,
+        ]);
+        $ui = app(\App\Services\Event\EventOptionPresentation::class)->soundUi();
+        $this->assertSame('radio', $ui['mode']);
+        $this->assertCount(3, $ui['options']);
+        $this->assertStringStartsWith('1.', $ui['options'][0]['label']);
+        $resolved = app(\App\Services\Event\EventOptionPresentation::class)->resolveIncomingChoice('SOUND_MODE', '2');
+        $this->assertSame('sound_mode:playback_piano', $resolved);
+        $inferred = app(\App\Services\Event\EventOptionPresentation::class)->inferUiFromReply(
+            "What sound experience are you looking for?\n1. Playback\n2. Piano Bar\n3. Full Setup"
+        );
+        $this->assertNotNull($inferred);
+        $this->assertSame('SOUND_MODE', $inferred['category']);
     }
 
     public function test_extras_checkbox_ui()

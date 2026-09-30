@@ -139,6 +139,9 @@ class ConversationalTurnService
                     $toolsRun[] = $tool;
                     $lastToolResult = $exec['result'];
                     $facts = array_merge($facts, $exec['facts']);
+                    if (! empty($exec['result']['ui'])) {
+                        $facts['_ui'] = $exec['result']['ui'];
+                    }
                     if (! empty($exec['handover'])) {
                         return $this->finish([
                             'reply' => $exec['reply'] !== '' ? $exec['reply'] : 'I am connecting you with a team member now.',
@@ -451,7 +454,7 @@ class ConversationalTurnService
     {
         $rows = WhatsAppMessage::where('conversation_id', $conversation->id)
             ->orderByDesc('id')
-            ->limit(AssistantRuntimeSettings::historyLimit())
+            ->limit(max(24, (int) AssistantRuntimeSettings::historyLimit()))
             ->get()
             ->reverse();
         $out = [];

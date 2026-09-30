@@ -27,9 +27,6 @@
                      alt="Mbole AI"
                      class="mx-auto w-40 h-auto select-none"
                      width="220" height="220" decoding="async">
-                <div class="mt-4 inline-block max-w-[90%] rounded-2xl bg-slate-100 text-slate-800 text-sm px-4 py-2.5">
-                    Hello! How can I help?
-                </div>
                 <button type="button"
                         @click="startChat()"
                         class="mt-5 w-full max-w-xs mx-auto block rounded-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3 text-base transition">

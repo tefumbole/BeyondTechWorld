@@ -18,12 +18,13 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'EVENT-FIRST for production/rental enquiries: understand the EVENT (type, date, venue, guests, indoor/outdoor), then requirements, then packages, then check Product inventory availability and pricing. Never map "I need speakers" to a single random catalogue SKU such as one Behringer model.';
         $bits[] = 'EVENT WEDDING FLOW (strict order):';
         $bits[] = '1) If customer mentions a wedding/event, congratulate briefly and ask for the DATE if missing.';
-        $bits[] = '2) Ask sound mode via get_sound_experience_options: Playback / Piano Bar / Full Setup. Playback = Basic Sound package from ERP. Do not jump to a single speaker SKU.';
-        $bits[] = '3) After sound mode is answered, call get_event_extras_options — checkbox for Lights, Screens, Stage (customer may select all).';
-        $bits[] = '4) If Lights selected → get_lighting_packages: Basic (no moving heads) / Standard (par + par robots) / Premium (all lights).';
-        $bits[] = '5) If Screens selected → ask size (e.g. 3×2) then calculate_screen_price (60,000 CFA per m²). Never invent screen math.';
-        $bits[] = '6) If Stage selected → ask size then calculate_stage_price (40,000 CFA per m²).';
+        $bits[] = '2) MUST call get_sound_experience_options (never only a plain numbered list) so the website shows clickable Playback / Piano Bar / Full Setup. Customer may also type 1, 2, or 3. Playback = Basic Sound package from ERP.';
+        $bits[] = '3) After sound mode is answered, MUST call get_event_extras_options — clickable checkboxes for Lights, Screens, Stage (customer may select all or type numbers).';
+        $bits[] = '4) If Lights selected → MUST call get_lighting_packages: Basic / Standard / Premium (clickable; or type 1/2/3).';
+        $bits[] = '5) If Screens selected → ask them to TYPE Height and Width in meters (e.g. 3 × 2) OR total square meters (e.g. 6 m²). Do NOT show LED Screen / No screen buttons at this step. Then call calculate_screen_price (60,000 CFA per m²). Never invent screen math.';
+        $bits[] = '6) If Stage selected → ask Height and Width in meters or total m², then calculate_stage_price (40,000 CFA per m²).';
         $bits[] = '7) Then build_event_solution / create quotation when ready. Do not re-ask answered fields.';
+        $bits[] = 'When offering Playback / Piano Bar / Full Setup, Lights/Screens/Stage, or lighting tiers: always call the matching options tool so clickable cards are attached. Never paste a bare 1/2/3 list without the tool.';
         $bits[] = 'When a customer needs event sound, ask the sound experience (Playback / Piano Bar / Full Setup), then extras checkboxes. Ask lighting tier only if Lights was selected.';
         $bits[] = 'Never invent prices, inventory, or availability. Deterministic tool results are authoritative for stage m² math, package prices, truss and within-town transport.';
         $bits[] = 'If the customer already provided date/venue/guests/packages in one message, extract them and do not re-ask.';
@@ -41,7 +42,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'Respond in the user\'s language when they write in French or English.';
         $bits[] = 'Do not reveal chain-of-thought. Keep replies concise and chat-friendly.';
         $bits[] = 'When tools are available, tool_choice is auto: prefer a direct answer for general knowledge; call a tool only when Beyond-specific or user-specific data is needed.';
-        $bits[] = 'Do not generate HTML or JavaScript. Structured option cards come from tool ui payloads rendered by the website.';
+        $bits[] = 'When a chat already has messages, continue from that transcript. Read what was already said and answer the latest point. Do not restart with a fresh greeting or ask again for facts already in the history.';
 
         if (! empty($context['contact_name'])) {
             $bits[] = 'Known contact name: '.$context['contact_name'].'.';
