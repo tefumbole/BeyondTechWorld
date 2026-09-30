@@ -447,9 +447,12 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
             return $deny;
         }
-        $groups = \App\WhatsApp\WhatsAppGroup::orderBy('name')->get();
+        @set_time_limit(180);
+        $summary = app(\App\Services\WhatsApp\GroupContactExportService::class)->memberships();
+        $groups = isset($summary['groups']) ? $summary['groups'] : [];
+        $listError = empty($summary['success']) ? (isset($summary['error']) ? $summary['error'] : 'Could not load groups.') : null;
 
-        return view('whatsapp_hub.groups', compact('groups'));
+        return view('whatsapp_hub.groups', compact('groups', 'listError'));
     }
 
     public function exportGroupContacts()

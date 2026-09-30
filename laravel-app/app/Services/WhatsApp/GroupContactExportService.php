@@ -59,6 +59,44 @@ class GroupContactExportService
         return ['success' => true, 'rows' => $rows, 'groups' => count($groups)];
     }
 
+    public function memberships()
+    {
+        $wasender = app(BeyondWasenderService::class);
+        $listed = $wasender->listGroups();
+        if (empty($listed['success'])) {
+            return [
+                'success' => false,
+                'error' => isset($listed['error']) ? $listed['error'] : 'Could not list WhatsApp groups.',
+                'groups' => [],
+            ];
+        }
+        $groups = isset($listed['groups']) ? $listed['groups'] : [];
+        $rows = [];
+        foreach ($groups as $group) {
+            $jid = isset($group['jid']) ? (string) $group['jid'] : '';
+            $name = trim((string) (isset($group['name']) ? $group['name'] : ''));
+            if ($name === '') {
+                $name = $jid !== '' ? $jid : 'Untitled group';
+            }
+            $count = isset($group['member_count']) ? $group['member_count'] : null;
+            if ($count === null && $jid !== '') {
+                $fetched = $wasender->groupParticipants($jid);
+                $people = isset($fetched['participants']) ? $fetched['participants'] : [];
+                $count = count($people);
+            }
+            $rows[] = [
+                'name' => $name,
+                'jid' => $jid,
+                'members' => (int) $count,
+            ];
+        }
+        usort($rows, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return ['success' => true, 'groups' => $rows];
+    }
+
     protected function knownName($phone)
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);

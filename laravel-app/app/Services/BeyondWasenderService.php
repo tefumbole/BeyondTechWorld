@@ -571,10 +571,25 @@ class BeyondWasenderService
                 if ($jid === '') {
                     continue;
                 }
+                $people = [];
+                if (isset($row['participants']) && is_array($row['participants'])) {
+                    $people = $row['participants'];
+                }
+                $count = null;
+                foreach (['size', 'participantsCount', 'participantCount', 'memberCount'] as $key) {
+                    if (isset($row[$key]) && is_numeric($row[$key])) {
+                        $count = (int) $row[$key];
+                        break;
+                    }
+                }
+                if ($count === null && $people) {
+                    $count = count($people);
+                }
                 $rows[] = [
                     'jid' => (string) $jid,
                     'name' => isset($row['subject']) ? $row['subject'] : (isset($row['name']) ? $row['name'] : ''),
                     'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
+                    'member_count' => $count,
                 ];
             }
         }
