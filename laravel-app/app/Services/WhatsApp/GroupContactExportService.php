@@ -64,6 +64,29 @@ class GroupContactExportService
         $wasender = app(BeyondWasenderService::class);
         $listed = $wasender->listGroups();
         if (empty($listed['success'])) {
+            $saved = $this->readDirectory();
+            if ($saved) {
+                $rows = [];
+                foreach ($saved as $jid => $known) {
+                    $name = trim((string) (isset($known['name']) ? $known['name'] : ''));
+                    if ($name === '') {
+                        continue;
+                    }
+                    $rows[] = [
+                        'name' => $name,
+                        'jid' => (string) $jid,
+                        'members' => isset($known['members']) ? (int) $known['members'] : null,
+                        'known' => true,
+                    ];
+                }
+                usort($rows, function ($a, $b) {
+                    return strcasecmp($a['name'], $b['name']);
+                });
+                if ($rows) {
+                    return ['success' => true, 'groups' => $rows];
+                }
+            }
+
             return [
                 'success' => false,
                 'error' => isset($listed['error']) ? $listed['error'] : 'Could not list WhatsApp groups.',
@@ -71,36 +94,79 @@ class GroupContactExportService
             ];
         }
         $groups = isset($listed['groups']) ? $listed['groups'] : [];
+        $saved = $this->readDirectory();
         $rows = [];
         foreach ($groups as $group) {
             $jid = isset($group['jid']) ? (string) $group['jid'] : '';
-            $name = trim((string) (isset($group['name']) ? $group['name'] : ''));
-            $count = isset($group['member_count']) ? $group['member_count'] : null;
-            if ($jid !== '') {
-                $profile = $wasender->groupProfile($jid);
-                $profileName = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
-                if ($profileName !== '') {
-                    $name = $profileName;
-                }
-                $people = isset($profile['participants']) ? $profile['participants'] : [];
-                if ($people) {
-                    $count = count($people);
-                }
-            }
+            $known = isset($saved[$jid]) ? $saved[$jid] : [];
+            $name = trim((string) (isset($known['name']) ? $known['name'] : ''));
             if ($name === '') {
-                $name = $jid !== '' ? $jid : 'Untitled group';
+                $name = trim((string) (isset($group['name']) ? $group['name'] : ''));
             }
+            $count = isset($known['members']) ? $known['members'] : (isset($group['member_count']) ? $group['member_count'] : null);
+            $named = $name !== '' && strpos($name, '@g.us') === false;
             $rows[] = [
-                'name' => $name,
+                'name' => $named ? $name : '',
                 'jid' => $jid,
-                'members' => (int) $count,
+                'members' => $count === null ? null : (int) $count,
+                'known' => $named,
             ];
         }
         usort($rows, function ($a, $b) {
+            if ($a['known'] !== $b['known']) {
+                return $a['known'] ? -1 : 1;
+            }
+
             return strcasecmp($a['name'], $b['name']);
         });
 
         return ['success' => true, 'groups' => $rows];
+    }
+
+    public function enrich(array $jids)
+    {
+        $saved = $this->readDirectory();
+        $wasender = app(BeyondWasenderService::class);
+        $rows = [];
+        $fetched = 0;
+        $rateLimited = false;
+        foreach ($jids as $jid) {
+            $jid = trim((string) $jid);
+            if ($jid === '' || substr($jid, -5) !== '@g.us') {
+                continue;
+            }
+            if (! empty($saved[$jid]['name'])) {
+                $rows[] = [
+                    'jid' => $jid,
+                    'name' => $saved[$jid]['name'],
+                    'members' => isset($saved[$jid]['members']) ? (int) $saved[$jid]['members'] : null,
+                ];
+                continue;
+            }
+            if ($fetched >= 8 || $rateLimited) {
+                continue;
+            }
+            $profile = $wasender->groupProfile($jid);
+            $fetched++;
+            if (! empty($profile['rate_limited'])) {
+                $rateLimited = true;
+                continue;
+            }
+            $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+            if ($name === '') {
+                continue;
+            }
+            $members = isset($profile['members']) ? (int) $profile['members'] : null;
+            $saved[$jid] = ['name' => $name, 'members' => $members];
+            $rows[] = ['jid' => $jid, 'name' => $name, 'members' => $members];
+        }
+        $this->writeDirectory($saved);
+
+        return [
+            'success' => true,
+            'groups' => $rows,
+            'retry_after' => $rateLimited ? 60 : ($fetched >= 8 ? 60 : 0),
+        ];
     }
 
     public function rowsForGroup($jid)
@@ -108,6 +174,14 @@ class GroupContactExportService
         $jid = trim((string) $jid);
         $profile = app(BeyondWasenderService::class)->groupProfile($jid);
         $name = trim((string) $profile['name']);
+        if ($name !== '') {
+            $saved = $this->readDirectory();
+            $saved[$jid] = [
+                'name' => $name,
+                'members' => isset($profile['members']) ? (int) $profile['members'] : null,
+            ];
+            $this->writeDirectory($saved);
+        }
         if ($name === '') {
             $name = $jid;
         }
@@ -137,6 +211,32 @@ class GroupContactExportService
         }
 
         return ['success' => true, 'rows' => $rows, 'name' => $name];
+    }
+
+    protected function directoryPath()
+    {
+        return storage_path('app/whatsapp-group-directory.json');
+    }
+
+    protected function readDirectory()
+    {
+        $path = $this->directoryPath();
+        if (! is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    protected function writeDirectory(array $saved)
+    {
+        $path = $this->directoryPath();
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($path, json_encode($saved));
     }
 
     protected function knownName($phone)

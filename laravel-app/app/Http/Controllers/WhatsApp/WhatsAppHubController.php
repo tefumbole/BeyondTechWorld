@@ -455,6 +455,22 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.groups', compact('groups', 'listError'));
     }
 
+    public function lookupGroups(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(90);
+        $jids = preg_split('/\s*,\s*/', trim((string) $request->query('jids', '')));
+        $jids = array_values(array_filter((array) $jids, function ($jid) {
+            return substr((string) $jid, -5) === '@g.us';
+        }));
+
+        return response()->json(
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->enrich(array_slice($jids, 0, 8))
+        );
+    }
+
     public function exportGroupContacts(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {

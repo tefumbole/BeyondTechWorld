@@ -538,42 +538,38 @@ class BeyondWasenderService
             return ['success' => false, 'groups' => []];
         }
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
-        $ch = curl_init($base.'/groups?paginated=false');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
-                'Accept: application/json',
-            ],
-            CURLOPT_TIMEOUT => 25,
-        ]);
-        $body = curl_exec($ch);
-        $err = curl_error($ch);
-        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        $decoded = json_decode((string) $body, true);
-        if ($err || $http >= 400 || (is_array($decoded) && isset($decoded['success']) && $decoded['success'] === false)) {
-            $message = $err ?: (is_array($decoded) ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http)) : ('HTTP '.$http));
-
-            return ['success' => false, 'groups' => [], 'error' => $message];
-        }
-        $data = is_array($decoded) && isset($decoded['data']) ? $decoded['data'] : [];
-        if (isset($data['items']) && is_array($data['items'])) {
-            $data = $data['items'];
-        }
         $rows = [];
-        if (is_array($data)) {
-            foreach ($data as $row) {
+        $page = 1;
+        $totalPages = 1;
+        do {
+            $fetched = $this->getJson($base.'/groups?paginated=true&page='.$page.'&limit=50');
+            if (! empty($fetched['error'])) {
+                if ($rows) {
+                    break;
+                }
+
+                return ['success' => false, 'groups' => [], 'error' => $fetched['error']];
+            }
+            $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
+            $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : $data;
+            $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+            if (! is_array($items)) {
+                break;
+            }
+            foreach ($items as $row) {
                 if (! is_array($row)) {
                     continue;
                 }
                 $jid = isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : '');
-                if ($jid === '') {
+                if ($jid === '' || isset($rows[(string) $jid])) {
                     continue;
                 }
-                $people = [];
-                if (isset($row['participants']) && is_array($row['participants'])) {
-                    $people = $row['participants'];
+                $name = '';
+                foreach (['subject', 'name', 'title'] as $key) {
+                    if (! empty($row[$key]) && is_string($row[$key])) {
+                        $name = trim($row[$key]);
+                        break;
+                    }
                 }
                 $count = null;
                 foreach (['size', 'participantsCount', 'participantCount', 'memberCount'] as $key) {
@@ -582,19 +578,17 @@ class BeyondWasenderService
                         break;
                     }
                 }
-                if ($count === null && $people) {
-                    $count = count($people);
-                }
-                $rows[] = [
+                $rows[(string) $jid] = [
                     'jid' => (string) $jid,
-                    'name' => isset($row['subject']) ? $row['subject'] : (isset($row['name']) ? $row['name'] : ''),
+                    'name' => $name,
                     'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
                     'member_count' => $count,
                 ];
             }
-        }
+            $page++;
+        } while ($page <= $totalPages && $page <= 10);
 
-        return ['success' => true, 'groups' => $rows];
+        return ['success' => true, 'groups' => array_values($rows)];
     }
 
     public function groupParticipants($groupJid)
@@ -621,11 +615,22 @@ class BeyondWasenderService
     public function groupProfile($groupJid)
     {
         if (! $this->isConfigured()) {
-            return ['success' => false, 'name' => '', 'participants' => [], 'error' => 'WhatsApp is not configured.'];
+            return ['success' => false, 'name' => '', 'members' => null, 'participants' => [], 'error' => 'WhatsApp is not configured.'];
         }
         $encoded = rawurlencode((string) $groupJid);
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
         $meta = $this->getJson($base.'/groups/'.$encoded.'/metadata');
+        $error = isset($meta['error']) ? (string) $meta['error'] : '';
+        if ($error !== '') {
+            return [
+                'success' => false,
+                'name' => '',
+                'members' => null,
+                'participants' => [],
+                'rate_limited' => stripos($error, 'longer than expected') !== false,
+                'error' => $error,
+            ];
+        }
         $payload = isset($meta['data']) && is_array($meta['data']) ? $meta['data'] : [];
         $name = '';
         foreach (['subject', 'name', 'title'] as $key) {
@@ -635,16 +640,15 @@ class BeyondWasenderService
             }
         }
         $people = $this->participantRows(isset($payload['participants']) ? $payload['participants'] : []);
-        if (! $people) {
-            $listed = $this->getJson($base.'/groups/'.$encoded.'/participants');
-            $people = $this->participantRows(isset($listed['data']) ? $listed['data'] : []);
-        }
+        $members = isset($payload['size']) && is_numeric($payload['size']) ? (int) $payload['size'] : count($people);
 
         return [
-            'success' => $name !== '' || ! empty($people),
+            'success' => $name !== '' || $members > 0,
             'name' => $name,
+            'members' => $members,
             'participants' => $people,
-            'error' => isset($meta['error']) ? $meta['error'] : null,
+            'rate_limited' => false,
+            'error' => null,
         ];
     }
 
@@ -686,14 +690,16 @@ class BeyondWasenderService
                 continue;
             }
             $id = '';
-            foreach (['id', 'jid', 'participant'] as $key) {
+            foreach (['jid', 'id', 'participant'] as $key) {
                 if (! empty($row[$key])) {
                     $id = (string) $row[$key];
                     break;
                 }
             }
             $phone = '';
-            if (preg_match('/^(\d{6,15})@s\.whatsapp\.net$/i', $id, $m)) {
+            if (! empty($row['pn']) && preg_match('/^(\d{6,15})$/', (string) $row['pn'], $m)) {
+                $phone = $m[1];
+            } elseif (preg_match('/^(\d{6,15})@s\.whatsapp\.net$/i', $id, $m)) {
                 $phone = $m[1];
             } elseif (preg_match('/^(\d{8,15})$/', $id)) {
                 $phone = $id;
