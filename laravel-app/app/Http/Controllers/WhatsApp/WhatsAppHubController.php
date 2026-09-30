@@ -455,18 +455,25 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.groups', compact('groups', 'listError'));
     }
 
-    public function exportGroupContacts()
+    public function exportGroupContacts(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
             return $deny;
         }
         @set_time_limit(180);
-        $export = app(\App\Services\WhatsApp\GroupContactExportService::class)->allRows();
+        $service = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        $jid = trim((string) $request->query('jid', ''));
+        $export = $jid !== '' ? $service->rowsForGroup($jid) : $service->allRows();
         if (empty($export['success'])) {
             return back()->with('not_permitted', isset($export['error']) ? $export['error'] : 'Could not export group contacts.');
         }
         $rows = $export['rows'];
-        $filename = 'whatsapp-group-contacts-'.date('Y-m-d').'.csv';
+        $label = isset($export['name']) ? $export['name'] : 'whatsapp-groups';
+        $slug = trim(preg_replace('/[^A-Za-z0-9]+/', '-', $label), '-');
+        if ($slug === '') {
+            $slug = 'whatsapp-group';
+        }
+        $filename = $slug.'-contacts.csv';
 
         return response()->stream(function () use ($rows) {
             $out = fopen('php://output', 'w');

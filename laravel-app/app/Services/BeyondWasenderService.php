@@ -618,6 +618,36 @@ class BeyondWasenderService
         return ['success' => true, 'participants' => $people];
     }
 
+    public function groupProfile($groupJid)
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'name' => '', 'participants' => [], 'error' => 'WhatsApp is not configured.'];
+        }
+        $encoded = rawurlencode((string) $groupJid);
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $meta = $this->getJson($base.'/groups/'.$encoded.'/metadata');
+        $payload = isset($meta['data']) && is_array($meta['data']) ? $meta['data'] : [];
+        $name = '';
+        foreach (['subject', 'name', 'title'] as $key) {
+            if (! empty($payload[$key]) && is_string($payload[$key])) {
+                $name = trim($payload[$key]);
+                break;
+            }
+        }
+        $people = $this->participantRows(isset($payload['participants']) ? $payload['participants'] : []);
+        if (! $people) {
+            $listed = $this->getJson($base.'/groups/'.$encoded.'/participants');
+            $people = $this->participantRows(isset($listed['data']) ? $listed['data'] : []);
+        }
+
+        return [
+            'success' => $name !== '' || ! empty($people),
+            'name' => $name,
+            'participants' => $people,
+            'error' => isset($meta['error']) ? $meta['error'] : null,
+        ];
+    }
+
     protected function getJson($url)
     {
         $ch = curl_init($url);

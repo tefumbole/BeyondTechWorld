@@ -75,14 +75,20 @@ class GroupContactExportService
         foreach ($groups as $group) {
             $jid = isset($group['jid']) ? (string) $group['jid'] : '';
             $name = trim((string) (isset($group['name']) ? $group['name'] : ''));
+            $count = isset($group['member_count']) ? $group['member_count'] : null;
+            if ($jid !== '') {
+                $profile = $wasender->groupProfile($jid);
+                $profileName = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+                if ($profileName !== '') {
+                    $name = $profileName;
+                }
+                $people = isset($profile['participants']) ? $profile['participants'] : [];
+                if ($people) {
+                    $count = count($people);
+                }
+            }
             if ($name === '') {
                 $name = $jid !== '' ? $jid : 'Untitled group';
-            }
-            $count = isset($group['member_count']) ? $group['member_count'] : null;
-            if ($count === null && $jid !== '') {
-                $fetched = $wasender->groupParticipants($jid);
-                $people = isset($fetched['participants']) ? $fetched['participants'] : [];
-                $count = count($people);
             }
             $rows[] = [
                 'name' => $name,
@@ -95,6 +101,42 @@ class GroupContactExportService
         });
 
         return ['success' => true, 'groups' => $rows];
+    }
+
+    public function rowsForGroup($jid)
+    {
+        $jid = trim((string) $jid);
+        $profile = app(BeyondWasenderService::class)->groupProfile($jid);
+        $name = trim((string) $profile['name']);
+        if ($name === '') {
+            $name = $jid;
+        }
+        $people = isset($profile['participants']) ? $profile['participants'] : [];
+        if (! $people && empty($profile['success'])) {
+            return [
+                'success' => false,
+                'error' => isset($profile['error']) ? $profile['error'] : 'Could not read this group.',
+                'rows' => [],
+                'name' => $name,
+            ];
+        }
+        $rows = [];
+        foreach ($people as $person) {
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $display = isset($person['name']) ? (string) $person['name'] : '';
+            if ($display === '' && $phone !== '') {
+                $display = $this->knownName($phone);
+            }
+            $rows[] = [
+                'group' => $name,
+                'phone' => $phone,
+                'name' => $display,
+                'role' => isset($person['role']) ? $person['role'] : 'member',
+                'whatsapp_id' => isset($person['whatsapp_id']) ? $person['whatsapp_id'] : '',
+            ];
+        }
+
+        return ['success' => true, 'rows' => $rows, 'name' => $name];
     }
 
     protected function knownName($phone)
