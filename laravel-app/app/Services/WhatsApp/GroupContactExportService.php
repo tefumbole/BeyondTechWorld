@@ -387,6 +387,9 @@ class GroupContactExportService
     public function withRegisteredNames(array $rows)
     {
         $map = $this->profileNames();
+        $misses = $this->profileMisses();
+        $lookups = 0;
+        $changed = false;
         foreach ($rows as $i => $row) {
             $phone = isset($row['phone']) ? (string) $row['phone'] : '';
             $registered = $this->registeredWhatsAppName($phone, $map);
@@ -396,10 +399,33 @@ class GroupContactExportService
             }
             $current = trim((string) (isset($row['name']) ? $row['name'] : ''));
             $digits = preg_replace('/\D+/', '', $phone);
-            if ($current === '' || $current === $digits || preg_match('/^\d+$/', $current)) {
-                $known = $this->knownName($phone);
-                $rows[$i]['name'] = ($known !== '' && ! preg_match('/^\d+$/', $known)) ? $known : '';
+            $unnamed = $current === '' || $current === $digits || preg_match('/^\d+$/', $current);
+            if (! $unnamed) {
+                continue;
             }
+            $tail = $digits !== '' ? substr($digits, -9) : '';
+            $alreadyMissed = ($digits !== '' && isset($misses[$digits])) || ($tail !== '' && isset($misses[$tail]));
+            if (! $alreadyMissed && $digits !== '' && $lookups < 40) {
+                $lookups++;
+                $found = $this->lookupRegisteredName($digits);
+                if ($found !== '') {
+                    $map[$digits] = $found;
+                    if (strlen($digits) > 9) {
+                        $map[substr($digits, -9)] = $found;
+                    }
+                    $rows[$i]['name'] = $found;
+                    $changed = true;
+                    continue;
+                }
+                $misses[$digits] = 1;
+                $changed = true;
+            }
+            $known = $this->knownName($phone);
+            $rows[$i]['name'] = ($known !== '' && ! preg_match('/^\d+$/', $known)) ? $known : '';
+        }
+        if ($changed) {
+            $this->writeProfileNames($map);
+            $this->writeProfileMisses($misses);
         }
 
         return $rows;
@@ -502,17 +528,79 @@ class GroupContactExportService
                 $map[substr($digits, -9)] = $label;
             }
         }
+        if ($cached) {
+            $map = array_merge($cached, $map);
+        }
         if ($map) {
-            $dir = dirname($path);
-            if (! is_dir($dir)) {
-                mkdir($dir, 0775, true);
-            }
-            file_put_contents($path, json_encode($map));
+            $this->writeProfileNames($map);
 
             return $map;
         }
 
         return $cached;
+    }
+
+    protected function writeProfileNames(array $map)
+    {
+        $path = storage_path('app/whatsapp-profile-names.json');
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($path, json_encode($map));
+    }
+
+    protected function profileMisses()
+    {
+        $path = storage_path('app/whatsapp-profile-misses.json');
+        if (! is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    protected function writeProfileMisses(array $misses)
+    {
+        $path = storage_path('app/whatsapp-profile-misses.json');
+        file_put_contents($path, json_encode($misses));
+    }
+
+    protected function lookupRegisteredName($phone)
+    {
+        $digits = ltrim(preg_replace('/\D+/', '', (string) $phone), '0');
+        if ($digits === '' || ! app(BeyondWasenderService::class)->isConfigured()) {
+            return '';
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/contacts/'.rawurlencode($digits));
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPGET => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 20,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($err || $http >= 400 || ! is_string($body)) {
+            return '';
+        }
+        $decoded = json_decode($body, true);
+        $data = is_array($decoded) && isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : (is_array($decoded) ? $decoded : []);
+        foreach (['notify', 'pushName', 'pushname', 'verifiedName', 'name'] as $key) {
+            $value = trim((string) (isset($data[$key]) ? $data[$key] : ''));
+            if ($value !== '' && strcasecmp($value, $digits) !== 0 && ! preg_match('/^\d+$/', $value)) {
+                return $value;
+            }
+        }
+
+        return '';
     }
 
     protected function registeredWhatsAppName($phone, array $map)
