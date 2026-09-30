@@ -681,7 +681,7 @@ window.AN_PRESELECT = @json([
             }
             if (progress) {
                 progress.style.display = '';
-                progress.textContent = 'Loading every group name (' + (groupRows().length - jids.length) + ' of ' + groupRows().length + '). Search works as each name appears.';
+                progress.textContent = 'Resolving every group into contacts (' + (groupRows().length - jids.length) + ' of ' + groupRows().length + '). Groups you use stay at the top. Search works as each name appears.';
             }
             fetch(lookupUrl + '?jids=' + encodeURIComponent(jids.slice(0, 8).join(',')), {
                 headers: { 'Accept': 'application/json' },

@@ -115,6 +115,7 @@ class AnnouncementManagerController extends Controller
         $templates = $this->announcements->templates();
         $settings = $this->announcements->settings();
         $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
+        app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
         $clone = null;
         if ($request->filled('clone')) {
             $src = WaAnnouncement::find($request->get('clone'));

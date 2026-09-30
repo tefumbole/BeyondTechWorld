@@ -272,6 +272,7 @@ class AnnouncementService
                 'phone' => '',
                 'email' => '',
             ];
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->rememberUse($jid);
         }
         if (! $out) {
             throw new \InvalidArgumentException('Choose at least one WhatsApp group.');

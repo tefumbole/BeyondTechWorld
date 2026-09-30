@@ -110,9 +110,13 @@ class GroupContactExportService
                 'jid' => $jid,
                 'members' => $count === null ? null : (int) $count,
                 'known' => $named,
+                'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
             ];
         }
         usort($rows, function ($a, $b) {
+            if ($a['uses'] !== $b['uses']) {
+                return $b['uses'] - $a['uses'];
+            }
             if ($a['known'] !== $b['known']) {
                 return $a['known'] ? -1 : 1;
             }
@@ -167,60 +171,171 @@ class GroupContactExportService
     public function enrich(array $jids)
     {
         $saved = $this->readDirectory();
-        $wasender = app(BeyondWasenderService::class);
         $rows = [];
-        $fetched = 0;
-        $rateLimited = false;
         foreach ($jids as $jid) {
             $jid = trim((string) $jid);
-            if ($jid === '' || substr($jid, -5) !== '@g.us') {
+            if ($jid === '' || empty($saved[$jid]['name'])) {
                 continue;
             }
-            if (! empty($saved[$jid]['name'])) {
-                $rows[] = [
-                    'jid' => $jid,
-                    'name' => $saved[$jid]['name'],
-                    'members' => isset($saved[$jid]['members']) ? (int) $saved[$jid]['members'] : null,
-                ];
-                continue;
-            }
-            if ($fetched >= 8 || $rateLimited) {
-                continue;
-            }
-            $profile = $wasender->groupProfile($jid);
-            $fetched++;
-            if (! empty($profile['rate_limited'])) {
-                $rateLimited = true;
-                continue;
-            }
-            $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
-            if ($name === '') {
-                continue;
-            }
-            $members = isset($profile['members']) ? (int) $profile['members'] : null;
-            $saved[$jid] = ['name' => $name, 'members' => $members];
-            $rows[] = ['jid' => $jid, 'name' => $name, 'members' => $members];
+            $rows[] = [
+                'jid' => $jid,
+                'name' => $saved[$jid]['name'],
+                'members' => isset($saved[$jid]['members']) ? (int) $saved[$jid]['members'] : null,
+            ];
         }
-        $this->writeDirectory($saved);
 
         return [
             'success' => true,
             'groups' => $rows,
-            'retry_after' => $rateLimited ? 60 : ($fetched >= 8 ? 60 : 0),
+            'retry_after' => 15,
         ];
+    }
+
+    public function rememberUse($jid)
+    {
+        $jid = trim((string) $jid);
+        if ($jid === '') {
+            return;
+        }
+        $saved = $this->readDirectory();
+        $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+        $row['uses'] = (isset($row['uses']) ? (int) $row['uses'] : 0) + 1;
+        $saved[$jid] = $row;
+        $this->writeDirectory($saved);
+    }
+
+    public function unresolvedJids()
+    {
+        $listed = app(BeyondWasenderService::class)->listGroups();
+        if (empty($listed['success'])) {
+            return null;
+        }
+        $groups = isset($listed['groups']) ? $listed['groups'] : [];
+        $saved = $this->readDirectory();
+        $pending = [];
+        foreach ($groups as $group) {
+            $jid = isset($group['jid']) ? (string) $group['jid'] : '';
+            if ($jid === '') {
+                continue;
+            }
+            $name = isset($saved[$jid]['name']) ? trim((string) $saved[$jid]['name']) : '';
+            if ($name === '') {
+                $pending[] = $jid;
+            }
+        }
+
+        return $pending;
+    }
+
+    public function resolveNext($limit = 5)
+    {
+        $pending = $this->unresolvedJids();
+        if ($pending === null) {
+            return 1;
+        }
+        if (! $pending) {
+            return 0;
+        }
+        $saved = $this->readDirectory();
+        $now = time();
+        $ready = [];
+        foreach ($pending as $jid) {
+            $attempted = isset($saved[$jid]['attempted_at']) ? (int) $saved[$jid]['attempted_at'] : 0;
+            if ($now - $attempted >= 180) {
+                $ready[] = $jid;
+            }
+        }
+        if (! $ready) {
+            return count($pending);
+        }
+        $wasender = app(BeyondWasenderService::class);
+        $done = 0;
+        foreach (array_slice($ready, 0, max(1, (int) $limit)) as $jid) {
+            $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+            $row['attempted_at'] = $now;
+            $profile = $wasender->groupProfile($jid);
+            if (! empty($profile['rate_limited'])) {
+                $saved[$jid] = $row;
+                $this->writeDirectory($saved);
+                break;
+            }
+            $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+            if ($name !== '') {
+                $row['name'] = $name;
+                $row['members'] = isset($profile['members']) ? (int) $profile['members'] : null;
+                $people = isset($profile['participants']) ? $profile['participants'] : [];
+                $contacts = [];
+                foreach ($people as $person) {
+                    $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+                    if ($phone === '') {
+                        continue;
+                    }
+                    $display = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                    if ($display === '') {
+                        $display = $this->knownName($phone);
+                    }
+                    $contacts[] = [
+                        'phone' => $phone,
+                        'name' => $display,
+                        'role' => isset($person['role']) ? $person['role'] : 'member',
+                    ];
+                }
+                if ($contacts) {
+                    $row['members'] = count($contacts);
+                    $this->writeMembers($jid, $contacts);
+                }
+                $done++;
+            }
+            $saved[$jid] = $row;
+        }
+        $this->writeDirectory($saved);
+
+        return count($this->unresolvedJids() ?: []);
+    }
+
+    public function scheduleResolve()
+    {
+        $pending = $this->unresolvedJids();
+        if ($pending === []) {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Cache::add('wa_group_resolve', 1, 90)) {
+            return;
+        }
+        \App\Jobs\ResolveWhatsAppGroupsJob::dispatch()
+            ->onConnection('database')
+            ->onQueue('whatsapp');
     }
 
     public function rowsForGroup($jid)
     {
         $jid = trim((string) $jid);
+        $cached = $this->readMembers($jid);
+        $saved = $this->readDirectory();
+        $savedName = isset($saved[$jid]['name']) ? trim((string) $saved[$jid]['name']) : '';
+        if ($cached && $savedName !== '') {
+            $this->rememberUse($jid);
+            $rows = [];
+            foreach ($cached as $person) {
+                $rows[] = [
+                    'group' => $savedName,
+                    'phone' => isset($person['phone']) ? $person['phone'] : '',
+                    'name' => isset($person['name']) ? $person['name'] : '',
+                    'role' => isset($person['role']) ? $person['role'] : 'member',
+                    'whatsapp_id' => '',
+                ];
+            }
+
+            return ['success' => true, 'rows' => $rows, 'name' => $savedName];
+        }
         $profile = app(BeyondWasenderService::class)->groupProfile($jid);
         $name = trim((string) $profile['name']);
         if ($name !== '') {
             $saved = $this->readDirectory();
-            $saved[$jid] = [
-                'name' => $name,
-                'members' => isset($profile['members']) ? (int) $profile['members'] : null,
-            ];
+            $existing = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+            $existing['name'] = $name;
+            $existing['members'] = isset($profile['members']) ? (int) $profile['members'] : null;
+            $saved[$jid] = $existing;
             $this->writeDirectory($saved);
         }
         if ($name === '') {
@@ -250,6 +365,10 @@ class GroupContactExportService
                 'whatsapp_id' => isset($person['whatsapp_id']) ? $person['whatsapp_id'] : '',
             ];
         }
+        if ($rows && $name !== '' && strpos($name, '@g.us') === false) {
+            $this->writeMembers($jid, $rows);
+            $this->rememberUse($jid);
+        }
 
         return ['success' => true, 'rows' => $rows, 'name' => $name];
     }
@@ -278,6 +397,32 @@ class GroupContactExportService
             mkdir($dir, 0775, true);
         }
         file_put_contents($path, json_encode($saved));
+    }
+
+    protected function membersPath($jid)
+    {
+        return storage_path('app/whatsapp-group-members/'.md5($jid).'.json');
+    }
+
+    protected function readMembers($jid)
+    {
+        $path = $this->membersPath($jid);
+        if (! is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    protected function writeMembers($jid, array $contacts)
+    {
+        $path = $this->membersPath($jid);
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($path, json_encode(array_values($contacts)));
     }
 
     protected function knownName($phone)

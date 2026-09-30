@@ -451,6 +451,7 @@ class WhatsAppHubController extends Controller
         $summary = app(\App\Services\WhatsApp\GroupContactExportService::class)->memberships();
         $groups = isset($summary['groups']) ? $summary['groups'] : [];
         $listError = empty($summary['success']) ? (isset($summary['error']) ? $summary['error'] : 'Could not load groups.') : null;
+        app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
 
         return view('whatsapp_hub.groups', compact('groups', 'listError'));
     }

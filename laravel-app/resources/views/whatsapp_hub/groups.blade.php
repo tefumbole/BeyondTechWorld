@@ -9,7 +9,7 @@
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
-        <p id="group-progress" class="text-muted mb-2" style="display:none">Loading group names. The rest appear about once a minute.</p>
+        <p id="group-progress" class="text-muted mb-2" style="display:none">Resolving the remaining groups into contacts. Groups you open or send to stay at the top.</p>
         <p class="mb-3">
             <input id="group-filter" type="search" class="form-control" style="max-width:420px" placeholder="Search a group, for example NBC Praise Team">
         </p>
@@ -93,7 +93,7 @@
                     if (progress) {
                         var done = rows().length - jids.length;
                         progress.style.display = '';
-                        progress.textContent = 'Loading group names (' + done + ' of ' + rows().length + '). The rest appear about once a minute.';
+                        progress.textContent = 'Resolving the remaining groups into contacts (' + done + ' of ' + rows().length + '). Groups you open or send to stay at the top.';
                     }
                     var batch = jids.slice(0, 8);
                     fetch(lookupUrl + '?jids=' + encodeURIComponent(batch.join(',')), {
