@@ -473,6 +473,11 @@ class GroupContactExportService
         $others = $this->namesSavedByOthers();
         foreach ($rows as $i => $row) {
             $phone = isset($row['phone']) ? (string) $row['phone'] : '';
+            $display = $this->savedDisplayName($phone);
+            if ($display !== '') {
+                $rows[$i]['name'] = $display;
+                continue;
+            }
             $current = trim((string) (isset($row['name']) ? $row['name'] : ''));
             if ($this->isPersonName($current, $phone)) {
                 continue;
@@ -548,6 +553,15 @@ class GroupContactExportService
                 }
                 $phone = isset($person['phone']) ? (string) $person['phone'] : '';
                 $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                $display = $this->savedDisplayName($phone);
+                if ($display !== '') {
+                    if ($current !== $display) {
+                        $people[$i]['name'] = $display;
+                        $people[$i]['name_edited'] = 1;
+                        $dirty = true;
+                    }
+                    continue;
+                }
                 if ($this->isPersonName($current, $phone)) {
                     $this->rememberContact($phone, $current);
                     continue;
@@ -644,6 +658,10 @@ class GroupContactExportService
         $digits = preg_replace('/\D+/', '', (string) $phone);
         if ($digits === '') {
             return '';
+        }
+        $display = $this->savedDisplayName($digits);
+        if ($display !== '') {
+            return $display;
         }
         $fromMap = $this->registeredWhatsAppName($phone, $this->profileNames(false));
         if ($this->isPersonName($fromMap, $digits)) {
@@ -1265,7 +1283,64 @@ class GroupContactExportService
         return $saved;
     }
 
-    public function rememberContact($phone, $name)
+    public function savedDisplayName($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        $saved = $this->readDisplayEdits();
+        if (isset($saved[$digits]) && $this->isPersonName($saved[$digits], $digits)) {
+            return $saved[$digits];
+        }
+        $tail = substr($digits, -9);
+        if ($tail !== '' && isset($saved[$tail]) && $this->isPersonName($saved[$tail], $digits)) {
+            return $saved[$tail];
+        }
+
+        return '';
+    }
+
+    public function saveDisplayName($jid, $phone, $name)
+    {
+        $jid = trim((string) $jid);
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $name = trim((string) $name);
+        if (substr($jid, -5) !== '@g.us') {
+            throw new \InvalidArgumentException('Choose a WhatsApp group.');
+        }
+        if ($digits === '' || ! $this->isPersonName($name, $digits)) {
+            throw new \InvalidArgumentException('Enter the name this number should show. A phone number cannot be the display name.');
+        }
+        $people = $this->readMembers($jid);
+        $found = false;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $rowPhone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            $tail = substr($digits, -9);
+            if ($rowPhone !== $digits && ($tail === '' || substr($rowPhone, -9) !== $tail)) {
+                continue;
+            }
+            $people[$i]['name'] = $name;
+            $people[$i]['name_edited'] = 1;
+            unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+            $found = true;
+        }
+        if (! $found) {
+            throw new \InvalidArgumentException('That number is not in this group.');
+        }
+        $this->writeMembers($jid, $people);
+        $this->storeDisplayEdit($digits, $name);
+        $this->applyDisplayToMemberFiles($digits, $name);
+        $this->rememberContact($digits, $name, true);
+        $this->applyDisplayToAnnouncements($digits, $name);
+
+        return $name;
+    }
+
+    public function rememberContact($phone, $name, $force = false)
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);
         $name = trim((string) $name);
@@ -1273,7 +1348,7 @@ class GroupContactExportService
             return false;
         }
         $map = $this->contactNameMap();
-        if (isset($map[$digits]) && $this->isPersonName($map[$digits], $digits)) {
+        if (! $force && isset($map[$digits]) && $this->isPersonName($map[$digits], $digits)) {
             return false;
         }
         $contact = WhatsAppContact::where('normalized_phone', $digits)->first();
@@ -1283,7 +1358,7 @@ class GroupContactExportService
             $contact->display_phone = '+'.$digits;
         }
         $existing = trim((string) $contact->wa_name);
-        if ($this->isPersonName($existing, $digits)) {
+        if (! $force && $this->isPersonName($existing, $digits)) {
             $this->contactNames[$digits] = $existing;
             if (strlen($digits) > 9) {
                 $this->contactNames[substr($digits, -9)] = $existing;
@@ -1354,5 +1429,105 @@ class GroupContactExportService
         }
 
         return '';
+    }
+
+    protected function displayEditsPath()
+    {
+        return storage_path('app/whatsapp-display-names.json');
+    }
+
+    protected function readDisplayEdits()
+    {
+        $path = $this->displayEditsPath();
+        if (! is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    protected function storeDisplayEdit($digits, $name)
+    {
+        $saved = $this->readDisplayEdits();
+        $saved[$digits] = $name;
+        if (strlen($digits) > 9) {
+            $saved[substr($digits, -9)] = $name;
+        }
+        $path = $this->displayEditsPath();
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($path, json_encode($saved));
+    }
+
+    protected function applyDisplayToMemberFiles($digits, $name)
+    {
+        $tail = substr($digits, -9);
+        $paths = glob(storage_path('app/whatsapp-group-members/*.json'));
+        if (! is_array($paths)) {
+            return;
+        }
+        foreach ($paths as $path) {
+            $people = json_decode((string) file_get_contents($path), true);
+            if (! is_array($people)) {
+                continue;
+            }
+            $dirty = false;
+            foreach ($people as $i => $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $rowPhone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+                if ($rowPhone !== $digits && ($tail === '' || substr($rowPhone, -9) !== $tail)) {
+                    continue;
+                }
+                $people[$i]['name'] = $name;
+                $people[$i]['name_edited'] = 1;
+                unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                $dirty = true;
+            }
+            if ($dirty) {
+                file_put_contents($path, json_encode(array_values($people)));
+            }
+        }
+    }
+
+    protected function applyDisplayToAnnouncements($digits, $name)
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('wa_announcements')) {
+            return;
+        }
+        $tail = substr($digits, -9);
+        $rows = \App\WaAnnouncement::query()->where('status', '!=', 'deleted')->orderByDesc('id')->limit(200)->get();
+        foreach ($rows as $row) {
+            $changed = false;
+            foreach (['recipients_json', 'cc_json'] as $field) {
+                $people = json_decode((string) $row->{$field}, true);
+                if (! is_array($people)) {
+                    continue;
+                }
+                foreach ($people as $i => $person) {
+                    if (! is_array($person)) {
+                        continue;
+                    }
+                    $rowPhone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+                    if ($rowPhone !== $digits && ($tail === '' || substr($rowPhone, -9) !== $tail)) {
+                        continue;
+                    }
+                    $people[$i]['name'] = $name;
+                    $people[$i]['wa_name'] = $name;
+                    $people[$i]['name_edited'] = true;
+                    $changed = true;
+                }
+                if ($changed) {
+                    $row->{$field} = json_encode(array_values($people));
+                }
+            }
+            if ($changed) {
+                $row->save();
+            }
+        }
     }
 }

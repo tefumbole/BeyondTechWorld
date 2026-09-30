@@ -520,6 +520,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/groups/lookup', 'WhatsApp\WhatsAppHubController@lookupGroups')->name('whatsapp.groups.lookup');
     Route::get('/admin/whatsapp/groups/show', 'WhatsApp\WhatsAppHubController@showGroup')->name('whatsapp.groups.show');
     Route::get('/admin/whatsapp/groups/names', 'WhatsApp\WhatsAppHubController@groupContactNames')->name('whatsapp.groups.names');
+    Route::post('/admin/whatsapp/groups/display-name', 'WhatsApp\WhatsAppHubController@saveGroupDisplayName')->name('whatsapp.groups.display_name');
     Route::get('/admin/whatsapp/groups/contacts.csv', 'WhatsApp\WhatsAppHubController@exportGroupContacts')->name('whatsapp.groups.export');
     Route::post('/admin/whatsapp/groups/{id}/mode', 'WhatsApp\WhatsAppHubController@updateGroupMode')->name('whatsapp.groups.mode');
     Route::post('/admin/whatsapp/settings', 'WhatsApp\WhatsAppHubController@updateSettings')->name('whatsapp.settings.update');

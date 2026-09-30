@@ -273,6 +273,10 @@ class AnnouncementNotificationService extends Controller
     {
         $phone = isset($person['phone']) ? (string) $person['phone'] : '';
         $groups = app(GroupContactExportService::class);
+        $display = $groups->savedDisplayName($phone);
+        if ($display !== '') {
+            return $display;
+        }
         if (! empty($person['name_edited'])) {
             $edited = AnnouncementPersonalization::usableName(isset($person['name']) ? $person['name'] : '', $phone);
             if ($edited !== '') {

@@ -518,6 +518,23 @@ class WhatsAppHubController extends Controller
         ]);
     }
 
+    public function saveGroupDisplayName(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid', ''));
+        $phone = trim((string) $request->input('phone', ''));
+        $name = trim((string) $request->input('name', ''));
+        try {
+            $saved = app(\App\Services\WhatsApp\GroupContactExportService::class)->saveDisplayName($jid, $phone, $name);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['ok' => true, 'name' => $saved]);
+    }
+
     public function exportGroupContacts(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
