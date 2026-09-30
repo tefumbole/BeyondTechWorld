@@ -408,6 +408,9 @@ class GroupContactExportService
             if (! $alreadyMissed && $digits !== '' && $lookups < 40) {
                 $lookups++;
                 $found = $this->lookupRegisteredName($digits);
+                if ($found === null) {
+                    continue;
+                }
                 if ($found !== '') {
                     $map[$digits] = $found;
                     if (strlen($digits) > 9) {
@@ -589,7 +592,7 @@ class GroupContactExportService
         $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         if ($err || $http >= 400 || ! is_string($body)) {
-            return '';
+            return null;
         }
         $decoded = json_decode($body, true);
         $data = is_array($decoded) && isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : (is_array($decoded) ? $decoded : []);
