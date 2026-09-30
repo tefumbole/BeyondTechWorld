@@ -477,7 +477,7 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
             return $deny;
         }
-        @set_time_limit(60);
+        @set_time_limit(120);
         $jid = trim((string) $request->query('jid', ''));
         if (substr($jid, -5) !== '@g.us') {
             return redirect()->route('whatsapp.groups');
@@ -486,8 +486,13 @@ class WhatsAppHubController extends Controller
         $groupName = isset($export['name']) ? $export['name'] : 'Group';
         $contacts = isset($export['rows']) ? $export['rows'] : [];
         usort($contacts, function ($a, $b) {
-            $left = trim((string) $a['name']) !== '' ? $a['name'] : $a['phone'];
-            $right = trim((string) $b['name']) !== '' ? $b['name'] : $b['phone'];
+            $aNamed = trim((string) $a['name']) !== '';
+            $bNamed = trim((string) $b['name']) !== '';
+            if ($aNamed !== $bNamed) {
+                return $aNamed ? -1 : 1;
+            }
+            $left = $aNamed ? $a['name'] : $a['phone'];
+            $right = $bNamed ? $b['name'] : $b['phone'];
 
             return strcasecmp((string) $left, (string) $right);
         });

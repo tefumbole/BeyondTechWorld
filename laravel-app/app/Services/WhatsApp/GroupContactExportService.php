@@ -325,8 +325,12 @@ class GroupContactExportService
                     'whatsapp_id' => '',
                 ];
             }
+            $named = $this->withRegisteredNames($rows);
+            if ($this->namesChanged($cached, $named)) {
+                $this->writeMembers($jid, $named);
+            }
 
-            return ['success' => true, 'rows' => $rows, 'name' => $savedName];
+            return ['success' => true, 'rows' => $named, 'name' => $savedName];
         }
         $profile = app(BeyondWasenderService::class)->groupProfile($jid);
         $name = trim((string) $profile['name']);
@@ -365,12 +369,40 @@ class GroupContactExportService
                 'whatsapp_id' => isset($person['whatsapp_id']) ? $person['whatsapp_id'] : '',
             ];
         }
+        $rows = $this->withRegisteredNames($rows);
         if ($rows && $name !== '' && strpos($name, '@g.us') === false) {
             $this->writeMembers($jid, $rows);
             $this->rememberUse($jid);
         }
 
         return ['success' => true, 'rows' => $rows, 'name' => $name];
+    }
+
+    /**
+     * Prefer the name a person saved on their own WhatsApp profile.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    public function withRegisteredNames(array $rows)
+    {
+        $map = $this->profileNames();
+        foreach ($rows as $i => $row) {
+            $phone = isset($row['phone']) ? (string) $row['phone'] : '';
+            $registered = $this->registeredWhatsAppName($phone, $map);
+            if ($registered !== '') {
+                $rows[$i]['name'] = $registered;
+                continue;
+            }
+            $current = trim((string) (isset($row['name']) ? $row['name'] : ''));
+            $digits = preg_replace('/\D+/', '', $phone);
+            if ($current === '' || $current === $digits || preg_match('/^\d+$/', $current)) {
+                $known = $this->knownName($phone);
+                $rows[$i]['name'] = ($known !== '' && ! preg_match('/^\d+$/', $known)) ? $known : '';
+            }
+        }
+
+        return $rows;
     }
 
     protected function directoryPath()
@@ -423,6 +455,81 @@ class GroupContactExportService
             mkdir($dir, 0775, true);
         }
         file_put_contents($path, json_encode(array_values($contacts)));
+    }
+
+    protected function namesChanged(array $before, array $after)
+    {
+        foreach ($after as $i => $row) {
+            $previous = isset($before[$i]['name']) ? trim((string) $before[$i]['name']) : '';
+            $next = isset($row['name']) ? trim((string) $row['name']) : '';
+            if ($next !== '' && $next !== $previous) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function profileNames()
+    {
+        $path = storage_path('app/whatsapp-profile-names.json');
+        $cached = [];
+        if (is_file($path)) {
+            $decoded = json_decode((string) file_get_contents($path), true);
+            if (is_array($decoded)) {
+                $cached = $decoded;
+            }
+            if ($cached && (time() - filemtime($path)) < 12 * 3600) {
+                return $cached;
+            }
+        }
+        $listed = app(BeyondWasenderService::class)->listContacts();
+        if (empty($listed['success']) || empty($listed['contacts'])) {
+            return $cached;
+        }
+        $map = [];
+        foreach ($listed['contacts'] as $contact) {
+            $digits = preg_replace('/\D+/', '', (string) (isset($contact['phone']) ? $contact['phone'] : ''));
+            $label = trim((string) (isset($contact['wa_name']) ? $contact['wa_name'] : ''));
+            if ($label === '') {
+                $label = trim((string) (isset($contact['name']) ? $contact['name'] : ''));
+            }
+            if ($digits === '' || $label === '' || preg_match('/^\d+$/', $label) || strcasecmp($label, $digits) === 0) {
+                continue;
+            }
+            $map[$digits] = $label;
+            if (strlen($digits) > 9) {
+                $map[substr($digits, -9)] = $label;
+            }
+        }
+        if ($map) {
+            $dir = dirname($path);
+            if (! is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+            file_put_contents($path, json_encode($map));
+
+            return $map;
+        }
+
+        return $cached;
+    }
+
+    protected function registeredWhatsAppName($phone, array $map)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        if (isset($map[$digits]) && ! preg_match('/^\d+$/', (string) $map[$digits])) {
+            return (string) $map[$digits];
+        }
+        $tail = substr($digits, -9);
+        if ($tail !== '' && isset($map[$tail]) && ! preg_match('/^\d+$/', (string) $map[$tail])) {
+            return (string) $map[$tail];
+        }
+
+        return '';
     }
 
     protected function knownName($phone)
