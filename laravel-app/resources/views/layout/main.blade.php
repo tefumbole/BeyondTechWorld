@@ -378,10 +378,9 @@
 
             .beyond-module-tabs-nav {
                 display: flex;
-                flex-wrap: nowrap;
+                flex-wrap: wrap;
                 gap: 8px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow: visible;
                 padding: 12px 10px 10px;
             }
 
@@ -1252,9 +1251,8 @@
                 }
                 .beyond-module-tabs-nav,
                 .qt-nav {
-                    flex-wrap: nowrap;
-                    overflow-x: auto;
-                    -webkit-overflow-scrolling: touch;
+                    flex-wrap: wrap;
+                    overflow: visible;
                 }
                 .table-responsive,
                 div.dataTables_wrapper {

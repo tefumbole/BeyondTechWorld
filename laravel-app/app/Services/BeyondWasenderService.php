@@ -538,7 +538,74 @@ class BeyondWasenderService
             return ['success' => false, 'groups' => []];
         }
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
-        $ch = curl_init($base.'/groups');
+        $ch = curl_init($base.'/groups?paginated=false');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+            ],
+            CURLOPT_TIMEOUT => 25,
+        ]);
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $decoded = json_decode((string) $body, true);
+        if ($err || $http >= 400 || (is_array($decoded) && isset($decoded['success']) && $decoded['success'] === false)) {
+            $message = $err ?: (is_array($decoded) ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http)) : ('HTTP '.$http));
+
+            return ['success' => false, 'groups' => [], 'error' => $message];
+        }
+        $data = is_array($decoded) && isset($decoded['data']) ? $decoded['data'] : [];
+        if (isset($data['items']) && is_array($data['items'])) {
+            $data = $data['items'];
+        }
+        $rows = [];
+        if (is_array($data)) {
+            foreach ($data as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $jid = isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : '');
+                if ($jid === '') {
+                    continue;
+                }
+                $rows[] = [
+                    'jid' => (string) $jid,
+                    'name' => isset($row['subject']) ? $row['subject'] : (isset($row['name']) ? $row['name'] : ''),
+                    'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
+                ];
+            }
+        }
+
+        return ['success' => true, 'groups' => $rows];
+    }
+
+    public function groupParticipants($groupJid)
+    {
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'participants' => [], 'error' => 'WhatsApp is not configured.'];
+        }
+        $jid = rawurlencode((string) $groupJid);
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $listed = $this->getJson($base.'/groups/'.$jid.'/participants');
+        $people = $this->participantRows(isset($listed['data']) ? $listed['data'] : []);
+        if (! $people) {
+            $meta = $this->getJson($base.'/groups/'.$jid.'/metadata');
+            $payload = isset($meta['data']) ? $meta['data'] : [];
+            $people = $this->participantRows(isset($payload['participants']) ? $payload['participants'] : []);
+        }
+        if (! empty($listed['error']) && ! $people && ! empty($meta['error'])) {
+            return ['success' => false, 'participants' => [], 'error' => $listed['error']];
+        }
+
+        return ['success' => true, 'participants' => $people];
+    }
+
+    protected function getJson($url)
+    {
+        $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
@@ -548,23 +615,68 @@ class BeyondWasenderService
             CURLOPT_TIMEOUT => 20,
         ]);
         $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
         $decoded = json_decode((string) $body, true);
+        if ($err || $http >= 400 || (is_array($decoded) && isset($decoded['success']) && $decoded['success'] === false)) {
+            return [
+                'error' => $err ?: (is_array($decoded) ? (string) ($decoded['message'] ?? ('HTTP '.$http)) : ('HTTP '.$http)),
+                'data' => [],
+            ];
+        }
+        $data = is_array($decoded) && array_key_exists('data', $decoded) ? $decoded['data'] : $decoded;
+
+        return ['error' => null, 'data' => $data];
+    }
+
+    protected function participantRows($data)
+    {
+        if (! is_array($data)) {
+            return [];
+        }
         $rows = [];
-        $data = is_array($decoded) && isset($decoded['data']) ? $decoded['data'] : [];
-        if (is_array($data)) {
-            foreach ($data as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $rows[] = [
-                    'jid' => isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : ''),
-                    'name' => isset($row['subject']) ? $row['subject'] : (isset($row['name']) ? $row['name'] : ''),
-                    'description' => isset($row['description']) ? $row['description'] : null,
-                ];
+        foreach ($data as $row) {
+            if (! is_array($row)) {
+                continue;
             }
+            $id = '';
+            foreach (['id', 'jid', 'participant'] as $key) {
+                if (! empty($row[$key])) {
+                    $id = (string) $row[$key];
+                    break;
+                }
+            }
+            $phone = '';
+            if (preg_match('/^(\d{6,15})@s\.whatsapp\.net$/i', $id, $m)) {
+                $phone = $m[1];
+            } elseif (preg_match('/^(\d{8,15})$/', $id)) {
+                $phone = $id;
+            }
+            $name = '';
+            foreach (['name', 'notify', 'pushName', 'pushname', 'verifiedName', 'display_name'] as $key) {
+                if (! empty($row[$key]) && is_string($row[$key])) {
+                    $name = trim($row[$key]);
+                    break;
+                }
+            }
+            $role = 'member';
+            if (! empty($row['admin']) && is_string($row['admin'])) {
+                $role = $row['admin'] === 'superadmin' ? 'owner' : $row['admin'];
+            } elseif (! empty($row['isSuperAdmin'])) {
+                $role = 'owner';
+            } elseif (! empty($row['isAdmin'])) {
+                $role = 'admin';
+            }
+            $rows[] = [
+                'phone' => $phone,
+                'name' => $name,
+                'role' => $role,
+                'whatsapp_id' => $id,
+            ];
         }
 
-        return ['success' => true, 'groups' => $rows];
+        return $rows;
     }
 
     public function sendGroupText($groupJid, $message)

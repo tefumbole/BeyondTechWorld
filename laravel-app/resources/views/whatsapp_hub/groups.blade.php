@@ -5,8 +5,12 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         <h1 class="wa-title">WhatsApp Groups</h1>
-        <p class="wa-sub">Discovered groups stay off until you enable one. The first monitoring mode is Monitor, which stores messages and does not speak.</p>
+        <p class="wa-sub">Discovered groups stay off until you enable one. Download contacts for every group this WhatsApp account belongs to, including NBC Praise Team.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
+        @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
+        <p class="mb-3">
+            <a class="btn btn-primary" href="{{ route('whatsapp.groups.export') }}">Download all group contacts (CSV)</a>
+        </p>
         <div class="wa-card table-responsive">
             <table class="table">
                 <thead>

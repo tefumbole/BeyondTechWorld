@@ -452,6 +452,38 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.groups', compact('groups'));
     }
 
+    public function exportGroupContacts()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(180);
+        $export = app(\App\Services\WhatsApp\GroupContactExportService::class)->allRows();
+        if (empty($export['success'])) {
+            return back()->with('not_permitted', isset($export['error']) ? $export['error'] : 'Could not export group contacts.');
+        }
+        $rows = $export['rows'];
+        $filename = 'whatsapp-group-contacts-'.date('Y-m-d').'.csv';
+
+        return response()->stream(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Group', 'Phone', 'Name', 'Role', 'WhatsApp ID']);
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row['group'],
+                    $row['phone'],
+                    $row['name'],
+                    $row['role'],
+                    $row['whatsapp_id'],
+                ]);
+            }
+            fclose($out);
+        }, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
     public function updateGroupMode(Request $request, $id)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
