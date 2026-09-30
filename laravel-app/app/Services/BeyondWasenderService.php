@@ -632,17 +632,20 @@ class BeyondWasenderService
                 if ($phone === '' || isset($rows[$phone])) {
                     continue;
                 }
-                $name = '';
-                foreach (['name', 'notify', 'verifiedName', 'pushName'] as $key) {
+                $selfName = '';
+                foreach (['notify', 'pushName', 'pushname', 'verifiedName'] as $key) {
                     if (! empty($row[$key]) && is_string($row[$key])) {
-                        $name = trim($row[$key]);
+                        $selfName = trim($row[$key]);
                         break;
                     }
                 }
+                $bookName = ! empty($row['name']) && is_string($row['name']) ? trim($row['name']) : '';
+                $name = $selfName !== '' ? $selfName : $bookName;
                 $rows[$phone] = [
                     'id' => 'wa:'.$phone,
                     'kind' => 'contact',
                     'name' => $name !== '' ? $name : $phone,
+                    'wa_name' => $name,
                     'phone' => $phone,
                     'email' => '',
                 ];

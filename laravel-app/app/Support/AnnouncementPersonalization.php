@@ -42,6 +42,10 @@ class AnnouncementPersonalization
      */
     public static function buildMessage($announcement, array $person, $isCc = false)
     {
+        $personalized = ! empty($announcement->personalized);
+        if (! $personalized) {
+            $person['name'] = '';
+        }
         $institution = trim((string) ($announcement->header ?: WhatsAppMessage::companyName()));
         $reference = trim((string) ($announcement->reference ?? ''));
         $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
@@ -49,7 +53,7 @@ class AnnouncementPersonalization
         $body = trim(self::personalize($announcement->body ?: '', $vars));
         $subject = trim(self::personalize($announcement->subject ?: '', $vars));
         $footer = trim(self::personalize($announcement->footer ?: '', $vars));
-        $name = trim((string) ($person['name'] ?? '')) ?: 'Team';
+        $name = trim((string) ($person['name'] ?? ''));
 
         $when = $announcement->created_at
             ?? $announcement->scheduled_for
@@ -61,15 +65,18 @@ class AnnouncementPersonalization
             $dateStr = date('d M Y');
         }
 
-        // Compose default is "Dear {name}," — drop it so we don't double-greet.
-        $body = preg_replace('/^\s*Dear\s+[^,\n]+,\s*/iu', '', $body);
+        $body = preg_replace('/^\s*Dear\s+[^,\n]*,\s*/iu', '', $body);
         $body = trim($body);
 
         $title = $isCc ? 'Announcement CC' : 'Announcement';
         $emoji = $isCc ? '📨' : '📢';
 
         $msg = WhatsAppMessage::statusBlock($emoji, $title);
-        $msg .= WhatsAppMessage::greeting($name);
+        if ($personalized && $name !== '') {
+            $msg .= 'Dear "'.$name."\",\n\n";
+        } else {
+            $msg .= "Hello,\n\n";
+        }
         if ($isCc) {
             $msg .= "You have been CC'd on this announcement.\n\n";
         }

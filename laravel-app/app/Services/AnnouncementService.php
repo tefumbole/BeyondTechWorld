@@ -154,7 +154,9 @@ class AnnouncementService
             if (! empty($data['group_jid'])) {
                 $jids[] = $data['group_jid'];
             }
-            $recipients = $this->groupRecipients($jids);
+            $recipients = ! empty($data['personalized'])
+                ? $this->personalizedGroupMembers($jids)
+                : $this->groupRecipients($jids);
             $ccs = [];
         } elseif ($audience === 'contacts') {
             $recipients = $this->whatsappContacts();
@@ -180,6 +182,7 @@ class AnnouncementService
             'status' => $isScheduled ? 'scheduled' : 'draft',
             'whatsapp_status' => $isScheduled ? 'scheduled' : 'pending',
             'send_whatsapp' => ! empty($data['send_whatsapp']),
+            'personalized' => ! empty($data['personalized']),
             'is_scheduled' => (bool) $isScheduled,
             'scheduled_for' => $isScheduled ? $scheduleAt : null,
             'schedules_json' => $isScheduled ? json_encode([
@@ -275,6 +278,47 @@ class AnnouncementService
         }
 
         return $out;
+    }
+
+    protected function personalizedGroupMembers(array $jids)
+    {
+        $export = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        $wasender = app(BeyondWasenderService::class);
+        $byPhone = [];
+        $listed = $wasender->listContacts();
+        $known = [];
+        foreach ((isset($listed['contacts']) ? $listed['contacts'] : []) as $contact) {
+            $digits = preg_replace('/\D+/', '', (string) (isset($contact['phone']) ? $contact['phone'] : ''));
+            if (strlen($digits) < 8) {
+                continue;
+            }
+            $known[substr($digits, -9)] = trim((string) (isset($contact['wa_name']) ? $contact['wa_name'] : $contact['name']));
+        }
+        foreach ($this->groupRecipients($jids) as $group) {
+            $fetched = $export->rowsForGroup($group['group_jid']);
+            foreach ((isset($fetched['rows']) ? $fetched['rows'] : []) as $row) {
+                $phone = trim((string) (isset($row['phone']) ? $row['phone'] : ''));
+                $digits = preg_replace('/\D+/', '', $phone);
+                if (strlen($digits) < 8 || isset($byPhone[$digits])) {
+                    continue;
+                }
+                $tail = substr($digits, -9);
+                $waName = isset($known[$tail]) ? $known[$tail] : trim((string) (isset($row['name']) ? $row['name'] : ''));
+                $byPhone[$digits] = [
+                    'id' => 'wa:'.$digits,
+                    'kind' => 'contact',
+                    'name' => $waName !== '' ? $waName : $digits,
+                    'wa_name' => $waName,
+                    'phone' => $digits,
+                    'email' => '',
+                ];
+            }
+        }
+        if (! $byPhone) {
+            throw new \InvalidArgumentException('No phone numbers were returned for the selected groups, so a personalized message cannot be sent to each member.');
+        }
+
+        return array_values($byPhone);
     }
 
     protected function whatsappContacts()

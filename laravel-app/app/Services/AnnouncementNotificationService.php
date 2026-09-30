@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class AnnouncementNotificationService extends Controller
 {
+    protected $whatsappNames = null;
+
     /**
      * @param  array{title?:string,name?:string,message?:string,reference?:string,details?:string}  $statusVars
      */
@@ -196,6 +198,9 @@ class AnnouncementNotificationService extends Controller
 
         foreach ($recipients as $person) {
             $phone = $person['phone'] ?? '';
+            if (! empty($announcement->personalized)) {
+                $person['name'] = $this->personalName($person);
+            }
             $ok = false;
             if ($announcement->send_whatsapp) {
                 // Wasender sends the OTP-style formatted text; Twilio still uses template vars.
@@ -219,6 +224,9 @@ class AnnouncementNotificationService extends Controller
 
         foreach ($ccs as $person) {
             $phone = $person['phone'] ?? '';
+            if (! empty($announcement->personalized)) {
+                $person['name'] = $this->personalName($person);
+            }
             $ok = false;
             if ($announcement->send_whatsapp) {
                 $vars = $this->twilioVars($announcement, $person, true);
@@ -258,6 +266,54 @@ class AnnouncementNotificationService extends Controller
         $announcement->save();
 
         return ['sent' => $sent, 'cc' => $ccSent, 'whatsapp_status' => $announcement->whatsapp_status];
+    }
+
+    protected function personalName(array $person)
+    {
+        $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+        $customerName = '';
+        if ($phone !== '') {
+            $customer = app(PeopleDirectoryService::class)->findCustomerByLoosePhone($phone);
+            if ($customer) {
+                $customerName = trim((string) $customer->name);
+            }
+        }
+        if ($customerName !== '' && ! in_array(strtoupper($customerName), ['N/A', 'NAN'], true)) {
+            return $customerName;
+        }
+        $self = trim((string) (isset($person['wa_name']) ? $person['wa_name'] : ''));
+        if ($self === '' && $phone !== '') {
+            $self = $this->whatsappProfileName($phone);
+        }
+        if ($self !== '') {
+            return $self;
+        }
+        $existing = trim((string) (isset($person['name']) ? $person['name'] : ''));
+        $digits = preg_replace('/\D+/', '', $existing);
+
+        return ($existing !== '' && $existing !== $digits) ? $existing : '';
+    }
+
+    protected function whatsappProfileName($phone)
+    {
+        if ($this->whatsappNames === null) {
+            $this->whatsappNames = [];
+            $listed = app(BeyondWasenderService::class)->listContacts();
+            foreach ((isset($listed['contacts']) ? $listed['contacts'] : []) as $contact) {
+                $digits = preg_replace('/\D+/', '', (string) (isset($contact['phone']) ? $contact['phone'] : ''));
+                if (strlen($digits) < 8) {
+                    continue;
+                }
+                $this->whatsappNames[substr($digits, -9)] = trim((string) (isset($contact['wa_name']) ? $contact['wa_name'] : ''));
+            }
+        }
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) < 8) {
+            return '';
+        }
+        $tail = substr($digits, -9);
+
+        return isset($this->whatsappNames[$tail]) ? $this->whatsappNames[$tail] : '';
     }
 
     public function sendReminder(WaAnnouncement $announcement)

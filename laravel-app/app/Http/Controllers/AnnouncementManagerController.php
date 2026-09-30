@@ -168,6 +168,7 @@ class AnnouncementManagerController extends Controller
             'audience' => $request->input('audience', 'people'),
             'group_jids' => $request->input('group_jids', []),
             'send_whatsapp' => $request->has('send_whatsapp') ? true : ((string) $request->input('send_whatsapp', '1') === '1'),
+            'personalized' => $request->has('personalized'),
             'send_mode' => $request->input('send_mode', 'now'),
             'schedule_at' => $request->input('schedule_at'),
             'reminders' => $request->input('reminders', []),

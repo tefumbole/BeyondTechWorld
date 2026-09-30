@@ -243,6 +243,11 @@
                         <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
                             <input type="checkbox" checked disabled> Send via WhatsApp
                         </label>
+                        <label class="d-flex align-items-start mt-3" style="gap:8px;font-weight:600;">
+                            <input type="checkbox" name="personalized" value="1" style="margin-top:3px;">
+                            <span>Personalize each message</span>
+                        </label>
+                        <div class="an-info">Each person is greeted as Dear "their name". If that phone is already a customer, the customer name in Beyond is used. Otherwise the name they saved on WhatsApp is used, for example Dear "Computer Futurist". A selected group then sends a separate message to each member.</div>
                         <div class="an-info">Messages are sent one recipient every 6 seconds. No accept/reject action is required.</div>
                         <div class="mt-3">
                             <div class="an-send-opt active" data-mode="now">✈ Send immediately</div>
