@@ -150,7 +150,8 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         \App\Product::create(['name' => 'JBL Speaker', 'code' => 'SPK', 'is_active' => true]);
         $this->postWebhook($this->incoming('+237670000910', 'Hello', 'S9I1'))->assertStatus(200);
         $hello = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
-        $this->assertStringContainsString('How are you doing?', $hello->body);
+        $this->assertStringContainsString('Hello,', $hello->body);
+        $this->assertStringNotContainsString('Beyond Assistant', $hello->body);
         $this->assertStringNotContainsString('1. Sound', $hello->body);
         $this->postWebhook($this->incoming('+237670000910', "I'm good and you", 'S9I1B'))->assertStatus(200);
         $menu = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
@@ -172,7 +173,8 @@ class WhatsAppPhase9Test extends WhatsAppHubTestCase
         $this->postWebhook($this->incoming('+237670000909', "I'm great and you?", 'S9G3'))->assertStatus(200);
         $bodies = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderBy('id')->pluck('body')->all();
         $joined = implode("\n", $bodies);
-        $this->assertStringContainsString('Beyond Assistant', $joined);
+        $this->assertStringNotContainsString('Beyond Assistant', $joined);
+        $this->assertStringContainsString('Hello,', $joined);
         $this->assertStringContainsString("I'm doing well", $joined);
         $this->assertStringContainsString('Glad to hear it', $joined);
         $this->assertStringContainsString('How can I help', $joined);

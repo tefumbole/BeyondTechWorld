@@ -26,6 +26,11 @@ class WaSenderProvider implements WhatsAppProviderInterface
         return $this->wasender->sendTextRaw($phone, $message);
     }
 
+    public function sendPlainText($phone, $message)
+    {
+        return $this->wasender->sendTextRaw($phone, $message, false);
+    }
+
     public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
     {
         return $this->wasender->sendDocument($phone, $localPath, $fileName, $caption);

@@ -405,7 +405,7 @@ class WhatsAppConversationService
 
     public function assistantReply(WhatsAppConversation $conversation, $body, array $media = null)
     {
-        $body = \App\Support\WhatsAppMessage::withoutSystemName($body);
+        $body = \App\Support\WhatsAppMessage::plainAiReply($body);
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }
@@ -469,7 +469,11 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website', 'had_service_menu' => $hadServiceMenu];
         } else {
-            $result = $this->provider->sendText($contact->normalized_phone, $body);
+            if (method_exists($this->provider, 'sendPlainText')) {
+                $result = $this->provider->sendPlainText($contact->normalized_phone, $body);
+            } else {
+                $result = $this->provider->sendText($contact->normalized_phone, $body);
+            }
             if (! empty($result['success'])) {
                 $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
                 $message->status = WhatsAppMessage::STATUS_SENT;

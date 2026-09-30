@@ -139,13 +139,64 @@ class AssistantResponseComposer
         if (preg_match('/\bhow are you\b/', $text)) {
             return "I'm doing well, thank you! How can I help you today?";
         }
-        $known = AssistantRuntimeSettings::greetByName() ? $this->englishName($context, $params) : '';
+        $known = $this->greetingName($context, $params);
         if ($known !== '') {
-            return 'Hi '.$known.', how are you doing?';
+            return 'Hello, '.$known;
         }
-        $who = config('assistant.identify') ? config('assistant.display_name') : 'BeyondTechWorld';
 
-        return 'Hi, this is '.$who.'. How are you doing?';
+        return 'Hello,';
+    }
+
+    /**
+     * WhatsApp profile name, then the name saved for this number. Never a bare phone number.
+     */
+    protected function greetingName(array $context, array $params)
+    {
+        $phone = isset($context['phone']) ? (string) $context['phone'] : '';
+        $candidates = [];
+        if (! empty($params['captured_name'])) {
+            $candidates[] = $params['captured_name'];
+        }
+        if ($phone !== '') {
+            try {
+                $resolved = app(\App\Services\WhatsApp\GroupContactExportService::class)->nameForPhone($phone, true);
+                if (is_string($resolved) && $resolved !== '') {
+                    $candidates[] = $resolved;
+                }
+            } catch (\Throwable $e) {
+                $candidates[] = '';
+            }
+        }
+        if (! empty($context['contact_name'])) {
+            $candidates[] = $context['contact_name'];
+        }
+        foreach ($candidates as $candidate) {
+            $name = $this->personLabel($candidate, $phone);
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return '';
+    }
+
+    protected function personLabel($name, $phone = '')
+    {
+        $name = trim((string) $name);
+        $digits = preg_replace('/\D+/', '', $name);
+        $phoneDigits = preg_replace('/\D+/', '', (string) $phone);
+        if ($name === '' || preg_match('/^\+?[\d\s\-\(\)]+$/', $name)) {
+            return '';
+        }
+        if ($phoneDigits !== '' && $digits === $phoneDigits) {
+            return '';
+        }
+        $upper = strtoupper($name);
+        if (in_array($upper, ['N/A', 'NA', 'NAN', 'NULL', 'NONE', 'NO WHATSAPP NAME', 'NO NAME'], true)) {
+            return '';
+        }
+
+        return $name;
     }
 
     protected function englishName(array $context, array $params)
@@ -545,7 +596,7 @@ class AssistantResponseComposer
             return 'Thank you. A BeyondTechWorld team member can help with the next step if you need more detail.';
         }
         $result = $this->provider->complete([
-            ['role' => 'system', 'content' => 'You are Beyond Assistant for BeyondTechWorld. Reply in JSON {"reply":"..."}. Short WhatsApp style. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it. Do not mention being an AI model.'],
+            ['role' => 'system', 'content' => 'Reply in JSON {"reply":"..."}. Short WhatsApp style. Do not introduce yourself. Do not say you are Beyond Assistant or Mbole AI. Do not add a reference or a company name. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it.'],
             ['role' => 'user', 'content' => json_encode([
                 'intent' => $intent,
                 'incoming' => $incoming,

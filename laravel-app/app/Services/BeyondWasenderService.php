@@ -205,7 +205,7 @@ class BeyondWasenderService
         ];
     }
 
-    public function sendTextRaw($phone, $message)
+    public function sendTextRaw($phone, $message, $stampReference = true)
     {
         if (! $this->isConfigured()) {
             if (app()->environment('local')) {
@@ -225,7 +225,9 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Invalid WhatsApp number'];
             }
 
-            $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
+            if ($stampReference) {
+                $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
+            }
             $posted = $this->postSendMessage(['to' => $to, 'text' => $message], 30);
             $decoded = $posted['decoded'];
             $http = (int) ($posted['http'] ?? 0);

@@ -63,7 +63,10 @@ class WhatsAppPhase3Test extends WhatsAppHubTestCase
         $this->postWebhook($this->incomingText('+237675300003', 'Hello', 'A3G1'))->assertStatus(200);
         $out = WhatsAppMessage::where('sender_type', 'ASSISTANT')->first();
         $this->assertNotNull($out);
-        $this->assertStringContainsString('Beyond Assistant', $out->body);
+        $this->assertStringContainsString('Hello,', $out->body);
+        $this->assertStringNotContainsString('Beyond Assistant', $out->body);
+        $this->assertStringNotContainsString('Beyond Enterprise', $out->body);
+        $this->assertStringNotContainsString('Ref:', $out->body);
     }
 
     public function test_company_and_service_enquiry()

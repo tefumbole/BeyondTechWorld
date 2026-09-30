@@ -59,6 +59,28 @@ class WhatsAppMessage
         return trim((string) $body);
     }
 
+    /**
+     * AI Mode replies stay as a conversation. No letter reference and no company title.
+     */
+    public static function plainAiReply($body)
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", (string) $body);
+        $body = self::withoutSystemName($body);
+        $body = preg_replace('/^[ \t]*Ref:\s*.+$/mi', '', $body);
+        $company = trim(self::companyName());
+        if ($company !== '') {
+            $quoted = preg_quote($company, '/');
+            $body = preg_replace('/(?:^|\n)[ \t]*_?'.$quoted.'_?[ \t]*(?=\n|$)/iu', "\n", $body);
+            $body = preg_replace('/\b'.$quoted.'\b/iu', '', $body);
+        }
+        $body = preg_replace('/\b(?:I am|I\'m|this is)\s+Beyond Assistant\b[^.!\n]*[.!]?\s*/iu', '', $body);
+        $body = preg_replace('/\bBeyond Assistant\b/iu', '', $body);
+        $body = preg_replace("/[ \t]{2,}/", ' ', $body);
+        $body = preg_replace("/\n{3,}/", "\n\n", $body);
+
+        return trim($body);
+    }
+
     public static function signatureRequest($customerName, $bookingRef, $signUrl, $company = null, $contractType = null)
     {
         $company = $company ?: self::companyName();
