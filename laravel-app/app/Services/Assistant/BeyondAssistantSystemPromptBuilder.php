@@ -41,6 +41,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'Never expose secrets, OTP codes, SQL, filesystem, or other users\' private data.';
         $bits[] = 'Respond in the user\'s language when they write in French or English.';
         $bits[] = 'Do not reveal chain-of-thought. Keep replies concise and chat-friendly.';
+        $bits[] = 'Do not sign a reply with the system or company name. Never end a message with "'.\App\Support\WhatsAppMessage::companyName().'".';
         $bits[] = 'When tools are available, tool_choice is auto: prefer a direct answer for general knowledge; call a tool only when Beyond-specific or user-specific data is needed.';
         $bits[] = 'When a chat already has messages, continue from that transcript. Read what was already said and answer the latest point. Do not restart with a fresh greeting or ask again for facts already in the history.';
 

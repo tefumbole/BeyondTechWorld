@@ -43,6 +43,22 @@ class WhatsAppMessage
         return "\n_" . self::companyName() . '_';
     }
 
+    /**
+     * AI replies stay as the assistant wrote them. A trailing system title is removed.
+     */
+    public static function withoutSystemName($body)
+    {
+        $body = trim((string) $body);
+        $company = trim(self::companyName());
+        if ($body === '' || $company === '') {
+            return $body;
+        }
+        $quoted = preg_quote($company, '/');
+        $body = preg_replace('/(?:\s*[\r\n]+)+\s*(?:[_*—–\-]+\s*)?(?:Mbole AI\s*[·•|]\s*)?'.$quoted.'\s*[_*]*\s*$/iu', '', $body);
+
+        return trim((string) $body);
+    }
+
     public static function signatureRequest($customerName, $bookingRef, $signUrl, $company = null, $contractType = null)
     {
         $company = $company ?: self::companyName();

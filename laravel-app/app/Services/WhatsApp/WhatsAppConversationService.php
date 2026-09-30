@@ -405,7 +405,7 @@ class WhatsAppConversationService
 
     public function assistantReply(WhatsAppConversation $conversation, $body, array $media = null)
     {
-        $body = trim((string) $body);
+        $body = \App\Support\WhatsAppMessage::withoutSystemName($body);
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }

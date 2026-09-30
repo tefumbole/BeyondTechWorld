@@ -45,9 +45,9 @@ class AnnouncementPersonalization
             $person['name'] = '';
         }
         $person['name'] = self::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
-        $institution = trim((string) ($announcement->header ?: WhatsAppMessage::companyName()));
+        $institution = trim((string) ($announcement->header ?: ''));
         $reference = trim((string) ($announcement->reference ?? ''));
-        $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
+        $vars = self::recipientVars($person, $reference, $institution);
         if ($person['name'] !== '') {
             $vars['name'] = '*'.$person['name'].'*';
             $vars['Name'] = '*'.$person['name'].'*';

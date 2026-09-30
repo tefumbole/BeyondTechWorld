@@ -4,7 +4,7 @@
 @php
     $anTab = 'announcements.compose';
     $clone = $clone ?? null;
-    $defaultHeader = old('header', $clone['header'] ?? ($settings->default_header ?? 'Beyond Enterprise'));
+    $defaultHeader = old('header', $clone['header'] ?? '');
 @endphp
 <section class="forms">
     <div class="container-fluid an-shell">

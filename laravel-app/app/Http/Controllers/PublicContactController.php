@@ -33,10 +33,10 @@ class PublicContactController extends Controller
         $displayPhone = $data['country_code'].' '.preg_replace('/\D+/', '', $data['phone']);
 
         $userText = "Hello {$name},\n\n"
-            ."We received your message on Beyond Enterprise:\n\n"
+            ."We received your message:\n\n"
             ."\"{$body}\"\n\n"
             ."An assistant will get in touch with you shortly.\n\n"
-            ."— Mbole AI · Beyond Enterprise";
+            ."— Mbole AI";
 
         $staffPhone = preg_replace('/\D+/', '', SiteContent::text('contact.phone', '+237675321739'));
         $staffText = "*New contact via Mbole AI*\n\n"
