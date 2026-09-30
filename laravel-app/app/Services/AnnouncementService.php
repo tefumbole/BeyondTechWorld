@@ -155,7 +155,7 @@ class AnnouncementService
                 $jids[] = $data['group_jid'];
             }
             $recipients = ! empty($data['personalized'])
-                ? $this->personalizedGroupMembers($jids)
+                ? $this->personalizedGroupMembers($jids, isset($data['name_overrides']) ? (array) $data['name_overrides'] : [])
                 : $this->groupRecipients($jids);
             $ccs = [];
         } elseif ($audience === 'contacts') {
@@ -166,6 +166,11 @@ class AnnouncementService
             $ccIds = array_values(array_unique(array_filter($data['cc_ids'] ?? [])));
             $recipients = $this->resolvePeople($recipientIds);
             $ccs = $this->resolvePeople($ccIds);
+        }
+        if (! empty($data['personalized'])) {
+            $overrides = isset($data['name_overrides']) ? (array) $data['name_overrides'] : [];
+            $recipients = $this->applyNameOverrides($recipients, $overrides);
+            $ccs = $this->applyNameOverrides($ccs, $overrides);
         }
 
         $sendMode = $data['send_mode'] ?? 'now';
@@ -281,19 +286,26 @@ class AnnouncementService
         return $out;
     }
 
-    protected function personalizedGroupMembers(array $jids)
+    public function previewGroupPeople(array $jids)
+    {
+        return $this->personalizedGroupMembers($jids, []);
+    }
+
+    protected function personalizedGroupMembers(array $jids, array $overrides = [])
     {
         $export = app(\App\Services\WhatsApp\GroupContactExportService::class);
-        $wasender = app(BeyondWasenderService::class);
         $byPhone = [];
-        $listed = $wasender->listContacts();
-        $known = [];
-        foreach ((isset($listed['contacts']) ? $listed['contacts'] : []) as $contact) {
-            $digits = preg_replace('/\D+/', '', (string) (isset($contact['phone']) ? $contact['phone'] : ''));
-            if (strlen($digits) < 8) {
+        $names = [];
+        foreach ($overrides as $phone => $name) {
+            $digits = preg_replace('/\D+/', '', (string) $phone);
+            $name = trim((string) $name);
+            if ($digits === '' || $name === '') {
                 continue;
             }
-            $known[substr($digits, -9)] = trim((string) (isset($contact['wa_name']) ? $contact['wa_name'] : $contact['name']));
+            $names[$digits] = $name;
+            if (strlen($digits) > 9) {
+                $names[substr($digits, -9)] = $name;
+            }
         }
         foreach ($this->groupRecipients($jids) as $group) {
             $fetched = $export->rowsForGroup($group['group_jid']);
@@ -304,14 +316,23 @@ class AnnouncementService
                     continue;
                 }
                 $tail = substr($digits, -9);
-                $waName = isset($known[$tail]) ? $known[$tail] : trim((string) (isset($row['name']) ? $row['name'] : ''));
+                $waName = trim((string) (isset($row['name']) ? $row['name'] : ''));
+                if (isset($names[$digits])) {
+                    $waName = $names[$digits];
+                } elseif ($tail !== '' && isset($names[$tail])) {
+                    $waName = $names[$tail];
+                }
+                if ($waName === '' || preg_match('/^\d+$/', $waName)) {
+                    $waName = $digits;
+                }
                 $byPhone[$digits] = [
                     'id' => 'wa:'.$digits,
                     'kind' => 'contact',
-                    'name' => $waName !== '' ? $waName : $digits,
+                    'name' => $waName,
                     'wa_name' => $waName,
                     'phone' => $digits,
                     'email' => '',
+                    'group' => $group['name'],
                 ];
             }
         }
@@ -320,6 +341,43 @@ class AnnouncementService
         }
 
         return array_values($byPhone);
+    }
+
+    protected function applyNameOverrides(array $people, array $overrides)
+    {
+        $names = [];
+        foreach ($overrides as $phone => $name) {
+            $digits = preg_replace('/\D+/', '', (string) $phone);
+            $name = trim((string) $name);
+            if ($digits === '' || $name === '') {
+                continue;
+            }
+            $names[$digits] = $name;
+            if (strlen($digits) > 9) {
+                $names[substr($digits, -9)] = $name;
+            }
+        }
+        if (! $names) {
+            return $people;
+        }
+        foreach ($people as $i => $person) {
+            $digits = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            $tail = $digits !== '' ? substr($digits, -9) : '';
+            $override = '';
+            if ($digits !== '' && isset($names[$digits])) {
+                $override = $names[$digits];
+            } elseif ($tail !== '' && isset($names[$tail])) {
+                $override = $names[$tail];
+            }
+            if ($override === '') {
+                continue;
+            }
+            $people[$i]['name'] = $override;
+            $people[$i]['wa_name'] = $override;
+            $people[$i]['name_edited'] = true;
+        }
+
+        return $people;
     }
 
     protected function whatsappContacts()

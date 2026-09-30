@@ -40,7 +40,7 @@ return [
         'wasender_base_url' => env('WASENDER_BASE_URL', env('WASENDER_API_URL', 'https://wasenderapi.com/api')),
         'min_send_interval_ms' => (int) env(
             'WASENDER_MIN_SEND_INTERVAL_MS',
-            (int) env('WHATSAPP_SEND_INTERVAL', 6) * 1000
+            (int) env('WHATSAPP_SEND_INTERVAL', 5) * 1000
         ),
         'text_to_document_delay_ms' => (int) env('WASENDER_TEXT_TO_DOCUMENT_DELAY_MS', 6000),
         'company_name' => env('COMPANY_NAME'),

@@ -137,9 +137,10 @@
                             <label class="an-label">Groups</label>
                             <input type="search" id="an-group-search" class="an-field mb-2" placeholder="Search a group, for example NBC Praise Team">
                             <div class="d-flex mb-2" style="gap:8px;">
-                                <button type="button" class="an-btn-outline" id="an-group-visible">Select shown</button>
+                                <button type="button" class="an-btn-outline" id="an-group-visible">Add shown</button>
                                 <button type="button" class="an-btn-outline" id="an-group-clear">Clear</button>
                             </div>
+                            <div id="an-group-chips" class="mt-1 mb-2"></div>
                             <p id="an-group-progress" class="text-muted small mb-2" style="display:none"></p>
                             <div id="an-group-list" class="an-user-list" style="max-height:280px;">
                                 @forelse(($waGroups ?? []) as $group)
@@ -158,7 +159,7 @@
                                     <div class="p-3 text-muted small">No WhatsApp groups were returned for this account.</div>
                                 @endforelse
                             </div>
-                            <div class="an-info">Tick one or more groups. The message is posted in each selected group, so everyone in those groups receives it. Names still loading will appear in this list; search again after they show up.</div>
+                            <div class="an-info" id="an-group-info">Search a group and tick it. Added groups stay listed above so you can add more. With Personalize on, each member gets their own message.</div>
                         </div>
                         <div id="an-contacts-box" class="mb-3" style="display:none;">
                             <div class="an-info">A personal WhatsApp message is sent to every contact saved on the connected WhatsApp account.</div>
@@ -243,12 +244,11 @@
                         <label class="d-flex align-items-center" style="gap:8px;font-weight:600;">
                             <input type="checkbox" checked disabled> Send via WhatsApp
                         </label>
-                        <label class="d-flex align-items-start mt-3" style="gap:8px;font-weight:600;">
-                            <input type="checkbox" name="personalized" value="1" style="margin-top:3px;">
-                            <span>Personalize each message</span>
-                        </label>
-                        <div class="an-info">Each person is greeted as Dear "their name". If that phone is already a customer, the customer name in Beyond is used. Otherwise the name they saved on WhatsApp is used, for example Dear "Computer Futurist". A selected group then sends a separate message to each member.</div>
-                        <div class="an-info">Messages are sent one recipient every 6 seconds. No accept/reject action is required.</div>
+                        <button type="button" class="an-pill mt-3" id="an-personalize-btn">Personalize each message</button>
+                        <input type="checkbox" name="personalized" id="an-personalized" value="1" class="d-none">
+                        <div class="an-info" id="an-personalize-help">Turn this on to greet each person by name. Add a title in the preview, for example Pastor John or Dr. Bolla. A selected group then sends a separate message to each member.</div>
+                        <div class="an-info">Messages go out one person every 5 seconds so WhatsApp does not block the account.</div>
+                        <button type="button" class="an-btn-outline mt-2" id="an-preview-btn" style="display:none;">Preview messages</button>
                         <div class="mt-3">
                             <div class="an-send-opt active" data-mode="now">✈ Send immediately</div>
                             <div class="an-send-opt" data-mode="schedule"><i class="dripicons-clock"></i> Schedule for later</div>
@@ -270,6 +270,23 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            <div id="an-preview" class="an-page-card mt-3" style="display:none;">
+                <h5 style="color:#0b3f90;font-weight:700;">Preview</h5>
+                <p class="text-muted small">Edit the message and each name. Add a title in the name, such as Pastor, Dr., or Engr.</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="an-label">Message</label>
+                        <textarea id="an-preview-body" class="an-field" rows="8"></textarea>
+                        <input type="search" id="an-preview-search" class="an-field mt-2" placeholder="Search a name or phone number">
+                        <div id="an-preview-list" class="an-user-list mt-2" style="max-height:360px;"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="an-label">How this person will receive it</label>
+                        <pre id="an-preview-sample" style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:16px;min-height:220px;font-family:inherit;"></pre>
+                    </div>
+                </div>
+                <div id="an-name-overrides"></div>
             </div>
         </form>
     </div>
@@ -608,8 +625,173 @@ window.AN_PRESELECT = @json([
         return groupList ? Array.prototype.slice.call(groupList.querySelectorAll('.an-group-row')) : [];
     }
     function updateGroupCount() {
+        renderGroupChips();
         if (document.getElementById('an-audience').value !== 'group') return;
         document.getElementById('an-count').textContent = String(document.querySelectorAll('#an-group-list input:checked').length);
+    }
+    function renderGroupChips() {
+        var chips = document.getElementById('an-group-chips');
+        if (!chips) return;
+        var checked = groupRows().filter(function (row) {
+            var box = row.querySelector('input');
+            return box && box.checked;
+        });
+        chips.innerHTML = checked.map(function (row) {
+            var name = row.querySelector('.an-group-label') ? row.querySelector('.an-group-label').textContent : 'Group';
+            return '<span class="an-chip" data-jid="'+esc(row.getAttribute('data-jid'))+'">'+esc(name)+' <button type="button">×</button></span>';
+        }).join('');
+        chips.querySelectorAll('button').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var jid = btn.parentNode.getAttribute('data-jid');
+                var row = groupList.querySelector('.an-group-row[data-jid="' + String(jid).replace(/"/g, '\\"') + '"]');
+                var box = row && row.querySelector('input');
+                if (box) box.checked = false;
+                updateGroupCount();
+            });
+        });
+    }
+    var personalizeBtn = document.getElementById('an-personalize-btn');
+    var personalizeBox = document.getElementById('an-personalized');
+    var previewBtn = document.getElementById('an-preview-btn');
+    var previewPeople = [];
+    var previewFocus = '';
+    function syncPersonalize() {
+        var on = !!(personalizeBox && personalizeBox.checked);
+        if (personalizeBtn) personalizeBtn.classList.toggle('active', on);
+        if (previewBtn) previewBtn.style.display = on ? '' : 'none';
+        var info = document.getElementById('an-group-info');
+        if (info) {
+            info.textContent = on
+                ? 'Added groups stay listed above. You can add more. Personalize sends a separate message to each member. Use Preview to edit the message and add titles to names.'
+                : 'Search a group and tick it. Added groups stay listed above so you can add more. The same message is posted in each group.';
+        }
+    }
+    if (personalizeBtn && personalizeBox) {
+        personalizeBtn.addEventListener('click', function () {
+            personalizeBox.checked = !personalizeBox.checked;
+            syncPersonalize();
+        });
+        syncPersonalize();
+    }
+    function previewHtml(person) {
+        var header = (document.querySelector('[name=header]').value || '').trim();
+        var footer = (document.querySelector('[name=footer]').value || '').trim();
+        var name = person && person.name ? person.name : 'Friend';
+        var phone = person && person.phone ? person.phone : '';
+        var body = document.getElementById('an-preview-body').value || '';
+        body = body.replace(/\{name\}/ig, name).replace(/\{phone\}/ig, phone).replace(/\{date\}/ig, new Date().toLocaleDateString());
+        body = body.replace(/^\s*Dear\s+[^,\n]*,\s*/i, '').trim();
+        var html = '';
+        if (header) html += '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">📢 '+esc(header)+'</div>';
+        html += '<div style="margin-bottom:12px;">Dear <strong>'+esc(name)+'</strong>,</div>';
+        html += '<div style="white-space:pre-wrap;line-height:1.5;">'+esc(body)+'</div>';
+        if (footer) html += '<div style="margin-top:14px;color:#64748b;font-style:italic;">'+esc(footer)+'</div>';
+        return html;
+    }
+    function paintSample() {
+        var sample = document.getElementById('an-preview-sample');
+        if (!sample) return;
+        var person = previewPeople.filter(function (p) { return p.phone === previewFocus; })[0] || previewPeople[0];
+        sample.innerHTML = person ? previewHtml(person) : 'Add a group, then open preview.';
+    }
+    function writeOverrides() {
+        var box = document.getElementById('an-name-overrides');
+        if (!box) return;
+        box.innerHTML = previewPeople.map(function (p) {
+            return '<input type="hidden" name="name_overrides['+esc(p.phone)+']" value="'+esc(p.name)+'">';
+        }).join('');
+    }
+    function renderPreviewList() {
+        var list = document.getElementById('an-preview-list');
+        var search = document.getElementById('an-preview-search');
+        if (!list) return;
+        var q = search ? search.value.toLowerCase().trim() : '';
+        var qDigits = q.replace(/\D+/g, '');
+        var shown = previewPeople.filter(function (p) {
+            if (!q) return true;
+            var name = (p.name || '').toLowerCase();
+            var phone = (p.phone || '').toLowerCase();
+            return name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || (qDigits && phone.indexOf(qDigits) !== -1);
+        });
+        list.innerHTML = shown.map(function (p) {
+            return '<label class="an-user-item" style="display:block;">'
+                + '<input class="an-field an-name-edit" data-phone="'+esc(p.phone)+'" value="'+esc(p.name)+'" placeholder="Add a title, for example Pastor John">'
+                + '<div class="meta">'+esc(p.phone)+(p.group ? ' · '+esc(p.group) : '')+'</div></label>';
+        }).join('') || '<div class="p-3 text-muted small">No contacts match that search.</div>';
+        list.querySelectorAll('.an-name-edit').forEach(function (input) {
+            input.addEventListener('focus', function () {
+                previewFocus = input.getAttribute('data-phone');
+                paintSample();
+            });
+            input.addEventListener('input', function () {
+                var phone = input.getAttribute('data-phone');
+                previewPeople.forEach(function (p) {
+                    if (p.phone === phone) p.name = input.value;
+                });
+                previewFocus = phone;
+                writeOverrides();
+                paintSample();
+            });
+        });
+        paintSample();
+    }
+    var previewBody = document.getElementById('an-preview-body');
+    if (previewBody) {
+        previewBody.addEventListener('input', function () {
+            document.getElementById('an-body').value = previewBody.value;
+            paintSample();
+        });
+    }
+    var previewSearch = document.getElementById('an-preview-search');
+    if (previewSearch) previewSearch.addEventListener('input', renderPreviewList);
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function () {
+            var audience = document.getElementById('an-audience').value;
+            var jids = groupRows().filter(function (row) {
+                var box = row.querySelector('input');
+                return box && box.checked;
+            }).map(function (row) { return row.getAttribute('data-jid'); });
+            if (audience === 'group' && !jids.length) {
+                alert('Add at least one WhatsApp group first.');
+                return;
+            }
+            if (audience !== 'group' && !recipients.length) {
+                alert('Select at least one person first.');
+                return;
+            }
+            previewBtn.disabled = true;
+            previewBtn.textContent = 'Loading names…';
+            fetch(@json(route('announcements.preview')), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ audience: audience, group_jids: jids, recipient_ids: recipients })
+            }).then(function (response) { return response.json().then(function (payload) { return { ok: response.ok, payload: payload }; }); }).then(function (result) {
+                var payload = result.payload || {};
+                if (!result.ok) {
+                    alert(payload.error || 'The names could not be loaded.');
+                    return;
+                }
+                previewPeople = payload.people || [];
+                previewFocus = previewPeople.length ? previewPeople[0].phone : '';
+                document.getElementById('an-preview-body').value = document.getElementById('an-body').value;
+                document.getElementById('an-preview').style.display = '';
+                renderPreviewList();
+                writeOverrides();
+                document.getElementById('an-preview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }).catch(function () {
+                alert('The names could not be loaded. Add the group again and open Preview.');
+            }).then(function () {
+                previewBtn.disabled = false;
+                previewBtn.textContent = 'Preview messages';
+            });
+        });
     }
     if (groupList) {
         groupList.addEventListener('change', updateGroupCount);
@@ -672,6 +854,7 @@ window.AN_PRESELECT = @json([
                     placed = true;
                 }
             });
+            renderGroupChips();
         }
         function tick() {
             var jids = pending();

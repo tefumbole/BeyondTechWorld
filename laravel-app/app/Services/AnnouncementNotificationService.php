@@ -219,7 +219,7 @@ class AnnouncementNotificationService extends Controller
                 'phone' => $phone,
                 'ok' => $ok,
             ];
-            usleep(6000000); // 6s between recipients
+            usleep(5000000);
         }
 
         foreach ($ccs as $person) {
@@ -244,7 +244,7 @@ class AnnouncementNotificationService extends Controller
                 'phone' => $phone,
                 'ok' => $ok,
             ];
-            usleep(6000000);
+            usleep(5000000);
         }
 
         $announcement->sent_count = $sent;
@@ -270,6 +270,12 @@ class AnnouncementNotificationService extends Controller
 
     protected function personalName(array $person)
     {
+        if (! empty($person['name_edited'])) {
+            $edited = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            if ($edited !== '') {
+                return $edited;
+            }
+        }
         $phone = isset($person['phone']) ? (string) $person['phone'] : '';
         $customerName = '';
         if ($phone !== '') {

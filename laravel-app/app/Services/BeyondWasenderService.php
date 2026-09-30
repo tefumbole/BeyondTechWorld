@@ -7,7 +7,7 @@ use App\Support\WhatsAppPhone;
 class BeyondWasenderService
 {
     /** Wasender account protection: one outbound message every 5s, measured after the previous send finishes. */
-    const SEND_INTERVAL_SECONDS = 5.5;
+    const SEND_INTERVAL_SECONDS = 5;
 
     private static $lastSendAt = 0.0;
 

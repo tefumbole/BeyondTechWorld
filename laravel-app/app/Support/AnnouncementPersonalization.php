@@ -2,8 +2,6 @@
 
 namespace App\Support;
 
-use Carbon\Carbon;
-
 class AnnouncementPersonalization
 {
     public static function personalize($template, array $vars)
@@ -51,57 +49,37 @@ class AnnouncementPersonalization
         $vars = self::recipientVars($person, $reference, $institution !== '' ? $institution : 'Beyond Enterprise');
 
         $body = trim(self::personalize($announcement->body ?: '', $vars));
-        $subject = trim(self::personalize($announcement->subject ?: '', $vars));
         $footer = trim(self::personalize($announcement->footer ?: '', $vars));
         $name = trim((string) ($person['name'] ?? ''));
 
-        $when = $announcement->created_at
-            ?? $announcement->scheduled_for
-            ?? $announcement->scheduled_at
-            ?? now();
-        try {
-            $dateStr = Carbon::parse($when)->format('d M Y');
-        } catch (\Throwable $e) {
-            $dateStr = date('d M Y');
-        }
-
         $body = preg_replace('/^\s*Dear\s+[^,\n]*,\s*/iu', '', $body);
         $body = trim($body);
+        $header = trim(self::personalize($announcement->header ?: '', $vars));
 
-        $title = $isCc ? 'Announcement CC' : 'Announcement';
-        $emoji = $isCc ? '📨' : '📢';
-
-        $msg = WhatsAppMessage::statusBlock($emoji, $title);
+        $msg = '';
+        if ($header !== '') {
+            $msg .= '📢 *'.$header."*\n\n";
+        }
         if ($personalized && $name !== '') {
-            $msg .= 'Dear "'.$name."\",\n\n";
+            $msg .= 'Dear *'.$name."*,\n\n";
         } else {
             $msg .= "Hello,\n\n";
         }
         if ($isCc) {
-            $msg .= "You have been CC'd on this announcement.\n\n";
+            $msg .= "You have been copied on this announcement.\n\n";
         }
-        if ($institution !== '') {
-            $msg .= WhatsAppMessage::bullet('From', $institution);
-        }
-        if ($reference !== '') {
-            $msg .= WhatsAppMessage::bullet('Reference', $reference);
-        } elseif (! empty($announcement->id)) {
-            $msg .= WhatsAppMessage::bullet('Reference', 'ANN-'.$announcement->id);
-        }
-        $msg .= WhatsAppMessage::bullet('Date', $dateStr);
-        if ($subject !== '') {
-            $msg .= WhatsAppMessage::bullet('Subject', $subject);
-        }
-        $msg .= "━━━━━━━━━━━━━━━━\n\n";
         if ($body !== '') {
             $msg .= $body."\n";
         }
         if ($footer !== '') {
-            $msg .= "\n".$footer;
+            $msg .= "\n_".$footer."_";
         }
-        $msg .= WhatsAppMessage::footer();
+        $company = trim(WhatsAppMessage::companyName());
+        if ($company !== '' && strcasecmp($company, $footer) !== 0 && strcasecmp($company, $header) !== 0) {
+            $msg .= "\n\n_".$company.'_';
+        }
 
-        return $msg;
+        return trim($msg)."\n";
     }
 
     /**

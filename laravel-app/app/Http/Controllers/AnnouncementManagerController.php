@@ -138,6 +138,38 @@ class AnnouncementManagerController extends Controller
         return view('announcement_manager.compose', compact('users', 'categories', 'templates', 'settings', 'clone', 'waGroups'));
     }
 
+    public function previewRecipients(Request $request)
+    {
+        $this->authorizeAnnouncements('announcements.create');
+        @set_time_limit(90);
+        $audience = (string) $request->input('audience', 'people');
+        try {
+            $people = $audience === 'group'
+                ? $this->announcements->previewGroupPeople((array) $request->input('group_jids', []))
+                : $this->announcements->resolvePeople((array) $request->input('recipient_ids', []));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['people' => [], 'error' => $e->getMessage()], 422);
+        }
+        $rows = [];
+        foreach ($people as $person) {
+            $phone = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            $name = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            if ($phone === '') {
+                continue;
+            }
+            if ($name === '' || preg_match('/^\d+$/', $name)) {
+                $name = '';
+            }
+            $rows[] = [
+                'phone' => $phone,
+                'name' => $name,
+                'group' => isset($person['group']) ? $person['group'] : '',
+            ];
+        }
+
+        return response()->json(['people' => $rows]);
+    }
+
     public function store(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');
@@ -168,6 +200,7 @@ class AnnouncementManagerController extends Controller
             'cc_ids' => $request->input('cc_ids', []),
             'audience' => $request->input('audience', 'people'),
             'group_jids' => $request->input('group_jids', []),
+            'name_overrides' => $request->input('name_overrides', []),
             'send_whatsapp' => $request->has('send_whatsapp') ? true : ((string) $request->input('send_whatsapp', '1') === '1'),
             'personalized' => $request->has('personalized'),
             'send_mode' => $request->input('send_mode', 'now'),
