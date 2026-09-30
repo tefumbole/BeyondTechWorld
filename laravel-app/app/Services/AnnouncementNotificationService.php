@@ -87,8 +87,15 @@ class AnnouncementNotificationService extends Controller
     public function dispatchAnnouncement(WaAnnouncement $announcement)
     {
         $recipients = $announcement->recipients();
-        if (count($recipients) === 1 && isset($recipients[0]['kind']) && $recipients[0]['kind'] === 'group') {
-            return $this->dispatchGroup($announcement, $recipients[0]);
+        $onlyGroups = count($recipients) > 0;
+        foreach ($recipients as $person) {
+            if (! isset($person['kind']) || $person['kind'] !== 'group') {
+                $onlyGroups = false;
+                break;
+            }
+        }
+        if ($onlyGroups) {
+            return $this->dispatchGroups($announcement, $recipients);
         }
 
         return $this->deliverPeople($announcement, $recipients, $announcement->ccRecipients(), true);
@@ -123,45 +130,62 @@ class AnnouncementNotificationService extends Controller
         return count($pending) - count($batch);
     }
 
-    protected function dispatchGroup(WaAnnouncement $announcement, array $group)
+    protected function dispatchGroups(WaAnnouncement $announcement, array $groups)
     {
-        $person = [
-            'name' => isset($group['name']) ? $group['name'] : 'everyone',
-            'phone' => '',
-            'email' => '',
-        ];
-        $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
-        $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
         $wasender = app(BeyondWasenderService::class);
-        $posted = $jid !== '' ? $wasender->sendGroupText($jid, $msg) : ['success' => false, 'error' => 'Missing group'];
-        $ok = ! empty($posted['success']);
-        if ($ok && ! empty($announcement->attachment_path)) {
-            $full = public_path($announcement->attachment_path);
-            if (is_file($full)) {
-                $wasender->sendGroupDocument(
-                    $jid,
-                    $full,
-                    $announcement->attachment_name ?: basename($full),
-                    $announcement->subject ?: 'Announcement'
-                );
+        $results = [];
+        $sent = 0;
+        foreach (array_values($groups) as $index => $group) {
+            if ($index > 0) {
+                usleep(2000000);
             }
+            $person = [
+                'name' => isset($group['name']) ? $group['name'] : 'everyone',
+                'phone' => '',
+                'email' => '',
+            ];
+            $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
+            $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
+            $posted = $jid !== '' ? $wasender->sendGroupText($jid, $msg) : ['success' => false, 'error' => 'Missing group'];
+            $ok = ! empty($posted['success']);
+            if ($ok && ! empty($announcement->attachment_path)) {
+                $full = public_path($announcement->attachment_path);
+                if (is_file($full)) {
+                    $wasender->sendGroupDocument(
+                        $jid,
+                        $full,
+                        $announcement->attachment_name ?: basename($full),
+                        $announcement->subject ?: 'Announcement'
+                    );
+                }
+            }
+            if ($ok) {
+                $sent++;
+            }
+            $results[] = [
+                'type' => 'group',
+                'id' => $jid,
+                'name' => $person['name'],
+                'phone' => '',
+                'ok' => $ok,
+                'error' => $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group'),
+            ];
         }
-        $announcement->sent_count = $ok ? 1 : 0;
+        $total = count($groups);
+        $announcement->sent_count = $sent;
         $announcement->cc_sent_count = 0;
-        $announcement->send_results_json = json_encode([[
-            'type' => 'group',
-            'id' => $jid,
-            'name' => $person['name'],
-            'phone' => '',
-            'ok' => $ok,
-            'error' => $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group'),
-        ]]);
+        $announcement->send_results_json = json_encode($results);
         $announcement->status = 'sent';
-        $announcement->whatsapp_status = $ok ? 'sent' : 'pending';
+        $announcement->whatsapp_status = $sent === 0 ? 'pending' : ($sent < $total ? 'partial' : 'sent');
         $announcement->is_scheduled = false;
         $announcement->save();
 
-        return ['sent' => $ok ? 1 : 0, 'cc' => 0, 'whatsapp_status' => $announcement->whatsapp_status];
+        return ['sent' => $sent, 'cc' => 0, 'whatsapp_status' => $announcement->whatsapp_status];
+    }
+
+    protected function dispatchGroup(WaAnnouncement $announcement, array $group)
+    {
+        return $this->dispatchGroups($announcement, [$group]);
     }
 
     protected function deliverPeople(WaAnnouncement $announcement, array $recipients, array $ccs, $finalize, array $existingResults = [])

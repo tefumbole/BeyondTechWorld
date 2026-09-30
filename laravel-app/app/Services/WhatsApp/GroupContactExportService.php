@@ -144,6 +144,26 @@ class GroupContactExportService
         return $rows;
     }
 
+    public function announcementGroups()
+    {
+        $summary = $this->memberships();
+        $groups = isset($summary['groups']) ? $summary['groups'] : [];
+        if ($groups) {
+            return $groups;
+        }
+        $rows = [];
+        foreach ($this->namedGroups() as $group) {
+            $rows[] = [
+                'name' => $group['name'],
+                'jid' => $group['jid'],
+                'members' => $group['members'],
+                'known' => true,
+            ];
+        }
+
+        return $rows;
+    }
+
     public function enrich(array $jids)
     {
         $saved = $this->readDirectory();

@@ -150,8 +150,11 @@ class AnnouncementService
         $settings = $this->settings();
         $audience = isset($data['audience']) ? (string) $data['audience'] : 'people';
         if ($audience === 'group') {
-            $resolved = $this->groupRecipient(isset($data['group_jid']) ? $data['group_jid'] : '');
-            $recipients = [$resolved];
+            $jids = isset($data['group_jids']) ? (array) $data['group_jids'] : [];
+            if (! empty($data['group_jid'])) {
+                $jids[] = $data['group_jid'];
+            }
+            $recipients = $this->groupRecipients($jids);
             $ccs = [];
         } elseif ($audience === 'contacts') {
             $recipients = $this->whatsappContacts();
@@ -232,25 +235,46 @@ class AnnouncementService
         $this->notify->dispatchAnnouncement($announcement);
     }
 
-    protected function groupRecipient($jid)
+    protected function groupRecipients(array $jids)
     {
-        $jid = trim((string) $jid);
-        foreach (app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups() as $group) {
-            if ($group['jid'] !== $jid) {
+        $wanted = [];
+        foreach ($jids as $jid) {
+            $jid = trim((string) $jid);
+            if ($jid !== '' && substr($jid, -5) === '@g.us') {
+                $wanted[$jid] = true;
+            }
+        }
+        $catalog = [];
+        foreach (app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups() as $group) {
+            $catalog[$group['jid']] = $group;
+        }
+        $out = [];
+        foreach (array_keys($wanted) as $jid) {
+            if (! isset($catalog[$jid])) {
                 continue;
             }
-
-            return [
+            $name = trim((string) $catalog[$jid]['name']);
+            if ($name === '') {
+                $profile = app(BeyondWasenderService::class)->groupProfile($jid);
+                $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+            }
+            if ($name === '') {
+                $name = 'WhatsApp group';
+            }
+            $out[] = [
                 'id' => 'group',
                 'kind' => 'group',
                 'group_jid' => $jid,
-                'name' => $group['name'],
+                'name' => $name,
                 'phone' => '',
                 'email' => '',
             ];
         }
+        if (! $out) {
+            throw new \InvalidArgumentException('Choose at least one WhatsApp group.');
+        }
 
-        throw new \InvalidArgumentException('Choose a WhatsApp group from the list. Open Groups first if the name is still loading.');
+        return $out;
     }
 
     protected function whatsappContacts()

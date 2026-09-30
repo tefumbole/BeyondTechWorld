@@ -92,14 +92,29 @@ class AnnouncementManagerController extends Controller
         ]);
     }
 
+    public function lookupGroups(Request $request)
+    {
+        $this->authorizeAnnouncements('announcements.create');
+        @set_time_limit(90);
+        $jids = preg_split('/\s*,\s*/', trim((string) $request->query('jids', '')));
+        $jids = array_values(array_filter((array) $jids, function ($jid) {
+            return substr((string) $jid, -5) === '@g.us';
+        }));
+
+        return response()->json(
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->enrich(array_slice($jids, 0, 8))
+        );
+    }
+
     public function compose(Request $request)
     {
         $this->authorizeAnnouncements('announcements.create');
+        @set_time_limit(90);
         $users = $this->usersJson();
         $categories = $this->announcements->categories();
         $templates = $this->announcements->templates();
         $settings = $this->announcements->settings();
-        $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
+        $waGroups = app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
         $clone = null;
         if ($request->filled('clone')) {
             $src = WaAnnouncement::find($request->get('clone'));
@@ -151,7 +166,7 @@ class AnnouncementManagerController extends Controller
             'recipient_ids' => $request->input('recipient_ids', []),
             'cc_ids' => $request->input('cc_ids', []),
             'audience' => $request->input('audience', 'people'),
-            'group_jid' => $request->input('group_jid'),
+            'group_jids' => $request->input('group_jids', []),
             'send_whatsapp' => $request->has('send_whatsapp') ? true : ((string) $request->input('send_whatsapp', '1') === '1'),
             'send_mode' => $request->input('send_mode', 'now'),
             'schedule_at' => $request->input('schedule_at'),

@@ -134,17 +134,31 @@
                             <button type="button" class="an-pill an-audience" data-audience="contacts">All WhatsApp contacts</button>
                         </div>
                         <div id="an-group-box" class="mb-3" style="display:none;">
-                            <label class="an-label">Group</label>
-                            <select name="group_jid" id="an-group-jid" class="an-field">
-                                <option value="">Choose a group</option>
-                                @foreach(($waGroups ?? []) as $group)
-                                    <option value="{{ $group['jid'] }}" data-members="{{ $group['members'] }}">{{ $group['name'] }}@if($group['members'] !== null) ({{ number_format($group['members']) }} contacts)@endif</option>
-                                @endforeach
-                            </select>
-                            <div class="an-info">The message is posted in the selected WhatsApp group, so everyone in that group receives it.</div>
-                            @if(empty($waGroups))
-                                <div class="an-info">No group names are saved yet. Open WhatsApp Hub → Groups and leave it open until the names finish loading, then come back here.</div>
-                            @endif
+                            <label class="an-label">Groups</label>
+                            <input type="search" id="an-group-search" class="an-field mb-2" placeholder="Search a group, for example NBC Praise Team">
+                            <div class="d-flex mb-2" style="gap:8px;">
+                                <button type="button" class="an-btn-outline" id="an-group-visible">Select shown</button>
+                                <button type="button" class="an-btn-outline" id="an-group-clear">Clear</button>
+                            </div>
+                            <p id="an-group-progress" class="text-muted small mb-2" style="display:none"></p>
+                            <div id="an-group-list" class="an-user-list" style="max-height:280px;">
+                                @forelse(($waGroups ?? []) as $group)
+                                    <label class="an-user-item an-group-row" data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                        <input type="checkbox" name="group_jids[]" value="{{ $group['jid'] }}">
+                                        <span>
+                                            <span class="an-group-label">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</span>
+                                            @if($group['members'] !== null)
+                                                <span class="meta an-group-count"> · {{ number_format($group['members']) }} contacts</span>
+                                            @else
+                                                <span class="meta an-group-count"></span>
+                                            @endif
+                                        </span>
+                                    </label>
+                                @empty
+                                    <div class="p-3 text-muted small">No WhatsApp groups were returned for this account.</div>
+                                @endforelse
+                            </div>
+                            <div class="an-info">Tick one or more groups. The message is posted in each selected group, so everyone in those groups receives it. Names still loading will appear in this list; search again after they show up.</div>
                         </div>
                         <div id="an-contacts-box" class="mb-3" style="display:none;">
                             <div class="an-info">A personal WhatsApp message is sent to every contact saved on the connected WhatsApp account.</div>
@@ -549,9 +563,9 @@ window.AN_PRESELECT = @json([
     document.getElementById('an-form').addEventListener('submit', function (e) {
         var audience = document.getElementById('an-audience').value;
         if (audience === 'group') {
-            if (!document.getElementById('an-group-jid').value) {
+            if (!document.querySelectorAll('#an-group-list input:checked').length) {
                 e.preventDefault();
-                alert('Choose a WhatsApp group.');
+                alert('Choose at least one WhatsApp group.');
             }
             return;
         }
@@ -577,21 +591,107 @@ window.AN_PRESELECT = @json([
             if (audience === 'contacts') {
                 count.textContent = 'All';
             } else if (audience === 'group') {
-                var opt = document.getElementById('an-group-jid').selectedOptions[0];
-                count.textContent = opt && opt.getAttribute('data-members') ? opt.getAttribute('data-members') : '1';
+                count.textContent = String(document.querySelectorAll('#an-group-list input:checked').length);
             } else {
                 count.textContent = String(recipients.length);
             }
         });
     });
-    var groupPick = document.getElementById('an-group-jid');
-    if (groupPick) {
-        groupPick.addEventListener('change', function () {
-            if (document.getElementById('an-audience').value !== 'group') return;
-            var opt = groupPick.selectedOptions[0];
-            document.getElementById('an-count').textContent = opt && opt.getAttribute('data-members') ? opt.getAttribute('data-members') : '1';
+    var groupList = document.getElementById('an-group-list');
+    var groupSearch = document.getElementById('an-group-search');
+    function groupRows() {
+        return groupList ? Array.prototype.slice.call(groupList.querySelectorAll('.an-group-row')) : [];
+    }
+    function updateGroupCount() {
+        if (document.getElementById('an-audience').value !== 'group') return;
+        document.getElementById('an-count').textContent = String(document.querySelectorAll('#an-group-list input:checked').length);
+    }
+    if (groupList) {
+        groupList.addEventListener('change', updateGroupCount);
+    }
+    if (groupSearch) {
+        groupSearch.addEventListener('input', function () {
+            var q = groupSearch.value.toLowerCase().trim();
+            groupRows().forEach(function (row) {
+                var name = (row.querySelector('.an-group-label') ? row.querySelector('.an-group-label').textContent : '').toLowerCase();
+                row.style.display = !q || name.indexOf(q) !== -1 ? 'flex' : 'none';
+            });
         });
     }
+    var selectShown = document.getElementById('an-group-visible');
+    if (selectShown) {
+        selectShown.addEventListener('click', function () {
+            groupRows().forEach(function (row) {
+                if (row.style.display === 'none') return;
+                var box = row.querySelector('input');
+                if (box) box.checked = true;
+            });
+            updateGroupCount();
+        });
+    }
+    var clearGroups = document.getElementById('an-group-clear');
+    if (clearGroups) {
+        clearGroups.addEventListener('click', function () {
+            groupRows().forEach(function (row) {
+                var box = row.querySelector('input');
+                if (box) box.checked = false;
+            });
+            updateGroupCount();
+        });
+    }
+    (function loadGroupNames() {
+        var progress = document.getElementById('an-group-progress');
+        var lookupUrl = @json(route('announcements.groups.lookup'));
+        function pending() {
+            return groupRows().filter(function (row) {
+                return row.getAttribute('data-known') !== '1';
+            }).map(function (row) { return row.getAttribute('data-jid'); });
+        }
+        function paint(group) {
+            var row = groupList.querySelector('.an-group-row[data-jid="' + String(group.jid).replace(/"/g, '\\"') + '"]');
+            if (!row || !group.name) return;
+            row.setAttribute('data-known', '1');
+            var label = row.querySelector('.an-group-label');
+            if (label) label.textContent = group.name;
+            var count = row.querySelector('.an-group-count');
+            if (count && group.members !== null && group.members !== undefined) {
+                count.textContent = ' · ' + Number(group.members).toLocaleString() + ' contacts';
+            }
+            var body = row.parentNode;
+            var placed = false;
+            Array.prototype.slice.call(body.querySelectorAll('.an-group-row[data-known="1"]')).forEach(function (other) {
+                if (other === row || placed) return;
+                var otherName = other.querySelector('.an-group-label').textContent;
+                if (group.name.toLowerCase() < otherName.toLowerCase()) {
+                    body.insertBefore(row, other);
+                    placed = true;
+                }
+            });
+        }
+        function tick() {
+            var jids = pending();
+            if (!jids.length) {
+                if (progress) progress.style.display = 'none';
+                return;
+            }
+            if (progress) {
+                progress.style.display = '';
+                progress.textContent = 'Loading every group name (' + (groupRows().length - jids.length) + ' of ' + groupRows().length + '). Search works as each name appears.';
+            }
+            fetch(lookupUrl + '?jids=' + encodeURIComponent(jids.slice(0, 8).join(',')), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            }).then(function (response) { return response.json(); }).then(function (payload) {
+                (payload && payload.groups ? payload.groups : []).forEach(paint);
+                if (groupSearch && groupSearch.value) groupSearch.dispatchEvent(new Event('input'));
+                if (pending().length) setTimeout(tick, Math.max(5, (payload && payload.retry_after) ? payload.retry_after : 60) * 1000);
+                else if (progress) progress.style.display = 'none';
+            }).catch(function () {
+                if (pending().length) setTimeout(tick, 60000);
+            });
+        }
+        if (pending().length) tick();
+    })();
 
     refreshRecipients();
     refreshCc();

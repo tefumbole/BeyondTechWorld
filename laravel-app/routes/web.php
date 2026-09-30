@@ -466,6 +466,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     // WhatsApp Announcements Manager (AlphaBridge-style)
     Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');
+    Route::get('/admin/announcements/groups/lookup', 'AnnouncementManagerController@lookupGroups')->name('announcements.groups.lookup');
     Route::get('/admin/announcements/users/search', 'AnnouncementManagerController@searchUsers')->name('announcements.users.search');
     Route::post('/admin/announcements/quick-recipient', 'AnnouncementManagerController@quickRecipient')->name('announcements.quick_recipient');
     Route::post('/admin/announcements', 'AnnouncementManagerController@store')->name('announcements.store');
