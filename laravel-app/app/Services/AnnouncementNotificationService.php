@@ -349,8 +349,9 @@ class AnnouncementNotificationService extends Controller
             if ($signoff === '') {
                 $signoff = \App\Support\WhatsAppMessage::companyName();
             }
-            if (trim($signoff) !== '') {
-                $msg .= "\n_".trim($signoff).'_';
+            $signoff = \App\Support\AnnouncementPersonalization::italicSignoff($signoff);
+            if ($signoff !== '') {
+                $msg .= "\n".$signoff;
             }
             if ($this->sendPhone($phone, $msg)) {
                 $sent++;

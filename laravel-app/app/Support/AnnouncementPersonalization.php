@@ -80,11 +80,34 @@ class AnnouncementPersonalization
         if ($signoff === '') {
             $signoff = trim(WhatsAppMessage::companyName());
         }
+        $signoff = self::italicSignoff($signoff);
         if ($signoff !== '') {
-            $msg .= "\n\n_".$signoff.'_';
+            $msg .= "\n\n".$signoff;
         }
 
         return trim($msg)."\n";
+    }
+
+    /**
+     * One italic WhatsApp line per footer line, so a typed footer stays the last lines.
+     */
+    public static function italicSignoff($text)
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", trim((string) $text));
+        if ($text === '') {
+            return '';
+        }
+        $lines = preg_split('/\n+/', $text);
+        $out = [];
+        foreach ($lines as $line) {
+            $line = trim(str_replace('_', ' ', (string) $line));
+            if ($line === '') {
+                continue;
+            }
+            $out[] = '_'.$line.'_';
+        }
+
+        return implode("\n", $out);
     }
 
     public static function usableName($name, $phone = '')

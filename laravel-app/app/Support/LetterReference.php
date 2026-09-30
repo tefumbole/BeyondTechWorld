@@ -124,7 +124,8 @@ class LetterReference
     /**
      * Stamp a shared letter serial on a WhatsApp body.
      * Subject / heading always stays first (chat preview).
-     * Ref sits immediately above the italic system title (company name).
+     * Ref sits immediately above the closing line.
+     * A footer the sender typed stays last. The system title is used only when that footer is blank.
      * Reuses an existing letter-style serial instead of allocating a second one.
      */
     public static function applyToMessage($body, $source = 'whatsapp'): string
@@ -146,7 +147,6 @@ class LetterReference
         }
 
         $body = self::stripRefLines($body);
-        $body = self::stripTrailingSystemTitle($body);
 
         return self::insertBeforeFooter($body, self::label($ref));
     }
@@ -177,33 +177,59 @@ class LetterReference
         return trim((string) $stripped, "\n");
     }
 
-    /** Remove a trailing italic company title so we can re-attach it after Ref. */
+    /** Remove a trailing italic system title so we can re-attach it after Ref. */
     public static function stripTrailingSystemTitle(string $body): string
     {
         $body = rtrim(str_replace(["\r\n", "\r"], "\n", $body));
-        $title = preg_quote(self::systemTitleLine(), '#');
-        $stripped = preg_replace('#(?:\n+'.$title.')+\s*$#u', '', $body);
-        $stripped = preg_replace('#(?:\n+_[^_\n]+_)\s*$#u', '', (string) $stripped);
+        $title = self::systemTitleLine();
+        if (strcasecmp($body, $title) === 0) {
+            return '';
+        }
+        $quoted = preg_quote($title, '#');
+        $stripped = preg_replace('#(?:\n+'.$quoted.')+\s*$#iu', '', $body);
 
         return rtrim((string) $stripped);
     }
 
     /**
-     * Place Ref immediately above the italic system title at the bottom.
-     * Never prepends Ref — the subject block must remain the first lines.
+     * A custom italic footer the sender typed. The system title is not a custom footer.
+     */
+    public static function customFooterBlock(string $body): string
+    {
+        $body = rtrim(str_replace(["\r\n", "\r"], "\n", $body));
+        if (! preg_match('#(?:^|\n)((?:_[^_\n]+_\n?)+)\s*$#u', $body, $match)) {
+            return '';
+        }
+        $block = rtrim($match[1]);
+        if (strcasecmp($block, self::systemTitleLine()) === 0) {
+            return '';
+        }
+
+        return $block;
+    }
+
+    /**
+     * Place Ref immediately above the closing line.
+     * A footer the sender typed stays at the bottom. The system title is used only when there is no footer.
      */
     public static function insertBeforeFooter(string $body, string $label): string
     {
         $body = self::stripTrailingSystemTitle($body);
-        $title = self::systemTitleLine();
+        $custom = self::customFooterBlock($body);
+        if ($custom !== '') {
+            $quoted = preg_quote($custom, '#');
+            $body = rtrim((string) preg_replace('#(?:\n+'.$quoted.')+\s*$#u', '', $body));
+            $signoff = $custom;
+        } else {
+            $signoff = self::systemTitleLine();
+        }
         if ($label === '') {
-            return $body === '' ? $title : $body."\n\n".$title;
+            return $body === '' ? $signoff : $body."\n\n".$signoff;
         }
-
         if ($body === '') {
-            return $label."\n".$title;
+            return $label."\n".$signoff;
         }
 
-        return $body."\n\n".$label."\n".$title;
+        return $body."\n\n".$label."\n".$signoff;
     }
 }
