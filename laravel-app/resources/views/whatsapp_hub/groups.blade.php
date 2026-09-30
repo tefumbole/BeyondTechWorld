@@ -5,7 +5,7 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         <h1 class="wa-title">WhatsApp Groups</h1>
-        <p class="wa-sub">Group name and member count. Download contacts for one group at a time.</p>
+        <p class="wa-sub">Click a group to see the contact names in that group.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
@@ -16,19 +16,16 @@
         <div class="wa-card table-responsive">
             <table class="table" id="group-table">
                 <thead>
-                    <tr><th>Group</th><th>Members</th><th></th></tr>
+                    <tr><th>Group</th><th>Contacts</th></tr>
                 </thead>
                 <tbody>
                 @forelse($groups as $group)
                     <tr data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}">
-                        <td class="group-name">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</td>
-                        <td class="group-members">{{ $group['members'] === null ? '…' : number_format($group['members']) }}</td>
-                        <td>
-                            <a class="btn btn-sm btn-primary" href="{{ route('whatsapp.groups.export', ['jid' => $group['jid']]) }}">Download contacts</a>
-                        </td>
+                        <td class="group-name"><a href="{{ route('whatsapp.groups.show', ['jid' => $group['jid']]) }}">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</a></td>
+                        <td class="group-members"><a href="{{ route('whatsapp.groups.show', ['jid' => $group['jid']]) }}">{{ $group['members'] === null ? '…' : number_format($group['members']) }}</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="3">No groups were returned for this WhatsApp account.</td></tr>
+                    <tr><td colspan="2">No groups were returned for this WhatsApp account.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -67,10 +64,14 @@
                     var row = table.querySelector('tr[data-jid="' + group.jid.replace(/"/g, '\\"') + '"]');
                     if (!row || !group.name) return;
                     row.setAttribute('data-known', '1');
-                    row.querySelector('.group-name').textContent = group.name;
-                    row.querySelector('.group-members').textContent = group.members === null || group.members === undefined
-                        ? '…'
-                        : Number(group.members).toLocaleString();
+                    var nameLink = row.querySelector('.group-name a');
+                    var countLink = row.querySelector('.group-members a');
+                    if (nameLink) nameLink.textContent = group.name;
+                    if (countLink) {
+                        countLink.textContent = group.members === null || group.members === undefined
+                            ? '…'
+                            : Number(group.members).toLocaleString();
+                    }
                     var body = row.parentNode;
                     var placed = false;
                     Array.prototype.slice.call(body.querySelectorAll('tr[data-known="1"]')).forEach(function (other) {

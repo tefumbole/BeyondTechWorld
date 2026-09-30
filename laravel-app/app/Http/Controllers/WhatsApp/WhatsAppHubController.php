@@ -471,6 +471,30 @@ class WhatsAppHubController extends Controller
         );
     }
 
+    public function showGroup(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(60);
+        $jid = trim((string) $request->query('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        $export = app(\App\Services\WhatsApp\GroupContactExportService::class)->rowsForGroup($jid);
+        $groupName = isset($export['name']) ? $export['name'] : 'Group';
+        $contacts = isset($export['rows']) ? $export['rows'] : [];
+        usort($contacts, function ($a, $b) {
+            $left = trim((string) $a['name']) !== '' ? $a['name'] : $a['phone'];
+            $right = trim((string) $b['name']) !== '' ? $b['name'] : $b['phone'];
+
+            return strcasecmp((string) $left, (string) $right);
+        });
+        $listError = empty($export['success']) ? (isset($export['error']) ? $export['error'] : 'Could not load this group.') : null;
+
+        return view('whatsapp_hub.group', compact('groupName', 'contacts', 'jid', 'listError'));
+    }
+
     public function exportGroupContacts(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
