@@ -6,7 +6,7 @@
     <div class="container-fluid wa-shell">
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
-        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
+        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Fetch on a row looks up that one number. Fetch contacts loads the whole group. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
@@ -47,6 +47,12 @@
                         </td>
                         <td class="contact-phone">{{ $phone !== '' ? $phone : '—' }}</td>
                         <td style="white-space:nowrap">
+                            <form method="POST" action="{{ route('whatsapp.groups.fetch_member') }}" style="display:inline">
+                                @csrf
+                                <input type="hidden" name="jid" value="{{ $jid }}">
+                                <input type="hidden" name="phone" value="{{ $phone }}">
+                                <button type="submit" class="btn btn-sm btn-info">Fetch</button>
+                            </form>
                             <form method="POST" action="{{ route($excluded ? 'whatsapp.groups.include' : 'whatsapp.groups.exclude') }}" style="display:inline">
                                 @csrf
                                 <input type="hidden" name="jid" value="{{ $jid }}">

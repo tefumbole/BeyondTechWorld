@@ -681,6 +681,66 @@ class GroupContactExportService
         return $pending;
     }
 
+    public function fetchMemberName($jid, $phone)
+    {
+        $jid = trim((string) $jid);
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (substr($jid, -5) !== '@g.us' || $digits === '') {
+            throw new \InvalidArgumentException('Choose a person in this group.');
+        }
+        $people = $this->readMembers($jid);
+        $index = null;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $row = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            $tail = strlen($digits) > 9 ? substr($digits, -9) : $digits;
+            if ($row === $digits || ($tail !== '' && substr($row, -9) === $tail)) {
+                $index = $i;
+                break;
+            }
+        }
+        if ($index === null) {
+            throw new \InvalidArgumentException('That number is not in this group.');
+        }
+        if (! empty($people[$index]['name_edited'])) {
+            $kept = trim((string) (isset($people[$index]['name']) ? $people[$index]['name'] : ''));
+            if ($this->isPersonName($kept, $digits)) {
+                return ['success' => true, 'named' => true, 'kept' => true];
+            }
+        }
+        $display = $this->savedDisplayName($digits);
+        if ($display !== '') {
+            $people[$index]['name'] = $display;
+            $people[$index]['name_edited'] = 1;
+            unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+            $this->writeMembers($jid, $people);
+
+            return ['success' => true, 'named' => true, 'kept' => true];
+        }
+        unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+        $resolved = $this->resolvePersonName($digits, $this->profileNames(false), $this->savedNames());
+        if ($resolved === null) {
+            $this->writeMembers($jid, $people);
+
+            return ['success' => false, 'busy' => true, 'named' => false];
+        }
+        if ($this->isPersonName($resolved, $digits)) {
+            $people[$index]['name'] = $resolved;
+            unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+            $this->rememberContact($digits, $resolved);
+            $this->writeMembers($jid, $people);
+
+            return ['success' => true, 'named' => true];
+        }
+        $people[$index]['name_checked'] = time();
+        $people[$index]['name_attempts'] = 0;
+        $this->writeMembers($jid, $people);
+
+        return ['success' => true, 'named' => false];
+    }
+
     public function excludeMember($jid, $phone)
     {
         return $this->setMemberExcluded($jid, $phone, true);

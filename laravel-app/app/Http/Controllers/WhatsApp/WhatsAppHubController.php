@@ -526,6 +526,39 @@ class WhatsAppHubController extends Controller
         return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
     }
 
+    public function fetchGroupMember(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(60);
+        $jid = trim((string) $request->input('jid', ''));
+        $phone = trim((string) $request->input('phone', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        try {
+            $result = app(\App\Services\WhatsApp\GroupContactExportService::class)->fetchMemberName($jid, $phone);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('not_permitted', $e->getMessage());
+        }
+        if (! empty($result['busy'])) {
+            $message = 'WhatsApp is busy. Fetch that number again in a moment.';
+            $key = 'not_permitted';
+        } elseif (! empty($result['kept'])) {
+            $message = 'That number already has a saved name, so it was left as you wrote it.';
+            $key = 'message';
+        } elseif (! empty($result['named'])) {
+            $message = 'Fetched a name for that number.';
+            $key = 'message';
+        } else {
+            $message = 'No name was found for that number on WhatsApp or Campay.';
+            $key = 'message';
+        }
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with($key, $message);
+    }
+
     public function excludeGroupMember(Request $request)
     {
         return $this->changeGroupMember($request, 'exclude');

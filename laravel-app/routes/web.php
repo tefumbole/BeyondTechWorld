@@ -520,6 +520,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/groups/fetch', 'WhatsApp\WhatsAppHubController@fetchGroups')->name('whatsapp.groups.fetch');
     Route::post('/admin/whatsapp/groups/fetch-contacts', 'WhatsApp\WhatsAppHubController@fetchGroupContacts')->name('whatsapp.groups.fetch_contacts');
     Route::post('/admin/whatsapp/groups/resolve', 'WhatsApp\WhatsAppHubController@resolveGroup')->name('whatsapp.groups.resolve');
+    Route::post('/admin/whatsapp/groups/fetch-member', 'WhatsApp\WhatsAppHubController@fetchGroupMember')->name('whatsapp.groups.fetch_member');
     Route::post('/admin/whatsapp/groups/exclude', 'WhatsApp\WhatsAppHubController@excludeGroupMember')->name('whatsapp.groups.exclude');
     Route::post('/admin/whatsapp/groups/include', 'WhatsApp\WhatsAppHubController@includeGroupMember')->name('whatsapp.groups.include');
     Route::post('/admin/whatsapp/groups/remove', 'WhatsApp\WhatsAppHubController@deleteGroupMember')->name('whatsapp.groups.remove');
