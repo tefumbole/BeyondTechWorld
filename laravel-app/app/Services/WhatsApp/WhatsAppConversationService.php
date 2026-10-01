@@ -247,6 +247,10 @@ class WhatsAppConversationService
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }
+        $command = strtoupper(preg_replace('/\s+/', ' ', $body));
+        if ($command === 'AI OFF' || $command === 'AI ON') {
+            return $this->switchModeFromReply($conversation, $command === 'AI ON', $userId);
+        }
         if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;
             if ($userId) {
@@ -389,6 +393,30 @@ class WhatsAppConversationService
         $this->event($conversation, WhatsAppConversationEvent::ASSIGNED, $userId ? 'Assigned to #'.$userId : 'Unassigned', $actorId);
 
         return $conversation;
+    }
+
+    protected function switchModeFromReply(WhatsAppConversation $conversation, $aiOn, $userId = null)
+    {
+        if ($aiOn) {
+            $conversation->mode = WhatsAppConversation::MODE_AI;
+            $conversation->assigned_user_id = null;
+            if ($conversation->status === WhatsAppConversation::STATUS_CLOSED) {
+                $conversation->status = WhatsAppConversation::STATUS_OPEN;
+            }
+            $conversation->save();
+            $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI ON switched this chat to AI mode', $userId);
+            $this->resumeLatestCustomerMessage($conversation);
+
+            return ['success' => true, 'mode' => WhatsAppConversation::MODE_AI];
+        }
+        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+        if ($userId) {
+            $conversation->assigned_user_id = $userId;
+        }
+        $conversation->save();
+        $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI OFF switched this chat to Human mode', $userId);
+
+        return ['success' => true, 'mode' => WhatsAppConversation::MODE_HUMAN];
     }
 
     public function enableAi(WhatsAppConversation $conversation, $userId = null)

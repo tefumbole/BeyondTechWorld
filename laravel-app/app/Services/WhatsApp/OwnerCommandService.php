@@ -174,14 +174,17 @@ class OwnerCommandService
     {
         WhatsAppSetting::putValue('assistant_enabled', $on ? '1' : '0');
         if (! $on) {
-            return 'Beyond Assistant is disabled. Automatic AI replies are off.';
+            WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+            $switched = app(ConversationAiSwitchService::class)->holdOpenConversations();
+
+            return 'Human mode is on. '.$switched.' open chat(s) are now with a person, and AI will stay quiet until you send AI On.';
         }
 
         WhatsAppSetting::putValue('default_conversation_mode', 'AI');
         WhatsAppSetting::putValue('ai_first', '1');
         $switched = app(ConversationAiSwitchService::class)->resumeOpenConversations();
 
-        return 'Beyond Assistant is on. '.$switched.' open chat(s) are back with AI and will continue from the messages already in the thread. Paused and closed chats were left alone.';
+        return 'AI mode is on. '.$switched.' open chat(s) are with AI and will continue from the messages already in the thread. Paused and closed chats were left alone.';
     }
 
     protected function setAiFirst($on)

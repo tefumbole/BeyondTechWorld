@@ -175,9 +175,16 @@ class WhatsAppHubController extends Controller
             return redirect()->route('whatsapp.conversation', $conversation->id)
                 ->with('not_permitted', $result['error'] ?? 'Send failed.');
         }
+        if (isset($result['mode']) && $result['mode'] === WhatsAppConversation::MODE_HUMAN) {
+            $notice = 'Human mode is on for this chat. AI will stay quiet until you send AI On.';
+        } elseif (isset($result['mode']) && $result['mode'] === WhatsAppConversation::MODE_AI) {
+            $notice = 'AI mode is on for this chat. It will continue from the messages already here.';
+        } else {
+            $notice = 'Message sent.';
+        }
 
         return redirect()->route('whatsapp.conversation', $conversation->id)
-            ->with('message', 'Message sent.');
+            ->with('message', $notice);
     }
 
     public function tracking(Request $request)
