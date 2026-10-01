@@ -21,9 +21,14 @@ class ResolveWhatsAppGroupsJob implements ShouldQueue
     public function handle(GroupContactExportService $groups)
     {
         Cache::put('wa_group_resolve', 1, 80);
-        $remaining = $groups->resolveNext(5);
+        $remaining = $groups->resolveNext(3);
+        if ($remaining === 0) {
+            $remaining = $groups->syncMissingMembers(3);
+        }
         if ($remaining > 0) {
             static::dispatch()->delay(70)->onConnection('database')->onQueue('whatsapp');
+        } else {
+            ResolveWhatsAppContactNamesJob::dispatch(null)->delay(2)->onConnection('database')->onQueue('whatsapp');
         }
     }
 }

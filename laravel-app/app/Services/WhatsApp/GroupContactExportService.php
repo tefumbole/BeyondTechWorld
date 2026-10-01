@@ -402,6 +402,87 @@ class GroupContactExportService
         return count($this->unresolvedJids() ?: []);
     }
 
+    public function syncMissingMembers($limit = 3)
+    {
+        $listed = app(BeyondWasenderService::class)->listGroups();
+        if (empty($listed['success'])) {
+            return 1;
+        }
+        $saved = $this->readDirectory();
+        $missing = [];
+        $groups = isset($listed['groups']) ? $listed['groups'] : [];
+        foreach ($groups as $group) {
+            $jid = isset($group['jid']) ? (string) $group['jid'] : '';
+            if ($jid === '' || is_file($this->membersPath($jid))) {
+                continue;
+            }
+            $missing[] = $jid;
+        }
+        if (! $missing) {
+            return 0;
+        }
+        $now = time();
+        $ready = [];
+        foreach ($missing as $jid) {
+            $attempted = isset($saved[$jid]['members_attempted_at']) ? (int) $saved[$jid]['members_attempted_at'] : 0;
+            if ($now - $attempted >= 180) {
+                $ready[] = $jid;
+            }
+        }
+        if (! $ready) {
+            return count($missing);
+        }
+        $wasender = app(BeyondWasenderService::class);
+        foreach (array_slice($ready, 0, max(1, (int) $limit)) as $jid) {
+            $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+            $row['members_attempted_at'] = $now;
+            $profile = $wasender->groupProfile($jid);
+            if (! empty($profile['rate_limited'])) {
+                $saved[$jid] = $row;
+                $this->writeDirectory($saved);
+
+                return count($missing);
+            }
+            $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+            if ($name !== '' && (empty($row['name']) || strpos((string) $row['name'], '@g.us') !== false)) {
+                $row['name'] = $name;
+            }
+            $people = isset($profile['participants']) ? $profile['participants'] : [];
+            $contacts = [];
+            foreach ($people as $person) {
+                $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+                if ($phone === '') {
+                    continue;
+                }
+                $display = trim((string) (isset($person['name']) ? $person['name'] : ''));
+                if ($display === '') {
+                    $display = $this->knownName($phone);
+                }
+                $contacts[] = [
+                    'phone' => $phone,
+                    'name' => $display,
+                    'role' => isset($person['role']) ? $person['role'] : 'member',
+                ];
+            }
+            if ($contacts || ! empty($profile['success'])) {
+                if ($contacts) {
+                    $row['members'] = count($contacts);
+                    $this->writeMembers($jid, $contacts);
+                }
+            }
+            $saved[$jid] = $row;
+        }
+        $this->writeDirectory($saved);
+        $left = 0;
+        foreach ($missing as $jid) {
+            if (! is_file($this->membersPath($jid))) {
+                $left++;
+            }
+        }
+
+        return $left;
+    }
+
     public function scheduleResolve()
     {
         $pending = $this->unresolvedJids();
