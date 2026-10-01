@@ -1549,7 +1549,46 @@ class GroupContactExportService
     protected function resolvePersonName($phone, array $map, array $others)
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);
-        $fromMap = $this->registeredWhatsAppName($phone, $map);
+        $name = $this->resolveOneNumber($digits, $map, $others);
+        if ($this->isPersonName($name, $digits)) {
+            return $name;
+        }
+        $alt = $this->cameroonLookupDigits($digits);
+        if ($alt === '' || $alt === $digits) {
+            return $name;
+        }
+        $altName = $this->resolveOneNumber($alt, $map, $others);
+        if ($this->isPersonName($altName, $alt)) {
+            return $altName;
+        }
+        if ($name === null && $altName === null) {
+            return null;
+        }
+
+        return $name === null ? $altName : $name;
+    }
+
+    /**
+     * WhatsApp sometimes drops the leading 6 from a Cameroon mobile.
+     * 23775321739 is looked up as 237675321739. The stored number stays unchanged.
+     */
+    protected function cameroonLookupDigits($digits)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $digits);
+        if (strpos($digits, '237') !== 0) {
+            return '';
+        }
+        $national = substr($digits, 3);
+        if ($national === '' || strlen($national) >= 9 || $national[0] === '6') {
+            return '';
+        }
+
+        return '2376'.$national;
+    }
+
+    protected function resolveOneNumber($digits, array $map, array $others)
+    {
+        $fromMap = $this->registeredWhatsAppName($digits, $map);
         if ($this->isPersonName($fromMap, $digits)) {
             return $fromMap;
         }
@@ -1566,7 +1605,7 @@ class GroupContactExportService
         if ($tail !== '' && isset($others[$tail]) && $this->isPersonName($others[$tail], $digits)) {
             return $others[$tail];
         }
-        $known = $this->knownName($phone);
+        $known = $this->knownName($digits);
         if ($this->isPersonName($known, $digits)) {
             return $known;
         }

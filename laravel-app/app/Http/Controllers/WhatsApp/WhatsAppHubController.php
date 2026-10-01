@@ -543,13 +543,13 @@ class WhatsAppHubController extends Controller
             return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('not_permitted', $e->getMessage());
         }
         if (! empty($result['busy'])) {
-            $message = 'WhatsApp is busy. Fetch that number again in a moment.';
+            $message = 'WhatsApp is busy. Resolve that number again in a moment.';
             $key = 'not_permitted';
         } elseif (! empty($result['kept'])) {
             $message = 'That number already has a saved name, so it was left as you wrote it.';
             $key = 'message';
         } elseif (! empty($result['named'])) {
-            $message = 'Fetched a name for that number.';
+            $message = 'Resolved a name for that number.';
             $key = 'message';
         } else {
             $message = 'No name was found for that number on WhatsApp or Campay.';
