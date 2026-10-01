@@ -399,7 +399,12 @@ class GroupContactExportService
         }
         $this->writeDirectory($saved);
 
-        return count($this->unresolvedJids() ?: []);
+        $left = $this->unresolvedJids();
+        if ($left === null) {
+            return 1;
+        }
+
+        return count($left);
     }
 
     public function syncMissingMembers($limit = 3)
