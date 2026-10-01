@@ -681,6 +681,46 @@ class GroupContactExportService
         return $pending;
     }
 
+    public function resolveUnnamedByCampay($jid)
+    {
+        $jid = trim((string) $jid);
+        $this->rewriteShortCameroonPhones($jid);
+        $people = $this->readMembers($jid);
+        $named = 0;
+        $still = 0;
+        $dirty = false;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $digits = preg_replace('/\D+/', '', $phone);
+            $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            if ($this->isPersonName($current, $digits) || $this->savedDisplayName($digits) !== '') {
+                continue;
+            }
+            if (! $this->isCameroon($digits)) {
+                $still++;
+                continue;
+            }
+            $name = $this->campayPersonName($digits);
+            if (! $this->isPersonName($name, $digits)) {
+                $still++;
+                continue;
+            }
+            $people[$i]['name'] = $name;
+            unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+            $this->rememberContact($digits, $name);
+            $named++;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $this->writeMembers($jid, $people);
+        }
+
+        return ['named' => $named, 'still' => $still];
+    }
+
     public function rewriteShortCameroonPhones($jid = null)
     {
         $jid = trim((string) $jid);
@@ -1653,6 +1693,12 @@ class GroupContactExportService
         if ($this->isPersonName($fromMap, $digits)) {
             return $fromMap;
         }
+        if ($this->isCameroon($digits)) {
+            $campayName = $this->campayPersonName($digits);
+            if ($this->isPersonName($campayName, $digits)) {
+                return $campayName;
+            }
+        }
         $record = $this->lookupContactRecord($digits);
         if (is_array($record)) {
             if ($this->isPersonName($record['profile'], $digits)) {
@@ -1677,17 +1723,22 @@ class GroupContactExportService
         if (! $this->isCameroon($digits)) {
             return $record === null ? null : '';
         }
+
+        return $record === null ? null : '';
+    }
+
+    protected function campayPersonName($digits)
+    {
         try {
             $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
         } catch (\Throwable $e) {
             return null;
         }
-        $name = isset($hit['name']) ? trim((string) $hit['name']) : '';
-        if ($this->isPersonName($name, $digits)) {
-            return $name;
+        if (! is_array($hit)) {
+            return '';
         }
 
-        return $record === null ? null : '';
+        return isset($hit['name']) ? trim((string) $hit['name']) : '';
     }
 
     protected function recentlyChecked($phone)
