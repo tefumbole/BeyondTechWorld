@@ -502,6 +502,166 @@ class GroupContactExportService
             ->onQueue('whatsapp');
     }
 
+    public function fetchNewGroups()
+    {
+        $before = [];
+        foreach ($this->readDirectory() as $jid => $row) {
+            if (substr((string) $jid, -5) === '@g.us') {
+                $before[(string) $jid] = true;
+            }
+        }
+        $summary = $this->memberships();
+        if (empty($summary['success'])) {
+            return [
+                'success' => false,
+                'error' => isset($summary['error']) ? $summary['error'] : 'Could not fetch groups.',
+                'added' => 0,
+                'total' => count($before),
+            ];
+        }
+        $groups = isset($summary['groups']) ? $summary['groups'] : [];
+        $added = 0;
+        foreach ($groups as $group) {
+            $jid = isset($group['jid']) ? (string) $group['jid'] : '';
+            if ($jid !== '' && ! isset($before[$jid])) {
+                $added++;
+            }
+        }
+        $this->scheduleResolve();
+
+        return ['success' => true, 'added' => $added, 'total' => count($groups)];
+    }
+
+    public function fetchGroupContacts($jid)
+    {
+        $jid = trim((string) $jid);
+        if (substr($jid, -5) !== '@g.us') {
+            return ['success' => false, 'error' => 'Choose a WhatsApp group.', 'added' => 0, 'total' => 0];
+        }
+        $profile = app(BeyondWasenderService::class)->groupProfile($jid);
+        $people = isset($profile['participants']) ? $profile['participants'] : [];
+        if (! $people && empty($profile['success'])) {
+            $error = isset($profile['error']) ? (string) $profile['error'] : 'Could not fetch contacts for this group.';
+            if (! empty($profile['rate_limited'])) {
+                $error = 'WhatsApp is busy. Wait a moment and fetch this group again.';
+            }
+
+            return ['success' => false, 'error' => $error, 'added' => 0, 'total' => count($this->readMembers($jid))];
+        }
+        $existing = $this->readMembers($jid);
+        $byPhone = [];
+        foreach ($existing as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $digits = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            if ($digits === '') {
+                continue;
+            }
+            $byPhone[$digits] = $person;
+            if (strlen($digits) > 9) {
+                $byPhone[substr($digits, -9)] = $person;
+            }
+        }
+        $added = 0;
+        foreach ($people as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+            $digits = preg_replace('/\D+/', '', $phone);
+            if ($digits === '') {
+                continue;
+            }
+            $tail = strlen($digits) > 9 ? substr($digits, -9) : '';
+            $current = isset($byPhone[$digits]) ? $byPhone[$digits] : ($tail !== '' && isset($byPhone[$tail]) ? $byPhone[$tail] : null);
+            $incoming = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            if (! $this->isPersonName($incoming, $digits)) {
+                $incoming = $this->knownName($phone);
+            }
+            if ($current === null) {
+                $row = [
+                    'phone' => $phone,
+                    'name' => $this->isPersonName($incoming, $digits) ? $incoming : '',
+                    'role' => isset($person['role']) ? $person['role'] : 'member',
+                ];
+                $byPhone[$digits] = $row;
+                if ($tail !== '') {
+                    $byPhone[$tail] = $row;
+                }
+                $added++;
+                continue;
+            }
+            $currentName = isset($current['name']) ? (string) $current['name'] : '';
+            if (! $this->isPersonName($currentName, $digits) && $this->isPersonName($incoming, $digits) && empty($current['name_edited'])) {
+                $current['name'] = $incoming;
+                $key = preg_replace('/\D+/', '', (string) (isset($current['phone']) ? $current['phone'] : $digits));
+                $byPhone[$key] = $current;
+                if (strlen($key) > 9) {
+                    $byPhone[substr($key, -9)] = $current;
+                }
+            }
+        }
+        $contacts = [];
+        $seen = [];
+        foreach ($byPhone as $person) {
+            $digits = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            if ($digits === '' || isset($seen[$digits])) {
+                continue;
+            }
+            $seen[$digits] = true;
+            $contacts[] = $person;
+        }
+        $this->writeMembers($jid, $contacts);
+        $saved = $this->readDirectory();
+        $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+        $name = trim((string) (isset($profile['name']) ? $profile['name'] : ''));
+        if ($name !== '' && (empty($row['name']) || strpos((string) $row['name'], '@g.us') !== false)) {
+            $row['name'] = $name;
+        }
+        $row['members'] = count($contacts);
+        $saved[$jid] = $row;
+        $this->writeDirectory($saved);
+
+        return ['success' => true, 'added' => $added, 'total' => count($contacts)];
+    }
+
+    public function queueResolveGroup($jid)
+    {
+        $jid = trim((string) $jid);
+        if (substr($jid, -5) !== '@g.us') {
+            return 0;
+        }
+        $people = $this->readMembers($jid);
+        $pending = 0;
+        $dirty = false;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $name = isset($person['name']) ? (string) $person['name'] : '';
+            if ($this->isPersonName($name, $phone) || $this->savedDisplayName($phone) !== '') {
+                continue;
+            }
+            unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+            $pending++;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $this->writeMembers($jid, $people);
+        }
+        if ($pending < 1) {
+            return 0;
+        }
+        \Illuminate\Support\Facades\Cache::forget('wa_contact_names_'.$jid);
+        \App\Jobs\ResolveWhatsAppContactNamesJob::dispatch($jid)
+            ->onConnection('database')
+            ->onQueue('whatsapp');
+
+        return $pending;
+    }
+
     public function rowsForGroup($jid)
     {
         $jid = trim((string) $jid);

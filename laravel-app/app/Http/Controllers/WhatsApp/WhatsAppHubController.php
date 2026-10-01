@@ -456,6 +456,66 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.groups', compact('groups', 'listError'));
     }
 
+    public function fetchGroups()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(180);
+        $result = app(\App\Services\WhatsApp\GroupContactExportService::class)->fetchNewGroups();
+        if (empty($result['success'])) {
+            return back()->with('not_permitted', isset($result['error']) ? $result['error'] : 'Could not fetch groups.');
+        }
+        $added = (int) $result['added'];
+        $total = (int) $result['total'];
+        $message = $added > 0
+            ? 'Fetched '.$added.' new '.($added === 1 ? 'group' : 'groups').'. '.$total.' groups are listed.'
+            : 'Fetched the latest groups. '.$total.' groups are listed.';
+
+        return redirect()->route('whatsapp.groups')->with('message', $message);
+    }
+
+    public function fetchGroupContacts(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(120);
+        $jid = trim((string) $request->input('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        $result = app(\App\Services\WhatsApp\GroupContactExportService::class)->fetchGroupContacts($jid);
+        if (empty($result['success'])) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])
+                ->with('not_permitted', isset($result['error']) ? $result['error'] : 'Could not fetch contacts.');
+        }
+        $added = (int) $result['added'];
+        $total = (int) $result['total'];
+        $message = $added > 0
+            ? 'Fetched '.$added.' new '.($added === 1 ? 'contact' : 'contacts').'. This group has '.$total.' contacts.'
+            : 'Fetched contacts. This group has '.$total.' contacts.';
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
+    }
+
+    public function resolveGroup(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        $pending = app(\App\Services\WhatsApp\GroupContactExportService::class)->queueResolveGroup($jid);
+        $message = $pending > 0
+            ? 'Resolving '.$pending.' '.($pending === 1 ? 'number' : 'numbers').' in this group. Names appear here as they are found.'
+            : 'Every number in this group already has a name.';
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
+    }
+
     public function lookupGroups(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
@@ -499,8 +559,16 @@ class WhatsAppHubController extends Controller
             return strcasecmp((string) $left, (string) $right);
         });
         $listError = empty($export['success']) ? (isset($export['error']) ? $export['error'] : 'Could not load this group.') : null;
+        $unresolved = 0;
+        foreach ($contacts as $contact) {
+            $label = trim((string) (isset($contact['name']) ? $contact['name'] : ''));
+            $phone = isset($contact['phone']) ? (string) $contact['phone'] : '';
+            if ($label === '' || preg_match('/^\+?\d[\d\s\-]+$/', $label) || strcasecmp($label, preg_replace('/\D+/', '', $phone)) === 0) {
+                $unresolved++;
+            }
+        }
 
-        return view('whatsapp_hub.group', compact('groupName', 'contacts', 'jid', 'listError'));
+        return view('whatsapp_hub.group', compact('groupName', 'contacts', 'jid', 'listError', 'unresolved'));
     }
 
     public function groupContactNames(Request $request)

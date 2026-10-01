@@ -7,7 +7,23 @@
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
         <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved.</p>
+        @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
+        @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
+        <p class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <form method="POST" action="{{ route('whatsapp.groups.fetch_contacts') }}" style="margin:0">
+                @csrf
+                <input type="hidden" name="jid" value="{{ $jid }}">
+                <button type="submit" class="btn btn-default">Fetch contacts</button>
+            </form>
+            @if($unresolved > 0)
+                <form method="POST" action="{{ route('whatsapp.groups.resolve') }}" style="margin:0" id="resolve-form">
+                    @csrf
+                    <input type="hidden" name="jid" value="{{ $jid }}">
+                    <button type="submit" class="btn btn-primary">Resolve</button>
+                </form>
+            @endif
+        </p>
         <p class="mb-3">
             <input id="contact-filter" type="search" class="form-control" style="max-width:420px" placeholder="Search a name or phone number">
         </p>
@@ -94,6 +110,10 @@
                                 }
                             });
                             if (unnamed().length) setTimeout(refreshNames, 8000);
+                            else {
+                                var resolveForm = document.getElementById('resolve-form');
+                                if (resolveForm) resolveForm.style.display = 'none';
+                            }
                         })
                         .catch(function () {
                             if (unnamed().length) setTimeout(refreshNames, 15000);

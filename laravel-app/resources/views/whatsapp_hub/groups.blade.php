@@ -10,8 +10,12 @@
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
         <p id="group-progress" class="text-muted mb-2" style="display:none">Resolving the remaining groups into contacts. Groups you open or send to stay at the top.</p>
-        <p class="mb-3">
+        <p class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <input id="group-filter" type="search" class="form-control" style="max-width:420px" placeholder="Search a group, for example NBC Praise Team">
+            <form method="POST" action="{{ route('whatsapp.groups.fetch') }}" style="margin:0">
+                @csrf
+                <button type="submit" class="btn btn-primary">Fetch groups</button>
+            </form>
         </p>
         <div class="wa-card table-responsive">
             <table class="table" id="group-table">
