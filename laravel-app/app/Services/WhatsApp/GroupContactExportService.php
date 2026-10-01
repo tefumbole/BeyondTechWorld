@@ -101,7 +101,9 @@ class GroupContactExportService
         }
         $groups = isset($listed['groups']) ? $listed['groups'] : [];
         $saved = $this->readDirectory();
+        $seen = [];
         $rows = [];
+        $directoryChanged = false;
         foreach ($groups as $group) {
             $jid = isset($group['jid']) ? (string) $group['jid'] : '';
             $known = isset($saved[$jid]) ? $saved[$jid] : [];
@@ -111,6 +113,11 @@ class GroupContactExportService
             }
             $count = isset($known['members']) ? $known['members'] : (isset($group['member_count']) ? $group['member_count'] : null);
             $named = $name !== '' && strpos($name, '@g.us') === false;
+            if ($jid !== '' && ! isset($saved[$jid])) {
+                $saved[$jid] = ['attempted_at' => 0];
+                $directoryChanged = true;
+            }
+            $seen[$jid] = true;
             $rows[] = [
                 'name' => $named ? $name : '',
                 'jid' => $jid,
@@ -119,6 +126,25 @@ class GroupContactExportService
                 'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
                 'last_sent' => isset($known['last_sent_at']) ? (int) $known['last_sent_at'] : 0,
             ];
+        }
+        foreach ($saved as $jid => $known) {
+            $jid = (string) $jid;
+            if (isset($seen[$jid]) || substr($jid, -5) !== '@g.us') {
+                continue;
+            }
+            $name = trim((string) (isset($known['name']) ? $known['name'] : ''));
+            $named = $name !== '' && strpos($name, '@g.us') === false;
+            $rows[] = [
+                'name' => $named ? $name : '',
+                'jid' => $jid,
+                'members' => isset($known['members']) ? (int) $known['members'] : null,
+                'known' => $named,
+                'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
+                'last_sent' => isset($known['last_sent_at']) ? (int) $known['last_sent_at'] : 0,
+            ];
+        }
+        if ($directoryChanged) {
+            $this->writeDirectory($saved);
         }
         usort($rows, function ($a, $b) {
             if ($a['uses'] !== $b['uses']) {
@@ -574,7 +600,7 @@ class GroupContactExportService
                     continue;
                 }
                 $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
-                if ($checked && (time() - $checked) < 6 * 3600) {
+                if ($checked && (time() - $checked) < 30 * 60) {
                     continue;
                 }
                 if ($used >= (int) $limit) {
@@ -587,11 +613,11 @@ class GroupContactExportService
                     $attempts = isset($person['name_attempts']) ? (int) $person['name_attempts'] : 0;
                     $attempts++;
                     $people[$i]['name_attempts'] = $attempts;
-                    if ($attempts >= 2) {
+                    if ($attempts >= 4) {
                         $people[$i]['name_checked'] = time();
-                    } else {
-                        $remaining++;
+                        $people[$i]['name_attempts'] = 0;
                     }
+                    $remaining++;
                     $dirty = true;
                     continue;
                 }

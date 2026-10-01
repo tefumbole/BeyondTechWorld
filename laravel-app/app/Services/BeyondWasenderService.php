@@ -543,8 +543,9 @@ class BeyondWasenderService
         $rows = [];
         $page = 1;
         $totalPages = 1;
+        $limit = 50;
         do {
-            $fetched = $this->getJson($base.'/groups?paginated=true&page='.$page.'&limit=50');
+            $fetched = $this->getJson($base.'/groups?paginated=true&page='.$page.'&limit='.$limit);
             if (! empty($fetched['error'])) {
                 if ($rows) {
                     break;
@@ -554,10 +555,14 @@ class BeyondWasenderService
             }
             $data = isset($fetched['data']) && is_array($fetched['data']) ? $fetched['data'] : [];
             $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : $data;
-            $totalPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+            $reportedPages = isset($data['pagination']['totalPages']) ? (int) $data['pagination']['totalPages'] : 1;
+            if ($reportedPages > $totalPages) {
+                $totalPages = $reportedPages;
+            }
             if (! is_array($items)) {
                 break;
             }
+            $onPage = 0;
             foreach ($items as $row) {
                 if (! is_array($row)) {
                     continue;
@@ -586,9 +591,14 @@ class BeyondWasenderService
                     'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
                     'member_count' => $count,
                 ];
+                $onPage++;
+            }
+            if ($onPage === 0) {
+                break;
             }
             $page++;
-        } while ($page <= $totalPages && $page <= 10);
+            $more = $onPage >= $limit || $page <= $totalPages;
+        } while ($more && $page <= 40);
 
         return ['success' => true, 'groups' => array_values($rows)];
     }
