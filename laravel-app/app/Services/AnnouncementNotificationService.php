@@ -322,10 +322,19 @@ class AnnouncementNotificationService extends Controller
 
     public function sendReminder(WaAnnouncement $announcement)
     {
-        $lockKey = 'wa-announcement-reminder:'.$announcement->id;
-        if (! \Illuminate\Support\Facades\Cache::add($lockKey, 1, 600)) {
+        if (! $this->acquireReminderLock($announcement->id)) {
             return 0;
         }
+
+        try {
+            return $this->deliverReminder($announcement);
+        } finally {
+            $this->releaseReminderLock($announcement->id);
+        }
+    }
+
+    protected function deliverReminder(WaAnnouncement $announcement)
+    {
 
         $groups = [];
         $phones = [];
@@ -375,6 +384,23 @@ class AnnouncementNotificationService extends Controller
         }
 
         return $sent;
+    }
+
+    protected function acquireReminderLock($announcementId)
+    {
+        $row = \Illuminate\Support\Facades\DB::select('SELECT GET_LOCK(?, 0) AS locked', [$this->reminderLockName($announcementId)]);
+
+        return isset($row[0]) && (int) $row[0]->locked === 1;
+    }
+
+    protected function releaseReminderLock($announcementId)
+    {
+        \Illuminate\Support\Facades\DB::select('SELECT RELEASE_LOCK(?)', [$this->reminderLockName($announcementId)]);
+    }
+
+    protected function reminderLockName($announcementId)
+    {
+        return 'wa_rem_'.substr(md5((string) $announcementId), 0, 24);
     }
 
     protected function postGroupReminder(WaAnnouncement $announcement, $jid)

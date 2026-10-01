@@ -495,7 +495,7 @@ class AnnouncementService
                 continue;
             }
             $sentFor[$a->id] = true;
-            app(\App\Services\WhatsApp\GroupContactExportService::class)->fillAnnouncementRecipients($a, true);
+            app(\App\Services\WhatsApp\GroupContactExportService::class)->fillAnnouncementRecipients($a, false);
             $a = $a->fresh();
             $this->notify->sendReminder($a);
             $count++;
