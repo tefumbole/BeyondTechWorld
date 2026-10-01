@@ -42,6 +42,9 @@ class SiteMenu
             'booking'      => 'Rental Module',
             'events'       => 'Events',
             'invitations'  => 'Digital Invitations',
+            'internship'   => 'Internships',
+            'supervisor'   => 'Supervisor',
+            'properties'   => 'Properties',
             'tasks'        => 'Task Manager',
             'jobs'         => 'Job Board',
             'contracts'    => 'Contracts',
@@ -141,16 +144,11 @@ class SiteMenu
     public static function peopleItems()
     {
         return [
-            'user-list'       => 'User List',
-            'interns'         => 'Interns',
-            'add-user'        => 'Add User',
             'customer-list'   => 'Customer List',
-            'add-customer'    => 'Add Customer',
-            'people-transfer' => 'Export / Import People',
+            'user-list'       => 'User List',
+            'supervisor-list' => 'Supervisor List',
+            'intern-list'     => 'Intern List',
             'biller-list'     => 'Biller List',
-            'add-biller'      => 'Add Biller',
-            'supplier-list'   => 'Supplier List',
-            'add-supplier'    => 'Add Supplier',
         ];
     }
 
@@ -163,16 +161,11 @@ class SiteMenu
     public static function peopleLiKeyMap()
     {
         return [
-            'user-list-menu'       => 'user-list',
-            'user-applicants-menu' => 'interns',
-            'user-create-menu'     => 'add-user',
             'customer-list-menu'   => 'customer-list',
-            'customer-create-menu' => 'add-customer',
-            'people-transfer-menu' => 'people-transfer',
+            'user-list-menu'       => 'user-list',
+            'supervisor-list-menu' => 'supervisor-list',
+            'intern-list-menu'     => 'intern-list',
             'biller-list-menu'     => 'biller-list',
-            'biller-create-menu'   => 'add-biller',
-            'supplier-list-menu'   => 'supplier-list',
-            'supplier-create-menu' => 'add-supplier',
         ];
     }
 

@@ -98,7 +98,7 @@
                             $order = $peopleOrder;
                             $action = route('site-content.people-menu');
                             $heading = 'People — Order';
-                            $hint = 'Drag items to reorder the People submenu (User List, Customers, Billers, …). Click Save when done.';
+                            $hint = 'Drag items to reorder the People submenu (Customer List, User List, Supervisor List, Intern List, Biller List). Click Save when done.';
                         } elseif ($tab == 'settings-menu') {
                             $items = $settings;
                             $order = $settingsOrder;

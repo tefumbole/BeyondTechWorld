@@ -1381,11 +1381,11 @@
                 <div class="main-menu">
                     <ul id="side-main-menu" class="side-menu list-unstyled">
                         @if(Auth::user()->role_id != 7)
-                            <li id="sidebar-dashboard"><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
+                            <li id="sidebar-dashboard"><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}" data-nav-key="dashboard"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
-                            <li><a href="{{ url('/admin/site-content') }}"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
-                            <li><a href="{{ url('/admin/leaders') }}"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
+                            <li><a href="{{ url('/admin/site-content') }}" data-nav-key="site-content"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
+                            <li><a href="{{ url('/admin/leaders') }}" data-nav-key="leaders"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
                         @endif
                         <?php
                         $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
@@ -1735,7 +1735,7 @@
                                     || in_array($role->id ?? 0, [1, 2]);
                             @endphp
                             @if($oi_cat || $oi_tpl || $oi_evt || $oi_send)
-                            <li><a href="#online_invitation" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-ticket"></i><span>Digital Invitations</span></a>
+                            <li><a href="#online_invitation" data-nav-key="invitations" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-ticket"></i><span>Digital Invitations</span></a>
                                 <ul id="online_invitation" class="collapse list-unstyled ">
                                     @if($oi_cat)
                                         <li id="online-invitation-category-menu"><a href="{{ route('online_invitation.categories.index') }}">Categories</a></li>
@@ -2235,7 +2235,7 @@
                                 </ul>
                             </li>
                         @endif
-                        <li><a href="{{ route('property.index') }}"> <i class="fa fa-building"></i><span>Properties</span></a></li>
+                        <li><a href="{{ route('property.index') }}" data-nav-key="properties"> <i class="fa fa-building"></i><span>Properties</span></a></li>
                         <?php
                         $wealth_view = DB::table('permissions')->where('name', 'wealth.view')->first();
                         $expenses_index_perm = DB::table('permissions')->where('name', 'expenses-index')->first();
@@ -2606,7 +2606,7 @@
                         ])->first();
                         ?>
                         @if($user_index_permission_active || $customer_index_permission_active || $biller_index_permission_active || $supplier_index_permission_active)
-                            <li><a href="#people" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-user"></i><span>{{trans('file.People')}}</span></a>
+                            <li><a href="#people" data-nav-key="people" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-user"></i><span>{{trans('file.People')}}</span></a>
                                 <ul id="people" class="collapse list-unstyled ">
 
                                     @if($customer_index_permission_active)
@@ -3079,6 +3079,7 @@
                                 if (anchor === 'timesheets-module') return 'timesheets';
                                 if (anchor === 'timesheet-admin-module') return 'timesheet-admin';
                                 if (anchor === 'staff-permissions') return 'permissions';
+                                if (anchor === 'online_invitation') return 'invitations';
                                 // Generic: #foo-module → foo (keeps future modules in sync)
                                 if (/-module$/.test(anchor)) return anchor.replace(/-module$/, '');
                                 return anchor;
