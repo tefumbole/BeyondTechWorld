@@ -11,6 +11,25 @@ class ScreenPricingService
 {
     public function ratePerM2()
     {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('products')) {
+                $product = \App\Product::where('is_active', 1)
+                    ->where('price', '>', 0)
+                    ->where(function ($q) {
+                        $q->where('name', 'like', '%led screen%')
+                            ->orWhere('name', 'like', '%screen per%')
+                            ->orWhere('name', 'like', '%per m2%')
+                            ->orWhere('name', 'like', '%per m²%');
+                    })
+                    ->orderBy('id')
+                    ->first();
+                if ($product && (float) $product->price > 0 && (float) $product->price <= 200000) {
+                    return (float) $product->price;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
         return EventPricingRule::amountFor('screen_per_m2', 60000);
     }
 
@@ -32,7 +51,9 @@ class ScreenPricingService
 
     public function sizePrompt()
     {
-        return 'Please type the LED screen Height and Width in meters (for example 3 × 2), or the total square meters (for example 6 m²). Pricing is 60,000 CFA per m².';
+        $rate = number_format($this->ratePerM2(), 0);
+
+        return 'Please type the LED screen Height and Width in meters (for example 3 × 2 or 4*2), or the total square meters (for example 6 m²). Pricing is '.$rate.' CFA per m².';
     }
 
     /**
@@ -40,7 +61,8 @@ class ScreenPricingService
      */
     public function parseSize($text)
     {
-        $t = strtolower(trim((string) $text));
+        $t = trim((string) $text);
+        $t = function_exists('mb_strtolower') ? mb_strtolower($t, 'UTF-8') : strtolower($t);
         $dims = app(StagePricingService::class)->parseDimensions($t);
         if ($dims) {
             return $dims;

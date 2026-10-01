@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 class WebsiteChatService
 {
     const ONBOARD_NEED_PHONE = 'need_phone';
+    const ONBOARD_NEED_OTP = 'need_otp';
     const ONBOARD_NEED_NAME = 'need_name';
     const ONBOARD_READY = 'ready';
 
@@ -153,6 +154,10 @@ class WebsiteChatService
             return $this->handlePhoneStep($conversation, $token, $message, $body);
         }
 
+        if ($state === self::ONBOARD_NEED_OTP) {
+            return $this->handleOtpStep($conversation, $token, $message, $body);
+        }
+
         if ($state === self::ONBOARD_NEED_NAME) {
             return $this->handleNameStep($conversation, $token, $message, $body);
         }
@@ -233,6 +238,10 @@ class WebsiteChatService
         }
         $phone = (string) $contact->normalized_phone;
         if ($phone === '' || $this->isWebsitePlaceholder($phone)) {
+            if (Cache::get($this->otpCacheKey($contact->id))) {
+                return self::ONBOARD_NEED_OTP;
+            }
+
             return self::ONBOARD_NEED_PHONE;
         }
         $name = trim((string) $contact->wa_name);
@@ -281,6 +290,81 @@ class WebsiteChatService
             return $this->turnResponse($token, $conversation, $inbound, null);
         }
 
+        $contact = $conversation->contact;
+        if (! $contact) {
+            return $this->turnResponse($token, $conversation, $inbound, null);
+        }
+        $issued = app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->issue(
+            $contact->id,
+            $conversation->id,
+            'website',
+            null,
+            'website_chat'
+        );
+        if (empty($issued['ok']) || empty($issued['code'])) {
+            return array_merge($this->turnResponse($token, $conversation, $inbound, null), [
+                'success' => false,
+                'error' => 'Please wait a moment, then request the code again.',
+            ]);
+        }
+        $sent = app(BeyondWasenderService::class)->sendOtp($phone, $issued['code'], 'website_chat');
+        if (empty($sent['success'])) {
+            app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->invalidateChallenge($issued['challenge_id']);
+
+            return array_merge($this->turnResponse($token, $conversation, $inbound, null), [
+                'success' => false,
+                'error' => 'I could not send a verification code to that number. Check it and try again.',
+            ]);
+        }
+        Cache::put($this->otpCacheKey($contact->id), $phone, now()->addMinutes(15));
+
+        return array_merge($this->turnResponse($token, $conversation, $inbound, null), [
+            'onboarding' => self::ONBOARD_NEED_OTP,
+        ]);
+    }
+
+    protected function handleOtpStep(WhatsAppConversation $conversation, $token, WhatsAppMessage $inbound, $body)
+    {
+        $contact = $conversation->contact;
+        $phone = $contact ? Cache::get($this->otpCacheKey($contact->id)) : null;
+        $code = preg_replace('/\D+/', '', (string) $body);
+        if (! $contact || ! $phone || strlen($code) !== 6) {
+            return array_merge($this->turnResponse($token, $conversation, $inbound, null), [
+                'success' => false,
+                'onboarding' => self::ONBOARD_NEED_OTP,
+                'error' => 'Type the 6-digit code sent to your WhatsApp.',
+            ]);
+        }
+        $checked = app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->verify($contact->id, $code);
+        if (empty($checked['ok'])) {
+            $reason = isset($checked['error']) ? (string) $checked['error'] : 'mismatch';
+            $error = 'That code does not match. Check the WhatsApp message and try again.';
+            if ($reason === 'expired') {
+                Cache::forget($this->otpCacheKey($contact->id));
+                $error = 'That code has expired. Enter your phone number again.';
+            } elseif ($reason === 'locked') {
+                Cache::forget($this->otpCacheKey($contact->id));
+                $error = 'Too many tries. Enter your phone number again to get a new code.';
+            }
+
+            return array_merge($this->turnResponse($token, $conversation, $inbound, null), [
+                'success' => false,
+                'onboarding' => $reason === 'expired' || $reason === 'locked' ? self::ONBOARD_NEED_PHONE : self::ONBOARD_NEED_OTP,
+                'error' => $error,
+            ]);
+        }
+        Cache::forget($this->otpCacheKey($contact->id));
+
+        return $this->finishVerifiedPhone($conversation, $token, $inbound, $phone);
+    }
+
+    protected function otpCacheKey($contactId)
+    {
+        return 'website_chat_pending_phone:'.(int) $contactId;
+    }
+
+    protected function finishVerifiedPhone(WhatsAppConversation $conversation, $token, WhatsAppMessage $inbound, $phone)
+    {
         $lookup = app(PeopleDirectoryService::class)->lookupPhoneForForm($phone);
         $isCameroon = strpos($phone, '237') === 0;
         $campayName = trim((string) ($lookup['original_name'] ?? ''));

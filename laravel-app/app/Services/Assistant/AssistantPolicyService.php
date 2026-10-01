@@ -20,10 +20,10 @@ class AssistantPolicyService
 
     public function mayProcess(WhatsAppConversation $conversation)
     {
-        if (! $this->globallyEnabled()) {
+        $mode = strtoupper((string) $conversation->mode);
+        if (! $this->globallyEnabled() && $mode !== WhatsAppConversation::MODE_AI) {
             return [false, 'assistant_disabled'];
         }
-        $mode = strtoupper((string) $conversation->mode);
         if ($mode === WhatsAppConversation::MODE_HUMAN) {
             return [false, 'human_mode'];
         }

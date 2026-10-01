@@ -29,8 +29,8 @@
                     <option value="{{ $u->id }}" {{ (string) request('assigned_user_id') === (string) $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
                 @endforeach
             </select>
-            <input type="date" name="from" value="{{ request('from') }}" class="form-control mr-2 mb-2">
-            <input type="date" name="to" value="{{ request('to') }}" class="form-control mr-2 mb-2">
+            <input type="date" name="from" value="{{ request('from') !== request('to') ? request('from') : '' }}" class="form-control mr-2 mb-2" autocomplete="off">
+            <input type="date" name="to" value="{{ request('from') !== request('to') ? request('to') : '' }}" class="form-control mr-2 mb-2" autocomplete="off">
             <button class="btn btn-primary mb-2" type="submit">Search</button>
             <span class="ml-2 small text-muted">Unread {{ $counts['unread'] ?? 0 }} · Awaiting {{ $counts['awaiting'] ?? 0 }}</span>
         </form>

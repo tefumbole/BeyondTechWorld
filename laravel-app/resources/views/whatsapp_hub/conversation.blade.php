@@ -14,6 +14,17 @@
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
+        @if(!empty($recentChats) && count($recentChats))
+            <div class="wa-recent">
+                @foreach($recentChats as $chat)
+                    <a class="wa-recent-item {{ (int) $chat->id === (int) $conversation->id ? 'is-active' : '' }}" href="{{ route('whatsapp.conversation', $chat->id) }}">
+                        <strong>{{ optional($chat->contact)->displayName() ?: 'Chat' }}</strong>
+                        <span>{{ \Illuminate\Support\Str::limit((string) $chat->last_message, 42) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
         <div class="wa-inbox">
             <div class="wa-inbox-side wa-card">
                 <div class="small text-muted">Conversation</div>

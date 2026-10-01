@@ -6,6 +6,7 @@ use App\Assistant\AssistantActivity;
 use App\Assistant\IntentCatalog;
 use App\Services\Rental\RentalAvailabilityService;
 use App\Services\WhatsApp\WhatsAppConversationService;
+use App\WhatsApp\WhatsAppConversation;
 use App\WhatsApp\WhatsAppMessage;
 use Illuminate\Support\Facades\Schema;
 
@@ -68,7 +69,10 @@ class BeyondAssistantService
         }
         $fingerprint = $this->fingerprint($message);
         $existing = $this->existingActivity($fingerprint);
-        if ($existing && in_array($existing->status, [AssistantActivity::COMPLETED, AssistantActivity::HANDED_OVER, AssistantActivity::SKIPPED], true)) {
+        if ($existing && in_array($existing->status, [AssistantActivity::COMPLETED, AssistantActivity::HANDED_OVER], true)) {
+            return ['skipped' => true, 'reason' => 'duplicate'];
+        }
+        if ($existing && $existing->status === AssistantActivity::SKIPPED && ! in_array((string) $existing->error, ['human_mode', 'assistant_disabled', 'not_ai_mode'], true)) {
             return ['skipped' => true, 'reason' => 'duplicate'];
         }
         $activity = $existing ?: $this->startActivity($conversation->id, $message->id, $fingerprint);
@@ -86,6 +90,15 @@ class BeyondAssistantService
             $activity->save();
 
             return ['skipped' => true, 'reason' => 'rate_limited'];
+        }
+
+        if ($this->wantsGeneratedImage((string) $message->body)) {
+            $image = $this->generateAndSendImage($conversation, (string) $message->body);
+            $activity->status = ! empty($image['success']) ? AssistantActivity::COMPLETED : AssistantActivity::SKIPPED;
+            $activity->error = ! empty($image['success']) ? null : (isset($image['error']) ? $image['error'] : 'image_failed');
+            $activity->save();
+
+            return ['skipped' => empty($image['success']), 'sent' => ! empty($image['success']), 'intent' => 'IMAGE', 'reply' => isset($image['reply']) ? $image['reply'] : ''];
         }
 
         $context = $this->context->build($conversation);
@@ -124,6 +137,18 @@ class BeyondAssistantService
         $turnDiag = null;
         $presentation = app(\App\Services\Event\EventOptionPresentation::class);
         $incoming = (string) $message->body;
+        $screenPrice = $this->priceScreenSize($incoming, $slots, $context);
+        if (is_string($screenPrice)) {
+            $directReply = $screenPrice;
+            unset($slots['awaiting_screen_size'], $slots['pending_ui'], $slots['awaiting_option_group']);
+            $classified = [
+                'intent' => IntentCatalog::SERVICE_ENQUIRY,
+                'confidence' => 0.97,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
         // Never reuse a previous turn's choice cards from memory.
         unset($slots['pending_ui']);
 
@@ -870,6 +895,9 @@ class BeyondAssistantService
         if (strpos($t, 'screen') === false && strpos($t, 'led') === false) {
             return false;
         }
+        if (strpos($t, 'would be') !== false) {
+            return false;
+        }
 
         return (bool) preg_match('/\b(height|width|square\s*met|m\s*²|m2|dimensions?|size of the|how (big|large)|metres?|meters?)\b/i', $t);
     }
@@ -898,6 +926,152 @@ class BeyondAssistantService
         }
 
         return in_array('screen:yes', $values, true) && in_array('screen:no', $values, true);
+    }
+
+    protected function priceScreenSize($incoming, array &$slots, array $context)
+    {
+        $waiting = ! empty($slots['awaiting_screen_size']) || $this->lastAskedForScreen($context);
+        if (! $waiting) {
+            return null;
+        }
+        $pricing = app(\App\Services\Event\ScreenPricingService::class);
+        $parsed = $pricing->parseSize($incoming);
+        if (! $parsed) {
+            return null;
+        }
+        if (isset($parsed['area'])) {
+            $result = $pricing->calculateArea($parsed['area']);
+        } else {
+            $result = $pricing->calculate($parsed[0], $parsed[1]);
+            $slots['screen_length_m'] = $parsed[0];
+            $slots['screen_width_m'] = $parsed[1];
+        }
+        if (! empty($result['area_m2'])) {
+            $slots['screen_area_m2'] = $result['area_m2'];
+        }
+
+        return isset($result['message']) ? $result['message'] : null;
+    }
+
+    protected function lastAskedForScreen(array $context)
+    {
+        $history = isset($context['history']) && is_array($context['history']) ? $context['history'] : [];
+        for ($i = count($history) - 1; $i >= 0; $i--) {
+            $row = $history[$i];
+            if (! is_array($row)) {
+                continue;
+            }
+            $dir = isset($row['direction']) ? strtoupper((string) $row['direction']) : '';
+            if ($dir === 'INCOMING' || $dir === 'IN') {
+                continue;
+            }
+            $body = isset($row['body']) ? (string) $row['body'] : '';
+
+            return stripos($body, 'LED screen') !== false
+                && (stripos($body, 'Height') !== false || stripos($body, 'square') !== false);
+        }
+
+        return false;
+    }
+
+    protected function wantsGeneratedImage($text)
+    {
+        $t = strtolower(trim((string) $text));
+        if (! preg_match('/\b(image|picture|photo|drawing|illustration)\b/', $t)) {
+            return false;
+        }
+
+        return (bool) preg_match('/\b(generate|create|draw|make|give|send|show|design)\b/', $t);
+    }
+
+    protected function generateAndSendImage(WhatsAppConversation $conversation, $text)
+    {
+        $prompt = trim(preg_replace('/\s+/', ' ', (string) $text));
+        if (strlen($prompt) > 500) {
+            $prompt = substr($prompt, 0, 500);
+        }
+        $apiKey = (string) config('assistant.openai.api_key');
+        if ($apiKey === '') {
+            $reply = 'I cannot create an image right now. Please try again later.';
+            $this->conversations->assistantReply($conversation, $reply);
+
+            return ['success' => false, 'error' => 'no_image_key', 'reply' => $reply];
+        }
+        $base = (string) config('assistant.openai.api_url', 'https://api.openai.com/v1/chat/completions');
+        $root = preg_replace('#/chat/completions$#', '', $base);
+        $url = rtrim($root, '/').'/images/generations';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 25,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.$apiKey,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode([
+                'model' => 'dall-e-2',
+                'prompt' => $prompt,
+                'n' => 1,
+                'size' => '512x512',
+                'response_format' => 'b64_json',
+            ]),
+        ]);
+        $raw = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $json = json_decode((string) $raw, true);
+        $b64 = is_array($json) && isset($json['data'][0]['b64_json']) ? $json['data'][0]['b64_json'] : '';
+        if ($code < 200 || $code >= 300 || $b64 === '') {
+            $reply = 'I could not create that image. Please describe it again in a short sentence.';
+            $this->conversations->assistantReply($conversation, $reply);
+
+            return ['success' => false, 'error' => 'image_http_'.$code, 'reply' => $reply];
+        }
+        $dir = storage_path('app/assistant-images');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $path = $dir.'/img-'.date('YmdHis').'-'.substr(md5($conversation->id.$prompt), 0, 8).'.png';
+        $bytes = base64_decode($b64, true);
+        if ($bytes === false || @file_put_contents($path, $bytes) === false) {
+            $reply = 'I created the image but could not save it. Please try again.';
+            $this->conversations->assistantReply($conversation, $reply);
+
+            return ['success' => false, 'error' => 'image_save', 'reply' => $reply];
+        }
+        $caption = 'Here is the image you asked for.';
+        if ($conversation->isWebsite()) {
+            $this->conversations->assistantReply($conversation, $caption);
+
+            return ['success' => true, 'reply' => $caption];
+        }
+        $phone = $conversation->contact ? (string) $conversation->contact->normalized_phone : '';
+        $sent = $phone !== ''
+            ? app(\App\Services\BeyondWasenderService::class)->sendImage($phone, $path, $caption)
+            : ['success' => false];
+        if (empty($sent['success'])) {
+            $reply = 'I created the image, but WhatsApp did not accept it. Please ask again.';
+            $this->conversations->assistantReply($conversation, $reply);
+
+            return ['success' => false, 'error' => 'image_send', 'reply' => $reply];
+        }
+        $contact = $conversation->contact;
+        WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact ? $contact->id : null,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'IMAGE',
+            'body' => $caption,
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'sender_type' => 'ASSISTANT',
+            'sent_at' => now(),
+        ]);
+        $conversation->last_message = $caption;
+        $conversation->last_activity_at = now();
+        $conversation->save();
+
+        return ['success' => true, 'reply' => $caption];
     }
 
     protected function fingerprint(WhatsAppMessage $message)

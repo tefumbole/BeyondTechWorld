@@ -24,7 +24,12 @@
 .wa-list a { color: inherit; }
 .wa-list .unread { font-weight: 700; }
 .wa-note { background:#fff8e1;border:1px dashed #f0ad4e;max-width:100%; }
-.wa-inbox { display: grid; grid-template-columns: 280px 1fr 260px; gap: 12px; }
+.wa-recent { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; }
+.wa-recent-item { display: flex; flex-direction: column; min-width: 180px; max-width: 220px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 10px; color: #111; text-decoration: none; }
+.wa-recent-item span { color: #667781; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-recent-item.is-active { background: #d9fdd3; border-color: #25d366; }
+.wa-thread { background: #efeae2 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath fill='%23d9d2c5' fill-opacity='.35' d='M0 0h40v40H0z'/%3E%3C/svg%3E"); border-radius: 12px; padding: 12px; }
+.wa-inbox { display: grid; grid-template-columns: 280px 1fr 260px; gap: 12px; align-items: start; }
 @media (max-width: 991px) {
     .wa-inbox { grid-template-columns: 1fr; }
     .wa-inbox-side, .wa-inbox-contact { display: none; }

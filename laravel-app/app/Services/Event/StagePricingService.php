@@ -44,11 +44,12 @@ class StagePricingService
 
     public function parseDimensions($text)
     {
-        $t = strtolower(trim((string) $text));
-        if (preg_match('/(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)?\s*(?:[x×]|by)\s*(\d+(?:\.\d+)?)/i', $t, $m)) {
+        $t = trim((string) $text);
+        $t = function_exists('mb_strtolower') ? mb_strtolower($t, 'UTF-8') : strtolower($t);
+        if (preg_match('/(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?)?\s*(?:[x*]|\x{00D7}|by)\s*(\d+(?:\.\d+)?)/iu', $t, $m)) {
             return [(float) $m[1], (float) $m[2]];
         }
-        if (preg_match('/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i', $t, $m)) {
+        if (preg_match('/(\d+(?:\.\d+)?)\s*(?:[x*]|\x{00D7})\s*(\d+(?:\.\d+)?)/iu', $t, $m)) {
             return [(float) $m[1], (float) $m[2]];
         }
 

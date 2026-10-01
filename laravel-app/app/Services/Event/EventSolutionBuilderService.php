@@ -406,7 +406,7 @@ class EventSolutionBuilderService
             ],
             'equipment' => $equipment,
             'pending_pricing' => true,
-            'message' => 'LED screen size needed before pricing. Ask the customer to type Height and Width in meters (e.g. 3 × 2) or total square meters (e.g. 6 m²) at 60,000 CFA per m².',
+            'message' => app(\App\Services\Event\ScreenPricingService::class)->sizePrompt(),
         ];
     }
 

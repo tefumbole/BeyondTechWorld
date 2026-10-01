@@ -21,7 +21,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = '2) MUST call get_sound_experience_options (never only a plain numbered list) so the website shows clickable Playback / Piano Bar / Full Setup. Customer may also type 1, 2, or 3. Playback = Basic Sound package from ERP.';
         $bits[] = '3) After sound mode is answered, MUST call get_event_extras_options — clickable checkboxes for Lights, Screens, Stage (customer may select all or type numbers).';
         $bits[] = '4) If Lights selected → MUST call get_lighting_packages: Basic / Standard / Premium (clickable; or type 1/2/3).';
-        $bits[] = '5) If Screens selected → ask them to TYPE Height and Width in meters (e.g. 3 × 2) OR total square meters (e.g. 6 m²). Do NOT show LED Screen / No screen buttons at this step. Then call calculate_screen_price (60,000 CFA per m²). Never invent screen math.';
+        $bits[] = '5) If Screens selected → ask them to TYPE Height and Width in meters (e.g. 4*2, 4 x 2, or 3 × 2) OR total square meters (e.g. 6 m²). Do NOT show LED Screen / No screen buttons at this step. Then call calculate_screen_price. The rate per m² comes from the LED screen product, otherwise the screen pricing rule. Never invent screen math.';
         $bits[] = '6) If Stage selected → ask Height and Width in meters or total m², then calculate_stage_price (40,000 CFA per m²).';
         $bits[] = '7) Then build_event_solution / create quotation when ready. Do not re-ask answered fields.';
         $bits[] = 'When offering Playback / Piano Bar / Full Setup, Lights/Screens/Stage, or lighting tiers: always call the matching options tool so clickable cards are attached. Never paste a bare 1/2/3 list without the tool.';

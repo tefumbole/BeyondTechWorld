@@ -163,6 +163,17 @@
       <button type="button" class="mbole-gate-go" id="mbole-phone-go">Continue</button>
     </div>
 
+    <div class="mbole-gate" id="mbole-otp-gate">
+      <h3 class="mbole-gate-title">Verify your number</h3>
+      <p class="mbole-gate-sub">A 6-digit code was sent to your WhatsApp. Type it here so we know this is you.</p>
+      <label for="mbole-otp-local">Verification code *</label>
+      <div class="mbole-gate-row">
+        <input type="text" id="mbole-otp-local" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" maxlength="6" aria-label="Verification code" style="flex:1;width:100%">
+      </div>
+      <p class="mbole-gate-err" id="mbole-otp-err"></p>
+      <button type="button" class="mbole-gate-go" id="mbole-otp-go">Verify</button>
+    </div>
+
     <div class="mbole-gate" id="mbole-name-gate">
       <h3 class="mbole-gate-title">Your name</h3>
       <p class="mbole-gate-sub">We couldn’t find a name for that number. What should I call you?</p>
@@ -217,12 +228,16 @@
   var typing = document.getElementById('mbole-typing');
   var waLink = document.getElementById('mbole-wa');
   var phoneGate = document.getElementById('mbole-phone-gate');
+  var otpGate = document.getElementById('mbole-otp-gate');
   var nameGate = document.getElementById('mbole-name-gate');
   var chatWrap = document.getElementById('mbole-chat-wrap');
   var countryEl = document.getElementById('mbole-country');
   var phoneLocal = document.getElementById('mbole-phone-local');
   var phoneErr = document.getElementById('mbole-phone-err');
   var phoneGo = document.getElementById('mbole-phone-go');
+  var otpLocal = document.getElementById('mbole-otp-local');
+  var otpErr = document.getElementById('mbole-otp-err');
+  var otpGo = document.getElementById('mbole-otp-go');
   var nameLocal = document.getElementById('mbole-name-local');
   var nameErr = document.getElementById('mbole-name-err');
   var nameGo = document.getElementById('mbole-name-go');
@@ -383,11 +398,14 @@
   function applyOnboarding(step) {
     if (step) onboarding = step;
     phoneGate.classList.toggle('on', onboarding === 'need_phone');
+    otpGate.classList.toggle('on', onboarding === 'need_otp');
     nameGate.classList.toggle('on', onboarding === 'need_name');
     chatWrap.classList.toggle('on', onboarding === 'ready');
     panel.classList.toggle('is-chat', onboarding === 'ready');
     if (onboarding === 'need_phone') {
       setTimeout(function () { try { phoneLocal.focus(); } catch (e) {} }, 60);
+    } else if (onboarding === 'need_otp') {
+      setTimeout(function () { try { otpLocal.focus(); } catch (e) {} }, 60);
     } else if (onboarding === 'need_name') {
       setTimeout(function () { try { nameLocal.focus(); } catch (e) {} }, 60);
     } else {
@@ -672,6 +690,7 @@
       sending = false;
       if (goBtn) goBtn.disabled = false;
       touchActivity();
+      if (res.body && res.body.onboarding) applyOnboarding(res.body.onboarding);
       if (!res.ok || !res.body.success) {
         showErr(errEl, (res.body && (res.body.error || res.body.message)) || 'Sorry, something went wrong.');
         return res;
@@ -707,6 +726,20 @@
   });
   phoneLocal.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); phoneGo.click(); }
+  });
+
+  otpGo.addEventListener('click', function () {
+    showErr(otpErr, '');
+    var code = digitsOnly(otpLocal.value);
+    if (code.length !== 6) {
+      showErr(otpErr, 'Enter the 6-digit code from WhatsApp.');
+      otpLocal.focus();
+      return;
+    }
+    sendBody(code, otpGo, otpErr);
+  });
+  otpLocal.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); otpGo.click(); }
   });
 
   nameGo.addEventListener('click', function () {

@@ -394,11 +394,13 @@ class WhatsAppConversationService
     public function enableAi(WhatsAppConversation $conversation, $userId = null)
     {
         $conversation->mode = WhatsAppConversation::MODE_AI;
+        $conversation->assigned_user_id = null;
         if ($conversation->status === WhatsAppConversation::STATUS_CLOSED) {
             $conversation->status = WhatsAppConversation::STATUS_OPEN;
         }
         $conversation->save();
         $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI enabled', $userId);
+        $this->resumeLatestCustomerMessage($conversation);
 
         return $conversation;
     }
@@ -711,6 +713,20 @@ class WhatsAppConversationService
         $result['message'] = $message;
 
         return $result;
+    }
+
+    protected function resumeLatestCustomerMessage(WhatsAppConversation $conversation)
+    {
+        $latest = WhatsAppMessage::where('conversation_id', $conversation->id)->orderByDesc('id')->first();
+        if (! $latest || $latest->direction !== WhatsAppMessage::DIR_IN) {
+            return;
+        }
+        try {
+            \App\Jobs\ProcessAssistantTurn::dispatch($latest->id)
+                ->onConnection('database')
+                ->onQueue('whatsapp');
+        } catch (\Throwable $e) {
+        }
     }
 
     protected function event(WhatsAppConversation $conversation, $type, $body, $actorId = null)

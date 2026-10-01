@@ -55,10 +55,7 @@ class WebsiteChatTest extends WhatsAppHubTestCase
         $this->app->instance(MobileMoneyHolderService::class, $this->fakeMomo('JEAN PAUL KAMGA'));
 
         $session = $this->postJson('/api/website-chat/session')->json();
-        $res = $this->postJson('/api/website-chat/messages', [
-            'token' => $session['token'],
-            'body' => '675000111',
-        ])->assertStatus(200)->json();
+        $res = $this->verifyPhone($session['token'], '675000111');
 
         $this->assertSame('ready', $res['onboarding']);
         $this->assertTrue($res['identified']['system_associated']);
@@ -76,10 +73,7 @@ class WebsiteChatTest extends WhatsAppHubTestCase
         $this->app->instance(MobileMoneyHolderService::class, $this->fakeMomo(null));
         $session = $this->postJson('/api/website-chat/session')->json();
 
-        $phoneTurn = $this->postJson('/api/website-chat/messages', [
-            'token' => $session['token'],
-            'body' => '+237675999888',
-        ])->assertStatus(200)->json();
+        $phoneTurn = $this->verifyPhone($session['token'], '+237675999888');
         $this->assertSame('need_name', $phoneTurn['onboarding']);
         $this->assertTrue(collect($phoneTurn['messages'])->contains(function ($m) {
             return $m['role'] === 'assistant' && stripos($m['body'], 'name') !== false;
@@ -233,13 +227,37 @@ class WebsiteChatTest extends WhatsAppHubTestCase
         $session = $this->postJson('/api/website-chat/session')->json();
         $token = $session['token'];
         $local = preg_replace('/^237/', '', $phone);
-        $res = $this->postJson('/api/website-chat/messages', [
-            'token' => $token,
-            'body' => $local,
-        ])->assertStatus(200)->json();
+        $res = $this->verifyPhone($token, $local);
         $this->assertSame('ready', $res['onboarding']);
 
         return $token;
+    }
+
+    protected function verifyPhone($token, $body)
+    {
+        $otp = new class extends \App\Services\WhatsApp\WhatsAppVerificationService {
+            public $last;
+
+            public function issue($contactId, $conversationId, $identityType, $identityId, $purpose, $providerMessageId = null)
+            {
+                $result = parent::issue($contactId, $conversationId, $identityType, $identityId, $purpose, $providerMessageId);
+                $this->last = $result;
+
+                return $result;
+            }
+        };
+        $this->app->instance(\App\Services\WhatsApp\WhatsAppVerificationService::class, $otp);
+        $sent = $this->postJson('/api/website-chat/messages', [
+            'token' => $token,
+            'body' => $body,
+        ])->assertStatus(200)->json();
+        $this->assertSame('need_otp', $sent['onboarding']);
+        $this->assertNotEmpty($otp->last['code']);
+
+        return $this->postJson('/api/website-chat/messages', [
+            'token' => $token,
+            'body' => $otp->last['code'],
+        ])->assertStatus(200)->json();
     }
 
     protected function fakeMomo($name)

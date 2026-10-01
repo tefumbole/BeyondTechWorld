@@ -153,8 +153,14 @@ class WhatsAppHubController extends Controller
             ]);
         }
 
+        $recentChats = WhatsAppConversation::with('contact')
+            ->orderByDesc('last_activity_at')
+            ->orderByDesc('id')
+            ->limit(12)
+            ->get();
+
         return view('whatsapp_hub.conversation', compact(
-            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel'
+            'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats'
         ));
     }
 
@@ -492,6 +498,10 @@ class WhatsAppHubController extends Controller
         }
         $added = (int) $result['added'];
         $total = (int) $result['total'];
+        if (! empty($result['busy'])) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])
+                ->with('message', 'WhatsApp is busy right now. The '.$total.' contacts already saved are still listed. Fetch again in a minute for anyone new.');
+        }
         $message = $added > 0
             ? 'Fetched '.$added.' new '.($added === 1 ? 'contact' : 'contacts').'. This group has '.$total.' contacts.'
             : 'Fetched contacts. This group has '.$total.' contacts.';
@@ -836,8 +846,10 @@ class WhatsAppHubController extends Controller
         if ($request->get('assigned_user_id')) {
             $query->where('assigned_user_id', $request->get('assigned_user_id'));
         }
-        if ($request->get('from') && $request->get('to')) {
-            $query->whereBetween('last_activity_at', [$request->get('from').' 00:00:00', $request->get('to').' 23:59:59']);
+        $from = (string) $request->get('from', '');
+        $to = (string) $request->get('to', '');
+        if ($from !== '' && $to !== '' && $from !== $to) {
+            $query->whereBetween('last_activity_at', [$from.' 00:00:00', $to.' 23:59:59']);
         }
         $mode = strtoupper((string) $request->get('mode', ''));
         if ($mode === 'AI') {

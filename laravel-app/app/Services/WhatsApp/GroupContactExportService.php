@@ -544,13 +544,27 @@ class GroupContactExportService
         }
         $profile = app(BeyondWasenderService::class)->groupProfile($jid);
         $people = isset($profile['participants']) ? $profile['participants'] : [];
+        if (! $people && ! empty($profile['rate_limited'])) {
+            $cached = $this->readMembers($jid);
+            if ($cached) {
+                return ['success' => true, 'added' => 0, 'total' => count($cached), 'busy' => true];
+            }
+        }
+        if (! $people) {
+            $listed = app(BeyondWasenderService::class)->groupParticipants($jid);
+            $people = isset($listed['participants']) ? $listed['participants'] : [];
+        }
         if (! $people && empty($profile['success'])) {
+            $cached = $this->readMembers($jid);
+            if ($cached) {
+                return ['success' => true, 'added' => 0, 'total' => count($cached), 'busy' => true];
+            }
             $error = isset($profile['error']) ? (string) $profile['error'] : 'Could not fetch contacts for this group.';
             if (! empty($profile['rate_limited'])) {
                 $error = 'WhatsApp is busy. Wait a moment and fetch this group again.';
             }
 
-            return ['success' => false, 'error' => $error, 'added' => 0, 'total' => count($this->readMembers($jid))];
+            return ['success' => false, 'error' => $error, 'added' => 0, 'total' => 0];
         }
         $existing = $this->readMembers($jid);
         $byPhone = [];
@@ -655,6 +669,7 @@ class GroupContactExportService
         if ($dirty) {
             $this->writeMembers($jid, $people);
         }
+        $pending = $this->resolveContactNames($jid, 0);
         if ($pending < 1) {
             return 0;
         }
