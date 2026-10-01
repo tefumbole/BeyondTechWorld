@@ -444,13 +444,23 @@ class AnnouncementService
 
         $count = 0;
         foreach ($due as $a) {
+            $claimed = WaAnnouncement::where('id', $a->id)
+                ->where('status', 'scheduled')
+                ->update([
+                    'status' => 'sending',
+                    'whatsapp_status' => 'sending',
+                    'is_scheduled' => false,
+                ]);
+            if (! $claimed) {
+                continue;
+            }
+            $a = $a->fresh();
             if ($a->send_whatsapp) {
                 $this->startDelivery($a);
                 $count++;
             } else {
                 $a->status = 'sent';
                 $a->whatsapp_status = 'sent';
-                $a->is_scheduled = false;
                 $a->save();
                 $count++;
             }
@@ -469,18 +479,25 @@ class AnnouncementService
             ->get();
 
         $count = 0;
+        $sentFor = [];
         foreach ($due as $reminder) {
-            $a = $reminder->announcement;
-            if (! $a || $a->status === 'deleted') {
-                $reminder->is_sent = true;
-                $reminder->save();
+            $claimed = WaAnnouncementReminder::where('id', $reminder->id)
+                ->where('is_sent', false)
+                ->update(['is_sent' => true]);
+            if (! $claimed) {
                 continue;
             }
+            $a = $reminder->announcement;
+            if (! $a || $a->status === 'deleted') {
+                continue;
+            }
+            if (isset($sentFor[$a->id])) {
+                continue;
+            }
+            $sentFor[$a->id] = true;
             app(\App\Services\WhatsApp\GroupContactExportService::class)->fillAnnouncementRecipients($a, true);
             $a = $a->fresh();
             $this->notify->sendReminder($a);
-            $reminder->is_sent = true;
-            $reminder->save();
             $count++;
         }
 
