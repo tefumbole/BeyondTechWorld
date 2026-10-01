@@ -540,6 +540,13 @@ class BeyondWasenderService
             return ['success' => false, 'groups' => []];
         }
         $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $full = $this->getJson($base.'/groups?paginated=false');
+        if (empty($full['error'])) {
+            $rows = $this->groupRows(isset($full['data']) ? $full['data'] : []);
+            if ($rows) {
+                return ['success' => true, 'groups' => array_values($rows)];
+            }
+        }
         $rows = [];
         $page = 1;
         $totalPages = 1;
@@ -562,37 +569,9 @@ class BeyondWasenderService
             if (! is_array($items)) {
                 break;
             }
-            $onPage = 0;
-            foreach ($items as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $jid = isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : '');
-                if ($jid === '' || isset($rows[(string) $jid])) {
-                    continue;
-                }
-                $name = '';
-                foreach (['subject', 'name', 'title'] as $key) {
-                    if (! empty($row[$key]) && is_string($row[$key])) {
-                        $name = trim($row[$key]);
-                        break;
-                    }
-                }
-                $count = null;
-                foreach (['size', 'participantsCount', 'participantCount', 'memberCount'] as $key) {
-                    if (isset($row[$key]) && is_numeric($row[$key])) {
-                        $count = (int) $row[$key];
-                        break;
-                    }
-                }
-                $rows[(string) $jid] = [
-                    'jid' => (string) $jid,
-                    'name' => $name,
-                    'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
-                    'member_count' => $count,
-                ];
-                $onPage++;
-            }
+            $before = count($rows);
+            $rows = $this->groupRows($items, $rows);
+            $onPage = count($rows) - $before;
             if ($onPage === 0) {
                 break;
             }
@@ -601,6 +580,47 @@ class BeyondWasenderService
         } while ($more && $page <= 40);
 
         return ['success' => true, 'groups' => array_values($rows)];
+    }
+
+    protected function groupRows($items, array $rows = [])
+    {
+        if (isset($items['items']) && is_array($items['items'])) {
+            $items = $items['items'];
+        }
+        if (! is_array($items)) {
+            return $rows;
+        }
+        foreach ($items as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $jid = isset($row['id']) ? $row['id'] : (isset($row['jid']) ? $row['jid'] : '');
+            if ($jid === '' || isset($rows[(string) $jid])) {
+                continue;
+            }
+            $name = '';
+            foreach (['subject', 'name', 'title'] as $key) {
+                if (! empty($row[$key]) && is_string($row[$key])) {
+                    $name = trim($row[$key]);
+                    break;
+                }
+            }
+            $count = null;
+            foreach (['size', 'participantsCount', 'participantCount', 'memberCount'] as $key) {
+                if (isset($row[$key]) && is_numeric($row[$key])) {
+                    $count = (int) $row[$key];
+                    break;
+                }
+            }
+            $rows[(string) $jid] = [
+                'jid' => (string) $jid,
+                'name' => $name,
+                'description' => isset($row['description']) ? $row['description'] : (isset($row['desc']) ? $row['desc'] : null),
+                'member_count' => $count,
+            ];
+        }
+
+        return $rows;
     }
 
     public function listContacts()
