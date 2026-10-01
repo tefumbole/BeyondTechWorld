@@ -181,11 +181,11 @@
                 <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{trans('file.Customer Group')}}</th>
                     <th>{{trans('file.name')}}</th>
+                    <th>{{trans('file.Phone Number')}}</th>
+                    <th>{{trans('file.Customer Group')}}</th>
                     <th>{{trans('file.Company Name')}}</th>
                     <th>{{trans('file.Email')}}</th>
-                    <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Tax Number')}}</th>
                     <th>{{trans('file.Address')}}</th>
                     <th>{{trans('file.Reward Points')}}</th>
@@ -200,6 +200,8 @@
                 @foreach($lims_customer_all as $key=>$customer)
                     <tr data-id="{{$customer->id}}">
                         <td>{{$key}}</td>
+                        <td contenteditable="true" class="editable customer-name" data-id="{{ $customer->id }}" data-field="name">{{ $customer->name }}</td>
+                        <td contenteditable="true" class="editable customer-phone" data-id="{{ $customer->id }}" data-field="phone_number">{{ $customer->phone_number }}</td>
                         <td>
                             <select class="editable-select form-control" data-id="{{ $customer->id }}" data-field="customer_group_id">
                                 @foreach($customer_groups as $group)
@@ -209,10 +211,8 @@
                                 @endforeach
                             </select>
                         </td>
-                        <td contenteditable="true" class="editable customer-name" data-id="{{ $customer->id }}" data-field="name">{{ $customer->name }}</td>
                         <td class="customer-company">{{ $customer->company_name}}</td>
                         <td contenteditable="true" class="editable customer-email" data-id="{{ $customer->id }}" data-field="email">{{ $customer->email }}</td>
-                        <td contenteditable="true" class="editable customer-phone" data-id="{{ $customer->id }}" data-field="phone_number">{{ $customer->phone_number }}</td>
                         <td>{{ $customer->tax_no}}</td>
                         <td contenteditable="true" class="editable customer-address" data-id="{{ $customer->id }}" data-field="address">{{ $customer->address }}</td>
                         <td class="customer-money {{ (float) $customer->points == 0 ? 'is-zero' : '' }}">{{$customer->points}}</td>

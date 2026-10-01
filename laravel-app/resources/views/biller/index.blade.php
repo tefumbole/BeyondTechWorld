@@ -17,12 +17,12 @@
             <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{trans('file.Image')}}</th>
                     <th>{{trans('file.name')}}</th>
+                    <th>{{trans('file.Phone Number')}}</th>
+                    <th>{{trans('file.Image')}}</th>
                     <th>{{trans('file.Company Name')}}</th>
                     <th>{{trans('file.VAT Number')}}</th>
                     <th>{{trans('file.Email')}}</th>
-                    <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Address')}}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
@@ -31,17 +31,17 @@
                 @foreach($lims_biller_all as $key=>$biller)
                 <tr data-id="{{$biller->id}}">
                     <td>{{$key}}</td>
+                    <td>{{ $biller->name }}</td>
+                    <td>{{ $biller->phone_number}}</td>
                     @if($biller->image)
                     <td> <img src="{{url('public/images/biller',$biller->image)}}" height="80" width="80">
                     </td>
                     @else
                     <td>No Image</td>
                     @endif
-                    <td>{{ $biller->name }}</td>
                     <td>{{ $biller->company_name}}</td>
                     <td>{{ $biller->vat_number}}</td>
                     <td>{{ $biller->email}}</td>
-                    <td>{{ $biller->phone_number}}</td>
                     <td>{{ $biller->address}}
                             @if($biller->city){{ ', '.$biller->city}}@endif
                             @if($biller->state){{ ', '.$biller->state}}@endif
@@ -148,7 +148,7 @@
         'columnDefs': [
             {
                 "orderable": false,
-                'targets': [0, 1, 8]
+                'targets': [0, 3, 8]
             },
             {
                 'render': function(data, type, row, meta){

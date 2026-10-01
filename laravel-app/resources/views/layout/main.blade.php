@@ -376,12 +376,29 @@
                 margin-bottom: 0;
             }
 
-            .beyond-module-tabs-nav {
+            .beyond-module-tabs-nav,
+            .beyond-module-tabs-sub {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 8px;
                 overflow: visible;
                 padding: 12px 10px 10px;
+            }
+
+            .beyond-module-tabs-sub {
+                display: none;
+                padding-top: 0;
+                margin: 0 10px 10px 18px;
+            }
+
+            .beyond-module-tabs-sub.is-visible {
+                display: flex;
+            }
+
+            .beyond-module-tabs-sub .beyond-module-tab {
+                padding: 7px 12px;
+                font-size: 12px;
+                border-style: dashed;
             }
 
             .beyond-module-tab {
@@ -2592,61 +2609,68 @@
                             <li><a href="#people" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-user"></i><span>{{trans('file.People')}}</span></a>
                                 <ul id="people" class="collapse list-unstyled ">
 
+                                    @if($customer_index_permission_active)
+                                        <li id="customer-list-menu"><a href="{{route('customer.index')}}">{{trans('file.Customer List')}}</a>
+                                            <?php
+                                            $customer_add_permission = DB::table('permissions')->where('name', 'customers-add')->first();
+                                            $customer_add_permission_active = $customer_add_permission ? DB::table('role_has_permissions')->where([
+                                                ['permission_id', $customer_add_permission->id],
+                                                ['role_id', $role->id]
+                                            ])->first() : null;
+                                            ?>
+                                            @if($customer_add_permission_active)
+                                                <ul class="people-sub">
+                                                    <li id="customer-create-menu"><a href="{{route('customer.create')}}">{{trans('file.Add Customer')}}</a></li>
+                                                </ul>
+                                            @endif
+                                        </li>
+                                    @endif
+
                                     @if($user_index_permission_active)
-                                        <li id="user-list-menu"><a href="{{route('user.index')}}">{{trans('file.User List')}}</a></li>
-                                        <li id="user-applicants-menu"><a href="{{route('user.index', ['category' => 'applicants'])}}">Interns</a></li>
+                                        <li id="user-list-menu"><a href="{{route('user.index')}}">{{trans('file.User List')}}</a>
                                             <?php $user_add_permission_active = DB::table('permissions')
                                             ->join('role_has_permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
                                             ->where([
                                                 ['permissions.name', 'users-add'],
                                                 ['role_id', $role->id] ])->first();
                                             ?>
-                                        @if($user_add_permission_active)
-                                            <li id="user-create-menu"><a href="{{route('user.create')}}">{{trans('file.Add User')}}</a></li>
-                                        @endif
+                                            @if($user_add_permission_active)
+                                                <ul class="people-sub">
+                                                    <li id="user-create-menu"><a href="{{route('user.create')}}">{{trans('file.Add User')}}</a></li>
+                                                </ul>
+                                            @endif
+                                        </li>
                                     @endif
 
-                                    @if($customer_index_permission_active)
-                                        <li id="customer-list-menu"><a href="{{route('customer.index')}}">{{trans('file.Customer List')}}</a></li>
-                                            <?php
-                                            $customer_add_permission = DB::table('permissions')->where('name', 'customers-add')->first();
-                                            $customer_add_permission_active = DB::table('role_has_permissions')->where([
-                                                ['permission_id', $customer_add_permission->id],
-                                                ['role_id', $role->id]
-                                            ])->first();
-                                            ?>
-                                        @if($customer_add_permission_active)
-                                            <li id="customer-create-menu"><a href="{{route('customer.create')}}">{{trans('file.Add Customer')}}</a></li>
+                                    <li id="supervisor-list-menu"><a href="{{ route('internship.supervisors') }}">Supervisor List</a>
+                                        @if(!empty($user_add_permission_active))
+                                            <ul class="people-sub">
+                                                <li id="supervisor-create-menu"><a href="{{ route('user.create', ['as' => 'supervisor']) }}">Add Supervisor</a></li>
+                                            </ul>
                                         @endif
-                                        <li id="people-transfer-menu"><a href="{{route('people.transfer')}}">Export / Import People</a></li>
-                                    @endif
+                                    </li>
+
+                                    <li id="intern-list-menu"><a href="{{ route('internship.interns') }}">Intern List</a>
+                                        <ul class="people-sub">
+                                            <li id="intern-create-menu"><a href="{{ route('internship.enrol.create') }}">Add Intern</a></li>
+                                        </ul>
+                                    </li>
 
                                     @if($biller_index_permission_active)
-                                        <li id="biller-list-menu"><a href="{{route('biller.index')}}">{{trans('file.Biller List')}}</a></li>
+                                        <li id="biller-list-menu"><a href="{{route('biller.index')}}">{{trans('file.Biller List')}}</a>
                                             <?php
                                             $biller_add_permission = DB::table('permissions')->where('name', 'billers-add')->first();
-                                            $biller_add_permission_active = DB::table('role_has_permissions')->where([
+                                            $biller_add_permission_active = $biller_add_permission ? DB::table('role_has_permissions')->where([
                                                 ['permission_id', $biller_add_permission->id],
                                                 ['role_id', $role->id]
-                                            ])->first();
+                                            ])->first() : null;
                                             ?>
-                                        @if($biller_add_permission_active)
-                                            <li id="biller-create-menu"><a href="{{route('biller.create')}}">{{trans('file.Add Biller')}}</a></li>
-                                        @endif
-                                    @endif
-
-                                    @if($supplier_index_permission_active)
-                                        <li id="supplier-list-menu"><a href="{{route('supplier.index')}}">{{trans('file.Supplier List')}}</a></li>
-                                            <?php
-                                            $supplier_add_permission = DB::table('permissions')->where('name', 'suppliers-add')->first();
-                                            $supplier_add_permission_active = DB::table('role_has_permissions')->where([
-                                                ['permission_id', $supplier_add_permission->id],
-                                                ['role_id', $role->id]
-                                            ])->first();
-                                            ?>
-                                        @if($supplier_add_permission_active)
-                                            <li id="supplier-create-menu"><a href="{{route('supplier.create')}}">{{trans('file.Add Supplier')}}</a></li>
-                                        @endif
+                                            @if($biller_add_permission_active)
+                                                <ul class="people-sub">
+                                                    <li id="biller-create-menu"><a href="{{route('biller.create')}}">{{trans('file.Add Biller')}}</a></li>
+                                                </ul>
+                                            @endif
+                                        </li>
                                     @endif
                                 </ul>
                             </li>
@@ -3626,6 +3650,7 @@
                   <div id="beyond-module-tabs" class="beyond-module-tabs">
                       <div id="beyond-module-tabs-label" class="beyond-module-tabs-label"></div>
                       <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
+                      <div id="beyond-module-tabs-sub" class="beyond-module-tabs-sub"></div>
                   </div>
               </div>
               @yield('content')
@@ -3891,6 +3916,15 @@
                   'role-menu': 'dripicons-lock',
                   'warehouse-menu': 'dripicons-home',
                   'biller-list-menu': 'dripicons-user-id',
+                  'customer-list-menu': 'dripicons-view-list',
+                  'user-list-menu': 'dripicons-user',
+                  'supervisor-list-menu': 'dripicons-user-group',
+                  'intern-list-menu': 'fa fa-graduation-cap',
+                  'customer-create-menu': 'dripicons-plus',
+                  'user-create-menu': 'dripicons-plus',
+                  'supervisor-create-menu': 'dripicons-plus',
+                  'intern-create-menu': 'dripicons-plus',
+                  'biller-create-menu': 'dripicons-plus',
                   'customer-group-menu': 'dripicons-user-group',
                   'whatsapp-groups-menu': 'dripicons-user-group',
                   'brand-menu': 'dripicons-star',
@@ -3959,10 +3993,12 @@
                   var $parentLi = $submenu.closest('li');
                   var parentLabel = $.trim($parentLink.find('span').first().text()) || $.trim($parentLink.text());
                   var $nav = $('#beyond-module-tabs-nav');
+                  var $sub = $('#beyond-module-tabs-sub');
 
                   $parentLi.children('a').addClass('menu-parent-active').attr('aria-expanded', 'true');
                   $('#beyond-module-tabs-label').text(parentLabel);
                   $nav.empty();
+                  $sub.empty().removeClass('is-visible');
                   var seenHref = {};
 
                   $submenu.find('> li > a').each(function (index) {
@@ -4006,6 +4042,32 @@
                       $nav.append($tab);
                   });
 
+                  var $peopleItem = $('#people > li.active').first();
+                  if ($peopleItem.length) {
+                      $peopleItem.find('.people-sub > li > a').each(function () {
+                          var $link = $(this);
+                          var href = $link.attr('href');
+                          if (!href || href === '#') {
+                              return;
+                          }
+                          var label = $.trim($link.text());
+                          if (!label) {
+                              return;
+                          }
+                          var isActive = $link.closest('li').hasClass('active');
+                          var $tab = $('<a>', {
+                              'class': 'beyond-module-tab tone-teal' + (isActive ? ' is-active' : ''),
+                              'href': href
+                          });
+                          $tab.append($('<i>', { 'class': 'dripicons-plus' }));
+                          $tab.append($('<span>').text(label));
+                          $sub.append($tab);
+                      });
+                      if ($sub.children().length) {
+                          $sub.addClass('is-visible');
+                      }
+                  }
+
                   if ($nav.children().length) {
                       $tabsWrap.addClass('is-visible');
                   } else {
@@ -4042,7 +4104,43 @@
                           return '';
                       }
                   }
+                  function linkKey(href) {
+                      var p = pathOf(href);
+                      if (!p) return '';
+                      try {
+                          var a = document.createElement('a');
+                          a.href = href;
+                          return p + (a.search || '');
+                      } catch (e) {
+                          return p;
+                      }
+                  }
                   var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+                  var here = path + (window.location.search || '');
+                  var $peopleSub = null;
+                  $('#people .people-sub a[href]').each(function () {
+                      if (linkKey($(this).attr('href')) === here) {
+                          $peopleSub = $(this);
+                      }
+                  });
+                  if ($peopleSub && $peopleSub.length) {
+                      $('#side-main-menu li.active').removeClass('active');
+                      $peopleSub.closest('li').addClass('active');
+                      $peopleSub.closest('#people > li').addClass('active');
+                      return;
+                  }
+                  var $peopleList = null;
+                  $('#people > li > a[href]').each(function () {
+                      var p = pathOf($(this).attr('href'));
+                      if (p && path === p) {
+                          $peopleList = $(this);
+                      }
+                  });
+                  if ($peopleList && $peopleList.length) {
+                      $('#side-main-menu li.active').removeClass('active');
+                      $peopleList.closest('li').addClass('active');
+                      return;
+                  }
                   if (path === '/admin') {
                       $('#sidebar-dashboard').addClass('active');
                       return;

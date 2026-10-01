@@ -93,7 +93,13 @@
                                         <label><strong>{{trans('file.Role')}} *</strong></label>
                                         <select name="role_id" required class="selectpicker form-control" data-live-search="true"   title="Select Role...">
                                           @foreach($lims_role_list as $role)
-                                              <option value="{{$role->id}}">{{$role->name}}</option>
+                                              @php
+                                                  $rolePick = strtolower((string) $role->name);
+                                                  $asRole = request('as');
+                                                  $pickRole = ($asRole === 'supervisor' && strpos($rolePick, 'supervisor') !== false)
+                                                      || ($asRole === 'intern' && strpos($rolePick, 'intern') !== false && strpos($rolePick, 'supervisor') === false);
+                                              @endphp
+                                              <option value="{{$role->id}}" {{ $pickRole ? 'selected' : '' }}>{{$role->name}}</option>
                                           @endforeach
                                         </select>
                                     </div>

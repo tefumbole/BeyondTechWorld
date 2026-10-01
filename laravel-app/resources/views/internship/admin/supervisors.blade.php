@@ -19,7 +19,7 @@
             <table class="table ip-table mb-0">
                 <thead>
                     <tr>
-                        <th>Supervisor</th>
+                        <th>Name</th>
                         <th>Phone</th>
                         <th>Email</th>
                         <th>Active placements</th>

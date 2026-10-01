@@ -229,8 +229,8 @@
                         </th>
                         <th>#</th>
                         <th>Name</th>
-                        <th>Email</th>
                         <th>Phone</th>
+                        <th>Email</th>
                         <th>Applications</th>
                         <th>Latest status</th>
                         <th>ERP role</th>
@@ -251,8 +251,8 @@
                             </td>
                             <td>{{ $i + 1 }}</td>
                             <td><strong>{{ $person['full_name'] }}</strong></td>
-                            <td>{{ $person['email'] ?: '—' }}</td>
                             <td>{{ $person['phone'] ?: '—' }}</td>
+                            <td>{{ $person['email'] ?: '—' }}</td>
                             <td>{{ $person['applications_count'] }}</td>
                             <td>{{ str_replace('_', ' ', $person['latest_status']) }}</td>
                             <td>

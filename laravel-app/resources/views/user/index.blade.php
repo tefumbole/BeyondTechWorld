@@ -13,24 +13,15 @@
 @endif
 
 <section>
-    <div class="container-fluid mb-3">
-        <div class="d-flex flex-wrap align-items-center" style="gap:10px;">
-            <a href="{{ route('user.index') }}" class="btn {{ ($category ?? 'all') !== 'applicants' ? 'btn-info' : 'btn-outline-info' }}">All Users</a>
-            <a href="{{ route('user.index', ['category' => 'applicants']) }}" class="btn {{ ($category ?? '') === 'applicants' ? 'btn-info' : 'btn-outline-info' }}">Interns</a>
-            @if(in_array("users-add", $all_permission))
-                <a href="{{route('user.create')}}" class="btn btn-default"><i class="dripicons-plus"></i> {{trans('file.Add User')}}</a>
-            @endif
-        </div>
-    </div>
     <div class="table-responsive">
         <table id="user-table" class="table">
             <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{trans('file.UserName')}}</th>
+                    <th>{{trans('file.name')}}</th>
+                    <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Email')}}</th>
                     <th>{{trans('file.Company Name')}}</th>
-                    <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Additional Phone Number')}}</th>
                     <th>{{trans('file.Role')}}</th>
                     <th>{{trans('file.Status')}}</th>
@@ -42,9 +33,9 @@
                 <tr data-id="{{$user->id}}" @if(in_array("users-edit", $all_permission)) data-edit-url="{{ route('user.edit', $user->id) }}" style="cursor:pointer;" @endif>
                     <td>{{$key}}</td>
                     <td>{{ $user->name }}</td>
+                    <td>{{ $user->phone}}</td>
                     <td>{{ $user->email}}</td>
                     <td>{{ $user->company_name}}</td>
-                    <td>{{ $user->phone}}</td>
                     <td>{{ $user->additional_phone}}</td>
                     <td>{{ $rolesById[$user->role_id] ?? '—' }}</td>
                     @if($user->is_active)
@@ -144,7 +135,7 @@
         'columnDefs': [
             {
                 "orderable": false,
-                'targets': [0, 7]
+                'targets': [0, 7, 8]
             },
             {
                 'render': function(data, type, row, meta){

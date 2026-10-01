@@ -52,7 +52,8 @@
                 <table class="table ip-table mb-0">
                     <thead>
                         <tr>
-                            <th>Intern</th>
+                            <th>Name</th>
+                            <th>Phone</th>
                             <th>Program preference</th>
                             <th>Status</th>
                             <th>Placement</th>
@@ -83,8 +84,8 @@
                             <td>
                                 <strong>{{ $app->full_name }}</strong>
                                 <div class="ip-meta">{{ $app->email }}</div>
-                                <div class="ip-meta">{{ $app->whatsapp_number ?: $app->phone }}</div>
                             </td>
+                            <td>{{ $app->whatsapp_number ?: $app->phone ?: '—' }}</td>
                             <td>
                                 {{ optional($app->internshipProgram)->displayName() ?: '—' }}
                                 @if($app->internship_duration_days)
@@ -186,7 +187,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">No interns match this filter.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No interns match this filter.</td>
                         </tr>
                     @endforelse
                     </tbody>
