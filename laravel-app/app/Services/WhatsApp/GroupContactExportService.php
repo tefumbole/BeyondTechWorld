@@ -681,6 +681,55 @@ class GroupContactExportService
         return $pending;
     }
 
+    public function rewriteShortCameroonPhones($jid = null)
+    {
+        $jid = trim((string) $jid);
+        $files = [];
+        if (substr($jid, -5) === '@g.us') {
+            $path = $this->membersPath($jid);
+            if (is_file($path)) {
+                $files[$jid] = $path;
+            }
+        } else {
+            foreach ($this->readDirectory() as $id => $row) {
+                if (substr((string) $id, -5) !== '@g.us') {
+                    continue;
+                }
+                $path = $this->membersPath($id);
+                if (is_file($path)) {
+                    $files[(string) $id] = $path;
+                }
+            }
+        }
+        $updated = 0;
+        foreach ($files as $groupJid => $path) {
+            $people = json_decode((string) file_get_contents($path), true);
+            if (! is_array($people)) {
+                continue;
+            }
+            $dirty = false;
+            foreach ($people as $i => $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+                $completed = $this->cameroonLookupDigits($phone);
+                if ($completed === '') {
+                    continue;
+                }
+                $people[$i]['phone'] = $completed;
+                unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                $updated++;
+                $dirty = true;
+            }
+            if ($dirty) {
+                $this->writeMembers($groupJid, $people);
+            }
+        }
+
+        return $updated;
+    }
+
     public function fetchMemberName($jid, $phone)
     {
         $jid = trim((string) $jid);
@@ -718,6 +767,11 @@ class GroupContactExportService
             $this->writeMembers($jid, $people);
 
             return ['success' => true, 'named' => true, 'kept' => true];
+        }
+        $completed = $this->cameroonLookupDigits($digits);
+        if ($completed !== '') {
+            $people[$index]['phone'] = $completed;
+            $digits = $completed;
         }
         unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
         $resolved = $this->resolvePersonName($digits, $this->profileNames(false), $this->savedNames());
@@ -1006,6 +1060,13 @@ class GroupContactExportService
                     continue;
                 }
                 $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+                $completed = $this->cameroonLookupDigits($phone);
+                if ($completed !== '') {
+                    $people[$i]['phone'] = $completed;
+                    unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                    $phone = $completed;
+                    $dirty = true;
+                }
                 $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
                 $display = $this->savedDisplayName($phone);
                 if ($display !== '') {
@@ -1549,28 +1610,28 @@ class GroupContactExportService
     protected function resolvePersonName($phone, array $map, array $others)
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);
-        $name = $this->resolveOneNumber($digits, $map, $others);
-        if ($this->isPersonName($name, $digits)) {
+        $completed = $this->cameroonLookupDigits($digits);
+        $lookup = $completed !== '' ? $completed : $digits;
+        $name = $this->resolveOneNumber($lookup, $map, $others);
+        if ($this->isPersonName($name, $lookup) || $completed === '') {
             return $name;
         }
-        $alt = $this->cameroonLookupDigits($digits);
-        if ($alt === '' || $alt === $digits) {
-            return $name;
-        }
-        $altName = $this->resolveOneNumber($alt, $map, $others);
-        if ($this->isPersonName($altName, $alt)) {
-            return $altName;
-        }
-        if ($name === null && $altName === null) {
-            return null;
+        $record = $this->lookupContactRecord($digits);
+        if (is_array($record)) {
+            if ($this->isPersonName($record['profile'], $digits)) {
+                return $record['profile'];
+            }
+            if ($this->isPersonName($record['book'], $digits)) {
+                return $record['book'];
+            }
         }
 
-        return $name === null ? $altName : $name;
+        return $name === null && $record === null ? null : $name;
     }
 
     /**
      * WhatsApp sometimes drops the leading 6 from a Cameroon mobile.
-     * 23775321739 is looked up as 237675321739. The stored number stays unchanged.
+     * 23778617129 is stored and resolved as 237678617129.
      */
     protected function cameroonLookupDigits($digits)
     {
