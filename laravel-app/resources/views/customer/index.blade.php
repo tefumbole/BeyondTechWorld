@@ -19,10 +19,133 @@
                 max-width: 1000px;
             }
         }
+        .customer-directory { padding: 4px 8px 28px; }
+        .customer-directory-card {
+            background: #fff;
+            border: 1px solid #e7e9ef;
+            border-radius: 18px;
+            box-shadow: 0 12px 32px rgba(16, 24, 40, 0.05);
+        }
+        .customer-directory-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 22px 22px 4px;
+        }
+        .customer-directory-head h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 650;
+            letter-spacing: -0.02em;
+            color: #171923;
+        }
+        .customer-directory-head p {
+            margin: 4px 0 0;
+            color: #8b919c;
+            font-size: 13px;
+        }
+        .customer-directory .dataTables_wrapper > .row:first-child {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 0;
+            padding: 12px 18px 6px;
+        }
+        .customer-directory .dataTables_length,
+        .customer-directory .dataTables_filter { float: none; margin: 0; }
+        .customer-directory .dt-buttons { margin-left: auto; }
+        .customer-directory .dataTables_length select,
+        .customer-directory .dataTables_filter input {
+            border: 1px solid #e6e8ee;
+            border-radius: 10px;
+            height: 36px;
+            background: #fff;
+            color: #171923;
+        }
+        .customer-directory .dataTables_filter input { min-width: 220px; padding: 0 12px; margin-left: 8px; }
+        .customer-directory .dataTables_length select { padding: 0 8px; }
+        .customer-directory .dt-buttons .btn { border-radius: 10px; margin-left: 6px; }
+        .customer-directory .table-responsive { border: 0; margin: 0; padding: 0 8px 8px; }
+        #customer-table { margin-top: 0 !important; border-collapse: separate; border-spacing: 0; }
+        #customer-table thead th {
+            border-top: 0;
+            border-bottom: 1px solid #eef0f4;
+            background: #fafbfc;
+            color: #8b919c;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            padding: 12px 10px;
+            white-space: nowrap;
+        }
+        #customer-table tbody td {
+            border-top: 0;
+            border-bottom: 1px solid #f2f4f7;
+            padding: 14px 10px;
+            vertical-align: middle;
+            color: #3f4654;
+            font-size: 13.5px;
+        }
+        #customer-table tbody tr:hover td { background: #f8f9fc; }
+        #customer-table td.customer-name {
+            min-width: 168px;
+            color: #171923;
+            font-weight: 650;
+            line-height: 1.35;
+        }
+        #customer-table td.customer-company { min-width: 120px; color: #4b5563; }
+        #customer-table td.customer-email,
+        #customer-table td.customer-phone { white-space: nowrap; }
+        #customer-table td.customer-address { min-width: 140px; line-height: 1.35; }
+        #customer-table .editable-select.form-control {
+            width: auto;
+            min-width: 118px;
+            height: 30px;
+            margin: 0;
+            padding: 0 22px 0 12px;
+            border: 0;
+            border-radius: 999px;
+            background-color: #f3f1ff;
+            color: #5b46d6;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .03em;
+            box-shadow: none;
+        }
+        #customer-table td.customer-money {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            color: #374151;
+        }
+        #customer-table td.customer-money.is-zero { color: #c5c9d2; }
+        #customer-table td.editable:focus {
+            outline: 2px solid #d9d6fe;
+            outline-offset: -2px;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .customer-directory .dataTables_info,
+        .customer-directory .dataTables_paginate { padding: 12px 18px 16px; }
+        @media (max-width: 768px) {
+            .customer-directory-head { padding: 16px 14px 0; }
+            .customer-directory .dataTables_filter input { min-width: 0; width: 100%; }
+            .customer-directory .dt-buttons { margin-left: 0; }
+        }
     </style>
 
-    <section>
-        <div class="container-fluid">
+    <section class="customer-directory">
+        <div class="customer-directory-card">
+            <div class="customer-directory-head">
+                <div>
+                    <h1>{{ trans('file.customer') }}s</h1>
+                    <p>{{ $lims_customer_all->count() }} {{ trans('file.customer') }}s</p>
+                </div>
+            </div>
+        <div class="customer-directory-body">
 {{--            <div class="row ">--}}
 {{--                <div class="col-md-4 product-report-filter mt-4">--}}
 {{--                    @if(in_array("customers-add", $all_permission))--}}
@@ -86,17 +209,17 @@
                                 @endforeach
                             </select>
                         </td>
-                        <td contenteditable="true" class="editable" data-id="{{ $customer->id }}" data-field="name">{{ $customer->name }}</td>
-                        <td>{{ $customer->company_name}}</td>
-                        <td contenteditable="true" class="editable" data-id="{{ $customer->id }}" data-field="email">{{ $customer->email }}</td>
-                        <td contenteditable="true" class="editable" data-id="{{ $customer->id }}" data-field="phone_number">{{ $customer->phone_number }}</td>
+                        <td contenteditable="true" class="editable customer-name" data-id="{{ $customer->id }}" data-field="name">{{ $customer->name }}</td>
+                        <td class="customer-company">{{ $customer->company_name}}</td>
+                        <td contenteditable="true" class="editable customer-email" data-id="{{ $customer->id }}" data-field="email">{{ $customer->email }}</td>
+                        <td contenteditable="true" class="editable customer-phone" data-id="{{ $customer->id }}" data-field="phone_number">{{ $customer->phone_number }}</td>
                         <td>{{ $customer->tax_no}}</td>
-                        <td contenteditable="true" class="editable" data-id="{{ $customer->id }}" data-field="address">{{ $customer->address }}</td>
-                        <td>{{$customer->points}}</td>
-                        <td>@if($customer->deposit > 0) {{ number_format($customer->deposit, 2) }} @else 0 @endif </td>
-                        <td>{{ number_format($customer->remaining, 2)}}</td>
-                        <td>@if($customer->deposit < 0) {{ number_format($customer->deposit * -1, 2) }} @else 0 @endif </td>
-                        <td>@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 2) }} @else 0 @endif</td>
+                        <td contenteditable="true" class="editable customer-address" data-id="{{ $customer->id }}" data-field="address">{{ $customer->address }}</td>
+                        <td class="customer-money {{ (float) $customer->points == 0 ? 'is-zero' : '' }}">{{$customer->points}}</td>
+                        <td class="customer-money {{ (float) $customer->deposit > 0 ? '' : 'is-zero' }}">@if($customer->deposit > 0) {{ number_format($customer->deposit, 2) }} @else 0 @endif </td>
+                        <td class="customer-money {{ (float) $customer->remaining == 0 ? 'is-zero' : '' }}">{{ number_format($customer->remaining, 2)}}</td>
+                        <td class="customer-money {{ (float) $customer->deposit < 0 ? '' : 'is-zero' }}">@if($customer->deposit < 0) {{ number_format($customer->deposit * -1, 2) }} @else 0 @endif </td>
+                        <td class="customer-money {{ ($customer->deposit - $customer->remaining) < 0 ? '' : 'is-zero' }}">@if($customer->deposit - $customer->remaining < 0 ) {{ number_format(abs($customer->deposit - $customer->remaining), 2) }} @else 0 @endif</td>
                         <td>
                             <div class="btn-group">
                                 <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{trans('file.action')}}
@@ -138,6 +261,8 @@
                 @endforeach
                 </tbody>
             </table>
+        </div>
+        </div>
         </div>
     </section>
 

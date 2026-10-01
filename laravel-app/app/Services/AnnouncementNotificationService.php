@@ -363,7 +363,7 @@ class AnnouncementNotificationService extends Controller
         $sent = 0;
         if (! $announcement->personalized && $groups !== []) {
             foreach ($groups as $jid => $person) {
-                if ($this->postGroupReminder($announcement, $jid)) {
+                if ($this->postGroupReminder($announcement, $jid, $person)) {
                     $sent++;
                 }
                 usleep(5000000);
@@ -375,8 +375,7 @@ class AnnouncementNotificationService extends Controller
         foreach ($phones as $person) {
             $phone = $person['phone'] ?? '';
             $person['name'] = $this->personalName($person);
-            $name = AnnouncementPersonalization::usableName($person['name'], $phone);
-            $msg = $this->reminderText($announcement, $name);
+            $msg = $this->reminderText($announcement, $person);
             if ($this->sendPhone($phone, $msg)) {
                 $sent++;
             }
@@ -403,40 +402,20 @@ class AnnouncementNotificationService extends Controller
         return 'wa_rem_'.substr(md5((string) $announcementId), 0, 24);
     }
 
-    protected function postGroupReminder(WaAnnouncement $announcement, $jid)
+    protected function postGroupReminder(WaAnnouncement $announcement, $jid, array $person = [])
     {
-        $msg = $this->reminderText($announcement, '');
+        $person['name'] = '';
+        $person['phone'] = '';
+        $msg = $this->reminderText($announcement, $person);
         $posted = app(BeyondWasenderService::class)->sendGroupText($jid, $msg);
 
         return ! empty($posted['success']);
     }
 
-    protected function reminderText(WaAnnouncement $announcement, $name)
+    protected function reminderText(WaAnnouncement $announcement, array $person)
     {
-        $when = $announcement->scheduled_for
-            ? $announcement->scheduled_for->format('d M Y H:i')
-            : 'soon';
-        $msg = "⏰ *Reminder*\n\n";
-        if ($name !== '') {
-            $msg .= 'Dear *'.$name."*,\n\n";
-        } else {
-            $msg .= "Hello,\n\n";
-        }
-        $msg .= "This is a reminder for the following announcement.\n\n";
-        if ($announcement->reference) {
-            $msg .= \App\Support\WhatsAppMessage::bullet('Reference', $announcement->reference);
-        }
-        $msg .= \App\Support\WhatsAppMessage::bullet('Subject', $announcement->subject ?: 'Announcement');
-        $msg .= \App\Support\WhatsAppMessage::bullet('Scheduled', $when);
-        $signoff = trim((string) $announcement->footer);
-        if ($signoff === '') {
-            $signoff = \App\Support\WhatsAppMessage::companyName();
-        }
-        $signoff = \App\Support\AnnouncementPersonalization::italicSignoff($signoff);
-        if ($signoff !== '') {
-            $msg .= "\n".$signoff;
-        }
+        $body = ltrim(AnnouncementPersonalization::buildMessage($announcement, $person, false));
 
-        return $msg;
+        return "⏰ *Reminder*\n\n".$body;
     }
 }
