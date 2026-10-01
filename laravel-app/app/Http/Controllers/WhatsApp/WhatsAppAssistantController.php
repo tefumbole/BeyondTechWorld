@@ -99,9 +99,6 @@ class WhatsAppAssistantController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.takeover', 'whatsapp.manage'])) {
             return $deny;
         }
-        if (! $request->input('confirm')) {
-            return back()->with('not_permitted', 'Confirm before returning this conversation to AI.');
-        }
         $conversation = WhatsAppConversation::findOrFail($id);
         $note = trim((string) $request->input('handoff_note', ''));
         if ($note !== '') {
@@ -109,7 +106,7 @@ class WhatsAppAssistantController extends Controller
         }
         app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
 
-        return back()->with('message', 'Beyond Assistant enabled for this conversation.');
+        return back()->with('message', 'Handed to AI. It will read this conversation and continue without a new greeting.');
     }
 
     public function suggest($id)

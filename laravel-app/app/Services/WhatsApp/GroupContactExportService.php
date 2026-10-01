@@ -15,6 +15,10 @@ class GroupContactExportService
 
     protected $contactNames = null;
 
+    protected $memberCache = [];
+
+    protected $removedCache = null;
+
     public function allRows()
     {
         $wasender = app(BeyondWasenderService::class);
@@ -570,7 +574,7 @@ class GroupContactExportService
             }
             $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
             $digits = preg_replace('/\D+/', '', $phone);
-            if ($digits === '') {
+            if ($digits === '' || $this->isRemoved($jid, $digits)) {
                 continue;
             }
             $tail = strlen($digits) > 9 ? substr($digits, -9) : '';
@@ -662,6 +666,100 @@ class GroupContactExportService
         return $pending;
     }
 
+    public function excludeMember($jid, $phone)
+    {
+        return $this->setMemberExcluded($jid, $phone, true);
+    }
+
+    public function includeMember($jid, $phone)
+    {
+        return $this->setMemberExcluded($jid, $phone, false);
+    }
+
+    public function deleteMember($jid, $phone)
+    {
+        $jid = trim((string) $jid);
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (substr($jid, -5) !== '@g.us' || $digits === '') {
+            throw new \InvalidArgumentException('Choose a person in this group.');
+        }
+        $people = $this->readMembers($jid);
+        $kept = [];
+        $found = false;
+        foreach ($people as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            if ($this->samePhone(isset($person['phone']) ? $person['phone'] : '', $digits)) {
+                $found = true;
+                continue;
+            }
+            $kept[] = $person;
+        }
+        if (! $found) {
+            throw new \InvalidArgumentException('That number is not in this group.');
+        }
+        $this->rememberRemoved($jid, $digits);
+        $this->writeMembers($jid, $kept);
+        $saved = $this->readDirectory();
+        if (isset($saved[$jid]) && is_array($saved[$jid])) {
+            $saved[$jid]['members'] = count($kept);
+            $this->writeDirectory($saved);
+        }
+
+        return count($kept);
+    }
+
+    public function shouldNotify($jid, $phone)
+    {
+        $jid = trim((string) $jid);
+        if ($this->isRemoved($jid, $phone) || $this->isExcluded($jid, $phone)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function skipsGroupBroadcast($jid)
+    {
+        $jid = trim((string) $jid);
+        $removed = $this->removedMap();
+        if ($jid !== '' && ! empty($removed[$jid])) {
+            return true;
+        }
+        foreach ($this->membersFor($jid) as $person) {
+            if (is_array($person) && ! empty($person['excluded'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function notifiableMembers($jid)
+    {
+        $out = [];
+        $seen = [];
+        foreach ($this->membersFor($jid) as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+            $digits = preg_replace('/\D+/', '', $phone);
+            if (strlen($digits) < 8 || isset($seen[$digits]) || ! $this->shouldNotify($jid, $digits)) {
+                continue;
+            }
+            $seen[$digits] = true;
+            $name = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            $out[] = [
+                'phone' => $digits,
+                'name' => $this->isPersonName($name, $digits) ? $name : '',
+            ];
+        }
+
+        return $out;
+    }
+
     public function rowsForGroup($jid)
     {
         $jid = trim((string) $jid);
@@ -672,11 +770,16 @@ class GroupContactExportService
             $this->rememberUse($jid);
             $rows = [];
             foreach ($cached as $person) {
+                $phone = isset($person['phone']) ? $person['phone'] : '';
+                if ($this->isRemoved($jid, $phone)) {
+                    continue;
+                }
                 $rows[] = [
                     'group' => $savedName,
-                    'phone' => isset($person['phone']) ? $person['phone'] : '',
+                    'phone' => $phone,
                     'name' => isset($person['name']) ? $person['name'] : '',
                     'role' => isset($person['role']) ? $person['role'] : 'member',
+                    'excluded' => ! empty($person['excluded']) ? 1 : 0,
                     'whatsapp_id' => '',
                 ];
             }
@@ -712,6 +815,9 @@ class GroupContactExportService
         $rows = [];
         foreach ($people as $person) {
             $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            if ($this->isRemoved($jid, $phone)) {
+                continue;
+            }
             $display = isset($person['name']) ? (string) $person['name'] : '';
             if ($display === '' && $phone !== '') {
                 $display = $this->knownName($phone);
@@ -721,6 +827,7 @@ class GroupContactExportService
                 'phone' => $phone,
                 'name' => $display,
                 'role' => isset($person['role']) ? $person['role'] : 'member',
+                'excluded' => 0,
                 'whatsapp_id' => isset($person['whatsapp_id']) ? $person['whatsapp_id'] : '',
             ];
         }
@@ -1090,8 +1197,149 @@ class GroupContactExportService
         return is_array($decoded) ? $decoded : [];
     }
 
+    protected function membersFor($jid)
+    {
+        $jid = (string) $jid;
+        if (! isset($this->memberCache[$jid])) {
+            $this->memberCache[$jid] = $this->readMembers($jid);
+        }
+
+        return $this->memberCache[$jid];
+    }
+
+    protected function setMemberExcluded($jid, $phone, $excluded)
+    {
+        $jid = trim((string) $jid);
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (substr($jid, -5) !== '@g.us' || $digits === '') {
+            throw new \InvalidArgumentException('Choose a person in this group.');
+        }
+        $people = $this->readMembers($jid);
+        $found = false;
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            if (! $this->samePhone(isset($person['phone']) ? $person['phone'] : '', $digits)) {
+                continue;
+            }
+            if ($excluded) {
+                $people[$i]['excluded'] = 1;
+            } else {
+                unset($people[$i]['excluded']);
+            }
+            $found = true;
+        }
+        if (! $found) {
+            throw new \InvalidArgumentException('That number is not in this group.');
+        }
+        $this->writeMembers($jid, $people);
+
+        return $excluded ? 'excluded' : 'included';
+    }
+
+    protected function samePhone($phone, $digits)
+    {
+        $row = preg_replace('/\D+/', '', (string) $phone);
+        $digits = preg_replace('/\D+/', '', (string) $digits);
+        if ($row === '' || $digits === '') {
+            return false;
+        }
+        if ($row === $digits) {
+            return true;
+        }
+        $tail = substr($digits, -9);
+
+        return strlen($row) >= 8 && strlen($digits) >= 8 && $tail !== '' && substr($row, -9) === $tail;
+    }
+
+    public function isExcluded($jid, $phone)
+    {
+        foreach ($this->membersFor($jid) as $person) {
+            if (! is_array($person) || empty($person['excluded'])) {
+                continue;
+            }
+            if ($this->samePhone(isset($person['phone']) ? $person['phone'] : '', $phone)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isRemoved($jid, $phone)
+    {
+        $jid = trim((string) $jid);
+        $map = $this->removedMap();
+        if ($jid === '' || empty($map[$jid]) || ! is_array($map[$jid])) {
+            return false;
+        }
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits !== '' && isset($map[$jid][$digits])) {
+            return true;
+        }
+        $tail = strlen($digits) >= 8 ? substr($digits, -9) : '';
+
+        return $tail !== '' && isset($map[$jid][$tail]);
+    }
+
+    protected function withoutRemoved($jid, array $contacts)
+    {
+        $kept = [];
+        foreach ($contacts as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $phone = isset($person['phone']) ? $person['phone'] : '';
+            if ($this->isRemoved($jid, $phone)) {
+                continue;
+            }
+            $kept[] = $person;
+        }
+
+        return $kept;
+    }
+
+    protected function rememberRemoved($jid, $digits)
+    {
+        $map = $this->removedMap();
+        if (! isset($map[$jid]) || ! is_array($map[$jid])) {
+            $map[$jid] = [];
+        }
+        $map[$jid][$digits] = 1;
+        if (strlen($digits) > 9) {
+            $map[$jid][substr($digits, -9)] = 1;
+        }
+        $this->removedCache = $map;
+        $path = storage_path('app/whatsapp-group-removed.json');
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($path, json_encode($map));
+    }
+
+    protected function removedMap()
+    {
+        if ($this->removedCache !== null) {
+            return $this->removedCache;
+        }
+        $path = storage_path('app/whatsapp-group-removed.json');
+        if (! is_file($path)) {
+            $this->removedCache = [];
+
+            return $this->removedCache;
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+        $this->removedCache = is_array($decoded) ? $decoded : [];
+
+        return $this->removedCache;
+    }
+
     protected function writeMembers($jid, array $contacts)
     {
+        $contacts = $this->withoutRemoved($jid, $contacts);
+        unset($this->memberCache[$jid]);
         $path = $this->membersPath($jid);
         $dir = dirname($path);
         if (! is_dir($dir)) {

@@ -139,12 +139,32 @@ class AssistantResponseComposer
         if (preg_match('/\bhow are you\b/', $text)) {
             return "I'm doing well, thank you! How can I help you today?";
         }
-        $known = $this->greetingName($context, $params);
-        if ($known !== '') {
-            return 'Hello, '.$known;
+        if (! $this->conversationAlreadyStarted($context)) {
+            $known = $this->greetingName($context, $params);
+            if ($known !== '') {
+                return 'Hello, '.$known;
+            }
+
+            return 'Hello,';
         }
 
-        return 'Hello,';
+        return 'How can I help you?';
+    }
+
+    protected function conversationAlreadyStarted(array $context)
+    {
+        $history = isset($context['history']) && is_array($context['history']) ? $context['history'] : [];
+        $count = 0;
+        foreach ($history as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (trim((string) (isset($row['body']) ? $row['body'] : '')) !== '') {
+                $count++;
+            }
+        }
+
+        return $count > 1;
     }
 
     /**
@@ -596,7 +616,7 @@ class AssistantResponseComposer
             return 'Thank you. A BeyondTechWorld team member can help with the next step if you need more detail.';
         }
         $result = $this->provider->complete([
-            ['role' => 'system', 'content' => 'Reply in JSON {"reply":"..."}. Short WhatsApp style. Do not introduce yourself. Do not say you are Beyond Assistant or Mbole AI. Do not add a reference or a company name. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it.'],
+            ['role' => 'system', 'content' => 'Reply in JSON {"reply":"..."}. Short WhatsApp style. Tone: fluent and polite. Reply in the same language as the customer\'s latest message. Do not introduce yourself. Do not say you are Beyond Assistant or Mbole AI. Do not add a reference or a company name. If the history already has earlier messages, continue that chat and do not greet. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it.'],
             ['role' => 'user', 'content' => json_encode([
                 'intent' => $intent,
                 'incoming' => $incoming,

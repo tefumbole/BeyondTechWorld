@@ -112,13 +112,15 @@
                     @endforeach
                 @endif
                 <hr>
-                <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $conversation->id) }}" class="mb-1">
-                    @csrf
-                    <label class="small d-block"><input type="checkbox" name="confirm" value="1"> Confirm return to AI</label>
-                    <textarea name="handoff_note" class="form-control form-control-sm mb-1" rows="2" placeholder="Internal note (not sent to the customer)"></textarea>
-                    <button class="btn btn-sm btn-success btn-block" type="submit">Return to AI</button>
-                </form>
-                <form method="post" action="{{ route('whatsapp.conversation.takeover', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-primary btn-block" type="submit">Take Over</button></form>
+                @if($conversation->mode === 'AI')
+                    <form method="post" action="{{ route('whatsapp.conversation.takeover', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-primary btn-block" type="submit">Take over</button></form>
+                @else
+                    <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $conversation->id) }}" class="mb-1">
+                        @csrf
+                        <textarea name="handoff_note" class="form-control form-control-sm mb-1" rows="2" placeholder="Internal note (not sent to the customer)"></textarea>
+                        <button class="btn btn-sm btn-success btn-block" type="submit">Hand to AI</button>
+                    </form>
+                @endif
                 <form method="post" action="{{ route('whatsapp.conversation.release', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-secondary btn-block" type="submit">Release</button></form>
                 <form method="post" action="{{ route('whatsapp.conversation.pause', $conversation->id) }}" class="mb-1">@csrf<button class="btn btn-sm btn-outline-warning btn-block" type="submit">Pause</button></form>
                 @if($conversation->status === 'CLOSED')

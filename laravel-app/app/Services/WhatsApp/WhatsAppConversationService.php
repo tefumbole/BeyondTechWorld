@@ -406,6 +406,7 @@ class WhatsAppConversationService
     public function assistantReply(WhatsAppConversation $conversation, $body, array $media = null)
     {
         $body = \App\Support\WhatsAppMessage::plainAiReply($body);
+        $body = $this->withoutRepeatGreeting($conversation, $body);
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }
@@ -497,6 +498,58 @@ class WhatsAppConversationService
         $result['message'] = $message;
 
         return $result;
+    }
+
+    protected function withoutRepeatGreeting(WhatsAppConversation $conversation, $body)
+    {
+        $body = trim((string) $body);
+        if ($body === '') {
+            return $body;
+        }
+        $prior = WhatsAppMessage::where('conversation_id', $conversation->id)->count();
+        if ($prior <= 1) {
+            return $body;
+        }
+        $name = $this->knownPersonName($conversation);
+        $namePart = $name !== '' ? '(?:'.preg_quote($name, '/').'[,!]?\s*)?' : '';
+        $stripped = preg_replace('/^(?:hello|hi|hey|hiya|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[,!]?\s+'.$namePart.'/iu', '', $body, 1);
+        if (! is_string($stripped)) {
+            return $body;
+        }
+        $rest = trim($stripped);
+        if ($rest === '') {
+            return 'How can I help you?';
+        }
+        if (strcasecmp($rest, $body) === 0) {
+            return $body;
+        }
+
+        return $rest;
+    }
+
+    protected function knownPersonName(WhatsAppConversation $conversation)
+    {
+        $contact = $conversation->contact;
+        if (! $contact) {
+            return '';
+        }
+        $name = '';
+        $phone = trim((string) $contact->normalized_phone);
+        if ($phone !== '') {
+            try {
+                $name = trim((string) app(\App\Services\WhatsApp\GroupContactExportService::class)->nameForPhone($phone, false));
+            } catch (\Throwable $e) {
+                $name = '';
+            }
+        }
+        if ($name === '') {
+            $name = trim((string) $contact->wa_name);
+        }
+        if ($name === '' || preg_match('/^\+?[\d\s\-\(\)]+$/', $name)) {
+            return '';
+        }
+
+        return $name;
     }
 
     public function takeover(WhatsAppConversation $conversation, $userId)

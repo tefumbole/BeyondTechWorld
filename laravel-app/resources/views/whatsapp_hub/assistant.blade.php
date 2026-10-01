@@ -21,7 +21,7 @@
             <div class="wa-card wa-list">
                 <p class="small text-muted">Only conversations in AI mode. Human chats stay on Conversations → Human.</p>
                 <table class="table mb-0">
-                    <thead><tr><th>Contact</th><th>Phone</th><th>Last message</th><th>Mode</th></tr></thead>
+                    <thead><tr><th>Contact</th><th>Phone</th><th>Last message</th><th>Mode</th><th></th></tr></thead>
                     <tbody>
                     @forelse($aiConversations as $c)
                         <tr>
@@ -29,9 +29,15 @@
                             <td>{{ optional($c->contact)->display_phone }}</td>
                             <td>{{ \Illuminate\Support\Str::limit($c->last_message, 60) }}</td>
                             <td>{{ $c->mode }}</td>
+                            <td>
+                                <form method="post" action="{{ route('whatsapp.conversation.takeover', $c->id) }}" style="margin:0">
+                                    @csrf
+                                    <button class="btn btn-sm btn-primary" type="submit">Take over</button>
+                                </form>
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="text-muted">No AI conversations yet. Open a chat and click Enable AI.</td></tr>
+                        <tr><td colspan="5" class="text-muted">No AI conversations yet. Open a chat and click Hand to AI.</td></tr>
                     @endforelse
                     </tbody>
                 </table>

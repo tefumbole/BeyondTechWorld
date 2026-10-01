@@ -516,6 +516,50 @@ class WhatsAppHubController extends Controller
         return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
     }
 
+    public function excludeGroupMember(Request $request)
+    {
+        return $this->changeGroupMember($request, 'exclude');
+    }
+
+    public function includeGroupMember(Request $request)
+    {
+        return $this->changeGroupMember($request, 'include');
+    }
+
+    public function deleteGroupMember(Request $request)
+    {
+        return $this->changeGroupMember($request, 'delete');
+    }
+
+    protected function changeGroupMember(Request $request, $action)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid', ''));
+        $phone = trim((string) $request->input('phone', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        $groups = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        try {
+            if ($action === 'delete') {
+                $groups->deleteMember($jid, $phone);
+                $message = 'Deleted. This person will not be notified and will not come back when you fetch contacts.';
+            } elseif ($action === 'include') {
+                $groups->includeMember($jid, $phone);
+                $message = 'Included. This person will be notified again.';
+            } else {
+                $groups->excludeMember($jid, $phone);
+                $message = 'Excluded. This person stays on the list and will not be notified in this group.';
+            }
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('not_permitted', $e->getMessage());
+        }
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
+    }
+
     public function lookupGroups(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
@@ -680,7 +724,7 @@ class WhatsAppHubController extends Controller
         }
         $this->conversations->takeover(WhatsAppConversation::findOrFail($id), Auth::id());
 
-        return back()->with('message', 'You took this conversation.');
+        return back()->with('message', 'You took this conversation. AI will stay quiet here until you hand it back.');
     }
 
     public function release($id)

@@ -183,11 +183,15 @@ class BeyondAssistantService
             $classified = $deterministic;
         }
 
-        // Greeting / closing stay deterministic so name-capture and menu UX keep working.
+        // A named hello is only for a new chat. An ongoing thread continues without another greeting.
         if (! isset($classified) && is_array($deterministic) && in_array($deterministic['intent'], [
             IntentCatalog::GREETING,
         ], true)) {
-            $classified = $deterministic;
+            $ongoing = ! $this->isNewConversation($context);
+            $social = (bool) preg_match('/\bhow are you\b|\b(i\'?m|i am) (great|good|fine|well|ok|okay)\b/i', (string) $incoming);
+            if (! $ongoing || $social) {
+                $classified = $deterministic;
+            }
         }
 
         // High-priority operational workflows stay deterministic (attendance, OTP, docs, pending ops).
@@ -805,6 +809,29 @@ class BeyondAssistantService
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    protected function isBareHello($text)
+    {
+        $text = trim((string) $text);
+
+        return (bool) preg_match('/^(hi|hello|hey|hiya|greetings|bonjour|bonsoir|salut|good morning|good afternoon|good evening)[\s!.]*$/i', $text);
+    }
+
+    protected function isNewConversation(array $context)
+    {
+        $history = isset($context['history']) && is_array($context['history']) ? $context['history'] : [];
+        $count = 0;
+        foreach ($history as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (trim((string) (isset($row['body']) ? $row['body'] : '')) !== '') {
+                $count++;
+            }
+        }
+
+        return $count <= 1;
     }
 
     protected function isOperationalIntent($intent, array $slots = [])

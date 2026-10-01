@@ -136,9 +136,31 @@ class AnnouncementNotificationService extends Controller
     protected function dispatchGroups(WaAnnouncement $announcement, array $groups)
     {
         $wasender = app(BeyondWasenderService::class);
+        $export = app(GroupContactExportService::class);
         $results = [];
         $sent = 0;
-        foreach (array_values($groups) as $index => $group) {
+        $private = [];
+        $broadcast = [];
+        foreach (array_values($groups) as $group) {
+            $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
+            if ($jid !== '' && $export->skipsGroupBroadcast($jid)) {
+                foreach ($export->notifiableMembers($jid) as $member) {
+                    $private[] = [
+                        'id' => 'wa:'.$member['phone'],
+                        'kind' => 'contact',
+                        'name' => $member['name'],
+                        'wa_name' => $member['name'],
+                        'phone' => $member['phone'],
+                        'email' => '',
+                        'group_jid' => $jid,
+                        'group' => isset($group['name']) ? $group['name'] : '',
+                    ];
+                }
+                continue;
+            }
+            $broadcast[] = $group;
+        }
+        foreach (array_values($broadcast) as $index => $group) {
             if ($index > 0) {
                 usleep(2000000);
             }
@@ -174,12 +196,31 @@ class AnnouncementNotificationService extends Controller
                 'error' => $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group'),
             ];
         }
-        $total = count($groups);
+        if ($private) {
+            $announcement->sent_count = $sent;
+            $announcement->cc_sent_count = 0;
+            $announcement->send_results_json = json_encode($results);
+            if (count($private) > 5) {
+                $announcement->recipients_json = json_encode($private);
+                $announcement->status = 'sending';
+                $announcement->whatsapp_status = 'sending';
+                $announcement->is_scheduled = false;
+                $announcement->save();
+                \App\Jobs\SendWaAnnouncementBatchJob::dispatch($announcement->id)
+                    ->onConnection('database')
+                    ->onQueue('whatsapp');
+
+                return ['sent' => $sent, 'cc' => 0, 'whatsapp_status' => 'sending'];
+            }
+
+            return $this->deliverPeople($announcement, $private, [], true, $results);
+        }
+        $total = count($broadcast);
         $announcement->sent_count = $sent;
         $announcement->cc_sent_count = 0;
         $announcement->send_results_json = json_encode($results);
         $announcement->status = 'sent';
-        $announcement->whatsapp_status = $sent === 0 ? 'pending' : ($sent < $total ? 'partial' : 'sent');
+        $announcement->whatsapp_status = $broadcast === [] ? 'sent' : ($sent === 0 ? 'pending' : ($sent < $total ? 'partial' : 'sent'));
         $announcement->is_scheduled = false;
         $announcement->save();
 
@@ -199,6 +240,10 @@ class AnnouncementNotificationService extends Controller
 
         foreach ($recipients as $person) {
             $phone = $person['phone'] ?? '';
+            $groupJid = isset($person['group_jid']) ? (string) $person['group_jid'] : '';
+            if ($groupJid !== '' && ! app(GroupContactExportService::class)->shouldNotify($groupJid, $phone)) {
+                continue;
+            }
             if (! empty($announcement->personalized)) {
                 $person['name'] = $this->personalName($person);
             }
@@ -252,7 +297,19 @@ class AnnouncementNotificationService extends Controller
         $announcement->cc_sent_count = $ccSent;
         $announcement->send_results_json = json_encode($results);
         if ($finalize) {
-            $total = count($announcement->recipients()) + count($announcement->ccRecipients());
+            $total = 0;
+            $export = app(GroupContactExportService::class);
+            foreach (array_merge($announcement->recipients(), $announcement->ccRecipients()) as $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $groupJid = isset($person['group_jid']) ? (string) $person['group_jid'] : '';
+                $personPhone = isset($person['phone']) ? (string) $person['phone'] : '';
+                if ($groupJid !== '' && ! $export->shouldNotify($groupJid, $personPhone)) {
+                    continue;
+                }
+                $total++;
+            }
             $okCount = $sent + $ccSent;
             $whatsappStatus = 'sent';
             if ($okCount === 0 && $total > 0) {
@@ -357,6 +414,9 @@ class AnnouncementNotificationService extends Controller
             if (strlen($digits) < 8 || isset($phones[$digits])) {
                 continue;
             }
+            if ($jid !== '' && ! app(GroupContactExportService::class)->shouldNotify($jid, $digits)) {
+                continue;
+            }
             $phones[$digits] = $person;
         }
 
@@ -407,6 +467,21 @@ class AnnouncementNotificationService extends Controller
         $person['name'] = '';
         $person['phone'] = '';
         $msg = $this->reminderText($announcement, $person);
+        $export = app(GroupContactExportService::class);
+        if ($export->skipsGroupBroadcast($jid)) {
+            $delivered = 0;
+            $members = $export->notifiableMembers($jid);
+            foreach ($members as $index => $member) {
+                if ($index > 0) {
+                    usleep(5000000);
+                }
+                if ($this->sendPhone($member['phone'], $msg)) {
+                    $delivered++;
+                }
+            }
+
+            return $members === [] || $delivered > 0;
+        }
         $posted = app(BeyondWasenderService::class)->sendGroupText($jid, $msg);
 
         return ! empty($posted['success']);

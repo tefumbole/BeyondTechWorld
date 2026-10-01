@@ -327,7 +327,7 @@ class AnnouncementService
             foreach ((isset($fetched['rows']) ? $fetched['rows'] : []) as $row) {
                 $phone = trim((string) (isset($row['phone']) ? $row['phone'] : ''));
                 $digits = preg_replace('/\D+/', '', $phone);
-                if (strlen($digits) < 8 || isset($byPhone[$digits])) {
+                if (strlen($digits) < 8 || isset($byPhone[$digits]) || ! $export->shouldNotify($group['group_jid'], $digits)) {
                     continue;
                 }
                 $tail = substr($digits, -9);

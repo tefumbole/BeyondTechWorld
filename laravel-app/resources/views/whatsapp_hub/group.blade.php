@@ -6,7 +6,7 @@
     <div class="container-fluid wa-shell">
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
-        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved.</p>
+        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
@@ -30,25 +30,41 @@
         <div class="wa-card table-responsive">
             <table class="table" id="contact-table">
                 <thead>
-                    <tr><th>Name</th><th>Phone</th></tr>
+                    <tr><th>Name</th><th>Phone</th><th></th></tr>
                 </thead>
                 <tbody>
                 @forelse($contacts as $contact)
                     @php
                         $name = trim((string) $contact['name']);
                         $phone = trim((string) $contact['phone']);
+                        $excluded = ! empty($contact['excluded']);
                     @endphp
-                    <tr data-name="{{ $name }}" data-phone="{{ $phone }}">
+                    <tr data-name="{{ $name }}" data-phone="{{ $phone }}" @if($excluded) style="background:#f8f9fa" @endif>
                         <td>
                             <input class="form-control contact-name" value="{{ $name }}" placeholder="Name to show for this number" style="min-width:220px">
                             <small class="contact-save text-muted"></small>
+                            @if($excluded)<div class="text-muted">Excluded from announcements and reminders</div>@endif
                         </td>
                         <td class="contact-phone">{{ $phone !== '' ? $phone : '—' }}</td>
+                        <td style="white-space:nowrap">
+                            <form method="POST" action="{{ route($excluded ? 'whatsapp.groups.include' : 'whatsapp.groups.exclude') }}" style="display:inline">
+                                @csrf
+                                <input type="hidden" name="jid" value="{{ $jid }}">
+                                <input type="hidden" name="phone" value="{{ $phone }}">
+                                <button type="submit" class="btn btn-sm {{ $excluded ? 'btn-default' : 'btn-warning' }}">{{ $excluded ? 'Include' : 'Exclude' }}</button>
+                            </form>
+                            <form method="POST" action="{{ route('whatsapp.groups.remove') }}" style="display:inline" onsubmit="return confirm('Delete this person from this group? They stay out even when you fetch contacts again.');">
+                                @csrf
+                                <input type="hidden" name="jid" value="{{ $jid }}">
+                                <input type="hidden" name="phone" value="{{ $phone }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
                     </tr>
                 @empty
-                    <tr class="contact-empty-group"><td colspan="2">No contacts were returned for this group.</td></tr>
+                    <tr class="contact-empty-group"><td colspan="3">No contacts were returned for this group.</td></tr>
                 @endforelse
-                    <tr id="contact-no-match" style="display:none"><td colspan="2">No contacts match that search.</td></tr>
+                    <tr id="contact-no-match" style="display:none"><td colspan="3">No contacts match that search.</td></tr>
                 </tbody>
             </table>
         </div>

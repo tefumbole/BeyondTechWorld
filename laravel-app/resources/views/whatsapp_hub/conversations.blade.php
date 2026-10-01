@@ -36,7 +36,7 @@
         </form>
         <div class="wa-card wa-list">
             <table class="table mb-0" id="wa-inbox-table">
-                <thead><tr><th>Contact</th><th>Channel</th><th>Phone</th><th>Last message</th><th>Waiting</th><th>Unread</th><th>Assigned</th><th>Mode</th></tr></thead>
+                <thead><tr><th>Contact</th><th>Channel</th><th>Phone</th><th>Last message</th><th>Waiting</th><th>Unread</th><th>Assigned</th><th>Mode</th><th></th></tr></thead>
                 <tbody>
                 @forelse($list as $c)
                     @php $wait = $c->waitingMinutes(); @endphp
@@ -49,9 +49,22 @@
                         <td>{{ $c->unread_count }}</td>
                         <td>{{ optional($c->assignee)->name ?: 'Unassigned' }}</td>
                         <td>{{ $c->mode }}</td>
+                        <td style="white-space:nowrap">
+                            @if($c->mode === 'AI')
+                                <form method="post" action="{{ route('whatsapp.conversation.takeover', $c->id) }}" style="margin:0">
+                                    @csrf
+                                    <button class="btn btn-sm btn-primary" type="submit">Take over</button>
+                                </form>
+                            @elseif($c->mode !== 'CLOSED')
+                                <form method="post" action="{{ route('whatsapp.conversation.enable_ai', $c->id) }}" style="margin:0">
+                                    @csrf
+                                    <button class="btn btn-sm btn-success" type="submit">Hand to AI</button>
+                                </form>
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="text-muted">No conversations match.</td></tr>
+                    <tr><td colspan="9" class="text-muted">No conversations match.</td></tr>
                 @endforelse
                 </tbody>
             </table>
