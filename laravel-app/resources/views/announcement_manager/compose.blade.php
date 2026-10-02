@@ -587,6 +587,14 @@ window.AN_PRESELECT = @json([
     });
 
     document.getElementById('an-form').addEventListener('submit', function (e) {
+        var previewBodyField = document.getElementById('an-preview-body');
+        var previewPanel = document.getElementById('an-preview');
+        if (previewBodyField && previewPanel && previewPanel.style.display !== 'none') {
+            document.getElementById('an-body').value = previewBodyField.value;
+        }
+        if (typeof writeOverrides === 'function') {
+            writeOverrides();
+        }
         var audience = document.getElementById('an-audience').value;
         if (audience === 'group') {
             if (!document.querySelectorAll('#an-group-list input:checked').length) {
@@ -712,7 +720,9 @@ window.AN_PRESELECT = @json([
     function writeOverrides() {
         var box = document.getElementById('an-name-overrides');
         if (!box) return;
-        box.innerHTML = previewPeople.map(function (p) {
+        box.innerHTML = previewPeople.filter(function (p) {
+            return String(p.name || '').trim() !== String(p.original || '').trim();
+        }).map(function (p) {
             return '<input type="hidden" name="name_overrides['+esc(p.phone)+']" value="'+esc(p.name)+'">';
         }).join('');
     }
@@ -794,7 +804,10 @@ window.AN_PRESELECT = @json([
                     alert(payload.error || 'The names could not be loaded.');
                     return;
                 }
-                previewPeople = payload.people || [];
+                previewPeople = (payload.people || []).map(function (person) {
+                    person.original = person.name || '';
+                    return person;
+                });
                 previewFocus = previewPeople.length ? previewPeople[0].phone : '';
                 document.getElementById('an-preview-body').value = document.getElementById('an-body').value;
                 document.getElementById('an-preview').style.display = '';

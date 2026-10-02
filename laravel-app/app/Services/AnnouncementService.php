@@ -171,6 +171,8 @@ class AnnouncementService
             $overrides = isset($data['name_overrides']) ? (array) $data['name_overrides'] : [];
             $recipients = $this->applyNameOverrides($recipients, $overrides);
             $ccs = $this->applyNameOverrides($ccs, $overrides);
+            $this->persistEditedGroupNames($recipients);
+            $this->persistEditedGroupNames($ccs);
         }
 
         $sendMode = $data['send_mode'] ?? 'now';
@@ -331,14 +333,19 @@ class AnnouncementService
                     continue;
                 }
                 $tail = substr($digits, -9);
-                $waName = trim((string) (isset($row['name']) ? $row['name'] : ''));
+                $original = trim((string) (isset($row['name']) ? $row['name'] : ''));
+                $waName = $original;
+                $edited = false;
                 if (isset($names[$digits])) {
                     $waName = $names[$digits];
+                    $edited = $waName !== $original;
                 } elseif ($tail !== '' && isset($names[$tail])) {
                     $waName = $names[$tail];
+                    $edited = $waName !== $original;
                 }
                 if ($waName === '' || preg_match('/^\d+$/', $waName)) {
                     $waName = $digits;
+                    $edited = false;
                 }
                 $byPhone[$digits] = [
                     'id' => 'wa:'.$digits,
@@ -349,6 +356,7 @@ class AnnouncementService
                     'email' => '',
                     'group' => $group['name'],
                     'group_jid' => $group['group_jid'],
+                    'name_edited' => $edited,
                 ];
             }
         }
@@ -388,12 +396,37 @@ class AnnouncementService
             if ($override === '') {
                 continue;
             }
+            $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            if ($override === $current) {
+                continue;
+            }
             $people[$i]['name'] = $override;
             $people[$i]['wa_name'] = $override;
             $people[$i]['name_edited'] = true;
         }
 
         return $people;
+    }
+
+    protected function persistEditedGroupNames(array $people)
+    {
+        $groups = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        foreach ($people as $person) {
+            if (empty($person['name_edited'])) {
+                continue;
+            }
+            $jid = isset($person['group_jid']) ? trim((string) $person['group_jid']) : '';
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $name = isset($person['name']) ? trim((string) $person['name']) : '';
+            if ($jid === '' || $phone === '' || $name === '') {
+                continue;
+            }
+            try {
+                $groups->saveDisplayName($jid, $phone, $name);
+            } catch (\InvalidArgumentException $e) {
+                // The announcement still uses the preview name.
+            }
+        }
     }
 
     protected function whatsappContacts()
