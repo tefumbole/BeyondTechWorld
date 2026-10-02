@@ -399,12 +399,21 @@ class WhatsAppHubController extends Controller
         }
 
         $switched = 0;
-        if ($mode === 'AI' && $request->input('assistant_enabled') && $this->canAny(['whatsapp.ai.manage', 'whatsapp.manage'])) {
+        $held = 0;
+        if ($this->canAny(['whatsapp.ai.manage', 'whatsapp.manage']) && ! $request->input('assistant_enabled')) {
+            WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+            WhatsAppSetting::putValue('ai_first', '0');
+            $held = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->holdOpenConversations(Auth::id());
+        } elseif ($mode === 'AI' && $request->input('assistant_enabled') && $this->canAny(['whatsapp.ai.manage', 'whatsapp.manage'])) {
             $switched = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->switchEligible(Auth::id());
         }
-        $note = $switched > 0
-            ? 'Settings saved. '.$switched.' existing chat(s) switched to AI so they get replies. Assigned, paused, and closed chats were left as they are.'
-            : 'Settings saved. New messages on unassigned chats will be answered by AI. Assigned, paused, and closed chats stay with staff.';
+        if ($held > 0 || ($this->canAny(['whatsapp.ai.manage', 'whatsapp.manage']) && ! $request->input('assistant_enabled'))) {
+            $note = 'Settings saved. AI is off. '.$held.' chat(s) are with a person.';
+        } elseif ($switched > 0) {
+            $note = 'Settings saved. '.$switched.' existing chat(s) switched to AI so they get replies. Assigned, paused, and closed chats were left as they are.';
+        } else {
+            $note = 'Settings saved. New messages on unassigned chats will be answered by AI. Assigned, paused, and closed chats stay with staff.';
+        }
 
         return redirect()->route('whatsapp.settings')->with('message', $note);
     }

@@ -90,21 +90,14 @@ class ConversationAiSwitchService
     }
 
     /**
-     * AI Off: open chats leave AI and wait in Human mode. Paused and closed chats stay as they are.
+     * AI Off: every chat that is still in AI mode waits with a person, including paused and closed chats.
      */
     public function holdOpenConversations($actorId = null)
     {
         $updated = 0;
         foreach (WhatsAppConversation::orderBy('id')->get() as $conversation) {
             $mode = strtoupper((string) $conversation->mode);
-            $status = strtoupper((string) $conversation->status);
-            if ($mode === WhatsAppConversation::MODE_PAUSED || $status === 'PAUSED') {
-                continue;
-            }
-            if ($mode === WhatsAppConversation::MODE_CLOSED || $status === WhatsAppConversation::STATUS_CLOSED) {
-                continue;
-            }
-            if ($mode === WhatsAppConversation::MODE_HUMAN) {
+            if ($mode !== WhatsAppConversation::MODE_AI) {
                 continue;
             }
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;

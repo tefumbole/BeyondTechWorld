@@ -57,9 +57,17 @@ class WhatsAppAssistantController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.ai.manage', 'whatsapp.manage'])) {
             return $deny;
         }
-        WhatsAppSetting::putValue('assistant_enabled', $request->input('assistant_enabled') ? '1' : '0');
+        $on = (bool) $request->input('assistant_enabled');
+        WhatsAppSetting::putValue('assistant_enabled', $on ? '1' : '0');
+        if (! $on) {
+            WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+            WhatsAppSetting::putValue('ai_first', '0');
+            $held = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->holdOpenConversations(Auth::id());
 
-        return back()->with('message', $request->input('assistant_enabled') ? 'Beyond Assistant enabled.' : 'Beyond Assistant disabled.');
+            return back()->with('message', 'Beyond Assistant is off. '.$held.' chat(s) are with a person.');
+        }
+
+        return back()->with('message', 'Beyond Assistant enabled.');
     }
 
     public function storeKnowledge(Request $request)
@@ -105,6 +113,9 @@ class WhatsAppAssistantController extends Controller
             app(WhatsAppConversationService::class)->addNote($conversation, $note, Auth::id());
         }
         app(WhatsAppConversationService::class)->enableAi($conversation, Auth::id());
+        if (strtoupper((string) $conversation->fresh()->mode) !== WhatsAppConversation::MODE_AI) {
+            return back()->with('not_permitted', 'AI is off for every number. Send AI On before handing a chat to AI.');
+        }
 
         return back()->with('message', 'Handed to AI. It will read this conversation and continue without a new greeting.');
     }

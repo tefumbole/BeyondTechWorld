@@ -61,7 +61,7 @@ class BeyondAssistantService
 
                 return ['skipped' => false, 'sent' => true, 'intent' => 'OWNER', 'reply' => $answer];
             }
-            if ($conversation->mode !== \App\WhatsApp\WhatsAppConversation::MODE_AI) {
+            if ($this->policy->globallyEnabled() && $conversation->mode !== \App\WhatsApp\WhatsAppConversation::MODE_AI) {
                 $conversation->mode = \App\WhatsApp\WhatsAppConversation::MODE_AI;
                 $conversation->assigned_user_id = null;
                 $conversation->save();

@@ -177,7 +177,7 @@ class OwnerCommandService
             WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
             $switched = app(ConversationAiSwitchService::class)->holdOpenConversations();
 
-            return 'Human mode is on. '.$switched.' open chat(s) are now with a person, and AI will stay quiet until you send AI On.';
+            return 'Human mode is on. '.$switched.' chat(s) are now with a person, and AI will stay quiet on every number until you send AI On.';
         }
 
         WhatsAppSetting::putValue('default_conversation_mode', 'AI');

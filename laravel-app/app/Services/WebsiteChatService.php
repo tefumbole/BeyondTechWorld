@@ -72,7 +72,9 @@ class WebsiteChatService
         $contact = $this->ensureWebsiteContact($token);
         $conversation = WhatsAppConversation::create(array_filter([
             'contact_id' => $contact->id,
-            'mode' => WhatsAppConversation::MODE_AI,
+            'mode' => app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()
+                ? WhatsAppConversation::MODE_AI
+                : WhatsAppConversation::MODE_HUMAN,
             'status' => WhatsAppConversation::STATUS_OPEN,
             'channel' => WhatsAppConversation::CHANNEL_WEBSITE,
             'session_token' => $token,
