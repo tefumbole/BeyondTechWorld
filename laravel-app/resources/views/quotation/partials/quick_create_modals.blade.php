@@ -3,6 +3,48 @@
 .quotation-qc .input-with-action { display: flex; gap: 8px; align-items: stretch; }
 .quotation-qc .input-with-action .bootstrap-select { flex: 1; min-width: 0; }
 .quotation-qc .input-with-action .btn-default { flex: 0 0 auto; }
+.quotation-qc .form-control,
+.quotation-qc .bootstrap-select > .dropdown-toggle,
+.quotation-qc select.form-control {
+    border: 1.5px solid #98a2b3 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    min-height: 42px;
+    color: #1f2937;
+    box-shadow: none;
+}
+.quotation-qc .bootstrap-select.form-control {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0;
+    min-height: 0;
+}
+.quotation-qc .form-control:focus,
+.quotation-qc .bootstrap-select > .dropdown-toggle:focus {
+    border-color: #1d4ed8 !important;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+}
+.quotation-qc .input-with-action .btn-default,
+.quotation-qc .search-box .btn {
+    border: 1.5px solid #98a2b3;
+    border-radius: 8px;
+    min-height: 42px;
+    background: #fff;
+}
+.quotation-qc table.order-list {
+    border: 1px solid #98a2b3;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.quotation-qc table.order-list th,
+.quotation-qc table.order-list td {
+    border: 1px solid #d0d5dd;
+}
+.quotation-qc table.order-list thead th {
+    background: #f8fafc;
+}
 </style>
 
 <div id="addCustomer" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">

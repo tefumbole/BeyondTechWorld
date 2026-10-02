@@ -2,7 +2,32 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
-<section class="forms">
+<section class="forms customer-modern">
+    <style>
+        .customer-modern .card { border: 0; border-radius: 16px; box-shadow: 0 10px 30px rgba(15, 35, 80, 0.08); overflow: hidden; }
+        .customer-modern .card-header { background: #fff; border-bottom: 0; padding: 22px 28px 0; }
+        .customer-modern .card-header h4 { font-weight: 700; color: #1b2a4a; margin: 0; }
+        .customer-modern .card-body { padding: 8px 28px 28px; }
+        .customer-modern .hint { color: #667085; margin: 6px 0 18px; }
+        .customer-modern .customer-section { background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 14px; padding: 16px 16px 4px; margin-bottom: 16px; }
+        .customer-modern .customer-section h5 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #667085; font-weight: 700; margin: 0 0 14px; }
+        .customer-modern label { font-size: 13px; font-weight: 600; color: #24324a; margin-bottom: 6px; }
+        .customer-modern .form-control,
+        .customer-modern .bootstrap-select > .dropdown-toggle {
+            border: 1px solid #d0d5dd !important;
+            border-radius: 10px !important;
+            background: #fff !important;
+            min-height: 44px;
+            box-shadow: none;
+            color: #1f2937;
+        }
+        .customer-modern .bootstrap-select.form-control { border: 0 !important; background: transparent !important; padding: 0; min-height: 0; }
+        .customer-modern .form-control:focus,
+        .customer-modern .bootstrap-select > .dropdown-toggle:focus { border-color: #1d4ed8 !important; box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.16); }
+        .customer-modern .btn-primary { border-radius: 10px; padding: 10px 22px; background: #1d4ed8; border-color: #1d4ed8; font-weight: 600; }
+        .customer-modern .user-toggle { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #d0d5dd; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+        .customer-modern .user-toggle label { margin: 0; }
+    </style>
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
@@ -11,9 +36,11 @@
                         <h4>{{trans('file.Add Customer')}}</h4>
                     </div>
                     <div class="card-body">
-                        <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
+                        <p class="hint"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                         {!! Form::open(['route' => 'customer.store', 'method' => 'post', 'files' => true]) !!}
-                        <div class="row">
+                        <div class="customer-section">
+                            <h5>Contact</h5>
+                            <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>{{trans('file.Phone Number')}} *</label>
@@ -27,13 +54,13 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.name')}} *</strong> </label>
+                                    <label>{{trans('file.name')}} *</label>
                                     <input type="text" id="name" name="customer_name" required class="form-control" onkeyup='saveValue(this);'>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.Customer Group')}} *</strong> </label>
+                                    <label>{{trans('file.Customer Group')}} *</label>
                                     <select required class="form-control selectpicker" id="customer-group-id" name="customer_group_id" onchange='saveValue(this);'>
                                         @foreach($lims_customer_group_all as $customer_group)
                                             <option value="{{$customer_group->id}}">{{$customer_group->name}}</option>
@@ -43,14 +70,19 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.Company Name')}}</label>
-                                    <input type="text" name="company_name" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
                                     <label>{{trans('file.Email')}}</label>
                                     <input type="email" name="email" placeholder="example@example.com" class="form-control">
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        <div class="customer-section">
+                            <h5>Company</h5>
+                            <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{trans('file.Company Name')}}</label>
+                                    <input type="text" name="company_name" class="form-control">
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -59,6 +91,17 @@
                                     <input type="text" name="tax_no" class="form-control">
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{trans('file.Credit Limit')}}</label>
+                                    <input type="text" name="credit_limit" class="form-control">
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        <div class="customer-section">
+                            <h5>Address</h5>
+                            <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>{{trans('file.Address')}}</label>
@@ -89,20 +132,14 @@
                                     <input type="text" name="country" class="form-control">
                                 </div>
                             </div>
+                            </div>
+                        </div>
+                        <div class="user-toggle">
+                            <input type="checkbox" name="user" value="1" id="add-user-toggle" />
+                            <label for="add-user-toggle">{{trans('file.Add User')}}</label>
+                        </div>
+                        <div class="row user-input">
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>{{trans('file.Credit Limit')}}</label>
-                                    <input type="text" name="credit_limit" class="form-control">
-                                </div>
-                            </div>
-                            <div class="col-md-6 mt-3">
-                                <div class="form-group">
-                                    <label>{{trans('file.Add User')}}</label>&nbsp;
-                                    <input type="checkbox" name="user" value="1" />
-                                </div>
-                            </div>
-
-                            <div class="col-md-6 user-input">
                                 <div class="form-group">
                                     <label>{{trans('file.UserName')}} *</label>
                                     <input type="text" name="name" class="form-control">
@@ -113,7 +150,7 @@
                                     @endif
                                 </div>
                             </div>
-                            <div class="col-md-6 user-input">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label>{{trans('file.Password')}} *</label>
                                     <input type="password" name="password" class="form-control">
