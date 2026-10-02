@@ -10,15 +10,20 @@ use Illuminate\Support\Facades\Schema;
 class RehearseBeyondMigration extends Command
 {
     protected $signature = 'cloud:rehearse-beyond-migration
-        {--execute : Write nullable ownership. Refused on the live database.}
+        {--execute : Write nullable ownership. Live database also requires --confirm-production.}
+        {--confirm-production= : Exact phrase APPLY-BEYONDTECHWORLD-OWNERSHIP. Required with --execute on the live database.}
         {--seed-test-tenant : Add one test customer company with test-only rows. Refused on the live database.}';
 
-    protected $description = 'Dry-run BeyondTechWorld ownership assignment. Writes only with --execute, and never on the live database.';
+    protected $description = 'Dry-run BeyondTechWorld ownership assignment. Live writes need --execute and --confirm-production.';
 
     public function handle(BeyondOwnershipRehearsal $rehearsal)
     {
         try {
-            $result = $rehearsal->report((bool) $this->option('execute'), (bool) $this->option('seed-test-tenant'));
+            $result = $rehearsal->report(
+                (bool) $this->option('execute'),
+                (bool) $this->option('seed-test-tenant'),
+                (string) $this->option('confirm-production')
+            );
         } catch (\RuntimeException $e) {
             $this->error($e->getMessage());
 

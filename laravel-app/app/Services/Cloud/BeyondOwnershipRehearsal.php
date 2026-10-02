@@ -16,18 +16,22 @@ class BeyondOwnershipRehearsal
 {
     const LIVE_DATABASE = 'beyondtechworld_laravel';
 
+    const PRODUCTION_CONFIRMATION = 'APPLY-BEYONDTECHWORLD-OWNERSHIP';
+
     public function liveDatabase()
     {
         return DB::connection()->getDatabaseName() === self::LIVE_DATABASE;
     }
 
-    public function report($execute, $seedTestTenant)
+    public function report($execute, $seedTestTenant, $productionConfirmation = '')
     {
-        if ($execute && $this->liveDatabase()) {
-            throw new \RuntimeException('Refusing to write ownership on the live beyondtechworld_laravel database.');
-        }
         if ($seedTestTenant && $this->liveDatabase()) {
             throw new \RuntimeException('Refusing to create a test company on the live database.');
+        }
+        if ($execute && $this->liveDatabase() && (string) $productionConfirmation !== self::PRODUCTION_CONFIRMATION) {
+            throw new \RuntimeException(
+                'Refusing to write ownership on the live beyondtechworld_laravel database without --confirm-production='.self::PRODUCTION_CONFIRMATION
+            );
         }
 
         $tenant = CloudTenant::where('slug', CloudInternalTenantService::SLUG)
