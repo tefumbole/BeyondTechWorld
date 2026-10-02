@@ -27,6 +27,9 @@
     <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company">
         @csrf
         <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
+        @if(!empty($validationToken))
+            <input type="hidden" name="validation_token" value="{{ $validationToken }}">
+        @endif
         <h2>Services</h2>
         @foreach($plans as $plan)
             <label class="card">

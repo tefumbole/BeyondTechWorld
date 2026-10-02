@@ -9,11 +9,13 @@ use App\Cloud\CloudSubscriptionPayment;
 use App\Cloud\CloudTenant;
 use App\Services\Cloud\CloudCheckoutService;
 use App\Services\Cloud\CloudExistingAccountException;
+use App\Services\Cloud\CloudOnboardingGate;
 use App\Services\Cloud\CloudOnboardingService;
 use App\Services\Cloud\CloudPortalService;
 use App\Services\Cloud\CloudTenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class CloudPortalController extends Controller
@@ -53,26 +55,30 @@ class CloudPortalController extends Controller
         return redirect()->route('cloud.home');
     }
 
-    public function showRegister()
+    public function showRegister(Request $request)
     {
         $token = Str::random(40);
         session(['cloud_onboard_token' => $token]);
-        $plans = config('cloud.public_onboarding') ? app(CloudOnboardingService::class)->plans() : collect();
+        $validation = (string) $request->header('X-Cloud-Onboarding-Gate', '');
+        $gated = $validation !== '' && app(CloudOnboardingGate::class)->peek($validation);
+        $open = (bool) config('cloud.public_onboarding') || $gated;
+        $plans = $open ? app(CloudOnboardingService::class)->plans() : collect();
 
         return view('cloud.portal.register', [
-            'onboardingOpen' => (bool) config('cloud.public_onboarding'),
+            'onboardingOpen' => $open,
             'plans' => $plans,
             'quote' => app(CloudOnboardingService::class)->quote($plans->map(function ($plan) {
                 return $plan->module->code;
             })->all()),
             'onboardToken' => $token,
+            'validationToken' => $gated ? $validation : '',
             'welcome' => config('cloud.trial_welcome'),
         ]);
     }
 
     public function register(Request $request)
     {
-        if (! config('cloud.public_onboarding')) {
+        if (! $this->registrationOpen($request)) {
             return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
         }
         $data = $this->companyInput($request, true);
@@ -88,6 +94,19 @@ class CloudPortalController extends Controller
         session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
 
         return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
+    }
+
+    protected function registrationOpen(Request $request)
+    {
+        if (config('cloud.public_onboarding')) {
+            return true;
+        }
+        $onboard = (string) $request->input('onboard_token', '');
+        if ($onboard !== '' && is_array(Cache::get('cloud-onboard-done:'.$onboard))) {
+            return true;
+        }
+
+        return app(CloudOnboardingGate::class)->consume($request->input('validation_token'));
     }
 
     public function addCompany(Request $request)

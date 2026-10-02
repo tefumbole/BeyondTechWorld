@@ -32,6 +32,7 @@ class Kernel extends ConsoleKernel
         Commands\WealthSyncIncome::class,
         Commands\SendOnlineInvitationReminders::class,
         Commands\FixFuneralEulogies::class,
+        Commands\IssueCloudOnboardingGate::class,
     ];
 
     /**
