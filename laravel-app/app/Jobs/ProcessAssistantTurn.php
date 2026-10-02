@@ -48,6 +48,17 @@ class ProcessAssistantTurn implements ShouldQueue
         }
         try {
             $run = function () use ($assistant, $message) {
+                $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+                if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER
+                    && \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')
+                    && ! app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging')) {
+                    \Illuminate\Support\Facades\Log::info('[beyond-assistant] reply skipped, messaging not entitled', [
+                        'message_id' => $this->messageId,
+                        'cloud_tenant_id' => $tenant->id,
+                    ]);
+
+                    return;
+                }
                 $assistant->handleIncoming($message);
             };
             if ($tenantId) {

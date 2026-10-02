@@ -180,6 +180,10 @@ class BeyondWasenderService
      */
     public function sendPoll($phone, $question, array $options)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
@@ -207,6 +211,10 @@ class BeyondWasenderService
 
     public function sendTextRaw($phone, $message, $stampReference = true)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             if (app()->environment('local')) {
                 \Log::info('[beyond-whatsapp] Wasender not configured — message: '.$message);
@@ -272,6 +280,10 @@ class BeyondWasenderService
      */
     public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             if (app()->environment('local')) {
                 \Log::info('[beyond-whatsapp] Wasender not configured — skip document', [
@@ -337,6 +349,10 @@ class BeyondWasenderService
      */
     public function sendImage($phone, $localPath, $caption = null)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             if (app()->environment('local')) {
                 \Log::info('[beyond-whatsapp] Wasender not configured — skip image', [
@@ -829,6 +845,10 @@ class BeyondWasenderService
 
     public function sendGroupText($groupJid, $message)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
@@ -846,6 +866,10 @@ class BeyondWasenderService
 
     public function sendGroupDocument($groupJid, $localPath, $fileName = null, $caption = null)
     {
+        $blocked = $this->messagingBlocked();
+        if ($blocked) {
+            return $blocked;
+        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
@@ -868,5 +892,30 @@ class BeyondWasenderService
         }
 
         return ['success' => true];
+    }
+
+    /**
+     * CUSTOMER companies with an expired or missing Messaging entitlement
+     * get a normal failure, not an exception, so provider retries do not storm.
+     * INTERNAL companies and jobs with no company context are unchanged.
+     */
+    protected function messagingBlocked()
+    {
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        if (! $context->has()) {
+            return null;
+        }
+        $tenant = $context->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return null;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')) {
+            return null;
+        }
+        if (app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging')) {
+            return null;
+        }
+
+        return ['success' => false, 'error' => 'messaging_not_entitled', 'skipped' => true];
     }
 }

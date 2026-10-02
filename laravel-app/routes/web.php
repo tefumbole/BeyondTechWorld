@@ -333,6 +333,7 @@ Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.su
 Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
 Route::post('/cloud/register', 'CloudPortalController@register')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
+Route::post('/cloud/billing/webhook/{provider}', 'CloudBillingWebhookController@handle')->name('cloud.billing.webhook');
 
 Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');
@@ -373,6 +374,11 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     // About Us — Leaders (Alpha Bridge Members equivalent)
     Route::get('/admin/subscriptions', 'CloudAdminController@index')->name('cloud.admin');
     Route::post('/admin/subscriptions/plans/{id}', 'CloudAdminController@updatePrice')->name('cloud.admin.price');
+    Route::post('/admin/subscriptions/tenants/{tenant}/grant-trial', 'CloudAdminController@grantTrial')->name('cloud.admin.grant-trial');
+    Route::post('/admin/subscriptions/{subscription}/extend', 'CloudAdminController@extendSubscription')->name('cloud.admin.extend');
+    Route::post('/admin/subscriptions/{subscription}/suspend', 'CloudAdminController@suspend')->name('cloud.admin.suspend');
+    Route::post('/admin/subscriptions/{subscription}/reactivate', 'CloudAdminController@reactivate')->name('cloud.admin.reactivate');
+    Route::post('/admin/subscriptions/{subscription}/cancel', 'CloudAdminController@cancel')->name('cloud.admin.cancel');
 
     Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
     Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');

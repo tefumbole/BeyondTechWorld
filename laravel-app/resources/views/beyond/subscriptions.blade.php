@@ -24,7 +24,7 @@
                         <h2 class="text-lg font-bold text-brand-blue">{{ $plan->name }}</h2>
                         <p class="text-sm text-gray-600 mt-2 flex-1">{{ $plan->module ? $plan->module->description : '' }}</p>
                         <p class="mt-4 text-2xl font-extrabold text-gray-900">{{ number_format((float) $plan->price, 0) }} <span class="text-base font-semibold text-gray-500">{{ $plan->currency }}</span></p>
-                        <p class="text-sm text-gray-500">per month</p>
+                        <p class="text-sm text-gray-500">per {{ strtolower($plan->billing_interval ?: 'month') }}</p>
                         <p class="text-sm text-brand-blue mt-2">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</p>
                         <a href="{{ url('/cloud/register') }}" class="mt-4 inline-flex justify-center bg-brand-gold hover:bg-[#C19B2A] text-brand-blue font-bold rounded-full px-4 py-2.5">Start</a>
                     </article>

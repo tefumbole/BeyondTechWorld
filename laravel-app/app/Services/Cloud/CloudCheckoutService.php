@@ -27,8 +27,11 @@ class CloudCheckoutService
         }
 
         $subscription->load('plan');
-        $amount = $subscription->plan ? $subscription->plan->price : $subscription->quoted_price;
-        $currency = $subscription->plan ? $subscription->plan->currency : ($subscription->quoted_currency ?: 'XAF');
+        $amount = $subscription->quoted_price !== null
+            ? $subscription->quoted_price
+            : ($subscription->plan ? $subscription->plan->price : null);
+        $currency = $subscription->quoted_currency
+            ?: ($subscription->plan ? $subscription->plan->currency : 'XAF');
 
         $payment = CloudSubscriptionPayment::create([
             'cloud_tenant_id' => $tenant->id,
@@ -41,6 +44,14 @@ class CloudCheckoutService
         ]);
         $subscription->payment_method_code = $method->code;
         $subscription->save();
+        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_subscription_events')) {
+            \App\Cloud\CloudSubscriptionEvent::create([
+                'cloud_tenant_id' => $tenant->id,
+                'cloud_subscription_id' => $subscription->id,
+                'event' => \App\Cloud\CloudSubscriptionEventType::PAYMENT_REQUESTED,
+                'payload' => json_encode(['payment_id' => $payment->id, 'currency' => $payment->currency]),
+            ]);
+        }
 
         if ($method->code === CloudPaymentMethodCode::VISA) {
             return $this->stripeLink($tenant, $payment);
@@ -51,23 +62,19 @@ class CloudCheckoutService
 
     public function markPaidFromProvider(CloudSubscriptionPayment $payment)
     {
-        if ($payment->status === CloudSubscriptionPayment::PAID) {
-            return $payment;
-        }
-        $payment->status = CloudSubscriptionPayment::PAID;
-        $payment->paid_at = now();
-        $payment->save();
+        $reference = (string) $payment->provider_reference;
+        $eventId = $payment->provider.':payment:'.$payment->id.($reference !== '' ? ':'.$reference : '');
+        app(CloudSubscriptionService::class)->confirmPayment($payment, [
+            'provider' => (string) $payment->provider,
+            'event_id' => $eventId,
+            'status' => 'paid',
+            'amount' => (float) $payment->amount,
+            'currency' => $payment->currency ?: 'XAF',
+            'tenant_id' => (int) $payment->cloud_tenant_id,
+            'provider_reference' => $reference,
+        ]);
 
-        $subscription = $payment->subscription;
-        if ($subscription && $subscription->status !== CloudSubscriptionStatus::ACTIVE) {
-            $start = now();
-            $subscription->status = CloudSubscriptionStatus::ACTIVE;
-            $subscription->current_period_start = $start;
-            $subscription->current_period_end = $start->copy()->addMonth();
-            $subscription->save();
-        }
-
-        return $payment;
+        return $payment->fresh();
     }
 
     protected function campayLink(CloudTenant $tenant, CloudSubscriptionPayment $payment)
@@ -150,6 +157,21 @@ class CloudCheckoutService
         Stripe::setApiKey($secret);
         $session = StripeSession::retrieve($sessionId);
         if (! $session || $session->payment_status !== 'paid') {
+            return false;
+        }
+        $charged = isset($session->amount_total) ? (int) $session->amount_total : null;
+        $expected = (int) round((float) $payment->amount);
+        if ($charged === null || $charged !== $expected) {
+            app(CloudSubscriptionService::class)->confirmPayment($payment, [
+                'provider' => 'stripe',
+                'event_id' => 'stripe:amount:'.$sessionId,
+                'status' => 'paid',
+                'amount' => $charged === null ? 0 : $charged,
+                'currency' => $payment->currency ?: 'XAF',
+                'tenant_id' => (int) $payment->cloud_tenant_id,
+                'provider_reference' => (string) $sessionId,
+            ]);
+
             return false;
         }
         $this->markPaidFromProvider($payment);

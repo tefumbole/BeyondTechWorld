@@ -115,6 +115,40 @@ class AssistantToolRegistry
 
     public function names()
     {
-        return array_keys($this->all());
+        return array_keys($this->exposed());
+    }
+
+    /**
+     * Tools offered to the model. CUSTOMER companies do not see module tools
+     * their subscription cannot use. INTERNAL companies keep the full list.
+     */
+    public function exposed()
+    {
+        $all = $this->all();
+        $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return $all;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')) {
+            return $all;
+        }
+        $access = app(\App\Services\Cloud\CloudModuleAccessService::class);
+        $visible = [];
+        foreach ($all as $name => $meta) {
+            $capability = $access->toolCapability($name);
+            if (! $capability) {
+                $visible[$name] = $meta;
+                continue;
+            }
+            $write = ! empty($meta['write']);
+            $allowed = $write
+                ? $access->canWriteCapability($tenant, $capability)
+                : $access->canReadCapability($tenant, $capability);
+            if ($allowed) {
+                $visible[$name] = $meta;
+            }
+        }
+
+        return $visible;
     }
 }

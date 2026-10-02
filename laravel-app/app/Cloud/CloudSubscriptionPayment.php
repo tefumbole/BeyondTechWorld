@@ -14,6 +14,7 @@ class CloudSubscriptionPayment extends Model
     const PENDING = 'PENDING';
     const PAID = 'PAID';
     const FAILED = 'FAILED';
+    const RECONCILE = 'RECONCILE';
 
     protected $fillable = [
         'cloud_tenant_id',

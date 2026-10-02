@@ -28,5 +28,6 @@ class VerifyCsrfToken extends Middleware
         // Website chat widget POSTs from the public site; CSRF cookies are
         // unreliable across cache/CDN and caused silent "Network error" sends.
         'api/website-chat/*',
+        'cloud/billing/webhook/*',
     ];
 }

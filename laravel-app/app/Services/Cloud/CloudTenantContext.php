@@ -29,6 +29,11 @@ class CloudTenantContext
         return $this->tenant;
     }
 
+    public function tenant()
+    {
+        return $this->tenant;
+    }
+
     public function id()
     {
         return $this->tenant ? $this->tenant->getKey() : null;

@@ -32,6 +32,12 @@ class SendWaAnnouncementBatchJob implements ShouldQueue
             return;
         }
         $send = function () use ($notify, $announcement) {
+            $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+            if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER
+                && \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')
+                && ! app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging')) {
+                return;
+            }
             $remaining = $notify->deliverContactBatch($announcement->fresh(), 5);
             if ($remaining > 0) {
                 static::dispatch($this->announcementId)->onConnection('database')->onQueue('whatsapp');

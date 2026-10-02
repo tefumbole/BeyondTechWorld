@@ -45,6 +45,10 @@ class AssistantToolExecutor
                 return ['success' => false, 'error' => 'tenant_context_required'];
             }
         }
+        $moduleBlock = $this->moduleBlock($name);
+        if ($moduleBlock) {
+            return $moduleBlock;
+        }
         $ownerTools = [
             'get_ai_status', 'set_ai_enabled', 'set_ai_first', 'switch_eligible_conversations_to_ai',
             'get_conversations_needing_attention', 'get_open_leads_summary', 'get_pending_quotation_summary',
@@ -105,6 +109,37 @@ class AssistantToolExecutor
         }
 
         return 'TENANT';
+    }
+
+    /**
+     * A CUSTOMER company cannot reach a module through MAI when the subscription
+     * does not allow it. The tool is also omitted from the prompt by the registry.
+     */
+    protected function moduleBlock($name)
+    {
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        $tenant = $context->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return null;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')) {
+            return null;
+        }
+        $access = app(\App\Services\Cloud\CloudModuleAccessService::class);
+        $capability = $access->toolCapability($name);
+        if (! $capability) {
+            return null;
+        }
+        $meta = $this->registry->get($name);
+        $write = $meta && ! empty($meta['write']);
+        $allowed = $write
+            ? $access->canWriteCapability($tenant, $capability)
+            : $access->canReadCapability($tenant, $capability);
+        if ($allowed) {
+            return null;
+        }
+
+        return ['success' => false, 'error' => 'module_not_entitled', 'tool' => $name];
     }
 
     protected function toolGetContactSummary(array $params, array $context)

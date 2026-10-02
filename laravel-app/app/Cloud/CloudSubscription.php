@@ -25,6 +25,7 @@ class CloudSubscription extends Model
         'current_period_end',
         'cancelled_at',
         'suspended_at',
+        'cancel_at_period_end',
     ];
 
     protected $dates = [
@@ -34,6 +35,10 @@ class CloudSubscription extends Model
         'current_period_end',
         'cancelled_at',
         'suspended_at',
+    ];
+
+    protected $casts = [
+        'cancel_at_period_end' => 'boolean',
     ];
 
     protected static function boot()

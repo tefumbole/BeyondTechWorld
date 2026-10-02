@@ -8,7 +8,7 @@
         <div class="card">
             <h2>{{ $plan->name }}</h2>
             <p>{{ $plan->module ? $plan->module->description : '' }}</p>
-            <p><strong>{{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</strong> / month</p>
+            <p><strong>{{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</strong> / {{ strtolower($plan->billing_interval ?: 'month') }}</p>
             <p class="muted">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</p>
             @if($current)
                 <p>Status: {{ $current->status }}</p>

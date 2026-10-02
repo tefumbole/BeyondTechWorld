@@ -76,47 +76,7 @@ class CloudPortalService
 
     public function startTrial(CloudTenant $tenant, CloudPlan $plan)
     {
-        if ($tenant->type === CloudTenantType::INTERNAL) {
-            throw new \RuntimeException('An internal company is entitled by the platform. A trial subscription is not created.');
-        }
-
-        $plan->load('module');
-        $module = $plan->module;
-        if (! $module || ! $plan->active || ! $module->active) {
-            throw new \RuntimeException('That subscription is not available.');
-        }
-
-        $existing = CloudSubscription::where('cloud_tenant_id', $tenant->id)
-            ->where('cloud_plan_id', $plan->id)
-            ->whereIn('status', [CloudSubscriptionStatus::TRIALING, CloudSubscriptionStatus::ACTIVE])
-            ->first();
-        if ($existing) {
-            return $existing;
-        }
-
-        $gate = app(CloudTrialEligibility::class);
-        if ($gate->alreadyUsed($tenant->phone, $module)) {
-            throw new \RuntimeException('This phone number has already used the trial for this module.');
-        }
-
-        return DB::transaction(function () use ($tenant, $plan, $module, $gate) {
-            $start = now();
-            $end = $this->trialEnd($plan, $start);
-            $subscription = CloudSubscription::create([
-                'cloud_tenant_id' => $tenant->id,
-                'cloud_plan_id' => $plan->id,
-                'status' => CloudSubscriptionStatus::TRIALING,
-                'quoted_price' => $plan->price,
-                'quoted_currency' => $plan->currency,
-                'trial_started_at' => $start,
-                'trial_ends_at' => $end,
-                'current_period_start' => $start,
-                'current_period_end' => $end,
-            ]);
-            $gate->claim($tenant->phone, $module, $tenant);
-
-            return $subscription;
-        });
+        return app(CloudSubscriptionService::class)->startTrial($tenant, $plan);
     }
 
     public function saveBusinessRules(CloudTenant $tenant, array $input)

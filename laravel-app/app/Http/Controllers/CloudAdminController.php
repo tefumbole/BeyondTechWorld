@@ -6,6 +6,7 @@ use App\Cloud\CloudPaymentMethod;
 use App\Cloud\CloudPlan;
 use App\Cloud\CloudSubscription;
 use App\Cloud\CloudTenant;
+use App\Services\Cloud\CloudSubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,6 +41,56 @@ class CloudAdminController extends Controller
         $plan->save();
 
         return redirect()->route('cloud.admin')->with('message', $plan->name.' price saved. Companies already in a trial keep the price quoted when they started.');
+    }
+
+    public function grantTrial(Request $request, $tenantId, CloudSubscriptionService $subscriptions)
+    {
+        $this->authorizePlatform();
+        $tenant = CloudTenant::findOrFail($tenantId);
+        $plan = CloudPlan::where('active', true)->findOrFail($request->input('plan_id'));
+        $subscriptions->grantTrial($tenant, $plan, Auth::id());
+
+        return redirect()->route('cloud.admin')->with('message', 'Trial granted.');
+    }
+
+    public function extendSubscription($subscriptionId, CloudSubscriptionService $subscriptions)
+    {
+        $this->authorizePlatform();
+        $subscription = CloudSubscription::findOrFail($subscriptionId);
+        $subscriptions->extendSubscription($subscription, Auth::id());
+
+        return redirect()->route('cloud.admin')->with('message', 'Subscription extended.');
+    }
+
+    public function suspend($subscriptionId, CloudSubscriptionService $subscriptions)
+    {
+        $this->authorizePlatform();
+        $subscription = CloudSubscription::findOrFail($subscriptionId);
+        $subscriptions->suspend($subscription, Auth::id());
+
+        return redirect()->route('cloud.admin')->with('message', 'Subscription suspended. Existing records stay available to view.');
+    }
+
+    public function reactivate($subscriptionId, CloudSubscriptionService $subscriptions)
+    {
+        $this->authorizePlatform();
+        $subscription = CloudSubscription::findOrFail($subscriptionId);
+        $subscriptions->reactivate($subscription, Auth::id());
+
+        return redirect()->route('cloud.admin')->with('message', 'Subscription reactivated.');
+    }
+
+    public function cancel(Request $request, $subscriptionId, CloudSubscriptionService $subscriptions)
+    {
+        $this->authorizePlatform();
+        $subscription = CloudSubscription::findOrFail($subscriptionId);
+        if ($request->input('when') === 'period_end') {
+            $subscriptions->cancelAtPeriodEnd($subscription, Auth::id());
+        } else {
+            $subscriptions->cancelNow($subscription, Auth::id());
+        }
+
+        return redirect()->route('cloud.admin')->with('message', 'Subscription cancellation recorded. Company data was not deleted.');
     }
 
     protected function authorizePlatform()

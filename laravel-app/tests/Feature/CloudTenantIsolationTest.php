@@ -151,6 +151,14 @@ class CloudTenantIsolationTest extends TestCase
         ], []);
         $this->assertSame('tenant_context_required', $denied['error']);
 
+        $plan = \App\Cloud\CloudPlan::where('code', 'RENTALS_MONTHLY')->first();
+        \App\Cloud\CloudSubscription::create([
+            'cloud_tenant_id' => $alpha->id,
+            'cloud_plan_id' => $plan->id,
+            'status' => \App\Cloud\CloudSubscriptionStatus::ACTIVE,
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
         $context->set($alpha);
         $result = $executor->execute('search_rental_products', [
             'query' => 'speaker',

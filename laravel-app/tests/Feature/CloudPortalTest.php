@@ -41,6 +41,10 @@ class CloudPortalTest extends TestCase
             '--path' => 'database/migrations/2026_10_02_100000_add_cloud_portal_payments.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_10_02_200000_cloud_subscription_enforcement.php',
+            '--force' => true,
+        ]);
         $this->seedPlatformRole();
     }
 
