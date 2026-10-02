@@ -48,9 +48,9 @@ class CloudPlatformFoundationTest extends TestCase
 
     public function test_catalog_prices_and_trial_come_from_the_database()
     {
-        $this->assertSame(3, CloudModule::count());
+        $this->assertSame(4, CloudModule::count());
         $this->assertSame(
-            ['RENTALS', 'SALES_INVOICES', 'WHATSAPP_HUB'],
+            ['MESSAGING', 'RENTALS', 'SALES_INVOICES', 'WHATSAPP_HUB'],
             CloudModule::orderBy('code')->pluck('code')->all()
         );
 
@@ -67,6 +67,12 @@ class CloudPlatformFoundationTest extends TestCase
 
         $this->assertEquals(5000, (float) $sales->price);
         $this->assertEquals(5000, (float) $rentals->price);
+        $messaging = CloudPlan::where('code', 'MESSAGING_MONTHLY')->first();
+        $this->assertNotNull($messaging);
+        $this->assertSame(CloudModuleCode::MESSAGING, $messaging->module->code);
+        $this->assertEquals(5000, (float) $messaging->price);
+        $this->assertSame('XAF', $messaging->currency);
+        $this->assertSame(24, (int) $messaging->trial_value);
         $this->assertSame(24, (int) $sales->trial_value);
         $this->assertSame(CloudTrialUnit::HOUR, $rentals->trial_unit);
         $this->assertSame(0, CloudTenant::count());

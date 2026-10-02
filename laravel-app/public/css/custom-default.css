@@ -608,6 +608,23 @@ section {
     padding: 5px 10px;
 }
 
+.side-navbar li.has-product-nav {
+    position: relative;
+}
+
+.side-navbar li.has-product-nav > a[data-nav-key="product"] {
+    padding-right: 34px;
+}
+
+.side-navbar li.has-product-nav > a.product-submenu-toggle {
+    position: absolute;
+    right: 6px;
+    top: 2px;
+    width: 28px;
+    padding: 6px 0;
+    text-align: center;
+}
+
 .side-navbar li a i {
     vertical-align: middle;
 }

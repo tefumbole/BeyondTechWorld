@@ -258,6 +258,25 @@ class WhatsAppMessage
         return $msg;
     }
 
+    public static function quotationCcPdfCopy($recipientName, $referenceNo, $customerName, $grandTotal, $signed = true)
+    {
+        $msg = self::statusBlock('📄', $signed ? 'Signed Quotation Copy' : 'Quotation Copy');
+        $msg .= self::greeting($recipientName);
+        if ($signed) {
+            $msg .= "You are copied on the signed quotation for *{$customerName}* (*{$referenceNo}*).\n\n";
+            $msg .= "The signed quotation PDF is attached.\n\n";
+        } else {
+            $msg .= "You are copied on quotation *{$referenceNo}* for *{$customerName}*.\n\n";
+            $msg .= "The quotation PDF is attached.\n\n";
+        }
+        $msg .= self::bullet('Reference', $referenceNo);
+        $msg .= self::bullet('Client', $customerName);
+        $msg .= self::bullet('Total', number_format((float) $grandTotal, 2));
+        $msg .= self::footer();
+
+        return $msg;
+    }
+
     public static function deliverySignatureRequest($customerName, $deliveryRef, $saleRef, $signUrl)
     {
         $msg = self::statusBlock('📦', 'Confirm Delivery Receipt');

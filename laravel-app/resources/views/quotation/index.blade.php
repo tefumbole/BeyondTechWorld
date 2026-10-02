@@ -206,6 +206,7 @@
                 @if(!empty($quotationLetterFooter))
                     <img src="{{ $quotationFooterUrl }}" alt="Footer" class="quotation-system-footer" style="width:100%;display:block;">
                 @endif
+                <div id="quotation-notes" class="quotation-notes-after"></div>
             </div>
         </div>
     </div>
@@ -225,7 +226,8 @@
         }
         .quotation-details-body .modal-body,
         .quotation-details-body table { position: relative; z-index: 1; }
-        .quotation-note { text-align: left; margin-bottom: 12px; }
+        .quotation-notes-after { width: 100%; margin-top: 12px; }
+        .quotation-note { text-align: left; margin-bottom: 12px; width: 100%; }
         .quotation-note-body { margin-top: 6px; line-height: 1.55; }
         .quotation-note-body ul, .quotation-note-body ol { margin: 6px 0 6px 1.25rem; padding: 0; }
         .quotation-note-body li { margin: 4px 0; }
@@ -502,20 +504,21 @@
             });
             var noteHtml = quotation[22] || '';
             var refSafe = encodeURIComponent(String(quotation[1] || '').replace(/[^A-Za-z0-9\-_]/g, ''));
-            var htmlfooter = '';
-            if (noteHtml && String(noteHtml).trim() !== '') {
-                htmlfooter += '<div class="quotation-note"><strong>{{trans("file.Note")}}:</strong><div class="quotation-note-body">'
-                    + noteHtml
-                    + '</div></div>';
-            }
-            htmlfooter += '<p class="mb-2 text-left" style="font-size:12px;line-height:1.4;text-align:left;"><strong>{{trans("file.Created By")}}:</strong> '
+            var htmlfooter = '<p class="mb-2 text-left" style="font-size:12px;line-height:1.4;text-align:left;"><strong>{{trans("file.Created By")}}:</strong> '
                 + quotation[23] + (quotation[24] ? '<br>' + quotation[24] : '') + '</p>';
             htmlfooter += '<div class="text-center mb-2">' +
                 '<div style="margin:0 0 6px;"><img src="{{ url("bookings/qrcode") }}/' + refSafe + '" alt="qrcode" height="56" width="56"></div>' +
                 '<div><img src="{{ url("sales/barcode") }}/' + refSafe + '" alt="barcode" height="28" style="max-width:220px;"></div>' +
                 '</div>';
+            var notesBlock = '';
+            if (noteHtml && String(noteHtml).trim() !== '') {
+                notesBlock = '<div class="quotation-note"><strong>{{trans("file.Note")}}:</strong><div class="quotation-note-body">'
+                    + noteHtml
+                    + '</div></div>';
+            }
             $('#quotation-content').html(htmltext);
             $('#quotation-footer').html(htmlfooter);
+            $('#quotation-notes').html(notesBlock);
             $('#quotation-details').modal('show');
         }
     </script>

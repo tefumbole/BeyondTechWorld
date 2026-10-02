@@ -10,9 +10,10 @@ class CloudModuleCode
     const WHATSAPP_HUB = 'WHATSAPP_HUB';
     const SALES_INVOICES = 'SALES_INVOICES';
     const RENTALS = 'RENTALS';
+    const MESSAGING = 'MESSAGING';
 
     public static function all()
     {
-        return [self::WHATSAPP_HUB, self::SALES_INVOICES, self::RENTALS];
+        return [self::WHATSAPP_HUB, self::SALES_INVOICES, self::RENTALS, self::MESSAGING];
     }
 }

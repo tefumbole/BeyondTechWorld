@@ -4,7 +4,7 @@ namespace App\Cloud;
 
 /**
  * Machine values for cloud_tenants.type.
- * BeyondTechWorld will be INTERNAL in a later phase. Subscribing companies are CUSTOMER.
+ * BeyondTechWorld is INTERNAL. Subscribing companies are CUSTOMER.
  */
 class CloudTenantType
 {

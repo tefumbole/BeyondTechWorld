@@ -15,12 +15,31 @@
     <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('message') }}</div>
 @endif
 
-<section>
-    <div class="container-fluid">
+<section class="product-modern">
+    <style>
+        .product-modern { padding: 8px 12px 24px; }
+        .product-modern .product-card { background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; box-shadow: 0 10px 30px rgba(15, 35, 80, 0.06); padding: 18px 18px 8px; }
+        .product-modern .product-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .product-modern .product-head h3 { margin: 0; font-weight: 700; color: #1b2a4a; }
+        .product-modern .product-actions .btn { border-radius: 10px; font-weight: 600; margin-right: 8px; margin-bottom: 8px; }
+        .product-modern .table-responsive { border: 1px solid #d0d5dd; border-radius: 12px; }
+        .product-modern table.dataTable { margin: 0 !important; }
+        .product-modern table thead th { background: #f8fafc; border-bottom: 1px solid #d0d5dd !important; color: #344054; font-size: 13px; }
+        .product-modern table td { border-top: 1px solid #eaecf0; vertical-align: middle; }
+        .product-modern table img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #e4e7ec; background: #f8fafc; }
+        .product-modern .form-control, .product-modern select.form-control { border: 1px solid #d0d5dd; border-radius: 8px; min-height: 36px; background: #fff; }
+        .product-modern .dataTables_wrapper .dataTables_filter input,
+        .product-modern .dataTables_wrapper .dataTables_length select { border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; }
+    </style>
+    <div class="product-card">
+    <div class="product-head">
+        <h3>{{ __('file.product_list') }}</h3>
+        <div class="product-actions">
         @if(in_array("products-add", $all_permission))
             <a href="{{route('products.create')}}" class="btn btn-info"><i class="dripicons-plus"></i> {{__('file.add_product')}}</a>
             <a href="#" data-toggle="modal" data-target="#importProduct" class="btn btn-primary"><i class="dripicons-copy"></i> {{__('file.import_product')}}</a>
         @endif
+        </div>
     </div>
     <div class="table-responsive">
         <table id="product-data-table" class="table" style="width: 100%">
@@ -42,6 +61,7 @@
             </thead>
 
         </table>
+    </div>
     </div>
 </section>
 

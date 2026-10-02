@@ -1431,11 +1431,10 @@
                         ])->first() : null;
                         ?>
                         @if($category_permission_active || $index_permission_active || $print_barcode_active || $stock_count_active || $adjustment_active)
-                            <li><a href="#product" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-list"></i><span>{{__('file.product')}}</span></a>
+                            <li class="has-product-nav">
+                                <a href="{{ $index_permission_active ? route('products.index') : '#product' }}" data-nav-key="product"> <i class="dripicons-list"></i><span>{{__('file.product')}}</span></a>
+                                <a href="#product" class="product-submenu-toggle" data-toggle="collapse" aria-expanded="false" aria-label="Open product menu"><i class="dripicons-chevron-down"></i></a>
                                 <ul id="product" class="collapse list-unstyled ">
-                                    @if($category_permission_active)
-                                        <li id="category-menu"><a href="{{route('category.index')}}">{{__('file.category')}}</a></li>
-                                    @endif
                                     @if($index_permission_active)
                                         <li id="product-list-menu"><a href="{{route('products.index')}}">{{__('file.product_list')}}</a></li>
                                             <?php
@@ -1448,6 +1447,9 @@
                                         @if($add_permission_active)
                                             <li id="product-create-menu"><a href="{{route('products.create')}}">{{__('file.add_product')}}</a></li>
                                         @endif
+                                    @endif
+                                    @if($category_permission_active)
+                                        <li id="category-menu"><a href="{{route('category.index')}}">{{__('file.category')}}</a></li>
                                     @endif
                                     @if($print_barcode_active)
                                         <li id="printBarcode-menu"><a href="{{route('product.printBarcode')}}">{{__('file.print_barcode')}}</a></li>

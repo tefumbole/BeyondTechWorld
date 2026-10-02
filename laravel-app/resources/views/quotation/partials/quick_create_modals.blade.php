@@ -6,9 +6,9 @@
 .quotation-qc .form-control,
 .quotation-qc .bootstrap-select > .dropdown-toggle,
 .quotation-qc select.form-control {
-    border: 1.5px solid #98a2b3 !important;
+    border: 1.5px solid #3b6fd8 !important;
     border-radius: 8px !important;
-    background: #fff !important;
+    background: #f7f9ff !important;
     min-height: 42px;
     color: #1f2937;
     box-shadow: none;
@@ -20,30 +20,55 @@
     min-height: 0;
 }
 .quotation-qc .form-control:focus,
-.quotation-qc .bootstrap-select > .dropdown-toggle:focus {
-    border-color: #1d4ed8 !important;
-    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+.quotation-qc .bootstrap-select > .dropdown-toggle:focus,
+.quotation-qc .bootstrap-select.show > .dropdown-toggle {
+    border-color: #c4a35a !important;
+    box-shadow: 0 0 0 3px rgba(196, 163, 90, 0.28);
+    background: #fff !important;
+}
+.quotation-qc .search-box .form-control {
+    border-color: #0f766e !important;
+    background: #f3fbfa !important;
 }
 .quotation-qc .input-with-action .btn-default,
 .quotation-qc .search-box .btn {
-    border: 1.5px solid #98a2b3;
+    border: 1.5px solid #c4a35a;
     border-radius: 8px;
     min-height: 42px;
-    background: #fff;
+    background: #fff8ea;
+    color: #8a6a1f;
 }
 .quotation-qc table.order-list {
-    border: 1px solid #98a2b3;
+    border: 1.5px solid #1e3a8a;
     border-collapse: separate;
     border-spacing: 0;
     border-radius: 8px;
     overflow: hidden;
+    table-layout: fixed;
+    width: 100%;
+}
+.quotation-qc table.order-list thead th:nth-child(1),
+.quotation-qc table.order-list tbody td:nth-child(1) {
+    width: 44%;
+    white-space: normal;
+}
+.quotation-qc table.order-list thead th:nth-child(5),
+.quotation-qc table.order-list tbody td:nth-child(5) {
+    width: 9%;
+}
+.quotation-qc table.order-list tbody td:nth-child(5) .form-control {
+    width: 100%;
+    padding-left: 6px;
+    padding-right: 2px;
 }
 .quotation-qc table.order-list th,
 .quotation-qc table.order-list td {
-    border: 1px solid #d0d5dd;
+    border: 1px solid #c5d4f5;
 }
 .quotation-qc table.order-list thead th {
-    background: #f8fafc;
+    background: #1e3a8a;
+    color: #fff;
+    border-color: #16306e;
 }
 </style>
 

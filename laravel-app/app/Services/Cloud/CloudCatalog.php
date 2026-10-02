@@ -44,6 +44,14 @@ class CloudCatalog
                 'plan_code' => 'RENTALS_MONTHLY',
                 'price' => '5000.00',
             ],
+            [
+                'code' => CloudModuleCode::MESSAGING,
+                'name' => 'Messaging',
+                'description' => 'Company messaging for customers and staff.',
+                'sort_order' => 4,
+                'plan_code' => 'MESSAGING_MONTHLY',
+                'price' => '5000.00',
+            ],
         ];
 
         foreach ($modules as $row) {

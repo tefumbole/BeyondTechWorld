@@ -76,6 +76,10 @@ class CloudPortalService
 
     public function startTrial(CloudTenant $tenant, CloudPlan $plan)
     {
+        if ($tenant->type === CloudTenantType::INTERNAL) {
+            throw new \RuntimeException('An internal company is entitled by the platform. A trial subscription is not created.');
+        }
+
         $plan->load('module');
         $module = $plan->module;
         if (! $module || ! $plan->active || ! $module->active) {

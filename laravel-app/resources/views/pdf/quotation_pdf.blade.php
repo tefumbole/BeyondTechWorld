@@ -9,6 +9,25 @@
         $invoiceLetterheadOnce = true; // header at start, footer at end only
     @endphp
     @include('pdf.partials._invoice_styles')
+    <style>
+        .inv-note-after {
+            width: 100%;
+            margin-top: 14px;
+            font-size: 9.5px;
+            line-height: 1.35;
+        }
+        .inv-note-after .inv-label {
+            display: block;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 3px;
+        }
+        .inv-note-after p { margin: 0 0 4px; }
+        .inv-note-after ul, .inv-note-after ol { margin: 3px 0 3px 16px; padding: 0; }
+        .inv-note-after li { margin: 0 0 2px; }
+    </style>
 </head>
 <body>
 @include('pdf.partials._invoice_open')
@@ -145,12 +164,6 @@
                     @endif
                 </span>
             </div>
-            @if(trim(strip_tags((string) $lims_sale_data->note)) !== '')
-                <div class="inv-box inv-note">
-                    <span class="inv-label">{{ trans('file.Note') }}</span>
-                    {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
-                </div>
-            @endif
             <div class="inv-thanks" style="margin-top:6px;width:100%;">{{ trans('file.Thank you for shopping with us. Please come again') }}</div>
         </td>
         <td class="inv-summary-right">
@@ -236,5 +249,12 @@
 </div>
 
 @include('pdf.partials._invoice_close')
+
+@if(trim(strip_tags((string) $lims_sale_data->note)) !== '')
+    <div class="inv-note-after">
+        <span class="inv-label">{{ trans('file.Note') }}</span>
+        {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
+    </div>
+@endif
 </body>
 </html>

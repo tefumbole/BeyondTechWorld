@@ -668,6 +668,7 @@ class QuotationController extends Controller
             $this->wpPDFMessage($pdfPath, $customer, $pdfName);
             // Staff who created the quotation gets a copy (not a broadcast to all admins).
             $this->sendQuotationPdfCopyToStaff($quotation, $pdfPath, $pdfName, $customer);
+            $this->sendQuotationPdfCopyToCc($quotation, $pdfPath, $pdfName, $customer, $context);
         } catch (\Throwable $e) {
             \Log::warning('Quotation PDF WhatsApp attach failed for '.$quotation->reference_no.': '.$e->getMessage());
             return 'Quotation signed, but the PDF could not be sent: '.$e->getMessage();
@@ -717,6 +718,55 @@ class QuotationController extends Controller
                 $this->sendWhatsAppDocumentToPhone($phone, $pdfPath, $pdfName);
             } catch (\Throwable $e) {
                 \Log::warning('Quotation PDF staff copy failed for '.$quotation->reference_no.': '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * CC contacts already receive the signature link. After signing they also
+     * receive the signed PDF. The primary client and staff are not sent twice.
+     */
+    protected function sendQuotationPdfCopyToCc(Quotation $quotation, $pdfPath, $pdfName, $customer = null, $context = 'signed')
+    {
+        $skip = [];
+        if ($customer) {
+            $digits = preg_replace('/\D/', '', (string) $customer->phone_number);
+            if ($digits !== '') {
+                $skip[$digits] = true;
+            }
+        }
+        foreach ($quotation->staffCopyUsers(Auth::id()) as $staff) {
+            $digits = preg_replace('/\D/', '', (string) $staff->whatsappPhone());
+            if ($digits !== '') {
+                $skip[$digits] = true;
+            }
+        }
+
+        $signed = $context === 'signed';
+        foreach ($quotation->ccCustomerIdList() as $ccId) {
+            $cc = Customer::find($ccId);
+            if (! $cc || empty(trim((string) $cc->phone_number))) {
+                continue;
+            }
+            $digits = preg_replace('/\D/', '', (string) $cc->phone_number);
+            if ($digits === '' || isset($skip[$digits])) {
+                continue;
+            }
+            $skip[$digits] = true;
+            try {
+                $this->wpMessage(
+                    $cc->phone_number,
+                    WhatsAppMessage::quotationCcPdfCopy(
+                        $cc->name,
+                        $quotation->reference_no,
+                        $customer ? $customer->name : 'client',
+                        $quotation->grand_total,
+                        $signed
+                    )
+                );
+                $this->sendWhatsAppDocumentToPhone($cc->phone_number, $pdfPath, $pdfName);
+            } catch (\Throwable $e) {
+                \Log::warning('Quotation PDF CC copy failed for '.$quotation->reference_no.': '.$e->getMessage());
             }
         }
     }

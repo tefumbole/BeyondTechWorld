@@ -93,6 +93,7 @@ Route::get('/uploads/applications/{file}', function ($file) {
 })->where('file', '[A-Za-z0-9._-]+');
 
 Route::get('/rentals', 'PublicRentalController@index')->name('beyond.rentals');
+Route::get('/subscriptions', 'BeyondController@subscriptions')->name('beyond.subscriptions');
 Route::post('/rentals', 'PublicRentalController@store')->name('beyond.rentals.store');
 Route::get('/rentals/confirmation/{reference}', 'PublicRentalController@confirmation')->name('beyond.rentals.confirmation');
 

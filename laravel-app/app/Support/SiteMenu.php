@@ -18,6 +18,7 @@ class SiteMenu
             'trainings'    => 'Training',
             'events'       => 'Events',
             'rentals'      => 'Rentals',
+            'subscriptions'=> 'Subscriptions',
             'apply'        => 'Apply Now',
             'permissions'  => 'Permissions',
             'about'        => 'About Us',
