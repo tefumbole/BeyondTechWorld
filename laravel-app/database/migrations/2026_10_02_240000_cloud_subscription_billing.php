@@ -28,10 +28,10 @@ class CloudSubscriptionBilling extends Migration
         if (! Schema::hasTable('cloud_subscription_payment_items')) {
             Schema::create('cloud_subscription_payment_items', function (Blueprint $table) {
                 $table->increments('id');
-                $table->unsignedInteger('cloud_subscription_payment_id')->index();
-                $table->unsignedInteger('cloud_tenant_id')->index();
-                $table->unsignedInteger('cloud_subscription_id')->index();
-                $table->unsignedInteger('cloud_plan_id')->nullable()->index();
+                $table->unsignedInteger('cloud_subscription_payment_id');
+                $table->unsignedInteger('cloud_tenant_id')->index('cloud_pay_item_tenant_idx');
+                $table->unsignedInteger('cloud_subscription_id')->index('cloud_pay_item_sub_idx');
+                $table->unsignedInteger('cloud_plan_id')->nullable()->index('cloud_pay_item_plan_idx');
                 $table->string('module_code', 64)->nullable();
                 $table->decimal('amount', 12, 2);
                 $table->string('currency', 8);

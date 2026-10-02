@@ -14,9 +14,9 @@ class CloudWhatsappConnectionEvents extends Migration
         Schema::create('cloud_whatsapp_connection_events', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('cloud_tenant_id')->index();
-            $table->unsignedInteger('cloud_whatsapp_connection_id')->nullable()->index();
+            $table->unsignedInteger('cloud_whatsapp_connection_id')->nullable()->index('wa_conn_event_conn_idx');
             $table->string('event', 64);
-            $table->unsignedInteger('actor_user_id')->nullable()->index();
+            $table->unsignedInteger('actor_user_id')->nullable()->index('wa_conn_event_actor_idx');
             $table->timestamp('created_at')->nullable();
         });
     }
