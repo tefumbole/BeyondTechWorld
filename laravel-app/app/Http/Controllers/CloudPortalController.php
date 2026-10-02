@@ -87,7 +87,9 @@ class CloudPortalController extends Controller
         } catch (CloudExistingAccountException $e) {
             return redirect()->route('cloud.login')->with('not_permitted', $e->getMessage());
         } catch (\Exception $e) {
-            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
+            report($e);
+
+            return redirect()->route('cloud.register')->with('not_permitted', $this->safeOnboardingMessage($e))->withInput();
         }
         Auth::login($user);
         $request->session()->regenerate();
@@ -107,6 +109,16 @@ class CloudPortalController extends Controller
         }
 
         return app(CloudOnboardingGate::class)->consume($request->input('validation_token'));
+    }
+
+    protected function safeOnboardingMessage(\Exception $e)
+    {
+        $message = $e->getMessage();
+        if (strpos($message, 'SQLSTATE') !== false || strpos($message, 'SQL:') !== false) {
+            return 'Company signup could not be completed.';
+        }
+
+        return $message;
     }
 
     public function addCompany(Request $request)

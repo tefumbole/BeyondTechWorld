@@ -15,6 +15,7 @@ use App\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -89,7 +90,7 @@ class CloudOnboardingService
 
         $pair = $this->withToken($input, function () use ($input, $email) {
             return DB::transaction(function () use ($input, $email) {
-                $user = User::create([
+                $attributes = [
                     'name' => trim($input['first_name'].' '.$input['last_name']),
                     'email' => $email,
                     'phone' => $input['phone'],
@@ -97,7 +98,11 @@ class CloudOnboardingService
                     'role_id' => 5,
                     'is_active' => 1,
                     'company_name' => $input['company_name'],
-                ]);
+                ];
+                if (Schema::hasColumn('users', 'is_deleted')) {
+                    $attributes['is_deleted'] = 0;
+                }
+                $user = User::create($attributes);
 
                 return [$user, $this->createCompany($user, $input)];
             });
