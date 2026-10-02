@@ -11,6 +11,7 @@ use App\Services\Cloud\CloudCheckoutService;
 use App\Services\Cloud\CloudExistingAccountException;
 use App\Services\Cloud\CloudOnboardingService;
 use App\Services\Cloud\CloudPortalService;
+use App\Services\Cloud\CloudPublicSignup;
 use App\Services\Cloud\CloudTenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,7 +59,7 @@ class CloudPortalController extends Controller
     {
         $token = Str::random(40);
         session(['cloud_onboard_token' => $token]);
-        $open = (bool) config('cloud.public_onboarding');
+        $open = CloudPublicSignup::open();
         $plans = $open ? app(CloudOnboardingService::class)->plans() : collect();
 
         return view('cloud.portal.register', [
@@ -97,7 +98,7 @@ class CloudPortalController extends Controller
 
     protected function registrationOpen(Request $request)
     {
-        if (config('cloud.public_onboarding')) {
+        if (CloudPublicSignup::open()) {
             return true;
         }
         $onboard = (string) $request->input('onboard_token', '');

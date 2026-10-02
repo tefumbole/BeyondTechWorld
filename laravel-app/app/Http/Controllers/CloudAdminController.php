@@ -10,6 +10,7 @@ use App\Cloud\CloudSubscriptionEventType;
 use App\Cloud\CloudTenant;
 use App\Cloud\CloudTenantStatus;
 use App\Cloud\CloudTenantType;
+use App\Services\Cloud\CloudPublicSignup;
 use App\Services\Cloud\CloudSubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,8 +23,27 @@ class CloudAdminController extends Controller
         $plans = CloudPlan::with('module')->orderBy('sort_order')->orderBy('id')->get();
         $tenants = CloudTenant::with(['subscriptions.plan.module', 'memberships.user'])->orderByDesc('id')->limit(100)->get();
         $methods = CloudPaymentMethod::orderBy('sort_order')->get();
+        $signupOpen = CloudPublicSignup::open();
 
-        return view('cloud.admin.index', compact('plans', 'tenants', 'methods'));
+        return view('cloud.admin.index', compact('plans', 'tenants', 'methods', 'signupOpen'));
+    }
+
+    public function setPublicSignup(Request $request)
+    {
+        $this->authorizePlatform();
+        $open = $request->input('open') === '1';
+        CloudPublicSignup::set($open);
+        $internal = CloudTenant::where('type', CloudTenantType::INTERNAL)->first();
+        if ($internal) {
+            CloudSubscriptionEvent::create([
+                'cloud_tenant_id' => $internal->id,
+                'event' => CloudSubscriptionEventType::ADMIN_OVERRIDE,
+                'actor_user_id' => Auth::id(),
+                'payload' => json_encode(['public_signup' => $open ? 'open' : 'closed']),
+            ]);
+        }
+
+        return redirect()->route('cloud.admin')->with('message', $open ? 'Public company signup is open.' : 'Public company signup is closed. Companies already created were not deleted.');
     }
 
     public function updatePrice(Request $request, $id)

@@ -206,8 +206,8 @@ Route::get('/otp-verification', 'BeyondAuthController@showOtp')->name('beyond.ot
 Route::post('/otp-verification', 'BeyondAuthController@verifyOtp');
 Route::post('/otp-verification/resend', 'BeyondAuthController@resendOtp');
 Route::get('/forgot-password', 'BeyondAuthController@showForgotPassword')->name('beyond.forgot');
-Route::post('/forgot-password', 'BeyondAuthController@requestPasswordReset');
-Route::post('/forgot-password/confirm', 'BeyondAuthController@confirmPasswordReset');
+Route::post('/forgot-password', 'BeyondAuthController@requestPasswordReset')->middleware('throttle:5,10');
+Route::post('/forgot-password/confirm', 'BeyondAuthController@confirmPasswordReset')->middleware('throttle:5,10');
 Route::get('/staff-otp-login', 'StaffPhoneAuthController@show')->name('staff.otp.login');
 Route::post('/staff-otp-login', 'StaffPhoneAuthController@requestOtp');
 Route::post('/staff-otp-login/verify', 'StaffPhoneAuthController@verifyOtp');
@@ -329,8 +329,8 @@ Route::get('/logout', 'Auth\LoginController@logout');
 
 Route::post('/cloud/company', 'CloudCompanyController@switchCompany')->middleware('auth')->name('cloud.company.switch');
 Route::get('/cloud/login', 'CloudPortalController@showLogin')->name('cloud.login');
-Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.submit');
-Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
+Route::post('/cloud/login', 'CloudPortalController@login')->middleware('throttle:10,1')->name('cloud.login.submit');
+Route::get('/cloud/register', 'CloudPortalController@showRegister')->middleware('throttle:30,1')->name('cloud.register');
 Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:5,10')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
 Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo');
@@ -385,6 +385,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/subscriptions/{subscription}/cancel', 'CloudAdminController@cancel')->name('cloud.admin.cancel');
     Route::post('/admin/subscriptions/companies/{id}/suspend', 'CloudAdminController@suspendCompany')->name('cloud.admin.company.suspend');
     Route::post('/admin/subscriptions/companies/{id}/reactivate', 'CloudAdminController@reactivateCompany')->name('cloud.admin.company.reactivate');
+    Route::post('/admin/subscriptions/signup', 'CloudAdminController@setPublicSignup')->name('cloud.admin.signup');
 
     Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
     Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');

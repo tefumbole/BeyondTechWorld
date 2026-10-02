@@ -134,22 +134,43 @@ class CloudOnboardingService
         $sales = in_array(CloudModuleCode::SALES_INVOICES, $codes, true);
         $rentals = in_array(CloudModuleCode::RENTALS, $codes, true);
         $messaging = in_array(CloudModuleCode::MESSAGING, $codes, true);
+        $context = app(CloudTenantContext::class);
+        $previous = $context->tenant();
+        $context->set($tenant);
+        $hasProduct = Schema::hasTable('products') && \App\Product::query()->exists();
+        $hasCustomer = Schema::hasTable('customers') && \App\Customer::query()->exists();
+        $hasQuotation = Schema::hasTable('quotations') && \App\Quotation::query()->exists();
+        $hasRentRate = false;
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'rent_price_per_day')) {
+            $hasRentRate = \App\Product::query()->where(function ($query) {
+                $query->where('rent_price_per_hour', '>', 0)
+                    ->orWhere('rent_price_per_day', '>', 0)
+                    ->orWhere('rent_price_per_month', '>', 0);
+            })->exists();
+        }
+        if ($previous) {
+            $context->set($previous);
+        } else {
+            $context->clear();
+        }
+        $infoDone = trim((string) $tenant->address) !== '' || trim((string) $tenant->city) !== '' || trim((string) $tenant->phone) !== '';
         $steps = [
-            ['label' => 'Company created', 'done' => true, 'show' => true],
-            ['label' => 'Upload logo', 'done' => $tenant->logo_path ? true : false, 'show' => true],
+            ['label' => 'Upload company logo', 'done' => $tenant->logo_path ? true : false, 'show' => true],
+            ['label' => 'Complete company information', 'done' => $infoDone, 'show' => true],
         ];
         if ($sales || $rentals) {
-            $steps[] = ['label' => 'Add products', 'done' => false, 'show' => true];
-            $steps[] = ['label' => 'Add customers', 'done' => false, 'show' => true];
+            $steps[] = ['label' => 'Add first product/service', 'done' => $hasProduct, 'show' => true];
+            $steps[] = ['label' => 'Add first customer', 'done' => $hasCustomer, 'show' => true];
         }
         if ($sales) {
-            $steps[] = ['label' => 'Create first quotation', 'done' => false, 'show' => true];
+            $steps[] = ['label' => 'Create first quotation', 'done' => $hasQuotation, 'show' => true];
         }
         if ($rentals) {
-            $steps[] = ['label' => 'Set rental prices', 'done' => false, 'show' => true];
+            $steps[] = ['label' => 'Add rental inventory', 'done' => $hasProduct, 'show' => true];
+            $steps[] = ['label' => 'Set rental rates', 'done' => $hasRentRate, 'show' => true];
         }
         if ($messaging) {
-            $steps[] = ['label' => 'Configure Messaging', 'done' => false, 'show' => true];
+            $steps[] = ['label' => 'Review Messaging Hub', 'done' => false, 'show' => true];
         }
 
         return $steps;
@@ -274,6 +295,34 @@ class CloudOnboardingService
             );
         } catch (\Throwable $e) {
             // Platform mail must not remove a company that is already saved.
+        }
+        $this->notifyPlatform($user, $tenant);
+    }
+
+    protected function notifyPlatform(User $user, CloudTenant $tenant)
+    {
+        try {
+            $admins = User::where('role_id', 1)->where('is_active', 1)->pluck('email')->filter()->all();
+            if (! $admins) {
+                return;
+            }
+            $modules = [];
+            foreach ($tenant->subscriptions()->with('plan.module')->get() as $subscription) {
+                if ($subscription->plan && $subscription->plan->module) {
+                    $modules[] = $subscription->plan->module->code.' '.$subscription->status;
+                }
+            }
+            $body = "A company registered.\n"
+                .'Company: '.$tenant->name."\n"
+                .'Type: '.$tenant->type."\n"
+                .'Owner: '.$user->email."\n"
+                .'Modules: '.(implode(', ', $modules) ?: 'none')."\n"
+                .'Created: '.$tenant->created_at;
+            Mail::raw($body, function ($message) use ($admins, $tenant) {
+                $message->to($admins)->subject('New company: '.$tenant->name);
+            });
+        } catch (\Throwable $e) {
+            // A notice failure must not affect the company that was already saved.
         }
     }
 }

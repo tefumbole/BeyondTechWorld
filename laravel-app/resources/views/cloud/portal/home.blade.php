@@ -1,9 +1,25 @@
 @extends('cloud.portal.layout')
 @section('content')
 <div class="card">
-    <h1>{{ $tenant->name }}</h1>
+    <h1>Welcome to {{ $tenant->name }}</h1>
     <p class="muted">{{ $tenant->system_name }}</p>
     <p>{{ $welcome }}</p>
+    @if($subscriptions->isNotEmpty())
+        <p><strong>Selected services</strong></p>
+        <ul>
+            @foreach($subscriptions as $subscription)
+                <li>{{ $subscription->plan ? $subscription->plan->name : 'Service' }} — {{ $subscription->status }}</li>
+            @endforeach
+        </ul>
+        @php
+            $trialEnd = $subscriptions->where('status', 'TRIALING')->sortBy('trial_ends_at')->first();
+            $zone = $tenant->timezone ?: 'Africa/Douala';
+        @endphp
+        @if($trialEnd && $trialEnd->trial_ends_at)
+            <p>Trial ends {{ $trialEnd->trial_ends_at->copy()->timezone($zone)->format('Y-m-d H:i') }} ({{ $zone }}).</p>
+        @endif
+    @endif
+    <a class="btn" href="{{ route('cloud.settings') }}">Continue setup</a>
     @if($tenant->status === 'SUSPENDED')
         <p>This company is suspended. Records stay available to view.</p>
     @endif

@@ -21,11 +21,11 @@ return [
     */
     'payments_live' => env('CLOUD_PAYMENTS_LIVE', false),
 
-    'trial_welcome' => 'Your selected services are available free for 24 hours.',
+    'trial_welcome' => 'Your selected services are available free during your trial.',
 
-    'trial_ended_notice' => 'Your free trial has ended. Your existing information remains available in read-only mode. Subscription payment will be available shortly.',
+    'trial_ended_notice' => 'Your free trial has ended. Your information remains available in read-only mode. Please contact BeyondTechWorld to activate or renew your subscription.',
 
-    'payment_pending_notice' => 'Online subscription payment is being activated.',
+    'payment_pending_notice' => 'Online renewal is not available yet. Please contact BeyondTechWorld to activate or renew a subscription.',
 
     /*
     | Directly owned models filter by the active company.

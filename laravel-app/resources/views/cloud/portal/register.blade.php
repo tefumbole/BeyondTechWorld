@@ -90,7 +90,7 @@
                 <option value="{{ $code }}" {{ old('currency', 'XAF') === $code ? 'selected' : '' }}>{{ $code }}</option>
             @endforeach
         </select>
-        <button type="submit">Start 24-hour free trial</button>
+        <button type="submit">Start free trial</button>
     </form>
     <script>
         (function () {

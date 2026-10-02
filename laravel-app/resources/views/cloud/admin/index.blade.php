@@ -5,6 +5,13 @@
     <div class="container-fluid">
         <h3 class="mb-1" style="color:#0b3f90;font-weight:800;">Subscriptions</h3>
         <p class="text-muted">Prices, trials, and company portals. Changing a price applies to the next checkout. A company already on a trial keeps the price quoted when that trial started.</p>
+        <form method="POST" action="{{ route('cloud.admin.signup') }}" class="mb-3">
+            @csrf
+            <input type="hidden" name="open" value="{{ !empty($signupOpen) ? '0' : '1' }}">
+            <strong>Public company signup: {{ !empty($signupOpen) ? 'OPEN' : 'CLOSED' }}</strong>
+            <button type="submit" class="btn btn-sm {{ !empty($signupOpen) ? 'btn-danger' : 'btn-primary' }} ml-2">{{ !empty($signupOpen) ? 'Close signup' : 'Open signup' }}</button>
+            <span class="text-muted small ml-2">This takes effect immediately. It does not delete companies.</span>
+        </form>
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif

@@ -27,6 +27,10 @@ class CloudOnboardingTest extends TestCase
     {
         parent::setUp();
         config(['cloud.public_onboarding' => true, 'cloud.payments_live' => false]);
+        $signupFile = storage_path('app/cloud-public-signup');
+        if (is_file($signupFile)) {
+            @unlink($signupFile);
+        }
         $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
         Schema::create('users', function (Blueprint $table) {
@@ -245,6 +249,20 @@ class CloudOnboardingTest extends TestCase
         }
         $this->get('/c/'.$alpha->slug)->assertDontSee('Beyond speaker')->assertDontSee('Beta speaker');
         $this->artisan('cloud:audit-ownership')->assertExitCode(0);
+    }
+
+    public function test_signup_file_closes_registration_without_a_deploy()
+    {
+        config(['cloud.public_onboarding' => true]);
+        $path = \App\Services\Cloud\CloudPublicSignup::path();
+        \App\Services\Cloud\CloudPublicSignup::set(false);
+        $this->get('/cloud/register')->assertSee('Company signup is not open yet')->assertDontSee('Start free trial');
+        $this->post('/cloud/register', $this->payload('Closed Co', 'closed@demo.test', '237670000081', ['MESSAGING'], 'token'))
+            ->assertRedirect('/cloud/register');
+        $this->assertNull(CloudTenant::where('name', 'Closed Co')->first());
+        \App\Services\Cloud\CloudPublicSignup::set(true);
+        $this->get('/cloud/register')->assertSee('Start free trial')->assertSee('Due today');
+        @unlink($path);
     }
 
     public function test_validation_gate_no_longer_opens_public_signup()
