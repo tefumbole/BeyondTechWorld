@@ -1385,6 +1385,7 @@
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}" data-nav-key="site-content"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
+                            <li><a href="{{ route('cloud.admin') }}" data-nav-key="subscriptions"> <i class="dripicons-card"></i><span>Subscriptions</span></a></li>
                             <li><a href="{{ url('/admin/leaders') }}" data-nav-key="leaders"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
                         @endif
                         <?php

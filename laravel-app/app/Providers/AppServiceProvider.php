@@ -39,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
 
             return new \App\Services\Assistant\Providers\OpenAiProvider();
         });
+        // Empty until a later phase selects a company. Existing ERP requests do not read this.
+        $this->app->singleton(\App\Services\Cloud\CloudTenantContext::class);
     }
 
     public function boot()

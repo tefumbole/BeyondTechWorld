@@ -326,8 +326,25 @@ Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 Route::match(['get', 'post'], '/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
 Route::get('/logout', 'Auth\LoginController@logout');
 
+Route::get('/cloud/login', 'CloudPortalController@showLogin')->name('cloud.login');
+Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.submit');
+Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
+Route::post('/cloud/register', 'CloudPortalController@register')->name('cloud.register.submit');
+Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
+
 Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');
+});
+
+Route::group(['middleware' => ['auth', 'cloud.member']], function () {
+    Route::post('/cloud/logout', 'CloudPortalController@logout')->name('cloud.logout');
+    Route::get('/cloud', 'CloudPortalController@home')->name('cloud.home');
+    Route::get('/cloud/subscribe', 'CloudPortalController@subscribe')->name('cloud.subscribe');
+    Route::post('/cloud/subscribe/{plan}/trial', 'CloudPortalController@startTrial')->name('cloud.trial');
+    Route::post('/cloud/subscribe/{subscription}/pay', 'CloudPortalController@pay')->name('cloud.pay');
+    Route::get('/cloud/pay/{payment}/return', 'CloudPortalController@payReturn')->name('cloud.pay.return');
+    Route::get('/cloud/settings', 'CloudPortalController@settings')->name('cloud.settings');
+    Route::post('/cloud/settings', 'CloudPortalController@saveSettings')->name('cloud.settings.save');
 });
 
 Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function() {
@@ -352,6 +369,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/site-content/gallery/reorder', 'SiteContentController@reorderGalleryItems')->name('site-content.gallery.reorder');
 
     // About Us — Leaders (Alpha Bridge Members equivalent)
+    Route::get('/admin/subscriptions', 'CloudAdminController@index')->name('cloud.admin');
+    Route::post('/admin/subscriptions/plans/{id}', 'CloudAdminController@updatePrice')->name('cloud.admin.price');
+
     Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
     Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');
     Route::post('/admin/leaders/reorder', 'LeaderController@reorder')->name('leaders.reorder');

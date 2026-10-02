@@ -66,6 +66,7 @@ class Kernel extends HttpKernel
         'intern.compliance' => \App\Http\Middleware\EnsureInternCompliance::class,
         'beyond.auth' => \App\Http\Middleware\BeyondAuthenticate::class,
         'beyond.otp' => \App\Http\Middleware\BeyondOtpVerified::class,
+        'cloud.member' => \App\Http\Middleware\EnsureCloudMembership::class,
     ];
 
     /**
