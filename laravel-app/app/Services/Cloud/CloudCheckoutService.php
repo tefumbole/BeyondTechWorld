@@ -20,44 +20,99 @@ class CloudCheckoutService
 {
     public function start(CloudTenant $tenant, CloudSubscription $subscription, $methodCode)
     {
-        $methodCode = strtoupper((string) $methodCode);
-        $method = CloudPaymentMethod::where('code', $methodCode)->where('active', true)->first();
-        if (! $method) {
-            throw new \RuntimeException('That payment method is not available.');
+        if (! config('cloud.payments_live') && ! config('cloud.billing_sandbox')) {
+            throw new \RuntimeException('Online renewal is not available yet.');
+        }
+        $existing = $this->recentPending($tenant, [$subscription->id]);
+        if ($existing && config('cloud.payments_live')) {
+            return route('cloud.pay.return', ['payment' => $existing->id]);
         }
 
-        $subscription->load('plan');
-        $amount = $subscription->quoted_price !== null
-            ? $subscription->quoted_price
-            : ($subscription->plan ? $subscription->plan->price : null);
-        $currency = $subscription->quoted_currency
-            ?: ($subscription->plan ? $subscription->plan->currency : 'XAF');
-
-        $payment = CloudSubscriptionPayment::create([
-            'cloud_tenant_id' => $tenant->id,
-            'cloud_subscription_id' => $subscription->id,
-            'method_code' => $method->code,
-            'amount' => $amount,
-            'currency' => $currency ?: 'XAF',
-            'provider' => $method->provider,
-            'status' => CloudSubscriptionPayment::PENDING,
-        ]);
-        $subscription->payment_method_code = $method->code;
+        $payment = app(CloudBillingCheckout::class)->open($tenant, [$subscription], $methodCode);
+        $subscription->payment_method_code = $payment->method_code;
         $subscription->save();
         if (\Illuminate\Support\Facades\Schema::hasTable('cloud_subscription_events')) {
             \App\Cloud\CloudSubscriptionEvent::create([
                 'cloud_tenant_id' => $tenant->id,
                 'cloud_subscription_id' => $subscription->id,
                 'event' => \App\Cloud\CloudSubscriptionEventType::PAYMENT_REQUESTED,
-                'payload' => json_encode(['payment_id' => $payment->id, 'currency' => $payment->currency]),
+                'payload' => json_encode([
+                    'payment_id' => $payment->id,
+                    'currency' => $payment->currency,
+                    'amount' => $payment->amount,
+                ]),
             ]);
         }
 
-        if ($method->code === CloudPaymentMethodCode::VISA) {
+        if (! config('cloud.payments_live')) {
+            return $this->sandboxHold($payment);
+        }
+
+        if ($payment->method_code === CloudPaymentMethodCode::VISA) {
             return $this->stripeLink($tenant, $payment);
         }
 
-        return $this->campayLink($tenant, $payment);
+        $link = app(CloudCampayBillingProvider::class)->begin($payment);
+        if (! $link) {
+            throw new \RuntimeException('Could not start MoMo payment.');
+        }
+
+        return $link;
+    }
+
+    public function startMany(CloudTenant $tenant, array $subscriptions, $methodCode)
+    {
+        if (! config('cloud.payments_live') && ! config('cloud.billing_sandbox')) {
+            throw new \RuntimeException('Online renewal is not available yet.');
+        }
+        $ids = [];
+        foreach ($subscriptions as $subscription) {
+            if ($subscription instanceof CloudSubscription) {
+                $ids[] = (int) $subscription->id;
+            }
+        }
+        $existing = $this->recentPending($tenant, $ids);
+        if ($existing && config('cloud.payments_live')) {
+            return route('cloud.pay.return', ['payment' => $existing->id]);
+        }
+        $payment = app(CloudBillingCheckout::class)->open($tenant, $subscriptions, $methodCode);
+        if (! config('cloud.payments_live')) {
+            return $this->sandboxHold($payment);
+        }
+        if ($payment->method_code === CloudPaymentMethodCode::VISA) {
+            return $this->stripeLink($tenant, $payment);
+        }
+        $link = app(CloudCampayBillingProvider::class)->begin($payment);
+        if (! $link) {
+            throw new \RuntimeException('Could not start MoMo payment.');
+        }
+
+        return $link;
+    }
+
+    protected function recentPending(CloudTenant $tenant, array $subscriptionIds)
+    {
+        if (count($subscriptionIds) !== 1) {
+            return null;
+        }
+        $payment = CloudSubscriptionPayment::where('cloud_tenant_id', $tenant->id)
+            ->where('cloud_subscription_id', $subscriptionIds[0])
+            ->where('status', CloudSubscriptionPayment::PENDING)
+            ->where('created_at', '>=', now()->subMinutes(3))
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return $payment;
+    }
+
+    protected function sandboxHold(CloudSubscriptionPayment $payment)
+    {
+        $payment->provider = 'sandbox';
+        $payment->provider_reference = 'sandbox-'.$payment->id;
+        $payment->status = CloudSubscriptionPayment::PENDING;
+        $payment->save();
+
+        return route('cloud.pay.return', ['payment' => $payment->id]);
     }
 
     public function markPaidFromProvider(CloudSubscriptionPayment $payment)
@@ -146,37 +201,11 @@ class CloudCheckoutService
     }
 
     /**
-     * Confirm a VISA checkout with Stripe. Returns true only when Stripe says paid.
+     * A browser return is not payment authority. Activation waits for a verified provider status.
      */
     public function confirmVisa(CloudSubscriptionPayment $payment, $sessionId)
     {
-        $secret = config('services.stripe.secret') ?: getenv('STRIPE_SECRET');
-        if (! $secret || ! $sessionId || $sessionId !== $payment->provider_reference) {
-            return false;
-        }
-        Stripe::setApiKey($secret);
-        $session = StripeSession::retrieve($sessionId);
-        if (! $session || $session->payment_status !== 'paid') {
-            return false;
-        }
-        $charged = isset($session->amount_total) ? (int) $session->amount_total : null;
-        $expected = (int) round((float) $payment->amount);
-        if ($charged === null || $charged !== $expected) {
-            app(CloudSubscriptionService::class)->confirmPayment($payment, [
-                'provider' => 'stripe',
-                'event_id' => 'stripe:amount:'.$sessionId,
-                'status' => 'paid',
-                'amount' => $charged === null ? 0 : $charged,
-                'currency' => $payment->currency ?: 'XAF',
-                'tenant_id' => (int) $payment->cloud_tenant_id,
-                'provider_reference' => (string) $sessionId,
-            ]);
-
-            return false;
-        }
-        $this->markPaidFromProvider($payment);
-
-        return true;
+        return false;
     }
 
     protected function postJson($url, $payload, array $headers)

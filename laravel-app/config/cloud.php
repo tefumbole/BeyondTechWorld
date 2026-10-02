@@ -45,4 +45,24 @@ return [
     | confirmation stays in CloudCheckoutService. Default is off.
     */
     'billing_sandbox' => env('CLOUD_BILLING_SANDBOX', false),
+
+    /*
+    | Customer WhatsApp self-connection stays off until a controlled live test.
+    | The default page keeps "Admin setup required".
+    */
+    'whatsapp_self_connect' => env('CLOUD_WHATSAPP_SELF_CONNECT', false),
+
+    /*
+    | Customer WhatsApp sessions stay off until a plan and a price are known.
+    | session_limit empty means the provider cap is unknown, so no customer slot is offered.
+    | reserved_sessions is kept for BeyondTechWorld and is never given to a customer.
+    */
+    'whatsapp' => [
+        'provisioning_enabled' => env('CLOUD_WHATSAPP_PROVISIONING', false),
+        'provisioning_policy' => env('CLOUD_WHATSAPP_POLICY', 'MANUAL_APPROVAL'),
+        'session_limit' => env('WASENDER_SESSION_LIMIT'),
+        'reserved_sessions' => (int) env('WASENDER_RESERVED_SESSIONS', 1),
+        'trial_provisioning_allowed' => env('CLOUD_WHATSAPP_TRIAL_PROVISIONING', false),
+        'customer_send_enabled' => env('CLOUD_WHATSAPP_CUSTOMER_SEND', false),
+    ],
 ];

@@ -2,11 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Cloud\CloudPaymentMethod;
-use App\Cloud\CloudPlan;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
-
 class BeyondController extends Controller
 {
     public function home()
@@ -35,16 +30,7 @@ class BeyondController extends Controller
 
     public function subscriptions()
     {
-        $plans = collect();
-        $methods = collect();
-        if (Schema::hasTable('cloud_plans')) {
-            $plans = CloudPlan::with('module')->where('active', true)->orderBy('sort_order')->orderBy('id')->get();
-        }
-        if (Schema::hasTable('cloud_payment_methods')) {
-            $methods = CloudPaymentMethod::where('active', true)->orderBy('sort_order')->get();
-        }
-
-        return view('beyond.subscriptions', compact('plans', 'methods'));
+        return redirect()->route('cloud.register');
     }
 
     public function about()

@@ -85,7 +85,7 @@ class CloudSubscriptionEnforcementTest extends TestCase
         $this->assertSame('XAF', $messaging->currency);
         $this->assertSame(24, (int) $messaging->trial_value);
         $this->assertSame('HOUR', $messaging->trial_unit);
-        $blade = file_get_contents(resource_path('views/beyond/subscriptions.blade.php'));
+        $blade = file_get_contents(resource_path('views/cloud/portal/register.blade.php'));
         $this->assertStringContainsString('$plan->price', $blade);
         $this->assertStringContainsString('$plan->trial_value', $blade);
         $this->assertStringContainsString('$plan->billing_interval', $blade);

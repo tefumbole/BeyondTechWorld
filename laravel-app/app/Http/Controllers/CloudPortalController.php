@@ -55,7 +55,7 @@ class CloudPortalController extends Controller
         return redirect()->route('cloud.home');
     }
 
-    public function showRegister(Request $request)
+    public function showRegister()
     {
         $token = Str::random(40);
         session(['cloud_onboard_token' => $token]);
@@ -69,8 +69,9 @@ class CloudPortalController extends Controller
                 return $plan->module->code;
             })->all()),
             'onboardToken' => $token,
-            'validationToken' => '',
             'welcome' => config('cloud.trial_welcome'),
+            'selected' => (string) request('service'),
+            'paymentNotice' => config('cloud.payment_pending_notice'),
         ]);
     }
 
@@ -79,15 +80,22 @@ class CloudPortalController extends Controller
         if (! $this->registrationOpen($request)) {
             return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
         }
+        if ($request->input('account_kind') === 'personal' && trim((string) $request->input('company_name')) === '') {
+            $request->merge([
+                'company_name' => trim($request->input('first_name').' '.$request->input('last_name')),
+            ]);
+        }
         $data = $this->companyInput($request, true);
+        if (! app(\App\Services\Cloud\CloudSignupOtp::class)->matches($data['phone'])) {
+            return redirect()->route('cloud.register')->with('not_permitted', 'Verify the phone number before continuing.')->withInput();
+        }
+        $data['account_kind'] = session('cloud_account_kind') === 'personal' ? 'personal' : (isset($data['account_kind']) ? $data['account_kind'] : 'company');
         try {
             list($user, $tenant) = app(CloudOnboardingService::class)->register($data);
         } catch (CloudExistingAccountException $e) {
             return redirect()->route('cloud.login')->with('not_permitted', $e->getMessage());
         } catch (\Exception $e) {
-            report($e);
-
-            return redirect()->route('cloud.register')->with('not_permitted', $this->safeOnboardingMessage($e))->withInput();
+            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
         }
         Auth::login($user);
         $request->session()->regenerate();
@@ -102,17 +110,8 @@ class CloudPortalController extends Controller
             return true;
         }
         $onboard = (string) $request->input('onboard_token', '');
+
         return $onboard !== '' && is_array(Cache::get('cloud-onboard-done:'.$onboard));
-    }
-
-    protected function safeOnboardingMessage(\Exception $e)
-    {
-        $message = $e->getMessage();
-        if (strpos($message, 'SQLSTATE') !== false || strpos($message, 'SQL:') !== false) {
-            return 'Company signup could not be completed.';
-        }
-
-        return $message;
     }
 
     public function addCompany(Request $request)
@@ -290,10 +289,29 @@ class CloudPortalController extends Controller
         $tenant = $this->tenant($request);
         $connected = \Illuminate\Support\Facades\Schema::hasTable('cloud_whatsapp_connections')
             && \App\Cloud\CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)->where('status', 'ACTIVE')->exists();
+        $smsConnection = null;
+        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_sms_connections')) {
+            $smsConnection = \Illuminate\Support\Facades\DB::table('cloud_sms_connections')
+                ->where('cloud_tenant_id', $tenant->id)
+                ->orderByDesc('id')
+                ->first();
+        }
+        $smsReady = $smsConnection && $smsConnection->status === 'ACTIVE' && $smsConnection->sending_enabled;
+        $hub = \Illuminate\Support\Facades\Schema::hasTable('cloud_sms_messages')
+            ? app(\App\Services\Messaging\MessagingHub::class)
+            : null;
+        $usage = $hub ? $hub->usage($tenant->id) : collect();
+        $credit = $hub && \Illuminate\Support\Facades\Schema::hasTable('cloud_sms_ledger')
+            ? app(\App\Services\Messaging\SmsCreditLedger::class)->available($tenant->id)
+            : 0;
 
         return view('cloud.portal.messaging', [
             'tenant' => $tenant,
             'connected' => $connected,
+            'smsReady' => $smsReady,
+            'smsConnection' => $smsConnection,
+            'credit' => $credit,
+            'usage' => $usage,
             'entitled' => app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging'),
             'paymentNotice' => config('cloud.payment_pending_notice'),
         ]);
@@ -315,6 +333,7 @@ class CloudPortalController extends Controller
             'modules' => 'required|array|min:1',
             'modules.*' => 'string|max:64',
             'onboard_token' => 'required|string|max:80',
+            'account_kind' => 'nullable|in:personal,company',
         ];
         if ($withAccount) {
             $rules['first_name'] = 'required|string|max:80';

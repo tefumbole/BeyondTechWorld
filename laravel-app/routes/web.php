@@ -206,8 +206,8 @@ Route::get('/otp-verification', 'BeyondAuthController@showOtp')->name('beyond.ot
 Route::post('/otp-verification', 'BeyondAuthController@verifyOtp');
 Route::post('/otp-verification/resend', 'BeyondAuthController@resendOtp');
 Route::get('/forgot-password', 'BeyondAuthController@showForgotPassword')->name('beyond.forgot');
-Route::post('/forgot-password', 'BeyondAuthController@requestPasswordReset')->middleware('throttle:5,10');
-Route::post('/forgot-password/confirm', 'BeyondAuthController@confirmPasswordReset')->middleware('throttle:5,10');
+Route::post('/forgot-password', 'BeyondAuthController@requestPasswordReset');
+Route::post('/forgot-password/confirm', 'BeyondAuthController@confirmPasswordReset');
 Route::get('/staff-otp-login', 'StaffPhoneAuthController@show')->name('staff.otp.login');
 Route::post('/staff-otp-login', 'StaffPhoneAuthController@requestOtp');
 Route::post('/staff-otp-login/verify', 'StaffPhoneAuthController@verifyOtp');
@@ -329,8 +329,11 @@ Route::get('/logout', 'Auth\LoginController@logout');
 
 Route::post('/cloud/company', 'CloudCompanyController@switchCompany')->middleware('auth')->name('cloud.company.switch');
 Route::get('/cloud/login', 'CloudPortalController@showLogin')->name('cloud.login');
-Route::post('/cloud/login', 'CloudPortalController@login')->middleware('throttle:10,1')->name('cloud.login.submit');
-Route::get('/cloud/register', 'CloudPortalController@showRegister')->middleware('throttle:30,1')->name('cloud.register');
+Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.submit');
+Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
+Route::post('/cloud/register/identity', 'CloudSubscribeController@identity')->middleware('throttle:10,10')->name('cloud.register.identity');
+Route::post('/cloud/register/otp', 'CloudSubscribeController@sendSignupCode')->middleware('throttle:5,10')->name('cloud.register.otp');
+Route::post('/cloud/register/otp/verify', 'CloudSubscribeController@verifySignupCode')->middleware('throttle:10,10')->name('cloud.register.otp.verify');
 Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:5,10')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
 Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo');
@@ -345,12 +348,20 @@ Route::group(['middleware' => ['auth', 'cloud.member']], function () {
     Route::post('/cloud/logout', 'CloudPortalController@logout')->name('cloud.logout');
     Route::get('/cloud', 'CloudPortalController@home')->name('cloud.home');
     Route::get('/cloud/subscribe', 'CloudPortalController@subscribe')->name('cloud.subscribe');
+    Route::get('/cloud/billing', 'CloudBillingController@index')->name('cloud.billing');
+    Route::post('/cloud/billing/checkout', 'CloudBillingController@checkout')->middleware('throttle:5,10')->name('cloud.billing.checkout');
+    Route::get('/cloud/billing/{payment}/receipt', 'CloudBillingController@receipt')->name('cloud.billing.receipt');
+    Route::post('/cloud/billing/self-activate', 'CloudBillingController@selfActivate')->name('cloud.billing.self');
     Route::post('/cloud/subscribe/{plan}/trial', 'CloudPortalController@startTrial')->name('cloud.trial');
-    Route::post('/cloud/subscribe/{subscription}/pay', 'CloudPortalController@pay')->name('cloud.pay');
+    Route::post('/cloud/subscribe/{subscription}/pay', 'CloudPortalController@pay')->middleware('throttle:5,10')->name('cloud.pay');
     Route::get('/cloud/pay/{payment}/return', 'CloudPortalController@payReturn')->name('cloud.pay.return');
     Route::get('/cloud/settings', 'CloudPortalController@settings')->name('cloud.settings');
     Route::post('/cloud/settings', 'CloudPortalController@saveSettings')->name('cloud.settings.save');
     Route::get('/cloud/messaging', 'CloudPortalController@messaging')->name('cloud.messaging');
+    Route::post('/cloud/messaging/whatsapp/connect', 'CloudWhatsAppConnectController@connect')->middleware('throttle:3,10')->name('cloud.whatsapp.connect');
+    Route::get('/cloud/messaging/whatsapp/{connection}/qr', 'CloudWhatsAppConnectController@qr')->middleware('throttle:30,1')->name('cloud.whatsapp.qr');
+    Route::post('/cloud/messaging/whatsapp/{connection}/refresh', 'CloudWhatsAppConnectController@refresh')->middleware('throttle:30,1')->name('cloud.whatsapp.refresh');
+    Route::post('/cloud/messaging/whatsapp/{connection}/disconnect', 'CloudWhatsAppConnectController@disconnect')->middleware('throttle:5,10')->name('cloud.whatsapp.disconnect');
     Route::post('/cloud/companies', 'CloudPortalController@addCompany')->name('cloud.companies.store');
 });
 
@@ -377,6 +388,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     // About Us — Leaders (Alpha Bridge Members equivalent)
     Route::get('/admin/subscriptions', 'CloudAdminController@index')->name('cloud.admin');
+    Route::get('/admin/subscriptions/payments', 'CloudBillingController@adminIndex')->name('cloud.admin.billing');
+    Route::get('/admin/subscriptions/whatsapp', 'CloudWhatsAppCapacityController@index')->name('cloud.admin.whatsapp');
+    Route::post('/admin/subscriptions/payments/manual', 'CloudBillingController@manual')->name('cloud.admin.billing.manual');
     Route::post('/admin/subscriptions/plans/{id}', 'CloudAdminController@updatePrice')->name('cloud.admin.price');
     Route::post('/admin/subscriptions/tenants/{tenant}/grant-trial', 'CloudAdminController@grantTrial')->name('cloud.admin.grant-trial');
     Route::post('/admin/subscriptions/{subscription}/extend', 'CloudAdminController@extendSubscription')->name('cloud.admin.extend');

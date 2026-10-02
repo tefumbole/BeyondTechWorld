@@ -21,6 +21,8 @@ class AuditCloudOwnership extends Command
             'products', 'categories', 'brands', 'units', 'warehouses', 'customers', 'suppliers',
             'sales', 'quotations', 'payments', 'bookings',
             'whatsapp_contacts', 'whatsapp_conversations',
+            'cloud_sms_connections', 'cloud_sms_accounts', 'cloud_messaging_notifications',
+            'cloud_messaging_attempts', 'cloud_sms_messages', 'cloud_sms_ledger',
         ];
         $unowned = 0;
         $invalid = 0;

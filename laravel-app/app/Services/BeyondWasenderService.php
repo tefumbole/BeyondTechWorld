@@ -215,6 +215,10 @@ class BeyondWasenderService
         if ($blocked) {
             return $blocked;
         }
+        $owned = $this->customerOutboundBlock();
+        if ($owned) {
+            return $owned;
+        }
         if (! $this->isConfigured()) {
             if (app()->environment('local')) {
                 \Log::info('[beyond-whatsapp] Wasender not configured — message: '.$message);
@@ -917,5 +921,38 @@ class BeyondWasenderService
         }
 
         return ['success' => false, 'error' => 'messaging_not_entitled', 'skipped' => true];
+    }
+
+    /**
+     * A customer company never sends through the internal BeyondTechWorld session.
+     */
+    protected function customerOutboundBlock()
+    {
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        if (! $context->has()) {
+            return null;
+        }
+        $tenant = $context->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return null;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('cloud_whatsapp_connections')) {
+            return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
+        }
+        $connection = \App\Cloud\CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)
+            ->whereIn('status', ['ACTIVE', 'CONNECTED'])
+            ->orderBy('id', 'desc')
+            ->first();
+        $internalSession = trim((string) config('services.whatsapp.wasender_session_id'));
+        $usesInternal = ! $connection
+            || $connection->credentials_reference === 'services.whatsapp.wasender_api_key'
+            || ($internalSession !== '' && (string) $connection->provider_connection_id === $internalSession)
+            || $connection->provider !== 'wasender'
+            || ! config('cloud.whatsapp_self_connect');
+        if ($usesInternal) {
+            return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
+        }
+
+        return ['success' => false, 'error' => 'WhatsApp is not connected for this company.'];
     }
 }

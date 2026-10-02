@@ -89,8 +89,9 @@ class CloudModuleAccessService
             'messaging' => [CloudModuleCode::WHATSAPP_HUB, CloudModuleCode::MESSAGING],
             'sales' => [CloudModuleCode::SALES_INVOICES],
             'rentals' => [CloudModuleCode::RENTALS],
-            'catalog' => [CloudModuleCode::SALES_INVOICES, CloudModuleCode::RENTALS],
-            'quotations' => [CloudModuleCode::SALES_INVOICES, CloudModuleCode::RENTALS],
+            'catalog' => [CloudModuleCode::SALES_INVOICES, CloudModuleCode::RENTALS, CloudModuleCode::QUOTATIONS],
+            'quotations' => [CloudModuleCode::SALES_INVOICES, CloudModuleCode::RENTALS, CloudModuleCode::QUOTATIONS],
+            'invitations' => [CloudModuleCode::DIGITAL_INVITATIONS],
         ];
 
         return isset($map[$capability]) ? $map[$capability] : [];
@@ -114,6 +115,9 @@ class CloudModuleAccessService
         }
         if (in_array($name, $sales, true)) {
             return 'sales';
+        }
+        if ($name === 'send_notification') {
+            return 'messaging';
         }
 
         return null;

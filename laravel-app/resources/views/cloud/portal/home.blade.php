@@ -72,7 +72,6 @@
         </p>
         @if(in_array($subscription->status, ['EXPIRED', 'PAST_DUE', 'CANCELLED'], true))
             <p>{{ $ended }}</p>
-            <p class="muted">{{ $paymentNotice }}</p>
         @endif
     @empty
         <p class="muted">You have not started a module yet.</p>

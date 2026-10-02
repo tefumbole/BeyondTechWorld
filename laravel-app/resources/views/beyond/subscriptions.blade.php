@@ -9,7 +9,7 @@
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
             Beyond <span class="text-brand-gold">Subscriptions</span>
         </h1>
-        <p class="text-white/90 max-w-2xl mx-auto text-sm sm:text-base">Build your own company. Prices below come from the plan list. A 24-hour trial does not take a payment today.</p>
+        <p class="text-white/90 max-w-2xl mx-auto text-sm sm:text-base">Build your own company. Prices below come from the plan list. A new company starts with a 24-hour trial.</p>
     </div>
 </section>
 
@@ -26,15 +26,10 @@
                         <p class="mt-4 text-2xl font-extrabold text-gray-900">{{ number_format((float) $plan->price, 0) }} <span class="text-base font-semibold text-gray-500">{{ $plan->currency }}</span></p>
                         <p class="text-sm text-gray-500">per {{ strtolower($plan->billing_interval ?: 'month') }}</p>
                         <p class="text-sm text-brand-blue mt-2">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</p>
-                        <a href="{{ url('/cloud/register') }}" class="mt-4 inline-flex justify-center bg-brand-gold hover:bg-[#C19B2A] text-brand-blue font-bold rounded-full px-4 py-2.5">Build Your Own Company</a>
+                        <a href="{{ url('/cloud/register') }}{{ $plan->module ? '?service='.$plan->module->code : '' }}" class="mt-4 inline-flex justify-center bg-brand-gold hover:bg-[#C19B2A] text-brand-blue font-bold rounded-full px-4 py-2.5">Subscribe</a>
                     </article>
                 @endforeach
             </div>
-            @if(config('cloud.payments_live') && $methods->isNotEmpty())
-                <p class="text-center text-sm text-gray-600 mt-6">Pay with {{ $methods->pluck('name')->implode(' or ') }}.</p>
-            @else
-                <p class="text-center text-sm text-gray-600 mt-6">{{ config('cloud.payment_pending_notice') }}</p>
-            @endif
             <p class="text-center mt-4">
                 <a href="{{ url('/cloud/login') }}" class="text-brand-blue font-semibold hover:underline">Already have a company portal? Sign in</a>
             </p>

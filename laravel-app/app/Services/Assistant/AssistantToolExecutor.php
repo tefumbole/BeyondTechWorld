@@ -49,6 +49,14 @@ class AssistantToolExecutor
         if ($moduleBlock) {
             return $moduleBlock;
         }
+        if ($name === 'send_notification') {
+            $count = isset($params['count']) ? (int) $params['count'] : 1;
+            if ($count !== 1 || empty($params['confirm'])) {
+                return ['success' => false, 'error' => 'sms_not_permitted', 'tool' => $name];
+            }
+
+            return ['success' => false, 'error' => 'sms_production_disabled', 'tool' => $name];
+        }
         $ownerTools = [
             'get_ai_status', 'set_ai_enabled', 'set_ai_first', 'switch_eligible_conversations_to_ai',
             'get_conversations_needing_attention', 'get_open_leads_summary', 'get_pending_quotation_summary',

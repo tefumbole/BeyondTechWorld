@@ -205,6 +205,16 @@ class CloudPortalTest extends TestCase
     {
         $page = $this->get('/cloud/register');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
+        $sent = $this->postJson('/cloud/register/otp', [
+            'phone' => '+237677000111',
+            'first_name' => 'Ada',
+            'last_name' => 'Owner',
+            'account_kind' => 'company',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '+237677000111',
+            'code' => $sent->json('testing_code'),
+        ]);
         $this->post('/cloud/register', [
             'first_name' => 'Ada',
             'last_name' => 'Owner',

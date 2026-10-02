@@ -18,7 +18,7 @@ class CloudWhatsAppConnectionResolver
         }
         $this->ensureInternalConnection();
         $session = $this->sessionId($payload);
-        $query = CloudWhatsAppConnection::where('status', 'ACTIVE');
+        $query = CloudWhatsAppConnection::whereIn('status', ['ACTIVE', 'CONNECTED']);
         if ($session !== '') {
             $match = (clone $query)->where('provider_connection_id', $session)->first();
             if ($match && $match->cloudTenant && $match->cloudTenant->status === CloudTenantStatus::ACTIVE) {

@@ -11,11 +11,14 @@ use App\Cloud\CloudSubscriptionEvent;
 use App\Cloud\CloudSubscriptionEventType;
 use App\Cloud\CloudSubscriptionNotice;
 use App\Cloud\CloudSubscriptionPayment;
+use App\Cloud\CloudSubscriptionPaymentItem;
 use App\Cloud\CloudSubscriptionStatus;
 use App\Cloud\CloudTenant;
 use App\Cloud\CloudTenantType;
 use App\Cloud\CloudTrialUnit;
+use App\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -210,7 +213,7 @@ class CloudSubscriptionService
         $tenantId = isset($proof['tenant_id']) ? (int) $proof['tenant_id'] : 0;
         $reference = isset($proof['provider_reference']) ? (string) $proof['provider_reference'] : '';
 
-        return DB::transaction(function () use ($payment, $provider, $eventId, $status, $amount, $currency, $tenantId, $reference) {
+        $result = DB::transaction(function () use ($payment, $provider, $eventId, $status, $amount, $currency, $tenantId, $reference) {
             if ($eventId !== '' && Schema::hasTable('cloud_billing_events')) {
                 $seen = CloudBillingEvent::where('provider', $provider)->where('event_id', $eventId)->first();
                 if ($seen) {
@@ -231,9 +234,29 @@ class CloudSubscriptionService
                 return ['applied' => false, 'reason' => 'wrong_tenant'];
             }
 
+            if ($locked->provider_reference && $reference !== '' && $reference !== (string) $locked->provider_reference) {
+                $this->rememberBilling($provider, $eventId, $locked->id, 'denied_reference');
+                $this->record($locked->cloud_tenant_id, $locked->cloud_subscription_id, CloudSubscriptionEventType::PAYMENT_FAILED, null, [
+                    'reason' => 'wrong_reference',
+                ]);
+
+                return ['applied' => false, 'reason' => 'wrong_reference'];
+            }
+
             $expectedCurrency = strtoupper((string) ($locked->currency ?: 'XAF'));
             $expectedAmount = round((float) $locked->amount, 2);
-            if ($amount === null || $currency === '' || $currency !== $expectedCurrency || round($amount, 2) !== $expectedAmount) {
+            if ($currency === '' || $currency !== $expectedCurrency) {
+                $locked->status = CloudSubscriptionPayment::RECONCILE;
+                $locked->save();
+                $this->rememberBilling($provider, $eventId, $locked->id, 'wrong_currency');
+                $this->record($locked->cloud_tenant_id, $locked->cloud_subscription_id, CloudSubscriptionEventType::PAYMENT_RECONCILE, null, [
+                    'reason' => 'wrong_currency',
+                    'expected' => $expectedCurrency,
+                ]);
+
+                return ['applied' => false, 'reason' => 'wrong_currency'];
+            }
+            if ($amount === null || round($amount, 2) !== $expectedAmount) {
                 $locked->status = CloudSubscriptionPayment::RECONCILE;
                 $locked->save();
                 $this->rememberBilling($provider, $eventId, $locked->id, 'reconcile');
@@ -268,12 +291,94 @@ class CloudSubscriptionService
             if ($reference !== '') {
                 $locked->provider_reference = $reference;
             }
+            if (Schema::hasColumn('cloud_subscription_payments', 'confirmation_source')) {
+                $locked->confirmation_source = CloudSubscriptionPayment::PROVIDER_CONFIRMED;
+            }
             $locked->save();
             $renewed = $this->activateFromPaidPayment($locked);
             $this->rememberBilling($provider, $eventId, $locked->id, $renewed ? 'renewed' : 'activated');
 
             return ['applied' => true, 'reason' => $renewed ? 'renewed' : 'activated', 'payment_status' => $locked->status];
         });
+
+        if (in_array(isset($result['reason']) ? $result['reason'] : '', ['reconcile', 'wrong_currency'], true)) {
+            $this->notifyReview($payment);
+        }
+        if (! empty($result['applied'])) {
+            $this->notifyPaid($payment);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Platform admin records an offline payment. A company owner cannot call this.
+     */
+    public function recordManualPayment(CloudTenant $tenant, CloudSubscription $subscription, $actorUserId, array $details)
+    {
+        if ($tenant->type === CloudTenantType::INTERNAL) {
+            throw new \RuntimeException('The internal company does not pay a subscription.');
+        }
+        if ((int) $subscription->cloud_tenant_id !== (int) $tenant->id) {
+            throw new \RuntimeException('That subscription is not on this company.');
+        }
+        $subscription->load('plan');
+        $amount = $subscription->quoted_price !== null ? $subscription->quoted_price : $subscription->plan->price;
+        $currency = $subscription->quoted_currency ?: $subscription->plan->currency;
+        $payment = CloudSubscriptionPayment::create([
+            'cloud_tenant_id' => $tenant->id,
+            'cloud_subscription_id' => $subscription->id,
+            'method_code' => isset($details['method']) ? substr((string) $details['method'], 0, 32) : 'MANUAL',
+            'amount' => $amount,
+            'currency' => $currency ?: 'XAF',
+            'provider' => 'manual',
+            'provider_reference' => isset($details['reference']) ? substr((string) $details['reference'], 0, 191) : null,
+            'status' => CloudSubscriptionPayment::PAID,
+            'paid_at' => now(),
+        ]);
+        if (Schema::hasColumn('cloud_subscription_payments', 'confirmation_source')) {
+            $payment->confirmation_source = CloudSubscriptionPayment::ADMIN_CONFIRMED;
+            $payment->internal_reference = 'manual-'.$payment->id;
+            $payment->save();
+        }
+        if (Schema::hasTable('cloud_subscription_payment_items')) {
+            CloudSubscriptionPaymentItem::create([
+                'cloud_subscription_payment_id' => $payment->id,
+                'cloud_tenant_id' => $tenant->id,
+                'cloud_subscription_id' => $subscription->id,
+                'cloud_plan_id' => $subscription->cloud_plan_id,
+                'module_code' => $subscription->plan && $subscription->plan->module ? $subscription->plan->module->code : null,
+                'amount' => $amount,
+                'currency' => $currency ?: 'XAF',
+            ]);
+        }
+        $this->activateFromPaidPayment($payment);
+        $this->record($tenant->id, $subscription->id, CloudSubscriptionEventType::PAYMENT_CONFIRMED, $actorUserId, [
+            'source' => CloudSubscriptionPayment::ADMIN_CONFIRMED,
+            'reason' => isset($details['reason']) ? (string) $details['reason'] : '',
+            'payment_id' => $payment->id,
+        ]);
+
+        return $payment->fresh();
+    }
+
+    /**
+     * A refund does not delete company data or remove a period that was already delivered.
+     */
+    public function recordRefund(CloudSubscriptionPayment $payment, $actorUserId, $reason)
+    {
+        if ($payment->status !== CloudSubscriptionPayment::PAID) {
+            return $payment;
+        }
+        $payment->status = CloudSubscriptionPayment::REFUNDED;
+        $payment->save();
+        $this->record($payment->cloud_tenant_id, $payment->cloud_subscription_id, CloudSubscriptionEventType::PAYMENT_FAILED, $actorUserId, [
+            'reason' => 'refund',
+            'note' => (string) $reason,
+            'payment_id' => $payment->id,
+        ]);
+
+        return $payment->fresh();
     }
 
     public function processDue($at = null)
@@ -397,17 +502,48 @@ class CloudSubscriptionService
 
     protected function activateFromPaidPayment(CloudSubscriptionPayment $payment)
     {
-        $subscription = CloudSubscription::where('id', $payment->cloud_subscription_id)->lockForUpdate()->first();
+        $ids = [];
+        if (Schema::hasTable('cloud_subscription_payment_items')) {
+            $ids = CloudSubscriptionPaymentItem::where('cloud_subscription_payment_id', $payment->id)
+                ->where('cloud_tenant_id', $payment->cloud_tenant_id)
+                ->pluck('cloud_subscription_id')
+                ->all();
+        }
+        if (count($ids) === 0) {
+            $ids = [$payment->cloud_subscription_id];
+        }
+        $renewed = false;
+        foreach ($ids as $subscriptionId) {
+            $renewed = $this->activateOne((int) $subscriptionId, $payment) || $renewed;
+        }
+
+        return $renewed;
+    }
+
+    protected function activateOne($subscriptionId, CloudSubscriptionPayment $payment)
+    {
+        $subscription = CloudSubscription::where('id', $subscriptionId)
+            ->where('cloud_tenant_id', $payment->cloud_tenant_id)
+            ->lockForUpdate()
+            ->first();
         if (! $subscription) {
             return false;
         }
         $subscription->load('plan');
-        $wasActive = $subscription->status === CloudSubscriptionStatus::ACTIVE
+        $paidLeft = in_array($subscription->status, [CloudSubscriptionStatus::ACTIVE, CloudSubscriptionStatus::SUSPENDED], true)
             && $subscription->current_period_end
             && $subscription->current_period_end->gt(now());
-        $start = $wasActive ? $subscription->current_period_end->copy() : now();
-        if (! $wasActive) {
-            $subscription->current_period_start = now();
+        $trialLeft = $subscription->status === CloudSubscriptionStatus::TRIALING
+            && $subscription->trial_ends_at
+            && $subscription->trial_ends_at->gt(now());
+        if ($paidLeft) {
+            $start = $subscription->current_period_end->copy();
+        } elseif ($trialLeft) {
+            $start = $subscription->trial_ends_at->copy();
+            $subscription->current_period_start = $start->copy();
+        } else {
+            $start = now();
+            $subscription->current_period_start = $start->copy();
         }
         $subscription->status = CloudSubscriptionStatus::ACTIVE;
         $subscription->current_period_end = $this->periodEnd($subscription->plan, $start);
@@ -417,7 +553,7 @@ class CloudSubscriptionService
         $this->record(
             $subscription->cloud_tenant_id,
             $subscription->id,
-            $wasActive ? CloudSubscriptionEventType::SUBSCRIPTION_RENEWED : CloudSubscriptionEventType::SUBSCRIPTION_ACTIVATED,
+            $paidLeft ? CloudSubscriptionEventType::SUBSCRIPTION_RENEWED : CloudSubscriptionEventType::SUBSCRIPTION_ACTIVATED,
             null,
             ['current_period_end' => $subscription->current_period_end->toDateTimeString()]
         );
@@ -426,7 +562,38 @@ class CloudSubscriptionService
             'currency' => $payment->currency,
         ]);
 
-        return $wasActive;
+        return $paidLeft;
+    }
+
+    protected function notifyPaid(CloudSubscriptionPayment $payment)
+    {
+        try {
+            $payment = $payment->fresh();
+            $tenant = CloudTenant::find($payment->cloud_tenant_id);
+            $body = 'Beyond Cloud payment '.$payment->internal_reference.' is confirmed for '.($tenant ? $tenant->name : 'a company').'.';
+            $admins = User::where('role_id', 1)->where('is_active', 1)->pluck('email')->filter()->all();
+            if ($admins) {
+                Mail::raw($body, function ($message) use ($admins) {
+                    $message->to($admins)->subject('Beyond Cloud payment confirmed');
+                });
+            }
+        } catch (\Exception $e) {
+            // A mail failure must not undo a confirmed payment.
+        }
+    }
+
+    protected function notifyReview(CloudSubscriptionPayment $payment)
+    {
+        try {
+            $admins = User::where('role_id', 1)->where('is_active', 1)->pluck('email')->filter()->all();
+            if (! $admins) {
+                return;
+            }
+            Mail::raw('Beyond Cloud payment '.$payment->id.' needs review. It was not activated.', function ($message) use ($admins) {
+                $message->to($admins)->subject('Beyond Cloud payment needs review');
+            });
+        } catch (\Exception $e) {
+        }
     }
 
     protected function rememberTrial(CloudTenant $tenant, $moduleId, $source, $start, $end, $actorUserId)

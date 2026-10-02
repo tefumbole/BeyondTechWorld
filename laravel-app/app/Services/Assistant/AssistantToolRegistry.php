@@ -103,6 +103,7 @@ class AssistantToolRegistry
             'reschedule_appointment' => ['description' => 'Move one appointment to a free configured slot', 'sensitivity' => 'PUBLIC', 'write' => true, 'roles' => []],
             'assign_conversation_to_me' => ['description' => 'Owner takes one conversation', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
             'return_conversation_to_ai' => ['description' => 'Owner returns one conversation to AI', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner']],
+            'send_notification' => ['description' => 'Ask to send one transactional notice. Chargeable or bulk SMS is refused.', 'sensitivity' => 'OWNER', 'write' => true, 'roles' => ['owner'], 'params' => ['count', 'confirm']],
         ];
     }
 

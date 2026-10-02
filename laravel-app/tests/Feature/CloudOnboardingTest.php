@@ -261,7 +261,7 @@ class CloudOnboardingTest extends TestCase
             ->assertRedirect('/cloud/register');
         $this->assertNull(CloudTenant::where('name', 'Closed Co')->first());
         \App\Services\Cloud\CloudPublicSignup::set(true);
-        $this->get('/cloud/register')->assertSee('Start free trial')->assertSee('Due today');
+        $this->get('/cloud/register')->assertSee('Start free trial')->assertSee('Monthly total');
         @unlink($path);
     }
 
@@ -302,6 +302,17 @@ class CloudOnboardingTest extends TestCase
 
     protected function payload($name, $email, $phone, array $modules, $token)
     {
+        $sent = $this->postJson('/cloud/register/otp', [
+            'phone' => $phone,
+            'first_name' => 'Ada',
+            'last_name' => 'Owner',
+            'account_kind' => 'company',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => $phone,
+            'code' => $sent->json('testing_code'),
+        ]);
+
         return [
             'first_name' => 'Ada',
             'last_name' => 'Owner',

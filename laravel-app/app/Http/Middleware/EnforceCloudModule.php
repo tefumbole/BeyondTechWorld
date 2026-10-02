@@ -73,6 +73,8 @@ class EnforceCloudModule
             ['bookings', 'rentals'],
             ['booking', 'rentals'],
             ['rentals', 'rentals'],
+            ['online-invitation', 'invitations'],
+            ['admin/invitations', 'invitations'],
         ];
         foreach ($rules as $rule) {
             $prefix = $rule[0];

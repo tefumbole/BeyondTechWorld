@@ -15,6 +15,10 @@ class CloudSubscriptionPayment extends Model
     const PAID = 'PAID';
     const FAILED = 'FAILED';
     const RECONCILE = 'RECONCILE';
+    const REFUNDED = 'REFUNDED';
+
+    const PROVIDER_CONFIRMED = 'PROVIDER';
+    const ADMIN_CONFIRMED = 'ADMIN';
 
     protected $fillable = [
         'cloud_tenant_id',
@@ -24,6 +28,9 @@ class CloudSubscriptionPayment extends Model
         'currency',
         'provider',
         'provider_reference',
+        'internal_reference',
+        'confirmation_source',
+        'snapshot',
         'status',
         'paid_at',
     ];
@@ -40,5 +47,10 @@ class CloudSubscriptionPayment extends Model
     public function subscription()
     {
         return $this->belongsTo(CloudSubscription::class, 'cloud_subscription_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(CloudSubscriptionPaymentItem::class, 'cloud_subscription_payment_id');
     }
 }

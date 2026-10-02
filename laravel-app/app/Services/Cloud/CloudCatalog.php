@@ -52,6 +52,22 @@ class CloudCatalog
                 'plan_code' => 'MESSAGING_MONTHLY',
                 'price' => '5000.00',
             ],
+            [
+                'code' => CloudModuleCode::QUOTATIONS,
+                'name' => 'Quotations',
+                'description' => 'Customer quotations, separate from invoices and rental bookings.',
+                'sort_order' => 5,
+                'plan_code' => 'QUOTATIONS_MONTHLY',
+                'price' => '5000.00',
+            ],
+            [
+                'code' => CloudModuleCode::DIGITAL_INVITATIONS,
+                'name' => 'Digital Invitations',
+                'description' => 'Digital invitations, guest links and RSVP.',
+                'sort_order' => 6,
+                'plan_code' => 'DIGITAL_INVITATIONS_MONTHLY',
+                'price' => '5000.00',
+            ],
         ];
 
         foreach ($modules as $row) {

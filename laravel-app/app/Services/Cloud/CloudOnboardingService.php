@@ -30,6 +30,8 @@ class CloudOnboardingService
             CloudModuleCode::MESSAGING,
             CloudModuleCode::SALES_INVOICES,
             CloudModuleCode::RENTALS,
+            CloudModuleCode::QUOTATIONS,
+            CloudModuleCode::DIGITAL_INVITATIONS,
         ];
     }
 
@@ -134,6 +136,8 @@ class CloudOnboardingService
         $sales = in_array(CloudModuleCode::SALES_INVOICES, $codes, true);
         $rentals = in_array(CloudModuleCode::RENTALS, $codes, true);
         $messaging = in_array(CloudModuleCode::MESSAGING, $codes, true);
+        $quotations = in_array(CloudModuleCode::QUOTATIONS, $codes, true);
+        $invitations = in_array(CloudModuleCode::DIGITAL_INVITATIONS, $codes, true);
         $context = app(CloudTenantContext::class);
         $previous = $context->tenant();
         $context->set($tenant);
@@ -158,12 +162,15 @@ class CloudOnboardingService
             ['label' => 'Upload company logo', 'done' => $tenant->logo_path ? true : false, 'show' => true],
             ['label' => 'Complete company information', 'done' => $infoDone, 'show' => true],
         ];
-        if ($sales || $rentals) {
+        if ($sales || $rentals || $quotations) {
             $steps[] = ['label' => 'Add first product/service', 'done' => $hasProduct, 'show' => true];
             $steps[] = ['label' => 'Add first customer', 'done' => $hasCustomer, 'show' => true];
         }
-        if ($sales) {
+        if ($sales || $quotations) {
             $steps[] = ['label' => 'Create first quotation', 'done' => $hasQuotation, 'show' => true];
+        }
+        if ($invitations) {
+            $steps[] = ['label' => 'Create the first digital invitation', 'done' => false, 'show' => true];
         }
         if ($rentals) {
             $steps[] = ['label' => 'Add rental inventory', 'done' => $hasProduct, 'show' => true];
@@ -222,6 +229,12 @@ class CloudOnboardingService
                 'type' => 'string',
             ]);
         }
+        CloudTenantSetting::create([
+            'cloud_tenant_id' => $tenant->id,
+            'key' => 'account_kind',
+            'value' => isset($input['account_kind']) && $input['account_kind'] === 'personal' ? 'personal' : 'company',
+            'type' => 'string',
+        ]);
         $subscriptions = app(CloudSubscriptionService::class);
         foreach ($quote['lines'] as $line) {
             $plan = CloudPlan::whereHas('module', function ($query) use ($line) {
