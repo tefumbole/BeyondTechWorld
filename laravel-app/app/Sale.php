@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
 {
+    use BelongsToCloudTenant;
     protected $fillable =[
         "reference_no", "user_id", "cash_register_id", "paid_by_id",
         "customer_id", "customer_group_id", "department_id", "warehouse_id",
@@ -38,6 +40,14 @@ class Sale extends Model
     public function products()
     {
         return $this->hasMany('App\Product_Sale', 'sale_id', 'id');
+    }
+
+    public function cloudTenantRelations()
+    {
+        return [
+            'customer_id' => Customer::class,
+            'warehouse_id' => Warehouse::class,
+        ];
     }
 
     protected static function boot()

@@ -2,11 +2,13 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
+    use BelongsToCloudTenant;
     const STATUS_PENDING = 1;
     const STATUS_AWAITING = 2;
     const STATUS_APPROVED = 3;
@@ -61,6 +63,15 @@ class Quotation extends Model
     protected $casts = [
         'quotation_status' => 'integer',
     ];
+
+    public function cloudTenantRelations()
+    {
+        return [
+            'customer_id' => Customer::class,
+            'warehouse_id' => Warehouse::class,
+            'supplier_id' => Supplier::class,
+        ];
+    }
 
     public static function statusLabel($status)
     {

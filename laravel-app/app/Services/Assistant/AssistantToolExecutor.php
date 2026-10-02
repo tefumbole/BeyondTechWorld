@@ -37,6 +37,14 @@ class AssistantToolExecutor
         if (preg_match('/approve_overtime|approve_attendance|override_location|modify_historical|bypass_ownership|another_user_document|bulk_documents|adjust_rent|waive_rent|terminate_tenancy|mark_rent_paid|override_property_ownership|reconcile_override|initiate_debit/i', (string) $name)) {
             return ['success' => false, 'error' => 'privileged'];
         }
+        if (isset($params['cloud_tenant_id']) || isset($params['tenant_id'])) {
+            unset($params['cloud_tenant_id'], $params['tenant_id']);
+        }
+        if ($this->tenantScopeFor($name) === 'TENANT' && \Illuminate\Support\Facades\Schema::hasColumn('products', 'cloud_tenant_id')) {
+            if (! app(\App\Services\Cloud\CloudTenantContext::class)->has()) {
+                return ['success' => false, 'error' => 'tenant_context_required'];
+            }
+        }
         $ownerTools = [
             'get_ai_status', 'set_ai_enabled', 'set_ai_first', 'switch_eligible_conversations_to_ai',
             'get_conversations_needing_attention', 'get_open_leads_summary', 'get_pending_quotation_summary',
@@ -67,6 +75,36 @@ class AssistantToolExecutor
         }
 
         return $this->{$method}($params, $context);
+    }
+
+    /**
+     * PLATFORM tools are installation commands.
+     * IDENTITY tools follow a person (property occupancy is not a CloudTenant).
+     * PUBLIC tools do not read another company's records.
+     * TENANT tools read only the active company, even if the prompt says otherwise.
+     */
+    protected function tenantScopeFor($name)
+    {
+        $identity = [
+            'get_my_tenancy', 'get_rent_balance', 'get_rent_due_date', 'get_rent_payment_history',
+            'get_maintenance_requests', 'create_maintenance_request', 'get_maintenance_status',
+            'add_maintenance_attachment', 'request_tenant_document', 'reject_payment_claim',
+            'clarify_tenant_balance',
+        ];
+        $public = [
+            'get_company_information', 'search_company_knowledge', 'get_services',
+            'get_sound_experience_options', 'get_event_extras_options', 'get_sound_packages',
+            'get_lighting_packages', 'calculate_stage_price', 'calculate_screen_price',
+            'get_truss_options', 'calculate_transport_price', 'check_appointment_availability',
+        ];
+        if (in_array($name, $identity, true)) {
+            return 'IDENTITY';
+        }
+        if (in_array($name, $public, true)) {
+            return 'PUBLIC';
+        }
+
+        return 'TENANT';
     }
 
     protected function toolGetContactSummary(array $params, array $context)

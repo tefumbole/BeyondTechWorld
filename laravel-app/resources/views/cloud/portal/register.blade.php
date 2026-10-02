@@ -16,6 +16,9 @@
 <body>
 <main>
     <h1>Create your company</h1>
+    @if(empty($onboardingOpen))
+        <p>Company signup is not open yet. The subscriptions page stays available.</p>
+    @else
     <p>You get a portal sign-in. Each module includes one 24-hour trial for your phone number. Payment is by MoMo or VISA.</p>
     @if($errors->any())<p class="bad">{{ $errors->first() }}</p>@endif
     <form method="POST" action="{{ route('cloud.register.submit') }}">
@@ -34,6 +37,7 @@
         <input type="password" name="password_confirmation" required>
         <button type="submit">Create portal</button>
     </form>
+    @endif
 </main>
 </body>
 </html>

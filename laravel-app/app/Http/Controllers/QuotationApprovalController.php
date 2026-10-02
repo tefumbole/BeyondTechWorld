@@ -289,10 +289,17 @@ class QuotationApprovalController extends Controller
         if ($token === '') {
             return null;
         }
+        $context = app(\App\Services\Cloud\CloudTenantContext::class);
+        $quotation = $context->withoutIsolation(function () use ($token) {
+            return Quotation::with(['customer', 'biller', 'warehouse', 'supplier'])
+                ->where('client_approval_token', $token)
+                ->first();
+        });
+        if ($quotation) {
+            app(\App\Services\Cloud\CloudTenantResolver::class)->bindRecordTenant($quotation);
+        }
 
-        return Quotation::with(['customer', 'biller', 'warehouse', 'supplier'])
-            ->where('client_approval_token', $token)
-            ->first();
+        return $quotation;
     }
 
     /**

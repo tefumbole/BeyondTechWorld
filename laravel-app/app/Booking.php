@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
+    use BelongsToCloudTenant;
     protected $fillable =[
         "reference_no", "user_id", "cash_register_id", "customer_id", "cc_customer_ids",
         "warehouse_id", "biller_id", "item", "total_qty", "total_discount",
@@ -33,6 +35,14 @@ class Booking extends Model
     public function user()
     {
         return $this->belongsTo('App\User');
+    }
+
+    public function cloudTenantRelations()
+    {
+        return [
+            'customer_id' => Customer::class,
+            'warehouse_id' => Warehouse::class,
+        ];
     }
 
     public function bookingProduct()

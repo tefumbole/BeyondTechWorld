@@ -2,11 +2,13 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use App\Traits\NormalizesWhatsAppPhones;
 use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
+    use BelongsToCloudTenant;
     use NormalizesWhatsAppPhones;
 
     protected $whatsappPhoneAttributes = ['phone_number'];

@@ -27,17 +27,26 @@ class ResolveWhatsAppContactNamesJob implements ShouldQueue
 
     public function handle(GroupContactExportService $groups)
     {
-        if ($this->jid === null) {
-            Cache::put('wa_contact_names_global', 1, 120);
-        }
-        $remaining = $groups->resolveContactNames($this->jid, 2);
-        if ($remaining > 0) {
-            static::dispatch($this->jid)->delay(2)->onConnection('database')->onQueue('whatsapp');
+        $tenantId = app(\App\Services\Cloud\CloudWhatsAppConnectionResolver::class)->soleTenantId();
+        $work = function () use ($groups) {
+            if ($this->jid === null) {
+                Cache::put('wa_contact_names_global', 1, 120);
+            }
+            $remaining = $groups->resolveContactNames($this->jid, 2);
+            if ($remaining > 0) {
+                static::dispatch($this->jid)->delay(2)->onConnection('database')->onQueue('whatsapp');
+
+                return;
+            }
+            if ($this->jid && Cache::add('wa_contact_names_global', 1, 120)) {
+                static::dispatch(null)->delay(2)->onConnection('database')->onQueue('whatsapp');
+            }
+        };
+        if ($tenantId && \Illuminate\Support\Facades\Schema::hasColumn('whatsapp_contacts', 'cloud_tenant_id')) {
+            app(\App\Services\Cloud\CloudTenantContextRunner::class)->run($tenantId, $work);
 
             return;
         }
-        if ($this->jid && Cache::add('wa_contact_names_global', 1, 120)) {
-            static::dispatch(null)->delay(2)->onConnection('database')->onQueue('whatsapp');
-        }
+        $work();
     }
 }

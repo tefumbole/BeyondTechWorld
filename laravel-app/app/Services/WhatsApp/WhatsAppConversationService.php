@@ -56,8 +56,13 @@ class WhatsAppConversationService
         if ($normalized === '') {
             return null;
         }
+        app(\App\Services\WhatsApp\WhatsAppContactLookup::class)->requireTenant();
 
-        $contact = WhatsAppContact::firstOrNew(['normalized_phone' => $normalized]);
+        $contact = WhatsAppContact::query()->where('normalized_phone', $normalized)->first();
+        if (! $contact) {
+            $contact = new WhatsAppContact();
+            $contact->normalized_phone = $normalized;
+        }
         $contact->display_phone = $this->identity->display($phone);
         if ($waName && trim((string) $waName) !== '') {
             $contact->wa_name = $waName;

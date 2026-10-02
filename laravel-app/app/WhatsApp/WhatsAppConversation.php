@@ -2,11 +2,13 @@
 
 namespace App\WhatsApp;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use App\User;
 use Illuminate\Database\Eloquent\Model;
 
 class WhatsAppConversation extends Model
 {
+    use BelongsToCloudTenant;
     const MODE_AI = 'AI';
     const MODE_HUMAN = 'HUMAN';
     const MODE_PAUSED = 'PAUSED';
@@ -35,6 +37,13 @@ class WhatsAppConversation extends Model
     public function contact()
     {
         return $this->belongsTo(WhatsAppContact::class, 'contact_id');
+    }
+
+    public function cloudTenantRelations()
+    {
+        return [
+            'contact_id' => WhatsAppContact::class,
+        ];
     }
 
     public function messages()

@@ -28,12 +28,20 @@ class RentalContractController extends Controller
     public function show($token)
     {
         $contract = $this->findContract($token);
+        $booking = app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($contract) {
+            return $contract->booking_id ? Booking::find($contract->booking_id) : null;
+        });
+        if ($booking) {
+            app(\App\Services\Cloud\CloudTenantResolver::class)->bindRecordTenant($booking);
+        }
 
         if ($contract->signed_at) {
             return $this->portal($token);
         }
 
-        $booking = $contract->booking;
+        if (! $booking) {
+            $booking = $contract->booking;
+        }
         $general_setting = GeneralSetting::first();
         $items = $this->buildEquipmentList($booking);
         $payments = Payment::where('booking_id', $booking->id)->get();

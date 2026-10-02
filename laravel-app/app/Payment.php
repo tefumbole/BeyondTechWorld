@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
+    use BelongsToCloudTenant;
     protected $fillable =[
 
         "purchase_id", "user_id", "sale_id", "cash_register_id", "account_id", "payment_reference", "amount", "used_points", "change", "paying_method", "payment_note", "debit_booking_id"
@@ -13,6 +15,13 @@ class Payment extends Model
 
     public function accounts() {
         return $this->belongsTo('App\Account', 'account_id');
+    }
+
+    public function cloudTenantRelations()
+    {
+        return [
+            'sale_id' => Sale::class,
+        ];
     }
 
     protected static function boot()

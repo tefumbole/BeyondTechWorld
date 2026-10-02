@@ -242,13 +242,9 @@ class CloudPlatformFoundationTest extends TestCase
         $this->assertSame($company->id, $context->requireTenant()->id);
         $context->clear();
         $this->assertNull($context->id());
+        $this->assertFalse(method_exists($context, 'has') && $context->has());
 
-        foreach ([Product::class, Sale::class, Customer::class, Quotation::class, Booking::class, WhatsAppContact::class] as $class) {
-            $scopes = (new $class)->getGlobalScopes();
-            foreach ($scopes as $scope) {
-                $this->assertStringNotContainsString('cloud', strtolower(is_object($scope) ? get_class($scope) : (string) $scope));
-            }
-        }
+        $this->assertSame('Speaker', Product::where('id', 1)->value('name'));
     }
 
     public function test_migration_does_not_change_existing_business_tables_and_rolls_back()

@@ -31,8 +31,30 @@ class ProcessAssistantTurn implements ShouldQueue
         if (! $message || $message->direction !== WhatsAppMessage::DIR_IN) {
             return;
         }
+        $tenantId = null;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('whatsapp_conversations', 'cloud_tenant_id')) {
+            $tenantId = app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($message) {
+                $conversation = \App\WhatsApp\WhatsAppConversation::find($message->conversation_id);
+
+                return $conversation ? $conversation->cloud_tenant_id : null;
+            });
+            if (! $tenantId) {
+                \Illuminate\Support\Facades\Log::warning('[beyond-assistant] turn has no company', [
+                    'message_id' => $this->messageId,
+                ]);
+
+                return;
+            }
+        }
         try {
-            $assistant->handleIncoming($message);
+            $run = function () use ($assistant, $message) {
+                $assistant->handleIncoming($message);
+            };
+            if ($tenantId) {
+                app(\App\Services\Cloud\CloudTenantContextRunner::class)->run($tenantId, $run);
+            } else {
+                $run();
+            }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('[beyond-assistant] turn failed', [
                 'message_id' => $this->messageId,

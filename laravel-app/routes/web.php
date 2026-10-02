@@ -327,6 +327,7 @@ Route::post('/signup', 'BeyondAuthController@register')->name('beyond.signup');
 Route::match(['get', 'post'], '/portal/logout', 'BeyondAuthController@logout')->name('beyond.logout');
 Route::get('/logout', 'Auth\LoginController@logout');
 
+Route::post('/cloud/company', 'CloudCompanyController@switchCompany')->middleware('auth')->name('cloud.company.switch');
 Route::get('/cloud/login', 'CloudPortalController@showLogin')->name('cloud.login');
 Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.submit');
 Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');

@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Unit extends Model
 {
+    use BelongsToCloudTenant;
     protected $fillable =[
 
         "unit_code", "unit_name", "base_unit", "operator", "operation_value", "is_active"

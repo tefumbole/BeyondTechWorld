@@ -19,6 +19,7 @@ class CloudPortalTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['cloud.public_onboarding' => true]);
         $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');

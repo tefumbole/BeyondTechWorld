@@ -31,26 +31,35 @@ class SendWaAnnouncementBatchJob implements ShouldQueue
         if (! $announcement || $announcement->status === 'deleted') {
             return;
         }
-        $remaining = $notify->deliverContactBatch($announcement->fresh(), 5);
-        if ($remaining > 0) {
-            static::dispatch($this->announcementId)->onConnection('database')->onQueue('whatsapp');
+        $send = function () use ($notify, $announcement) {
+            $remaining = $notify->deliverContactBatch($announcement->fresh(), 5);
+            if ($remaining > 0) {
+                static::dispatch($this->announcementId)->onConnection('database')->onQueue('whatsapp');
+
+                return;
+            }
+            $fresh = $announcement->fresh();
+            $results = $fresh->send_results_json ? json_decode($fresh->send_results_json, true) : [];
+            $okCount = 0;
+            $total = is_array($results) ? count($results) : 0;
+            if (is_array($results)) {
+                foreach ($results as $row) {
+                    if (! empty($row['ok'])) {
+                        $okCount++;
+                    }
+                }
+            }
+            $fresh->status = 'sent';
+            $fresh->whatsapp_status = $okCount === 0 ? 'pending' : ($okCount < $total ? 'partial' : 'sent');
+            $fresh->is_scheduled = false;
+            $fresh->save();
+        };
+        $tenantId = app(\App\Services\Cloud\CloudWhatsAppConnectionResolver::class)->soleTenantId();
+        if ($tenantId) {
+            app(\App\Services\Cloud\CloudTenantContextRunner::class)->run($tenantId, $send);
 
             return;
         }
-        $announcement = $announcement->fresh();
-        $results = $announcement->send_results_json ? json_decode($announcement->send_results_json, true) : [];
-        $okCount = 0;
-        $total = is_array($results) ? count($results) : 0;
-        if (is_array($results)) {
-            foreach ($results as $row) {
-                if (! empty($row['ok'])) {
-                    $okCount++;
-                }
-            }
-        }
-        $announcement->status = 'sent';
-        $announcement->whatsapp_status = $okCount === 0 ? 'pending' : ($okCount < $total ? 'partial' : 'sent');
-        $announcement->is_scheduled = false;
-        $announcement->save();
+        $send();
     }
 }

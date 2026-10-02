@@ -2,10 +2,12 @@
 
 namespace App;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
+    use BelongsToCloudTenant;
     protected $fillable =[
 
         "name", "code", "type", "requires_quantity", "location", "vendor_id", "barcode_symbology", "brand_id", "category_id", "unit_id", "purchase_unit_id", "sale_unit_id", "cost", "price", "qty", "alert_quantity", "promotion", "promotion_price", "starting_date", "last_date", "tax_id", "tax_method", "image", "file", "is_batch", "is_variant", "is_diffPrice", "featured", "product_list", "qty_list", "price_list", "product_details", "is_active", "rent_price_per_hour", "rent_price_per_day", "rent_price_per_month"

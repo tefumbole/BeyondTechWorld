@@ -2,10 +2,12 @@
 
 namespace App\WhatsApp;
 
+use App\Services\Cloud\BelongsToCloudTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class WhatsAppContact extends Model
 {
+    use BelongsToCloudTenant;
     protected $table = 'whatsapp_contacts';
 
     protected $fillable = [

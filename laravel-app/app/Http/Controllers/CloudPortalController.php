@@ -51,11 +51,16 @@ class CloudPortalController extends Controller
 
     public function showRegister()
     {
-        return view('cloud.portal.register');
+        return view('cloud.portal.register', [
+            'onboardingOpen' => (bool) config('cloud.public_onboarding'),
+        ]);
     }
 
     public function register(Request $request)
     {
+        if (! config('cloud.public_onboarding')) {
+            return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
+        }
         $data = $request->validate([
             'name' => 'required|string|max:191',
             'email' => 'required|email|max:191|unique:users,email',
