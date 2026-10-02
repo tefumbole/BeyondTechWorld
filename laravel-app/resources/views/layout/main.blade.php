@@ -1981,7 +1981,7 @@
                         {{--                        @endif--}}
                         @if(in_array('payments-index', $all_permission))
                             <li>
-                                <a href="#payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
+                                <a href="#payments" data-nav-key="payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
                                 <ul id="payments" class="collapse list-unstyled ">
                                     <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
                                     <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">All Deposits</a></li>

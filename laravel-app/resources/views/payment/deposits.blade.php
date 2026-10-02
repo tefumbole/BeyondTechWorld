@@ -1,4 +1,7 @@
 @extends('layout.main') @section('content')
+@if(session()->has('message'))
+    <div class="alert alert-success alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('message') }}</div>
+@endif
 @if(session()->has('create_message'))
     <div class="alert alert-success alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{!! session()->get('create_message') !!}</div>
 @endif
@@ -11,6 +14,9 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
+@if($errors->any())
+  <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ $errors->first() }}</div>
+@endif
 <style>
     @media (min-width: 576px) {
         .modal-dialog {
@@ -19,10 +25,51 @@
     }
 </style>
 <div class="container-fluid">
+    <div class="row mt-4 mb-3">
+        <div class="col-md-12">
+            <button type="button" class="btn btn-info" data-toggle="modal" data-target="#deposit-modal"><i class="dripicons-plus"></i> Make a deposit</button>
+        </div>
+    </div>
+</div>
 
-    <div class="row ">
-        <div class="col-md-4 product-report-filter mt-4">
-            <a href="{{route('customer_group.index')}}" class="btn btn-info"><i class="dripicons-device-desktop"></i> {{trans('file.Customer Group')}}</a>&nbsp;
+<div id="deposit-modal" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
+    <div role="document" class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Deposit to an account</h5>
+                <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ route('deposit.store') }}">
+                    @csrf
+                    <div class="form-group">
+                        <label>Account</label>
+                        <select name="account_id" class="form-control" required>
+                            <option value="">Select account</option>
+                            @foreach($accounts as $account)
+                                <option value="{{ $account->id }}" {{ (string) old('account_id') === (string) $account->id ? 'selected' : '' }}>{{ $account->name }} / {{ $account->account_no }} — {{ number_format((float) $account->total_balance, 2) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" name="amount" class="form-control" min="0.01" step="0.01" value="{{ old('amount') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Payment method</label>
+                        <select name="payment_method" class="form-control" required>
+                            <option value="1">Cash</option>
+                            <option value="2">JE Method</option>
+                            <option value="3">Momo/Orange</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Note</label>
+                        <textarea name="note" class="form-control" rows="2">{{ old('note') }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save deposit</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -31,10 +78,9 @@
         <table id="customer-table" class="table">
             <thead>
                 <tr>
-                <tr>
                     <th class="not-exported"></th>
+                    <th>Account</th>
                     <th>{{trans('file.customer')}}</th>
-                    <th>{{trans('file.Customer Group')}}</th>
                     <th>{{trans('file.date')}}</th>
                     <th>{{trans('file.reference')}}</th>
                     <th>{{trans('file.Amount')}}</th>
@@ -49,8 +95,8 @@
                 @foreach($deposits as $key=>$deposit)
                 <tr data-id="{{$deposit->id}}">
                     <td>{{$key}}</td>
+                    <td>{{ $deposit->account ? $deposit->account->name : '—' }}</td>
                     <td>{{ @$deposit->customer->name }}</td>
-                    <td>{{ @$deposit->customerGroup->name }}</td>
                     <td>{{ $deposit->created_at }}</td>
                     <td>{{ $deposit->payment_reference }}</td>
                     <td>{{ $deposit->amount }}</td>
@@ -68,9 +114,9 @@
                     @else
                         <td><span class="badge badge-success">Paid</span></td>
                     @endif
-                    <td>{{ $deposit->depositor->name ?? 'NAN' }}</td>
+                    <td>{{ optional($deposit->depositor)->name ?: 'NAN' }}</td>
                     <td>{{ $deposit->note }}</td>
-                    <td>{{ $deposit->user->name }}</td>
+                    <td>{{ optional($deposit->user)->name }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -82,6 +128,9 @@
     $("ul#payments").siblings('a').attr('aria-expanded','true');
     $("ul#payments").addClass("show");
     $("ul#payments #desposit-index-menu").addClass("active");
+    @if($errors->any())
+        $('#deposit-modal').modal('show');
+    @endif
 
        var table = $('#customer-table').DataTable( {
         "order": [],

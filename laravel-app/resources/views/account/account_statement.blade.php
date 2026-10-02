@@ -41,6 +41,21 @@
                 </tr>
                 @endforeach
 
+                @foreach(isset($deposit_list) ? $deposit_list : [] as $key=>$deposit_row)
+                <?php
+                    $balance = $balance + $deposit_row->amount;
+                ?>
+                <tr>
+                    <td>{{$key}}</td>
+                    <td>{{date($general_setting->date_format, strtotime($deposit_row->created_at->toDateString()))}}</td>
+                    <td>{{$deposit_row->payment_reference}}</td>
+                    <td>Deposit</td>
+                    <td>{{number_format((float)$deposit_row->amount, 2, '.', '')}}</td>
+                    <td>0.00</td>
+                    <td>{{number_format((float)$balance, 2, '.', '')}}</td>
+                </tr>
+                @endforeach
+
                 @foreach($recieved_money_transfer_list as $key=>$recieved_money)
                 <?php 
                     $balance = $balance + $recieved_money->amount; 
