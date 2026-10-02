@@ -247,29 +247,17 @@ class CloudOnboardingTest extends TestCase
         $this->artisan('cloud:audit-ownership')->assertExitCode(0);
     }
 
-    public function test_validation_gate_is_single_use_and_public_signup_stays_closed()
+    public function test_validation_gate_no_longer_opens_public_signup()
     {
         config(['cloud.public_onboarding' => false]);
         $this->get('/cloud/register')->assertSee('Company signup is not open yet');
         $gate = app(\App\Services\Cloud\CloudOnboardingGate::class)->issue();
         $page = $this->withHeaders(['X-Cloud-Onboarding-Gate' => $gate])->get('/cloud/register');
-        $page->assertDontSee('Company signup is not open yet');
-        $page->assertSee('Due today');
-        preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
-        preg_match('/name="validation_token" value="([^"]+)"/', $page->getContent(), $valid);
-        $payload = $this->payload('Gate Co', 'gate@demo.test', '237670000071', ['MESSAGING', 'SALES_INVOICES', 'RENTALS'], $match[1]);
-        $payload['validation_token'] = $valid[1];
-        $this->post('/cloud/register', $payload)->assertRedirect('/cloud');
-        $this->post('/cloud/logout');
-        $this->post('/cloud/register', $payload)->assertRedirect('/cloud');
-        $this->assertSame(1, CloudTenant::where('name', 'Gate Co')->count());
-        $tenant = CloudTenant::where('name', 'Gate Co')->first();
-        $this->assertSame(3, $tenant->subscriptions()->count());
-        $this->post('/cloud/logout');
-        $this->get('/cloud/register')->assertSee('Company signup is not open yet');
-        $this->post('/cloud/register', $this->payload('Other Co', 'other-gate@demo.test', '237670000072', ['MESSAGING'], 'not-a-form'))
+        $page->assertSee('Company signup is not open yet');
+        $page->assertDontSee('name="validation_token"');
+        $this->post('/cloud/register', $this->payload('Gate Co', 'gate@demo.test', '237670000071', ['MESSAGING'], 'not-a-form') + ['validation_token' => $gate])
             ->assertRedirect('/cloud/register');
-        $this->assertNull(CloudTenant::where('name', 'Other Co')->first());
+        $this->assertNull(CloudTenant::where('name', 'Gate Co')->first());
     }
 
     public function test_messaging_page_does_not_connect_whatsapp()

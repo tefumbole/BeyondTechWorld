@@ -9,7 +9,6 @@ use App\Cloud\CloudSubscriptionPayment;
 use App\Cloud\CloudTenant;
 use App\Services\Cloud\CloudCheckoutService;
 use App\Services\Cloud\CloudExistingAccountException;
-use App\Services\Cloud\CloudOnboardingGate;
 use App\Services\Cloud\CloudOnboardingService;
 use App\Services\Cloud\CloudPortalService;
 use App\Services\Cloud\CloudTenantResolver;
@@ -59,9 +58,7 @@ class CloudPortalController extends Controller
     {
         $token = Str::random(40);
         session(['cloud_onboard_token' => $token]);
-        $validation = (string) $request->header('X-Cloud-Onboarding-Gate', '');
-        $gated = $validation !== '' && app(CloudOnboardingGate::class)->peek($validation);
-        $open = (bool) config('cloud.public_onboarding') || $gated;
+        $open = (bool) config('cloud.public_onboarding');
         $plans = $open ? app(CloudOnboardingService::class)->plans() : collect();
 
         return view('cloud.portal.register', [
@@ -71,7 +68,7 @@ class CloudPortalController extends Controller
                 return $plan->module->code;
             })->all()),
             'onboardToken' => $token,
-            'validationToken' => $gated ? $validation : '',
+            'validationToken' => '',
             'welcome' => config('cloud.trial_welcome'),
         ]);
     }
@@ -104,11 +101,7 @@ class CloudPortalController extends Controller
             return true;
         }
         $onboard = (string) $request->input('onboard_token', '');
-        if ($onboard !== '' && is_array(Cache::get('cloud-onboard-done:'.$onboard))) {
-            return true;
-        }
-
-        return app(CloudOnboardingGate::class)->consume($request->input('validation_token'));
+        return $onboard !== '' && is_array(Cache::get('cloud-onboard-done:'.$onboard));
     }
 
     protected function safeOnboardingMessage(\Exception $e)
