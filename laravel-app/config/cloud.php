@@ -11,9 +11,21 @@ return [
     'internal_slug' => 'beyondtechworld',
 
     /*
-    | Public "Build Your Own Company" stays closed until a later phase.
+    | Public "Build Your Own Company" stays off until an approved production opening.
+    | Tests may turn this on. The default must stay false.
     */
     'public_onboarding' => env('CLOUD_PUBLIC_ONBOARDING', false),
+
+    /*
+    | Live subscription charges stay off until a provider webhook is validated.
+    */
+    'payments_live' => env('CLOUD_PAYMENTS_LIVE', false),
+
+    'trial_welcome' => 'Your selected services are available free for 24 hours.',
+
+    'trial_ended_notice' => 'Your free trial has ended. Your existing information remains available in read-only mode. Subscription payment will be available shortly.',
+
+    'payment_pending_notice' => 'Online subscription payment is being activated.',
 
     /*
     | Directly owned models filter by the active company.

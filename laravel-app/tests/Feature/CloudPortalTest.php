@@ -119,7 +119,7 @@ class CloudPortalTest extends TestCase
 
     public function test_company_portal_trial_is_once_per_phone_and_settings_stay_on_that_company()
     {
-        $this->get('/cloud/register')->assertOk()->assertSee('Create your company');
+        $this->get('/cloud/register')->assertOk()->assertSee('Build your own company');
         $this->registerCompany();
         $this->assertAuthenticated();
         $this->get('/cloud')->assertSee('Demo Events');
@@ -157,16 +157,21 @@ class CloudPortalTest extends TestCase
         $this->get('/cloud/hero/'.$tenant->uuid)->assertOk();
 
         $this->post('/cloud/logout');
+        $page = $this->get('/cloud/register');
+        preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
         $this->post('/cloud/register', [
-            'name' => 'Second Owner',
+            'first_name' => 'Second',
+            'last_name' => 'Owner',
             'email' => 'second@demo.test',
             'phone' => '+237677000111',
             'password' => 'portal-secret',
             'password_confirmation' => 'portal-secret',
             'company_name' => 'Other Events',
-        ])->assertRedirect('/cloud');
-        $this->post('/cloud/subscribe/'.$plan->id.'/trial')->assertRedirect('/cloud/subscribe');
-        $this->assertSame(1, CloudSubscription::count());
+            'modules' => ['SALES_INVOICES'],
+            'onboard_token' => $match[1],
+        ])->assertRedirect('/cloud/register');
+        $this->assertNull(CloudTenant::where('name', 'Other Events')->first());
+        $this->assertSame(2, CloudSubscription::count());
 
         $other = CloudTenant::create([
             'name' => 'Other',
@@ -198,13 +203,18 @@ class CloudPortalTest extends TestCase
 
     protected function registerCompany()
     {
+        $page = $this->get('/cloud/register');
+        preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
         $this->post('/cloud/register', [
-            'name' => 'Ada Owner',
+            'first_name' => 'Ada',
+            'last_name' => 'Owner',
             'email' => 'ada@demo.test',
             'phone' => '+237677000111',
             'password' => 'portal-secret',
             'password_confirmation' => 'portal-secret',
             'company_name' => 'Demo Events',
+            'modules' => ['SALES_INVOICES'],
+            'onboard_token' => $match[1],
         ])->assertRedirect('/cloud');
     }
 

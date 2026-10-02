@@ -25,6 +25,7 @@
     <nav>
         <a href="{{ route('cloud.home') }}">Home</a>
         <a href="{{ route('cloud.subscribe') }}">Subscribe</a>
+        <a href="{{ route('cloud.messaging') }}">Messaging</a>
         <a href="{{ route('cloud.settings') }}">Settings</a>
         <form method="POST" action="{{ route('cloud.logout') }}" style="display:inline;">@csrf<button type="submit" style="background:transparent;color:#fff;padding:0;">Sign out</button></form>
     </nav>

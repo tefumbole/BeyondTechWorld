@@ -16,4 +16,18 @@ class CloudSlug
 
         return $value === '' ? 'company' : $value;
     }
+
+    public static function reserved()
+    {
+        return [
+            'admin', 'api', 'cloud', 'subscriptions', 'login', 'register', 'logout',
+            'beyondtechworld', 'c', 'products', 'sales', 'quotations', 'bookings',
+            'rentals', 'payments', 'dashboard', 'whatsapp', 'storage', 'vendor',
+        ];
+    }
+
+    public static function isReserved($slug)
+    {
+        return in_array(strtolower((string) $slug), self::reserved(), true);
+    }
 }

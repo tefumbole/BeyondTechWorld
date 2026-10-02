@@ -150,6 +150,50 @@ class CloudPortalService
         return $real;
     }
 
+    public function storeLogo(CloudTenant $tenant, UploadedFile $file)
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            throw new \InvalidArgumentException('Use a JPG, PNG, or WebP logo.');
+        }
+        if ($file->getSize() > 2 * 1024 * 1024) {
+            throw new \InvalidArgumentException('The logo must be under 2 MB.');
+        }
+        $size = @getimagesize($file->getRealPath());
+        if (! $size || $size[0] < 32 || $size[1] < 32 || $size[0] > 4000 || $size[1] > 4000) {
+            throw new \InvalidArgumentException('Upload a real image between 32 and 4000 pixels.');
+        }
+        $name = 'logo.'.($ext === 'jpeg' ? 'jpg' : $ext);
+        $dir = storage_path('app/cloud-tenants/'.$tenant->uuid.'/branding');
+        if (! is_dir($dir) && ! @mkdir($dir, 0775, true) && ! is_dir($dir)) {
+            throw new \RuntimeException('The logo could not be stored.');
+        }
+        if (! $file->move($dir, $name) && ! is_file($dir.DIRECTORY_SEPARATOR.$name)) {
+            throw new \RuntimeException('The logo could not be stored.');
+        }
+        $tenant->logo_path = $name;
+        $tenant->save();
+
+        return $name;
+    }
+
+    public function logoFile(CloudTenant $tenant)
+    {
+        $name = basename((string) $tenant->logo_path);
+        if (! preg_match('/^logo\.(jpg|png|webp)$/', $name)) {
+            return null;
+        }
+        $root = storage_path('app/cloud-tenants/'.$tenant->uuid.'/branding');
+        $path = $root.DIRECTORY_SEPARATOR.$name;
+        $real = realpath($path);
+        $realRoot = realpath($root);
+        if (! $real || ! $realRoot || strpos($real, $realRoot.DIRECTORY_SEPARATOR) !== 0) {
+            return null;
+        }
+
+        return $real;
+    }
+
     public function trialEnd(CloudPlan $plan, $start = null)
     {
         $start = $start ?: now();

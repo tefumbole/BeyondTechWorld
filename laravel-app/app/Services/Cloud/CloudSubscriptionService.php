@@ -33,6 +33,13 @@ class CloudSubscriptionService
         if (! $module || ! $plan->active || ! $module->active) {
             throw new \RuntimeException('That subscription is not available.');
         }
+        $open = CloudSubscription::where('cloud_tenant_id', $tenant->id)
+            ->where('cloud_plan_id', $plan->id)
+            ->whereIn('status', [CloudSubscriptionStatus::TRIALING, CloudSubscriptionStatus::ACTIVE])
+            ->first();
+        if ($open) {
+            return $open;
+        }
         if ($this->introductoryTrialUsed($tenant, $module->id)) {
             throw new \RuntimeException('This company has already used the introductory trial for this module.');
         }
@@ -43,14 +50,6 @@ class CloudSubscriptionService
         }
 
         return DB::transaction(function () use ($tenant, $plan, $module, $gate, $actorUserId) {
-            $open = CloudSubscription::where('cloud_tenant_id', $tenant->id)
-                ->where('cloud_plan_id', $plan->id)
-                ->whereIn('status', [CloudSubscriptionStatus::TRIALING, CloudSubscriptionStatus::ACTIVE])
-                ->first();
-            if ($open) {
-                return $open;
-            }
-
             $start = now();
             $end = $this->trialEnd($plan, $start);
             $subscription = CloudSubscription::create([

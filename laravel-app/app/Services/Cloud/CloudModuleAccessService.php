@@ -122,6 +122,9 @@ class CloudModuleAccessService
     public function decision(CloudTenant $tenant, $moduleCode, $at = null)
     {
         $at = $at ?: now();
+        if ($tenant->type !== CloudTenantType::INTERNAL && $tenant->status === \App\Cloud\CloudTenantStatus::SUSPENDED) {
+            return $this->pack('read', 'SUSPENDED', 'company_suspended');
+        }
         if ($tenant->type === CloudTenantType::INTERNAL) {
             $granted = app(CloudInternalEntitlementPolicy::class)->grants($tenant, $moduleCode);
 

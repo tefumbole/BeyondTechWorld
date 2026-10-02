@@ -8,9 +8,13 @@ use App\Cloud\CloudSubscription;
 use App\Cloud\CloudSubscriptionPayment;
 use App\Cloud\CloudTenant;
 use App\Services\Cloud\CloudCheckoutService;
+use App\Services\Cloud\CloudExistingAccountException;
+use App\Services\Cloud\CloudOnboardingService;
 use App\Services\Cloud\CloudPortalService;
+use App\Services\Cloud\CloudTenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class CloudPortalController extends Controller
 {
@@ -51,8 +55,18 @@ class CloudPortalController extends Controller
 
     public function showRegister()
     {
+        $token = Str::random(40);
+        session(['cloud_onboard_token' => $token]);
+        $plans = config('cloud.public_onboarding') ? app(CloudOnboardingService::class)->plans() : collect();
+
         return view('cloud.portal.register', [
             'onboardingOpen' => (bool) config('cloud.public_onboarding'),
+            'plans' => $plans,
+            'quote' => app(CloudOnboardingService::class)->quote($plans->map(function ($plan) {
+                return $plan->module->code;
+            })->all()),
+            'onboardToken' => $token,
+            'welcome' => config('cloud.trial_welcome'),
         ]);
     }
 
@@ -61,19 +75,32 @@ class CloudPortalController extends Controller
         if (! config('cloud.public_onboarding')) {
             return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
         }
-        $data = $request->validate([
-            'name' => 'required|string|max:191',
-            'email' => 'required|email|max:191|unique:users,email',
-            'phone' => 'required|string|max:32',
-            'password' => 'required|string|min:8|confirmed',
-            'company_name' => 'required|string|max:191',
-            'country' => 'nullable|string|max:8',
-        ]);
-        list($user) = $this->portal->register($data);
+        $data = $this->companyInput($request, true);
+        try {
+            list($user, $tenant) = app(CloudOnboardingService::class)->register($data);
+        } catch (CloudExistingAccountException $e) {
+            return redirect()->route('cloud.login')->with('not_permitted', $e->getMessage());
+        } catch (\Exception $e) {
+            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
+        }
         Auth::login($user);
         $request->session()->regenerate();
+        session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
 
-        return redirect()->route('cloud.home')->with('message', 'Your company portal is ready. Start a 24-hour trial when you want a module.');
+        return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
+    }
+
+    public function addCompany(Request $request)
+    {
+        $data = $this->companyInput($request, false);
+        try {
+            list($user, $tenant) = app(CloudOnboardingService::class)->addCompany(Auth::user(), $data);
+        } catch (\Exception $e) {
+            return redirect()->route('cloud.home')->with('not_permitted', $e->getMessage());
+        }
+        session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
+
+        return redirect()->route('cloud.home')->with('message', $tenant->name.' is ready. '.config('cloud.trial_welcome'));
     }
 
     public function logout(Request $request)
@@ -88,11 +115,24 @@ class CloudPortalController extends Controller
     {
         $tenant = $this->tenant($request);
         $subscriptions = CloudSubscription::with('plan.module')->where('cloud_tenant_id', $tenant->id)->orderByDesc('id')->get();
+        $token = Str::random(40);
+        session(['cloud_onboard_token' => $token]);
 
         return view('cloud.portal.home', [
             'tenant' => $tenant,
             'subscriptions' => $subscriptions,
             'heroUrl' => $tenant->hero_path ? route('cloud.hero', ['uuid' => $tenant->uuid]) : null,
+            'logoUrl' => $tenant->logo_path ? route('cloud.logo', ['uuid' => $tenant->uuid]) : null,
+            'checklist' => app(CloudOnboardingService::class)->checklist($tenant),
+            'welcome' => config('cloud.trial_welcome'),
+            'ended' => config('cloud.trial_ended_notice'),
+            'paymentNotice' => config('cloud.payment_pending_notice'),
+            'plans' => app(CloudOnboardingService::class)->plans(),
+            'onboardToken' => $token,
+            'memberships' => \App\Cloud\CloudTenantMembership::with('cloudTenant')
+                ->where('user_id', Auth::id())
+                ->where('status', \App\Cloud\CloudMembershipStatus::ACTIVE)
+                ->get(),
         ]);
     }
 
@@ -175,14 +215,18 @@ class CloudPortalController extends Controller
             'services' => 'nullable|string|max:5000',
             'business_rules' => 'nullable|string|max:8000',
             'hero' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:4096',
+            'logo' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
         $this->portal->saveBusinessRules($tenant, $data);
-        if ($request->hasFile('hero')) {
-            try {
+        try {
+            if ($request->hasFile('hero')) {
                 $this->portal->storeHero($tenant, $request->file('hero'));
-            } catch (\Exception $e) {
-                return redirect()->route('cloud.settings')->with('not_permitted', $e->getMessage());
             }
+            if ($request->hasFile('logo')) {
+                $this->portal->storeLogo($tenant, $request->file('logo'));
+            }
+        } catch (\Exception $e) {
+            return redirect()->route('cloud.settings')->with('not_permitted', $e->getMessage());
         }
 
         return redirect()->route('cloud.settings')->with('message', 'Company settings saved.');
@@ -200,6 +244,64 @@ class CloudPortalController extends Controller
         }
 
         return response()->file($path);
+    }
+
+    public function logo($uuid)
+    {
+        $tenant = CloudTenant::where('uuid', $uuid)->first();
+        if (! $tenant) {
+            abort(404);
+        }
+        $path = $this->portal->logoFile($tenant);
+        if (! $path) {
+            abort(404);
+        }
+
+        return response()->file($path);
+    }
+
+    public function messaging(Request $request)
+    {
+        $tenant = $this->tenant($request);
+        $connected = \Illuminate\Support\Facades\Schema::hasTable('cloud_whatsapp_connections')
+            && \App\Cloud\CloudWhatsAppConnection::where('cloud_tenant_id', $tenant->id)->where('status', 'ACTIVE')->exists();
+
+        return view('cloud.portal.messaging', [
+            'tenant' => $tenant,
+            'connected' => $connected,
+            'entitled' => app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging'),
+            'paymentNotice' => config('cloud.payment_pending_notice'),
+        ]);
+    }
+
+    protected function companyInput(Request $request, $withAccount)
+    {
+        $rules = [
+            'company_name' => 'required|string|max:191',
+            'system_name' => 'nullable|string|max:191',
+            'legal_name' => 'nullable|string|max:191',
+            'company_phone' => 'nullable|string|max:32',
+            'company_email' => 'nullable|email|max:191',
+            'country' => 'nullable|string|max:8',
+            'city' => 'nullable|string|max:191',
+            'address' => 'nullable|string|max:191',
+            'timezone' => 'nullable|string|max:64',
+            'currency' => 'nullable|string|size:3',
+            'modules' => 'required|array|min:1',
+            'modules.*' => 'string|max:64',
+            'onboard_token' => 'required|string|max:80',
+        ];
+        if ($withAccount) {
+            $rules['first_name'] = 'required|string|max:80';
+            $rules['last_name'] = 'required|string|max:80';
+            $rules['email'] = 'required|email|max:191';
+            $rules['phone'] = 'required|string|max:32';
+            $rules['password'] = 'required|string|min:8|confirmed';
+        } else {
+            $rules['phone'] = 'nullable|string|max:32';
+        }
+
+        return $request->validate($rules);
     }
 
     protected function tenant(Request $request)

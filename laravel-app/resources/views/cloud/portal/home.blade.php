@@ -3,6 +3,22 @@
 <div class="card">
     <h1>{{ $tenant->name }}</h1>
     <p class="muted">{{ $tenant->system_name }}</p>
+    <p>{{ $welcome }}</p>
+    @if($tenant->status === 'SUSPENDED')
+        <p>This company is suspended. Records stay available to view.</p>
+    @endif
+    @if(isset($memberships) && $memberships->count() > 1)
+        <form method="POST" action="{{ route('cloud.company.switch') }}">
+            @csrf
+            <label>Company</label>
+            <select name="cloud_tenant_id">
+                @foreach($memberships as $membership)
+                    <option value="{{ $membership->cloud_tenant_id }}" {{ (int) $membership->cloud_tenant_id === (int) $tenant->id ? 'selected' : '' }}>{{ $membership->cloudTenant ? $membership->cloudTenant->name : 'Company' }}</option>
+                @endforeach
+            </select>
+            <button type="submit">Switch company</button>
+        </form>
+    @endif
     @if($heroUrl)
         <img class="hero" src="{{ $heroUrl }}" alt="Company hero">
     @else
@@ -38,12 +54,38 @@
                 <span class="muted">Quoted {{ number_format((float) $subscription->quoted_price, 0) }} {{ $subscription->quoted_currency }}</span>
             @endif
         </p>
-        @if(in_array($subscription->status, ['TRIALING', 'PAST_DUE', 'EXPIRED', 'CANCELLED'], true))
-            <p><a class="btn" href="{{ route('cloud.subscribe') }}">Renew</a></p>
+        @if(in_array($subscription->status, ['EXPIRED', 'PAST_DUE', 'CANCELLED'], true))
+            <p>{{ $ended }}</p>
+            <p class="muted">{{ $paymentNotice }}</p>
         @endif
     @empty
         <p class="muted">You have not started a module yet.</p>
     @endforelse
     <a class="btn" href="{{ route('cloud.subscribe') }}">Choose a module</a>
+    <a class="btn" href="{{ route('cloud.messaging') }}">Messaging</a>
+</div>
+<div class="card">
+    <h2>Setup</h2>
+    <p class="muted">Sample business records are not added. A company starts empty.</p>
+    <ul>
+        @foreach($checklist as $step)
+            @if($step['show'])
+                <li>{{ $step['done'] ? 'Done' : 'To do' }} — {{ $step['label'] }}</li>
+            @endif
+        @endforeach
+    </ul>
+</div>
+<div class="card">
+    <h2>Add another company</h2>
+    <form method="POST" action="{{ route('cloud.companies.store') }}">
+        @csrf
+        <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
+        @foreach($plans as $plan)
+            <label><input type="checkbox" name="modules[]" value="{{ $plan->module->code }}"> {{ $plan->name }} — {{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</label>
+        @endforeach
+        <label>Company name</label>
+        <input name="company_name" required>
+        <button type="submit">Create company</button>
+    </form>
 </div>
 @endsection

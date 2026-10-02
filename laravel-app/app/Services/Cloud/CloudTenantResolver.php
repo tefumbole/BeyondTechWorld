@@ -91,7 +91,7 @@ class CloudTenantResolver
     public function fromSession($user)
     {
         $id = (int) session(self::SESSION_KEY);
-        if ($id < 1) {
+        if ($id < 1 || ! Schema::hasTable('cloud_tenant_memberships')) {
             return null;
         }
         $membership = CloudTenantMembership::where('user_id', $user->id)
@@ -112,6 +112,10 @@ class CloudTenantResolver
 
     public function activeMemberships($user)
     {
+        if (! Schema::hasTable('cloud_tenant_memberships')) {
+            return collect();
+        }
+
         return CloudTenantMembership::with('cloudTenant')
             ->where('user_id', $user->id)
             ->where('status', CloudMembershipStatus::ACTIVE)

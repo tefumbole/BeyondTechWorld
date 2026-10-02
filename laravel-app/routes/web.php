@@ -331,8 +331,10 @@ Route::post('/cloud/company', 'CloudCompanyController@switchCompany')->middlewar
 Route::get('/cloud/login', 'CloudPortalController@showLogin')->name('cloud.login');
 Route::post('/cloud/login', 'CloudPortalController@login')->name('cloud.login.submit');
 Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud.register');
-Route::post('/cloud/register', 'CloudPortalController@register')->name('cloud.register.submit');
+Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:5,10')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
+Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo');
+Route::get('/c/{slug}', 'CloudPublicPageController@show')->where('slug', '[a-z0-9\-]+')->name('cloud.public.company');
 Route::post('/cloud/billing/webhook/{provider}', 'CloudBillingWebhookController@handle')->name('cloud.billing.webhook');
 
 Route::group(['middleware' => 'auth'], function() {
@@ -348,6 +350,8 @@ Route::group(['middleware' => ['auth', 'cloud.member']], function () {
     Route::get('/cloud/pay/{payment}/return', 'CloudPortalController@payReturn')->name('cloud.pay.return');
     Route::get('/cloud/settings', 'CloudPortalController@settings')->name('cloud.settings');
     Route::post('/cloud/settings', 'CloudPortalController@saveSettings')->name('cloud.settings.save');
+    Route::get('/cloud/messaging', 'CloudPortalController@messaging')->name('cloud.messaging');
+    Route::post('/cloud/companies', 'CloudPortalController@addCompany')->name('cloud.companies.store');
 });
 
 Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function() {
@@ -379,6 +383,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/subscriptions/{subscription}/suspend', 'CloudAdminController@suspend')->name('cloud.admin.suspend');
     Route::post('/admin/subscriptions/{subscription}/reactivate', 'CloudAdminController@reactivate')->name('cloud.admin.reactivate');
     Route::post('/admin/subscriptions/{subscription}/cancel', 'CloudAdminController@cancel')->name('cloud.admin.cancel');
+    Route::post('/admin/subscriptions/companies/{id}/suspend', 'CloudAdminController@suspendCompany')->name('cloud.admin.company.suspend');
+    Route::post('/admin/subscriptions/companies/{id}/reactivate', 'CloudAdminController@reactivateCompany')->name('cloud.admin.company.reactivate');
 
     Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
     Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');

@@ -10,6 +10,9 @@
         @csrf
         <label>System name</label>
         <input name="system_name" value="{{ old('system_name', $tenant->system_name) }}" required>
+        <label>Company logo</label>
+        <input type="file" name="logo" accept="image/jpeg,image/png,image/webp">
+        <p class="muted">JPG, PNG, or WebP under 2 MB. Stored for this company only.</p>
         <label>Hero page image</label>
         <input type="file" name="hero" accept="image/jpeg,image/png,image/webp">
         <p class="muted">JPG, PNG, or WebP. At least 400 by 200 pixels. Shown on your company portal.</p>

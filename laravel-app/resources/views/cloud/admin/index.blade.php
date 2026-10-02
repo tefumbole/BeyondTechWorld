@@ -66,16 +66,23 @@
             <div class="card-body table-responsive">
                 <table class="table">
                     <thead>
-                        <tr><th>Company</th><th>Phone</th><th>Subscriptions</th></tr>
+                        <tr><th>Company</th><th>Owner</th><th>Status</th><th>Subscriptions</th><th></th></tr>
                     </thead>
                     <tbody>
                         @forelse($tenants as $tenant)
                             <tr>
-                                <td>{{ $tenant->name }}<div class="text-muted small">{{ $tenant->system_name }}</div></td>
-                                <td>{{ $tenant->phone }}</td>
+                                <td>{{ $tenant->name }}<div class="text-muted small">{{ $tenant->type }} · {{ $tenant->created_at }}</div></td>
+                                <td>
+                                    @foreach($tenant->memberships as $membership)
+                                        @if($membership->is_owner && $membership->user)
+                                            {{ $membership->user->name }}
+                                        @endif
+                                    @endforeach
+                                </td>
+                                <td>{{ $tenant->status }}</td>
                                 <td>
                                     @forelse($tenant->subscriptions as $subscription)
-                                        <div>{{ $subscription->plan ? $subscription->plan->name : 'Plan' }} — {{ $subscription->status }}
+                                        <div>{{ $subscription->plan && $subscription->plan->module ? $subscription->plan->module->code : 'Plan' }} — {{ $subscription->status }}
                                             @if($subscription->trial_ends_at)
                                                 until {{ $subscription->trial_ends_at->format('Y-m-d H:i') }}
                                             @endif
@@ -84,9 +91,18 @@
                                         <span class="text-muted">None yet</span>
                                     @endforelse
                                 </td>
+                                <td>
+                                    @if($tenant->type !== 'INTERNAL')
+                                        @if($tenant->status === 'SUSPENDED')
+                                            <form method="POST" action="{{ route('cloud.admin.company.reactivate', $tenant->id) }}">@csrf<button type="submit">Reactivate</button></form>
+                                        @else
+                                            <form method="POST" action="{{ route('cloud.admin.company.suspend', $tenant->id) }}">@csrf<button type="submit">Suspend</button></form>
+                                        @endif
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="text-muted">No companies have registered a portal yet.</td></tr>
+                            <tr><td colspan="5" class="text-muted">No companies have registered a portal yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Cloud\CloudPaymentMethod;
 use App\Cloud\CloudPlan;
 use App\Cloud\CloudSubscription;
+use App\Cloud\CloudSubscriptionEvent;
+use App\Cloud\CloudSubscriptionEventType;
 use App\Cloud\CloudTenant;
+use App\Cloud\CloudTenantStatus;
+use App\Cloud\CloudTenantType;
 use App\Services\Cloud\CloudSubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +20,7 @@ class CloudAdminController extends Controller
     {
         $this->authorizePlatform();
         $plans = CloudPlan::with('module')->orderBy('sort_order')->orderBy('id')->get();
-        $tenants = CloudTenant::with(['subscriptions.plan'])->orderByDesc('id')->limit(100)->get();
+        $tenants = CloudTenant::with(['subscriptions.plan.module', 'memberships.user'])->orderByDesc('id')->limit(100)->get();
         $methods = CloudPaymentMethod::orderBy('sort_order')->get();
 
         return view('cloud.admin.index', compact('plans', 'tenants', 'methods'));
@@ -91,6 +95,35 @@ class CloudAdminController extends Controller
         }
 
         return redirect()->route('cloud.admin')->with('message', 'Subscription cancellation recorded. Company data was not deleted.');
+    }
+
+    public function suspendCompany($id)
+    {
+        return $this->setCompanyStatus($id, CloudTenantStatus::SUSPENDED, 'Company suspended. Records were not deleted.');
+    }
+
+    public function reactivateCompany($id)
+    {
+        return $this->setCompanyStatus($id, CloudTenantStatus::ACTIVE, 'Company reactivated.');
+    }
+
+    protected function setCompanyStatus($id, $status, $message)
+    {
+        $this->authorizePlatform();
+        $tenant = CloudTenant::findOrFail($id);
+        if ($tenant->type === CloudTenantType::INTERNAL) {
+            return redirect()->route('cloud.admin')->with('not_permitted', 'The internal company is not suspended from this screen.');
+        }
+        $tenant->status = $status;
+        $tenant->save();
+        CloudSubscriptionEvent::create([
+            'cloud_tenant_id' => $tenant->id,
+            'event' => CloudSubscriptionEventType::ADMIN_OVERRIDE,
+            'actor_user_id' => Auth::id(),
+            'payload' => json_encode(['company_status' => $status]),
+        ]);
+
+        return redirect()->route('cloud.admin')->with('message', $message);
     }
 
     protected function authorizePlatform()
