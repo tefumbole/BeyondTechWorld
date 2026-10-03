@@ -81,6 +81,13 @@ class CloudPortalController extends Controller
         if (! $this->registrationOpen($request)) {
             return redirect()->route('cloud.register')->with('not_permitted', 'Company signup is not open yet.');
         }
+        if (trim((string) $request->input('full_name')) !== '' && trim((string) $request->input('first_name')) === '') {
+            $parts = app(\App\Services\Cloud\CloudPhoneNameResolver::class)->split($request->input('full_name'));
+            $request->merge([
+                'first_name' => $parts[0],
+                'last_name' => $parts[1],
+            ]);
+        }
         if ($request->input('account_kind') === 'personal' && trim((string) $request->input('company_name')) === '') {
             $request->merge([
                 'company_name' => trim($request->input('first_name').' '.$request->input('last_name')),

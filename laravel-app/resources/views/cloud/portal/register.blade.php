@@ -101,13 +101,13 @@
             </section>
 
             <section class="step" data-step="4">
-                <h2 class="text-xl font-bold text-brand-blue" id="name-title">Your name</h2>
-                <p class="mt-2 rounded-xl bg-blue-50 text-brand-blue px-3 py-2" id="name-note"></p>
-                <label class="block font-semibold mt-4" for="first-name">First name</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="first_name" id="first-name" value="{{ old('first_name') }}">
-                <label class="block font-semibold mt-4" for="last-name">Last name</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="last_name" id="last-name" value="{{ old('last_name') }}">
-                <button type="button" id="to-username" class="mt-4 bg-brand-blue text-white font-semibold rounded-full px-5 py-2.5">Continue</button>
+                <h2 class="text-xl font-bold" id="name-title">Your name</h2>
+                <p class="hint mt-2" id="name-note"></p>
+                <label class="block font-semibold mt-4" for="full-name">Name</label>
+                <input class="mt-1 w-full px-4 py-2" name="full_name" id="full-name" value="{{ old('full_name', trim(old('first_name').' '.old('last_name'))) }}" autocomplete="name">
+                <input type="hidden" name="first_name" id="first-name" value="{{ old('first_name') }}">
+                <input type="hidden" name="last_name" id="last-name" value="{{ old('last_name') }}">
+                <button type="button" id="to-username" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
             </section>
 
             <section class="step" data-step="5">
@@ -228,8 +228,22 @@
                 .then(function (response) { return response.json().then(function (json) { done(response.ok, json); }); })
                 .catch(function () { done(false, { message: 'Try again.' }); });
         }
+        function splitName(value) {
+            var name = (value || '').replace(/\s+/g, ' ').trim();
+            if (!name) return ['', ''];
+            var parts = name.split(' ');
+            var first = parts.shift();
+            var last = parts.join(' ').trim();
+            return [first, last || first];
+        }
+        function writeName() {
+            var parts = splitName(document.getElementById('full-name').value);
+            document.getElementById('first-name').value = parts[0];
+            document.getElementById('last-name').value = parts[1];
+            return (parts[0] + ' ' + parts[1]).trim();
+        }
         function personName() {
-            return (document.getElementById('first-name').value + ' ' + document.getElementById('last-name').value).trim();
+            return writeName();
         }
         document.getElementById('pick-personal').onclick = function () {
             kind.value = 'personal';
@@ -272,8 +286,8 @@
                     phone: document.getElementById('phone').value,
                     account_kind: kind.value
                 }, function (named, identity) {
-                    document.getElementById('first-name').value = named ? (identity.first_name || '') : '';
-                    document.getElementById('last-name').value = named ? (identity.last_name || '') : '';
+                    document.getElementById('full-name').value = named ? (identity.name || '') : '';
+                    writeName();
                     var note = document.getElementById('name-note');
                     if (named && identity.source === 'campay') {
                         note.textContent = kind.value === 'company'
@@ -288,7 +302,10 @@
                 });
             });
         };
-        document.getElementById('to-username').onclick = function () { show(5); };
+        document.getElementById('to-username').onclick = function () {
+            writeName();
+            show(5);
+        };
         document.getElementById('after-username').onclick = function () {
             if (kind.value === 'personal') {
                 document.getElementById('company-name').value = personName();
@@ -300,8 +317,9 @@
         document.getElementById('to-services').onclick = function () { show(7); };
         form.addEventListener('change', paint);
         form.addEventListener('submit', function () {
+            var full = personName();
             if (kind.value === 'personal') {
-                document.getElementById('company-name').value = personName();
+                document.getElementById('company-name').value = full;
             }
         });
         paint();
