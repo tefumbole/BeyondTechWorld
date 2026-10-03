@@ -7,32 +7,65 @@
 <style>
     .step { display: none; }
     .step.on { display: block; }
+    .subscribe-hero {
+        position: relative;
+        min-height: calc(100vh - 7.5rem);
+        background-size: cover;
+        background-position: center;
+    }
+    .subscribe-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(0, 20, 50, .45), rgba(0, 40, 85, .72));
+    }
+    .subscribe-panel {
+        position: relative;
+        background: rgba(0, 32, 72, .55);
+        border: 1px solid rgba(212, 175, 55, .65);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+        backdrop-filter: blur(8px);
+        color: #fff;
+    }
+    .subscribe-panel h1,
+    .subscribe-panel h2,
+    .subscribe-panel p,
+    .subscribe-panel label,
+    .subscribe-panel strong { color: #fff; }
+    .subscribe-panel .hint { color: rgba(255,255,255,.88); }
+    .subscribe-panel input,
+    .subscribe-panel select {
+        background: rgba(255,255,255,.96);
+        color: #002855;
+        border: 0;
+        border-radius: 999px;
+    }
+    .subscribe-choice {
+        min-height: 4.5rem;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 1.15rem;
+    }
 </style>
 @endpush
 
 @section('content')
-<section class="bg-gradient-to-br from-brand-blue via-[#0052A3] to-brand-blue py-8 sm:py-10">
-    <div class="max-w-3xl mx-auto px-4 text-center">
-        <h1 class="text-2xl sm:text-4xl font-bold text-white">Subscribe</h1>
-        <p class="text-white/90 mt-2">Build your own company</p>
-    </div>
-</section>
-
-<section class="py-8 bg-gray-50">
-    <div class="max-w-3xl mx-auto px-4">
+<section class="subscribe-hero py-10 sm:py-16" style="background-image:url('{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}');">
+    <div class="relative z-10 max-w-3xl mx-auto px-4">
         @if(session('not_permitted'))
             <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ session('not_permitted') }}</p>
         @endif
         @if(empty($onboardingOpen))
-            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 text-gray-700">
-                <p>Company signup is not open yet. The subscriptions page stays available.</p>
+            <div class="subscribe-panel rounded-3xl p-6 text-center">
+                <h1 class="text-3xl font-bold">Subscribe</h1>
+                <p class="mt-3">Company signup is not open yet. The subscriptions page stays available.</p>
             </div>
         @else
-        <p class="text-center text-gray-600 mb-4">{{ $welcome }}</p>
+        <p class="text-center text-white drop-shadow mb-4">{{ $welcome }}</p>
         @if($errors->any())
             <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ $errors->first() }}</p>
         @endif
-        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-8">
+        <form method="POST" action="{{ route('cloud.register.submit') }}" id="build-company" class="subscribe-panel rounded-3xl p-5 sm:p-8 text-center">
             @csrf
             <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
             <input type="hidden" name="account_kind" id="account-kind" value="{{ old('account_kind', 'company') }}">
@@ -41,17 +74,11 @@
             @endif
 
             <section class="step on" data-step="1">
-                <h2 class="text-xl font-bold text-brand-blue">Who is this for?</h2>
-                <p class="text-gray-600 mt-1">Choose one. The next step asks for a phone number and a WhatsApp code.</p>
-                <div class="grid sm:grid-cols-2 gap-4 mt-5">
-                    <button type="button" id="pick-personal" class="choice text-left rounded-2xl border-2 border-brand-blue bg-brand-blue text-white p-5 hover:bg-brand-dark">
-                        <span class="block text-lg font-bold">Individual</span>
-                        <span class="block text-sm text-white/80 mt-1">A personal subscription in your name.</span>
-                    </button>
-                    <button type="button" id="pick-company" class="choice text-left rounded-2xl border-2 border-brand-gold bg-white text-brand-blue p-5 hover:bg-amber-50">
-                        <span class="block text-lg font-bold">Company</span>
-                        <span class="block text-sm text-gray-600 mt-1">A company, with its own details after your username.</span>
-                    </button>
+                <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
+                <p class="hint mt-2">Build your own company. Choose Individual or Company.</p>
+                <div class="flex flex-col sm:flex-row items-stretch justify-center gap-3 mt-6">
+                    <button type="button" id="pick-personal" class="subscribe-choice bg-brand-gold hover:bg-[#b5952f] text-brand-blue px-7 shadow-[0_0_15px_rgba(212,175,55,0.45)]">Individual</button>
+                    <button type="button" id="pick-company" class="subscribe-choice bg-white/15 hover:bg-white/25 border border-brand-gold text-brand-gold px-7">Company</button>
                 </div>
             </section>
 

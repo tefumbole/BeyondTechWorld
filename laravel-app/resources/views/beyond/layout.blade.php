@@ -230,7 +230,7 @@
         'trainings'    => ['label' => 'Training', 'url' => url('/trainings')],
         'events'       => ['label' => 'Events', 'url' => url('/events')],
         'rentals'      => ['label' => 'Rentals', 'url' => url('/rentals')],
-        'subscriptions'=> ['label' => 'Subscriptions', 'url' => url('/subscriptions')],
+        'subscriptions'=> ['label' => 'Subscriptions', 'url' => url('/cloud/register')],
         'apply'        => ['label' => 'Apply Now', 'url' => url('/apply-now'), 'special' => true],
         'permissions'  => ['label' => 'Permissions', 'url' => url('/permissions')],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],

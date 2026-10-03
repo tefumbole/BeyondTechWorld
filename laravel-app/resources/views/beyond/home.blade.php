@@ -30,7 +30,7 @@
                    class="bg-brand-gold hover:bg-[#b5952f] text-brand-blue h-11 md:h-12 px-5 md:px-7 text-sm md:text-base font-bold shadow-[0_0_15px_rgba(212,175,55,0.4)] rounded-full hover:scale-105 transition-transform inline-flex items-center justify-center">
                     {{ \App\Support\SiteContent::text('home.cta_primary', 'Get a Free Quotation') }} <i data-lucide="arrow-right" class="ml-2 w-4 h-4 md:w-5 md:h-5"></i>
                 </a>
-                <a href="{{ url('/subscriptions') }}"
+                <a href="{{ url('/cloud/register') }}"
                    class="h-11 md:h-12 px-5 md:px-7 text-sm md:text-base font-bold rounded-full shadow-xl hover:shadow-2xl bg-white/15 hover:bg-white/25 border border-white/70 backdrop-blur-sm text-white inline-flex items-center justify-center gap-2 transition-all">
                     <i data-lucide="credit-card" class="w-4 h-4 md:w-5 md:h-5"></i> Subscriptions
                 </a>
