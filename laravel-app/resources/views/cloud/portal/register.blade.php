@@ -41,6 +41,16 @@
         border: 0;
         border-radius: 999px;
     }
+    .back-step {
+        display: inline-flex;
+        margin-bottom: 0.75rem;
+        background: transparent;
+        color: #F5D76E;
+        border: 0;
+        font-weight: 700;
+        padding: 0;
+        cursor: pointer;
+    }
     .subscribe-choice {
         min-height: 4.5rem;
         border-radius: 999px;
@@ -148,6 +158,7 @@
             </section>
 
             <section class="step" data-step="2">
+                <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">Phone number</h2>
                 <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown.</p>
                 <div class="field-row">
@@ -159,6 +170,7 @@
             </section>
 
             <section class="step" data-step="3">
+                <button type="button" class="back-step" data-back="2">Back</button>
                 <h2 class="text-xl font-bold">Verification code</h2>
                 <p class="hint mt-1">Enter the code sent to this phone on WhatsApp.</p>
                 <div class="field-row">
@@ -172,6 +184,7 @@
             </section>
 
             <section class="step" data-step="4">
+                <button type="button" class="back-step" data-back="3">Back</button>
                 <h2 class="text-xl font-bold" id="name-title">Your name</h2>
                 <p class="hint mt-2" id="name-note"></p>
                 <div class="field-row">
@@ -184,6 +197,7 @@
             </section>
 
             <section class="step" data-step="5">
+                <button type="button" class="back-step" data-back="4">Back</button>
                 <h2 class="text-xl font-bold">Username</h2>
                 <p class="hint mt-1">Create a username, then add the email and password.</p>
                 <div class="field-row">
@@ -206,6 +220,7 @@
             </section>
 
             <section class="step" data-step="6">
+                <button type="button" class="back-step" data-back="5">Back</button>
                 <h2 class="text-xl font-bold">Company</h2>
                 <p class="hint mt-1">The name, phone, and email already entered are used for this company.</p>
                 <p class="known-name" id="company-known"></p>
@@ -244,6 +259,7 @@
             </section>
 
             <section class="step" data-step="7">
+                <button type="button" class="back-step" data-back="services">Back</button>
                 <h2 class="text-xl font-bold">Services</h2>
                 <p class="hint mt-1">Select one or more. The total updates as you tick them.</p>
                 <div class="service-grid">
@@ -491,6 +507,17 @@
             signed = false;
             document.getElementById('signature').value = '';
         };
+        var backs = form.querySelectorAll('.back-step');
+        for (var b = 0; b < backs.length; b++) {
+            backs[b].onclick = function () {
+                var target = this.getAttribute('data-back');
+                if (target === 'services') {
+                    show(kind.value === 'personal' ? 5 : 6);
+                    return;
+                }
+                show(target);
+            };
+        }
         form.addEventListener('change', paint);
         form.addEventListener('submit', function (event) {
             applyKnownCompany();
@@ -503,6 +530,27 @@
             document.getElementById('signature').value = pad.toDataURL('image/png');
         });
         paint();
+        @php
+            $resume = 1;
+            if ($errors->any()) {
+                $resume = 5;
+                if ($errors->has('modules') || $errors->has('signature')) {
+                    $resume = 7;
+                } elseif ($errors->has('country') || $errors->has('city') || $errors->has('address') || $errors->has('timezone') || $errors->has('currency')) {
+                    $resume = 6;
+                } elseif ($errors->has('first_name') || $errors->has('last_name') || $errors->has('full_name')) {
+                    $resume = 4;
+                } elseif ($errors->has('phone') && ! $errors->has('password') && ! $errors->has('email') && ! $errors->has('username')) {
+                    $resume = 2;
+                }
+            } elseif (session('not_permitted') && strpos((string) session('not_permitted'), 'Verify the phone') !== false) {
+                $resume = 3;
+            }
+        @endphp
+        @if($resume > 1)
+        if (kind) kind.value = '{{ old('account_kind', 'company') }}';
+        show({{ $resume }});
+        @endif
     })();
 </script>
 @endpush

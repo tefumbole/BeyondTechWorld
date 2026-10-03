@@ -360,7 +360,7 @@ class CloudPortalController extends Controller
             $rules['last_name'] = 'required|string|max:80';
             $rules['email'] = 'required|email|max:191';
             $rules['phone'] = 'required|string|max:32';
-            $rules['password'] = 'required|string|min:8|confirmed';
+            $rules['password'] = 'required|string|max:191|confirmed';
         } else {
             $rules['phone'] = 'nullable|string|max:32';
         }
