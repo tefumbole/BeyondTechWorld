@@ -108,12 +108,20 @@ class CloudCompanyAccess
             return (int) $existing->id;
         }
 
-        return (int) DB::table('roles')->insertGetId([
+        $row = [
             'name' => $name,
             'guard_name' => 'web',
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+        if (Schema::hasColumn('roles', 'is_active')) {
+            $row['is_active'] = 1;
+        }
+        if (Schema::hasColumn('roles', 'description')) {
+            $row['description'] = 'Trial company admin';
+        }
+
+        return (int) DB::table('roles')->insertGetId($row);
     }
 
     protected function syncPermissions($roleId, CloudTenant $tenant)

@@ -18,7 +18,11 @@ class ResolveCloudTenant
     {
         $user = Auth::user();
         if ($user instanceof \App\User) {
-            app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole($user);
+            try {
+                app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole($user);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
         $context = app(CloudTenantContext::class);
         $tenant = app(CloudTenantResolver::class)->forUser($user);
