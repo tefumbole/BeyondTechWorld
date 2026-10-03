@@ -77,6 +77,14 @@
         margin: 0;
         width: auto;
     }
+    @media (min-width: 640px) {
+        .field-row input,
+        .field-row select {
+            flex: 0 1 auto;
+            width: calc((100% - 10.35rem) * 0.55);
+            max-width: calc((100% - 10.35rem) * 0.55);
+        }
+    }
     .known-name {
         text-align: left;
         font-size: 1.25rem;
