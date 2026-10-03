@@ -8,14 +8,17 @@
     @endif
     <form method="POST" action="{{ route('cloud.settings.save') }}" enctype="multipart/form-data">
         @csrf
-        <label>System name</label>
-        <input name="system_name" value="{{ old('system_name', $tenant->system_name) }}" required>
+        <label for="system-name">System name</label>
+        <div class="paste-line">
+            <input id="system-name" name="system_name" value="{{ old('system_name', $tenant->system_name) }}" required>
+            <button type="button" id="paste-system-name" class="btn alt">Paste</button>
+        </div>
         <label>Company logo</label>
         <input type="file" name="logo" accept="image/jpeg,image/png,image/webp">
-        <p class="muted">JPG, PNG, or WebP under 2 MB. Stored for this company only.</p>
+        <p class="muted">JPG, PNG, or WebP under 2 MB. Stored for this company only. You can also paste an image.</p>
         <label>Hero page image</label>
         <input type="file" name="hero" accept="image/jpeg,image/png,image/webp">
-        <p class="muted">JPG, PNG, or WebP. At least 400 by 200 pixels. Shown on your company portal.</p>
+        <p class="muted">JPG, PNG, or WebP. At least 400 by 200 pixels. Shown on your company portal. You can also paste an image.</p>
         <label>About the business</label>
         <textarea name="business_summary" rows="4">{{ old('business_summary', $summary) }}</textarea>
         <label>Services you offer</label>
@@ -25,4 +28,17 @@
         <button type="submit">Save settings</button>
     </form>
 </div>
+<script>
+    document.getElementById('paste-system-name').onclick = function () {
+        var input = document.getElementById('system-name');
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            input.focus();
+            return;
+        }
+        navigator.clipboard.readText().then(function (text) {
+            if (text) input.value = text.replace(/^\s+|\s+$/g, '');
+            input.focus();
+        }).catch(function () { input.focus(); });
+    };
+</script>
 @endsection

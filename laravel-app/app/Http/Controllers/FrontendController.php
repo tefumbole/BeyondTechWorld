@@ -98,11 +98,18 @@ class FrontendController extends Controller
         $best_selling = Product::where('is_active', true)->where('price', '>', 0)->where('type','!=' , 'donation')->where('type','!=' , 'service')->orderByDesc('qty')->take(6)->get();
         $hot_deal = Product::where('is_active', true)->where('price', '>', 0)->where('type','!=' , 'donation')->where('type','!=' , 'service')->orderBy('price')->take(6)->get();
 
-        $categories = Category::where('is_active', 1)->take('9')->get();
-        $first_category = Product::where('is_active', true)->where('price', '>', 0)->where('category_id', $categories[0]->id)->take(4)->get();
-        $second_category = Product::where('is_active', true)->where('price', '>', 0)->where('category_id', $categories[1]->id)->take(4)->get();
-        $third_category = Product::where('is_active', true)->where('price', '>', 0)->where('category_id', $categories[2]->id)->take(4)->get();
-        $forth_category = Product::where('is_active', true)->where('price', '>', 0)->where('category_id', $categories[3]->id)->take(4)->get();
+        $categories = Category::where('is_active', 1)->take(9)->get();
+        $productsForCategory = function ($index) use ($categories) {
+            if (! isset($categories[$index])) {
+                return collect();
+            }
+
+            return Product::where('is_active', true)->where('price', '>', 0)->where('category_id', $categories[$index]->id)->take(4)->get();
+        };
+        $first_category = $productsForCategory(0);
+        $second_category = $productsForCategory(1);
+        $third_category = $productsForCategory(2);
+        $forth_category = $productsForCategory(3);
 
         return view('frontend.index', compact('new_arrival', 'best_selling', 'hot_deal', 'categories', 'first_category', 'second_category', 'third_category', 'forth_category'));
     }

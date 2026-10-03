@@ -9,7 +9,7 @@
     var active = null;
     var IMG_NAMES = ['image', 'images', 'site_logo', 'logo', 'favicon', 'site_icon',
         'watermark', 'water_mark', 'email_header', 'email_footer', 'photo', 'picture',
-        'avatar', 'featured_image', 'banner', 'icon', 'sign', 'stemp', 'thumbnail', 'cover'];
+        'avatar', 'featured_image', 'banner', 'icon', 'sign', 'stemp', 'thumbnail', 'cover', 'hero'];
 
     function isImageInput(inp) {
         if (!inp || inp.type !== 'file') return false;

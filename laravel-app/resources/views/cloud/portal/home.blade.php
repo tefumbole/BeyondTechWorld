@@ -103,21 +103,4 @@
         @endif
     @endforeach
 </div>
-<div class="card">
-    <p class="stage-kicker">Stage 4 · Another company</p>
-    <h2>Add another company</h2>
-    <form method="POST" action="{{ route('cloud.companies.store') }}">
-        @csrf
-        <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
-        <div class="svc-grid">
-        @foreach($plans as $plan)
-            @php $code = $plan->module ? $plan->module->code : ''; @endphp
-            <label class="svc svc-{{ $code }}"><input type="checkbox" name="modules[]" value="{{ $code }}"> {{ $plan->name }} — {{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</label>
-        @endforeach
-        </div>
-        <label>Company name</label>
-        <input name="company_name" required>
-        <p><button type="submit">Create company</button></p>
-    </form>
-</div>
 @endsection

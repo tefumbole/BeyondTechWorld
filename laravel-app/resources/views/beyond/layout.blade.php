@@ -430,5 +430,6 @@
     document.querySelectorAll('[data-countdown]').forEach(bindCountdown);
 })();
 </script>
+@include('components.image_paste_script')
 </body>
 </html>

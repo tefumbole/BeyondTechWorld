@@ -237,6 +237,7 @@
                 </div>
             </div>
         </div>
+        @if(isset($categories[0]))
         <section class="section-box pt-50 bg-home9">
             <div class="container">
                 <div class="box-product-category">
@@ -282,6 +283,7 @@
                 </div>
             </div>
         </section>
+        @endif
         <div class="bg-home9">
             <section class="section-box pt-50">
                 <div class="container">
@@ -308,6 +310,7 @@
                 </div>
             </section>
         </div>
+        @if(isset($categories[1]))
         <section class="section-box pt-30 bg-home9">
             <div class="container">
                 <div class="box-product-category">
@@ -353,6 +356,7 @@
                 </div>
             </div>
         </section>
+        @endif
         <div class="bg-home9">
             <section class="section-box mt-50">
                 <div class="container">
@@ -391,6 +395,7 @@
                 </div>
             </section>
         </div>
+        @if(isset($categories[2]))
         <section class="section-box pt-30 bg-home9">
             <div class="container">
                 <div class="box-product-category">
@@ -436,6 +441,8 @@
                 </div>
             </div>
         </section>
+        @endif
+        @if(isset($categories[3]))
         <section class="section-box pt-50 bg-home9">
             <div class="container">
                 <div class="box-product-category">
@@ -481,6 +488,7 @@
                 </div>
             </div>
         </section>
+        @endif
         <div class="bg-home9 pb-60">
             <section class="section-box mt-40">
                 <div class="container">

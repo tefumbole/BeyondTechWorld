@@ -104,6 +104,8 @@
         .svc-DIGITAL_INVITATIONS { background: #ede9fe; border-color: #6d28d9; }
         .check { margin: 6px 0; }
         .check.done { color: #15803d; }
+        .paste-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .paste-line input { flex: 1 1 16rem; }
         @media (max-width: 700px) {
             .svc-grid { grid-template-columns: 1fr; }
             header { flex-direction: column; align-items: flex-start; }
@@ -126,5 +128,6 @@
     @if(session('not_permitted'))<p class="bad">{{ session('not_permitted') }}</p>@endif
     @yield('content')
 </main>
+@include('components.image_paste_script')
 </body>
 </html>
