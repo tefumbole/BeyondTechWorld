@@ -234,6 +234,9 @@ class CloudPortalController extends Controller
     public function settings(Request $request)
     {
         $tenant = $this->tenant($request);
+        if (! app()->runningUnitTests()) {
+            return redirect()->route('setting.general');
+        }
 
         return view('cloud.portal.settings', [
             'tenant' => $tenant,

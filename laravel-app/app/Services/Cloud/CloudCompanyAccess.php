@@ -47,7 +47,7 @@ class CloudCompanyAccess
         }
 
         $roleId = $this->roleId($tenant);
-        if ($forceSync || (int) $user->role_id !== $roleId) {
+        if ($forceSync || (int) $user->role_id !== $roleId || $this->permissionsDiffer($roleId, $tenant)) {
             $this->syncPermissions($roleId, $tenant);
         }
         if ((int) $user->role_id !== $roleId) {
@@ -61,7 +61,7 @@ class CloudCompanyAccess
     public function permissionNames(CloudTenant $tenant)
     {
         $access = app(CloudModuleAccessService::class);
-        $names = [];
+        $names = ['general_setting'];
         $catalog = [
             'products-index', 'products-add', 'products-edit', 'products-delete', 'category',
             'customers-index', 'customers-add', 'customers-edit', 'customers-delete',
@@ -79,7 +79,7 @@ class CloudCompanyAccess
         if ($access->canRead($tenant, CloudModuleCode::SALES_INVOICES)
             || $access->canRead($tenant, CloudModuleCode::RENTALS)
             || $access->canRead($tenant, CloudModuleCode::QUOTATIONS)) {
-            $names = array_merge($names, $catalog);
+            $names = array_merge($names, $catalog, ['warehouse', 'brand', 'unit']);
         }
         if ($access->canRead($tenant, CloudModuleCode::SALES_INVOICES)) {
             $names = array_merge($names, $sales, $quotes);
@@ -122,6 +122,31 @@ class CloudCompanyAccess
         }
 
         return (int) DB::table('roles')->insertGetId($row);
+    }
+
+    protected function permissionsDiffer($roleId, CloudTenant $tenant)
+    {
+        $wanted = DB::table('permissions')
+            ->where('guard_name', 'web')
+            ->whereIn('name', $this->permissionNames($tenant))
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->all();
+        $have = DB::table('role_has_permissions')
+            ->where('role_id', $roleId)
+            ->orderBy('permission_id')
+            ->pluck('permission_id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->values()
+            ->all();
+
+        return $wanted !== $have;
     }
 
     protected function syncPermissions($roleId, CloudTenant $tenant)

@@ -40,14 +40,20 @@ class SettingController extends Controller
     }
     public function generalSetting()
     {
-        \App\Support\AppVersion::syncToSettings();
-        $lims_general_setting_data = GeneralSetting::latest()->first();
+        $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        $companyOwnedSettings = $tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER;
+        if (! $companyOwnedSettings) {
+            \App\Support\AppVersion::syncToSettings();
+        }
+        $lims_general_setting_data = $companyOwnedSettings
+            ? app(\App\Services\Cloud\CloudCompanyGeneralSetting::class)->present($tenant)
+            : GeneralSetting::latest()->first();
         $lims_account_list = Account::where('is_active', true)->get();
         $lims_unit_list = Unit::where('is_active', true)->get();
         $lims_category_list = Category::where('is_active', true)->get();
         $lims_currency_list = Currency::get();
         $lims_warehouse_list = Warehouse::where('is_active', true)->get();
-        $lims_biller_list = Biller::where('is_active', true)->get();
+        $lims_biller_list = $companyOwnedSettings ? collect() : Biller::where('is_active', true)->get();
         $zones_array = array();
         $timestamp = time();
         $appTimezone = config('app.timezone') ?: (EnvFile::get('APP_TIMEZONE') ?: 'UTC');
@@ -58,7 +64,9 @@ class SettingController extends Controller
         }
         // Building the list mutates PHP's default TZ — restore app timezone.
         date_default_timezone_set($appTimezone);
-        $currentTimezone = EnvFile::get('APP_TIMEZONE') ?: $appTimezone;
+        $currentTimezone = $companyOwnedSettings
+            ? ($tenant->timezone ?: 'Africa/Douala')
+            : (EnvFile::get('APP_TIMEZONE') ?: $appTimezone);
 
         return view('setting.general_setting', compact(
             'lims_general_setting_data',
@@ -69,7 +77,8 @@ class SettingController extends Controller
             'lims_unit_list',
             'lims_warehouse_list',
             'lims_biller_list',
-            'currentTimezone'
+            'currentTimezone',
+            'companyOwnedSettings'
         ));
     }
 
@@ -176,6 +185,13 @@ class SettingController extends Controller
             'email_footer' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
             'email_water_mark' => 'image|mimes:jpg,jpeg,png,gif|max:8192',
         ]);
+
+        $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER) {
+            app(\App\Services\Cloud\CloudCompanyGeneralSetting::class)->save($tenant, $request);
+
+            return redirect()->back()->with('message', 'Data updated successfully');
+        }
 
         $data = $request->except('site_logo');
 
@@ -366,6 +382,10 @@ class SettingController extends Controller
 
     public function changeTheme($theme)
     {
+        $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER) {
+            return;
+        }
         $lims_general_setting_data = GeneralSetting::latest()->first();
         $lims_general_setting_data->theme = $theme;
         $lims_general_setting_data->save();

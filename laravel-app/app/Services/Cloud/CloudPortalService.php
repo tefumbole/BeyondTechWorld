@@ -96,6 +96,14 @@ class CloudPortalService
         }
     }
 
+    public function putSetting(CloudTenant $tenant, $key, $value)
+    {
+        CloudTenantSetting::updateOrCreate(
+            ['cloud_tenant_id' => $tenant->id, 'key' => $key],
+            ['value' => (string) $value, 'type' => 'string']
+        );
+    }
+
     public function setting(CloudTenant $tenant, $key, $default = '')
     {
         $row = CloudTenantSetting::where('cloud_tenant_id', $tenant->id)->where('key', $key)->first();

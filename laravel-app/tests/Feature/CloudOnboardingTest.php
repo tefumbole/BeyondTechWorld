@@ -90,6 +90,41 @@ class CloudOnboardingTest extends TestCase
         $this->assertFalse(Schema::hasTable('products'));
     }
 
+    public function test_company_settings_window_keeps_beyond_settings_unchanged()
+    {
+        DB::table('permissions')->insert([
+            ['id' => 2, 'name' => 'general_setting', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'name' => 'warehouse', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'name' => 'mail_setting', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 5, 'name' => 'empty_database', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $tenant = $this->openCompany('Alpha Bridge', 'bridge@demo.test', '237670000031', ['SALES_INVOICES']);
+        $owner = User::where('email', 'bridge@demo.test')->first();
+        $granted = DB::table('permissions')
+            ->whereIn('id', DB::table('role_has_permissions')->where('role_id', $owner->role_id)->pluck('permission_id'))
+            ->pluck('name')
+            ->all();
+        $this->assertContains('general_setting', $granted);
+        $this->assertContains('warehouse', $granted);
+        $this->assertNotContains('mail_setting', $granted);
+        $this->assertNotContains('empty_database', $granted);
+
+        Schema::create('general_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('site_title')->nullable();
+        });
+        DB::table('general_settings')->insert(['id' => 1, 'site_title' => 'Beyond Tech World']);
+        app(CloudTenantContext::class)->set($tenant);
+        app(\App\Services\Cloud\CloudCompanyGeneralSetting::class)->save($tenant, Request::create('/setting/general_setting_store', 'POST', [
+            'site_title' => 'Alpha Bridge',
+            'timezone' => 'Africa/Douala',
+            'currency_position' => 'suffix',
+        ]));
+        $this->assertSame('Beyond Tech World', DB::table('general_settings')->value('site_title'));
+        $this->assertSame('Alpha Bridge', $tenant->fresh()->system_name);
+        app(CloudTenantContext::class)->clear();
+    }
+
     public function test_module_matrix_and_zero_modules()
     {
         DB::table('permissions')->insert([

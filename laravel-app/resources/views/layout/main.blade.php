@@ -1387,9 +1387,6 @@
                         @if(Auth::user()->role_id != 7)
                             <li id="sidebar-dashboard"><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}" data-nav-key="dashboard"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
                         @endif
-                        @if(isset($cloudTenant) && $cloudTenant->type === \App\Cloud\CloudTenantType::CUSTOMER)
-                            <li><a href="{{ route('cloud.settings') }}" data-nav-key="company-settings"> <i class="dripicons-store"></i><span>Company settings</span></a></li>
-                        @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}" data-nav-key="site-content"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
                             <li><a href="{{ route('cloud.admin') }}" data-nav-key="subscriptions"> <i class="dripicons-card"></i><span>Subscriptions</span></a></li>
@@ -3037,8 +3034,10 @@
                                 @endif
                                 @if($general_setting_permission_active)
                                     <li id="general-setting-menu"><a href="{{route('setting.general')}}">{{trans('file.General Setting')}}</a></li>
+                                    @if(!isset($cloudTenant) || $cloudTenant->type !== \App\Cloud\CloudTenantType::CUSTOMER)
                                     <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
                                     <li id="env-setting-menu"><a href="{{route('setting.env')}}">.env Settings</a></li>
+                                    @endif
                                 @endif
                                 @if(!$general_setting_permission_active && in_array((int) Auth::user()->role_id, [1, 2], true))
                                     <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
@@ -3183,7 +3182,7 @@
                 <div class="navbar-holder d-flex align-items-center justify-content-between">
                   <a id="toggle-btn" href="#" class="menu-btn" aria-label="Open menu" aria-expanded="false"><i class="fa fa-bars"> </i></a>
                   <span class="brand-big">
-                      <a href="{{url('/')}}"><h1 class="d-inline">{{$general_setting->site_title}}</h1></a>
+                      <a href="{{ url('/admin') }}"><h1 class="d-inline">{{ $brandTitle }}</h1></a>
                   </span>
 
                   <ul class="nav-menu list-unstyled d-flex flex-md-row align-items-md-center">

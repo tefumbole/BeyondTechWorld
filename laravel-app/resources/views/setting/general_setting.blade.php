@@ -41,6 +41,7 @@
                                     </span>
                                     @endif
                                 </div>
+                                @if(empty($companyOwnedSettings))
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Application Version</label>
@@ -50,6 +51,7 @@
                                         <small class="text-muted">Auto-updates as <code>BCL_ERP_V…</code> from <code>VERSION</code> on every commit/push and deploy (patch 0–9 → next minor; after 2.9 → 3.0.0). Not editable.</small>
                                     </div>
                                 </div>
+                                @endif
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>Email / Invoice Header</label>
