@@ -1368,6 +1368,10 @@
             <div class="side-navbar-wrapper">
               @php
                   $brandTitle = $general_setting->site_title ?? config('app.name', 'Application');
+                  $cloudTenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+                  if ($cloudTenant && $cloudTenant->type === \App\Cloud\CloudTenantType::CUSTOMER) {
+                      $brandTitle = $cloudTenant->system_name ?: $cloudTenant->name;
+                  }
                   $userInitial = strtoupper(substr(Auth::user()->name, 0, 1));
               @endphp
               <div class="sidebar-brand-block">
@@ -1382,6 +1386,9 @@
                     <ul id="side-main-menu" class="side-menu list-unstyled">
                         @if(Auth::user()->role_id != 7)
                             <li id="sidebar-dashboard"><a href="{{ \App\Support\InternCompliance::dashboardUrl(Auth::user()) }}" data-nav-key="dashboard"> <i class="dripicons-meter"></i><span>{{ __('file.dashboard') }}</span></a></li>
+                        @endif
+                        @if(isset($cloudTenant) && $cloudTenant->type === \App\Cloud\CloudTenantType::CUSTOMER)
+                            <li><a href="{{ route('cloud.settings') }}" data-nav-key="company-settings"> <i class="dripicons-store"></i><span>Company settings</span></a></li>
                         @endif
                         @if(in_array((int) Auth::user()->role_id, [1, 2], true))
                             <li><a href="{{ url('/admin/site-content') }}" data-nav-key="site-content"> <i class="dripicons-web"></i><span>Site Content</span></a></li>

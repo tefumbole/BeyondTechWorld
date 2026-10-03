@@ -80,7 +80,8 @@ class CloudOnboardingTest extends TestCase
         $this->assertSame('XAF', $tenant->currency);
         $this->assertSame('Africa/Douala', $tenant->timezone);
         $user = User::where('email', 'alpha@demo.test')->first();
-        $this->assertSame(5, (int) $user->role_id);
+        $this->assertNotSame(1, (int) $user->role_id);
+        $this->assertSame('cloud-company-'.$tenant->id, DB::table('roles')->where('id', $user->role_id)->value('name'));
         $this->assertSame(1, $tenant->memberships()->where('is_owner', true)->where('membership_role', CloudMembershipRole::OWNER)->count());
         $this->assertSame(3, CloudSubscription::where('cloud_tenant_id', $tenant->id)->count());
         $this->get('/cloud')->assertSee('Alpha Events')->assertSee('remaining');
@@ -91,7 +92,17 @@ class CloudOnboardingTest extends TestCase
 
     public function test_module_matrix_and_zero_modules()
     {
+        DB::table('permissions')->insert([
+            ['id' => 2, 'name' => 'sales-index', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'name' => 'whatsapp_module', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'name' => 'booking_module', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()],
+        ]);
         $messaging = $this->openCompany('Msg Co', 'msg@demo.test', '237670000011', ['MESSAGING']);
+        $owner = User::where('email', 'msg@demo.test')->first();
+        $granted = array_map('intval', DB::table('role_has_permissions')->where('role_id', $owner->role_id)->pluck('permission_id')->all());
+        $this->assertContains(3, $granted);
+        $this->assertNotContains(2, $granted);
+        $this->assertNotContains(1, $granted);
         $this->assertSame(200, $this->gate($messaging, 'GET', 'admin/whatsapp')->getStatusCode());
         $this->assertSame(403, $this->gate($messaging, 'GET', 'sales')->getStatusCode());
         $this->assertSame(403, $this->gate($messaging, 'GET', 'bookings')->getStatusCode());
@@ -126,7 +137,7 @@ class CloudOnboardingTest extends TestCase
         $this->assertSame(1, CloudTenant::where('name', 'Acme Events')->count());
         $this->assertSame(1, CloudSubscription::count());
         $this->assertSame(CloudTenantType::CUSTOMER, CloudTenant::first()->type);
-        $this->assertSame(5, (int) User::where('email', 'acme@demo.test')->value('role_id'));
+        $this->assertNotSame(1, (int) User::where('email', 'acme@demo.test')->value('role_id'));
 
         $this->post('/cloud/logout');
         $page = $this->get('/cloud/register');

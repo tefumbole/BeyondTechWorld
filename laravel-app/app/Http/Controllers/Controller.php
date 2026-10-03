@@ -27,10 +27,12 @@ class Controller extends BaseController
             $this->user = \Illuminate\Support\Facades\Auth::user();
             if ($this->user && $this->user->role_id != 5) {
                 $role = Role::find($this->user->role_id);
-                $permissions = Role::findByName($role->name)->permissions;
-
-                foreach ($permissions as $permission) {
-                    $all_permission[] = $permission->name;
+                $all_permission = [];
+                if ($role) {
+                    $permissions = Role::findByName($role->name)->permissions;
+                    foreach ($permissions as $permission) {
+                        $all_permission[] = $permission->name;
+                    }
                 }
                 View::share ('all_permission', $all_permission);
             }

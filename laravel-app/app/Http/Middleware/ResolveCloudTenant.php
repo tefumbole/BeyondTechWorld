@@ -16,8 +16,12 @@ class ResolveCloudTenant
 {
     public function handle($request, Closure $next)
     {
+        $user = Auth::user();
+        if ($user instanceof \App\User) {
+            app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole($user);
+        }
         $context = app(CloudTenantContext::class);
-        $tenant = app(CloudTenantResolver::class)->forUser(Auth::user());
+        $tenant = app(CloudTenantResolver::class)->forUser($user);
         if ($tenant) {
             $context->set($tenant);
             $request->attributes->set('cloudTenant', $tenant);

@@ -51,9 +51,10 @@ class CloudPortalController extends Controller
 
             return back()->with('not_permitted', 'This sign-in is for company portals. Use the staff sign-in for the main system.');
         }
+        app(\App\Services\Cloud\CloudCompanyAccess::class)->ensureRole(Auth::user(), true);
         $request->session()->regenerate();
 
-        return redirect()->route('cloud.home');
+        return redirect('/admin');
     }
 
     public function showRegister()

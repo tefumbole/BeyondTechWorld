@@ -103,4 +103,5 @@
         @endif
     @endforeach
 </div>
+<input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
 @endsection

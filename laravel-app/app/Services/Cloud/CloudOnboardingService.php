@@ -113,6 +113,7 @@ class CloudOnboardingService
             });
         });
         $this->welcome($pair[0], $pair[1]);
+        app(CloudCompanyAccess::class)->ensureRole($pair[0], true);
 
         return $pair;
     }
