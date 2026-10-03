@@ -464,6 +464,54 @@ class WhatsAppHubController extends Controller
         return back()->with('message', 'Availability window saved. WhatsApp will only offer these times.');
     }
 
+    public function linkStatus()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.view', 'whatsapp.manage', 'whatsapp_module', 'whatsapp.owner'])) {
+            return $deny;
+        }
+        $link = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class);
+        if (! $link->applies()) {
+            abort(404);
+        }
+        $state = $link->state(true);
+
+        return response()->json([
+            'status' => $state['status'],
+            'connected' => $state['status'] === 'CONNECTED',
+            'phone' => $state['phone'],
+            'qr' => $state['status'] === 'AWAITING_QR' ? $state['qr'] : null,
+            'label' => $link->label($state['status']),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    public function startLink()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.view', 'whatsapp.manage', 'whatsapp_module', 'whatsapp.owner'])) {
+            return $deny;
+        }
+        try {
+            app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->start();
+        } catch (\Exception $e) {
+            return back()->with('not_permitted', $e->getMessage());
+        }
+
+        return back()->with('message', 'Scan the code with WhatsApp on your phone. Open Linked devices and choose Link a device.');
+    }
+
+    public function disconnectLink()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.view', 'whatsapp.manage', 'whatsapp_module', 'whatsapp.owner'])) {
+            return $deny;
+        }
+        try {
+            app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->disconnect();
+        } catch (\Exception $e) {
+            return back()->with('not_permitted', $e->getMessage());
+        }
+
+        return back()->with('message', 'WhatsApp was disconnected for this company.');
+    }
+
     public function groups()
     {
         if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
@@ -473,11 +521,15 @@ class WhatsAppHubController extends Controller
         $summary = app(\App\Services\WhatsApp\GroupContactExportService::class)->memberships();
         $groups = isset($summary['groups']) ? $summary['groups'] : [];
         $listError = empty($summary['success']) ? (isset($summary['error']) ? $summary['error'] : 'Could not load groups.') : null;
-        if (! empty($summary['success'])) {
+        $ownNumber = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->applies();
+        if ($ownNumber && $listError === 'WhatsApp is not connected for this company.') {
+            $listError = null;
+        }
+        if (! empty($summary['success']) && empty($summary['local'])) {
             app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
         }
 
-        return view('whatsapp_hub.groups', compact('groups', 'listError'));
+        return view('whatsapp_hub.groups', compact('groups', 'listError', 'ownNumber'));
     }
 
     public function fetchGroups()

@@ -35,3 +35,4 @@
     .wa-inbox-side, .wa-inbox-contact { display: none; }
 }
 </style>
+@include('whatsapp_hub.partials.company_link')

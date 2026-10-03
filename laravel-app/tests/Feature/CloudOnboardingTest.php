@@ -289,6 +289,29 @@ class CloudOnboardingTest extends TestCase
         $this->assertNull(CloudTenant::where('name', 'Gate Co')->first());
     }
 
+    public function test_customer_company_lists_its_own_linked_groups()
+    {
+        $tenant = $this->openCompany('Own Groups', 'groups@demo.test', '237670000092', ['MESSAGING']);
+        app(CloudTenantContext::class)->set($tenant);
+        config(['cloud.whatsapp.link_transport' => function ($method, $path) use ($tenant) {
+            if (strpos($path, '/sessions/'.$tenant->id.'/groups') === 0) {
+                return [
+                    'success' => true,
+                    'groups' => [
+                        ['jid' => '111@g.us', 'name' => 'Alpha Bridge Team', 'members' => 4],
+                    ],
+                ];
+            }
+
+            return ['status' => 'CONNECTED', 'phone' => '237670000092'];
+        }]);
+        $saved = app(\App\Services\WhatsApp\GroupContactExportService::class)->memberships();
+        $this->assertTrue($saved['success']);
+        $this->assertSame('Alpha Bridge Team', $saved['groups'][0]['name']);
+        $this->assertArrayNotHasKey(1, $saved['groups']);
+        app(CloudTenantContext::class)->clear();
+    }
+
     public function test_customer_company_does_not_read_beyond_whatsapp_groups()
     {
         $tenant = $this->openCompany('Own Line', 'own@demo.test', '237670000091', ['MESSAGING']);

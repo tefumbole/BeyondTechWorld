@@ -29,7 +29,7 @@
                         <td class="group-members"><a href="{{ route('whatsapp.groups.show', ['jid' => $group['jid']]) }}">{{ $group['members'] === null ? '…' : number_format($group['members']) }}</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="2">No groups were returned for this WhatsApp account.</td></tr>
+                    <tr><td colspan="2">{{ !empty($ownNumber) ? 'Link your WhatsApp to see its groups here.' : 'No groups were returned for this WhatsApp account.' }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

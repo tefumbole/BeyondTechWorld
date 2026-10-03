@@ -71,6 +71,10 @@ class GroupContactExportService
 
     public function memberships()
     {
+        $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->groups();
+        if ($local !== null) {
+            return $local;
+        }
         $blocked = app(BeyondWasenderService::class)->customerSessionBlock();
         if ($blocked) {
             return [
@@ -502,6 +506,9 @@ class GroupContactExportService
 
     public function scheduleResolve()
     {
+        if (app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->applies()) {
+            return;
+        }
         $pending = $this->unresolvedJids();
         if ($pending === []) {
             return;
@@ -516,6 +523,17 @@ class GroupContactExportService
 
     public function fetchNewGroups()
     {
+        $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->groups();
+        if ($local !== null) {
+            $groups = isset($local['groups']) ? $local['groups'] : [];
+
+            return [
+                'success' => ! empty($local['success']),
+                'error' => isset($local['error']) ? $local['error'] : null,
+                'added' => count($groups),
+                'total' => count($groups),
+            ];
+        }
         $before = [];
         foreach ($this->readDirectory() as $jid => $row) {
             if (substr((string) $jid, -5) === '@g.us') {
@@ -546,6 +564,17 @@ class GroupContactExportService
 
     public function fetchGroupContacts($jid)
     {
+        $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->groupRows($jid);
+        if ($local !== null) {
+            $rows = isset($local['rows']) ? $local['rows'] : [];
+
+            return [
+                'success' => ! empty($local['success']),
+                'error' => isset($local['error']) ? $local['error'] : null,
+                'added' => count($rows),
+                'total' => count($rows),
+            ];
+        }
         $blocked = app(BeyondWasenderService::class)->customerSessionBlock();
         if ($blocked) {
             return ['success' => false, 'error' => $blocked['error'], 'added' => 0, 'total' => 0];
@@ -943,6 +972,10 @@ class GroupContactExportService
 
     public function rowsForGroup($jid)
     {
+        $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->groupRows($jid);
+        if ($local !== null) {
+            return $local;
+        }
         $jid = trim((string) $jid);
         $cached = $this->readMembers($jid);
         $saved = $this->readDirectory();
@@ -1064,6 +1097,9 @@ class GroupContactExportService
 
     public function scheduleContactNames($jid)
     {
+        if (app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->applies()) {
+            return;
+        }
         $jid = trim((string) $jid);
         if (substr($jid, -5) !== '@g.us') {
             return;

@@ -19,6 +19,10 @@ class WhatsAppSessionStatusService
      */
     public function status($force = false)
     {
+        $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->sessionStatus();
+        if ($local !== null) {
+            return $local;
+        }
         $blocked = $this->wasender->customerSessionBlock();
         if ($blocked) {
             return [

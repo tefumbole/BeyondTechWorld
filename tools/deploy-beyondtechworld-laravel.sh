@@ -119,6 +119,29 @@ else
   echo "    php-fpm unit not found — reload skipped"
 fi
 
+echo "==> 8. WhatsApp link service"
+LINK="$APP/whatsapp-link"
+if [[ -f "$LINK/server.mjs" ]] && command -v node >/dev/null 2>&1; then
+  NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+  if [[ "$NODE_MAJOR" -ge 18 ]]; then
+    (cd "$LINK" && npm install --omit=dev)
+    mkdir -p "$APP/storage/app/whatsapp-link/sessions"
+    chown -R "$WEB_USER:$WEB_GROUP" "$APP/storage/app/whatsapp-link"
+    if command -v pm2 >/dev/null 2>&1; then
+      pm2 delete beyondtechworld-whatsapp-link >/dev/null 2>&1 || true
+      pm2 start "$LINK/server.mjs" --name beyondtechworld-whatsapp-link --cwd "$LINK"
+      pm2 save
+      echo "    WhatsApp link service started"
+    else
+      echo "    pm2 is not installed — WhatsApp link was not started"
+    fi
+  else
+    echo "    Node $NODE_MAJOR is too old for WhatsApp linking"
+  fi
+else
+  echo "    WhatsApp link service skipped"
+fi
+
 echo ""
 echo "Laravel deploy complete."
 echo "  HEAD: $(git -C "$ROOT" rev-parse --short HEAD)"

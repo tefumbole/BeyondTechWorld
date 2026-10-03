@@ -535,6 +535,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
 
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
+    Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
+    Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
+    Route::post('/admin/whatsapp/link/disconnect', 'WhatsApp\WhatsAppHubController@disconnectLink')->name('whatsapp.link.disconnect');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
     Route::get('/admin/whatsapp/conversations/{id}', 'WhatsApp\WhatsAppHubController@conversation')->name('whatsapp.conversation');
     Route::post('/admin/whatsapp/conversations/{id}/reply', 'WhatsApp\WhatsAppHubController@reply')->name('whatsapp.conversation.reply');

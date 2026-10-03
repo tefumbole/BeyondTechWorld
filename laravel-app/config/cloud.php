@@ -64,5 +64,10 @@ return [
         'reserved_sessions' => (int) env('WASENDER_RESERVED_SESSIONS', 1),
         'trial_provisioning_allowed' => env('CLOUD_WHATSAPP_TRIAL_PROVISIONING', false),
         'customer_send_enabled' => env('CLOUD_WHATSAPP_CUSTOMER_SEND', false),
+        /*
+         | A customer company links its own phone with a QR code.
+         | This does not create a Wasender session and does not use Beyond's number.
+         */
+        'link_url' => env('CLOUD_WHATSAPP_LINK_URL', 'http://127.0.0.1:3921'),
     ],
 ];
