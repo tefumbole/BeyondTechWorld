@@ -45,6 +45,10 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'When tools are available, tool_choice is auto: prefer a direct answer for general knowledge; call a tool only when Beyond-specific or user-specific data is needed.';
         $bits[] = 'When a chat already has messages, continue from that transcript. Read what was already said and answer the latest point. Do not restart with a fresh greeting or ask again for facts already in the history.';
 
+        $brief = app(AssistantBriefService::class)->promptText();
+        if ($brief !== '') {
+            $bits[] = $brief;
+        }
         $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
         if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER) {
             $bits[] = 'You are answering only for '.$tenant->name.'. The assistant name is MAI unless this company has set another name. Do not use another company\'s records.';

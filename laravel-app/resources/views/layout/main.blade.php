@@ -2238,6 +2238,7 @@
                                     <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
                                     <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
                                     <li><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
+                                    <li id="whatsapp-brief-menu"><a href="{{ route('whatsapp.brief') }}">AI brief</a></li>
                                     <li><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
                                 </ul>
                             </li>

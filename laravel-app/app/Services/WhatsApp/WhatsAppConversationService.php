@@ -639,6 +639,35 @@ class WhatsAppConversationService
         return $conversation;
     }
 
+    public function destroy(WhatsAppConversation $conversation)
+    {
+        $id = (int) $conversation->id;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($conversation, $id) {
+            foreach ([
+                'whatsapp_messages',
+                'whatsapp_notes',
+                'whatsapp_conversation_events',
+                'assistant_memories',
+                'assistant_activities',
+                'whatsapp_calls',
+            ] as $table) {
+                if (\Illuminate\Support\Facades\Schema::hasTable($table) && \Illuminate\Support\Facades\Schema::hasColumn($table, 'conversation_id')) {
+                    \Illuminate\Support\Facades\DB::table($table)->where('conversation_id', $id)->delete();
+                }
+            }
+            foreach ([
+                'quotations' => 'whatsapp_conversation_id',
+                'attendances' => 'whatsapp_conversation_id',
+                'internship_submissions' => 'whatsapp_conversation_id',
+            ] as $table => $column) {
+                if (\Illuminate\Support\Facades\Schema::hasTable($table) && \Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
+                    \Illuminate\Support\Facades\DB::table($table)->where($column, $id)->update([$column => null]);
+                }
+            }
+            $conversation->delete();
+        });
+    }
+
     public function close(WhatsAppConversation $conversation, $userId)
     {
         $conversation->mode = WhatsAppConversation::MODE_CLOSED;

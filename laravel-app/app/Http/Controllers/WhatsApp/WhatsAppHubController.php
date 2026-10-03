@@ -57,6 +57,36 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.command_center', compact('range', 'stats', 'session'));
     }
 
+    public function destroyConversations(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.manage', 'whatsapp.conversations'])) {
+            return $deny;
+        }
+        $ids = array_slice(array_filter((array) $request->input('ids', [])), 0, 100);
+        $removed = 0;
+        foreach ($ids as $id) {
+            $conversation = WhatsAppConversation::find($id);
+            if (! $conversation) {
+                continue;
+            }
+            $this->conversations->destroy($conversation);
+            $removed++;
+        }
+
+        return redirect()->route('whatsapp.conversations')->with('message', $removed === 1 ? '1 conversation deleted.' : $removed.' conversations deleted.');
+    }
+
+    public function destroyConversation($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.manage', 'whatsapp.conversations'])) {
+            return $deny;
+        }
+        $conversation = WhatsAppConversation::findOrFail($id);
+        $this->conversations->destroy($conversation);
+
+        return redirect()->route('whatsapp.conversations')->with('message', 'Conversation deleted.');
+    }
+
     public function conversations(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {

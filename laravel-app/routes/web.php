@@ -539,6 +539,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
     Route::post('/admin/whatsapp/link/disconnect', 'WhatsApp\WhatsAppHubController@disconnectLink')->name('whatsapp.link.disconnect');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
+    Route::post('/admin/whatsapp/conversations/delete', 'WhatsApp\WhatsAppHubController@destroyConversations')->name('whatsapp.conversations.delete');
+    Route::post('/admin/whatsapp/conversations/{id}/delete', 'WhatsApp\WhatsAppHubController@destroyConversation')->name('whatsapp.conversation.delete');
     Route::get('/admin/whatsapp/conversations/{id}', 'WhatsApp\WhatsAppHubController@conversation')->name('whatsapp.conversation');
     Route::post('/admin/whatsapp/conversations/{id}/reply', 'WhatsApp\WhatsAppHubController@reply')->name('whatsapp.conversation.reply');
     Route::post('/admin/whatsapp/conversations/{id}/assign', 'WhatsApp\WhatsAppHubController@assignConversation')->name('whatsapp.conversation.assign');
@@ -604,6 +606,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/rentals', 'WhatsApp\WhatsAppRentalController@index')->name('whatsapp.rentals');
     Route::post('/admin/whatsapp/rentals/{id}/approve', 'WhatsApp\WhatsAppRentalController@approve')->name('whatsapp.rentals.approve');
     Route::post('/admin/whatsapp/rentals/{id}/reject', 'WhatsApp\WhatsAppRentalController@reject')->name('whatsapp.rentals.reject');
+    Route::get('/admin/whatsapp/brief', 'WhatsApp\WhatsAppAssistantController@brief')->name('whatsapp.brief');
+    Route::post('/admin/whatsapp/brief', 'WhatsApp\WhatsAppAssistantController@storeBrief')->name('whatsapp.brief.store');
+    Route::post('/admin/whatsapp/brief/{id}', 'WhatsApp\WhatsAppAssistantController@updateBrief')->name('whatsapp.brief.update');
+    Route::post('/admin/whatsapp/brief/{id}/delete', 'WhatsApp\WhatsAppAssistantController@destroyBrief')->name('whatsapp.brief.delete');
     Route::get('/admin/whatsapp/assistant', 'WhatsApp\WhatsAppAssistantController@index')->name('whatsapp.assistant');
     Route::post('/admin/whatsapp/assistant/enabled', 'WhatsApp\WhatsAppAssistantController@updateEnabled')->name('whatsapp.assistant.enabled');
     Route::post('/admin/whatsapp/assistant/knowledge', 'WhatsApp\WhatsAppAssistantController@storeKnowledge')->name('whatsapp.assistant.knowledge.store');

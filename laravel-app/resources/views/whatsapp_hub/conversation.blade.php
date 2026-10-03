@@ -30,6 +30,10 @@
                 <div class="small text-muted">Conversation</div>
                 <strong>{{ optional($conversation->contact)->displayName() }}</strong>
                 <div>{{ optional($conversation->contact)->display_phone }}</div>
+                <form method="post" action="{{ route('whatsapp.conversation.delete', $conversation->id) }}" class="mt-2" onsubmit="return confirm('Delete this conversation? Its messages will be removed.');">
+                    @csrf
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete conversation</button>
+                </form>
                 @php
                     $assignee = optional($conversation->assignee)->name;
                     if ($conversation->mode === 'AI') {

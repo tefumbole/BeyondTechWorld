@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\WhatsApp;
 
 use App\Assistant\AssistantActivity;
+use App\Assistant\AssistantBrief;
 use App\Assistant\AssistantKnowledge;
 use App\Assistant\IntentCatalog;
 use App\Http\Controllers\Controller;
+use App\Services\Assistant\AssistantBriefService;
 use App\Services\Assistant\AssistantPolicyService;
 use App\Services\Assistant\AssistantToolRegistry;
 use App\Services\Assistant\BeyondAssistantService;
@@ -19,6 +21,83 @@ use Spatie\Permission\Models\Role;
 
 class WhatsAppAssistantController extends Controller
 {
+    public function brief()
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+            return $deny;
+        }
+        $briefs = app(AssistantBriefService::class)->visible()->get();
+
+        return view('whatsapp_hub.brief', compact('briefs'));
+    }
+
+    public function storeBrief(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+            return $deny;
+        }
+        $data = $this->briefInput($request);
+        AssistantBrief::create([
+            'cloud_tenant_id' => app(AssistantBriefService::class)->tenantIdForSave(),
+            'title' => $data['title'],
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'details' => $data['details'],
+            'enabled' => true,
+            'updated_by' => Auth::id(),
+        ]);
+
+        return redirect()->route('whatsapp.brief')->with('message', 'The assistant will use this from now on.');
+    }
+
+    public function updateBrief(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+            return $deny;
+        }
+        $brief = app(AssistantBriefService::class)->visible()->where('id', $id)->first();
+        if (! $brief) {
+            abort(404);
+        }
+        $data = $this->briefInput($request);
+        $brief->title = $data['title'];
+        $brief->starts_at = $data['starts_at'];
+        $brief->ends_at = $data['ends_at'];
+        $brief->details = $data['details'];
+        $brief->enabled = $request->has('enabled');
+        $brief->updated_by = Auth::id();
+        $brief->save();
+
+        return redirect()->route('whatsapp.brief')->with('message', 'Updated. The assistant will use the new details.');
+    }
+
+    public function destroyBrief($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage', 'whatsapp.ai.knowledge'])) {
+            return $deny;
+        }
+        $brief = app(AssistantBriefService::class)->visible()->where('id', $id)->first();
+        if ($brief) {
+            $brief->delete();
+        }
+
+        return redirect()->route('whatsapp.brief')->with('message', 'Removed from the assistant.');
+    }
+
+    protected function briefInput(Request $request)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:191',
+            'details' => 'required|string|max:4000',
+            'starts_at' => 'nullable|date',
+            'ends_at' => 'nullable|date',
+        ]);
+        $data['starts_at'] = ! empty($data['starts_at']) ? Carbon::parse($data['starts_at']) : null;
+        $data['ends_at'] = ! empty($data['ends_at']) ? Carbon::parse($data['ends_at']) : null;
+
+        return $data;
+    }
+
     public function index(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.ai', 'whatsapp.ai.manage', 'whatsapp.manage'])) {
