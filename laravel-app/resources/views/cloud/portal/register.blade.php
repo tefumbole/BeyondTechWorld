@@ -74,13 +74,19 @@
         color: #D4AF37;
         margin-top: 0.4rem;
     }
+    .service-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+    }
     .service-card {
         display: flex;
-        gap: 12px;
+        gap: 8px;
         align-items: flex-start;
-        border-radius: 16px;
-        padding: 14px 16px;
-        margin-top: 12px;
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin: 0;
         border: 2px solid transparent;
         color: #10233f;
         text-align: left;
@@ -110,7 +116,7 @@
 
 @section('content')
 <section class="subscribe-hero py-10 sm:py-16" style="background-image:url('{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}');">
-    <div class="relative z-10 max-w-3xl mx-auto px-4">
+    <div class="relative z-10 max-w-5xl mx-auto px-4">
         @if(session('not_permitted'))
             <p class="mb-4 rounded-xl bg-red-50 text-red-800 px-4 py-3">{{ session('not_permitted') }}</p>
         @endif
@@ -240,6 +246,7 @@
             <section class="step" data-step="7">
                 <h2 class="text-xl font-bold">Services</h2>
                 <p class="hint mt-1">Select one or more. The total updates as you tick them.</p>
+                <div class="service-grid">
                 @foreach($plans as $plan)
                     @if(($selected ?? '') !== '' && ($selected ?? '') !== $plan->module->code)
                         @continue
@@ -254,19 +261,20 @@
                         </span>
                     </label>
                 @endforeach
-                <div class="mt-4 rounded-2xl border border-gray-200 p-4" id="price-summary">
+                </div>
+                <div class="service-grid">
+                <div class="rounded-2xl border border-gray-200 p-4" id="price-summary">
                     <strong>Selected modules</strong>
                     <div id="price-lines"></div>
                     <div class="flex justify-between mt-2"><span>Monthly total</span><span id="price-total">0</span></div>
                     <div class="flex justify-between"><span>Free trial</span><span>{{ $quote['trial'] }}</span></div>
                     <p class="text-sm mt-2">This total is the monthly price from the plan list. Pay does not collect money in this form. BeyondTechWorld confirms the payment separately.</p>
                 </div>
-                <div class="field-row">
-                    <label for="signature-pad">Signature</label>
-                    <div style="flex:1">
-                        <canvas id="signature-pad" width="640" height="160"></canvas>
-                        <button type="button" id="clear-signature" class="mt-2 text-sm underline">Clear signature</button>
-                    </div>
+                <div>
+                    <label for="signature-pad" class="block text-left font-semibold mb-1">Signature</label>
+                    <canvas id="signature-pad" width="640" height="140"></canvas>
+                    <button type="button" id="clear-signature" class="mt-2 text-sm underline">Clear signature</button>
+                </div>
                 </div>
                 <input type="hidden" name="signature" id="signature" value="">
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
