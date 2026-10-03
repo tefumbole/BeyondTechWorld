@@ -74,6 +74,37 @@
         color: #D4AF37;
         margin-top: 0.4rem;
     }
+    .service-card {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-top: 12px;
+        border: 2px solid transparent;
+        color: #10233f;
+        text-align: left;
+    }
+    .service-card strong,
+    .service-card span { color: #10233f !important; }
+    .service-card[data-service="SALES_INVOICES"] { background: #dbeafe; border-color: #1d4ed8; }
+    .service-card[data-service="RENTALS"] { background: #ccfbf1; border-color: #0f766e; }
+    .service-card[data-service="MESSAGING"] { background: #dcfce7; border-color: #15803d; }
+    .service-card[data-service="QUOTATIONS"] { background: #fef3c7; border-color: #b45309; }
+    .service-card[data-service="DIGITAL_INVITATIONS"] { background: #ede9fe; border-color: #6d28d9; }
+    #price-summary { background: #fff; }
+    #price-summary,
+    #price-summary strong,
+    #price-summary span,
+    #price-summary p { color: #10233f !important; }
+    #signature-pad {
+        width: 100%;
+        height: 120px;
+        background: #fff;
+        border-radius: 12px;
+        touch-action: none;
+        cursor: crosshair;
+    }
 </style>
 @endpush
 
@@ -177,7 +208,7 @@
                 <input type="hidden" name="company_email" id="company-email" value="{{ old('company_email') }}">
                 <div class="field-row">
                     <label for="country">Country</label>
-                    <input class="px-4 py-2" name="country" id="country" value="{{ old('country') }}" maxlength="8">
+                    <input class="px-4 py-2" name="country" id="country" value="{{ old('country') }}" maxlength="64">
                 </div>
                 <div class="field-row">
                     <label for="city">City</label>
@@ -207,30 +238,42 @@
             </section>
 
             <section class="step" data-step="7">
-                <h2 class="text-xl font-bold text-brand-blue">Services</h2>
-                <p class="text-gray-600 mt-1">Select one or more. The total updates as you tick them.</p>
+                <h2 class="text-xl font-bold">Services</h2>
+                <p class="hint mt-1">Select one or more. The total updates as you tick them.</p>
                 @foreach($plans as $plan)
                     @if(($selected ?? '') !== '' && ($selected ?? '') !== $plan->module->code)
                         @continue
                     @endif
-                    <label class="mt-3 flex gap-3 rounded-2xl border border-gray-200 p-4">
+                    <label class="service-card" data-service="{{ $plan->module->code }}">
                         <input type="checkbox" name="modules[]" value="{{ $plan->module->code }}" data-price="{{ $plan->price }}" data-name="{{ $plan->name }}" {{ old('modules') ? (in_array($plan->module->code, (array) old('modules'), true) ? 'checked' : '') : (($selected ?? '') === $plan->module->code ? 'checked' : '') }}>
                         <span>
-                            <strong class="text-brand-blue">{{ $plan->name }}</strong>
-                            <span class="block text-sm text-gray-600">{{ number_format((float) $plan->price, 0) }} {{ $plan->currency }} per {{ strtolower($plan->billing_interval ?: 'month') }}</span>
-                            <span class="block text-sm text-gray-600">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</span>
-                            <span class="block text-sm text-gray-500">{{ $plan->module->description }}</span>
+                            <strong>{{ $plan->name }}</strong>
+                            <span class="block text-sm">{{ number_format((float) $plan->price, 0) }} {{ $plan->currency }} per {{ strtolower($plan->billing_interval ?: 'month') }}</span>
+                            <span class="block text-sm">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</span>
+                            <span class="block text-sm">{{ $plan->module->description }}</span>
                         </span>
                     </label>
                 @endforeach
-                <div class="mt-4 rounded-2xl bg-gray-50 border border-gray-200 p-4" id="price-summary">
+                <div class="mt-4 rounded-2xl border border-gray-200 p-4" id="price-summary">
                     <strong>Selected modules</strong>
                     <div id="price-lines"></div>
                     <div class="flex justify-between mt-2"><span>Monthly total</span><span id="price-total">0</span></div>
                     <div class="flex justify-between"><span>Free trial</span><span>{{ $quote['trial'] }}</span></div>
-                    <p class="text-sm text-gray-600 mt-2">This total is the monthly price from the plan list. It is a preview. BeyondTechWorld activates the subscription separately.</p>
+                    <p class="text-sm mt-2">This total is the monthly price from the plan list. Pay does not collect money in this form. BeyondTechWorld confirms the payment separately.</p>
                 </div>
-                <button type="submit" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
+                <div class="field-row">
+                    <label for="signature-pad">Signature</label>
+                    <div style="flex:1">
+                        <canvas id="signature-pad" width="640" height="160"></canvas>
+                        <button type="button" id="clear-signature" class="mt-2 text-sm underline">Clear signature</button>
+                    </div>
+                </div>
+                <input type="hidden" name="signature" id="signature" value="">
+                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+                    <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
+                    <button type="submit" name="start_mode" value="pay" class="bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Pay</button>
+                </div>
             </section>
         </form>
         @endif
@@ -396,9 +439,60 @@
             show(6);
         };
         document.getElementById('to-services').onclick = function () { show(7); };
+        var signed = false;
+        var pad = document.getElementById('signature-pad');
+        var padCtx = pad.getContext('2d');
+        padCtx.lineWidth = 2.2;
+        padCtx.lineCap = 'round';
+        padCtx.strokeStyle = '#0b3f90';
+        function padPoint(event) {
+            var rect = pad.getBoundingClientRect();
+            var source = event.touches ? event.touches[0] : event;
+            return {
+                x: (source.clientX - rect.left) * (pad.width / rect.width),
+                y: (source.clientY - rect.top) * (pad.height / rect.height)
+            };
+        }
+        function drawTo(event) {
+            if (!pad.drawing) return;
+            event.preventDefault();
+            var point = padPoint(event);
+            padCtx.lineTo(point.x, point.y);
+            padCtx.stroke();
+            signed = true;
+        }
+        pad.addEventListener('mousedown', function (event) {
+            pad.drawing = true;
+            var point = padPoint(event);
+            padCtx.beginPath();
+            padCtx.moveTo(point.x, point.y);
+        });
+        pad.addEventListener('mousemove', drawTo);
+        pad.addEventListener('mouseup', function () { pad.drawing = false; });
+        pad.addEventListener('mouseleave', function () { pad.drawing = false; });
+        pad.addEventListener('touchstart', function (event) {
+            pad.drawing = true;
+            var point = padPoint(event);
+            padCtx.beginPath();
+            padCtx.moveTo(point.x, point.y);
+        }, { passive: false });
+        pad.addEventListener('touchmove', drawTo, { passive: false });
+        pad.addEventListener('touchend', function () { pad.drawing = false; });
+        document.getElementById('clear-signature').onclick = function () {
+            padCtx.clearRect(0, 0, pad.width, pad.height);
+            signed = false;
+            document.getElementById('signature').value = '';
+        };
         form.addEventListener('change', paint);
-        form.addEventListener('submit', function () {
+        form.addEventListener('submit', function (event) {
             applyKnownCompany();
+            var error = document.getElementById('signature-error');
+            if (!signed) {
+                event.preventDefault();
+                error.hidden = false;
+                return;
+            }
+            document.getElementById('signature').value = pad.toDataURL('image/png');
         });
         paint();
     })();

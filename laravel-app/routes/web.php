@@ -334,7 +334,7 @@ Route::get('/cloud/register', 'CloudPortalController@showRegister')->name('cloud
 Route::post('/cloud/register/identity', 'CloudSubscribeController@identity')->middleware('throttle:10,10')->name('cloud.register.identity');
 Route::post('/cloud/register/otp', 'CloudSubscribeController@sendSignupCode')->middleware('throttle:5,10')->name('cloud.register.otp');
 Route::post('/cloud/register/otp/verify', 'CloudSubscribeController@verifySignupCode')->middleware('throttle:10,10')->name('cloud.register.otp.verify');
-Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:5,10')->name('cloud.register.submit');
+Route::post('/cloud/register', 'CloudPortalController@register')->middleware('throttle:30,10')->name('cloud.register.submit');
 Route::get('/cloud/hero/{uuid}', 'CloudPortalController@hero')->name('cloud.hero');
 Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo');
 Route::get('/c/{slug}', 'CloudPublicPageController@show')->where('slug', '[a-z0-9\-]+')->name('cloud.public.company');

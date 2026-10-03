@@ -109,7 +109,12 @@ class CloudPortalController extends Controller
         $request->session()->regenerate();
         session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
 
-        return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
+        $message = config('cloud.trial_welcome');
+        if ($request->input('start_mode') === 'pay') {
+            $message = 'Your company is open on the 24-hour trial. Pay records that you want to pay the monthly total. It does not collect money from this page.';
+        }
+
+        return redirect()->route('cloud.home')->with('message', $message);
     }
 
     protected function registrationOpen(Request $request)
@@ -333,7 +338,9 @@ class CloudPortalController extends Controller
             'legal_name' => 'nullable|string|max:191',
             'company_phone' => 'nullable|string|max:32',
             'company_email' => 'nullable|email|max:191',
-            'country' => 'nullable|string|max:8',
+            'country' => 'nullable|string|max:64',
+            'start_mode' => 'nullable|in:trial,pay',
+            'signature' => 'nullable|string|max:500000',
             'city' => 'nullable|string|max:191',
             'address' => 'nullable|string|max:191',
             'timezone' => 'nullable|string|max:64',

@@ -238,6 +238,13 @@ class CloudOnboardingService
             'value' => isset($input['account_kind']) && $input['account_kind'] === 'personal' ? 'personal' : 'company',
             'type' => 'string',
         ]);
+        CloudTenantSetting::create([
+            'cloud_tenant_id' => $tenant->id,
+            'key' => 'signup_intent',
+            'value' => isset($input['start_mode']) && $input['start_mode'] === 'pay' ? 'pay' : 'trial',
+            'type' => 'string',
+        ]);
+        $this->storeSignature($tenant, isset($input['signature']) ? $input['signature'] : '');
         $subscriptions = app(CloudSubscriptionService::class);
         foreach ($quote['lines'] as $line) {
             $plan = CloudPlan::whereHas('module', function ($query) use ($line) {
@@ -247,6 +254,28 @@ class CloudOnboardingService
         }
 
         return $tenant;
+    }
+
+    protected function storeSignature(CloudTenant $tenant, $data)
+    {
+        if (! is_string($data) || strpos($data, 'data:image/png;base64,') !== 0) {
+            return;
+        }
+        $binary = base64_decode(substr($data, 22), true);
+        if ($binary === false || strlen($binary) < 80 || strlen($binary) > 400000) {
+            return;
+        }
+        $dir = storage_path('app/cloud-signatures');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        file_put_contents($dir.'/'.$tenant->id.'.png', $binary);
+        CloudTenantSetting::create([
+            'cloud_tenant_id' => $tenant->id,
+            'key' => 'signup_signature',
+            'value' => 'cloud-signatures/'.$tenant->id.'.png',
+            'type' => 'string',
+        ]);
     }
 
     protected function withToken(array $input, callable $callback)
