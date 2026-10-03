@@ -121,10 +121,83 @@
     #price-summary strong,
     #price-summary span,
     #price-summary p { color: #10233f !important; }
+    .stage-rail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 1.1rem;
+        padding: 0;
+        list-style: none;
+        justify-content: center;
+    }
+    .stage-rail li {
+        margin: 0;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.35);
+        color: rgba(255,255,255,.75);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .stage-rail li.on {
+        background: #D4AF37;
+        border-color: #D4AF37;
+        color: #002855;
+    }
+    .stage-rail li.done { border-color: #F5D76E; color: #F5D76E; }
+    .stage-rail li.skip { opacity: .35; }
+    .signature-prompt,
+    .signature-done {
+        text-align: left;
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+    .signature-prompt { background: #fef9c3; border: 2px solid #facc15; color: #713f12; }
+    .signature-prompt strong,
+    .signature-prompt p { color: #713f12 !important; }
+    .signature-done { background: #ecfdf3; border: 2px solid #86efac; color: #14532d; }
+    .signature-done strong { color: #14532d !important; }
+    .signature-done img {
+        display: block;
+        max-width: 280px;
+        background: #fff;
+        border-radius: 8px;
+        margin-top: 8px;
+    }
+    .signature-add {
+        background: #fff;
+        color: #a16207;
+        border: 2px solid #ca8a04;
+        border-radius: 10px;
+        font-weight: 700;
+        padding: 0.45rem 0.8rem;
+        cursor: pointer;
+    }
+    #signature-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 16, 40, .62);
+        padding: 16px;
+    }
+    #signature-modal[hidden] { display: none; }
+    .signature-dialog {
+        width: min(520px, 100%);
+        background: #fff;
+        color: #10233f;
+        border-radius: 16px;
+        padding: 16px;
+        text-align: left;
+    }
+    .signature-dialog h3 { margin: 0 0 8px; color: #10233f; }
     #signature-pad {
         width: 100%;
-        height: 120px;
+        height: 160px;
         background: #fff;
+        border: 2px dashed #D4AF37;
         border-radius: 12px;
         touch-action: none;
         cursor: crosshair;
@@ -155,6 +228,16 @@
             @if(!empty($validationToken))
                 <input type="hidden" name="validation_token" value="{{ $validationToken }}">
             @endif
+
+            <ol class="stage-rail" id="stage-rail">
+                <li data-stage="1" class="on">Type</li>
+                <li data-stage="2">Phone</li>
+                <li data-stage="3">Code</li>
+                <li data-stage="4">Name</li>
+                <li data-stage="5">Account</li>
+                <li data-stage="6">Company</li>
+                <li data-stage="7">Services</li>
+            </ol>
 
             <section class="step on" data-step="1">
                 <h1 class="text-3xl sm:text-4xl font-bold drop-shadow">Subscribe</h1>
@@ -295,9 +378,17 @@
                     <p class="text-sm mt-2">This total is the monthly price from the plan list. Pay does not collect money in this form. BeyondTechWorld confirms the payment separately.</p>
                 </div>
                 <div>
-                    <label for="signature-pad" class="block text-left font-semibold mb-1">Signature</label>
-                    <canvas id="signature-pad" width="640" height="140"></canvas>
-                    <button type="button" id="clear-signature" class="mt-2 text-sm underline">Clear signature</button>
+                    <h3 class="text-left font-semibold mb-2">Digital Signature</h3>
+                    <div id="signature-prompt" class="signature-prompt">
+                        <strong>Signature Required</strong>
+                        <p class="text-sm mt-1 mb-3">A digital signature is required to finish this subscription.</p>
+                        <button type="button" id="open-signature" class="signature-add">Add Signature</button>
+                    </div>
+                    <div id="signature-done" class="signature-done" hidden>
+                        <strong>Signature captured</strong>
+                        <img id="signature-preview" alt="Your signature">
+                        <button type="button" id="resign-signature" class="signature-add mt-3">Re-sign</button>
+                    </div>
                 </div>
                 </div>
                 <input type="hidden" name="signature" id="signature" value="">
@@ -308,6 +399,17 @@
                 </div>
             </section>
         </form>
+        <div id="signature-modal" hidden>
+            <div class="signature-dialog" role="dialog" aria-labelledby="signature-title">
+                <h3 id="signature-title">Add your signature</h3>
+                <canvas id="signature-pad" width="640" height="180"></canvas>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <button type="button" id="use-signature" class="bg-brand-gold text-brand-blue font-bold rounded-full px-4 py-2">Use this signature</button>
+                    <button type="button" id="clear-signature" class="underline text-sm">Clear</button>
+                    <button type="button" id="close-signature" class="underline text-sm">Close</button>
+                </div>
+            </div>
+        </div>
         @endif
     </div>
 </section>
@@ -324,8 +426,18 @@
         var total = document.getElementById('price-total');
         function show(step) {
             var nodes = form.querySelectorAll('.step');
+            var current = String(step);
             for (var i = 0; i < nodes.length; i++) {
-                nodes[i].className = nodes[i].getAttribute('data-step') === String(step) ? 'step on' : 'step';
+                nodes[i].className = nodes[i].getAttribute('data-step') === current ? 'step on' : 'step';
+            }
+            var stages = document.querySelectorAll('#stage-rail li');
+            for (var s = 0; s < stages.length; s++) {
+                var n = stages[s].getAttribute('data-stage');
+                var cls = '';
+                if (n === '6' && kind && kind.value === 'personal') cls = 'skip';
+                else if (n === current) cls = 'on';
+                else if (parseInt(n, 10) < parseInt(current, 10)) cls = 'done';
+                stages[s].className = cls;
             }
         }
         function paint() {
@@ -471,8 +583,10 @@
             show(6);
         };
         document.getElementById('to-services').onclick = function () { show(7); };
-        var signed = false;
+        var ink = false;
+        var savedUrl = '';
         var pad = document.getElementById('signature-pad');
+        var modal = document.getElementById('signature-modal');
         var padCtx = pad.getContext('2d');
         padCtx.lineWidth = 2.2;
         padCtx.lineCap = 'round';
@@ -491,8 +605,9 @@
             var point = padPoint(event);
             padCtx.lineTo(point.x, point.y);
             padCtx.stroke();
-            signed = true;
+            ink = true;
         }
+        function openPad() { modal.hidden = false; }
         pad.addEventListener('mousedown', function (event) {
             pad.drawing = true;
             var point = padPoint(event);
@@ -510,10 +625,22 @@
         }, { passive: false });
         pad.addEventListener('touchmove', drawTo, { passive: false });
         pad.addEventListener('touchend', function () { pad.drawing = false; });
+        document.getElementById('open-signature').onclick = openPad;
+        document.getElementById('resign-signature').onclick = openPad;
+        document.getElementById('close-signature').onclick = function () { modal.hidden = true; };
         document.getElementById('clear-signature').onclick = function () {
             padCtx.clearRect(0, 0, pad.width, pad.height);
-            signed = false;
-            document.getElementById('signature').value = '';
+            ink = false;
+        };
+        document.getElementById('use-signature').onclick = function () {
+            if (!ink) return;
+            savedUrl = pad.toDataURL('image/png');
+            document.getElementById('signature').value = savedUrl;
+            document.getElementById('signature-preview').src = savedUrl;
+            document.getElementById('signature-prompt').hidden = true;
+            document.getElementById('signature-done').hidden = false;
+            document.getElementById('signature-error').hidden = true;
+            modal.hidden = true;
         };
         var backs = form.querySelectorAll('.back-step');
         for (var b = 0; b < backs.length; b++) {
@@ -530,12 +657,12 @@
         form.addEventListener('submit', function (event) {
             applyKnownCompany();
             var error = document.getElementById('signature-error');
-            if (!signed) {
+            if (!savedUrl) {
                 event.preventDefault();
                 error.hidden = false;
                 return;
             }
-            document.getElementById('signature').value = pad.toDataURL('image/png');
+            document.getElementById('signature').value = savedUrl;
         });
         paint();
         @php

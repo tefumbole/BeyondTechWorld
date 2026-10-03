@@ -1,16 +1,24 @@
 @extends('cloud.portal.layout')
 @section('content')
+<p class="banner">{{ $welcome }}</p>
 <div class="card">
+    <p class="stage-kicker">Stage 1 · Company</p>
     <h1>Welcome to {{ $tenant->name }}</h1>
     <p class="muted">{{ $tenant->system_name }}</p>
-    <p>{{ $welcome }}</p>
     @if($subscriptions->isNotEmpty())
         <p><strong>Selected services</strong></p>
-        <ul>
+        <div class="svc-grid">
             @foreach($subscriptions as $subscription)
-                <li>{{ $subscription->plan ? $subscription->plan->name : 'Service' }} — {{ $subscription->status }}</li>
+                @php $code = $subscription->plan && $subscription->plan->module ? $subscription->plan->module->code : ''; @endphp
+                <article class="svc svc-{{ $code }}">
+                    <strong>{{ $subscription->plan ? $subscription->plan->name : 'Service' }}</strong>
+                    <span>{{ $subscription->status }}</span>
+                    @if($subscription->quoted_price)
+                        <span class="muted"> · {{ number_format((float) $subscription->quoted_price, 0) }} {{ $subscription->quoted_currency }}</span>
+                    @endif
+                </article>
             @endforeach
-        </ul>
+        </div>
         @php
             $trialEnd = $subscriptions->where('status', 'TRIALING')->sortBy('trial_ends_at')->first();
             $zone = $tenant->timezone ?: 'Africa/Douala';
@@ -19,7 +27,7 @@
             <p>Trial ends {{ $trialEnd->trial_ends_at->copy()->timezone($zone)->format('Y-m-d H:i') }} ({{ $zone }}).</p>
         @endif
     @endif
-    <a class="btn" href="{{ route('cloud.settings') }}">Continue setup</a>
+    <p><a class="btn" href="{{ route('cloud.settings') }}">Continue setup</a></p>
     @if($tenant->status === 'SUSPENDED')
         <p>This company is suspended. Records stay available to view.</p>
     @endif
@@ -42,10 +50,13 @@
     @endif
 </div>
 <div class="card">
+    <p class="stage-kicker">Stage 2 · Subscriptions</p>
     <h2>Subscriptions</h2>
+    <div class="svc-grid">
     @forelse($subscriptions as $subscription)
         @php
             $zone = $tenant->timezone ?: 'Africa/Douala';
+            $code = $subscription->plan && $subscription->plan->module ? $subscription->plan->module->code : '';
             $trialLeft = null;
             if ($subscription->status === 'TRIALING' && $subscription->trial_ends_at) {
                 $seconds = $subscription->trial_ends_at->getTimestamp() - time();
@@ -54,9 +65,9 @@
                 }
             }
         @endphp
-        <p>
+        <article class="svc svc-{{ $code }}">
             <strong>{{ $subscription->plan ? $subscription->plan->name : 'Module' }}</strong>
-            — {{ $subscription->status }}
+            <span>{{ $subscription->status }}</span>
             @if($subscription->trial_ends_at)
                 <span class="muted">trial ends {{ $subscription->trial_ends_at->copy()->timezone($zone)->format('Y-m-d H:i') }}</span>
             @endif
@@ -69,38 +80,44 @@
             @if($subscription->quoted_price)
                 <span class="muted">Quoted {{ number_format((float) $subscription->quoted_price, 0) }} {{ $subscription->quoted_currency }}</span>
             @endif
-        </p>
-        @if(in_array($subscription->status, ['EXPIRED', 'PAST_DUE', 'CANCELLED'], true))
-            <p>{{ $ended }}</p>
-        @endif
+            @if(in_array($subscription->status, ['EXPIRED', 'PAST_DUE', 'CANCELLED'], true))
+                <p>{{ $ended }}</p>
+            @endif
+        </article>
     @empty
         <p class="muted">You have not started a module yet.</p>
     @endforelse
-    <a class="btn" href="{{ route('cloud.subscribe') }}">Choose a module</a>
-    <a class="btn" href="{{ route('cloud.messaging') }}">Messaging</a>
+    </div>
+    <p>
+        <a class="btn" href="{{ route('cloud.subscribe') }}">Choose a module</a>
+        <a class="btn alt" href="{{ route('cloud.messaging') }}">Messaging</a>
+    </p>
 </div>
 <div class="card">
+    <p class="stage-kicker">Stage 3 · Setup</p>
     <h2>Setup</h2>
     <p class="muted">Sample business records are not added. A company starts empty.</p>
-    <ul>
-        @foreach($checklist as $step)
-            @if($step['show'])
-                <li>{{ $step['done'] ? 'Done' : 'To do' }} — {{ $step['label'] }}</li>
-            @endif
-        @endforeach
-    </ul>
+    @foreach($checklist as $step)
+        @if($step['show'])
+            <p class="check {{ $step['done'] ? 'done' : '' }}">{{ $step['done'] ? 'Done' : 'To do' }} — {{ $step['label'] }}</p>
+        @endif
+    @endforeach
 </div>
 <div class="card">
+    <p class="stage-kicker">Stage 4 · Another company</p>
     <h2>Add another company</h2>
     <form method="POST" action="{{ route('cloud.companies.store') }}">
         @csrf
         <input type="hidden" name="onboard_token" value="{{ $onboardToken }}">
+        <div class="svc-grid">
         @foreach($plans as $plan)
-            <label><input type="checkbox" name="modules[]" value="{{ $plan->module->code }}"> {{ $plan->name }} — {{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</label>
+            @php $code = $plan->module ? $plan->module->code : ''; @endphp
+            <label class="svc svc-{{ $code }}"><input type="checkbox" name="modules[]" value="{{ $code }}"> {{ $plan->name }} — {{ number_format((float) $plan->price, 0) }} {{ $plan->currency }}</label>
         @endforeach
+        </div>
         <label>Company name</label>
         <input name="company_name" required>
-        <button type="submit">Create company</button>
+        <p><button type="submit">Create company</button></p>
     </form>
 </div>
 @endsection
