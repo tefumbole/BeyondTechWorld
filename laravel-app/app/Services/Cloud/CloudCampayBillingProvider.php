@@ -72,14 +72,32 @@ class CloudCampayBillingProvider implements CloudBillingProviderInterface
         return $base.'/'.ltrim($path, '/');
     }
 
-    protected function call($method, $url, array $payload)
+    /**
+     * GET /api/holder_info/?phone_number= — the name Campay has for that number.
+     * This is not a payment and does not turn live checkout on.
+     */
+    public function holderName($phone)
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($digits === '') {
+            return '';
+        }
+        $body = $this->call('GET', $this->endpoint('holder_info/?phone_number='.rawurlencode($digits)), [], true);
+        if (! is_array($body) || empty($body['full_name'])) {
+            return '';
+        }
+
+        return trim((string) $body['full_name']);
+    }
+
+    protected function call($method, $url, array $payload, $allowWhenPaymentsOff = false)
     {
         $transport = config('services.campay.transport');
         if (is_callable($transport)) {
             return $transport($method, $url, $payload);
         }
         $host = parse_url($url, PHP_URL_HOST);
-        if (! config('cloud.payments_live') && $host !== 'demo.campay.net') {
+        if (! $allowWhenPaymentsOff && ! config('cloud.payments_live') && $host !== 'demo.campay.net') {
             return null;
         }
 

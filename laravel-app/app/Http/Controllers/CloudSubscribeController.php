@@ -17,6 +17,9 @@ class CloudSubscribeController extends Controller
             'phone' => 'required|string|max:32',
             'account_kind' => 'required|in:personal,company',
         ]);
+        if (! app(CloudSignupOtp::class)->matches($data['phone'])) {
+            return response()->json(['message' => 'Verify the phone number before continuing.'], 422);
+        }
         $resolved = app(CloudPhoneNameResolver::class)->resolve($data['phone']);
         if ($resolved['phone'] === '') {
             return response()->json(['message' => 'Enter a valid phone number.'], 422);
@@ -36,8 +39,6 @@ class CloudSubscribeController extends Controller
     {
         $data = $request->validate([
             'phone' => 'required|string|max:32',
-            'first_name' => 'required|string|max:80',
-            'last_name' => 'required|string|max:80',
             'account_kind' => 'required|in:personal,company',
         ]);
         try {

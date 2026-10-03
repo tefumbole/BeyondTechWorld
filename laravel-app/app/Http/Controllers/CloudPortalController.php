@@ -16,6 +16,7 @@ use App\Services\Cloud\CloudTenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class CloudPortalController extends Controller
@@ -335,6 +336,11 @@ class CloudPortalController extends Controller
             'onboard_token' => 'required|string|max:80',
             'account_kind' => 'nullable|in:personal,company',
         ];
+        if ($withAccount && Schema::hasColumn('users', 'username')) {
+            $rules['username'] = 'required|string|min:3|max:100|regex:/^[A-Za-z0-9._-]+$/|unique:users,username';
+        } elseif ($withAccount) {
+            $rules['username'] = 'nullable|string|max:100';
+        }
         if ($withAccount) {
             $rules['first_name'] = 'required|string|max:80';
             $rules['last_name'] = 'required|string|max:80';

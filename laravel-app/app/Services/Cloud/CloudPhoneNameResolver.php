@@ -6,15 +6,19 @@ use App\WhatsApp\WhatsAppContact;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Finds a display name for a phone the person just typed.
- * WhatsApp uses the name already saved on a contact. Campay's payment API
- * has no phone-to-name lookup, so it does not invent one.
+ * Finds a display name for a phone the person just verified.
+ * Campay holder info is tried first. A single saved WhatsApp name is next.
+ * Anything else is left blank so the person types it.
  */
 class CloudPhoneNameResolver
 {
     public function resolve($phone)
     {
         $normalized = app(CloudTrialEligibility::class)->normalizePhone($phone);
+        $campay = app(CloudCampayBillingProvider::class)->holderName($normalized);
+        if ($campay !== '') {
+            return $this->pack($normalized, $campay, 'campay');
+        }
         $whatsapp = $this->whatsappName($normalized);
         if ($whatsapp !== '') {
             return $this->pack($normalized, $whatsapp, 'whatsapp');

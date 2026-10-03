@@ -24,6 +24,7 @@ class CloudSubscribeWizardTest extends TestCase
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name');
+            $table->string('username')->nullable();
             $table->string('email')->unique();
             $table->string('password');
             $table->string('phone')->nullable();
@@ -50,22 +51,69 @@ class CloudSubscribeWizardTest extends TestCase
 
     public function test_a_saved_whatsapp_name_is_used_and_a_conflict_asks_for_a_name()
     {
+        config(['services.campay.transport' => function ($method, $url) {
+            if (strpos($url, 'holder_info') !== false && strpos($url, '237670000201') !== false) {
+                return ['full_name' => 'Amina Campay'];
+            }
+
+            return null;
+        }]);
         DB::table('whatsapp_contacts')->insert([
             'cloud_tenant_id' => 1,
             'normalized_phone' => '237670000201',
             'wa_name' => 'Amina Ndi',
         ]);
+        $this->postJson('/cloud/register/identity', [
+            'phone' => '237670000201',
+            'account_kind' => 'personal',
+        ])->assertStatus(422);
+        $sent = $this->postJson('/cloud/register/otp', [
+            'phone' => '237670000201',
+            'account_kind' => 'personal',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '237670000201',
+            'code' => $sent->json('testing_code'),
+        ])->assertOk();
         $found = $this->postJson('/cloud/register/identity', [
             'phone' => '237670000201',
             'account_kind' => 'personal',
         ]);
         $found->assertOk();
-        $this->assertSame('Amina Ndi', $found->json('name'));
-        $this->assertSame('whatsapp', $found->json('source'));
+        $this->assertSame('Amina Campay', $found->json('name'));
+        $this->assertSame('campay', $found->json('source'));
         $this->assertSame('Amina', $found->json('first_name'));
+        DB::table('whatsapp_contacts')->insert([
+            'cloud_tenant_id' => 4,
+            'normalized_phone' => '237670000205',
+            'wa_name' => 'Sara Fon',
+        ]);
+        $wa = $this->postJson('/cloud/register/otp', [
+            'phone' => '237670000205',
+            'account_kind' => 'personal',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '237670000205',
+            'code' => $wa->json('testing_code'),
+        ]);
+        $saved = $this->postJson('/cloud/register/identity', [
+            'phone' => '237670000205',
+            'account_kind' => 'personal',
+        ]);
+        $saved->assertOk();
+        $this->assertSame('whatsapp', $saved->json('source'));
+        $this->assertSame('Sara Fon', $saved->json('name'));
         DB::table('whatsapp_contacts')->insert([
             ['cloud_tenant_id' => 2, 'normalized_phone' => '237670000202', 'wa_name' => 'One Name'],
             ['cloud_tenant_id' => 3, 'normalized_phone' => '237670000202', 'wa_name' => 'Other Name'],
+        ]);
+        $code = $this->postJson('/cloud/register/otp', [
+            'phone' => '237670000202',
+            'account_kind' => 'company',
+        ]);
+        $this->postJson('/cloud/register/otp/verify', [
+            'phone' => '237670000202',
+            'code' => $code->json('testing_code'),
         ]);
         $blank = $this->postJson('/cloud/register/identity', [
             'phone' => '237670000202',
@@ -80,7 +128,7 @@ class CloudSubscribeWizardTest extends TestCase
     {
         $this->get('/subscriptions')->assertRedirect('/cloud/register');
         $catalog = $this->get('/cloud/register');
-        $catalog->assertOk()->assertSee('Phone number')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
+        $catalog->assertOk()->assertSee('Individual')->assertSee('Company')->assertSee('Phone number')->assertSee('Username')->assertSee('Quotations')->assertSee('Digital Invitations')->assertDontSee('WhatsApp Hub');
         $page = $this->get('/cloud/register?service=QUOTATIONS');
         $page->assertOk()->assertSee('Quotations')->assertDontSee('WhatsApp Hub')->assertDontSee('Digital Invitations')->assertDontSee('Messaging');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
@@ -89,6 +137,7 @@ class CloudSubscribeWizardTest extends TestCase
             'last_name' => 'Owner',
             'email' => 'skip@demo.test',
             'phone' => '237670000203',
+            'username' => 'skip.co',
             'password' => 'portal-secret',
             'password_confirmation' => 'portal-secret',
             'company_name' => 'Skip Co',
@@ -116,6 +165,7 @@ class CloudSubscribeWizardTest extends TestCase
             'last_name' => 'Owner',
             'email' => 'bundle@demo.test',
             'phone' => '237670000203',
+            'username' => 'bundle.co',
             'password' => 'portal-secret',
             'password_confirmation' => 'portal-secret',
             'company_name' => 'Bundle Co',
@@ -145,6 +195,7 @@ class CloudSubscribeWizardTest extends TestCase
             'last_name' => 'Biya',
             'email' => 'paul@demo.test',
             'phone' => '237670000204',
+            'username' => 'paul.biya',
             'password' => 'portal-secret',
             'password_confirmation' => 'portal-secret',
             'account_kind' => 'personal',
@@ -153,6 +204,7 @@ class CloudSubscribeWizardTest extends TestCase
         ])->assertRedirect('/cloud');
         $person = CloudTenant::where('email', 'paul@demo.test')->first();
         $this->assertSame('Paul Biya', $person->name);
+        $this->assertSame('paul.biya', \App\User::where('email', 'paul@demo.test')->value('username'));
         $this->assertSame('personal', CloudTenantSetting::where('cloud_tenant_id', $person->id)->where('key', 'account_kind')->value('value'));
 
         app(CloudTenantContext::class)->set($tenant);

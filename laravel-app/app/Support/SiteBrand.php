@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\GeneralSetting;
+use Illuminate\Support\Facades\Schema;
 
 class SiteBrand
 {
@@ -12,7 +13,7 @@ class SiteBrand
      */
     public static function logoUrl($generalSetting = null)
     {
-        $setting = $generalSetting ?: GeneralSetting::latest()->first();
+        $setting = $generalSetting ?: self::setting();
         $fallback = url('public/branding/beyond-logo.png');
 
         if ($setting && ! empty($setting->site_logo)) {
@@ -39,10 +40,19 @@ class SiteBrand
 
     public static function siteTitle($generalSetting = null)
     {
-        $setting = $generalSetting ?: GeneralSetting::latest()->first();
+        $setting = $generalSetting ?: self::setting();
 
         return ($setting && ! empty($setting->site_title))
             ? $setting->site_title
             : 'Beyond Enterprise';
+    }
+
+    private static function setting()
+    {
+        if (! Schema::hasTable('general_settings')) {
+            return null;
+        }
+
+        return GeneralSetting::latest()->first();
     }
 }

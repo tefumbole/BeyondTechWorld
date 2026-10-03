@@ -101,6 +101,9 @@ class CloudOnboardingService
                     'is_active' => 1,
                     'company_name' => $input['company_name'],
                 ];
+                if (Schema::hasColumn('users', 'username') && ! empty($input['username'])) {
+                    $attributes['username'] = $input['username'];
+                }
                 if (Schema::hasColumn('users', 'is_deleted')) {
                     $attributes['is_deleted'] = 0;
                 }
