@@ -55,6 +55,7 @@
                         'side-menu'     => ['label' => 'Side Menu', 'tone' => 'tone-purple', 'icon' => 'dripicons-view-list'],
                         'people-menu'   => ['label' => 'People', 'tone' => 'tone-pink', 'icon' => 'dripicons-user'],
                         'settings-menu' => ['label' => 'Settings', 'tone' => 'tone-orange', 'icon' => 'dripicons-gear'],
+                        'whatsapp-menu' => ['label' => 'WhatsApp Hub', 'tone' => 'tone-green', 'icon' => 'fa fa-whatsapp'],
                         'content-tabs'  => ['label' => 'Content Tabs', 'tone' => 'tone-teal', 'icon' => 'dripicons-toggles'],
                     ];
                     $pageTones = [
@@ -85,7 +86,7 @@
                     @endforeach
                 </div>
 
-                @if(in_array($tab, ['landing-menu', 'side-menu', 'people-menu', 'settings-menu', 'content-tabs'], true))
+                @if(in_array($tab, ['landing-menu', 'side-menu', 'people-menu', 'settings-menu', 'whatsapp-menu', 'content-tabs'], true))
                     @php
                         if ($tab == 'side-menu') {
                             $items = $side;
@@ -105,6 +106,12 @@
                             $action = route('site-content.settings-menu');
                             $heading = 'Settings — Order';
                             $hint = 'Drag items to reorder Settings submenu items (or use arrows). Click Save when done.';
+                        } elseif ($tab == 'whatsapp-menu') {
+                            $items = \App\Support\SiteMenu::whatsappItems();
+                            $order = \App\Support\SiteMenu::whatsappOrder();
+                            $action = route('site-content.whatsapp-menu');
+                            $heading = 'WhatsApp Hub — Order';
+                            $hint = 'Drag items to reorder the WhatsApp Hub menu (or use arrows). Click Save when done.';
                         } elseif ($tab == 'content-tabs') {
                             $items = \App\Support\SiteContent::contentTabItems();
                             $order = \App\Support\SiteContent::contentTabOrder();

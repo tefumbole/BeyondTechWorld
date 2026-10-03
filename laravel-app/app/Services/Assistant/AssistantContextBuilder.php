@@ -63,7 +63,8 @@ class AssistantContextBuilder
             'conversation' => $conversation,
             'conversation_id' => $conversation->id,
             'contact_id' => $contact ? $contact->id : null,
-            'contact_name' => $contact ? $contact->displayName() : null,
+            'contact_name' => app(AssistantContactVoice::class)->preferredName($contact),
+            'contact_voice' => app(AssistantContactVoice::class)->line($contact),
             'phone' => $contact ? $contact->normalized_phone : null,
             'roles' => array_values(array_unique($roles)),
             'customer_id' => $customerId,
@@ -84,6 +85,7 @@ class AssistantContextBuilder
         return [
             'conversation_id' => $context['conversation_id'],
             'contact_name' => $context['contact_name'],
+            'contact_voice' => isset($context['contact_voice']) ? $context['contact_voice'] : '',
             'phone' => $context['phone'],
             'roles' => $context['roles'],
             'lead' => $context['lead'],

@@ -379,6 +379,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/site-content/side-menu', 'SiteContentController@saveSideMenu')->name('site-content.side-menu');
     Route::post('/admin/site-content/settings-menu', 'SiteContentController@saveSettingsMenu')->name('site-content.settings-menu');
     Route::post('/admin/site-content/people-menu', 'SiteContentController@savePeopleMenu')->name('site-content.people-menu');
+    Route::post('/admin/site-content/whatsapp-menu', 'SiteContentController@saveWhatsappMenu')->name('site-content.whatsapp-menu');
     Route::post('/admin/site-content/content-tabs', 'SiteContentController@saveContentTabs')->name('site-content.content-tabs');
     Route::post('/admin/site-content/content/{page}', 'SiteContentController@saveContent')->name('site-content.content');
     Route::post('/admin/site-content/gallery/items', 'SiteContentController@storeGalleryItem')->name('site-content.gallery.store');
@@ -538,6 +539,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
     Route::post('/admin/whatsapp/link/disconnect', 'WhatsApp\WhatsAppHubController@disconnectLink')->name('whatsapp.link.disconnect');
+    Route::get('/admin/whatsapp/people', 'WhatsApp\WhatsAppHubController@people')->name('whatsapp.people');
+    Route::post('/admin/whatsapp/contacts/{id}/voice', 'WhatsApp\WhatsAppHubController@saveContactVoice')->name('whatsapp.contact.voice');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
     Route::post('/admin/whatsapp/conversations/delete', 'WhatsApp\WhatsAppHubController@destroyConversations')->name('whatsapp.conversations.delete');
     Route::post('/admin/whatsapp/conversations/{id}/delete', 'WhatsApp\WhatsAppHubController@destroyConversation')->name('whatsapp.conversation.delete');

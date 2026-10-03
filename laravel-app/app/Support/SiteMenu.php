@@ -158,6 +158,60 @@ class SiteMenu
         return self::ordered('people_menu_order', self::peopleItems());
     }
 
+    /** WhatsApp Hub submenu items (key => label). */
+    public static function whatsappItems()
+    {
+        return [
+            'command' => 'Command Center',
+            'conversations' => 'Conversations',
+            'leads' => 'Leads',
+            'groups' => 'Groups',
+            'rentals' => 'Rentals',
+            'internship' => 'Internship',
+            'attendance' => 'Attendance',
+            'documents' => 'Documents',
+            'tenants' => 'Tenant Operations',
+            'bills' => 'Bill Payments',
+            'appointments' => 'Appointments',
+            'tracking' => 'Message Tracking',
+            'calls' => 'Calls',
+            'diagnostics' => 'Diagnostics',
+            'assistant' => 'AI Assistant',
+            'brief' => 'AI brief',
+            'people' => 'People I know',
+            'settings' => 'Settings',
+        ];
+    }
+
+    public static function whatsappOrder()
+    {
+        return self::ordered('whatsapp_menu_order', self::whatsappItems());
+    }
+
+    public static function whatsappLiKeyMap()
+    {
+        return [
+            'whatsapp-command-menu' => 'command',
+            'whatsapp-conversations-menu' => 'conversations',
+            'whatsapp-leads-menu' => 'leads',
+            'whatsapp-groups-menu' => 'groups',
+            'whatsapp-rentals-menu' => 'rentals',
+            'whatsapp-internship-menu' => 'internship',
+            'whatsapp-attendance-menu' => 'attendance',
+            'whatsapp-documents-menu' => 'documents',
+            'whatsapp-tenants-menu' => 'tenants',
+            'whatsapp-bills-menu' => 'bills',
+            'whatsapp-appointments-menu' => 'appointments',
+            'whatsapp-tracking-menu' => 'tracking',
+            'whatsapp-calls-menu' => 'calls',
+            'whatsapp-diagnostics-menu' => 'diagnostics',
+            'whatsapp-assistant-menu' => 'assistant',
+            'whatsapp-brief-menu' => 'brief',
+            'whatsapp-people-menu' => 'people',
+            'whatsapp-settings-menu' => 'settings',
+        ];
+    }
+
     /** Map people submenu <li id="..."> to stable reorder keys. */
     public static function peopleLiKeyMap()
     {

@@ -223,6 +223,12 @@
                 <h5>Contact</h5>
                 <div><strong>{{ optional($conversation->contact)->wa_name ?: '—' }}</strong></div>
                 <div>{{ optional($conversation->contact)->display_phone }}</div>
+                @if($conversation->contact && $conversation->contact->call_name)
+                    <div class="small">You call them {{ $conversation->contact->call_name }}</div>
+                @endif
+                @if($conversation->contact)
+                    @include('whatsapp_hub.partials.contact_voice', ['contact' => $conversation->contact])
+                @endif
                 <hr>
                 <div class="small text-muted">Linked ERP identities</div>
                 @forelse(optional($conversation->contact)->links ?? [] as $link)

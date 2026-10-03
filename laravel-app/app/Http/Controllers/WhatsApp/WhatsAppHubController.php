@@ -12,6 +12,7 @@ use App\User;
 use App\WhatsApp\Lead;
 use App\WhatsApp\LeadCatalog;
 use App\WhatsApp\WhatsAppCall;
+use App\WhatsApp\WhatsAppContact;
 use App\WhatsApp\WhatsAppConversation;
 use App\WhatsApp\WhatsAppConversationEvent;
 use App\WhatsApp\WhatsAppMessage;
@@ -192,6 +193,53 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.conversation', compact(
             'conversation', 'messages', 'notes', 'events', 'canReply', 'staff', 'context', 'lead', 'documents', 'sla', 'rentalDraft', 'rentalRequest', 'internshipPanel', 'attendancePanel', 'documentPanel', 'recentChats'
         ));
+    }
+
+    public function people(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $q = trim((string) $request->get('q', ''));
+        $query = WhatsAppContact::query()->orderByDesc('id');
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function ($rows) use ($like) {
+                $rows->where('wa_name', 'like', $like)
+                    ->orWhere('display_phone', 'like', $like)
+                    ->orWhere('normalized_phone', 'like', $like);
+                if (Schema::hasColumn('whatsapp_contacts', 'call_name')) {
+                    $rows->orWhere('call_name', 'like', $like)
+                        ->orWhere('relationship', 'like', $like);
+                }
+            });
+        }
+        $contacts = $query->paginate(30);
+        $selected = $request->filled('contact')
+            ? WhatsAppContact::find($request->get('contact'))
+            : null;
+
+        return view('whatsapp_hub.people', compact('contacts', 'q', 'selected'));
+    }
+
+    public function saveContactVoice(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $contact = WhatsAppContact::findOrFail($id);
+        $data = $request->validate([
+            'relationship' => 'nullable|string|max:80',
+            'call_name' => 'nullable|string|max:80',
+            'preferred_language' => 'nullable|string|max:80',
+            'voice_note' => 'nullable|string|max:1000',
+        ]);
+        $saved = app(\App\Services\Assistant\AssistantContactVoice::class)->save($contact, $data);
+        if (! $saved) {
+            return redirect()->back()->with('not_permitted', 'The contact notes are not ready on this server yet.');
+        }
+
+        return redirect()->back()->with('message', 'The assistant will use this when talking to '.($contact->call_name ?: $contact->displayName()).'.');
     }
 
     public function reply(Request $request, $id)

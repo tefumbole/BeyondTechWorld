@@ -87,7 +87,11 @@ class CloudOnboardingService
         }
         $email = strtolower(trim($input['email']));
         if (User::where('email', $email)->exists()) {
-            throw new CloudExistingAccountException('That email already has an account. Sign in to add a company.');
+            throw new CloudExistingAccountException('That email already has an account. Choose a different email. You can keep the same phone number, and the username must be one that is not already in use.');
+        }
+        if (Schema::hasColumn('users', 'username') && ! empty($input['username'])
+            && app(CloudSignupIdentity::class)->usernameTaken($input['username'])) {
+            throw new \RuntimeException('That username already exists. Choose another one.');
         }
 
         $pair = $this->withToken($input, function () use ($input, $email) {

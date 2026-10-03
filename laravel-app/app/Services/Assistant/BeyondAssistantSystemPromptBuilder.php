@@ -60,6 +60,9 @@ class BeyondAssistantSystemPromptBuilder
         if (! empty($context['contact_name'])) {
             $bits[] = 'Known contact name: '.$context['contact_name'].'. Use it only when this is a new conversation.';
         }
+        if (! empty($context['contact_voice'])) {
+            $bits[] = $context['contact_voice'];
+        }
         if (! empty($context['roles']) && is_array($context['roles'])) {
             $bits[] = 'Recognized roles: '.implode(', ', $context['roles']).'.';
         }

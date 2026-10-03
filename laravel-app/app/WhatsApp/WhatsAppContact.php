@@ -12,6 +12,7 @@ class WhatsAppContact extends Model
 
     protected $fillable = [
         'normalized_phone', 'display_phone', 'wa_name', 'blocked_at',
+        'call_name', 'relationship', 'preferred_language', 'voice_note',
     ];
 
     protected $dates = ['blocked_at'];

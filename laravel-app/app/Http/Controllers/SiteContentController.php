@@ -77,6 +77,14 @@ class SiteContentController extends Controller
         return redirect('/admin/site-content?tab=people-menu')->with('message', 'People menu order saved.');
     }
 
+    public function saveWhatsappMenu(Request $request)
+    {
+        $this->authorizeAdmin();
+        $this->saveOrder($request, 'whatsapp_menu_order', SiteMenu::whatsappItems());
+
+        return redirect('/admin/site-content?tab=whatsapp-menu')->with('message', 'WhatsApp Hub menu order saved.');
+    }
+
     public function saveContentTabs(Request $request)
     {
         $this->authorizeAdmin();

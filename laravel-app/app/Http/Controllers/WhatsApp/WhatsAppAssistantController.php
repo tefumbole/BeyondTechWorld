@@ -98,10 +98,14 @@ class WhatsAppAssistantController extends Controller
             'title' => 'required|string|max:191',
             'details' => 'required|string|max:4000',
             'starts_at' => 'nullable|date',
-            'ends_at' => 'nullable|date',
+            'ends_at' => $request->has('timed') ? 'required|date' : 'nullable|date',
         ]);
         $data['starts_at'] = ! empty($data['starts_at']) ? Carbon::parse($data['starts_at']) : null;
         $data['ends_at'] = ! empty($data['ends_at']) ? Carbon::parse($data['ends_at']) : null;
+        if ($request->has('brief_form') && ! $request->has('timed')) {
+            $data['starts_at'] = null;
+            $data['ends_at'] = null;
+        }
 
         return $data;
     }

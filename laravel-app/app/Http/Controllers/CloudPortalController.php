@@ -102,7 +102,7 @@ class CloudPortalController extends Controller
         try {
             list($user, $tenant) = app(CloudOnboardingService::class)->register($data);
         } catch (CloudExistingAccountException $e) {
-            return redirect()->route('cloud.login')->with('not_permitted', $e->getMessage());
+            return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
         } catch (\Exception $e) {
             return redirect()->route('cloud.register')->with('not_permitted', $e->getMessage())->withInput();
         }
@@ -355,7 +355,14 @@ class CloudPortalController extends Controller
             'account_kind' => 'nullable|in:personal,company',
         ];
         if ($withAccount && Schema::hasColumn('users', 'username')) {
-            $rules['username'] = 'required|string|min:3|max:100|regex:/^[A-Za-z0-9._-]+$/|unique:users,username';
+            $rules['username'] = [
+                'required', 'string', 'min:3', 'max:100', 'regex:/^[A-Za-z0-9._-]+$/',
+                function ($attribute, $value, $fail) {
+                    if (app(\App\Services\Cloud\CloudSignupIdentity::class)->usernameTaken($value)) {
+                        $fail('That username already exists. Choose another one.');
+                    }
+                },
+            ];
         } elseif ($withAccount) {
             $rules['username'] = 'nullable|string|max:100';
         }

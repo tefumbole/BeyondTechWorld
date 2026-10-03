@@ -2223,23 +2223,24 @@
                         @if($whatsapp_module_active)
                             <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
-                                    <li><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
-                                    <li><a href="{{ route('whatsapp.conversations') }}">Conversations</a></li>
-                                    <li><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
+                                    <li id="whatsapp-command-menu"><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
+                                    <li id="whatsapp-conversations-menu"><a href="{{ route('whatsapp.conversations') }}">Conversations</a></li>
+                                    <li id="whatsapp-leads-menu"><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
                                     <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
-                                    <li><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>
-                                    <li><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
-                                    <li><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
-                                    <li><a href="{{ route('whatsapp.documents') }}">Documents</a></li>
-                                    <li><a href="{{ route('whatsapp.tenants') }}">Tenant Operations</a></li>
-                                    <li><a href="{{ route('whatsapp.bills') }}">Bill Payments</a></li>
-                                    <li><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
-                                    <li><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
-                                    <li><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
-                                    <li><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
-                                    <li><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
+                                    <li id="whatsapp-rentals-menu"><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>
+                                    <li id="whatsapp-internship-menu"><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
+                                    <li id="whatsapp-attendance-menu"><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
+                                    <li id="whatsapp-documents-menu"><a href="{{ route('whatsapp.documents') }}">Documents</a></li>
+                                    <li id="whatsapp-tenants-menu"><a href="{{ route('whatsapp.tenants') }}">Tenant Operations</a></li>
+                                    <li id="whatsapp-bills-menu"><a href="{{ route('whatsapp.bills') }}">Bill Payments</a></li>
+                                    <li id="whatsapp-appointments-menu"><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
+                                    <li id="whatsapp-tracking-menu"><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
+                                    <li id="whatsapp-calls-menu"><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
+                                    <li id="whatsapp-diagnostics-menu"><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
+                                    <li id="whatsapp-assistant-menu"><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
                                     <li id="whatsapp-brief-menu"><a href="{{ route('whatsapp.brief') }}">AI brief</a></li>
-                                    <li><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
+                                    <li id="whatsapp-people-menu"><a href="{{ route('whatsapp.people') }}">People I know</a></li>
+                                    <li id="whatsapp-settings-menu"><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
                                 </ul>
                             </li>
                         @endif
@@ -3061,6 +3062,8 @@
                         $__settingsLiKeyMap = \App\Support\SiteMenu::settingsLiKeyMap();
                         $__peopleMenuOrder = \App\Support\SiteMenu::peopleOrder();
                         $__peopleLiKeyMap = \App\Support\SiteMenu::peopleLiKeyMap();
+                        $__whatsappMenuOrder = \App\Support\SiteMenu::whatsappOrder();
+                        $__whatsappLiKeyMap = \App\Support\SiteMenu::whatsappLiKeyMap();
                     @endphp
                     <script>
                     (function () {
@@ -3142,6 +3145,21 @@
                         var order = @json($__peopleMenuOrder);
                         var liKeyMap = @json($__peopleLiKeyMap);
                         var ul = document.getElementById('people');
+                        if (!ul || !order || !order.length) return;
+                        var map = {};
+                        Array.prototype.slice.call(ul.children).forEach(function (li) {
+                            if (li.tagName !== 'LI') return;
+                            var liId = li.getAttribute('id');
+                            if (!liId || !liKeyMap[liId]) return;
+                            var k = liKeyMap[liId];
+                            if (!map[k]) map[k] = li;
+                        });
+                        order.forEach(function (k) { if (map[k]) ul.appendChild(map[k]); });
+                    })();
+                    (function () {
+                        var order = @json($__whatsappMenuOrder);
+                        var liKeyMap = @json($__whatsappLiKeyMap);
+                        var ul = document.getElementById('whatsapp-module');
                         if (!ul || !order || !order.length) return;
                         var map = {};
                         Array.prototype.slice.call(ul.children).forEach(function (li) {

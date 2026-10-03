@@ -5,7 +5,7 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         <h1 class="wa-title">AI brief</h1>
-        <p class="wa-sub">Tell the assistant what is true right now. When someone writes on WhatsApp, it can use this. Leave the times empty for a permanent note, such as where you live or work. If you set an end time, that note is deleted automatically once the time has passed.</p>
+        <p class="wa-sub">Tell the assistant what is true right now. A note does not need a date. Leave it as a standing note, or tick the box when it is only true for a period. A note with an end time is deleted once that time has passed.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         <div class="wa-card">
@@ -15,13 +15,15 @@
                     <label>What is this about?</label>
                     <input type="text" name="title" class="form-control" required maxlength="191" placeholder="72 hours of praise, or I am back in Bamenda">
                 </div>
-                <div class="row">
+                <input type="hidden" name="brief_form" value="1">
+                <label class="mb-2"><input type="checkbox" name="timed" value="1" class="brief-timed"> This is only true for a period of time</label>
+                <div class="row brief-times" hidden>
                     <div class="col-md-6 form-group">
                         <label>Starts <span class="text-muted">(optional)</span></label>
                         <input type="datetime-local" name="starts_at" class="form-control">
                     </div>
                     <div class="col-md-6 form-group">
-                        <label>Ends <span class="text-muted">(optional — leave empty to keep this permanently)</span></label>
+                        <label>Ends</label>
                         <input type="datetime-local" name="ends_at" class="form-control">
                     </div>
                 </div>
@@ -36,18 +38,20 @@
             <div class="wa-card">
                 <form method="post" action="{{ route('whatsapp.brief.update', $brief->id) }}">
                     @csrf
-                    <p class="small text-muted mb-2">{{ $brief->ends_at ? 'Used in replies until '.$brief->ends_at->format('j M Y H:i').', then deleted.' : 'Permanent. Used in replies until you remove it.' }}</p>
+                    <input type="hidden" name="brief_form" value="1">
+                    <p class="small text-muted mb-2">{{ $brief->ends_at ? 'Used in replies until '.$brief->ends_at->format('j M Y H:i').', then deleted.' : 'Standing note. No date. Used in replies until you remove it.' }}</p>
                     <div class="form-group">
                         <label>What is this about?</label>
                         <input type="text" name="title" class="form-control" required maxlength="191" value="{{ $brief->title }}">
                     </div>
-                    <div class="row">
+                    <label class="mb-2"><input type="checkbox" name="timed" value="1" class="brief-timed" {{ ($brief->starts_at || $brief->ends_at) ? 'checked' : '' }}> This is only true for a period of time</label>
+                    <div class="row brief-times" {{ ($brief->starts_at || $brief->ends_at) ? '' : 'hidden' }}>
                         <div class="col-md-6 form-group">
                             <label>Starts <span class="text-muted">(optional)</span></label>
                             <input type="datetime-local" name="starts_at" class="form-control" value="{{ $brief->starts_at ? $brief->starts_at->format('Y-m-d\TH:i') : '' }}">
                         </div>
                         <div class="col-md-6 form-group">
-                            <label>Ends <span class="text-muted">(optional)</span></label>
+                            <label>Ends</label>
                             <input type="datetime-local" name="ends_at" class="form-control" value="{{ $brief->ends_at ? $brief->ends_at->format('Y-m-d\TH:i') : '' }}">
                         </div>
                     </div>
@@ -70,5 +74,13 @@
     $("ul#whatsapp-module").siblings('a').attr('aria-expanded','true');
     $("ul#whatsapp-module").addClass("show");
     $("#whatsapp-brief-menu").addClass("active");
+    document.querySelectorAll('form').forEach(function (form) {
+        var box = form.querySelector('.brief-timed');
+        var times = form.querySelector('.brief-times');
+        if (!box || !times) return;
+        var paint = function () { times.hidden = !box.checked; };
+        box.addEventListener('change', paint);
+        paint();
+    });
 </script>
 @endsection

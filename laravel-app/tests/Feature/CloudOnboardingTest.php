@@ -178,7 +178,8 @@ class CloudOnboardingTest extends TestCase
         $page = $this->get('/cloud/register');
         preg_match('/name="onboard_token" value="([^"]+)"/', $page->getContent(), $match);
         $this->post('/cloud/register', $this->payload('Acme Events', 'acme@demo.test', '237670000022', ['RENTALS'], $match[1]))
-            ->assertRedirect('/cloud/login');
+            ->assertRedirect('/cloud/register')
+            ->assertSessionHas('not_permitted');
         $this->assertSame(1, User::where('email', 'acme@demo.test')->count());
 
         $page = $this->get('/cloud/register');

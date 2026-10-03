@@ -251,7 +251,7 @@
             <section class="step" data-step="2">
                 <button type="button" class="back-step" data-back="1">Back</button>
                 <h2 class="text-xl font-bold">Phone number</h2>
-                <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown.</p>
+                <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown. A number already used by a client or a staff account can be used here too.</p>
                 <div class="field-row">
                     <label for="phone">Phone number</label>
                     <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
@@ -290,7 +290,7 @@
             <section class="step" data-step="5">
                 <button type="button" class="back-step" data-back="4">Back</button>
                 <h2 class="text-xl font-bold">Username</h2>
-                <p class="hint mt-1">Create a username, then add the email and password.</p>
+                <p class="hint mt-1">Create a username, then add the email and password. If this username is already used by a client, a staff member, or another account, choose a different one. The phone number can stay the same. Everyone signs in from the same portal.</p>
                 <div class="field-row">
                     <label for="username">Username</label>
                     <input class="px-4 py-2" name="username" id="username" value="{{ old('username') }}" autocomplete="username">
@@ -669,7 +669,9 @@
             $resume = 1;
             if ($errors->any()) {
                 $resume = 5;
-                if ($errors->has('modules') || $errors->has('signature')) {
+                if ($errors->has('username') || $errors->has('email') || $errors->has('password')) {
+                    $resume = 5;
+                } elseif ($errors->has('modules') || $errors->has('signature')) {
                     $resume = 7;
                 } elseif ($errors->has('country') || $errors->has('city') || $errors->has('address') || $errors->has('timezone') || $errors->has('currency')) {
                     $resume = 6;
@@ -680,6 +682,8 @@
                 }
             } elseif (session('not_permitted') && strpos((string) session('not_permitted'), 'Verify the phone') !== false) {
                 $resume = 3;
+            } elseif (session('not_permitted') && (strpos((string) session('not_permitted'), 'username') !== false || strpos((string) session('not_permitted'), 'email') !== false)) {
+                $resume = 5;
             }
         @endphp
         @if($resume > 1)
