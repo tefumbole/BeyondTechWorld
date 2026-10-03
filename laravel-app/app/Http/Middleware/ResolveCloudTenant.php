@@ -29,6 +29,13 @@ class ResolveCloudTenant
         if ($tenant) {
             $context->set($tenant);
             $request->attributes->set('cloudTenant', $tenant);
+            if ($tenant->type === \App\Cloud\CloudTenantType::CUSTOMER) {
+                try {
+                    app(\App\Services\Cloud\CloudCompanyDefaults::class)->ensure($tenant);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
         }
         try {
             return $next($request);

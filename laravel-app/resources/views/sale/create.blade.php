@@ -43,7 +43,7 @@
 
                                                     $points[$customer->id] = $customer->points;
                                                 ?>
-                                                <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
+                                                <option value="{{$customer->id}}" @if(strcasecmp($customer->name, 'Walk-in') === 0 && optional(app(\App\Services\Cloud\CloudTenantContext::class)->tenant())->type === 'CUSTOMER') selected @endif>{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -53,7 +53,7 @@
                                             <label>{{trans('file.Warehouse')}} *</label>
                                             <select required name="warehouse_id" id="warehouse_id" class="selectpicker form-control" data-live-search="true"   title="Select warehouse...">
                                                 @foreach($lims_warehouse_list as $warehouse)
-                                                <option value="{{$warehouse->id}}">{{$warehouse->name}}</option>
+                                                <option value="{{$warehouse->id}}" @if(optional(app(\App\Services\Cloud\CloudTenantContext::class)->tenant())->type === 'CUSTOMER' && (int) Auth::user()->warehouse_id === (int) $warehouse->id) selected @endif>{{$warehouse->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -63,7 +63,7 @@
                                             <label>{{trans('file.Biller')}} *</label>
                                             <select required name="biller_id" class="selectpicker form-control" data-live-search="true"   title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}">{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if(optional(app(\App\Services\Cloud\CloudTenantContext::class)->tenant())->type === 'CUSTOMER' && (int) Auth::user()->biller_id === (int) $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>

@@ -333,6 +333,11 @@ class CloudOnboardingService
     protected function welcome(User $user, CloudTenant $tenant)
     {
         try {
+            app(CloudCompanyDefaults::class)->ensure($tenant);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        try {
             Mail::raw(
                 config('cloud.trial_welcome').' '.$tenant->system_name.' is ready.',
                 function ($message) use ($user) {

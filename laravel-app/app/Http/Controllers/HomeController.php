@@ -405,6 +405,11 @@ echo $response;
             return view('customer_index', compact('lims_sale_data', 'lims_payment_data', 'lims_quotation_data', 'lims_return_data', 'points'));
         }
 
+        $company = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        if ($company && $company->type === \App\Cloud\CloudTenantType::CUSTOMER) {
+            return view('cloud.company_dashboard', app(\App\Services\Cloud\CloudCompanyDashboard::class)->snapshot());
+        }
+
         try {
         $start_date = date("Y").'-'.date("m").'-'.'01';
         $end_date = date("Y").'-'.date("m").'-'.date('t', mktime(0, 0, 0, date("m"), 1, date("Y")));

@@ -12,7 +12,24 @@ class AssistantBriefService
 {
     public function visible()
     {
-        $query = AssistantBrief::query()->orderByDesc('id');
+        $this->forgetExpired();
+
+        return $this->scoped(AssistantBrief::query())->orderByDesc('id');
+    }
+
+    public function forgetExpired()
+    {
+        if (! Schema::hasTable('assistant_briefs') || ! Schema::hasColumn('assistant_briefs', 'ends_at')) {
+            return;
+        }
+        $this->scoped(AssistantBrief::query())
+            ->whereNotNull('ends_at')
+            ->where('ends_at', '<', now())
+            ->delete();
+    }
+
+    protected function scoped($query)
+    {
         if (! Schema::hasColumn('assistant_briefs', 'cloud_tenant_id')) {
             return $query;
         }

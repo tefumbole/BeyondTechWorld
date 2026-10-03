@@ -386,6 +386,12 @@ class SaleController extends Controller
             $lims_tax_list = Tax::where('is_active', true)->get();
             $lims_pos_setting_data = PosSetting::latest()->first();
             $lims_reward_point_setting_data = RewardPointSetting::latest()->first();
+            list($lims_customer_list, $lims_warehouse_list, $lims_biller_list, $lims_pos_setting_data) = $this->companySaleLists(
+                $lims_customer_list,
+                $lims_warehouse_list,
+                $lims_biller_list,
+                $lims_pos_setting_data
+            );
 
             return view('sale.create',compact('all_permission', 'lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_tax_list', 'lims_reward_point_setting_data'));
         }
@@ -1703,6 +1709,12 @@ class SaleController extends Controller
             $lims_account_default_debit = Account::where('is_default_debit', true)->first();
             $lims_coupon_list = Coupon::where('is_active',true)->get();
             $flag = 0;
+            list($lims_customer_list, $lims_warehouse_list, $lims_biller_list, $lims_pos_setting_data) = $this->companySaleLists(
+                $lims_customer_list,
+                $lims_warehouse_list,
+                $lims_biller_list,
+                $lims_pos_setting_data
+            );
 
             return view('sale.pos', compact('all_permission', 'lims_customer_list', 'customer_owing', 'lims_customer_group_all', 'lims_warehouse_list', 'lims_reward_point_setting_data', 'lims_product_list', 'product_number', 'lims_tax_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_brand_list', 'lims_category_list', 'recent_sale', 'recent_draft', 'lims_coupon_list', 'flag', 'lims_account_list', 'lims_account_default', 'lims_account_default_debit', 'lims_category_list', 'lims_unit_list'));
         }
@@ -3469,6 +3481,58 @@ class SaleController extends Controller
                 $stockDuration->update(['restock' => date('Y-m-d')]);
             }
         }
+    }
+
+    /**
+     * A customer company sells as itself. Walk-in is the default customer,
+     * and the warehouse and biller are that company's own records.
+     */
+    protected function companySaleLists($customers, $warehouses, $billers, $posSetting)
+    {
+        $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
+        if (! $tenant || $tenant->type !== \App\Cloud\CloudTenantType::CUSTOMER) {
+            return [$customers, $warehouses, $billers, $posSetting];
+        }
+        if ($warehouses->isEmpty()) {
+            $warehouses = Warehouse::where('is_active', true)->get();
+        }
+        $billerId = (int) Auth::user()->biller_id;
+        if ($billerId) {
+            $own = $billers->where('id', $billerId)->values();
+            if ($own->count() < 1) {
+                $own = Biller::where('is_active', true)->where('id', $billerId)->get();
+            }
+            if ($own->count()) {
+                $billers = $own;
+            }
+        }
+        if (! $posSetting) {
+            $posSetting = new PosSetting();
+        }
+        $warehouseIds = $warehouses->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
+        if (! in_array((int) $posSetting->warehouse_id, $warehouseIds, true) && $warehouseIds) {
+            $posSetting->warehouse_id = $warehouseIds[0];
+        }
+        if ($billerId && $billers->contains('id', $billerId)) {
+            $posSetting->biller_id = $billerId;
+        }
+        $walkIn = null;
+        foreach ($customers as $customer) {
+            if (strcasecmp(trim($customer->name), 'Walk-in') === 0) {
+                $walkIn = $customer->id;
+                break;
+            }
+        }
+        $customerIds = $customers->pluck('id')->map(function ($id) {
+            return (int) $id;
+        })->all();
+        if ($walkIn && ! in_array((int) $posSetting->customer_id, $customerIds, true)) {
+            $posSetting->customer_id = $walkIn;
+        }
+
+        return [$customers, $warehouses, $billers, $posSetting];
     }
 
     public function addCategoryIdInSale() {

@@ -37,6 +37,9 @@ class WhatsAppAssistantController extends Controller
             return $deny;
         }
         $data = $this->briefInput($request);
+        if ($data['ends_at'] && $data['ends_at']->lt(now())) {
+            return redirect()->route('whatsapp.brief')->with('message', 'That end time has already passed, so the note was not kept.');
+        }
         AssistantBrief::create([
             'cloud_tenant_id' => app(AssistantBriefService::class)->tenantIdForSave(),
             'title' => $data['title'],
@@ -67,6 +70,11 @@ class WhatsAppAssistantController extends Controller
         $brief->enabled = $request->has('enabled');
         $brief->updated_by = Auth::id();
         $brief->save();
+        if ($brief->ends_at && $brief->ends_at->lt(now())) {
+            $brief->delete();
+
+            return redirect()->route('whatsapp.brief')->with('message', 'That end time has passed, so the note was removed.');
+        }
 
         return redirect()->route('whatsapp.brief')->with('message', 'Updated. The assistant will use the new details.');
     }

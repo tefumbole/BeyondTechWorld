@@ -97,6 +97,26 @@ class AssistantBriefTest extends TestCase
         $alpha = app(AssistantBriefService::class)->promptText();
         $this->assertStringContainsString('Alpha private install', $alpha);
         $this->assertStringNotContainsString('72 hours of praise', $alpha);
+        $this->assertNull(AssistantBrief::where('title', 'Old trip')->first());
+        $this->assertNotNull(AssistantBrief::where('title', 'Alpha private install')->first());
+
+        AssistantBrief::create([
+            'cloud_tenant_id' => $beyond->id,
+            'title' => 'Ended install',
+            'ends_at' => now()->subHour(),
+            'details' => 'Remove me',
+            'enabled' => true,
+        ]);
+        AssistantBrief::create([
+            'cloud_tenant_id' => $beyond->id,
+            'title' => 'Back in Bamenda',
+            'starts_at' => now()->subDay(),
+            'details' => 'I am back from Europe.',
+            'enabled' => true,
+        ]);
+        $this->artisan('assistant:forget-expired-briefs');
+        $this->assertNull(AssistantBrief::where('title', 'Ended install')->first());
+        $this->assertNotNull(AssistantBrief::where('title', 'Back in Bamenda')->first());
     }
 
     public function test_deleting_a_conversation_removes_its_messages()

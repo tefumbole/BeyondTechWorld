@@ -2820,17 +2820,23 @@
             $('select[name=biller_id]').val(biller_id);
         }
 
-        if(getSavedValue("customer_id")) {
-            $('select[name=customer_id]').val(getSavedValue("customer_id"));
+        var savedCustomer = getSavedValue("customer_id");
+        var serverCustomer = $("input[name='customer_id_hidden']").val();
+        function customerOptionExists(id) {
+            return id && $('#customer_id option[value="' + id + '"]').length > 0;
         }
-        else {
-            $('select[name=customer_id]').val($("input[name='customer_id_hidden']").val());
+        if (newCustomerId && customerOptionExists(newCustomerId)) {
+            savedCustomer = String(newCustomerId);
         }
-
-        if(localStorage.getItem('customer_id')) {
-            $("#customer_id").val(localStorage.getItem('customer_id'));
+        if (!customerOptionExists(savedCustomer) && customerOptionExists(serverCustomer)) {
+            savedCustomer = String(serverCustomer);
+            localStorage.setItem('customer_id', savedCustomer);
         }
-        if (newCustomerId) {
+        if (customerOptionExists(savedCustomer)) {
+            $('select[name=customer_id]').val(savedCustomer);
+            $("#customer_id").val(savedCustomer);
+        }
+        if (newCustomerId && customerOptionExists(newCustomerId)) {
             $("#customer_id").val(String(newCustomerId));
             localStorage.setItem('customer_id', String(newCustomerId));
         }

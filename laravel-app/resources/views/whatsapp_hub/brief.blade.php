@@ -5,7 +5,7 @@
 <section class="forms">
     <div class="container-fluid wa-shell">
         <h1 class="wa-title">AI brief</h1>
-        <p class="wa-sub">Tell the assistant what is true right now. When someone writes on WhatsApp, it can use this. An event that has already ended is kept here but is no longer used in replies.</p>
+        <p class="wa-sub">Tell the assistant what is true right now. When someone writes on WhatsApp, it can use this. Leave the times empty for a permanent note, such as where you live or work. If you set an end time, that note is deleted automatically once the time has passed.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         <div class="wa-card">
@@ -17,11 +17,11 @@
                 </div>
                 <div class="row">
                     <div class="col-md-6 form-group">
-                        <label>Starts</label>
+                        <label>Starts <span class="text-muted">(optional)</span></label>
                         <input type="datetime-local" name="starts_at" class="form-control">
                     </div>
                     <div class="col-md-6 form-group">
-                        <label>Ends</label>
+                        <label>Ends <span class="text-muted">(optional — leave empty to keep this permanently)</span></label>
                         <input type="datetime-local" name="ends_at" class="form-control">
                     </div>
                 </div>
@@ -33,22 +33,21 @@
             </form>
         </div>
         @foreach($briefs as $brief)
-            @php $past = $brief->ends_at && $brief->ends_at->lt(now()); @endphp
             <div class="wa-card">
                 <form method="post" action="{{ route('whatsapp.brief.update', $brief->id) }}">
                     @csrf
-                    <p class="small text-muted mb-2">{{ $past ? 'This time has passed, so replies no longer use it.' : 'Used in replies.' }}</p>
+                    <p class="small text-muted mb-2">{{ $brief->ends_at ? 'Used in replies until '.$brief->ends_at->format('j M Y H:i').', then deleted.' : 'Permanent. Used in replies until you remove it.' }}</p>
                     <div class="form-group">
                         <label>What is this about?</label>
                         <input type="text" name="title" class="form-control" required maxlength="191" value="{{ $brief->title }}">
                     </div>
                     <div class="row">
                         <div class="col-md-6 form-group">
-                            <label>Starts</label>
+                            <label>Starts <span class="text-muted">(optional)</span></label>
                             <input type="datetime-local" name="starts_at" class="form-control" value="{{ $brief->starts_at ? $brief->starts_at->format('Y-m-d\TH:i') : '' }}">
                         </div>
                         <div class="col-md-6 form-group">
-                            <label>Ends</label>
+                            <label>Ends <span class="text-muted">(optional)</span></label>
                             <input type="datetime-local" name="ends_at" class="form-control" value="{{ $brief->ends_at ? $brief->ends_at->format('Y-m-d\TH:i') : '' }}">
                         </div>
                     </div>
