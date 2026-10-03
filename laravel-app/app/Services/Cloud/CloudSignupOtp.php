@@ -22,17 +22,25 @@ class CloudSignupOtp
         if ($count >= 5) {
             throw new \RuntimeException('Too many codes were sent to this phone. Wait and try again.');
         }
+        $sentKey = 'cloud-signup-otp-sent:'.$normalized;
+        $sentAt = (int) Cache::get($sentKey, 0);
+        $elapsed = now()->getTimestamp() - $sentAt;
+        if ($sentAt && $elapsed < 120) {
+            throw new \RuntimeException('You can request another code in '.(120 - $elapsed).' seconds.');
+        }
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put($this->key($normalized), [
             'hash' => Hash::make($code),
             'attempts' => 0,
         ], now()->addMinutes(10));
         Cache::put($countKey, $count + 1, now()->addHour());
+        Cache::put($sentKey, now()->getTimestamp(), now()->addMinutes(10));
         if (! app()->environment('testing')) {
             $result = app(\App\Services\Messaging\NotificationRouter::class)
                 ->sendWhatsAppOtp($normalized, $code, 'signup', 10);
             if (empty($result['success'])) {
                 Cache::forget($this->key($normalized));
+                Cache::forget($sentKey);
                 throw new \RuntimeException('We could not send the verification code on WhatsApp.');
             }
         }

@@ -5,8 +5,9 @@
 
 @push('head')
 <style>
-    .step { display: none; }
+    .step { display: none; text-align: left; }
     .step.on { display: block; }
+    .step[data-step="1"] { text-align: center; }
     .subscribe-hero {
         position: relative;
         min-height: calc(100vh - 7.5rem);
@@ -46,6 +47,33 @@
         font-weight: 800;
         font-size: 1.15rem;
     }
+    .field-row {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-top: 0.85rem;
+        text-align: left;
+    }
+    .field-row label {
+        flex: 0 0 9.5rem;
+        margin: 0;
+        font-weight: 650;
+        text-align: left;
+    }
+    .field-row input,
+    .field-row select {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        width: auto;
+    }
+    .known-name {
+        text-align: left;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #D4AF37;
+        margin-top: 0.4rem;
+    }
 </style>
 @endpush
 
@@ -83,80 +111,98 @@
             </section>
 
             <section class="step" data-step="2">
-                <h2 class="text-xl font-bold text-brand-blue">Phone number</h2>
-                <p class="text-gray-600 mt-1">Enter your phone number. A verification code is sent on WhatsApp before any service is shown.</p>
-                <label class="block font-semibold mt-4 text-gray-800" for="phone">Phone number</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
-                <button type="button" id="send-code" class="mt-4 bg-brand-blue text-white font-semibold rounded-full px-5 py-2.5">Send WhatsApp code</button>
+                <h2 class="text-xl font-bold">Phone number</h2>
+                <p class="hint mt-1">A verification code is sent on WhatsApp before any service is shown.</p>
+                <div class="field-row">
+                    <label for="phone">Phone number</label>
+                    <input class="px-4 py-2" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel">
+                </div>
+                <button type="button" id="send-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Send WhatsApp code</button>
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="send-error" hidden></p>
             </section>
 
             <section class="step" data-step="3">
-                <h2 class="text-xl font-bold text-brand-blue">Verification code</h2>
-                <p class="text-gray-600 mt-1">Enter the code sent to this phone on WhatsApp.</p>
-                <label class="block font-semibold mt-4" for="otp-code">Code</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" id="otp-code" inputmode="numeric" autocomplete="one-time-code">
-                <button type="button" id="check-code" class="mt-4 bg-brand-blue text-white font-semibold rounded-full px-5 py-2.5">Verify and continue</button>
+                <h2 class="text-xl font-bold">Verification code</h2>
+                <p class="hint mt-1">Enter the code sent to this phone on WhatsApp.</p>
+                <div class="field-row">
+                    <label for="otp-code">Code</label>
+                    <input class="px-4 py-2" id="otp-code" inputmode="numeric" autocomplete="one-time-code">
+                </div>
+                <button type="button" id="check-code" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Verify and continue</button>
+                <p class="hint mt-3" id="resend-wait">You can resend the code in 2:00</p>
+                <button type="button" id="resend-code" class="mt-2 bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5" disabled>Resend code</button>
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="code-error" hidden></p>
             </section>
 
             <section class="step" data-step="4">
                 <h2 class="text-xl font-bold" id="name-title">Your name</h2>
                 <p class="hint mt-2" id="name-note"></p>
-                <label class="block font-semibold mt-4" for="full-name">Name</label>
-                <input class="mt-1 w-full px-4 py-2" name="full_name" id="full-name" value="{{ old('full_name', trim(old('first_name').' '.old('last_name'))) }}" autocomplete="name">
+                <div class="field-row">
+                    <label for="full-name">Name</label>
+                    <input class="px-4 py-2" name="full_name" id="full-name" value="{{ old('full_name', trim(old('first_name').' '.old('last_name'))) }}" autocomplete="name">
+                </div>
                 <input type="hidden" name="first_name" id="first-name" value="{{ old('first_name') }}">
                 <input type="hidden" name="last_name" id="last-name" value="{{ old('last_name') }}">
                 <button type="button" id="to-username" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
             </section>
 
             <section class="step" data-step="5">
-                <h2 class="text-xl font-bold text-brand-blue">Username</h2>
-                <p class="text-gray-600 mt-1">Create a username for this account, then add the email and password.</p>
-                <label class="block font-semibold mt-4" for="username">Username</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="username" id="username" value="{{ old('username') }}" autocomplete="username">
-                <label class="block font-semibold mt-4" for="email">Email</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" type="email" name="email" id="email" value="{{ old('email') }}">
-                <label class="block font-semibold mt-4" for="password">Password</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" type="password" name="password" id="password">
-                <label class="block font-semibold mt-4" for="password-confirmation">Confirm password</label>
-                <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" type="password" name="password_confirmation" id="password-confirmation">
-                <button type="button" id="after-username" class="mt-4 bg-brand-blue text-white font-semibold rounded-full px-5 py-2.5">Continue</button>
+                <h2 class="text-xl font-bold">Username</h2>
+                <p class="hint mt-1">Create a username, then add the email and password.</p>
+                <div class="field-row">
+                    <label for="username">Username</label>
+                    <input class="px-4 py-2" name="username" id="username" value="{{ old('username') }}" autocomplete="username">
+                </div>
+                <div class="field-row">
+                    <label for="email">Email</label>
+                    <input class="px-4 py-2" type="email" name="email" id="email" value="{{ old('email') }}">
+                </div>
+                <div class="field-row">
+                    <label for="password">Password</label>
+                    <input class="px-4 py-2" type="password" name="password" id="password">
+                </div>
+                <div class="field-row">
+                    <label for="password-confirmation">Confirm password</label>
+                    <input class="px-4 py-2" type="password" name="password_confirmation" id="password-confirmation">
+                </div>
+                <button type="button" id="after-username" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue</button>
             </section>
 
             <section class="step" data-step="6">
-                <h2 class="text-xl font-bold text-brand-blue">Company details</h2>
-                <p class="text-gray-600 mt-1">These details belong to the company. The site header and footer stay Beyond Enterprise.</p>
-                <div id="company-fields">
-                    <label class="block font-semibold mt-4" for="company-name">Company name</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="company_name" id="company-name" value="{{ old('company_name') }}">
-                    <label class="block font-semibold mt-4" for="system-name">System name</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="system_name" id="system-name" value="{{ old('system_name') }}">
-                    <label class="block font-semibold mt-4" for="legal-name">Business / legal name</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="legal_name" id="legal-name" value="{{ old('legal_name') }}">
-                    <label class="block font-semibold mt-4" for="company-phone">Company phone</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="company_phone" id="company-phone" value="{{ old('company_phone') }}">
-                    <label class="block font-semibold mt-4" for="company-email">Company email</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" type="email" name="company_email" id="company-email" value="{{ old('company_email') }}">
-                    <label class="block font-semibold mt-4" for="country">Country</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="country" id="country" value="{{ old('country') }}" maxlength="8">
-                    <label class="block font-semibold mt-4" for="city">City</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="city" id="city" value="{{ old('city') }}">
-                    <label class="block font-semibold mt-4" for="address">Address</label>
-                    <input class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="address" id="address" value="{{ old('address') }}">
+                <h2 class="text-xl font-bold">Company</h2>
+                <p class="hint mt-1">The name, phone, and email already entered are used for this company.</p>
+                <p class="known-name" id="company-known"></p>
+                <input type="hidden" name="company_name" id="company-name" value="{{ old('company_name') }}">
+                <input type="hidden" name="company_phone" id="company-phone" value="{{ old('company_phone') }}">
+                <input type="hidden" name="company_email" id="company-email" value="{{ old('company_email') }}">
+                <div class="field-row">
+                    <label for="country">Country</label>
+                    <input class="px-4 py-2" name="country" id="country" value="{{ old('country') }}" maxlength="8">
                 </div>
-                <label class="block font-semibold mt-4" for="timezone">Timezone</label>
-                <select class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="timezone" id="timezone">
-                    @foreach(['Africa/Douala', 'Africa/Lagos', 'UTC'] as $zone)
-                        <option value="{{ $zone }}" {{ old('timezone', 'Africa/Douala') === $zone ? 'selected' : '' }}>{{ $zone }}</option>
-                    @endforeach
-                </select>
-                <label class="block font-semibold mt-4" for="currency">Currency</label>
-                <select class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2" name="currency" id="currency">
-                    @foreach(['XAF', 'USD', 'EUR', 'NGN', 'GHS'] as $code)
-                        <option value="{{ $code }}" {{ old('currency', 'XAF') === $code ? 'selected' : '' }}>{{ $code }}</option>
-                    @endforeach
-                </select>
+                <div class="field-row">
+                    <label for="city">City</label>
+                    <input class="px-4 py-2" name="city" id="city" value="{{ old('city') }}">
+                </div>
+                <div class="field-row">
+                    <label for="address">Address</label>
+                    <input class="px-4 py-2" name="address" id="address" value="{{ old('address') }}">
+                </div>
+                <div class="field-row">
+                    <label for="timezone">Timezone</label>
+                    <select class="px-4 py-2" name="timezone" id="timezone">
+                        @foreach(['Africa/Douala', 'Africa/Lagos', 'UTC'] as $zone)
+                            <option value="{{ $zone }}" {{ old('timezone', 'Africa/Douala') === $zone ? 'selected' : '' }}>{{ $zone }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field-row">
+                    <label for="currency">Currency</label>
+                    <select class="px-4 py-2" name="currency" id="currency">
+                        @foreach(['XAF', 'USD', 'EUR', 'NGN', 'GHS'] as $code)
+                            <option value="{{ $code }}" {{ old('currency', 'XAF') === $code ? 'selected' : '' }}>{{ $code }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="button" id="to-services" class="mt-4 bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Continue to services</button>
             </section>
 
@@ -245,18 +291,32 @@
         function personName() {
             return writeName();
         }
-        document.getElementById('pick-personal').onclick = function () {
-            kind.value = 'personal';
-            document.getElementById('name-title').textContent = 'Your name';
-            show(2);
-        };
-        document.getElementById('pick-company').onclick = function () {
-            kind.value = 'company';
-            document.getElementById('name-title').textContent = 'Contact person';
-            show(2);
-        };
-        document.getElementById('send-code').onclick = function () {
-            var error = document.getElementById('send-error');
+        var resendTimer = null;
+        function startResendWait() {
+            var left = 120;
+            var button = document.getElementById('resend-code');
+            var label = document.getElementById('resend-wait');
+            if (resendTimer) clearInterval(resendTimer);
+            function paintWait() {
+                var minutes = Math.floor(left / 60);
+                var seconds = left % 60;
+                label.textContent = left > 0
+                    ? 'You can resend the code in ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds
+                    : 'You can resend the code.';
+                button.disabled = left > 0;
+            }
+            paintWait();
+            resendTimer = setInterval(function () {
+                left -= 1;
+                if (left <= 0) {
+                    left = 0;
+                    clearInterval(resendTimer);
+                }
+                paintWait();
+            }, 1000);
+        }
+        function sendCode(errorId) {
+            var error = document.getElementById(errorId);
             error.hidden = true;
             post('{{ route('cloud.register.otp') }}', {
                 phone: document.getElementById('phone').value,
@@ -268,8 +328,29 @@
                     return;
                 }
                 show(3);
+                startResendWait();
             });
+        }
+        function applyKnownCompany() {
+            var full = personName();
+            document.getElementById('company-name').value = full;
+            document.getElementById('company-phone').value = document.getElementById('phone').value;
+            document.getElementById('company-email').value = document.getElementById('email').value;
+            document.getElementById('company-known').textContent = full;
+            return full;
+        }
+        document.getElementById('pick-personal').onclick = function () {
+            kind.value = 'personal';
+            document.getElementById('name-title').textContent = 'Your name';
+            show(2);
         };
+        document.getElementById('pick-company').onclick = function () {
+            kind.value = 'company';
+            document.getElementById('name-title').textContent = 'Contact person';
+            show(2);
+        };
+        document.getElementById('send-code').onclick = function () { sendCode('send-error'); };
+        document.getElementById('resend-code').onclick = function () { sendCode('code-error'); };
         document.getElementById('check-code').onclick = function () {
             var error = document.getElementById('code-error');
             error.hidden = true;
@@ -307,8 +388,8 @@
             show(5);
         };
         document.getElementById('after-username').onclick = function () {
+            applyKnownCompany();
             if (kind.value === 'personal') {
-                document.getElementById('company-name').value = personName();
                 show(7);
                 return;
             }
@@ -317,10 +398,7 @@
         document.getElementById('to-services').onclick = function () { show(7); };
         form.addEventListener('change', paint);
         form.addEventListener('submit', function () {
-            var full = personName();
-            if (kind.value === 'personal') {
-                document.getElementById('company-name').value = full;
-            }
+            applyKnownCompany();
         });
         paint();
     })();

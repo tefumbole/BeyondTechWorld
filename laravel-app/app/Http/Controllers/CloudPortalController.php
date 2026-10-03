@@ -88,7 +88,7 @@ class CloudPortalController extends Controller
                 'last_name' => $parts[1],
             ]);
         }
-        if ($request->input('account_kind') === 'personal' && trim((string) $request->input('company_name')) === '') {
+        if (trim((string) $request->input('company_name')) === '') {
             $request->merge([
                 'company_name' => trim($request->input('first_name').' '.$request->input('last_name')),
             ]);

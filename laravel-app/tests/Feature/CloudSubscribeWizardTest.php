@@ -71,6 +71,10 @@ class CloudSubscribeWizardTest extends TestCase
             'phone' => '237670000201',
             'account_kind' => 'personal',
         ]);
+        $this->postJson('/cloud/register/otp', [
+            'phone' => '237670000201',
+            'account_kind' => 'personal',
+        ])->assertStatus(422);
         $this->postJson('/cloud/register/otp/verify', [
             'phone' => '237670000201',
             'code' => $sent->json('testing_code'),
