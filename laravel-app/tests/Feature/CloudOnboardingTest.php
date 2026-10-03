@@ -289,6 +289,19 @@ class CloudOnboardingTest extends TestCase
         $this->assertNull(CloudTenant::where('name', 'Gate Co')->first());
     }
 
+    public function test_customer_company_does_not_read_beyond_whatsapp_groups()
+    {
+        $tenant = $this->openCompany('Own Line', 'own@demo.test', '237670000091', ['MESSAGING']);
+        app(CloudTenantContext::class)->set($tenant);
+        $listed = app(\App\Services\BeyondWasenderService::class)->listGroups();
+        $this->assertFalse($listed['success']);
+        $this->assertSame('WhatsApp is not connected for this company.', $listed['error']);
+        $this->assertSame([], $listed['groups']);
+        $saved = app(\App\Services\WhatsApp\GroupContactExportService::class)->memberships();
+        $this->assertSame([], $saved['groups']);
+        app(CloudTenantContext::class)->clear();
+    }
+
     public function test_messaging_page_does_not_connect_whatsapp()
     {
         $this->openCompany('Chat Co', 'chat@demo.test', '237670000061', ['MESSAGING']);

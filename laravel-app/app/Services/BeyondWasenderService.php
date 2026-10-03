@@ -554,8 +554,22 @@ class BeyondWasenderService
         return null;
     }
 
+    /**
+     * A customer company must not read BeyondTechWorld's WhatsApp session.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function customerSessionBlock()
+    {
+        return $this->customerOutboundBlock();
+    }
+
     public function listGroups()
     {
+        $blocked = $this->customerSessionBlock();
+        if ($blocked) {
+            return ['success' => false, 'groups' => [], 'error' => $blocked['error']];
+        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'groups' => []];
         }

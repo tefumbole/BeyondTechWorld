@@ -19,6 +19,16 @@ class WhatsAppSessionStatusService
      */
     public function status($force = false)
     {
+        $blocked = $this->wasender->customerSessionBlock();
+        if ($blocked) {
+            return [
+                'connected' => false,
+                'status' => 'NOT_CONNECTED',
+                'session_name' => null,
+                'configured' => false,
+                'error' => $blocked['error'],
+            ];
+        }
         $ttl = max(15, (int) config('services.whatsapp.session_status_cache_seconds', 45));
         if ($force) {
             Cache::forget('whatsapp.session_status');

@@ -71,6 +71,14 @@ class GroupContactExportService
 
     public function memberships()
     {
+        $blocked = app(BeyondWasenderService::class)->customerSessionBlock();
+        if ($blocked) {
+            return [
+                'success' => false,
+                'error' => $blocked['error'],
+                'groups' => [],
+            ];
+        }
         $wasender = app(BeyondWasenderService::class);
         $listed = $wasender->listGroups();
         if (empty($listed['success'])) {
@@ -538,6 +546,10 @@ class GroupContactExportService
 
     public function fetchGroupContacts($jid)
     {
+        $blocked = app(BeyondWasenderService::class)->customerSessionBlock();
+        if ($blocked) {
+            return ['success' => false, 'error' => $blocked['error'], 'added' => 0, 'total' => 0];
+        }
         $jid = trim((string) $jid);
         if (substr($jid, -5) !== '@g.us') {
             return ['success' => false, 'error' => 'Choose a WhatsApp group.', 'added' => 0, 'total' => 0];
