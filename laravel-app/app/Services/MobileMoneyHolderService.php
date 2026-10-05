@@ -21,22 +21,12 @@ class MobileMoneyHolderService
             return ['name' => null, 'address' => null, 'source' => null];
         }
 
-        $cc = $this->guessCountry($digits);
-        if ($cc === '237') {
-            $hit = $this->campay($digits);
-            if ($hit) {
-                return $hit;
-            }
-
-            return $this->pawapay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
-        }
-
-        $hit = $this->pawapay($digits);
+        $hit = $this->campay($digits);
         if ($hit) {
             return $hit;
         }
 
-        return $this->campay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
+        return $this->pawapay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
     }
 
     protected function guessCountry($digits)

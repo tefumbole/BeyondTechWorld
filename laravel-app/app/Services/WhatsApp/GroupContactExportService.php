@@ -700,7 +700,11 @@ class GroupContactExportService
             }
             $phone = isset($person['phone']) ? (string) $person['phone'] : '';
             $name = isset($person['name']) ? (string) $person['name'] : '';
-            if ($this->isPersonName($name, $phone) || $this->savedDisplayName($phone) !== '') {
+            if (! empty($person['name_edited']) || $this->savedDisplayName($phone) !== '') {
+                continue;
+            }
+            $source = isset($person['name_source']) ? (string) $person['name_source'] : '';
+            if ($source === 'campay' && $this->isPersonName($name, $phone)) {
                 continue;
             }
             unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
@@ -737,11 +741,11 @@ class GroupContactExportService
             $phone = isset($person['phone']) ? (string) $person['phone'] : '';
             $digits = preg_replace('/\D+/', '', $phone);
             $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
-            if ($this->isPersonName($current, $digits) || $this->savedDisplayName($digits) !== '') {
+            if (! empty($person['name_edited']) || $this->savedDisplayName($digits) !== '') {
                 continue;
             }
-            if (! $this->isCameroon($digits)) {
-                $still++;
+            $source = isset($person['name_source']) ? (string) $person['name_source'] : '';
+            if ($source === 'campay' && $this->isPersonName($current, $digits)) {
                 continue;
             }
             $name = $this->campayPersonName($digits);
@@ -750,6 +754,7 @@ class GroupContactExportService
                 continue;
             }
             $people[$i]['name'] = $name;
+            $people[$i]['name_source'] = 'campay';
             unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
             $this->rememberContact($digits, $name);
             $named++;
@@ -840,21 +845,22 @@ class GroupContactExportService
                 return ['success' => true, 'named' => true, 'kept' => true];
             }
         }
-        $display = $this->savedDisplayName($digits);
-        if ($display !== '') {
-            $people[$index]['name'] = $display;
-            $people[$index]['name_edited'] = 1;
-            unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
-            $this->writeMembers($jid, $people);
-
-            return ['success' => true, 'named' => true, 'kept' => true];
-        }
         $completed = $this->cameroonLookupDigits($digits);
         if ($completed !== '') {
             $people[$index]['phone'] = $completed;
             $digits = $completed;
         }
         unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+        $campayName = $this->campayPersonName($digits);
+        if ($this->isPersonName($campayName, $digits)) {
+            $people[$index]['name'] = $campayName;
+            $people[$index]['name_source'] = 'campay';
+            unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+            $this->rememberContact($digits, $campayName);
+            $this->writeMembers($jid, $people);
+
+            return ['success' => true, 'named' => true];
+        }
         $resolved = $this->resolvePersonName($digits, $this->profileNames(false), $this->savedNames());
         if ($resolved === null) {
             $this->writeMembers($jid, $people);
@@ -863,7 +869,9 @@ class GroupContactExportService
         }
         if ($this->isPersonName($resolved, $digits)) {
             $people[$index]['name'] = $resolved;
-            unset($people[$index]['name_checked'], $people[$index]['name_attempts']);
+            $people[$index]['name_source'] = 'other';
+            $people[$index]['name_checked'] = time();
+            unset($people[$index]['name_attempts']);
             $this->rememberContact($digits, $resolved);
             $this->writeMembers($jid, $people);
 
@@ -1157,6 +1165,9 @@ class GroupContactExportService
                 }
                 $current = trim((string) (isset($person['name']) ? $person['name'] : ''));
                 $display = $this->savedDisplayName($phone);
+                if (! empty($people[$i]['name_edited'])) {
+                    continue;
+                }
                 if ($display !== '') {
                     if ($current !== $display) {
                         $people[$i]['name'] = $display;
@@ -1165,19 +1176,15 @@ class GroupContactExportService
                     }
                     continue;
                 }
-                if ($this->isPersonName($current, $phone)) {
-                    $this->rememberContact($phone, $current);
-                    continue;
-                }
-                $known = $this->knownName($phone);
-                if ($this->isPersonName($known, $phone)) {
-                    $people[$i]['name'] = $known;
-                    unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
-                    $dirty = true;
-                    continue;
-                }
+                $source = isset($people[$i]['name_source']) ? (string) $people[$i]['name_source'] : '';
                 $checked = isset($person['name_checked']) ? (int) $person['name_checked'] : 0;
-                if ($checked && (time() - $checked) < 30 * 60) {
+                if ($source === 'campay' && $this->isPersonName($current, $phone)) {
+                    continue;
+                }
+                if ($source === 'other' && $checked && (time() - $checked) < 6 * 3600 && $this->isPersonName($current, $phone)) {
+                    continue;
+                }
+                if ($checked && (time() - $checked) < 30 * 60 && ! $this->isPersonName($current, $phone)) {
                     continue;
                 }
                 if ($used >= (int) $limit) {
@@ -1185,6 +1192,32 @@ class GroupContactExportService
                     continue;
                 }
                 $used++;
+                $campayName = $this->campayPersonName($phone);
+                if ($this->isPersonName($campayName, $phone)) {
+                    $people[$i]['name'] = $campayName;
+                    $people[$i]['name_source'] = 'campay';
+                    unset($people[$i]['name_checked'], $people[$i]['name_attempts']);
+                    $this->rememberContact($phone, $campayName);
+                    $digits = preg_replace('/\D+/', '', $phone);
+                    if ($digits !== '') {
+                        $map[$digits] = $campayName;
+                        if (strlen($digits) > 9) {
+                            $map[substr($digits, -9)] = $campayName;
+                        }
+                        $others[substr($digits, -9)] = $campayName;
+                    }
+                    $this->othersCache = $others;
+                    $dirty = true;
+                    usleep(200000);
+                    continue;
+                }
+                if ($this->isPersonName($current, $phone)) {
+                    $people[$i]['name_source'] = 'other';
+                    $people[$i]['name_checked'] = time();
+                    $dirty = true;
+                    usleep(200000);
+                    continue;
+                }
                 $resolved = $this->resolvePersonName($phone, $map, $others);
                 if ($resolved === null) {
                     $attempts = isset($person['name_attempts']) ? (int) $person['name_attempts'] : 0;
@@ -1201,8 +1234,9 @@ class GroupContactExportService
                 unset($people[$i]['name_attempts']);
                 if ($resolved !== '') {
                     $people[$i]['name'] = $resolved;
+                    $people[$i]['name_source'] = 'other';
+                    $people[$i]['name_checked'] = time();
                     $this->rememberContact($phone, $resolved);
-                    unset($people[$i]['name_checked']);
                     $digits = preg_replace('/\D+/', '', $phone);
                     if ($digits !== '') {
                         $map[$digits] = $resolved;
@@ -1737,15 +1771,13 @@ class GroupContactExportService
 
     protected function resolveOneNumber($digits, array $map, array $others)
     {
+        $campayName = $this->campayPersonName($digits);
+        if ($this->isPersonName($campayName, $digits)) {
+            return $campayName;
+        }
         $fromMap = $this->registeredWhatsAppName($digits, $map);
         if ($this->isPersonName($fromMap, $digits)) {
             return $fromMap;
-        }
-        if ($this->isCameroon($digits)) {
-            $campayName = $this->campayPersonName($digits);
-            if ($this->isPersonName($campayName, $digits)) {
-                return $campayName;
-            }
         }
         $record = $this->lookupContactRecord($digits);
         if (is_array($record)) {
@@ -1782,7 +1814,7 @@ class GroupContactExportService
         } catch (\Throwable $e) {
             return null;
         }
-        if (! is_array($hit)) {
+        if (! is_array($hit) || (isset($hit['source']) ? (string) $hit['source'] : '') !== 'campay') {
             return '';
         }
 

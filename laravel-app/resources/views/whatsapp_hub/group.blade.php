@@ -6,7 +6,7 @@
     <div class="container-fluid wa-shell">
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
-        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Resolve on a row finds that number’s WhatsApp name, the name saved on the phone, or the Campay name. Fetch contacts loads the whole group. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
+        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Resolve all looks up every number in this group, Campay first. Resolve on a row does the same for that one number. Fetch contacts loads the whole group. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
@@ -16,12 +16,12 @@
                 <input type="hidden" name="jid" value="{{ $jid }}">
                 <button type="submit" class="btn btn-default">Fetch contacts</button>
             </form>
-            @if($unresolved > 0)
-                <form method="POST" action="{{ route('whatsapp.groups.resolve') }}" style="margin:0" id="resolve-form">
-                    @csrf
-                    <input type="hidden" name="jid" value="{{ $jid }}">
-                    <button type="submit" class="btn btn-primary">Resolve</button>
-                </form>
+            @if(count($contacts) > 0)
+            <form method="POST" action="{{ route('whatsapp.groups.resolve') }}" style="margin:0" id="resolve-form">
+                @csrf
+                <input type="hidden" name="jid" value="{{ $jid }}">
+                <button type="submit" class="btn btn-primary">Resolve all</button>
+            </form>
             @endif
         </p>
         <p class="mb-3">
