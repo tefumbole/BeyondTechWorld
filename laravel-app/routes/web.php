@@ -117,6 +117,43 @@ Route::post('/pangwayu/eulogy', 'PublicFuneralPledgeController@storeEulogy')->na
 Route::get('/pangwayu/payment/check', 'PublicFuneralPledgeController@payment')->name('funeral.pangwayu.payment');
 Route::get('/pangwayu/stripe/check', 'PublicFuneralPledgeController@stripeReturn')->name('funeral.pangwayu.stripe');
 
+Route::get('/nbc', 'NbcPublicController@home')->name('nbc.home');
+Route::get('/nbc/program', 'NbcPublicController@program')->name('nbc.program');
+Route::get('/nbc/events', 'NbcPublicController@events')->name('nbc.events');
+Route::get('/nbc/announcements', 'NbcPublicController@announcements')->name('nbc.announcements');
+Route::get('/nbc/announcements/{id}', 'NbcPublicController@announcement')->name('nbc.announcement');
+Route::get('/nbc/join', 'NbcPublicController@join')->name('nbc.join');
+Route::post('/nbc/join', 'NbcPublicController@storeJoin')->middleware('throttle:8,10')->name('nbc.join.store');
+Route::get('/nbc/login', 'NbcPublicController@showLogin')->name('nbc.login');
+Route::post('/nbc/login', 'NbcPublicController@login')->middleware('throttle:10,10')->name('nbc.login.submit');
+Route::get('/nbc/logout', 'NbcPublicController@logout')->name('nbc.logout');
+
+Route::group(['prefix' => 'nbc', 'middleware' => ['nbc.member']], function () {
+    Route::get('/portal', 'NbcPortalController@home')->name('nbc.portal');
+    Route::get('/profile', 'NbcPortalController@profile')->name('nbc.profile');
+    Route::post('/profile', 'NbcPortalController@saveProfile')->name('nbc.profile.save');
+    Route::get('/attendance', 'NbcPortalController@attendance')->name('nbc.attendance');
+    Route::post('/attendance/in', 'NbcPortalController@clockIn')->name('nbc.attendance.in');
+    Route::post('/attendance/out', 'NbcPortalController@clockOut')->name('nbc.attendance.out');
+    Route::get('/people', 'NbcPortalController@people')->name('nbc.people');
+    Route::post('/people/{id}', 'NbcPortalController@savePerson')->name('nbc.people.save');
+    Route::get('/bylaws', 'NbcPortalController@bylaws')->name('nbc.bylaws');
+    Route::post('/bylaws', 'NbcPortalController@saveBylaws')->name('nbc.bylaws.save');
+    Route::get('/manage/events', 'NbcPortalController@events')->name('nbc.events.manage');
+    Route::post('/manage/events', 'NbcPortalController@storeEvent')->name('nbc.events.store');
+    Route::get('/manage/announcements', 'NbcPortalController@announcements')->name('nbc.announcements.manage');
+    Route::post('/manage/announcements', 'NbcPortalController@storeAnnouncement')->name('nbc.announcements.store');
+    Route::get('/tasks', 'NbcPortalController@tasks')->name('nbc.tasks');
+    Route::post('/tasks', 'NbcPortalController@storeTask')->name('nbc.tasks.store');
+    Route::post('/tasks/{id}/close', 'NbcPortalController@closeTask')->name('nbc.tasks.close');
+    Route::get('/letters', 'NbcPortalController@letters')->name('nbc.letters');
+    Route::post('/letters', 'NbcPortalController@storeLetter')->name('nbc.letters.store');
+    Route::get('/quotations', 'NbcPortalController@quotations')->name('nbc.quotations');
+    Route::post('/quotations', 'NbcPortalController@storeQuotation')->name('nbc.quotations.store');
+    Route::get('/whatsapp', 'NbcPortalController@whatsapp')->name('nbc.whatsapp');
+    Route::post('/whatsapp', 'NbcPortalController@storeWhatsapp')->name('nbc.whatsapp.store');
+});
+
 Route::get('/mambole', 'BirthdayFlyerController@index')->name('birthday.mambole');
 Route::get('/mambole/lookup', 'BirthdayFlyerController@lookup')->middleware('throttle:40,1')->name('birthday.mambole.lookup');
 Route::post('/mambole/submit', 'BirthdayFlyerController@submit')->middleware('throttle:20,1')->name('birthday.mambole.submit');

@@ -45,6 +45,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        View::composer('nbc.*', function ($view) {
+            $id = session('nbc_member_id');
+            $member = null;
+            if ($id && \Illuminate\Support\Facades\Schema::hasTable('nbc_members')) {
+                $member = \App\Nbc\NbcMember::where('id', $id)->where('status', 'active')->first();
+            }
+            $view->with('nbcMember', $member);
+        });
         /*if( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443) {
             URL::forceScheme('https');
         }*/
