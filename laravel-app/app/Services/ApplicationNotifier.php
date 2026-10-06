@@ -57,7 +57,14 @@ class ApplicationNotifier
             $job->isInternship()
         );
 
-        $result = $this->send($application, $message, [
+        $template = $this->router->sendTwilioStatusUpdate(
+            $this->notifyPhone($application),
+            $application->full_name ?: 'Applicant',
+            'application for '.$job->title,
+            $application->reference_number ?: '-',
+            'Under review'
+        );
+        $result = ! empty($template['success']) ? $template : $this->send($application, $message, [
             'title' => 'Application received',
             'message' => 'Your application for '.$job->title.' has been received and is under review.',
             'details' => $job->isInternship() ? 'Type: Internship' : 'Type: Job',
@@ -214,7 +221,15 @@ class ApplicationNotifier
             $application->rejection_reason
         );
 
-        return $this->send($application, $message, [
+        $template = $this->router->sendTwilioStatusUpdate(
+            $this->notifyPhone($application),
+            $application->full_name ?: 'Applicant',
+            'application for '.$job->title,
+            $application->reference_number ?: '-',
+            'Not proceeding'
+        );
+
+        return ! empty($template['success']) ? $template : $this->send($application, $message, [
             'title' => 'Application update',
             'message' => 'We are unable to proceed with your application for '.$job->title.' at this time.',
             'details' => $application->rejection_reason ?: '-',
@@ -249,7 +264,15 @@ class ApplicationNotifier
             $job->isInternship()
         );
 
-        return $this->send($application, $message, [
+        $template = $this->router->sendTwilioStatusUpdate(
+            $this->notifyPhone($application),
+            $application->full_name ?: 'Applicant',
+            'agreement for '.$job->title,
+            $application->reference_number ?: '-',
+            'Signed and received'
+        );
+
+        return ! empty($template['success']) ? $template : $this->send($application, $message, [
             'title' => 'Agreement signed',
             'message' => 'Your agreement for '.$job->title.' has been signed and received.',
             'details' => $job->isInternship() ? 'Working hours per Working Week' : 'Working hours 7:30 AM – 4:00 PM',

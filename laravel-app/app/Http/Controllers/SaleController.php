@@ -1178,8 +1178,19 @@ class SaleController extends Controller
         );
 
         $message = 'Sale created successfully';
+        $amount = $mail_data['grand_total'] ?? $lims_sale_data->grand_total;
+        $amountLabel = ($currencyCode !== '' ? $currencyCode.' ' : '').(is_numeric($amount) ? number_format((float) $amount, 2) : (string) $amount);
         try{
-            $this->wpMessage($lims_customer_data->phone_number, $msg);
+            $template = app(\App\Services\Messaging\NotificationRouter::class)->sendSaleConfirmation(
+                $lims_customer_data->phone_number,
+                $lims_customer_data->name,
+                \App\Support\WhatsAppMessage::companyName(),
+                $lims_sale_data->reference_no,
+                $amountLabel
+            );
+            if (empty($template['success'])) {
+                $this->wpMessage($lims_customer_data->phone_number, $msg);
+            }
         }
         catch(\Exception $e){
             $message = 'Sale created successfully. Please setup your whatsapp setting.';

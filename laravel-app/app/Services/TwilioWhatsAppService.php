@@ -53,6 +53,14 @@ class TwilioWhatsAppService
         return $digits !== '' ? 'whatsapp:+'.$digits : $from;
     }
 
+    public function displayNumber()
+    {
+        $from = $this->fromNumber();
+        $digits = preg_replace('/\D/', '', $from);
+
+        return $digits !== '' ? '+'.$digits : '';
+    }
+
     /**
      * @param  string  $to
      * @param  string  $contentSid

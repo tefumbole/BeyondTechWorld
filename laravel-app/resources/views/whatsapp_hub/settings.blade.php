@@ -7,6 +7,8 @@
         <h1 class="wa-title">WhatsApp Hub Settings</h1>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
 
+        @include('whatsapp_hub.partials.business_line')
+
         <div class="wa-card">
             <h5>Provider</h5>
             <p>Connection: <span class="wa-badge {{ !empty($session['connected']) ? 'wa-badge-ok' : 'wa-badge-bad' }}">{{ $session['status'] }}</span></p>

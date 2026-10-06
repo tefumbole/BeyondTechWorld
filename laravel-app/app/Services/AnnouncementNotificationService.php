@@ -22,8 +22,20 @@ class AnnouncementNotificationService extends Controller
             return false;
         }
         try {
-            // NotificationRouter: Wasender by default; Twilio beyond_notice only if WHATSAPP_SERVICE=TWILIO.
-            $result = app(NotificationRouter::class)->sendWhatsAppAnnouncement($phone, $message, $statusVars);
+            $router = app(NotificationRouter::class);
+            if (trim((string) ($statusVars['message'] ?? '')) !== '') {
+                $template = $router->sendAnnouncement(
+                    $phone,
+                    $statusVars['name'] ?? 'there',
+                    $statusVars['kind'] ?? 'an announcement',
+                    $statusVars['message'],
+                    $statusVars['reference'] ?? '-'
+                );
+                if (! empty($template['success'])) {
+                    return true;
+                }
+            }
+            $result = $router->sendWhatsAppAnnouncement($phone, $message, $statusVars);
 
             return ! empty($result['success']);
         } catch (\Exception $e) {
@@ -56,9 +68,10 @@ class AnnouncementNotificationService extends Controller
 
         return [
             'title' => $subject !== '' ? $subject : 'Announcement',
-            'name' => $name !== '' ? $name : 'Client',
+            'name' => $name !== '' ? $name : 'there',
+            'kind' => 'an announcement',
             'message' => $plain !== '' ? $plain : '-',
-            'reference' => $reference !== '' ? $reference : 'Announcement',
+            'reference' => $reference !== '' ? $reference : '-',
             'details' => $details,
         ];
     }
@@ -435,8 +448,10 @@ class AnnouncementNotificationService extends Controller
         foreach ($phones as $person) {
             $phone = $person['phone'] ?? '';
             $person['name'] = $this->personalName($person);
+            $vars = $this->twilioVars($announcement, $person, false);
+            $vars['kind'] = 'a reminder';
             $msg = $this->reminderText($announcement, $person);
-            if ($this->sendPhone($phone, $msg)) {
+            if ($this->sendPhone($phone, $msg, $vars)) {
                 $sent++;
             }
             usleep(5000000);
@@ -475,7 +490,12 @@ class AnnouncementNotificationService extends Controller
                 if ($index > 0) {
                     usleep(5000000);
                 }
-                if ($this->sendPhone($member['phone'], $msg)) {
+                $memberPerson = $person;
+                $memberPerson['name'] = $member['name'] ?? '';
+                $memberPerson['phone'] = $member['phone'] ?? '';
+                $vars = $this->twilioVars($announcement, $memberPerson, false);
+                $vars['kind'] = 'a reminder';
+                if ($this->sendPhone($member['phone'], $msg, $vars)) {
                     $delivered++;
                 }
             }

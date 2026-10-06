@@ -9,6 +9,7 @@
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
+        @include('whatsapp_hub.partials.business_line')
         @include('whatsapp_hub.partials.range')
 
         <div class="row">

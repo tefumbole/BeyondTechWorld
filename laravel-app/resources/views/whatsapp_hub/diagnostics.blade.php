@@ -7,6 +7,8 @@
         <h1 class="wa-title">WhatsApp Diagnostics</h1>
         <p class="wa-sub">Operational health. Credentials are never displayed.</p>
 
+        @include('whatsapp_hub.partials.business_line')
+
         <div class="row">
             <div class="col-md-4"><div class="wa-card"><div class="wa-stat-label">WhatsApp connection</div><p class="wa-stat"><span class="wa-badge {{ !empty($session['connected']) ? 'wa-badge-ok' : 'wa-badge-bad' }}">{{ $session['status'] }}</span></p></div></div>
             <div class="col-md-4"><div class="wa-card"><div class="wa-stat-label">Webhook secret</div><p class="wa-stat">{{ $diag['webhook_secret'] }}</p></div></div>

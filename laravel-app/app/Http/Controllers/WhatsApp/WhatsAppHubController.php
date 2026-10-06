@@ -54,8 +54,9 @@ class WhatsAppHubController extends Controller
         $range = $this->query->range($request->get('range'), $request->get('from'), $request->get('to'));
         $stats = $this->query->commandCenter($range);
         $session = $this->provider->sessionStatus();
+        $businessLine = $this->businessLine();
 
-        return view('whatsapp_hub.command_center', compact('range', 'stats', 'session'));
+        return view('whatsapp_hub.command_center', compact('range', 'stats', 'session', 'businessLine'));
     }
 
     public function destroyConversations(Request $request)
@@ -347,8 +348,9 @@ class WhatsAppHubController extends Controller
         }
         $session = $this->provider->sessionStatus();
         $diag = $this->query->diagnostics();
+        $businessLine = $this->businessLine();
 
-        return view('whatsapp_hub.diagnostics', compact('session', 'diag'));
+        return view('whatsapp_hub.diagnostics', compact('session', 'diag', 'businessLine'));
     }
 
     public function testOpenAi()
@@ -423,7 +425,10 @@ class WhatsAppHubController extends Controller
                 : 0,
         ];
 
+        $businessLine = $this->businessLine();
+
         return view('whatsapp_hub.settings', compact(
+            'businessLine',
             'session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured',
             'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'historyLimit',
             'clarificationLimit', 'switchPreview', 'staff',
@@ -1242,6 +1247,17 @@ class WhatsAppHubController extends Controller
         app(\App\Services\WhatsApp\WhatsAppVerificationService::class)->invalidateContact($session->whatsapp_contact_id);
 
         return back()->with('message', 'Verification was invalidated.');
+    }
+
+    protected function businessLine()
+    {
+        $twilio = app(\App\Services\TwilioWhatsAppService::class);
+
+        return [
+            'configured' => $twilio->isConfigured(),
+            'display' => $twilio->displayNumber(),
+            'templates' => \App\Support\ApprovedWhatsAppTemplates::forHub(),
+        ];
     }
 
     protected function denyUnless(array $names)

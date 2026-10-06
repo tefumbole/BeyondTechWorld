@@ -60,6 +60,31 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_STATUS',
             'HX47150e179fdbab79738d060fb0ac6415'
         ),
+        // Approved Content SIDs. Chat, groups, and documents stay on Wasender.
+        'content_sid_status_update' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_STATUS_UPDATE',
+            'HXe6dfa5ad7dc2ee87935caa74a927d970'
+        ),
+        'content_sid_service_update' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SERVICE_UPDATE',
+            'HXaee28bd46593790cd504232819ba127b'
+        ),
+        'content_sid_sale' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SALE',
+            'HXc875592ef3a86042206bedfc5ccfaaf3'
+        ),
+        'content_sid_reminder' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_REMINDER',
+            'HXc3aaf3d3019bb03d917e4e1f49c7353e'
+        ),
+        'content_sid_announcement' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_ANNOUNCEMENT',
+            'HX350da7aa92bcb3d61102231c80b2e2c7'
+        ),
+        'content_sid_review_link' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_REVIEW_LINK',
+            'HXc0bd8939fe1e1739fd0d7b7d23c88dc8'
+        ),
         'twilio_fallback_wasender' => env('WHATSAPP_TWILIO_FALLBACK_WASENDER', true),
         'wasender_webhook_secret' => env('WASENDER_WEBHOOK_SECRET'),
         'webhook_retention_days' => (int) env('WHATSAPP_WEBHOOK_RETENTION_DAYS', 30),

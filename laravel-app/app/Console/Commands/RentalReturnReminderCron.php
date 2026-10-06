@@ -46,7 +46,17 @@ class RentalReturnReminderCron extends Command
             $msg .= "Please ensure timely return to avoid late penalties as stated in your rental agreement.";
 
             try {
-                $controller->wpMessage($customer->phone_number, $msg);
+                $template = app(\App\Services\Messaging\NotificationRouter::class)->sendReminder(
+                    $customer->phone_number,
+                    $customer->name,
+                    $company,
+                    $productName.' rental',
+                    optional($line->booking)->reference_no ?: '-',
+                    $returnAt
+                );
+                if (empty($template['success'])) {
+                    $controller->wpMessage($customer->phone_number, $msg);
+                }
                 $line->update(['return_reminder_sent_at' => $now]);
             } catch (\Exception $e) {
                 $this->error('Reminder failed for booking product #' . $line->id . ': ' . $e->getMessage());
@@ -84,7 +94,16 @@ class RentalReturnReminderCron extends Command
             );
 
             try {
-                $controller->wpMessage($customer->phone_number, $msg);
+                $template = app(\App\Services\Messaging\NotificationRouter::class)->sendServiceUpdate(
+                    $customer->phone_number,
+                    $customer->name,
+                    'rental of '.$productName,
+                    optional($line->booking)->reference_no ?: '-',
+                    'Overdue since '.$returnAt.'. Daily rate '.$dailyRate
+                );
+                if (empty($template['success'])) {
+                    $controller->wpMessage($customer->phone_number, $msg);
+                }
             } catch (\Exception $e) {
                 $this->error('Late notice failed for booking product #' . $line->id . ': ' . $e->getMessage());
             }

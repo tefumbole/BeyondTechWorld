@@ -71,6 +71,66 @@ class NotificationRouter
     }
 
     /**
+     * Approved beyond_status_update template. Does not use Wasender.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendTwilioStatusUpdate($phone, $name, $recordType, $reference, $status)
+    {
+        return app(TwilioTemplateSender::class)->sendStatusUpdate($phone, $name, $recordType, $reference, $status);
+    }
+
+    /**
+     * Approved beyond_review_link template. The button URL is the one saved on the template.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendTwilioReviewLink($phone, $name, $recordType, $reference)
+    {
+        return app(TwilioTemplateSender::class)->sendReviewLink($phone, $name, $recordType, $reference);
+    }
+
+    /**
+     * Approved sales_confirmation template from the official WhatsApp number.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendSaleConfirmation($phone, $name, $company, $reference, $amount)
+    {
+        return app(TwilioTemplateSender::class)->sendSaleConfirmation($phone, $name, $company, $reference, $amount);
+    }
+
+    /**
+     * Approved reminder template. Subject is the thing being reminded, not a free paragraph.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendReminder($phone, $name, $company, $subject, $reference, $when)
+    {
+        return app(TwilioTemplateSender::class)->sendReminder($phone, $name, $company, $subject, $reference, $when);
+    }
+
+    /**
+     * Approved beyond_service_update template.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendServiceUpdate($phone, $name, $recordType, $reference, $status)
+    {
+        return app(TwilioTemplateSender::class)->sendServiceUpdate($phone, $name, $recordType, $reference, $status);
+    }
+
+    /**
+     * beyond_announcement. Used for announcement texts and their reminders.
+     *
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendAnnouncement($phone, $name, $kind, $message, $reference)
+    {
+        return app(TwilioTemplateSender::class)->sendAnnouncement($phone, $name, $kind, $message, $reference);
+    }
+
+    /**
      * Free-form text that must keep a URL visible. Twilio status templates drop links.
      */
     public function sendWhatsAppTextWithLink($phone, $body)
