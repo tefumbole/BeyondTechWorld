@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useSiteLabel } from '@/hooks/useSiteLabel';
+import { visiblePublicMenu } from '@/config/publicMenu';
 
 function Header() {
   const tl = useSiteLabel();
@@ -26,6 +27,7 @@ function Header() {
   const { user, otpVerified, logout, profile, isProfileLoading, role } = useAuth();
 
   const isStaffRole = ['staff', 'employee', 'teacher', 'task_assignee'].includes(String(role || profile?.role || '').toLowerCase());
+  const publicLinks = visiblePublicMenu();
 
   // Check admin status when user changes
   useEffect(() => {
@@ -100,26 +102,21 @@ function Header() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6">
-              <NavLink to="/">{tl('menu', 'Home')}</NavLink>
-              <NavLink to="/trainings">{tl('menu', 'Training')}</NavLink>
-              <NavLink to="/events">{tl('menu', 'Events')}</NavLink>
-
-              <NavLink to="/register-now">{tl('menu', 'Register Now')}</NavLink>
-              <NavLink to="/apply-now" isSpecial={true}>{tl('menu', 'Apply Now')}</NavLink>
-
-              <NavLink to="/about">{tl('menu', 'About Us')}</NavLink>
-              <NavLink to="/shareholders">{tl('menu', 'Shareholders')}</NavLink>
-              <NavLink to="/contact">{tl('menu', 'Contact Us')}</NavLink>
-
-              <Link 
-                to="/qr-scanner" 
-                className={`text-white hover:text-[#D4AF37] transition-colors flex items-center gap-1 text-sm border border-white/20 px-2 py-1 rounded-md hover:border-[#D4AF37] ${isActive('/qr-scanner') ? 'border-[#D4AF37] text-[#D4AF37]' : ''}`}
-                title={tl('menu', 'QR Code Scanner')}
-              >
-                <Scan className="w-4 h-4" />
-                <span className="hidden xl:inline">{tl('menu', 'Scan QR')}</span>
-              </Link>
-
+              {publicLinks.map((item) => (
+                item.id === 'scan' ? (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`text-white hover:text-[#D4AF37] transition-colors flex items-center gap-1 text-sm border border-white/20 px-2 py-1 rounded-md hover:border-[#D4AF37] ${isActive(item.path) ? 'border-[#D4AF37] text-[#D4AF37]' : ''}`}
+                    title={tl('menu', 'QR Code Scanner')}
+                  >
+                    <Scan className="w-4 h-4" />
+                    <span className="hidden xl:inline">{tl('menu', item.label)}</span>
+                  </Link>
+                ) : (
+                  <NavLink key={item.path} to={item.path} isSpecial={item.special}>{tl('menu', item.label)}</NavLink>
+                )
+              ))}
               <LanguageSwitcher variant="header" />
             </nav>
 
@@ -224,27 +221,17 @@ function Header() {
                 <div className="flex justify-end pb-2 border-b border-gray-700">
                   <LanguageSwitcher variant="header" />
                 </div>
-                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Home')}</Link>
-                <Link to="/trainings" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Training')}</Link>
-                <Link to="/events" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Events')}</Link>
-                
-                <Link to="/register-now" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium border-t border-gray-700 pt-2">{tl('menu', 'Register Now')}</Link>
-                
-                <Link to="/apply-now" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] font-bold text-lg flex items-center gap-2 bg-white/10 p-2 rounded-md">
-                  {tl('menu', 'Apply Now')}
-                </Link>
-
-                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'About Us')}</Link>
-                <Link to="/shareholders" onClick={() => setMobileMenuOpen(false)} className="text-[#D4AF37] hover:text-white text-lg font-medium">{tl('menu', 'Shareholders')}</Link>
-                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-white hover:text-[#D4AF37] text-lg font-medium">{tl('menu', 'Contact Us')}</Link>
-
-                <Link 
-                  to="/qr-scanner" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-lg font-medium text-white hover:text-[#D4AF37] pt-2 border-t border-gray-700"
-                >
-                  <Scan className="w-5 h-5" /> {tl('menu', 'Scan QR Code')}
-                </Link>
+                {publicLinks.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`text-lg font-medium flex items-center gap-2 ${item.special ? 'text-[#D4AF37] font-bold bg-white/10 p-2 rounded-md' : 'text-white hover:text-[#D4AF37]'}`}
+                  >
+                    {item.id === 'scan' && <Scan className="w-5 h-5" />}
+                    {tl('menu', item.id === 'scan' ? 'Scan QR Code' : item.label)}
+                  </Link>
+                ))}
 
                 <div className="pt-4 border-t border-gray-700 space-y-3">
                   {user && otpVerified ? (

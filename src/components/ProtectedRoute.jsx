@@ -5,6 +5,7 @@ import AccessDeniedPage from '@/components/AccessDeniedPage';
 import { useAuth } from '@/context/AuthContext';
 import { usePermission } from '@/context/PermissionContext';
 import { canAccessAdminRoute, hasAdminPanelAccess } from '@/config/adminMenuPermissions';
+import { isSettingsPath } from '@/config/systemTestCatalog';
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'director', 'manager'];
 
@@ -87,6 +88,10 @@ const ProtectedRoute = ({
 
   if (!user || !session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (userRole === 'system_tester' && isSettingsPath(location.pathname)) {
+    return <AccessDeniedPage />;
   }
 
   if (!needsRoleCheck) {

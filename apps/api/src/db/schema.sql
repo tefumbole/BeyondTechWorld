@@ -319,3 +319,29 @@ CREATE TABLE IF NOT EXISTS whatsapp_message_logs (
   INDEX idx_whatsapp_logs_phone (recipient_phone),
   INDEX idx_whatsapp_logs_sent (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_test_sessions (
+  token CHAR(64) NOT NULL PRIMARY KEY,
+  phone VARCHAR(30) DEFAULT NULL,
+  verified TINYINT(1) NOT NULL DEFAULT 0,
+  form_token CHAR(64) NOT NULL,
+  form_expires DATETIME NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_system_test_sessions_phone (phone)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_test_drafts (
+  phone VARCHAR(30) NOT NULL PRIMARY KEY,
+  payload JSON NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_test_reports (
+  id VARCHAR(40) NOT NULL PRIMARY KEY,
+  tester_name VARCHAR(120) NOT NULL,
+  tester_phone VARCHAR(30) NOT NULL,
+  payload JSON NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_system_test_reports_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

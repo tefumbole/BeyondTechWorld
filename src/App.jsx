@@ -17,6 +17,7 @@ import HomePage from '@/pages/HomePage';
 import AboutPage from '@/pages/AboutPage';
 import ServicesPage from '@/pages/ServicesPage';
 import ContactUsPage from '@/pages/public/ContactUsPage';
+import SystemTestPage from '@/pages/SystemTestPage';
 import ProjectsPage from '@/pages/ProjectsPage';
 import TrainingsPage from '@/pages/TrainingsPage';
 import EventsPage from '@/pages/EventsPage';
@@ -94,6 +95,8 @@ import AdminProgressPage from '@/pages/admin/AdminProgressPage';
 import AdminFeedbackPage from '@/pages/admin/AdminFeedbackPage';
 import AdminReportsPage from '@/pages/admin/AdminReportsPage';
 import AdminHistoryPage from '@/pages/admin/AdminHistoryPage';
+import AdminHelpPage from '@/pages/admin/AdminHelpPage';
+import { AdminTestResultsPage, AdminTestResultDetailPage } from '@/pages/admin/AdminTestResultsPage';
 import ContactMessagesPage from '@/pages/admin/ContactMessagesPage';
 
 // Jobs Admin Pages
@@ -316,6 +319,7 @@ const AppContent = () => {
       <WhatsAppModal />
 
       <Routes>
+        <Route path="/system-test" element={<SystemTestPage />} />
         {/* Public Website Routes */}
         <Route element={<LayoutContextWrapper />}>
           <Route path="/" element={<HomePage />} />
@@ -472,6 +476,9 @@ const AppContent = () => {
           />
 
           <Route path="profile" element={<MyProfilePage />} />
+          <Route path="help" element={<ProtectedRoute requireAdmin={true}><AdminHelpPage /></ProtectedRoute>} />
+          <Route path="help/results" element={<ProtectedRoute requireAdmin={true}><AdminTestResultsPage /></ProtectedRoute>} />
+          <Route path="help/results/:id" element={<ProtectedRoute requireAdmin={true}><AdminTestResultDetailPage /></ProtectedRoute>} />
           <Route path="logs" element={<ProtectedRoute requireAdmin={true}><AdminActivityLogsPage /></ProtectedRoute>} />
 
           {/* --- AUDIO ADMIN ROUTES --- */}

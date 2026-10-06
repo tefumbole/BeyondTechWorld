@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { usePermission } from '@/context/PermissionContext';
-import { MENU_PERMISSIONS, itemVisible } from '@/config/adminMenuPermissions';
+import { itemVisible } from '@/config/adminMenuPermissions';
+import { withHelpLast } from '@/config/adminMenuModel';
 import { formatRoleLabel } from '@/services/roleService';
 import HrTopNav from '@/components/hr/HrTopNav';
 import HrLettersTopNav from '@/components/hr/HrLettersTopNav';
@@ -50,13 +51,38 @@ import {
   UserPlus,
   Wallet,
   UserCog,
-  ScrollText
+  ScrollText,
+  CircleHelp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useSiteLabel } from '@/hooks/useSiteLabel';
+
+const ADMIN_ICONS = {
+  LayoutDashboard, Users, CreditCard, Clock, History, FileBarChart, Briefcase, Settings,
+  CalendarDays, PlusCircle, BarChart, CalendarClock, PieChart, FileCheck, Database,
+  BookOpen, Award, TrendingUp, Megaphone, PenLine, MessageSquare, FileText, ListTodo,
+  CheckCircle, Key, Inbox, Ticket, ScrollText, Wallet, UserPlus, ClipboardCheck, Trash2,
+  CircleHelp,
+};
+
+function decorateAdminMenu(groups, hideSettings) {
+  return groups.map((group) => ({
+    ...group,
+    items: (group.items || [])
+      .filter((item) => !(hideSettings && item.settings))
+      .map((item) => ({
+        ...item,
+        icon: ADMIN_ICONS[item.icon] || LayoutDashboard,
+        submenu: item.submenu
+          ?.filter((sub) => !(hideSettings && sub.settings))
+          .map((sub) => ({ ...sub, icon: ADMIN_ICONS[sub.icon] })),
+      }))
+      .filter((item) => !item.submenu || item.submenu.length),
+  })).filter((group) => group.items.length);
+}
 
 const AdminLayout = () => {
   const { logout, user, profile } = useAuth();
@@ -77,207 +103,8 @@ const AdminLayout = () => {
     }
   };
 
-  const menuGroups = [
-    {
-      label: 'Dashboard',
-      items: [
-        { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard, permission: MENU_PERMISSIONS.dashboard },
-      ]
-    },
-    {
-      label: 'Work Management',
-      items: [
-        { 
-          label: 'Task Management', 
-          icon: ListTodo,
-          permission: MENU_PERMISSIONS.tasks,
-          submenu: [
-            { label: 'Task Dashboard', path: '/admin/tasks/dashboard', icon: LayoutDashboard },
-            { label: 'Create Task', path: '/admin/tasks/create', icon: PlusCircle },
-            { label: 'All Tasks', path: '/admin/tasks', icon: ListTodo },
-            { label: 'Scheduled', path: '/admin/tasks/scheduled', icon: CalendarClock },
-            { label: 'Reminders', path: '/admin/tasks/reminders', icon: Clock },
-            { label: 'My Tasks', path: '/admin/tasks/my-tasks', icon: CheckCircle },
-            { label: 'Pending Acceptances', path: '/admin/tasks/pending-acceptances', icon: Inbox },
-            { label: 'Task Settings', path: '/admin/tasks/settings', icon: Settings },
-          ]
-        },
-        { 
-          label: 'Job Board', 
-          icon: Briefcase,
-          permission: MENU_PERMISSIONS.jobs,
-          submenu: [
-            { label: 'Recruitment Dashboard', path: '/admin/recruitment-dashboard' },
-            { label: 'Manage Jobs', path: '/admin/jobs' },
-            { label: 'All Applications', path: '/admin/applications' },
-            { label: 'Shortlisted', path: '/admin/applications/shortlisted' },
-            { label: 'Rejected', path: '/admin/applications/rejected' },
-          ]
-        },
-        { label: 'Event Management', path: '/admin/events', icon: CalendarDays, permission: MENU_PERMISSIONS.events },
-        { label: 'Digital Invitations', path: '/admin/invitations', icon: Ticket, permission: MENU_PERMISSIONS.invitations, activePaths: ['/admin/invitations', '/admin/check-in'] },
-        { label: 'Event Templates & Config', path: '/admin/events/templates', icon: Settings, permission: MENU_PERMISSIONS.eventTemplates, activePaths: ['/admin/events/templates', '/admin/events/wa-templates', '/admin/events/webhooks'] },
-      ]
-    },
-    {
-      label: 'Communication & Messaging',
-      items: [
-        {
-          label: 'Announcements',
-          icon: Megaphone,
-          permission: MENU_PERMISSIONS.announcements,
-          submenu: [
-            { label: 'Compose', path: '/admin/announcements/compose', icon: PenLine },
-            { label: 'All Announcements', path: '/admin/announcements/list', icon: FileText },
-            { label: 'Scheduled', path: '/admin/announcements/scheduled', icon: Clock },
-            { label: 'Templates', path: '/admin/announcements/templates', icon: FileText },
-            { label: 'Categories', path: '/admin/announcements/categories', icon: FileText },
-            { label: 'Settings', path: '/admin/announcements/settings', icon: Settings },
-          ]
-        },
-      ]
-    },
-    {
-      label: 'Time & Attendance',
-      items: [
-        {
-          label: 'TimeSheets (Employee)',
-          icon: Clock,
-          permission: MENU_PERMISSIONS.timesheets,
-          submenu: [
-            { label: 'Create Activity', path: '/admin/timesheet/create-activity', icon: PlusCircle },
-            { label: 'Fill Time Sheet', path: '/admin/timesheet/fill-timesheet', icon: Clock },
-            { label: 'Working Week', path: '/admin/timesheet/working-week', icon: CalendarClock },
-          ]
-        },
-      ]
-    },
-    {
-      label: 'Operations',
-      items: [
-        { 
-          label: 'TimeSheet Admin', 
-          icon: BarChart,
-          permission: MENU_PERMISSIONS.operations,
-          submenu: [
-            { label: 'TimeSheet Report', path: '/admin/timesheet-report' },
-            { label: 'Overtime Report', path: '/admin/overtime-report' },
-            { label: 'Manage All', path: '/admin/manage-timesheets' },
-            { label: 'Categories', path: '/admin/timesheet-categories' } 
-          ]
-        },
-        { label: 'Payments', path: '/admin/payments', icon: CreditCard, permission: MENU_PERMISSIONS.operations }, 
-      ]
-    },
-    {
-      label: 'Courses',
-      items: [
-        {
-          label: 'Courses',
-          icon: BookOpen,
-          permission: MENU_PERMISSIONS.courses,
-          submenu: [
-            { label: 'Course List', path: '/admin/courses' },
-            { label: 'Add Course', path: '/admin/courses/add' },
-            { label: 'Registrations', path: '/admin/registrations' },
-            { label: 'Invoices', path: '/admin/invoices', icon: FileText },
-            { label: 'Certificates', path: '/admin/certificates', icon: Award },
-            { label: 'Student Progress', path: '/admin/progress', icon: TrendingUp },
-            { label: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
-          ]
-        }
-      ]
-    },
-    {
-      label: 'HR & Payroll',
-      items: [
-        {
-          label: 'Human Resources',
-          icon: Wallet,
-          permission: MENU_PERMISSIONS.hr,
-          submenu: [
-            { label: 'Staff Management', path: '/admin/hr/staff' },
-            { label: 'Staff Categories', path: '/admin/hr/categories' },
-            { label: 'Job / Event Payroll', path: '/admin/hr/jobs' },
-            { label: 'Monthly Payroll', path: '/admin/hr/monthly-payroll' },
-            { label: 'Allowances', path: '/admin/hr/allowances' },
-            { label: 'Deductions', path: '/admin/hr/deductions' },
-            { label: 'Advance Payments', path: '/admin/hr/advances' },
-            { label: 'Payslips', path: '/admin/hr/payslips' },
-            { label: 'Payroll Approvals', path: '/admin/hr/approvals' },
-            { label: 'Finance Status', path: '/admin/hr/finance' },
-            { label: 'Reports', path: '/admin/hr/reports' },
-          ],
-        },
-        {
-          label: 'HR Letters',
-          icon: FileText,
-          permission: MENU_PERMISSIONS.hr,
-          submenu: [
-            { label: 'Leave of Absence', path: '/admin/hr/letters/leave' },
-            { label: 'Permission', path: '/admin/hr/letters/permission' },
-            { label: 'Employment Letter', path: '/admin/hr/letters/employment' },
-            { label: 'Attestation of Work', path: '/admin/hr/letters/attestation' },
-            { label: 'Templates', path: '/admin/hr/letters/templates' },
-          ],
-        },
-      ],
-    },
-    {
-      label: 'People & Access',
-      items: [
-        { 
-          label: 'Users', 
-          icon: Users,
-          permission: MENU_PERMISSIONS.users,
-          submenu: [
-            { label: 'All Users', path: '/admin/users' },
-            { label: 'Add Customer', path: '/admin/users?action=customer', icon: UserPlus },
-            { label: 'Customer List', path: '/admin/users?filter=customer' },
-            { label: 'Add Student', path: '/admin/students?action=new', icon: UserPlus },
-            { label: 'Student List', path: '/admin/students' },
-            { label: 'ShareHolder', path: '/admin/shareholders/list', icon: PieChart },
-          ]
-        },
-        { 
-          label: 'Members (Team)', 
-          icon: Users,
-          permission: MENU_PERMISSIONS.members,
-          submenu: [
-            { label: 'Member List', path: '/admin/members' },
-            { label: 'Add Member', path: '/admin/members?action=new' }, 
-          ]
-        },
-        { 
-          label: 'ShareHolders', 
-          icon: PieChart,
-          permission: MENU_PERMISSIONS.shareholders,
-          submenu: [
-            { label: 'Dashboard', path: '/admin/shareholders/dashboard' },
-            { label: 'List View', path: '/admin/shareholders/list' },
-            { label: 'Trash', path: '/admin/shareholders/trash', icon: Trash2 },
-            { label: 'Pending Approvals', path: '/admin/shareholders/pending-approvals', icon: ClipboardCheck },
-            { label: 'Pending Payment', path: '/admin/shareholders/pending-payments', icon: CreditCard },
-            { label: 'Signed Agreements', path: '/admin/shareholders/signed-agreements', icon: FileCheck },
-            { label: 'Settings', path: '/admin/shareholders/settings' }
-          ]
-        },
-      ]
-    },
-    {
-      label: 'System',
-      collapsible: true,
-      permission: MENU_PERMISSIONS.system,
-      items: [
-        { label: 'Reports Hub', path: '/admin/reports', icon: FileBarChart },
-        { label: 'Activity Logs', path: '/admin/logs', icon: ScrollText },
-        { label: 'Backup & Restore', path: '/admin/backup-restore', icon: Database },
-        { label: 'General Settings', path: '/admin/general-settings', icon: Settings },
-        { label: 'Roles & Permissions', path: '/admin/roles-permissions', icon: Key, permission: MENU_PERMISSIONS.roles },
-        { label: 'System History', path: '/admin/history', icon: History },
-      ]
-    }
-  ];
+  const isSystemTester = String(profile?.role || user?.app_metadata?.role || user?.role || '').toLowerCase().replace(/\s+/g, '_') === 'system_tester';
+  const menuGroups = decorateAdminMenu(withHelpLast(), isSystemTester);
 
   const toggleMenu = (label) => {
     setOpenMenus(prev => ({
@@ -354,7 +181,7 @@ const AdminLayout = () => {
   };
 
   const MenuGroup = ({ group }) => {
-    if (group.permission && !itemVisible(hasPermission, group.permission)) return null;
+    if (group.permission && !itemVisible(hasPermission, group.permission) && !(isSystemTester && group.label === 'System')) return null;
 
     const visibleItems = (group.items || []).filter((item) =>
       !item.permission || itemVisible(hasPermission, item.permission)

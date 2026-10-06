@@ -69,6 +69,27 @@ export function isWasenderConfigured() {
   return Boolean(key && !key.startsWith('your_'));
 }
 
+/** WhatsApp display name from the connected Wasender account. Empty when none is found. */
+export async function getContactName(phone) {
+  if (!isWasenderConfigured()) return '';
+  const to = formatPhoneNumber(phone);
+  const digits = String(to || phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  try {
+    const response = await wasenderRequest('GET', `${getBaseUrl()}/contacts/${encodeURIComponent(digits)}`);
+    if (!response.ok) return '';
+    const decoded = response.json || {};
+    const data = decoded.data && typeof decoded.data === 'object' ? decoded.data : decoded;
+    for (const key of ['name', 'notify', 'verifiedName', 'verified_name', 'pushname', 'pushName']) {
+      const value = String(data?.[key] || '').trim();
+      if (value && value !== digits) return value;
+    }
+  } catch (err) {
+    console.warn('[WASENDER] contact lookup failed:', err.message);
+  }
+  return '';
+}
+
 async function wasenderRequest(method, url, { json, body, contentType } = {}) {
   const headers = {
     Authorization: `Bearer ${getApiKey()}`,

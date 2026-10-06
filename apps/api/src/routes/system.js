@@ -19,6 +19,14 @@ function isAdmin(user) {
   return user?.role === 'super_admin' || user?.role === 'admin';
 }
 
+function blockSystemTester(req, res, next) {
+  const role = String(req.user?.role || '').toLowerCase().replace(/\s+/g, '_');
+  if (role === 'system_tester') {
+    return res.status(403).json({ error: 'Settings are not available on a test account.' });
+  }
+  next();
+}
+
 function readFrontendEnv() {
   for (const p of frontendEnvPaths) {
     if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
@@ -36,7 +44,7 @@ function writeFrontendEnv(content) {
   return target;
 }
 
-router.get('/env-files', requireAuth, (req, res) => {
+router.get('/env-files', requireAuth, blockSystemTester, (req, res) => {
   if (!isAdmin(req.user)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -50,7 +58,7 @@ router.get('/env-files', requireAuth, (req, res) => {
   res.json({ frontend: readFrontendEnv(), api });
 });
 
-router.put('/env-files', requireAuth, (req, res) => {
+router.put('/env-files', requireAuth, blockSystemTester, (req, res) => {
   if (!isAdmin(req.user)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -91,7 +99,7 @@ async function listTables(pool) {
 }
 
 // GET /system/backup -> full JSON dump of every table
-router.get('/backup', requireAuth, async (req, res) => {
+router.get('/backup', requireAuth, blockSystemTester, async (req, res) => {
   if (!isAdmin(req.user)) return res.status(403).json({ error: 'Admin access required' });
   try {
     const pool = getPool();
@@ -116,7 +124,7 @@ router.get('/backup', requireAuth, async (req, res) => {
 });
 
 // POST /system/restore -> restore tables from a full JSON dump (destructive per included table)
-router.post('/restore', requireAuth, async (req, res) => {
+router.post('/restore', requireAuth, blockSystemTester, async (req, res) => {
   if (!isAdmin(req.user)) return res.status(403).json({ error: 'Admin access required' });
 
   const payload = req.body || {};
