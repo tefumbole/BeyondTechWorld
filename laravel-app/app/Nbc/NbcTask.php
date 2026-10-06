@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcTask extends Model
+class NbcTask extends NbcModel
 {
     protected $table = 'nbc_tasks';
 

@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcQuotation extends Model
+class NbcQuotation extends NbcModel
 {
     protected $table = 'nbc_quotations';
 

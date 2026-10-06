@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcEvent extends Model
+class NbcEvent extends NbcModel
 {
     protected $table = 'nbc_events';
 

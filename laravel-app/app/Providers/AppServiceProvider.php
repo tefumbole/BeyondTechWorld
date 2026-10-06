@@ -48,7 +48,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('nbc.*', function ($view) {
             $id = session('nbc_member_id');
             $member = null;
-            if ($id && \Illuminate\Support\Facades\Schema::hasTable('nbc_members')) {
+            if ($id && \Illuminate\Support\Facades\Schema::connection('nbc')->hasTable('nbc_members')) {
                 $member = \App\Nbc\NbcMember::where('id', $id)->where('status', 'active')->first();
             }
             $view->with('nbcMember', $member);

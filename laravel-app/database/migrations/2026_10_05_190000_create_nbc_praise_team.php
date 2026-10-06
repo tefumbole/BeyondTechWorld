@@ -8,8 +8,9 @@ class CreateNbcPraiseTeam extends Migration
 {
     public function up()
     {
-        if (! Schema::hasTable('nbc_bylaws')) {
-            Schema::create('nbc_bylaws', function (Blueprint $table) {
+        $schema = Schema::connection('nbc');
+        if (! $schema->hasTable('nbc_bylaws')) {
+            $schema->create('nbc_bylaws', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('version')->default(1);
                 $table->longText('body');
@@ -17,8 +18,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_members')) {
-            Schema::create('nbc_members', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_members')) {
+            $schema->create('nbc_members', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('name', 191);
                 $table->string('email', 191)->unique();
@@ -36,8 +37,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_events')) {
-            Schema::create('nbc_events', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_events')) {
+            $schema->create('nbc_events', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('title', 191);
                 $table->string('kind', 20)->default('event');
@@ -52,8 +53,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_announcements')) {
-            Schema::create('nbc_announcements', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_announcements')) {
+            $schema->create('nbc_announcements', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('title', 191);
                 $table->text('body');
@@ -63,8 +64,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_tasks')) {
-            Schema::create('nbc_tasks', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_tasks')) {
+            $schema->create('nbc_tasks', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('title', 191);
                 $table->text('body')->nullable();
@@ -76,8 +77,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_letters')) {
-            Schema::create('nbc_letters', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_letters')) {
+            $schema->create('nbc_letters', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('title', 191);
                 $table->string('recipient_name', 191)->nullable();
@@ -89,8 +90,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_quotations')) {
-            Schema::create('nbc_quotations', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_quotations')) {
+            $schema->create('nbc_quotations', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('number', 40);
                 $table->string('client_name', 191);
@@ -102,8 +103,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_messages')) {
-            Schema::create('nbc_messages', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_messages')) {
+            $schema->create('nbc_messages', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('audience', 20)->default('members');
                 $table->unsignedInteger('member_id')->nullable();
@@ -113,8 +114,8 @@ class CreateNbcPraiseTeam extends Migration
             });
         }
 
-        if (! Schema::hasTable('nbc_attendance')) {
-            Schema::create('nbc_attendance', function (Blueprint $table) {
+        if (! $schema->hasTable('nbc_attendance')) {
+            $schema->create('nbc_attendance', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('member_id');
                 $table->unsignedInteger('event_id')->nullable();
@@ -127,14 +128,15 @@ class CreateNbcPraiseTeam extends Migration
 
     public function down()
     {
-        Schema::dropIfExists('nbc_attendance');
-        Schema::dropIfExists('nbc_messages');
-        Schema::dropIfExists('nbc_quotations');
-        Schema::dropIfExists('nbc_letters');
-        Schema::dropIfExists('nbc_tasks');
-        Schema::dropIfExists('nbc_announcements');
-        Schema::dropIfExists('nbc_events');
-        Schema::dropIfExists('nbc_members');
-        Schema::dropIfExists('nbc_bylaws');
+        $schema = Schema::connection('nbc');
+        $schema->dropIfExists('nbc_attendance');
+        $schema->dropIfExists('nbc_messages');
+        $schema->dropIfExists('nbc_quotations');
+        $schema->dropIfExists('nbc_letters');
+        $schema->dropIfExists('nbc_tasks');
+        $schema->dropIfExists('nbc_announcements');
+        $schema->dropIfExists('nbc_events');
+        $schema->dropIfExists('nbc_members');
+        $schema->dropIfExists('nbc_bylaws');
     }
 }

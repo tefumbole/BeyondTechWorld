@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcBylaw extends Model
+class NbcBylaw extends NbcModel
 {
     protected $table = 'nbc_bylaws';
 

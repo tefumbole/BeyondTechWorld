@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcLetter extends Model
+class NbcLetter extends NbcModel
 {
     protected $table = 'nbc_letters';
 

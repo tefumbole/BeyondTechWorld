@@ -2,9 +2,7 @@
 
 namespace App\Nbc;
 
-use Illuminate\Database\Eloquent\Model;
-
-class NbcMessage extends Model
+class NbcMessage extends NbcModel
 {
     protected $table = 'nbc_messages';
 
