@@ -109,6 +109,19 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_CONFIRMATION',
             'HXd2d37bef5d79737b7564cce2602157f8'
         ),
+        'content_sid_shared_document' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_DOCUMENT',
+            'HXa985cc01cfc16741b20f9992b79e0afc'
+        ),
+        'content_sid_shared_image' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_IMAGE',
+            'HXfa458c10c5c5e687bdf04e8b7c900acc'
+        ),
+        'content_sid_shared_choice' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_CHOICE',
+            'HX17d3a6994423698b0a957febff137a06'
+        ),
+        'media_base_url' => env('TWILIO_MEDIA_BASE_URL', 'https://beyondtechworld.com'),
         'content_sid_review_link' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_REVIEW_LINK',
             'HXc0bd8939fe1e1739fd0d7b7d23c88dc8'

@@ -15,6 +15,9 @@ use App\Services\Messaging\TwilioTemplateSender;
  * shared_otp          code, minutes
  * shared_confirmation name, organisation, record, reference, date, details, amount
  * reminder            name, organisation, subject, reference, when
+ * shared_document     name, organisation, file name, reference, public file path
+ * shared_image        name, organisation, file name, reference, public file path
+ * shared_choice       name, organisation, options, reference
  */
 class TwilioEquivalence
 {
@@ -28,6 +31,9 @@ class TwilioEquivalence
             ['name' => 'shared_otp', 'category' => 'Utility', 'sends' => 'Login and signup codes. Fields: code, minutes.'],
             ['name' => 'shared_confirmation', 'category' => 'Utility', 'sends' => 'Booking, quotation, and payment confirmations. Fields: name, organisation, record, reference, date, details, amount.'],
             ['name' => 'reminder', 'category' => 'Marketing', 'sends' => 'Booking, event, rental, and appointment reminders. Fields: name, organisation, subject, reference, when.'],
+            ['name' => 'shared_document', 'category' => 'Utility', 'sends' => 'Invoices, signed agreements, letters, and other files. Fields: name, organisation, file name, reference, public file path.'],
+            ['name' => 'shared_image', 'category' => 'Utility', 'sends' => 'QR codes and other images. Fields: name, organisation, file name, reference, public file path.'],
+            ['name' => 'shared_choice', 'category' => 'Utility', 'sends' => 'A question with options, in place of a poll. Fields: name, organisation, options, reference.'],
         ];
     }
 

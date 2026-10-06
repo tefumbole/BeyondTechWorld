@@ -341,6 +341,14 @@ class Controller extends BaseController
 
     public function wasenderAttachment($path, $lims_customer_data, $wa_path, $fileName)
     {
+        $phone = $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '';
+        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $path, $fileName, $fileName);
+        if (! empty($twilio['success'])) {
+            self::$lastWhatsAppSendType = 'document';
+
+            return $twilio;
+        }
+
         $this->delayWasenderTextToDocument();
         $this->throttleWhatsAppSend();
         $this->assertWasenderConfigured();
@@ -684,19 +692,28 @@ class Controller extends BaseController
 
 
     public function wpPDFMessage($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null, $captionOverride = null){
+        $customerName = $lims_customer_data->name ?? 'Customer';
+        $caption = $captionOverride !== null && $captionOverride !== ''
+            ? $captionOverride
+            : (\App\Support\WhatsAppMessage::statusBlock('📄', 'Document Attached')
+                . \App\Support\WhatsAppMessage::greeting($customerName)
+                . 'Please find your *' . $filename . '* attached.'
+                . \App\Support\WhatsAppMessage::footer());
+        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend(
+            $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '',
+            $path,
+            $filename,
+            $caption
+        );
+        if (! empty($twilio['success'])) {
+            return $twilio;
+        }
+
         if ($this->usesWasender()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
                 $wa_path = $this->resolveWhatsAppDocumentUrl($path);
             }
-
-            $customerName = $lims_customer_data->name ?? 'Customer';
-            $caption = $captionOverride !== null && $captionOverride !== ''
-                ? $captionOverride
-                : (\App\Support\WhatsAppMessage::statusBlock('📄', 'Document Attached')
-                    . \App\Support\WhatsAppMessage::greeting($customerName)
-                    . 'Please find your *' . $filename . '* attached.'
-                    . \App\Support\WhatsAppMessage::footer());
 
             try {
                 $this->sendWasenderTextMessage(

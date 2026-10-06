@@ -184,6 +184,10 @@ class BeyondWasenderService
         if ($blocked) {
             return $blocked;
         }
+        $choice = app(\App\Support\TwilioMediaSender::class)->tryChoice($phone, 'Friend', $question, $options);
+        if (! empty($choice['success'])) {
+            return $choice;
+        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
@@ -306,6 +310,10 @@ class BeyondWasenderService
         }
 
         $fileName = $fileName ?: basename($localPath);
+        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, $fileName, $caption);
+        if (! empty($twilio['success'])) {
+            return $twilio;
+        }
 
         try {
             $to = $this->formatPhone($phone);
@@ -371,6 +379,11 @@ class BeyondWasenderService
 
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'Image file not found.'];
+        }
+
+        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, basename($localPath), $caption);
+        if (! empty($twilio['success'])) {
+            return $twilio;
         }
 
         try {

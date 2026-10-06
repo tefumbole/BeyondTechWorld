@@ -203,6 +203,38 @@ class TwilioTemplateSender
         ]);
     }
 
+    public function sendSharedDocument($phone, $name, $organisation, $title, $reference, $filePath)
+    {
+        return $this->approvedSend('content_sid_shared_document', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $title,
+            '4' => $reference,
+            '5' => $filePath,
+        ]);
+    }
+
+    public function sendSharedImage($phone, $name, $organisation, $title, $reference, $filePath)
+    {
+        return $this->approvedSend('content_sid_shared_image', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $title,
+            '4' => $reference,
+            '5' => $filePath,
+        ]);
+    }
+
+    public function sendSharedChoice($phone, $name, $organisation, $options, $reference)
+    {
+        return $this->approvedSend('content_sid_shared_choice', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $options,
+            '4' => $reference,
+        ]);
+    }
+
     public function sendSharedConfirmation($phone, $name, $organisation, $recordType, $reference, $date, $details, $amount)
     {
         return $this->approvedSend('content_sid_shared_confirmation', $phone, [
