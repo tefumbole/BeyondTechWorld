@@ -124,6 +124,43 @@ class TwilioTemplateSender
         ]);
     }
 
+    /**
+     * shared_notice. Subject, header, name, body, footer, reference. No fixed company name.
+     *
+     * @param  array{subject?:string,header?:string,name?:string,body?:string,footer?:string,reference?:string}  $fields
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendSharedNotice($phone, array $fields)
+    {
+        $sid = trim((string) config('services.whatsapp.content_sid_shared_notice', ''));
+        if ($sid === '' || $this->twilio->contentApprovalStatus($sid) !== 'approved') {
+            return [
+                'success' => false,
+                'provider' => 'twilio',
+                'error' => 'The shared notice template is not approved yet.',
+            ];
+        }
+
+        if (mb_strlen(trim((string) ($fields['body'] ?? ''))) > 1500) {
+            return [
+                'success' => false,
+                'provider' => 'twilio',
+                'error' => 'Notice body is too long for the WhatsApp template.',
+            ];
+        }
+
+        $variables = \App\Support\SharedNotice::variables(
+            $fields['subject'] ?? '',
+            $fields['header'] ?? '',
+            $fields['name'] ?? '',
+            $fields['body'] ?? '',
+            $fields['footer'] ?? '',
+            $fields['reference'] ?? ''
+        );
+
+        return $this->send('content_sid_shared_notice', $phone, $variables, true);
+    }
+
     public function sendServiceUpdate($phone, $name, $recordType, $reference, $status)
     {
         return $this->send('content_sid_service_update', $phone, [
@@ -138,7 +175,7 @@ class TwilioTemplateSender
      * @param  array<string,string>  $variables
      * @return array{success:bool,sid?:string,error?:string,provider?:string}
      */
-    protected function send($configKey, $phone, array $variables)
+    protected function send($configKey, $phone, array $variables, $keepBreaks = false)
     {
         $sid = trim((string) config('services.whatsapp.'.$configKey, ''));
         if ($sid === '') {
@@ -151,13 +188,30 @@ class TwilioTemplateSender
 
         $clean = [];
         foreach ($variables as $key => $value) {
-            $clean[$key] = $this->cleanVariable($value);
+            $clean[$key] = $keepBreaks ? $this->cleanWithBreaks($value) : $this->cleanVariable($value);
         }
 
         $result = $this->twilio->sendContentTemplate($phone, $sid, $clean);
         $result['provider'] = 'twilio';
+        if ($keepBreaks && empty($result['success']) && $this->breaksWereRejected($result['error'] ?? '')) {
+            $flat = [];
+            foreach ($variables as $key => $value) {
+                $flat[$key] = $this->cleanVariable($value);
+            }
+            $result = $this->twilio->sendContentTemplate($phone, $sid, $flat);
+            $result['provider'] = 'twilio';
+        }
 
         return $result;
+    }
+
+    protected function breaksWereRejected($error)
+    {
+        $error = strtolower((string) $error);
+
+        return strpos($error, 'newline') !== false
+            || strpos($error, 'line break') !== false
+            || strpos($error, 'content variable') !== false;
     }
 
     protected function cleanVariable($value)
@@ -168,6 +222,22 @@ class TwilioTemplateSender
         }
         if (mb_strlen($value) > 900) {
             return rtrim(mb_substr($value, 0, 899)).'…';
+        }
+
+        return $value;
+    }
+
+    protected function cleanWithBreaks($value)
+    {
+        $value = str_replace(["\r\n", "\r"], "\n", (string) $value);
+        $value = preg_replace("/[ \t]+/", ' ', $value);
+        $value = preg_replace("/\n{3,}/", "\n\n", $value);
+        $value = trim($value);
+        if ($value === '') {
+            return '-';
+        }
+        if (mb_strlen($value) > 1500) {
+            return rtrim(mb_substr($value, 0, 1499)).'…';
         }
 
         return $value;

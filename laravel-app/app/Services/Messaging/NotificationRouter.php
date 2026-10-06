@@ -147,6 +147,22 @@ class NotificationRouter
     }
 
     /**
+     * @param  array{subject?:string,header?:string,name?:string,body?:string,footer?:string,reference?:string}  $fields
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendSharedNotice($phone, array $fields)
+    {
+        return app(TwilioTemplateSender::class)->sendSharedNotice($phone, $fields);
+    }
+
+    public function sharedNoticeIsApproved()
+    {
+        $sid = trim((string) config('services.whatsapp.content_sid_shared_notice', ''));
+
+        return $sid !== '' && $this->twilioWhatsApp->contentApprovalStatus($sid) === 'approved';
+    }
+
+    /**
      * Free-form text that must keep a URL visible. Twilio status templates drop links.
      */
     public function sendWhatsAppTextWithLink($phone, $body)

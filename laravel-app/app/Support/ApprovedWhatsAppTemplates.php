@@ -42,9 +42,9 @@ class ApprovedWhatsAppTemplates
                 'used' => true,
             ],
             [
-                'name' => 'beyond_announcement',
+                'name' => 'shared_notice',
                 'category' => 'Marketing',
-                'sends' => 'Announcements and announcement reminders. WhatsApp is still reviewing it, so those messages stay on the linked session until it is approved.',
+                'sends' => 'Announcements to one person: subject, header, name, body, footer, and reference. Other applications can send the same template. WhatsApp is still reviewing it, so these messages stay on the linked session until it is approved. Group posts stay on the linked session.',
                 'used' => false,
             ],
             [

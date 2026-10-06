@@ -85,6 +85,10 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_ANNOUNCEMENT',
             'HX350da7aa92bcb3d61102231c80b2e2c7'
         ),
+        'content_sid_shared_notice' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_NOTICE',
+            'HX84b76dc8478ae8d400da0287f805683e'
+        ),
         'content_sid_review_link' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_REVIEW_LINK',
             'HXc0bd8939fe1e1739fd0d7b7d23c88dc8'

@@ -23,14 +23,8 @@ class AnnouncementNotificationService extends Controller
         }
         try {
             $router = app(NotificationRouter::class);
-            if (trim((string) ($statusVars['message'] ?? '')) !== '') {
-                $template = $router->sendAnnouncement(
-                    $phone,
-                    $statusVars['name'] ?? 'there',
-                    $statusVars['kind'] ?? 'an announcement',
-                    $statusVars['message'],
-                    $statusVars['reference'] ?? '-'
-                );
+            if (trim((string) ($statusVars['body'] ?? '')) !== '' && $router->sharedNoticeIsApproved()) {
+                $template = $router->sendSharedNotice($phone, $statusVars);
                 if (! empty($template['success'])) {
                     return true;
                 }
@@ -56,23 +50,35 @@ class AnnouncementNotificationService extends Controller
         $reference = trim((string) ($announcement->reference ?? ''));
         $header = trim((string) ($announcement->header ?? ''));
 
-        $plain = AnnouncementPersonalization::buildTwilioBody($announcement, $person, $isCc);
-        if (mb_strlen($plain) > 800) {
-            $plain = rtrim(mb_substr($plain, 0, 799)).'…';
+        $vars = AnnouncementPersonalization::recipientVars($person, $reference, $header !== '' ? $header : $subject);
+        $body = trim(AnnouncementPersonalization::personalize($announcement->body ?: '', $vars));
+        $body = preg_replace('/^\s*Dear\s+[^,\n]*,\s*/iu', '', $body);
+        $body = trim(preg_replace('/\*+|_+/', '', (string) $body));
+        if ($isCc) {
+            $body = "You have been copied on this notice.\n\n".$body;
         }
-
-        $details = $header !== '' ? $header : 'Beyond announcement';
-        if (! empty($announcement->scheduled_for)) {
-            $details = 'Scheduled '.$announcement->scheduled_for->format('d M Y H:i');
+        $footer = trim(AnnouncementPersonalization::personalize($announcement->footer ?: '', $vars));
+        $footer = trim(preg_replace('/\*+|_+/', '', $footer));
+        if ($footer === '') {
+            $footer = $header !== '' ? $header : \App\Support\WhatsAppMessage::companyName();
+        }
+        if ($subject === '') {
+            $subject = $header !== '' ? $header : 'Notice';
+        }
+        if ($header === '') {
+            $header = $subject;
         }
 
         return [
-            'title' => $subject !== '' ? $subject : 'Announcement',
-            'name' => $name !== '' ? $name : 'there',
-            'kind' => 'an announcement',
-            'message' => $plain !== '' ? $plain : '-',
+            'title' => $subject,
+            'subject' => $subject,
+            'header' => $header,
+            'name' => $name !== '' ? $name : 'Friend',
+            'body' => $body !== '' ? $body : '-',
+            'footer' => $footer,
+            'message' => $body !== '' ? $body : '-',
             'reference' => $reference !== '' ? $reference : '-',
-            'details' => $details,
+            'details' => $header,
         ];
     }
 
