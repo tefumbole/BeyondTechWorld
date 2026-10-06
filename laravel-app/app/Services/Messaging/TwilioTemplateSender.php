@@ -175,23 +175,37 @@ class TwilioTemplateSender
 
     public function sendSharedAction($phone, $name, $organisation, $action, $reference, $link)
     {
+        $path = $this->sitePath($link);
+        if ($path === '') {
+            return [
+                'success' => false,
+                'provider' => 'twilio',
+                'error' => 'The link is not on the public website.',
+            ];
+        }
+
         return $this->approvedSend('content_sid_shared_action', $phone, [
             '1' => $name,
             '2' => $organisation,
             '3' => $action,
             '4' => $reference,
-            '5' => $link,
+            '5' => $path,
         ]);
     }
 
     public function sendSharedAccess($phone, $name, $organisation, $username, $password, $signIn)
     {
+        $path = $this->sitePath($signIn);
+        if ($path === '') {
+            $path = 'login';
+        }
+
         return $this->approvedSend('content_sid_shared_access', $phone, [
             '1' => $name,
             '2' => $organisation,
             '3' => $username,
             '4' => $password,
-            '5' => $signIn,
+            '5' => $path,
         ]);
     }
 
@@ -199,7 +213,6 @@ class TwilioTemplateSender
     {
         return $this->approvedSend('content_sid_shared_otp', $phone, [
             '1' => $code,
-            '2' => $minutes,
         ]);
     }
 
@@ -304,6 +317,23 @@ class TwilioTemplateSender
         }
 
         return $result;
+    }
+
+    protected function sitePath($link)
+    {
+        $link = trim((string) $link);
+        if ($link === '' || $link === '-') {
+            return '';
+        }
+        $base = rtrim(\App\Support\TwilioMedia::baseUrl(), '/');
+        if ($base !== '' && stripos($link, $base) === 0) {
+            return ltrim(substr($link, strlen($base)), '/');
+        }
+        if (! preg_match('#^https?://#i', $link)) {
+            return ltrim($link, '/');
+        }
+
+        return '';
     }
 
     protected function breaksWereRejected($error)

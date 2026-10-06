@@ -75,8 +75,21 @@ class SaleController extends Controller
         $lims_customer_data = Customer::find($lims_sale_data->customer_id);
 
         $content = $this->buildSaleInvoicePdfBinary($id);
-        Storage::put('public/sale/sale_invoice.pdf', $content);
-        $path = storage_path('app/public/sale/sale_invoice.pdf');
+        $safeRef = preg_replace('/[^A-Za-z0-9._-]/', '-', (string) $lims_sale_data->reference_no);
+        if ($safeRef === '' || $safeRef === null) {
+            $safeRef = 'sale-'.$id;
+        }
+        $dir = public_path('sale-invoices');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        if (is_dir($dir) && is_writable($dir)) {
+            $path = $dir.'/'.$safeRef.'.pdf';
+            file_put_contents($path, $content);
+        } else {
+            Storage::put('public/sale/sale_invoice.pdf', $content);
+            $path = storage_path('app/public/sale/sale_invoice.pdf');
+        }
 
         $message = 'Sale notification sent successfully';
         try{

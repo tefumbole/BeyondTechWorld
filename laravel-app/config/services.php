@@ -87,27 +87,27 @@ return [
         ),
         'content_sid_shared_notice' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_NOTICE',
-            'HX84b76dc8478ae8d400da0287f805683e'
+            'HXf57acecf17cbb538b7f46d192fc202cf'
         ),
         'content_sid_shared_status' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_STATUS',
-            'HXd1cbd48a8dcbf36d5d3c00610a7c9d44'
+            'HXa6087b7c87588c6c9171d5d99d61b53d'
         ),
         'content_sid_shared_action' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_ACTION',
-            'HX9aac0c434713d6a1e4fea3dff15cbb5b'
+            'HX97ab98f927ffd5d0e9ccc8c5edca9c61'
         ),
         'content_sid_shared_access' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_ACCESS',
-            'HX79621e92b9b49942732ea4cece94276b'
+            'HX1f98bfca1625c102c7a544867d484bef'
         ),
         'content_sid_shared_otp' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_OTP',
-            'HX81623d27a98403286e4a3b0eeafa28dd'
+            'HX95054aa7ab0c98310c3dbcd399c52cc8'
         ),
         'content_sid_shared_confirmation' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_CONFIRMATION',
-            'HXd2d37bef5d79737b7564cce2602157f8'
+            'HX59b3a3aea9341fa1baac5166e36f332f'
         ),
         'content_sid_shared_document' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_DOCUMENT',

@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * Generic WhatsApp notice. Any application can send Content SID
- * HX84b76dc8478ae8d400da0287f805683e with these variables. No company name is fixed in the text.
+ * HXf57acecf17cbb538b7f46d192fc202cf with these variables. No company name is fixed in the text.
  *
  * {{1}} subject
  * {{2}} header
@@ -15,7 +15,7 @@ namespace App\Support;
  */
 class SharedNotice
 {
-    const CONTENT_SID = 'HX84b76dc8478ae8d400da0287f805683e';
+    const CONTENT_SID = 'HXf57acecf17cbb538b7f46d192fc202cf';
 
     public static function variables($subject, $header, $name, $body, $footer, $reference)
     {

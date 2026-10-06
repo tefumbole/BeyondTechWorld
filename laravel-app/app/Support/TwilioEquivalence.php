@@ -10,9 +10,9 @@ use App\Services\Messaging\TwilioTemplateSender;
  *
  * shared_notice       subject, header, name, body, footer, reference
  * shared_status       name, organisation, record, reference, status, detail
- * shared_action       name, organisation, action, reference, link
- * shared_access       name, organisation, username, password, sign-in link
- * shared_otp          code, minutes
+ * shared_action       name, organisation, action, reference, website path
+ * shared_access       name, organisation, username, password, website path
+ * shared_otp          code. The approved text says the code expires in 10 minutes.
  * shared_confirmation name, organisation, record, reference, date, details, amount
  * reminder            name, organisation, subject, reference, when
  * shared_document     name, organisation, file name, reference, public file path
@@ -24,11 +24,11 @@ class TwilioEquivalence
     public static function catalog()
     {
         return [
-            ['name' => 'shared_notice', 'category' => 'Marketing', 'sends' => 'Announcements, letters, tasks, quotations, and any other notice. Fields: subject, header, name, body, footer, reference.'],
+            ['name' => 'shared_notice', 'category' => 'Utility', 'sends' => 'Announcements, letters, tasks, quotations, and any other notice. Fields: subject, header, name, body, footer, reference.'],
             ['name' => 'shared_status', 'category' => 'Utility', 'sends' => 'Application updates, signed documents, and other record status. Fields: name, organisation, record, reference, status, detail.'],
-            ['name' => 'shared_action', 'category' => 'Utility', 'sends' => 'Signature, review, upload, and other links. Fields: name, organisation, action, reference, link.'],
+            ['name' => 'shared_action', 'category' => 'Utility', 'sends' => 'Signature, review, upload, and other links. Fields: name, organisation, action, reference, and a button on this website.'],
             ['name' => 'shared_access', 'category' => 'Utility', 'sends' => 'New account and password messages. Fields: name, organisation, username, password, sign-in link.'],
-            ['name' => 'shared_otp', 'category' => 'Utility', 'sends' => 'Login and signup codes. Fields: code, minutes.'],
+            ['name' => 'shared_otp', 'category' => 'Authentication', 'sends' => 'Login and signup codes. The message includes the code and says it expires in 10 minutes.'],
             ['name' => 'shared_confirmation', 'category' => 'Utility', 'sends' => 'Booking, quotation, and payment confirmations. Fields: name, organisation, record, reference, date, details, amount.'],
             ['name' => 'reminder', 'category' => 'Marketing', 'sends' => 'Booking, event, rental, and appointment reminders. Fields: name, organisation, subject, reference, when.'],
             ['name' => 'shared_document', 'category' => 'Utility', 'sends' => 'Invoices, signed agreements, letters, and other files. Fields: name, organisation, file name, reference, public file path.'],
