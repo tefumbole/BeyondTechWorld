@@ -89,6 +89,26 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_SHARED_NOTICE',
             'HX84b76dc8478ae8d400da0287f805683e'
         ),
+        'content_sid_shared_status' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_STATUS',
+            'HXd1cbd48a8dcbf36d5d3c00610a7c9d44'
+        ),
+        'content_sid_shared_action' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_ACTION',
+            'HX9aac0c434713d6a1e4fea3dff15cbb5b'
+        ),
+        'content_sid_shared_access' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_ACCESS',
+            'HX79621e92b9b49942732ea4cece94276b'
+        ),
+        'content_sid_shared_otp' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_OTP',
+            'HX81623d27a98403286e4a3b0eeafa28dd'
+        ),
+        'content_sid_shared_confirmation' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SHARED_CONFIRMATION',
+            'HXd2d37bef5d79737b7564cce2602157f8'
+        ),
         'content_sid_review_link' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_REVIEW_LINK',
             'HXc0bd8939fe1e1739fd0d7b7d23c88dc8'

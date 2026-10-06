@@ -161,6 +161,75 @@ class TwilioTemplateSender
         return $this->send('content_sid_shared_notice', $phone, $variables, true);
     }
 
+    public function sendSharedStatus($phone, $name, $organisation, $recordType, $reference, $status, $detail)
+    {
+        return $this->approvedSend('content_sid_shared_status', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $recordType,
+            '4' => $reference,
+            '5' => $status,
+            '6' => $detail,
+        ], true);
+    }
+
+    public function sendSharedAction($phone, $name, $organisation, $action, $reference, $link)
+    {
+        return $this->approvedSend('content_sid_shared_action', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $action,
+            '4' => $reference,
+            '5' => $link,
+        ]);
+    }
+
+    public function sendSharedAccess($phone, $name, $organisation, $username, $password, $signIn)
+    {
+        return $this->approvedSend('content_sid_shared_access', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $username,
+            '4' => $password,
+            '5' => $signIn,
+        ]);
+    }
+
+    public function sendSharedOtp($phone, $code, $minutes)
+    {
+        return $this->approvedSend('content_sid_shared_otp', $phone, [
+            '1' => $code,
+            '2' => $minutes,
+        ]);
+    }
+
+    public function sendSharedConfirmation($phone, $name, $organisation, $recordType, $reference, $date, $details, $amount)
+    {
+        return $this->approvedSend('content_sid_shared_confirmation', $phone, [
+            '1' => $name,
+            '2' => $organisation,
+            '3' => $recordType,
+            '4' => $reference,
+            '5' => $date,
+            '6' => $details,
+            '7' => $amount,
+        ], true);
+    }
+
+    protected function approvedSend($configKey, $phone, array $variables, $keepBreaks = false)
+    {
+        $sid = trim((string) config('services.whatsapp.'.$configKey, ''));
+        if ($sid === '' || $this->twilio->contentApprovalStatus($sid) !== 'approved') {
+            return [
+                'success' => false,
+                'provider' => 'twilio',
+                'error' => 'Template is not approved yet.',
+            ];
+        }
+
+        return $this->send($configKey, $phone, $variables, $keepBreaks);
+    }
+
     public function sendServiceUpdate($phone, $name, $recordType, $reference, $status)
     {
         return $this->send('content_sid_service_update', $phone, [

@@ -1249,6 +1249,22 @@ class WhatsAppHubController extends Controller
         return back()->with('message', 'Verification was invalidated.');
     }
 
+    protected function templateRows()
+    {
+        $rows = [];
+        $seen = [];
+        foreach (array_merge(\App\Support\ApprovedWhatsAppTemplates::forHub(), \App\Support\TwilioEquivalence::catalog()) as $row) {
+            $name = $row['name'] ?? '';
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
     protected function businessLine()
     {
         $twilio = app(\App\Services\TwilioWhatsAppService::class);
@@ -1256,7 +1272,7 @@ class WhatsAppHubController extends Controller
         return [
             'configured' => $twilio->isConfigured(),
             'display' => $twilio->displayNumber(),
-            'templates' => \App\Support\ApprovedWhatsAppTemplates::forHub(),
+            'templates' => $this->templateRows(),
         ];
     }
 

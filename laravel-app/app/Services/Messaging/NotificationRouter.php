@@ -64,6 +64,10 @@ class NotificationRouter
         }
 
         $body = LetterReference::applyToMessage($body, 'whatsapp');
+        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, $statusVars);
+        if (! empty($generic['success'])) {
+            return $generic;
+        }
         $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
@@ -77,7 +81,13 @@ class NotificationRouter
      */
     public function sendTwilioStatusUpdate($phone, $name, $recordType, $reference, $status)
     {
-        return app(TwilioTemplateSender::class)->sendStatusUpdate($phone, $name, $recordType, $reference, $status);
+        $sender = app(TwilioTemplateSender::class);
+        $generic = $sender->sendSharedStatus($phone, $name, \App\Support\WhatsAppMessage::companyName(), $recordType, $reference, $status, '-');
+        if (! empty($generic['success'])) {
+            return $generic;
+        }
+
+        return $sender->sendStatusUpdate($phone, $name, $recordType, $reference, $status);
     }
 
     /**
@@ -172,6 +182,10 @@ class NotificationRouter
         }
 
         $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, []);
+        if (! empty($generic['success'])) {
+            return $generic;
+        }
         $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
@@ -190,6 +204,11 @@ class NotificationRouter
             \Log::info('[messaging] WhatsApp disabled — skip OTP');
 
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
+        }
+
+        $otpTemplate = app(TwilioTemplateSender::class)->sendSharedOtp($phone, $otp, $expiresMinutes);
+        if (! empty($otpTemplate['success'])) {
+            return $otpTemplate;
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
