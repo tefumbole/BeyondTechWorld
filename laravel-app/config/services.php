@@ -73,6 +73,10 @@ return [
             'TWILIO_WHATSAPP_CONTENT_SID_SALE',
             'HXc875592ef3a86042206bedfc5ccfaaf3'
         ),
+        'content_sid_sale_receipt' => env(
+            'TWILIO_WHATSAPP_CONTENT_SID_SALE_RECEIPT',
+            'HX6a63485790163e2c74ed020b3289f90f'
+        ),
         'content_sid_reminder' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_REMINDER',
             'HXc3aaf3d3019bb03d917e4e1f49c7353e'

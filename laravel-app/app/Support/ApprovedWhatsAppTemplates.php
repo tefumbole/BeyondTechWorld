@@ -12,9 +12,15 @@ class ApprovedWhatsAppTemplates
     {
         return [
             [
+                'name' => 'beyond_sale_receipt',
+                'category' => 'Utility',
+                'sends' => 'Full sale receipt: items, total, payment, billing, delivery, and letter reference. WhatsApp is still reviewing it. Until then the shorter sale confirmation is sent.',
+                'used' => false,
+            ],
+            [
                 'name' => 'sales_confirmation',
                 'category' => 'Utility',
-                'sends' => 'A recorded sale',
+                'sends' => 'A recorded sale, until the full receipt template is approved',
                 'used' => true,
             ],
             [

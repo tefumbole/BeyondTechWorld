@@ -62,6 +62,38 @@ class TwilioTemplateSender
     }
 
     /**
+     * Full sale receipt. Not sent until WhatsApp approves beyond_sale_receipt.
+     *
+     * @param  array{name:string,company:string,order:string,date:string,items:string,total:string,payment:string,billing:string,delivery:string,served_by:string,reference:string}  $fields
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendSaleReceipt($phone, array $fields)
+    {
+        $sid = trim((string) config('services.whatsapp.content_sid_sale_receipt', ''));
+        if ($sid === '' || $this->twilio->contentApprovalStatus($sid) !== 'approved') {
+            return [
+                'success' => false,
+                'provider' => 'twilio',
+                'error' => 'The full sale receipt template is not approved yet.',
+            ];
+        }
+
+        return $this->send('content_sid_sale_receipt', $phone, [
+            '1' => $fields['name'] ?? '',
+            '2' => $fields['company'] ?? '',
+            '3' => $fields['order'] ?? '',
+            '4' => $fields['date'] ?? '',
+            '5' => $fields['items'] ?? '',
+            '6' => $fields['total'] ?? '',
+            '7' => $fields['payment'] ?? '',
+            '8' => $fields['billing'] ?? '',
+            '9' => $fields['delivery'] ?? '',
+            '10' => $fields['served_by'] ?? '',
+            '11' => $fields['reference'] ?? '',
+        ]);
+    }
+
+    /**
      * reminder. Variables: name, company, subject, reference, when.
      *
      * @return array{success:bool,sid?:string,error?:string,provider?:string}
@@ -134,8 +166,8 @@ class TwilioTemplateSender
         if ($value === '') {
             return '-';
         }
-        if (mb_strlen($value) > 200) {
-            return rtrim(mb_substr($value, 0, 199)).'…';
+        if (mb_strlen($value) > 900) {
+            return rtrim(mb_substr($value, 0, 899)).'…';
         }
 
         return $value;

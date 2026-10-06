@@ -62,6 +62,38 @@ class TwilioWhatsAppService
     }
 
     /**
+     * WhatsApp approval status for a Content SID: approved, received, rejected, or empty.
+     */
+    public function contentApprovalStatus($contentSid)
+    {
+        $contentSid = trim((string) $contentSid);
+        $sid = $this->accountSid();
+        $token = $this->authToken();
+        if ($contentSid === '' || $sid === '' || $token === '') {
+            return '';
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Cache::remember('twilio_content_approval_'.$contentSid, 180, function () use ($contentSid, $sid, $token) {
+                $ch = curl_init('https://content.twilio.com/v1/Content/'.$contentSid.'/ApprovalRequests');
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => 1,
+                    CURLOPT_USERPWD => $sid.':'.$token,
+                    CURLOPT_TIMEOUT => 15,
+                ]);
+                $raw = curl_exec($ch);
+                curl_close($ch);
+                $json = json_decode((string) $raw, true);
+                $wa = is_array($json) && isset($json['whatsapp']) ? $json['whatsapp'] : [];
+
+                return strtolower((string) ($wa['status'] ?? ''));
+            });
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
      * @param  string  $to
      * @param  string  $contentSid
      * @param  array<int|string,string>  $variables  keyed 1..n or "1".."n"

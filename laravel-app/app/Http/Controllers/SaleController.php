@@ -1179,15 +1179,49 @@ class SaleController extends Controller
 
         $message = 'Sale created successfully';
         $amount = $mail_data['grand_total'] ?? $lims_sale_data->grand_total;
-        $amountLabel = ($currencyCode !== '' ? $currencyCode.' ' : '').(is_numeric($amount) ? number_format((float) $amount, 2) : (string) $amount);
+        $money = function ($value) use ($currencyCode) {
+            $formatted = is_numeric($value) ? number_format((float) $value, 2) : (string) $value;
+
+            return trim(($currencyCode !== '' ? $currencyCode.' ' : '').$formatted);
+        };
+        $amountLabel = $money($amount);
+        $itemParts = [];
+        foreach ($lines as $index => $line) {
+            $itemParts[] = ($index + 1).') '.($line['name'] ?? 'Item')
+                .' x '.($line['qty'] ?? '')
+                .' @ '.$money($line['unit_price'] ?? 0)
+                .' = '.$money($line['total'] ?? 0);
+        }
+        $company = \App\Support\WhatsAppMessage::companyName();
+        $servedBy = trim((string) (@$biller->name ?: @$biller->company_name));
         try{
-            $template = app(\App\Services\Messaging\NotificationRouter::class)->sendSaleConfirmation(
-                $lims_customer_data->phone_number,
-                $lims_customer_data->name,
-                \App\Support\WhatsAppMessage::companyName(),
-                $lims_sale_data->reference_no,
-                $amountLabel
-            );
+            $router = app(\App\Services\Messaging\NotificationRouter::class);
+            $template = ['success' => false];
+            if ($router->saleReceiptIsApproved()) {
+                $letterRef = \App\Support\LetterReference::next('whatsapp');
+                $template = $router->sendSaleReceipt($lims_customer_data->phone_number, [
+                    'name' => $lims_customer_data->name,
+                    'company' => $company,
+                    'order' => $lims_sale_data->reference_no,
+                    'date' => (string) $orderDate,
+                    'items' => $itemParts ? implode(' | ', $itemParts) : '-',
+                    'total' => $amountLabel,
+                    'payment' => $paying_method ?: '-',
+                    'billing' => trim((string) (@$biller->address ?: '')) ?: '-',
+                    'delivery' => trim((string) (@$lims_customer_data->address ?: '')) ?: '-',
+                    'served_by' => $servedBy !== '' ? $servedBy : $company,
+                    'reference' => $letterRef,
+                ]);
+            }
+            if (empty($template['success'])) {
+                $template = $router->sendSaleConfirmation(
+                    $lims_customer_data->phone_number,
+                    $lims_customer_data->name,
+                    $company,
+                    $lims_sale_data->reference_no,
+                    $amountLabel
+                );
+            }
             if (empty($template['success'])) {
                 $this->wpMessage($lims_customer_data->phone_number, $msg);
             }

@@ -101,6 +101,22 @@ class NotificationRouter
     }
 
     /**
+     * @param  array{name:string,company:string,order:string,date:string,items:string,total:string,payment:string,billing:string,delivery:string,served_by:string,reference:string}  $fields
+     * @return array{success:bool,sid?:string,error?:string,provider?:string}
+     */
+    public function sendSaleReceipt($phone, array $fields)
+    {
+        return app(TwilioTemplateSender::class)->sendSaleReceipt($phone, $fields);
+    }
+
+    public function saleReceiptIsApproved()
+    {
+        $sid = trim((string) config('services.whatsapp.content_sid_sale_receipt', ''));
+
+        return $sid !== '' && $this->twilioWhatsApp->contentApprovalStatus($sid) === 'approved';
+    }
+
+    /**
      * Approved reminder template. Subject is the thing being reminded, not a free paragraph.
      *
      * @return array{success:bool,sid?:string,error?:string,provider?:string}
