@@ -108,6 +108,35 @@ class YongInvitationController extends Controller
         ]);
     }
 
+    public function downloadCard($id)
+    {
+        return $this->downloadFile($id, 'image');
+    }
+
+    public function downloadFood($id)
+    {
+        return $this->downloadFile($id, 'food');
+    }
+
+    protected function downloadFile($id, $which)
+    {
+        $row = YongInvitation::find($id);
+        if (! $row) {
+            abort(404);
+        }
+        $path = $which === 'food' ? $row->foodPath() : $row->imagePath();
+        if (! is_file($path)) {
+            abort(404);
+        }
+        $safe = trim(preg_replace('/[^A-Za-z0-9]+/', '-', $row->name), '-');
+        if ($safe === '') {
+            $safe = 'invitation';
+        }
+        $name = $safe.'-'.($which === 'food' ? 'food-ticket' : 'invitation').'.jpg';
+
+        return response()->download($path, $name, ['Content-Type' => 'image/jpeg']);
+    }
+
     public function pass($id)
     {
         $row = YongInvitation::find($id);

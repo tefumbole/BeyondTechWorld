@@ -163,6 +163,8 @@ Route::get('/yong', 'YongInvitationController@index')->name('yong.index');
 Route::get('/yong/lookup', 'YongInvitationController@lookup')->middleware('throttle:40,1')->name('yong.lookup');
 Route::post('/yong/submit', 'YongInvitationController@submit')->middleware('throttle:20,1')->name('yong.submit');
 Route::get('/yong/card/{id}', 'YongInvitationController@card')->name('yong.card');
+Route::get('/yong/card/{id}/download', 'YongInvitationController@downloadCard')->name('yong.card.download');
+Route::get('/yong/card/{id}/food', 'YongInvitationController@downloadFood')->name('yong.card.food');
 Route::get('/yong/pass/{id}', 'YongInvitationController@pass')->name('yong.pass');
 Route::get('/yong/donate/{id}', 'YongInvitationController@donate')->name('yong.donate');
 Route::get('/yong/donate/{id}/start', 'YongInvitationController@startPayment')->name('yong.donate.start');
