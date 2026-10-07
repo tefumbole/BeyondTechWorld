@@ -168,7 +168,7 @@ class YongInvitationService
             })
             ->whereNull('thanked_at')
             ->get();
-        $message = "Thank you for celebrating with Rev. Yong Nkiase and Family.\nPlease review the induction service:\n".url('/yong?tab=reviews')."\n_Rev. Yong Nkiase and Family_";
+        $message = "Thank you for celebrating with Rev. Yong Nkiase and Family.\n_Rev. Yong Nkiase and Family_";
         app()->terminating(function () use ($rows, $message) {
             if (function_exists('fastcgi_finish_request')) {
                 @fastcgi_finish_request();

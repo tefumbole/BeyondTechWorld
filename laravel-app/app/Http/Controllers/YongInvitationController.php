@@ -23,21 +23,13 @@ class YongInvitationController extends Controller
         $this->whatsapp = $whatsapp;
     }
 
-    public function index(Request $request)
+    public function index()
     {
-        $tab = $request->query('tab');
-        if (! in_array($tab, ['reviews', 'gallery'], true)) {
-            $tab = 'invite';
-        }
-
         return view('beyond.yong.index', [
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => url('/yong/lookup'),
             'submitUrl' => url('/yong/submit'),
             'serviceAt' => $this->invitations->serviceAt()->toIso8601String(),
-            'tab' => $tab,
-            'reviews' => YongReview::query()->orderBy('id', 'desc')->limit(40)->get(),
-            'photos' => YongGallery::query()->orderBy('id', 'desc')->limit(60)->get(),
         ]);
     }
 

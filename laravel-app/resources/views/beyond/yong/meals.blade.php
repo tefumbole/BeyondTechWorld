@@ -22,7 +22,7 @@
     <h1>Who ate</h1>
     <p>{{ $eaten->count() }} eaten · {{ $invitations->count() }} invitations</p>
     @if(request()->has('thanks'))
-        <p>Thank-you reviews are going out to {{ (int) request('thanks') }} {{ (int) request('thanks') === 1 ? 'person' : 'people' }}, one every 5 seconds.</p>
+        <p>Thank-you messages are going out to {{ (int) request('thanks') }} {{ (int) request('thanks') === 1 ? 'person' : 'people' }}, one every 5 seconds.</p>
     @endif
     <table>
         <thead>
@@ -40,9 +40,9 @@
             @endforeach
         </tbody>
     </table>
-    <form method="POST" action="{{ url('/yong/meals/thanks') }}" onsubmit="return confirm('Send the thank-you and review link to everyone who ate or attended?');">
+    <form method="POST" action="{{ url('/yong/meals/thanks') }}" onsubmit="return confirm('Send the thank-you to everyone who ate or attended?');">
         @csrf
-        <button type="submit">Send thank-you with review link</button>
+        <button type="submit">Send thank-you</button>
     </form>
     <p><a href="{{ url('/yong') }}">Back to the invitation page</a></p>
 </div>
