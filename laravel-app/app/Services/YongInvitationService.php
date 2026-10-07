@@ -55,13 +55,6 @@ class YongInvitationService
 
         $passUrl = url('/yong/pass/'.$id);
         $this->compose(public_path('yong/'.$type.'.jpg'), $row->imagePath(), $name, $row->typeLabel(), $passUrl, $type);
-
-        if ($amount) {
-            $pdfFile = $id.'.pdf';
-            $row->pdf_file = $pdfFile;
-            $this->writePdf($row);
-        }
-
         $row->save();
 
         return $row;
@@ -78,14 +71,11 @@ class YongInvitationService
 
     public function sendToGuest(YongInvitation $row)
     {
-        $whatsapp = app(BeyondWasenderService::class);
-        $caption = $this->guestCaption($row);
-        $file = $this->guestFile($row);
-        if ($row->isPremium() && substr($file, -4) === '.pdf') {
-            return $whatsapp->sendDocument($row->phone, $file, 'Yong-Induction-Invitation.pdf', $caption);
-        }
-
-        return $whatsapp->sendImage($row->phone, $file, $caption);
+        return app(BeyondWasenderService::class)->sendImage(
+            $row->phone,
+            $row->imagePath(),
+            $this->guestCaption($row)
+        );
     }
 
     public function queuePastorCopy(YongInvitation $row)
@@ -101,21 +91,19 @@ class YongInvitationService
             return;
         }
 
-        $path = $this->guestFile($row);
+        $path = $row->imagePath();
         $caption = $this->pastorCaption($row);
-        $premium = $row->isPremium() && substr((string) $path, -4) === '.pdf';
 
-        app()->terminating(function () use ($path, $caption, $premium) {
+        app()->terminating(function () use ($path, $caption) {
             if (function_exists('fastcgi_finish_request')) {
                 @fastcgi_finish_request();
             }
             ignore_user_abort(true);
             @set_time_limit(90);
+            sleep(5);
             try {
                 $sender = app(BeyondWasenderService::class);
-                $copy = $premium
-                    ? $sender->sendDocument(self::PASTOR_WHATSAPP, $path, 'Yong-Induction-Invitation.pdf', $caption)
-                    : $sender->sendImage(self::PASTOR_WHATSAPP, $path, $caption);
+                $copy = $sender->sendImage(self::PASTOR_WHATSAPP, $path, $caption);
                 if (empty($copy['success'])) {
                     Log::info('yong pastor copy failed', ['error' => $copy['error'] ?? 'unknown']);
                 }
@@ -210,6 +198,7 @@ class YongInvitationService
         if ($row->isPremium()) {
             $lines[] = 'Donate '.$row->pledgeLabel().': '.url('/yong/donate/'.$row->id);
         }
+        $lines[] = '_Rev. Yong Nkiase and Family_';
 
         return implode("\n", $lines);
     }
@@ -222,6 +211,7 @@ class YongInvitationService
             'Position: '.$row->positionLabel(),
             'Pledge: '.$row->pledgeLabel(),
             'Type: '.$row->typeLabel(),
+            '_Rev. Yong Nkiase and Family_',
         ]);
     }
 
