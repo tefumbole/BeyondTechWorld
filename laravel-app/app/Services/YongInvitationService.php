@@ -390,8 +390,8 @@ class YongInvitationService
         }
         $ink = $this->inkColor($img, $type);
         $font = $this->fontPath();
-        $this->drawCentered($img, $name, $font, 22, 478, 132, 464, 50, $ink);
-        $this->drawCentered($img, $typeLabel, $font, 13, 518, 494, 272, 22, $ink);
+        $this->drawCentered($img, $name, $font, 22, 484, 148, 460, 50, $ink);
+        $this->drawCentered($img, $typeLabel, $font, 13, 512, 493, 280, 20, $ink);
 
         $qrFile = $dest.'.qr.png';
         $this->writeQr($passUrl, $qrFile, 240);
