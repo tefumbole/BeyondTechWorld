@@ -66,16 +66,18 @@ class YongInvitationController extends Controller
         }
 
         $existing = $this->findByPhone($phone);
-        if ($existing) {
-            return $this->fail($request, 'This number already has an invitation. Open the one that was sent.', 409);
-        }
+        $name = trim($data['name']);
+        if ($existing && $this->sameInvitation($existing, $name, $data['position'], $pledge)) {
+            $row = $existing;
+        } else {
+            try {
+                $row = $this->invitations->create($phone, $name, $data['position'], $pledge);
+            } catch (\Throwable $e) {
+                Log::warning('yong invitation compose failed: '.$e->getMessage());
 
-        try {
-            $row = $this->invitations->create($phone, trim($data['name']), $data['position'], $pledge);
-        } catch (\Throwable $e) {
-            Log::warning('yong invitation compose failed: '.$e->getMessage());
-
-            return $this->fail($request, 'Could not build the invitation. Please try again.', 500);
+                return $this->fail($request, 'Could not build the invitation. Please try again.', 500);
+            }
+            $this->invitations->forgetOthers($phone, $row->id);
         }
 
         $send = $this->invitations->sendToGuest($row);
@@ -175,7 +177,16 @@ class YongInvitationController extends Controller
         return YongInvitation::whereRaw(
             "REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?",
             [$digits]
-        )->first();
+        )->orderBy('created_at', 'desc')->first();
+    }
+
+    protected function sameInvitation(YongInvitation $row, $name, $position, $pledge)
+    {
+        $current = $row->pledge_amount === null ? null : (int) $row->pledge_amount;
+
+        return strcasecmp(trim((string) $row->name), trim((string) $name)) === 0
+            && (string) $row->position === (string) $position
+            && $current === $pledge;
     }
 
     protected function fail(Request $request, $message, $status)

@@ -65,6 +65,36 @@ class YongInvitationService
         return $row;
     }
 
+    public function forgetOthers($phone, $keepId)
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+        if ($digits === '') {
+            return;
+        }
+        $rows = YongInvitation::whereRaw(
+            "REPLACE(REPLACE(REPLACE(phone, '+', ''), ' ', ''), '-', '') = ?",
+            [$digits]
+        )->where('id', '!=', $keepId)->get();
+        foreach ($rows as $row) {
+            $this->deleteFiles($row);
+            $row->delete();
+        }
+    }
+
+    protected function deleteFiles(YongInvitation $row)
+    {
+        foreach ([$row->image_file, $row->food_file, $row->pdf_file] as $file) {
+            $file = basename((string) $file);
+            if ($file === '' || $file === '.' || $file === '..') {
+                continue;
+            }
+            $path = public_path('yong/out/'.$file);
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
     public function guestFile(YongInvitation $row)
     {
         if ($row->isPremium() && $row->pdfPath() && is_file($row->pdfPath())) {
