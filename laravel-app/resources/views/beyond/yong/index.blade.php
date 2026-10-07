@@ -194,9 +194,8 @@
                 </div>
             </div>
             <div class="field">
-                <label>Contribution (optional)</label>
-                <input type="number" name="pledge_amount" id="pledge" min="5000" step="1" inputmode="numeric" placeholder="Amount in FCFA" value="{{ old('pledge_amount') }}">
-                <p class="hint">Minimum 5,000 FCFA if you choose to contribute.</p>
+                <label>Pledge (optional)</label>
+                <input type="number" name="pledge_amount" id="pledge" step="1" inputmode="numeric" placeholder="Amount in FCFA" value="{{ old('pledge_amount') }}">
             </div>
             <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
             <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation →</button>
@@ -293,8 +292,8 @@
         e.preventDefault();
         err.textContent = '';
         var pledge = document.getElementById('pledge').value.trim();
-        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 5000)) {
-            err.textContent = 'Enter at least 5,000 FCFA, or leave the pledge blank.';
+        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 1)) {
+            err.textContent = 'Enter a pledge amount in FCFA, or leave it blank.';
             return;
         }
         if (!document.getElementById('displayName').value.trim()) {
