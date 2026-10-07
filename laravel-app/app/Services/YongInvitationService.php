@@ -106,11 +106,7 @@ class YongInvitationService
 
     public function sendToGuest(YongInvitation $row)
     {
-        return app(BeyondWasenderService::class)->sendImage(
-            $row->phone,
-            $row->imagePath(),
-            $this->guestCaption($row)
-        );
+        return app(BeyondWasenderService::class)->sendImage($row->phone, $row->imagePath(), null);
     }
 
     public function queuePastorCopy(YongInvitation $row)
@@ -127,11 +123,9 @@ class YongInvitationService
 
         $phone = $row->phone;
         $food = $row->foodPath();
-        $foodCaption = "Food ticket ".$row->ticket_code."\n_Rev. Yong Nkiase and Family_";
         $pastorPath = $row->imagePath();
-        $pastorCaption = $this->pastorCaption($row);
 
-        app()->terminating(function () use ($phone, $food, $foodCaption, $pastorPath, $pastorCaption, $skipPastor) {
+        app()->terminating(function () use ($phone, $food, $pastorPath, $skipPastor) {
             if (function_exists('fastcgi_finish_request')) {
                 @fastcgi_finish_request();
             }
@@ -141,7 +135,7 @@ class YongInvitationService
             try {
                 $sender = app(BeyondWasenderService::class);
                 if (is_file($food)) {
-                    $ticket = $sender->sendImage($phone, $food, $foodCaption);
+                    $ticket = $sender->sendImage($phone, $food, null);
                     if (empty($ticket['success'])) {
                         Log::info('yong food ticket failed', ['error' => $ticket['error'] ?? 'unknown']);
                     }
@@ -150,7 +144,7 @@ class YongInvitationService
                     return;
                 }
                 sleep(5);
-                $copy = $sender->sendImage(self::PASTOR_WHATSAPP, $pastorPath, $pastorCaption);
+                $copy = $sender->sendImage(self::PASTOR_WHATSAPP, $pastorPath, null);
                 if (empty($copy['success'])) {
                     Log::info('yong pastor copy failed', ['error' => $copy['error'] ?? 'unknown']);
                 }
@@ -295,34 +289,6 @@ class YongInvitationService
         $row->save();
 
         return url('/yong/pass/'.$row->id.'?pay=ok');
-    }
-
-    protected function guestCaption(YongInvitation $row)
-    {
-        $lines = [
-            'Induction Service invitation',
-            'Sunday 11 October 2026, 10:00am',
-            'The Apostolic Church Obili',
-            'Invitation type: '.$row->typeLabel(),
-        ];
-        if ($row->isPremium()) {
-            $lines[] = 'Donate '.$row->pledgeLabel().': '.url('/yong/donate/'.$row->id);
-        }
-        $lines[] = '_Rev. Yong Nkiase and Family_';
-
-        return implode("\n", $lines);
-    }
-
-    protected function pastorCaption(YongInvitation $row)
-    {
-        return implode("\n", [
-            'Invitation for '.$row->name,
-            'Phone: '.$row->phone,
-            'Position: '.$row->positionLabel(),
-            'Pledge: '.$row->pledgeLabel(),
-            'Type: '.$row->typeLabel(),
-            '_Rev. Yong Nkiase and Family_',
-        ]);
     }
 
     protected function campayLink(YongInvitation $row)
