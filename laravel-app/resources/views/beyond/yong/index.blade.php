@@ -23,12 +23,10 @@
         .kicker { letter-spacing: .22em; text-transform: uppercase; font-size: 11px; color: var(--gold); margin: 0 0 6px; font-weight: 700; }
         h1 { font-family: Cinzel, serif; font-weight: 600; font-size: clamp(24px, 4.4vw, 36px); line-height: 1.15; margin: 0 auto; color: var(--gold2); }
         .sub { margin: 8px 0 0; color: #e8eef8; font-size: 15px; }
-        .count { display: flex; justify-content: center; gap: 8px; margin: 14px 0 8px; }
-        .count div { min-width: 64px; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 12px; padding: 8px 6px; }
-        .count strong { display: block; font-size: 22px; color: #fff; }
-        .count span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold2); }
-        .preview { width: 100%; border-radius: 16px; display: none; border: 1px solid rgba(212,175,55,.4); }
-        .preview.is-on { display: block; }
+        .count { display: flex; justify-content: center; gap: 10px; margin: 20px 0 6px; }
+        .count div { flex: 1; max-width: 130px; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 16px; padding: 16px 6px 14px; }
+        .count strong { display: block; font-size: clamp(36px, 8vw, 56px); line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+        .count span { display: block; margin-top: 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold2); }
         .card { background: var(--paper); border-radius: 22px; padding: 18px; margin-top: 14px; border: 1px solid rgba(212,175,55,.28); }
         label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin: 0 0 6px; }
         .field { margin-top: 12px; }
@@ -96,9 +94,6 @@
             <div><strong id="cd-s">0</strong><span>Seconds</span></div>
         </div>
     </div>
-    <img class="preview is-on" id="preview-standard" src="{{ $previews['standard'] }}" alt="Standard invitation">
-    <img class="preview" id="preview-gold" src="{{ $previews['gold'] }}" alt="Gold invitation">
-    <img class="preview" id="preview-clergy" src="{{ $previews['clergy'] }}" alt="Clergy invitation">
     <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
         @csrf
         <input type="hidden" name="country_code" id="countryCode" value="+237">
@@ -213,19 +208,7 @@
         document.querySelectorAll('.choice').forEach(function (el) {
             el.classList.toggle('is-on', el === button);
         });
-        showPreview();
     });
-    document.getElementById('pledge').addEventListener('input', showPreview);
-    function showPreview() {
-        var position = document.getElementById('position').value;
-        var pledge = document.getElementById('pledge').value.trim();
-        var pledged = pledge !== '' && !isNaN(pledge) && Number(pledge) >= 1000;
-        var type = position === 'clergy' ? 'clergy' : (pledged ? 'gold' : 'standard');
-        ['standard', 'gold', 'clergy'].forEach(function (key) {
-            document.getElementById('preview-' + key).classList.toggle('is-on', key === type);
-        });
-    }
-    showPreview();
     attachPhoneNameLookup({
         url: @json($lookupUrl),
         phone: '#phone',
