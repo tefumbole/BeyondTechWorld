@@ -76,20 +76,12 @@ class HomeController extends Controller
         try {
             $this->sendOTP($user);
         } catch (\Exception $e) {
-            return view('otp_screen', [
-                'resend_seconds' => $this->otpResendSecondsRemaining($user),
-                'whatsapp_error' => $e->getMessage(),
-                'local_otp_code' => session('local_otp_code'),
-            ]);
+            return view('otp_screen', $this->otpScreenData($user, $e->getMessage()));
         }
 
         $user->refresh();
 
-        return view('otp_screen', [
-            'resend_seconds' => $this->otpResendSecondsRemaining($user),
-            'whatsapp_error' => session('whatsapp_error'),
-            'local_otp_code' => session('local_otp_code'),
-        ]);
+        return view('otp_screen', $this->otpScreenData($user, session('whatsapp_error')));
     }
 
     public function otpResend(Request $request)
@@ -98,10 +90,9 @@ class HomeController extends Controller
         $remaining = $this->otpResendSecondsRemaining($user);
 
         if ($remaining > 0) {
-            $minutes = (int) ceil($remaining / 60);
             return redirect()->back()->with(
                 'not_permitted',
-                'You can resend OTP in ' . $minutes . ' minute' . ($minutes === 1 ? '' : 's') . '.'
+                'You can resend the code in '.$remaining.' seconds.'
             );
         }
 
@@ -111,7 +102,28 @@ class HomeController extends Controller
             return redirect()->back()->with('not_permitted', $e->getMessage());
         }
 
-        return redirect()->back()->with('message', 'A new OTP has been sent to your WhatsApp.');
+        return redirect()->back()->with('message', 'A new code has been sent to your WhatsApp '.$this->maskedOtpPhone($user).'.');
+    }
+
+    protected function otpScreenData($user, $whatsappError = null)
+    {
+        return [
+            'resend_seconds' => $this->otpResendSecondsRemaining($user),
+            'expiry_seconds' => $this->otpExpirySecondsRemaining($user),
+            'masked_phone' => $this->maskedOtpPhone($user),
+            'whatsapp_error' => $whatsappError,
+            'local_otp_code' => session('local_otp_code'),
+        ];
+    }
+
+    protected function maskedOtpPhone($user)
+    {
+        $digits = preg_replace('/\D/', '', (string) $user->phone);
+        if (strlen($digits) < 4) {
+            return 'on your account';
+        }
+
+        return 'ending '.substr($digits, -4);
     }
 
     public function otpCheckStore(Request $request) {
@@ -150,6 +162,17 @@ class HomeController extends Controller
     {
         if (empty($user->otp_time)) {
             return 0;
+        }
+
+        $elapsed = time() - strtotime($user->otp_time);
+
+        return max(0, 60 - $elapsed);
+    }
+
+    protected function otpExpirySecondsRemaining($user)
+    {
+        if (empty($user->otp_time)) {
+            return 300;
         }
 
         $elapsed = time() - strtotime($user->otp_time);

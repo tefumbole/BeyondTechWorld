@@ -119,6 +119,8 @@
 @php
     $appName = $general_setting->site_title ?? config('app.name', 'Application');
     $resendSeconds = isset($resend_seconds) ? (int) $resend_seconds : 0;
+    $expirySeconds = isset($expiry_seconds) ? (int) $expiry_seconds : 300;
+    $maskedPhone = $masked_phone ?? '';
 @endphp
 <div class="otp-card">
     @if(!empty($general_setting->site_logo))
@@ -151,7 +153,10 @@
             @if ($errors->has('otp'))
                 <div class="alert alert-danger">{{ $errors->first('otp') }}</div>
             @endif
-            <div class="otp-meta">Code expires in <strong id="otp-timer">5:00</strong></div>
+            @if($maskedPhone !== '')
+                <div class="otp-meta">Sent to your WhatsApp {{ $maskedPhone }}.</div>
+            @endif
+            <div class="otp-meta">Code expires in <strong id="otp-timer">{{ sprintf('%d:%02d', intdiv(max(0, $expirySeconds), 60), max(0, $expirySeconds) % 60) }}</strong></div>
             <button type="submit" class="btn-verify">Verify OTP</button>
         </form>
 
@@ -186,7 +191,7 @@
         var timerEl = document.getElementById('otp-timer');
         var resendBtn = document.getElementById('otp-resend-btn');
         var resendCountdownEl = document.getElementById('resend-countdown');
-        var expirySeconds = 300;
+        var expirySeconds = {{ max(0, $expirySeconds) }};
         var resendSeconds = {{ max(0, $resendSeconds) }};
 
         function formatTime(total) {
