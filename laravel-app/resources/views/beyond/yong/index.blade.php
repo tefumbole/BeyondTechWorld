@@ -60,6 +60,19 @@
         .choice.is-on { border-color: var(--gold); background: #fff8e8; box-shadow: 0 0 0 2px rgba(212,175,55,.35); }
         .btn-navy { appearance: none; border: 0; border-radius: 999px; background: var(--gold); color: var(--navy); width: 100%; margin-top: 14px; min-height: 46px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
         .err { color: #fecaca; font-size: 13px; min-height: 1em; margin-top: 8px; }
+        .tabs { display: flex; justify-content: center; gap: 8px; margin: 16px 0 0; flex-wrap: wrap; }
+        .tabs a { color: var(--gold2); text-decoration: none; border: 1px solid rgba(212,175,55,.5); border-radius: 999px; padding: 8px 16px; font-weight: 700; }
+        .tabs a.is-on { background: var(--gold); color: var(--navy); }
+        .is-hidden { display: none; }
+        select { width: 100%; min-height: 44px; border: 1px solid #e4d3a4; border-radius: 12px; padding: 0 12px; font-size: 16px; background: #fff; }
+        textarea { width: 100%; min-height: 90px; border: 1px solid #e4d3a4; border-radius: 12px; padding: 10px 12px; font-size: 16px; font-family: inherit; }
+        .review { border-top: 1px solid rgba(212,175,55,.35); padding: 10px 0; }
+        .review strong { color: #fff; }
+        .stars { color: var(--gold); letter-spacing: 2px; }
+        .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .shots figure { margin: 0; }
+        .shots img { width: 100%; border-radius: 12px; display: block; }
+        .shots figcaption { color: #e8eef8; font-size: 13px; margin-top: 4px; }
         .busy { opacity: .7; pointer-events: none; }
         @media (max-width: 700px) {
             .phone-row { grid-template-columns: 1fr; }
@@ -93,7 +106,12 @@
         <p class="headline">The Apostolic Church Obili</p>
         <p class="sub">Sunday 11 October 2026 · 10:00am</p>
     </div>
-    <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
+    <nav class="tabs">
+        <a href="{{ url('/yong') }}" class="{{ $tab === 'invite' ? 'is-on' : '' }}">Invitation</a>
+        <a href="{{ url('/yong?tab=reviews') }}" class="{{ $tab === 'reviews' ? 'is-on' : '' }}">Reviews</a>
+        <a href="{{ url('/yong?tab=gallery') }}" class="{{ $tab === 'gallery' ? 'is-on' : '' }}">Gallery</a>
+    </nav>
+    <form class="card {{ $tab === 'invite' ? '' : 'is-hidden' }}" id="yform" method="POST" action="{{ $submitUrl }}">
         @csrf
         <input type="hidden" name="country_code" id="countryCode" value="+237">
         <div class="field">
@@ -139,6 +157,70 @@
         <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
         <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation</button>
     </form>
+    <section class="card {{ $tab === 'reviews' ? '' : 'is-hidden' }}" id="reviews">
+        <form method="POST" action="{{ url('/yong/reviews') }}">
+            @csrf
+            <div class="field">
+                <label>Your name</label>
+                <input type="text" name="name" maxlength="80" required placeholder="Your name">
+            </div>
+            <div class="field">
+                <label>Your review</label>
+                <select name="rating" required>
+                    <option value="5">5 — Excellent</option>
+                    <option value="4">4 — Very good</option>
+                    <option value="3">3 — Good</option>
+                    <option value="2">2 — Fair</option>
+                    <option value="1">1 — Poor</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Comment</label>
+                <textarea name="comment" maxlength="1000" placeholder="How was the induction service?"></textarea>
+            </div>
+            <button type="submit" class="btn-navy">Share review</button>
+        </form>
+        @forelse($reviews as $review)
+            <div class="review">
+                <strong>{{ $review->name }}</strong>
+                <div class="stars">{{ str_repeat('★', (int) $review->rating) }}{{ str_repeat('☆', 5 - (int) $review->rating) }}</div>
+                @if($review->comment)<p>{{ $review->comment }}</p>@endif
+            </div>
+        @empty
+            <p class="hint">Reviews will appear here.</p>
+        @endforelse
+    </section>
+    <section class="card {{ $tab === 'gallery' ? '' : 'is-hidden' }}" id="gallery">
+        <form method="POST" action="{{ url('/yong/gallery') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="field">
+                <label>Your name</label>
+                <input type="text" name="name" maxlength="80" placeholder="Optional">
+            </div>
+            <div class="field">
+                <label>A picture from the service</label>
+                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required>
+            </div>
+            <div class="field">
+                <label>Caption</label>
+                <input type="text" name="caption" maxlength="160" placeholder="Optional">
+            </div>
+            <button type="submit" class="btn-navy">Upload picture</button>
+        </form>
+        <div class="shots">
+            @foreach($photos as $photo)
+                <figure>
+                    <img src="{{ $photo->imageUrl() }}" alt="{{ $photo->caption ?: 'Induction service' }}">
+                    @if($photo->caption || $photo->name)
+                        <figcaption>{{ $photo->caption }}@if($photo->name) — {{ $photo->name }}@endif</figcaption>
+                    @endif
+                </figure>
+            @endforeach
+        </div>
+        @if($photos->isEmpty())
+            <p class="hint">Pictures shared here will be visible to everyone.</p>
+        @endif
+    </section>
     <div class="count" id="count" aria-live="polite">
         <div><strong id="cd-d">0</strong><span>Days</span></div>
         <div><strong id="cd-h">0</strong><span>Hours</span></div>

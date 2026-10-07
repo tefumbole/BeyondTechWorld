@@ -20,16 +20,24 @@ class YongInvitation extends Model
         'pledge_amount',
         'invitation_type',
         'image_file',
+        'food_file',
+        'ticket_code',
         'pdf_file',
         'payment_status',
         'campay_reference',
         'stripe_session_id',
         'paid_at',
+        'eaten_at',
+        'attended_at',
+        'thanked_at',
     ];
 
     protected $casts = [
         'pledge_amount' => 'integer',
         'paid_at' => 'datetime',
+        'eaten_at' => 'datetime',
+        'attended_at' => 'datetime',
+        'thanked_at' => 'datetime',
     ];
 
     public function hasPledge()
@@ -50,6 +58,11 @@ class YongInvitation extends Model
     public function imageUrl()
     {
         return asset('public/yong/out/'.$this->image_file);
+    }
+
+    public function foodPath()
+    {
+        return public_path('yong/out/'.$this->food_file);
     }
 
     public function pdfPath()

@@ -168,6 +168,13 @@ Route::get('/yong/donate/{id}', 'YongInvitationController@donate')->name('yong.d
 Route::get('/yong/donate/{id}/start', 'YongInvitationController@startPayment')->name('yong.donate.start');
 Route::get('/yong/payment/check', 'YongInvitationController@payment')->name('yong.payment');
 Route::get('/yong/stripe/check', 'YongInvitationController@stripeReturn')->name('yong.stripe');
+Route::get('/yong/ticket/{code}', 'YongInvitationController@ticket')->name('yong.ticket');
+Route::post('/yong/ticket/{code}/eat', 'YongInvitationController@eat')->middleware('throttle:30,1')->name('yong.ticket.eat');
+Route::post('/yong/ticket/{code}/attend', 'YongInvitationController@attend')->middleware('throttle:20,1')->name('yong.ticket.attend');
+Route::get('/yong/meals', 'YongInvitationController@meals')->name('yong.meals');
+Route::post('/yong/meals/thanks', 'YongInvitationController@sendThanks')->middleware('throttle:3,10')->name('yong.meals.thanks');
+Route::post('/yong/reviews', 'YongInvitationController@storeReview')->middleware('throttle:12,1')->name('yong.reviews.store');
+Route::post('/yong/gallery', 'YongInvitationController@storeGallery')->middleware('throttle:8,1')->name('yong.gallery.store');
 
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {

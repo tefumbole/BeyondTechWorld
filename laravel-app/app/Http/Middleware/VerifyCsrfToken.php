@@ -26,6 +26,10 @@ class VerifyCsrfToken extends Middleware
         'pangwayu/eulogy',
         'mambole/submit',
         'yong/submit',
+        'yong/reviews',
+        'yong/gallery',
+        'yong/ticket/*',
+        'yong/meals/thanks',
         // Website chat widget POSTs from the public site; CSRF cookies are
         // unreliable across cache/CDN and caused silent "Network error" sends.
         'api/website-chat/*',

@@ -6,7 +6,9 @@ use App\Services\BeyondWasenderService;
 use App\Services\YongInvitationService;
 use App\Support\CountryDialCodes;
 use App\Support\WhatsAppPhone;
+use App\YongGallery;
 use App\YongInvitation;
+use App\YongReview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -21,18 +23,21 @@ class YongInvitationController extends Controller
         $this->whatsapp = $whatsapp;
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $tab = $request->query('tab');
+        if (! in_array($tab, ['reviews', 'gallery'], true)) {
+            $tab = 'invite';
+        }
+
         return view('beyond.yong.index', [
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => url('/yong/lookup'),
             'submitUrl' => url('/yong/submit'),
             'serviceAt' => $this->invitations->serviceAt()->toIso8601String(),
-            'previews' => [
-                'standard' => asset('public/yong/standard.jpg'),
-                'gold' => asset('public/yong/gold.jpg'),
-                'clergy' => asset('public/yong/clergy.jpg'),
-            ],
+            'tab' => $tab,
+            'reviews' => YongReview::query()->orderBy('id', 'desc')->limit(40)->get(),
+            'photos' => YongGallery::query()->orderBy('id', 'desc')->limit(60)->get(),
         ]);
     }
 
@@ -188,5 +193,99 @@ class YongInvitationController extends Controller
         }
 
         return back()->withInput()->withErrors(['phone' => $message]);
+    }
+
+    public function ticket($code)
+    {
+        $row = YongInvitation::where('ticket_code', $code)->first();
+        if (! $row) {
+            abort(404);
+        }
+
+        return view('beyond.yong.ticket', ['invitation' => $row]);
+    }
+
+    public function eat($code)
+    {
+        $row = YongInvitation::where('ticket_code', $code)->first();
+        if (! $row) {
+            abort(404);
+        }
+        $this->invitations->markEaten($row);
+
+        return redirect('/yong/ticket/'.$row->ticket_code);
+    }
+
+    public function attend($code)
+    {
+        $row = YongInvitation::where('ticket_code', $code)->first();
+        if (! $row) {
+            abort(404);
+        }
+        $this->invitations->markAttended($row);
+
+        return redirect('/yong/ticket/'.$row->ticket_code.'?welcomed=1');
+    }
+
+    public function meals()
+    {
+        $rows = YongInvitation::query()->orderBy('ticket_code')->get();
+
+        return view('beyond.yong.meals', [
+            'invitations' => $rows,
+            'eaten' => $rows->filter(function ($row) {
+                return $row->eaten_at !== null;
+            }),
+        ]);
+    }
+
+    public function sendThanks()
+    {
+        $count = $this->invitations->queueReviewThanks();
+
+        return redirect('/yong/meals?thanks='.$count);
+    }
+
+    public function storeReview(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:80',
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+        YongReview::create([
+            'invitation_id' => $request->input('invitation_id'),
+            'name' => trim($data['name']),
+            'rating' => (int) $data['rating'],
+            'comment' => isset($data['comment']) ? trim($data['comment']) : null,
+        ]);
+
+        return redirect('/yong?tab=reviews');
+    }
+
+    public function storeGallery(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'nullable|string|max:80',
+            'caption' => 'nullable|string|max:160',
+            'photo' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120',
+        ]);
+        $dir = public_path('yong/gallery');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $ext = strtolower($request->file('photo')->getClientOriginalExtension() ?: 'jpg');
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            $ext = 'jpg';
+        }
+        $file = (string) \Illuminate\Support\Str::uuid().'.'.$ext;
+        $request->file('photo')->move($dir, $file);
+        YongGallery::create([
+            'name' => isset($data['name']) ? trim($data['name']) : null,
+            'caption' => isset($data['caption']) ? trim($data['caption']) : null,
+            'image_file' => $file,
+        ]);
+
+        return redirect('/yong?tab=gallery');
     }
 }
