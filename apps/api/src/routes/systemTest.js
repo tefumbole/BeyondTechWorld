@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { getPool } from '../db/pool.js';
@@ -323,7 +325,51 @@ async function uniqueEmail(username) {
   }
 }
 
+async function provisionLaravelAccount(name, phone) {
+  const fromEnv = String(process.env.LARAVEL_ARTISAN || '').trim();
+  const guess = '/var/www/beyondtechworld/laravel-app/artisan';
+  const artisan = fromEnv && existsSync(fromEnv) ? fromEnv : (existsSync(guess) ? guess : '');
+  if (!artisan) return null;
+
+  return new Promise((resolve) => {
+    const child = spawn('php', [artisan, 'system-test:provision', name, phone], {
+      cwd: artisan.replace(/\/artisan$/, ''),
+    });
+    let out = '';
+    let err = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+    }, 20000);
+    child.stdout.on('data', (chunk) => {
+      out += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      err += chunk;
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      const line = out.trim().split('\n').filter(Boolean).pop() || '';
+      try {
+        const parsed = JSON.parse(line);
+        if (code === 0 && parsed.username && parsed.password) {
+          resolve(parsed);
+          return;
+        }
+      } catch {
+        // The site login could not be created. The local account remains the fallback.
+      }
+      if (err.trim()) console.error('[system-test] laravel account:', err.trim().slice(0, 400));
+      resolve(null);
+    });
+  });
+}
+
 async function ensureAccount(name, phone) {
+  const live = await provisionLaravelAccount(name, phone);
+  if (live?.username && live?.password) {
+    return { username: live.username, password: live.password, created: true, existing: false };
+  }
+
   await syncTesterPermissions();
   const pool = getPool();
   const existing = await findUserByPhone(phone);

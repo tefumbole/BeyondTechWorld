@@ -435,7 +435,7 @@ class BeyondAuthController extends Controller
                         "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
                         [$tail]
                     );
-            })->first();
+            })->orderByRaw('CASE WHEN role_id = 5 THEN 1 ELSE 0 END')->orderBy('id')->first();
             if ($byPhone) {
                 return $byPhone;
             }
