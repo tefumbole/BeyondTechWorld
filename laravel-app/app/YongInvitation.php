@@ -96,6 +96,7 @@ class YongInvitation extends Model
             'family' => 'Family',
             'clergy' => 'Clergy',
             'guest' => 'Guest',
+            'vip' => 'VIP',
         ];
 
         return isset($labels[$this->position]) ? $labels[$this->position] : 'Guest';

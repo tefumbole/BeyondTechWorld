@@ -70,8 +70,8 @@
         .cc-list .name { flex: 1; font-weight: 600; color: var(--navy); }
         .cc-list .dial { color: var(--muted); font-weight: 700; }
         .status { font-size: 13px; margin-top: 8px; display: none; color: var(--navy); }
-        .positions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        .choice { appearance: none; border: 1px solid #e4e0d8; background: #fff; border-radius: 999px; padding: 10px 4px; cursor: pointer; font-family: inherit; font-weight: 700; color: var(--navy); }
+        .positions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .choice { appearance: none; border: 1px solid #e4e0d8; background: #fff; border-radius: 999px; padding: 10px 4px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 700; color: var(--navy); }
         .choice.is-on { border-color: #e6c56a; background: #f6e3a8; }
         .btn-navy { appearance: none; border: 0; border-radius: 12px; background: var(--navy); color: #fff; width: 100%; margin-top: 18px; min-height: 50px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
         .fine { text-align: center; color: #8b93a0; font-size: 13px; margin: 10px 0 0; }
@@ -191,11 +191,8 @@
                     <button type="button" class="choice" data-position="family">Family</button>
                     <button type="button" class="choice" data-position="clergy">Clergy</button>
                     <button type="button" class="choice is-on" data-position="guest">Guest</button>
+                    <button type="button" class="choice" data-position="vip">VIP</button>
                 </div>
-            </div>
-            <div class="field">
-                <label>Pledge (optional)</label>
-                <input type="number" name="pledge_amount" id="pledge" step="1" inputmode="numeric" placeholder="Amount in FCFA" value="{{ old('pledge_amount') }}">
             </div>
             <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
             <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation →</button>
@@ -291,23 +288,17 @@
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         err.textContent = '';
-        var pledge = document.getElementById('pledge').value.trim();
-        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 1)) {
-            err.textContent = 'Enter a pledge amount in FCFA, or leave it blank.';
-            return;
-        }
         if (!document.getElementById('displayName').value.trim()) {
             err.textContent = 'Enter the name that should appear on the invitation.';
             return;
         }
         if (!document.getElementById('position').value) {
-            err.textContent = 'Select Friend, Family, Clergy, or Guest.';
+            err.textContent = 'Select Friend, Family, Clergy, Guest, or VIP.';
             return;
         }
         go.disabled = true;
         form.classList.add('busy');
         var body = new FormData(form);
-        if (pledge === '') body.delete('pledge_amount');
         fetch(form.action, {
             method: 'POST',
             body: body,

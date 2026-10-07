@@ -44,14 +44,8 @@ class YongInvitationController extends Controller
             'country_code' => 'required|string|max:10',
             'phone' => 'required|string|max:40',
             'name' => 'required|string|max:80',
-            'position' => 'required|in:friend,family,clergy,guest',
-            'pledge_amount' => 'nullable|integer|min:0|max:50000000',
+            'position' => 'required|in:friend,family,clergy,guest,vip',
         ]);
-
-        $pledge = $request->filled('pledge_amount') ? (int) $data['pledge_amount'] : null;
-        if ($pledge !== null && $pledge < 1) {
-            $pledge = null;
-        }
 
         try {
             $phone = WhatsAppPhone::combine($data['country_code'], $data['phone']);
@@ -64,11 +58,11 @@ class YongInvitationController extends Controller
 
         $existing = $this->findByPhone($phone);
         $name = trim($data['name']);
-        if ($existing && $this->sameInvitation($existing, $name, $data['position'], $pledge)) {
+        if ($existing && $this->sameInvitation($existing, $name, $data['position'])) {
             $row = $existing;
         } else {
             try {
-                $row = $this->invitations->create($phone, $name, $data['position'], $pledge);
+                $row = $this->invitations->create($phone, $name, $data['position']);
             } catch (\Throwable $e) {
                 Log::warning('yong invitation compose failed: '.$e->getMessage());
 
@@ -206,13 +200,11 @@ class YongInvitationController extends Controller
         )->orderBy('created_at', 'desc')->first();
     }
 
-    protected function sameInvitation(YongInvitation $row, $name, $position, $pledge)
+    protected function sameInvitation(YongInvitation $row, $name, $position)
     {
-        $current = $row->pledge_amount === null ? null : (int) $row->pledge_amount;
-
         return strcasecmp(trim((string) $row->name), trim((string) $name)) === 0
             && (string) $row->position === (string) $position
-            && $current === $pledge;
+            && (string) $row->invitation_type === $this->invitations->typeFor($position);
     }
 
     protected function fail(Request $request, $message, $status)

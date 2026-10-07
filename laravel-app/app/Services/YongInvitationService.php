@@ -22,22 +22,22 @@ class YongInvitationService
         return Carbon::parse(self::SERVICE_AT, 'Africa/Douala');
     }
 
-    public function create($phone, $name, $position, $pledgeAmount)
+    public function typeFor($position)
     {
-        $amount = $pledgeAmount === null ? null : (int) $pledgeAmount;
-        $pledged = $amount !== null && $amount > 0;
-        $position = in_array($position, ['friend', 'family', 'clergy', 'guest'], true) ? $position : 'guest';
         if ($position === 'clergy') {
-            $type = 'clergy';
-        } elseif ($pledged) {
-            $type = 'gold';
-        } else {
-            $type = 'standard';
-            $amount = null;
+            return 'clergy';
         }
-        if (! $pledged) {
-            $amount = null;
+        if ($position === 'vip') {
+            return 'gold';
         }
+
+        return 'standard';
+    }
+
+    public function create($phone, $name, $position)
+    {
+        $position = in_array($position, ['friend', 'family', 'clergy', 'vip', 'guest'], true) ? $position : 'guest';
+        $type = $this->typeFor($position);
         $id = (string) Str::uuid();
         $imageFile = $id.'.jpg';
         $foodFile = $id.'-food.jpg';
@@ -49,12 +49,12 @@ class YongInvitationService
             'phone' => $phone,
             'name' => $name,
             'position' => $position,
-            'pledge_amount' => $amount,
+            'pledge_amount' => null,
             'invitation_type' => $type,
             'image_file' => $imageFile,
             'food_file' => $foodFile,
             'ticket_code' => $ticketCode,
-            'payment_status' => $amount ? 'unpaid' : null,
+            'payment_status' => null,
         ]);
 
         $passUrl = url('/yong/pass/'.$id);
