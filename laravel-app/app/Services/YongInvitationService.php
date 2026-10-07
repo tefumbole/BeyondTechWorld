@@ -25,7 +25,7 @@ class YongInvitationService
     public function create($phone, $name, $position, $pledgeAmount)
     {
         $amount = $pledgeAmount === null ? null : (int) $pledgeAmount;
-        $pledged = $amount !== null && $amount >= 100;
+        $pledged = $amount !== null && $amount >= 1000;
         $position = in_array($position, ['friend', 'family', 'clergy', 'guest'], true) ? $position : 'guest';
         if ($position === 'clergy') {
             $type = 'clergy';
@@ -127,7 +127,7 @@ class YongInvitationService
 
     public function paymentLink(YongInvitation $row, $method)
     {
-        if (! $row->isPremium() || (int) $row->pledge_amount < 100) {
+        if (! $row->isPremium() || (int) $row->pledge_amount < 1000) {
             throw new \InvalidArgumentException('This invitation has no pledge to pay.');
         }
         if ($row->payment_status === 'paid') {

@@ -34,7 +34,7 @@ class YongInvitation extends Model
 
     public function hasPledge()
     {
-        return (int) $this->pledge_amount >= 100;
+        return (int) $this->pledge_amount >= 1000;
     }
 
     public function isPremium()

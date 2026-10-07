@@ -140,8 +140,8 @@
         </div>
         <div class="field">
             <label>Make a pledge</label>
-            <input type="number" name="pledge_amount" id="pledge" min="100" step="1" inputmode="numeric" placeholder="Amount in FCFA, optional" value="{{ old('pledge_amount') }}">
-            <p class="hint">Clergy receives the Clergy invitation. Family, friends, and guests who pledge at least 100 FCFA receive the Gold invitation, with a link to donate that amount. Without a pledge, they receive the Standard invitation.</p>
+            <input type="number" name="pledge_amount" id="pledge" min="1000" step="1" inputmode="numeric" placeholder="Amount in FCFA, optional" value="{{ old('pledge_amount') }}">
+            <p class="hint">Clergy receives the Clergy invitation. Family, friends, and guests who pledge at least 1,000 FCFA receive the Gold invitation, with a link to donate that amount. Without a pledge, they receive the Standard invitation.</p>
         </div>
         <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
         <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation</button>
@@ -219,7 +219,7 @@
     function showPreview() {
         var position = document.getElementById('position').value;
         var pledge = document.getElementById('pledge').value.trim();
-        var pledged = pledge !== '' && !isNaN(pledge) && Number(pledge) >= 100;
+        var pledged = pledge !== '' && !isNaN(pledge) && Number(pledge) >= 1000;
         var type = position === 'clergy' ? 'clergy' : (pledged ? 'gold' : 'standard');
         ['standard', 'gold', 'clergy'].forEach(function (key) {
             document.getElementById('preview-' + key).classList.toggle('is-on', key === type);
@@ -241,8 +241,8 @@
         e.preventDefault();
         err.textContent = '';
         var pledge = document.getElementById('pledge').value.trim();
-        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 100)) {
-            err.textContent = 'Enter at least 100 FCFA, or leave the pledge blank.';
+        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 1000)) {
+            err.textContent = 'Enter at least 1,000 FCFA, or leave the pledge blank.';
             return;
         }
         if (!document.getElementById('displayName').value.trim()) {
