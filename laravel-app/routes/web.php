@@ -159,6 +159,16 @@ Route::get('/mambole/lookup', 'BirthdayFlyerController@lookup')->middleware('thr
 Route::post('/mambole/submit', 'BirthdayFlyerController@submit')->middleware('throttle:20,1')->name('birthday.mambole.submit');
 Route::get('/mambole/flyer/{id}', 'BirthdayFlyerController@show')->name('birthday.mambole.show');
 
+Route::get('/yong', 'YongInvitationController@index')->name('yong.index');
+Route::get('/yong/lookup', 'YongInvitationController@lookup')->middleware('throttle:40,1')->name('yong.lookup');
+Route::post('/yong/submit', 'YongInvitationController@submit')->middleware('throttle:20,1')->name('yong.submit');
+Route::get('/yong/card/{id}', 'YongInvitationController@card')->name('yong.card');
+Route::get('/yong/pass/{id}', 'YongInvitationController@pass')->name('yong.pass');
+Route::get('/yong/donate/{id}', 'YongInvitationController@donate')->name('yong.donate');
+Route::get('/yong/donate/{id}/start', 'YongInvitationController@startPayment')->name('yong.donate.start');
+Route::get('/yong/payment/check', 'YongInvitationController@payment')->name('yong.payment');
+Route::get('/yong/stripe/check', 'YongInvitationController@stripeReturn')->name('yong.stripe');
+
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::get('/student/dashboard', 'StudentDashboardController@dashboard')->name('student.dashboard');
