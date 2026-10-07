@@ -6,65 +6,96 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Induction Service — Rev. Yong Nkiase</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #d4af37; --gold2: #f3dd8a; --navy: #0b245c; --ink: #1c160e; --paper: #fffaf1; --muted: #6b6258; }
+        :root { --navy: #10284f; --gold: #e4c16a; --ink: #1d2433; --muted: #6d7380; --line: #e6e1d6; --cream: #f6f3ec; }
         * { box-sizing: border-box; }
         html, body { margin: 0; min-height: 100%; }
-        body {
-            font-family: "Source Sans Pro", sans-serif;
-            color: #fff;
-            background-color: #071433;
-            background-image:
-                linear-gradient(180deg, rgba(7,20,51,.78) 0%, rgba(11,36,92,.72) 42%, rgba(7,20,51,.84) 100%),
-                url('{{ asset('public/yong/standard.jpg') }}');
-            background-size: cover;
-            background-position: center top;
-            background-attachment: fixed;
+        body { font-family: "Source Sans Pro", sans-serif; color: var(--ink); background: var(--cream); }
+        .wrap { width: min(1180px, calc(100% - 28px)); margin: 0 auto; }
+        header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0 14px; }
+        .brand { display: flex; align-items: center; gap: 10px; color: var(--navy); }
+        .brand svg { width: 36px; height: 36px; flex: none; }
+        .brand strong { display: block; font-size: 18px; line-height: 1.1; }
+        .brand span { display: block; font-size: 13px; color: #5c6574; }
+        .pills { display: flex; gap: 8px; }
+        .pill { border: 0; background: transparent; color: var(--navy); border-radius: 999px; padding: 8px 16px; font-weight: 700; font-family: inherit; font-size: 14px; }
+        .pill.is-on { background: var(--navy); color: #fff; }
+        .stage {
+            position: relative;
+            min-height: 640px;
+            border-radius: 28px;
+            overflow: hidden;
+            background: #f7f4ee url('{{ asset('public/yong/landing-bg.jpg') }}') left center / cover no-repeat;
+            display: grid;
+            grid-template-columns: minmax(280px, 1fr) minmax(300px, 430px);
+            align-items: center;
+            gap: 18px;
+            padding: 28px 28px 28px 36px;
         }
-        .page { width: min(720px, calc(100% - 20px)); margin: 0 auto; padding: 18px 0 28px; position: relative; }
-        .hero { text-align: center; color: #fff; padding: 8px 8px 6px; }
-        h1, .headline { font-family: Cinzel, serif; font-weight: 700; font-size: clamp(26px, 5vw, 42px); line-height: 1.2; margin: 0 auto; color: var(--gold2); }
-        .headline { margin-top: 8px; }
-        .sub { margin: 12px 0 0; color: #fff; font-size: 18px; font-weight: 600; }
-        .count { display: flex; justify-content: center; gap: 10px; margin: 18px 0 0; }
-        .count div { flex: 1; max-width: 130px; background: rgba(7,20,51,.55); border: 1px solid rgba(212,175,55,.55); border-radius: 16px; padding: 16px 6px 14px; }
-        .count strong { display: block; font-size: clamp(36px, 8vw, 56px); line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
-        .count span { display: block; margin-top: 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold2); }
-        .card { background: rgba(7,20,51,.62); border-radius: 22px; padding: 18px; margin-top: 16px; border: 1px solid rgba(212,175,55,.4); }
-        label { display: block; font-size: 15px; font-weight: 700; color: var(--gold2); margin: 0 0 6px; }
-        .field { margin-top: 12px; }
-        .hint { font-size: 13px; color: #e8eef8; margin: 6px 0 0; }
-        .phone-row { display: grid; grid-template-columns: minmax(170px, .9fr) minmax(140px, 1.1fr); gap: 8px; }
+        .copy { color: #fff; max-width: 430px; position: relative; z-index: 1; text-shadow: 0 2px 16px rgba(8, 20, 48, .35); }
+        .kicker { margin: 0 0 8px; letter-spacing: .22em; font-size: 12px; font-weight: 700; color: var(--gold); }
+        .kicker:before { content: ""; display: inline-block; width: 28px; height: 1px; background: var(--gold); vertical-align: middle; margin-right: 8px; }
+        h1 { font-family: "Playfair Display", serif; font-weight: 700; font-size: clamp(42px, 5vw, 64px); line-height: .95; margin: 0; color: var(--gold); }
+        .who { font-family: "Playfair Display", serif; font-size: clamp(26px, 3vw, 34px); line-height: 1.15; margin: 12px 0 18px; color: #fff; }
+        .facts { list-style: none; margin: 0; padding: 0; }
+        .facts li { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 16px; font-weight: 600; }
+        .facts svg { width: 28px; height: 28px; flex: none; }
+        .join { margin: 22px 0 0; max-width: 280px; font-size: 16px; line-height: 1.45; }
+        .card {
+            position: relative; z-index: 1;
+            background: #fff; border-radius: 22px; padding: 26px 22px 18px;
+            box-shadow: 0 18px 50px rgba(16, 40, 79, .12);
+        }
+        .card h2 { font-family: "Playfair Display", serif; font-size: 34px; margin: 0; color: var(--navy); font-weight: 700; }
+        .lead { margin: 6px 0 16px; color: #5d6572; }
+        label { display: block; font-size: 14px; font-weight: 700; color: var(--navy); margin: 0 0 6px; }
+        .field { margin-top: 14px; }
+        .hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+        .phone-row { display: grid; grid-template-columns: 132px 1fr; gap: 8px; }
         input[type="tel"], input[type="text"], input[type="number"], .cc-btn, .cc-search {
-            width: 100%; min-height: 44px; border: 1px solid #e4d3a4; border-radius: 12px; padding: 0 12px; font-size: 16px; background: #fff;
+            width: 100%; min-height: 46px; border: 1px solid #e4e0d8; border-radius: 12px; padding: 0 12px; font-size: 16px; background: #fff; color: var(--ink);
         }
         .cc { position: relative; }
-        .cc-btn { display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; font-family: inherit; }
-        .cc-btn .flag { font-size: 22px; }
-        .cc-btn .meta { display: flex; flex-direction: column; min-width: 0; }
-        .cc-btn .name { font-weight: 700; color: var(--navy); font-size: 14px; }
-        .cc-btn .dial { color: var(--muted); font-size: 12px; }
-        .cc-caret { margin-left: auto; color: var(--gold); }
-        .cc-menu { display: none; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid #e4d3a4; border-radius: 14px; box-shadow: 0 18px 40px rgba(0,0,0,.18); overflow: hidden; }
+        .cc-btn { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; font-family: inherit; }
+        .cc-btn .flag { font-size: 20px; }
+        .cc-btn .dial { font-weight: 700; color: var(--navy); }
+        .cc-caret { margin-left: auto; color: #8b93a0; font-size: 12px; }
+        .cc-menu { display: none; position: absolute; z-index: 20; left: 0; width: min(320px, 80vw); top: calc(100% + 6px); background: #fff; border: 1px solid #e4e0d8; border-radius: 14px; box-shadow: 0 18px 40px rgba(0,0,0,.16); overflow: hidden; }
         .cc.is-open .cc-menu { display: block; }
-        .cc-search { border: 0; border-bottom: 1px solid #efe3c4; border-radius: 0; }
+        .cc-search { border: 0; border-bottom: 1px solid #efeae2; border-radius: 0; }
         .cc-list { max-height: min(280px, 46vh); overflow: auto; margin: 0; padding: 6px; list-style: none; }
         .cc-list li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
-        .cc-list li:hover, .cc-list li.is-on { background: #fff6df; }
+        .cc-list li:hover, .cc-list li.is-on { background: #f8f1df; }
         .cc-list .name { flex: 1; font-weight: 600; color: var(--navy); }
         .cc-list .dial { color: var(--muted); font-weight: 700; }
-        .status { font-size: 13px; margin-top: 8px; display: none; color: #fff; }
+        .status { font-size: 13px; margin-top: 8px; display: none; color: var(--navy); }
         .positions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        .choice { appearance: none; border: 1px solid #e4d3a4; background: #fff; border-radius: 12px; padding: 10px 6px; cursor: pointer; font-family: inherit; font-weight: 700; color: var(--navy); }
-        .choice.is-on { border-color: var(--gold); background: #fff8e8; box-shadow: 0 0 0 2px rgba(212,175,55,.35); }
-        .btn-navy { appearance: none; border: 0; border-radius: 999px; background: var(--gold); color: var(--navy); width: 100%; margin-top: 14px; min-height: 46px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .err { color: #fecaca; font-size: 13px; min-height: 1em; margin-top: 8px; }
+        .choice { appearance: none; border: 1px solid #e4e0d8; background: #fff; border-radius: 999px; padding: 10px 4px; cursor: pointer; font-family: inherit; font-weight: 700; color: var(--navy); }
+        .choice.is-on { border-color: #e6c56a; background: #f6e3a8; }
+        .btn-navy { appearance: none; border: 0; border-radius: 12px; background: var(--navy); color: #fff; width: 100%; margin-top: 18px; min-height: 50px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .fine { text-align: center; color: #8b93a0; font-size: 13px; margin: 10px 0 0; }
+        .err { color: #991b1b; font-size: 13px; min-height: 1em; margin: 8px 0 0; }
         .busy { opacity: .7; pointer-events: none; }
-        @media (max-width: 700px) {
-            .phone-row { grid-template-columns: 1fr; }
+        .count { display: flex; justify-content: center; gap: 10px; margin: 22px 0 6px; }
+        .count div { min-width: 84px; text-align: center; background: #fff; border: 1px solid #e6dfd0; border-radius: 16px; padding: 12px 8px; }
+        .count strong { display: block; font-family: "Playfair Display", serif; font-size: 32px; color: var(--navy); line-height: 1; }
+        .count span { display: block; margin-top: 4px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8a8172; }
+        footer { display: flex; align-items: center; gap: 16px; color: #8d93a0; font-size: 14px; padding: 22px 0 28px; }
+        footer:before, footer:after { content: ""; flex: 1; height: 1px; background: #e3dccf; }
+        @media (max-width: 900px) {
+            header { align-items: flex-start; }
+            .stage { display: block; min-height: 0; padding: 0; background: #fff; }
+            .copy {
+                min-height: 420px;
+                padding: 28px 22px 24px;
+                background: #10284f url('{{ asset('public/yong/landing-bg.jpg') }}') left center / cover no-repeat;
+                border-radius: 24px;
+            }
+            .card { margin-top: 14px; }
             .positions { grid-template-columns: 1fr 1fr; }
-            .cc-menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: 12px; }
+            .phone-row { grid-template-columns: 120px 1fr; }
+            .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: 12px; }
         }
     </style>
 </head>
@@ -86,65 +117,99 @@
         $countryRows[] = ['code' => $c['code'], 'name' => $name, 'flag' => $flag];
     }
 @endphp
-<div class="page">
-    <div class="hero">
-        <h1>Induction Service</h1>
-        <p class="headline">Rev. Yong Nkiase and Family</p>
-        <p class="headline">The Apostolic Church Obili</p>
-        <p class="sub">Sunday 11 October 2026 · 10:00am</p>
-    </div>
-    <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
-        @csrf
-        <input type="hidden" name="country_code" id="countryCode" value="+237">
-        <div class="field">
-            <label>WhatsApp number</label>
-            <div class="phone-row">
-                <div class="cc" id="ccPicker">
-                    <button type="button" class="cc-btn" id="ccBtn" aria-expanded="false">
-                        <span class="flag" id="ccFlag">🇨🇲</span>
-                        <span class="meta">
-                            <span class="name" id="ccName">Cameroon</span>
+<div class="wrap">
+    <header>
+        <div class="brand">
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#10284f" d="M8 14c6 0 10 2 16 6 6-4 10-6 16-6v22c-6 0-10 2-16 6-6-4-10-6-16-6V14z"/>
+                <path fill="#e4c16a" d="M24 18v22"/>
+                <path fill="none" stroke="#fff" stroke-width="1.4" d="M14 20h6M14 24h6M28 20h6M28 24h6"/>
+            </svg>
+            <div>
+                <strong>The Apostolic Church Cameroon</strong>
+                <span>Obili District</span>
+            </div>
+        </div>
+        <nav class="pills" aria-label="Invitation">
+            <span class="pill is-on">Invitation</span>
+        </nav>
+    </header>
+    <section class="stage">
+        <div class="copy">
+            <p class="kicker">YOU ARE CORDIALLY INVITED</p>
+            <h1>Induction<br>Service</h1>
+            <p class="who">Rev. Yong Nkiase<br>and Family</p>
+            <ul class="facts">
+                <li>
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M10 14h12M10 18h8M12 10h8"/></svg>
+                    Sunday, 11 October 2026
+                </li>
+                <li>
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M16 9v8l5 3"/></svg>
+                    10:00am
+                </li>
+                <li>
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="#fff" d="M16 8a6 6 0 0 0-6 6c0 5 6 10 6 10s6-5 6-10a6 6 0 0 0-6-6zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>
+                    The Apostolic Church Obili
+                </li>
+            </ul>
+            <p class="join">Join us for a joyful service of worship and celebration.</p>
+        </div>
+        <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
+            @csrf
+            <input type="hidden" name="country_code" id="countryCode" value="+237">
+            <h2>Receive your invitation</h2>
+            <p class="lead">Complete your details to get your personal invitation.</p>
+            <div class="field">
+                <label>WhatsApp number</label>
+                <div class="phone-row">
+                    <div class="cc" id="ccPicker">
+                        <button type="button" class="cc-btn" id="ccBtn" aria-expanded="false">
+                            <span class="flag" id="ccFlag">🇨🇲</span>
                             <span class="dial" id="ccDial">+237</span>
-                        </span>
-                        <span class="cc-caret">▼</span>
-                    </button>
-                    <div class="cc-menu" id="ccMenu">
-                        <input type="search" class="cc-search" id="ccSearch" placeholder="Search country" autocomplete="off">
-                        <ul class="cc-list" id="ccList"></ul>
+                            <span class="cc-caret">▾</span>
+                        </button>
+                        <div class="cc-menu" id="ccMenu">
+                            <input type="search" class="cc-search" id="ccSearch" placeholder="Search country" autocomplete="off">
+                            <ul class="cc-list" id="ccList"></ul>
+                        </div>
                     </div>
+                    <input type="tel" name="phone" id="phone" placeholder="Your WhatsApp number" inputmode="numeric" autocomplete="tel" required>
                 </div>
-                <input type="tel" name="phone" id="phone" placeholder="675321739" inputmode="numeric" autocomplete="tel" required>
+                <p class="status" id="phoneStatus"></p>
             </div>
-            <p class="status" id="phoneStatus"></p>
-        </div>
-        <div class="field">
-            <label>Your name, as it should appear</label>
-            <input type="text" name="name" id="displayName" required maxlength="80" placeholder="Your name" value="{{ old('name') }}">
-            <p class="hint">Filled from your number when we know it. You can change it.</p>
-        </div>
-        <div class="field">
-            <label>Your position</label>
-            <input type="hidden" name="position" id="position" value="guest">
-            <div class="positions" id="positions">
-                <button type="button" class="choice" data-position="friend">Friend</button>
-                <button type="button" class="choice" data-position="family">Family</button>
-                <button type="button" class="choice" data-position="clergy">Clergy</button>
-                <button type="button" class="choice is-on" data-position="guest">Guest</button>
+            <div class="field">
+                <label>Your name, as it should appear</label>
+                <input type="text" name="name" id="displayName" required maxlength="80" placeholder="Name as it should appear on your invitation" value="{{ old('name') }}">
+                <p class="hint">You can edit the name linked to your number.</p>
             </div>
-        </div>
-        <div class="field">
-            <label>(minimum 5,000frs)</label>
-            <input type="number" name="pledge_amount" id="pledge" min="5000" step="1" inputmode="numeric" placeholder="Amount in FCFA, optional" value="{{ old('pledge_amount') }}">
-        </div>
-        <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
-        <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation</button>
-    </form>
+            <div class="field">
+                <label>Your position</label>
+                <input type="hidden" name="position" id="position" value="guest">
+                <div class="positions" id="positions">
+                    <button type="button" class="choice" data-position="friend">Friend</button>
+                    <button type="button" class="choice" data-position="family">Family</button>
+                    <button type="button" class="choice" data-position="clergy">Clergy</button>
+                    <button type="button" class="choice is-on" data-position="guest">Guest</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Contribution (optional)</label>
+                <input type="number" name="pledge_amount" id="pledge" min="5000" step="1" inputmode="numeric" placeholder="Amount in FCFA" value="{{ old('pledge_amount') }}">
+                <p class="hint">Minimum 5,000 FCFA if you choose to contribute.</p>
+            </div>
+            <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
+            <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation →</button>
+            <p class="fine">Your invitation will be sent to your WhatsApp number.</p>
+        </form>
+    </section>
     <div class="count" id="count" aria-live="polite">
         <div><strong id="cd-d">0</strong><span>Days</span></div>
         <div><strong id="cd-h">0</strong><span>Hours</span></div>
         <div><strong id="cd-m">0</strong><span>Minutes</span></div>
         <div><strong id="cd-s">0</strong><span>Seconds</span></div>
     </div>
+    <footer>The Apostolic Church Cameroon · Obili District</footer>
 </div>
 <script type="application/json" id="countryData">@json($countryRows)</script>
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
@@ -172,7 +237,6 @@
     function setCountry(row) {
         hidden.value = row.code;
         document.getElementById('ccFlag').textContent = row.flag;
-        document.getElementById('ccName').textContent = row.name;
         document.getElementById('ccDial').textContent = row.code;
         hidden.dispatchEvent(new Event('change'));
     }
@@ -198,6 +262,7 @@
     }
     btn.addEventListener('click', function () {
         var open = picker.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) { search.value = ''; render(); search.focus(); }
     });
     search.addEventListener('input', render);
