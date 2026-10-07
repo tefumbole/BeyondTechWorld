@@ -155,7 +155,7 @@ class SystemTestAccountService
         $skip = ['mr', 'mrs', 'ms', 'miss', 'dr', 'prof'];
         $base = 'tester';
         foreach (preg_split('/\s+/', trim($name)) as $part) {
-            $word = strtolower(preg_replace('/[^a-z]/', '', $part));
+            $word = preg_replace('/[^a-z]/', '', strtolower($part));
             if (strlen($word) >= 3 && ! in_array($word, $skip, true)) {
                 $base = $word;
                 break;
@@ -163,13 +163,10 @@ class SystemTestAccountService
         }
 
         $existing = $this->findTester($phone, $testerRoleId);
-        if ($existing && trim((string) $existing->username) !== '') {
-            return $existing->username;
-        }
-
+        $ownId = $existing ? $existing->id : 0;
         $username = $base;
         $i = 2;
-        while (User::whereRaw('LOWER(username) = ?', [strtolower($username)])->exists()) {
+        while (User::whereRaw('LOWER(username) = ?', [strtolower($username)])->where('id', '!=', $ownId)->exists()) {
             $username = $base.$i;
             $i++;
         }
