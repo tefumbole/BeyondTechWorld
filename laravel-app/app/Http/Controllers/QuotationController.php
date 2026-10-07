@@ -598,16 +598,41 @@ class QuotationController extends Controller
             array_merge($pricing, ['products' => $products])
         );
 
-        $message = 'Quotation sent for client signature via WhatsApp. PDF will be delivered after the client signs.';
+        $message = 'Quotation and PDF sent to the client on WhatsApp.';
+        $clientReached = false;
         try{
             $this->wpMessage($lims_customer_data->phone_number, $msg);
+            $clientReached = true;
         }
         catch(\Exception $e){
-            $message = 'Quotation saved, but WhatsApp signature link could not be sent: '.$e->getMessage();
+            \Log::warning('Quotation client WhatsApp failed for '.$lims_quotation_data->reference_no.': '.$e->getMessage());
+            $message = 'Quotation saved, but WhatsApp could not reach the client: '.$e->getMessage();
         }
 
-        // Do NOT attach the quotation PDF before signature — clients who refuse
-        // after already receiving the PDF make the signature flow pointless.
+        try {
+            $pdfPath = $this->buildQuotationPdf($lims_quotation_data->id);
+            $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_quotation_data->reference_no).'.pdf';
+            $this->wpPDFMessage(
+                $pdfPath,
+                $lims_customer_data,
+                $pdfName,
+                null,
+                WhatsAppMessage::quotationNoSignaturePdf(
+                    $lims_customer_data->name,
+                    $lims_quotation_data->reference_no,
+                    $lims_quotation_data->grand_total
+                )
+            );
+            $clientReached = true;
+            if (strpos($message, 'could not reach') !== false) {
+                $message = 'Quotation PDF sent to the client on WhatsApp.';
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Quotation PDF to client failed for '.$lims_quotation_data->reference_no.': '.$e->getMessage());
+            $message = $clientReached
+                ? 'The signature link was sent, but the quotation PDF could not be delivered: '.$e->getMessage()
+                : 'Quotation saved, but it could not be sent to the client: '.$e->getMessage();
+        }
 
         // Optional QR attachment (approval link) — must never fail the quotation save
         try {
@@ -630,8 +655,9 @@ class QuotationController extends Controller
             \Log::warning('Quotation QR WhatsApp attach skipped: '.$e->getMessage());
         }
 
-        // Creator + CC notifications (copy of status / items)
-        $this->notifyQuotationStakeholders($lims_quotation_data, 'sent', $mail_data);
+        if ($clientReached) {
+            $this->notifyQuotationStakeholders($lims_quotation_data, 'sent', $mail_data);
+        }
 
         return $message;
     }
