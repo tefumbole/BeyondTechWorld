@@ -214,6 +214,13 @@
     </tr>
 </table>
 
+@if(trim(strip_tags((string) $lims_sale_data->note)) !== '')
+    <div class="inv-box inv-note" style="margin:0 0 10px;">
+        <span class="inv-label">{{ trans('file.Note') }}</span>
+        {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
+    </div>
+@endif
+
 <div class="inv-codes-block">
     <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
         <tr>
@@ -240,21 +247,8 @@
             </td>
         </tr>
     </table>
-    <div class="inv-qr" style="margin:0 0 6px;">
-        <?php echo '<img src="data:image/png;base64,'.DNS2D::getBarcodePNG($lims_sale_data->reference_no, 'QRCODE').'" height="52" width="52" alt="qrcode">'; ?>
-    </div>
-    <div class="inv-barcode">
-        <?php echo '<img src="data:image/png;base64,'.DNS1D::getBarcodePNG($lims_sale_data->reference_no, 'C128').'" height="24" width="160" alt="barcode">'; ?>
-    </div>
 </div>
 
 @include('pdf.partials._invoice_close')
-
-@if(trim(strip_tags((string) $lims_sale_data->note)) !== '')
-    <div class="inv-note-after">
-        <span class="inv-label">{{ trans('file.Note') }}</span>
-        {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->note) !!}
-    </div>
-@endif
 </body>
 </html>

@@ -184,7 +184,8 @@ class WhatsAppMessage
         $msg .= self::bullet('Reference', $referenceNo);
         $msg .= self::quotationProductsBlock($options['products'] ?? []);
         $msg .= self::quotationPricingBlock($grandTotal, $options);
-        $msg .= "\nThis is a *quotation* (not a receipt). The PDF is attached. Open the link to *Sign & Approve*, *Reject*, or *Quote* (propose your own amounts).\n";
+        $msg .= "\nThis is a *quotation* (not a receipt). Open the link to *Sign & Approve*, *Reject*, or *Quote* (propose your own amounts).\n";
+        $msg .= "*The official PDF quotation will be sent to you only after you sign.*\n";
         $msg .= self::actionLink('Review quotation', $approvalUrl);
         $msg .= self::footer();
 
