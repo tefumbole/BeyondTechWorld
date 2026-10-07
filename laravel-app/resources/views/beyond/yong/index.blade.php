@@ -13,24 +13,28 @@
         html, body { margin: 0; min-height: 100%; }
         body {
             font-family: "Source Sans Pro", sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(60vw 40vw at 10% -10%, rgba(243,221,138,.25), transparent 55%),
-                linear-gradient(180deg, #071433 0%, #0b245c 55%, #12306f 100%);
+            color: #fff;
+            background-color: #071433;
+            background-image:
+                linear-gradient(180deg, rgba(7,20,51,.78) 0%, rgba(11,36,92,.72) 42%, rgba(7,20,51,.84) 100%),
+                url('{{ asset('public/yong/standard.jpg') }}');
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
         }
-        .page { width: min(720px, calc(100% - 20px)); margin: 0 auto; padding: 16px 0 32px; }
-        .hero { text-align: center; color: #fff; padding: 4px 8px 14px; }
-        .kicker { letter-spacing: .22em; text-transform: uppercase; font-size: 11px; color: var(--gold); margin: 0 0 6px; font-weight: 700; }
-        h1 { font-family: Cinzel, serif; font-weight: 600; font-size: clamp(24px, 4.4vw, 36px); line-height: 1.15; margin: 0 auto; color: var(--gold2); }
-        .sub { margin: 8px 0 0; color: #e8eef8; font-size: 15px; }
-        .count { display: flex; justify-content: center; gap: 10px; margin: 20px 0 6px; }
-        .count div { flex: 1; max-width: 130px; background: rgba(255,255,255,.08); border: 1px solid rgba(212,175,55,.45); border-radius: 16px; padding: 16px 6px 14px; }
+        .page { width: min(720px, calc(100% - 20px)); margin: 0 auto; padding: 18px 0 28px; position: relative; }
+        .hero { text-align: center; color: #fff; padding: 8px 8px 6px; }
+        h1, .headline { font-family: Cinzel, serif; font-weight: 700; font-size: clamp(26px, 5vw, 42px); line-height: 1.2; margin: 0 auto; color: var(--gold2); }
+        .headline { margin-top: 8px; }
+        .sub { margin: 12px 0 0; color: #fff; font-size: 18px; font-weight: 600; }
+        .count { display: flex; justify-content: center; gap: 10px; margin: 18px 0 0; }
+        .count div { flex: 1; max-width: 130px; background: rgba(7,20,51,.55); border: 1px solid rgba(212,175,55,.55); border-radius: 16px; padding: 16px 6px 14px; }
         .count strong { display: block; font-size: clamp(36px, 8vw, 56px); line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
         .count span { display: block; margin-top: 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold2); }
-        .card { background: var(--paper); border-radius: 22px; padding: 18px; margin-top: 14px; border: 1px solid rgba(212,175,55,.28); }
-        label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin: 0 0 6px; }
+        .card { background: rgba(7,20,51,.62); border-radius: 22px; padding: 18px; margin-top: 16px; border: 1px solid rgba(212,175,55,.4); }
+        label { display: block; font-size: 15px; font-weight: 700; color: var(--gold2); margin: 0 0 6px; }
         .field { margin-top: 12px; }
-        .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+        .hint { font-size: 13px; color: #e8eef8; margin: 6px 0 0; }
         .phone-row { display: grid; grid-template-columns: minmax(170px, .9fr) minmax(140px, 1.1fr); gap: 8px; }
         input[type="tel"], input[type="text"], input[type="number"], .cc-btn, .cc-search {
             width: 100%; min-height: 44px; border: 1px solid #e4d3a4; border-radius: 12px; padding: 0 12px; font-size: 16px; background: #fff;
@@ -50,12 +54,12 @@
         .cc-list li:hover, .cc-list li.is-on { background: #fff6df; }
         .cc-list .name { flex: 1; font-weight: 600; color: var(--navy); }
         .cc-list .dial { color: var(--muted); font-weight: 700; }
-        .status { font-size: 13px; margin-top: 8px; display: none; }
+        .status { font-size: 13px; margin-top: 8px; display: none; color: #fff; }
         .positions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
         .choice { appearance: none; border: 1px solid #e4d3a4; background: #fff; border-radius: 12px; padding: 10px 6px; cursor: pointer; font-family: inherit; font-weight: 700; color: var(--navy); }
         .choice.is-on { border-color: var(--gold); background: #fff8e8; box-shadow: 0 0 0 2px rgba(212,175,55,.35); }
-        .btn-navy { appearance: none; border: 0; border-radius: 999px; background: var(--navy); color: #fff; width: 100%; margin-top: 14px; min-height: 46px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .err { color: #991b1b; font-size: 13px; min-height: 1em; margin-top: 8px; }
+        .btn-navy { appearance: none; border: 0; border-radius: 999px; background: var(--gold); color: var(--navy); width: 100%; margin-top: 14px; min-height: 46px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .err { color: #fecaca; font-size: 13px; min-height: 1em; margin-top: 8px; }
         .busy { opacity: .7; pointer-events: none; }
         @media (max-width: 700px) {
             .phone-row { grid-template-columns: 1fr; }
@@ -84,15 +88,10 @@
 @endphp
 <div class="page">
     <div class="hero">
-        <p class="kicker">The Apostolic Church Cameroon · Obili District</p>
         <h1>Induction Service</h1>
-        <p class="sub">Rev. Yong Nkiase and Family<br>Sunday 11 October 2026 · 10:00am · The Apostolic Church Obili</p>
-        <div class="count" id="count" aria-live="polite">
-            <div><strong id="cd-d">0</strong><span>Days</span></div>
-            <div><strong id="cd-h">0</strong><span>Hours</span></div>
-            <div><strong id="cd-m">0</strong><span>Minutes</span></div>
-            <div><strong id="cd-s">0</strong><span>Seconds</span></div>
-        </div>
+        <p class="headline">Rev. Yong Nkiase and Family</p>
+        <p class="headline">The Apostolic Church Obili</p>
+        <p class="sub">Sunday 11 October 2026 · 10:00am</p>
     </div>
     <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
         @csrf
@@ -134,13 +133,18 @@
             </div>
         </div>
         <div class="field">
-            <label>Make a pledge</label>
-            <input type="number" name="pledge_amount" id="pledge" min="1000" step="1" inputmode="numeric" placeholder="Amount in FCFA, optional" value="{{ old('pledge_amount') }}">
-            <p class="hint">Clergy receives the Clergy invitation. Family, friends, and guests who pledge at least 1,000 FCFA receive the Gold invitation, with a link to donate that amount. Without a pledge, they receive the Standard invitation.</p>
+            <label>(minimum 5,000frs)</label>
+            <input type="number" name="pledge_amount" id="pledge" min="5000" step="1" inputmode="numeric" placeholder="Amount in FCFA, optional" value="{{ old('pledge_amount') }}">
         </div>
         <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
         <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation</button>
     </form>
+    <div class="count" id="count" aria-live="polite">
+        <div><strong id="cd-d">0</strong><span>Days</span></div>
+        <div><strong id="cd-h">0</strong><span>Hours</span></div>
+        <div><strong id="cd-m">0</strong><span>Minutes</span></div>
+        <div><strong id="cd-s">0</strong><span>Seconds</span></div>
+    </div>
 </div>
 <script type="application/json" id="countryData">@json($countryRows)</script>
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
@@ -224,8 +228,8 @@
         e.preventDefault();
         err.textContent = '';
         var pledge = document.getElementById('pledge').value.trim();
-        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 1000)) {
-            err.textContent = 'Enter at least 1,000 FCFA, or leave the pledge blank.';
+        if (pledge !== '' && (isNaN(pledge) || Number(pledge) < 5000)) {
+            err.textContent = 'Enter at least 5,000 FCFA, or leave the pledge blank.';
             return;
         }
         if (!document.getElementById('displayName').value.trim()) {

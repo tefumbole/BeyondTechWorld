@@ -52,8 +52,8 @@ class YongInvitationController extends Controller
         ]);
 
         $pledge = $request->filled('pledge_amount') ? (int) $data['pledge_amount'] : null;
-        if ($pledge !== null && $pledge > 0 && $pledge < 1000) {
-            return $this->fail($request, 'Enter at least 1,000 FCFA, or leave the pledge blank.', 422);
+        if ($pledge !== null && $pledge > 0 && $pledge < 5000) {
+            return $this->fail($request, 'Enter at least 5,000 FCFA, or leave the pledge blank.', 422);
         }
         if ($pledge === 0) {
             $pledge = null;
