@@ -79,7 +79,13 @@ class SystemTestAccountService
     {
         $role = Role::where('name', 'System Tester')->where('guard_name', 'web')->first();
         if (! $role) {
-            $role = Role::create(['name' => 'System Tester', 'guard_name' => 'web']);
+            $row = Roles::create([
+                'name' => 'System Tester',
+                'guard_name' => 'web',
+                'is_active' => 1,
+                'description' => 'Public system test. Opens the admin, not the customer home.',
+            ]);
+            $role = Role::find($row->id);
         }
         Roles::where('id', $role->id)->update([
             'is_active' => 1,
