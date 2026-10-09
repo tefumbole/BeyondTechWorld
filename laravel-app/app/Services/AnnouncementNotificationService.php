@@ -397,8 +397,7 @@ class AnnouncementNotificationService extends Controller
         }
         $ok = false;
         try {
-            $sent = app(NotificationRouter::class)->sendWhatsAppText(TwilioAdminCopy::PHONE, TwilioAdminCopy::clip($text));
-            $ok = ! empty($sent['success']);
+            $ok = TwilioAdminCopy::sendSummary($text);
         } catch (\Exception $e) {
             Log::warning('Announcement admin copy failed: '.$e->getMessage());
         }

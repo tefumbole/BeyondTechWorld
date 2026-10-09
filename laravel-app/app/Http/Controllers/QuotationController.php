@@ -589,6 +589,8 @@ class QuotationController extends Controller
         $pricing = $this->quotationWhatsAppPricing($lims_quotation_data, $mail_data);
 
         $this->rememberApprovalSender($lims_quotation_data);
+        \App\Support\TwilioAdminCopy::rememberUser($lims_quotation_data->user_id);
+        \App\Support\TwilioAdminCopy::rememberUser($lims_quotation_data->approval_sent_by ?? null);
 
         $msg = WhatsAppMessage::quotationApprovalRequest(
             $lims_customer_data->name,
@@ -626,6 +628,8 @@ class QuotationController extends Controller
             ? $quotation->loadMissing('customer')
             : Quotation::with('customer')->findOrFail($quotation);
         $customer = $customer ?: $quotation->customer;
+        \App\Support\TwilioAdminCopy::rememberUser($quotation->user_id);
+        \App\Support\TwilioAdminCopy::rememberUser($quotation->approval_sent_by ?? null);
         if (! $customer || empty(trim((string) $customer->phone_number))) {
             return 'Quotation saved, but customer phone is missing so the PDF was not sent.';
         }

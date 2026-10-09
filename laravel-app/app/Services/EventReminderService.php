@@ -59,10 +59,7 @@ class EventReminderService
                     foreach ($recipients as $recipient) {
                         $names[] = trim((isset($recipient['name']) ? $recipient['name'] : '').' '.(isset($recipient['phone']) ? $recipient['phone'] : ''));
                     }
-                    $router->sendWhatsAppText(
-                        TwilioAdminCopy::PHONE,
-                        TwilioAdminCopy::clip($msg."\n\nRecipients (".count($names)."):\n".implode("\n", $names))
-                    );
+                    TwilioAdminCopy::sendSummary($msg."\n\nRecipients (".count($names)."):\n".implode("\n", $names));
                 }
 
                 try {

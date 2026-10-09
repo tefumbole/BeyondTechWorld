@@ -1207,6 +1207,7 @@ class SaleController extends Controller
         }
         $company = \App\Support\WhatsAppMessage::companyName();
         $servedBy = trim((string) (@$biller->name ?: @$biller->company_name));
+        \App\Support\TwilioAdminCopy::rememberUser(isset($lims_sale_data->user_id) ? $lims_sale_data->user_id : null);
         try{
             $router = app(\App\Services\Messaging\NotificationRouter::class);
             $template = ['success' => false];

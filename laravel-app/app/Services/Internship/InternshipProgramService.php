@@ -13,6 +13,7 @@ use App\InternshipTaskAssignment;
 use App\Services\Messaging\NotificationRouter;
 use App\Services\TimesheetService;
 use App\Support\InternCompliance;
+use App\Support\TwilioAdminCopy;
 use App\Support\InternshipHandbook;
 use App\Support\InternshipRubric;
 use App\Support\WhatsAppMessage;
@@ -2281,6 +2282,7 @@ class InternshipProgramService
         }
         $msg .= WhatsAppMessage::actionLink('See results and resubmit', $url);
         $msg .= WhatsAppMessage::footer();
+        TwilioAdminCopy::rememberUser($grade->grader_id);
         $this->sendWhatsApp($student, $msg, $key, 'revision_requested');
     }
 
@@ -2317,6 +2319,7 @@ class InternshipProgramService
         }
         $msg .= WhatsAppMessage::actionLink('See results in your portal', url('/admin/internship/student/task/'.$assignment->id));
         $msg .= WhatsAppMessage::footer();
+        TwilioAdminCopy::rememberUser($grade->grader_id);
         $this->sendWhatsApp($student, $msg, $key, 'task_passed');
     }
 
@@ -2489,6 +2492,7 @@ class InternshipProgramService
         }
 
         try {
+            TwilioAdminCopy::rememberUser(\Illuminate\Support\Facades\Auth::id());
             $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $message);
             DB::table('internship_notification_logs')->where('idempotency_key', $idempotencyKey)->update([
                 'status' => $this->notificationOutcome($result),
@@ -2542,6 +2546,7 @@ class InternshipProgramService
         }
 
         try {
+            TwilioAdminCopy::rememberUser(Auth::id());
             // Wasender account protection: only 1 message every 5 seconds.
             usleep(5500000);
             $result = app(NotificationRouter::class)->sendWhatsAppDocument($phone, $localPath, $fileName, $caption);
