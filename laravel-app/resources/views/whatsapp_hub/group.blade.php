@@ -6,7 +6,7 @@
     <div class="container-fluid wa-shell">
         <p class="mb-2"><a href="{{ route('whatsapp.groups') }}">All groups</a></p>
         <h1 class="wa-title">{{ $groupName }}</h1>
-        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Edit the name beside a number and save it. Every later message to that number uses the name you saved. Resolve all looks up every number in this group, Campay first. Resolve on a row does the same for that one number. Fetch contacts loads the whole group. Exclude keeps a person on this list and leaves them out of announcements and reminders. Delete removes them for good.</p>
+        <p class="wa-sub">{{ number_format(count($contacts)) }} {{ count($contacts) === 1 ? 'contact' : 'contacts' }}. Select contacts to delete several at once. Fetch contacts adds only numbers that are not already in this group. Add puts a number into this group. Edit the name beside a number and save it. Exclude leaves someone off announcements and reminders.</p>
         @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
         @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
         @if(!empty($listError))<div class="alert alert-danger">{{ $listError }}</div>@endif
@@ -22,15 +22,30 @@
                 <input type="hidden" name="jid" value="{{ $jid }}">
                 <button type="submit" class="btn btn-primary">Resolve all</button>
             </form>
+            <form method="POST" action="{{ route('whatsapp.groups.remove_many') }}" style="margin:0" id="delete-selected-form" onsubmit="return confirm('Delete the selected contacts from this group? They stay out even when you fetch contacts again.');">
+                @csrf
+                <input type="hidden" name="jid" value="{{ $jid }}">
+                <button type="submit" class="btn btn-danger" id="delete-selected" disabled>Delete selected</button>
+            </form>
             @endif
         </p>
+        <form method="POST" action="{{ route('whatsapp.groups.add') }}" class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:720px">
+            @csrf
+            <input type="hidden" name="jid" value="{{ $jid }}">
+            <input type="text" name="phone" class="form-control" style="max-width:220px" placeholder="Phone number" required>
+            <input type="text" name="name" class="form-control" style="max-width:260px" placeholder="Name (optional)">
+            <button type="submit" class="btn btn-primary">Add to group</button>
+        </form>
         <p class="mb-3">
             <input id="contact-filter" type="search" class="form-control" style="max-width:420px" placeholder="Search a name or phone number">
         </p>
         <div class="wa-card table-responsive">
             <table class="table" id="contact-table">
                 <thead>
-                    <tr><th>Name</th><th>Phone</th><th></th></tr>
+                    <tr>
+                        <th style="width:36px"><input type="checkbox" id="contact-select-all" title="Select all"></th>
+                        <th>Name</th><th>Phone</th><th></th>
+                    </tr>
                 </thead>
                 <tbody>
                 @forelse($contacts as $contact)
@@ -40,6 +55,7 @@
                         $excluded = ! empty($contact['excluded']);
                     @endphp
                     <tr data-name="{{ $name }}" data-phone="{{ $phone }}" @if($excluded) style="background:#f8f9fa" @endif>
+                        <td><input type="checkbox" class="contact-select" name="phones[]" value="{{ $phone }}" form="delete-selected-form"></td>
                         <td>
                             <input class="form-control contact-name" value="{{ $name }}" placeholder="Name to show for this number" style="min-width:220px">
                             <small class="contact-save text-muted"></small>
@@ -68,9 +84,9 @@
                         </td>
                     </tr>
                 @empty
-                    <tr class="contact-empty-group"><td colspan="3">No contacts were returned for this group.</td></tr>
+                    <tr class="contact-empty-group"><td colspan="4">No contacts were returned for this group.</td></tr>
                 @endforelse
-                    <tr id="contact-no-match" style="display:none"><td colspan="3">No contacts match that search.</td></tr>
+                    <tr id="contact-no-match" style="display:none"><td colspan="4">No contacts match that search.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -83,6 +99,35 @@
 
                 function rows() {
                     return Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-phone]'));
+                }
+
+                var selectAll = document.getElementById('contact-select-all');
+                var deleteButton = document.getElementById('delete-selected');
+                function selectedBoxes() {
+                    return rows().filter(function (row) {
+                        return row.style.display !== 'none';
+                    }).map(function (row) {
+                        return row.querySelector('.contact-select');
+                    }).filter(Boolean);
+                }
+                function refreshDelete() {
+                    if (!deleteButton) return;
+                    var chosen = rows().filter(function (row) {
+                        var box = row.querySelector('.contact-select');
+                        return box && box.checked;
+                    }).length;
+                    deleteButton.disabled = chosen < 1;
+                    deleteButton.textContent = chosen > 0 ? 'Delete selected (' + chosen + ')' : 'Delete selected';
+                }
+                rows().forEach(function (row) {
+                    var box = row.querySelector('.contact-select');
+                    if (box) box.addEventListener('change', refreshDelete);
+                });
+                if (selectAll) {
+                    selectAll.addEventListener('change', function () {
+                        selectedBoxes().forEach(function (box) { box.checked = selectAll.checked; });
+                        refreshDelete();
+                    });
                 }
 
                 input.addEventListener('input', function () {

@@ -634,6 +634,9 @@ class GroupContactExportService
             }
             $tail = strlen($digits) > 9 ? substr($digits, -9) : '';
             $current = isset($byPhone[$digits]) ? $byPhone[$digits] : ($tail !== '' && isset($byPhone[$tail]) ? $byPhone[$tail] : null);
+            if ($current !== null) {
+                continue;
+            }
             $incoming = trim((string) (isset($person['name']) ? $person['name'] : ''));
             if (! $this->isPersonName($incoming, $digits)) {
                 $incoming = $this->knownName($phone);
@@ -649,16 +652,6 @@ class GroupContactExportService
                     $byPhone[$tail] = $row;
                 }
                 $added++;
-                continue;
-            }
-            $currentName = isset($current['name']) ? (string) $current['name'] : '';
-            if (! $this->isPersonName($currentName, $digits) && $this->isPersonName($incoming, $digits) && empty($current['name_edited'])) {
-                $current['name'] = $incoming;
-                $key = preg_replace('/\D+/', '', (string) (isset($current['phone']) ? $current['phone'] : $digits));
-                $byPhone[$key] = $current;
-                if (strlen($key) > 9) {
-                    $byPhone[substr($key, -9)] = $current;
-                }
             }
         }
         $contacts = [];
@@ -928,6 +921,65 @@ class GroupContactExportService
         return count($kept);
     }
 
+    public function deleteMembers($jid, array $phones)
+    {
+        $deleted = 0;
+        foreach ($phones as $phone) {
+            try {
+                $this->deleteMember($jid, $phone);
+                $deleted++;
+            } catch (\InvalidArgumentException $e) {
+            }
+        }
+        if ($deleted < 1) {
+            throw new \InvalidArgumentException('Select at least one person in this group.');
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Add one number to the saved group. A number already listed is left as it is.
+     *
+     * @return string added|already
+     */
+    public function addMember($jid, $phone, $name = '')
+    {
+        $jid = trim((string) $jid);
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) === 9 && isset($digits[0]) && $digits[0] === '6') {
+            $digits = '237'.$digits;
+        }
+        $name = trim((string) $name);
+        if (substr($jid, -5) !== '@g.us' || strlen($digits) < 8) {
+            throw new \InvalidArgumentException('Enter a phone number to add to this group.');
+        }
+        foreach ($this->readMembers($jid) as $person) {
+            if (is_array($person) && $this->samePhone(isset($person['phone']) ? $person['phone'] : '', $digits)) {
+                return 'already';
+            }
+        }
+        $this->forgetRemoved($jid, $digits);
+        $people = $this->readMembers($jid);
+        $row = [
+            'phone' => $digits,
+            'name' => $this->isPersonName($name, $digits) ? $name : '',
+            'role' => 'member',
+        ];
+        if ($row['name'] !== '') {
+            $row['name_edited'] = 1;
+        }
+        $people[] = $row;
+        $this->writeMembers($jid, $people);
+        $saved = $this->readDirectory();
+        if (isset($saved[$jid]) && is_array($saved[$jid])) {
+            $saved[$jid]['members'] = count($this->readMembers($jid));
+            $this->writeDirectory($saved);
+        }
+
+        return 'added';
+    }
+
     public function shouldNotify($jid, $phone)
     {
         $jid = trim((string) $jid);
@@ -990,6 +1042,11 @@ class GroupContactExportService
         $savedName = isset($saved[$jid]['name']) ? trim((string) $saved[$jid]['name']) : '';
         if ($cached && $savedName !== '') {
             $this->rememberUse($jid);
+            $unique = $this->uniqueContacts($cached);
+            if (count($unique) !== count($cached)) {
+                $this->writeMembers($jid, $unique);
+                $cached = $this->readMembers($jid);
+            }
             $rows = [];
             foreach ($cached as $person) {
                 $phone = isset($person['phone']) ? $person['phone'] : '';
@@ -1568,6 +1625,24 @@ class GroupContactExportService
         if (strlen($digits) > 9) {
             $map[$jid][substr($digits, -9)] = 1;
         }
+        $this->writeRemovedMap($map);
+    }
+
+    protected function forgetRemoved($jid, $digits)
+    {
+        $map = $this->removedMap();
+        if (empty($map[$jid]) || ! is_array($map[$jid])) {
+            return;
+        }
+        unset($map[$jid][$digits]);
+        if (strlen($digits) > 9) {
+            unset($map[$jid][substr($digits, -9)]);
+        }
+        $this->writeRemovedMap($map);
+    }
+
+    protected function writeRemovedMap(array $map)
+    {
         $this->removedCache = $map;
         $path = storage_path('app/whatsapp-group-removed.json');
         $dir = dirname($path);
@@ -1594,9 +1669,57 @@ class GroupContactExportService
         return $this->removedCache;
     }
 
+    protected function contactKey($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) >= 9) {
+            return substr($digits, -9);
+        }
+
+        return $digits;
+    }
+
+    protected function uniqueContacts(array $contacts)
+    {
+        $out = [];
+        $index = [];
+        foreach ($contacts as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $key = $this->contactKey(isset($person['phone']) ? $person['phone'] : '');
+            if ($key === '') {
+                continue;
+            }
+            if (! isset($index[$key])) {
+                $index[$key] = count($out);
+                $out[] = $person;
+                continue;
+            }
+            $kept = $out[$index[$key]];
+            if (! empty($person['name_edited']) && empty($kept['name_edited'])) {
+                $kept['name'] = isset($person['name']) ? $person['name'] : '';
+                $kept['name_edited'] = 1;
+            } elseif (trim((string) (isset($kept['name']) ? $kept['name'] : '')) === '' && trim((string) (isset($person['name']) ? $person['name'] : '')) !== '') {
+                $kept['name'] = $person['name'];
+            }
+            if (! empty($person['excluded'])) {
+                $kept['excluded'] = 1;
+            }
+            $keptDigits = preg_replace('/\D+/', '', (string) (isset($kept['phone']) ? $kept['phone'] : ''));
+            $nextDigits = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
+            if (strlen($nextDigits) > strlen($keptDigits)) {
+                $kept['phone'] = $person['phone'];
+            }
+            $out[$index[$key]] = $kept;
+        }
+
+        return array_values($out);
+    }
+
     protected function writeMembers($jid, array $contacts)
     {
-        $contacts = $this->withoutRemoved($jid, $contacts);
+        $contacts = $this->uniqueContacts($this->withoutRemoved($jid, $contacts));
         unset($this->memberCache[$jid]);
         $path = $this->membersPath($jid);
         $dir = dirname($path);

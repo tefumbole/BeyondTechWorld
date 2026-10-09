@@ -656,8 +656,8 @@ class WhatsAppHubController extends Controller
                 ->with('message', 'WhatsApp is busy right now. The '.$total.' contacts already saved are still listed. Fetch again in a minute for anyone new.');
         }
         $message = $added > 0
-            ? 'Fetched '.$added.' new '.($added === 1 ? 'contact' : 'contacts').'. This group has '.$total.' contacts.'
-            : 'Fetched contacts. This group has '.$total.' contacts.';
+            ? 'Added '.$added.' new '.($added === 1 ? 'contact' : 'contacts').'. Numbers already in this group were skipped. This group has '.$total.' contacts.'
+            : 'No new numbers. Contacts already in this group were left as they are. This group has '.$total.' contacts.';
 
         return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
     }
@@ -725,6 +725,54 @@ class WhatsAppHubController extends Controller
     public function deleteGroupMember(Request $request)
     {
         return $this->changeGroupMember($request, 'delete');
+    }
+
+    public function deleteGroupMembers(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        $phones = $request->input('phones', []);
+        if (! is_array($phones)) {
+            $phones = [];
+        }
+        try {
+            $deleted = app(\App\Services\WhatsApp\GroupContactExportService::class)->deleteMembers($jid, $phones);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('not_permitted', $e->getMessage());
+        }
+        $message = 'Deleted '.$deleted.' '.($deleted === 1 ? 'contact' : 'contacts').'. They will not come back when you fetch contacts.';
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
+    }
+
+    public function addGroupMember(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid', ''));
+        if (substr($jid, -5) !== '@g.us') {
+            return redirect()->route('whatsapp.groups');
+        }
+        try {
+            $result = app(\App\Services\WhatsApp\GroupContactExportService::class)->addMember(
+                $jid,
+                $request->input('phone', ''),
+                $request->input('name', '')
+            );
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('not_permitted', $e->getMessage());
+        }
+        $message = $result === 'already'
+            ? 'That number is already in this group, so it was not added again.'
+            : 'Added to this group.';
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $jid])->with('message', $message);
     }
 
     protected function changeGroupMember(Request $request, $action)
