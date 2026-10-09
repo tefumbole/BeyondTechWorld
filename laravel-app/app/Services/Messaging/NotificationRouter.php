@@ -296,17 +296,29 @@ class NotificationRouter
             $statusVars['reference'] = $extracted;
         }
 
-        if ($this->whatsappProvider() === 'TWILIO') {
-            $result = $this->sendTwilioStatusTemplate($phone, $body, array_merge([
-                'title' => 'Announcement',
-                'name' => 'Client',
-                'message' => $this->truncate((string) $body, 800),
-                'reference' => $extracted ?: 'Announcement',
-                'details' => '-',
-            ], $statusVars));
-            if ($result !== null) {
-                return $result;
-            }
+        $statusVars = array_merge([
+            'title' => 'Announcement',
+            'name' => 'Client',
+            'message' => $this->truncate((string) $body, 800),
+            'reference' => $extracted ?: 'Announcement',
+            'details' => '-',
+            'kind' => 'an announcement',
+        ], $statusVars);
+
+        $announcement = app(TwilioTemplateSender::class)->sendAnnouncement(
+            $phone,
+            $statusVars['name'],
+            $statusVars['kind'],
+            $statusVars['message'],
+            $statusVars['reference']
+        );
+        if (! empty($announcement['success'])) {
+            return $announcement;
+        }
+
+        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, $statusVars);
+        if (! empty($generic['success'])) {
+            return $generic;
         }
 
         $result = $this->wasender->sendTextRaw($phone, $body);

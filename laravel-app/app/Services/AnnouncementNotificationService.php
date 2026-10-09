@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Messaging\NotificationRouter;
 use App\Services\WhatsApp\GroupContactExportService;
 use App\Support\AnnouncementPersonalization;
+use App\Support\TwilioAdminCopy;
 use App\WaAnnouncement;
 use Illuminate\Support\Facades\Log;
 
@@ -256,7 +257,14 @@ class AnnouncementNotificationService extends Controller
         $results = $existingResults;
         $sent = (int) $announcement->sent_count;
         $ccSent = (int) $announcement->cc_sent_count;
+        $audience = array_merge($announcement->recipients(), $announcement->ccRecipients());
+        $broadcast = count($audience) > 1;
+        if ($broadcast) {
+            TwilioAdminCopy::hold();
+            $results = $this->ensureAdminList($announcement, $results, 'announcement', $audience);
+        }
 
+        try {
         foreach ($recipients as $person) {
             $phone = $person['phone'] ?? '';
             $groupJid = isset($person['group_jid']) ? (string) $person['group_jid'] : '';
@@ -343,6 +351,65 @@ class AnnouncementNotificationService extends Controller
         $announcement->save();
 
         return ['sent' => $sent, 'cc' => $ccSent, 'whatsapp_status' => $announcement->whatsapp_status];
+        } finally {
+            if ($broadcast) {
+                TwilioAdminCopy::release();
+            }
+        }
+    }
+
+    /**
+     * One admin message: the announcement text and the people who will receive it.
+     */
+    protected function ensureAdminList(WaAnnouncement $announcement, array $results, $kind, array $audience)
+    {
+        foreach ($results as $row) {
+            if (isset($row['type']) && $row['type'] === 'admin_copy') {
+                return $results;
+            }
+        }
+
+        $lines = [];
+        foreach ($audience as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+            $name = trim((string) (isset($person['name']) ? $person['name'] : ''));
+            $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+            $label = trim($name.($phone !== '' ? ' '.$phone : ''));
+            if ($label !== '') {
+                $lines[$label] = $label;
+            }
+        }
+        $lines = array_values($lines);
+        if ($lines === []) {
+            return $results;
+        }
+
+        $sample = AnnouncementPersonalization::buildMessage($announcement, ['name' => '', 'phone' => ''], false);
+        if ($kind === 'reminder') {
+            $sample = "Reminder\n\n".$sample;
+        }
+        $shown = array_slice($lines, 0, 60);
+        $text = trim($sample)."\n\nRecipients (".count($lines)."):\n".implode("\n", $shown);
+        if (count($lines) > 60) {
+            $text .= "\n... and ".(count($lines) - 60).' more';
+        }
+        $ok = false;
+        try {
+            $sent = app(NotificationRouter::class)->sendWhatsAppText(TwilioAdminCopy::PHONE, TwilioAdminCopy::clip($text));
+            $ok = ! empty($sent['success']);
+        } catch (\Exception $e) {
+            Log::warning('Announcement admin copy failed: '.$e->getMessage());
+        }
+        $results[] = [
+            'type' => 'admin_copy',
+            'name' => 'Admin',
+            'phone' => TwilioAdminCopy::PHONE,
+            'ok' => $ok,
+        ];
+
+        return $results;
     }
 
     protected function personalName(array $person)
@@ -451,16 +518,28 @@ class AnnouncementNotificationService extends Controller
             return $sent;
         }
 
-        foreach ($phones as $person) {
-            $phone = $person['phone'] ?? '';
-            $person['name'] = $this->personalName($person);
-            $vars = $this->twilioVars($announcement, $person, false);
-            $vars['kind'] = 'a reminder';
-            $msg = $this->reminderText($announcement, $person);
-            if ($this->sendPhone($phone, $msg, $vars)) {
-                $sent++;
+        $people = array_values($phones);
+        $broadcast = count($people) > 1;
+        if ($broadcast) {
+            TwilioAdminCopy::hold();
+            $this->ensureAdminList($announcement, [], 'reminder', $people);
+        }
+        try {
+            foreach ($people as $person) {
+                $phone = $person['phone'] ?? '';
+                $person['name'] = $this->personalName($person);
+                $vars = $this->twilioVars($announcement, $person, false);
+                $vars['kind'] = 'a reminder';
+                $msg = $this->reminderText($announcement, $person);
+                if ($this->sendPhone($phone, $msg, $vars)) {
+                    $sent++;
+                }
+                usleep(5000000);
             }
-            usleep(5000000);
+        } finally {
+            if ($broadcast) {
+                TwilioAdminCopy::release();
+            }
         }
 
         return $sent;
@@ -492,6 +571,12 @@ class AnnouncementNotificationService extends Controller
         if ($export->skipsGroupBroadcast($jid)) {
             $delivered = 0;
             $members = $export->notifiableMembers($jid);
+            $broadcast = count($members) > 1;
+            if ($broadcast) {
+                TwilioAdminCopy::hold();
+                $this->ensureAdminList($announcement, [], 'reminder', $members);
+            }
+            try {
             foreach ($members as $index => $member) {
                 if ($index > 0) {
                     usleep(5000000);
@@ -507,6 +592,11 @@ class AnnouncementNotificationService extends Controller
             }
 
             return $members === [] || $delivered > 0;
+            } finally {
+                if ($broadcast) {
+                    TwilioAdminCopy::release();
+                }
+            }
         }
         $posted = app(BeyondWasenderService::class)->sendGroupText($jid, $msg);
 

@@ -131,6 +131,7 @@ class TwilioWhatsAppService
 
             $client = new Client($this->accountSid(), $this->authToken());
             $message = $client->messages->create($recipient, $payload);
+            \App\Support\TwilioAdminCopy::mirrorTemplate($to, $contentSid, $variables, $mediaUrl);
 
             return ['success' => true, 'sid' => $message->sid];
         } catch (\Throwable $e) {

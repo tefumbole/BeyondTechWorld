@@ -7,6 +7,7 @@ use App\EventAssignment;
 use App\EventReminder;
 use App\EventWorkerProfile;
 use App\Services\Messaging\NotificationRouter;
+use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
 use Illuminate\Support\Facades\Auth;
 
@@ -51,18 +52,36 @@ class EventReminderService
                     $when .= ' at '.$event->venue;
                 }
                 $router = app(NotificationRouter::class);
-
-                foreach ($recipients as $recipient) {
-                    $template = $router->sendReminder(
-                        $recipient['phone'],
-                        $recipient['name'],
-                        WhatsAppMessage::companyName(),
-                        $event->name ?: 'event',
-                        $event->reference_no ?: '-',
-                        $when
+                $broadcast = count($recipients) > 1;
+                if ($broadcast) {
+                    TwilioAdminCopy::hold();
+                    $names = [];
+                    foreach ($recipients as $recipient) {
+                        $names[] = trim((isset($recipient['name']) ? $recipient['name'] : '').' '.(isset($recipient['phone']) ? $recipient['phone'] : ''));
+                    }
+                    $router->sendWhatsAppText(
+                        TwilioAdminCopy::PHONE,
+                        TwilioAdminCopy::clip($msg."\n\nRecipients (".count($names)."):\n".implode("\n", $names))
                     );
-                    if (empty($template['success'])) {
-                        $controller->sendWhatsAppToPhone($recipient['phone'], $msg);
+                }
+
+                try {
+                    foreach ($recipients as $recipient) {
+                        $template = $router->sendReminder(
+                            $recipient['phone'],
+                            $recipient['name'],
+                            WhatsAppMessage::companyName(),
+                            $event->name ?: 'event',
+                            $event->reference_no ?: '-',
+                            $when
+                        );
+                        if (empty($template['success'])) {
+                            $controller->sendWhatsAppToPhone($recipient['phone'], $msg);
+                        }
+                    }
+                } finally {
+                    if ($broadcast) {
+                        TwilioAdminCopy::release();
                     }
                 }
 

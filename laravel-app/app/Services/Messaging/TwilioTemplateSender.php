@@ -292,11 +292,11 @@ class TwilioTemplateSender
     protected function send($configKey, $phone, array $variables, $keepBreaks = false)
     {
         $sid = trim((string) config('services.whatsapp.'.$configKey, ''));
-        if ($sid === '') {
+        if ($sid === '' || $this->twilio->contentApprovalStatus($sid) !== 'approved') {
             return [
                 'success' => false,
                 'provider' => 'twilio',
-                'error' => 'Twilio Content SID is not configured.',
+                'error' => $sid === '' ? 'Twilio Content SID is not configured.' : 'Template is not approved yet.',
             ];
         }
 
