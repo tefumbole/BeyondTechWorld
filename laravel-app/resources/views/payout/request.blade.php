@@ -51,14 +51,20 @@
             </div>
             <div class="pay-card-body">
                 @if($review->status === 'pending')
-                    <p class="pay-help">Change an amount or remove a name, then pay the people who remain or reject the request.</p>
-                    <form method="POST" action="{{ route('payout.request.revise') }}">
+                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request.</p>
+                    <form method="POST" action="{{ route('payout.request.revise') }}" id="reviewForm">
                         @csrf
                         <input type="hidden" name="id" value="{{ $review->id }}">
                         <div class="table-responsive">
                             <table class="pay-table">
                                 <thead>
-                                    <tr><th>Name</th><th>Number</th><th>Amount (XAF)</th><th>Status</th><th></th></tr>
+                                    <tr>
+                                        <th style="width:36px"><input type="checkbox" id="reviewAll" title="Select all"></th>
+                                        <th>Name</th>
+                                        <th>Number</th>
+                                        <th>Amount (XAF)</th>
+                                        <th>Status</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($reviewLines as $line)
@@ -67,6 +73,11 @@
                                             $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Rejected');
                                         @endphp
                                         <tr>
+                                            <td>
+                                                @if($line->status === 'pending')
+                                                    <input type="checkbox" class="review-line" name="remove_ids[]" value="{{ $line->id }}">
+                                                @endif
+                                            </td>
                                             <td>{{ $line->person_name }}</td>
                                             <td>{{ $line->phone }}</td>
                                             <td>
@@ -77,21 +88,42 @@
                                                 @endif
                                             </td>
                                             <td><span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span></td>
-                                            <td>
-                                                @if($line->status === 'pending')
-                                                    <button class="btn btn-sm btn-link text-danger" type="submit" name="remove_id" value="{{ $line->id }}" formnovalidate onclick="return confirm('Remove this person?')">Remove</button>
-                                                @endif
-                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
                         <div class="pay-actions">
+                            <button class="pay-go" type="submit" name="action" value="delete" formnovalidate style="background:#fdecec;color:#9b1c1c" id="reviewDelete">Delete</button>
                             <button class="pay-go" type="submit" name="action" value="pay">Pay</button>
-                            <button class="pay-go" type="submit" name="action" value="reject" formnovalidate style="background:#fdecec;color:#9b1c1c" onclick="return confirm('Reject this request?')">Reject</button>
+                            <button class="pay-go" type="submit" name="action" value="reject" formnovalidate style="background:#fff;color:#9b1c1c;border:1px solid #f3c7c7" onclick="return confirm('Reject this request?')">Reject</button>
                         </div>
                     </form>
+                    <script>
+                    (function () {
+                        var form = document.getElementById('reviewForm');
+                        var all = document.getElementById('reviewAll');
+                        var del = document.getElementById('reviewDelete');
+                        if (!form || !del) return;
+                        function boxes() { return form.querySelectorAll('.review-line'); }
+                        if (all) {
+                            all.addEventListener('change', function () {
+                                boxes().forEach(function (box) { box.checked = all.checked; });
+                            });
+                        }
+                        del.addEventListener('click', function (event) {
+                            var count = 0;
+                            boxes().forEach(function (box) { if (box.checked) count++; });
+                            if (!count) {
+                                event.preventDefault();
+                                return;
+                            }
+                            if (!confirm('Delete ' + count + (count === 1 ? ' person?' : ' people?'))) {
+                                event.preventDefault();
+                            }
+                        });
+                    })();
+                    </script>
                 @else
                     <div class="table-responsive">
                         <table class="pay-table">

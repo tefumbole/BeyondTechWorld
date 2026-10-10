@@ -184,16 +184,27 @@ class PayoutController extends Controller
 
             return redirect()->route('payout.request')->with('message', 'Request rejected.');
         }
-        $saved = $this->savePendingAmounts($batch, (array) $request->input('amounts', []));
-        if ($saved !== true) {
-            return $back->with('not_permitted', $saved);
-        }
-        $removeId = (int) $request->input('remove_id');
-        if ($removeId) {
-            CampayPayout::where('request_id', $batch->id)->where('id', $removeId)->where('status', 'pending')->delete();
+        $amounts = (array) $request->input('amounts', []);
+        if ($request->input('action') === 'delete') {
+            $removeIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('remove_ids', [])))));
+            if (count($removeIds) < 1) {
+                return $back->with('not_permitted', 'Select the people to delete.');
+            }
+            foreach ($removeIds as $id) {
+                unset($amounts[$id]);
+            }
+            $saved = $this->savePendingAmounts($batch, $amounts);
+            if ($saved !== true) {
+                return $back->with('not_permitted', $saved);
+            }
+            $deleted = CampayPayout::where('request_id', $batch->id)->whereIn('id', $removeIds)->where('status', 'pending')->delete();
             $this->closeBatch($batch);
 
-            return $back->with('message', 'Name removed.');
+            return $back->with('message', $deleted.' '.($deleted === 1 ? 'person' : 'people').' deleted.');
+        }
+        $saved = $this->savePendingAmounts($batch, $amounts);
+        if ($saved !== true) {
+            return $back->with('not_permitted', $saved);
         }
         $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->orderBy('id')->get();
         if ($rows->count() < 1) {
