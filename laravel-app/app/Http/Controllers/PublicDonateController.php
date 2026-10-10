@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\PublicDonation;
+use App\Services\BinancePayService;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
 use App\Services\MobileMoneyHolderService;
@@ -51,7 +52,7 @@ class PublicDonateController extends Controller
         if ($amount < 100 || $amount > 1000000) {
             return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF.');
         }
-        if (! in_array($method, ['momo', 'visa'], true)) {
+        if (! in_array($method, ['momo', 'visa', 'crypto'], true)) {
             $method = 'momo';
         }
         $donation = new PublicDonation();
@@ -66,6 +67,22 @@ class PublicDonateController extends Controller
         $reference = 'don-'.date('YmdHis').'-'.$donation->id;
         $description = $note !== '' ? substr($note, 0, 80) : 'Donation';
         $return = route('donate.status', ['token' => $donation->token]);
+        if ($method === 'crypto') {
+            $trade = 'don'.$donation->id.'x'.substr(bin2hex(random_bytes(4)), 0, 8);
+            $result = app(BinancePayService::class)->createOrder($trade, $amount, $description, $return);
+            if (empty($result['ok'])) {
+                $donation->status = 'failed';
+                $donation->error = isset($result['error']) ? substr((string) $result['error'], 0, 250) : 'Binance could not open this payment.';
+                $donation->save();
+
+                return redirect($return)->with('not_permitted', $donation->error);
+            }
+            $donation->campay_reference = $trade;
+            $donation->payment_link = (string) $result['url'];
+            $donation->save();
+
+            return redirect($return);
+        }
         if ($method === 'visa') {
             $body = $service->cardLink($phone, $amount, $reference, $description, $return, $name);
             if (! is_array($body) || empty($body['link'])) {
@@ -121,6 +138,18 @@ class PublicDonateController extends Controller
         if ($donation->status === 'paid' || ! $donation->campay_reference) {
             return;
         }
+        if ($donation->method === 'crypto') {
+            $status = app(BinancePayService::class)->status($donation->campay_reference);
+            if ($status === 'PAID') {
+                $this->markPaid($donation);
+            } elseif (in_array($status, ['CANCELED', 'ERROR', 'EXPIRED', 'REFUND'], true)) {
+                $donation->status = 'failed';
+                $donation->error = 'The Binance payment was not completed.';
+                $donation->save();
+            }
+
+            return;
+        }
         $body = app(CampayPayoutService::class)->transaction($donation->campay_reference);
         $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
         if ($status === 'SUCCESSFUL') {
@@ -148,6 +177,9 @@ class PublicDonateController extends Controller
         if ($note !== '') {
             $donor .= "\n".WhatsAppMessage::bullet('Note', $note);
         }
+        if ($donation->method === 'crypto') {
+            $donor .= "\n".WhatsAppMessage::bullet('Paid with', 'Binance');
+        }
         $donor .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $donor .= WhatsAppMessage::footer();
         app(ClientNoticeService::class)->send($donation->phone, $donor);
@@ -157,6 +189,9 @@ class PublicDonateController extends Controller
         $copy .= "\n".WhatsAppMessage::bullet('From', $donation->person_name);
         if ($note !== '') {
             $copy .= "\n".WhatsAppMessage::bullet('Note', $note);
+        }
+        if ($donation->method === 'crypto') {
+            $copy .= "\n".WhatsAppMessage::bullet('Paid with', 'Binance');
         }
         $copy .= "\n".WhatsAppMessage::bullet('Amount', $amount.' XAF');
         $copy .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));

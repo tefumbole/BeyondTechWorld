@@ -20,14 +20,16 @@
                 <a class="inline-block mt-4 text-brand-blue font-bold" href="{{ route('donate.show') }}">Try again</a>
             @else
                 <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
-                    @if($donation->method === 'visa')
+                    @if($donation->method === 'crypto')
+                        Open Binance and pay the USDT amount for this donation.
+                    @elseif($donation->method === 'visa')
                         Open the VISA page and complete the card payment.
                     @else
                         Approve the prompt on your phone. MTN and Orange both use this step.
                     @endif
                 </div>
                 @if($donation->payment_link)
-                    <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">Open the VISA page</a>
+                    <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">{{ $donation->method === 'crypto' ? 'Pay with Binance' : 'Open the VISA page' }}</a>
                 @endif
             @endif
         </div>

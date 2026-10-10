@@ -170,6 +170,12 @@ return [
             'secret' => env('STRIPE_SECRET'),
         ],
 
+        'binance' => [
+            'key' => env('BINANCE_PAY_API_KEY'),
+            'secret' => env('BINANCE_PAY_SECRET'),
+            'base_url' => env('BINANCE_PAY_BASE_URL', 'https://bpay.binanceapi.com'),
+        ],
+
         'campay' => [
             'token' => env('CAMPAY_TOKEN', env('MOMO_TOKEN')),
             'username' => env('CAMPAY_USERNAME'),

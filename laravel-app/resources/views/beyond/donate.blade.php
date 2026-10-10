@@ -1,7 +1,7 @@
 @extends('beyond.layout')
 
 @section('title', 'Donate')
-@section('meta_description', 'Donate to Beyond Enterprise with MTN, Orange, or VISA.')
+@section('meta_description', 'Donate to Beyond Enterprise with MTN, Orange, VISA, or Binance.')
 
 @section('content')
 <section class="py-10 sm:py-14 bg-slate-50">
@@ -26,6 +26,7 @@
                 <textarea id="donateNote" name="note" maxlength="180" rows="3" class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-5" placeholder="What this donation is for">{{ old('note') }}</textarea>
                 <button class="w-full rounded-full bg-brand-blue text-white font-bold py-3" type="submit" name="method" value="momo">Donate with MTN or Orange</button>
                 <button class="w-full rounded-full border border-brand-blue text-brand-blue font-bold py-3 mt-3 bg-white" type="submit" name="method" value="visa">Donate with VISA</button>
+                <button class="w-full rounded-full border border-brand-gold text-brand-blue font-bold py-3 mt-3 bg-white" type="submit" name="method" value="crypto">Donate with Crypto</button>
             </form>
         </div>
     </div>
