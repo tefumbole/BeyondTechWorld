@@ -388,6 +388,7 @@ class PayoutController extends Controller
         $skipped = 0;
         $total = 0;
         $seen = [];
+        $ready = [];
         foreach ($rows as $line) {
             $phone = $service->momoNumber($line->phone);
             if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line->id)) {
@@ -411,7 +412,12 @@ class PayoutController extends Controller
             $line->error = null;
             $line->campay_reference = null;
             $line->save();
-            $service->pay($line);
+            $ready[] = $line;
+        }
+        if ($ready) {
+            $service->massPay($ready);
+        }
+        foreach ($ready as $line) {
             if ($line->status === 'paid') {
                 $paid++;
                 $total += (int) $line->amount;

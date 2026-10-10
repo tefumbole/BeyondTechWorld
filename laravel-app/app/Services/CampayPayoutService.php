@@ -120,42 +120,45 @@ class CampayPayoutService
 
     public function pay(CampayPayout $row)
     {
-        $to = $this->momoNumber($row->phone);
-        if (! $to) {
-            $row->status = 'failed';
-            $row->error = 'This number is not an MTN or Orange Cameroon number.';
-            $row->save();
-
-            return $row;
-        }
-        $row->phone = $to;
-        $body = $this->call('POST', 'withdraw/', [
-            'amount' => (string) (int) $row->amount,
-            'currency' => 'XAF',
-            'to' => $to,
-            'description' => $row->note !== '' ? (string) $row->note : 'Payout',
-            'external_reference' => (string) $row->external_reference,
-        ]);
-        if (! is_array($body)) {
-            $row->status = 'failed';
-            $row->error = 'Campay did not answer. Nothing was confirmed.';
-            $row->save();
-
-            return $row;
-        }
-        $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
-        $row->campay_reference = isset($body['reference']) ? (string) $body['reference'] : null;
-        $row->operator = isset($body['operator']) ? (string) $body['operator'] : null;
-        if ($status === 'SUCCESSFUL') {
-            $row->status = 'paid';
-            $row->error = null;
-        } else {
-            $row->status = 'failed';
-            $row->error = $this->errorText($body, $status);
-        }
-        $row->save();
+        $this->massPay([$row]);
 
         return $row;
+    }
+
+    public function massPay(array $rows)
+    {
+        $rows = array_values($rows);
+        if (count($rows) < 1) {
+            return;
+        }
+        $sheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $grid = $sheet->getActiveSheet();
+        $grid->setCellValue('A1', 'Numéro / Number (ex 237........)');
+        $grid->setCellValue('B1', 'Nom / Name ou Description(Facultif / Optional)');
+        $grid->setCellValue('C1', 'Amount');
+        $rowNumber = 2;
+        foreach ($rows as $row) {
+            $phone = $this->momoNumber($row->phone);
+            if (! $phone) {
+                $row->status = 'failed';
+                $row->error = 'This number is not an MTN or Orange Cameroon number.';
+                $row->save();
+                continue;
+            }
+            $row->phone = $phone;
+            $grid->setCellValueExplicit('A'.$rowNumber, $phone, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $grid->setCellValue('B'.$rowNumber, (string) $row->person_name);
+            $grid->setCellValue('C'.$rowNumber, (int) $row->amount);
+            $rowNumber++;
+        }
+        if ($rowNumber === 2) {
+            return;
+        }
+        $path = storage_path('app/campay-mass-'.date('YmdHis').'-'.mt_rand(1000, 9999).'.xlsx');
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($sheet))->save($path);
+        $body = $this->postFile('mass_payout/', $path);
+        @unlink($path);
+        $this->applyMassResult($rows, $body);
     }
 
     protected function errorText(array $body, $status)
@@ -173,6 +176,119 @@ class CampayPayoutService
         }
 
         return 'Campay status: '.$status;
+    }
+
+    protected function applyMassResult(array $rows, $body)
+    {
+        $items = $this->massItems($body);
+        foreach ($rows as $row) {
+            if ($row->status === 'failed' && $row->error === 'This number is not an MTN or Orange Cameroon number.') {
+                continue;
+            }
+            $item = $this->matchMassItem($row, $items);
+            $source = $item ?: (is_array($body) ? $body : []);
+            $status = strtoupper((string) (isset($source['status']) ? $source['status'] : ''));
+            if ($item === null && is_array($body) && isset($body['status']) && count($rows) > 1 && $items === []) {
+                $status = strtoupper((string) $body['status']);
+            }
+            $row->campay_reference = $this->massReference($source) ?: $this->massReference(is_array($body) ? $body : []);
+            $row->operator = isset($source['operator']) ? (string) $source['operator'] : $row->operator;
+            if ($status === 'SUCCESSFUL') {
+                $row->status = 'paid';
+                $row->error = null;
+            } elseif ($status === 'PENDING') {
+                $row->status = 'pending';
+                $row->error = 'Campay status: PENDING';
+            } else {
+                $row->status = 'failed';
+                $row->error = is_array($body) ? $this->errorText($source !== [] ? $source : $body, $status) : 'Campay Mass Payout did not accept this payment.';
+            }
+            $row->save();
+        }
+    }
+
+    protected function massItems($body)
+    {
+        if (! is_array($body)) {
+            return [];
+        }
+        if (isset($body[0]) && is_array($body[0])) {
+            return $body;
+        }
+        foreach (['results', 'payouts', 'withdrawals', 'data', 'transactions', 'beneficiaries'] as $key) {
+            if (isset($body[$key]) && is_array($body[$key])) {
+                return array_values($body[$key]);
+            }
+        }
+
+        return [];
+    }
+
+    protected function matchMassItem(CampayPayout $row, array $items)
+    {
+        $phone = $this->momoNumber($row->phone);
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            foreach (['to', 'phone', 'phone_number', 'number', 'msisdn'] as $key) {
+                if (! empty($item[$key]) && $this->momoNumber($item[$key]) === $phone) {
+                    return $item;
+                }
+            }
+        }
+        if (count($items) === 1 && is_array($items[0])) {
+            return $items[0];
+        }
+
+        return null;
+    }
+
+    protected function massReference(array $source)
+    {
+        foreach (['reference', 'campay_reference', 'uuid', 'id'] as $key) {
+            if (! empty($source[$key]) && is_string($source[$key])) {
+                return substr($source[$key], 0, 64);
+            }
+        }
+
+        return null;
+    }
+
+    protected function postFile($path, $filePath)
+    {
+        $token = $this->token();
+        if (! $token || ! is_file($filePath)) {
+            Log::warning('Campay mass payout has no token');
+
+            return null;
+        }
+        $base = rtrim((string) config('services.campay.base_url', 'https://www.campay.net/api'), '/');
+        $ch = curl_init($base.'/'.ltrim($path, '/'));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Token '.$token,
+            'Accept: application/json',
+        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, [
+            'file' => new \CURLFile($filePath, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'mass-payout.xlsx'),
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        $raw = curl_exec($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $decoded = json_decode((string) $raw, true);
+        if (! is_array($decoded)) {
+            Log::warning('Campay mass payout bad response', ['path' => $path, 'http' => $http]);
+
+            return null;
+        }
+        if ($http >= 400 && ! isset($decoded['status'])) {
+            $decoded['status'] = 'FAILED';
+        }
+
+        return $decoded;
     }
 
     protected function call($method, $path, array $payload)

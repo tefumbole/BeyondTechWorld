@@ -194,7 +194,7 @@
                                         <form method="POST" action="{{ route('payout.retry') }}">
                                             @csrf
                                             <input type="hidden" name="id" value="{{ $row->id }}">
-                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
+                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send this payment as a Mass Payout? One person is sent the same way as many.')">Retry</button>
                                         </form>
                                         <form method="POST" action="{{ route('payout.drop') }}">
                                             @csrf

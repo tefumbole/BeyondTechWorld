@@ -293,7 +293,7 @@
                                     <form method="POST" action="{{ route('payout.retry') }}">
                                         @csrf
                                         <input type="hidden" name="request_id" value="{{ $row->id }}">
-                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
+                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send the failed payments as a Mass Payout? One person is sent the same way as many.')">Retry</button>
                                     </form>
                                 @endif
                                 @if($item['kind'] === 'submitted' && $row->status === 'pending')
