@@ -33,8 +33,14 @@
                     <input type="hidden" name="payment_method" id="depositMethod" value="{{ old('payment_method', '1') }}">
                     <div class="pay-search">
                         <label>Client</label>
-                        <input type="search" id="depositSearch" class="form-control" placeholder="Type a name or number" autocomplete="off">
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="search" id="depositSearch" class="form-control" placeholder="Type a name or number" autocomplete="off">
+                            <button class="pay-plus" type="button" id="depositAddPhone" title="Add a number">+</button>
+                        </div>
                         <div id="depositHits" class="list-group" style="position:absolute;z-index:5;width:100%;max-height:240px;overflow:auto"></div>
+                        <div id="depositPhoneRow" style="display:none;margin-top:8px">
+                            <input type="tel" id="depositPhone" name="client_phone" class="form-control" placeholder="Phone number, 6xxxxxxxx" autocomplete="off">
+                        </div>
                         <div class="pay-chosen" id="depositChosen"></div>
                     </div>
                     <div class="form-group" style="max-width:460px;margin-top:14px">
@@ -150,6 +156,9 @@
     var hits = document.getElementById('depositHits');
     var chosen = document.getElementById('depositChosen');
     var customerId = document.getElementById('depositCustomerId');
+    var phoneRow = document.getElementById('depositPhoneRow');
+    var phoneInput = document.getElementById('depositPhone');
+    var phoneUrl = @json(route('deposit.phone'));
     var searchUrl = @json(route('deposit.search'));
     var clientUrl = @json(route('deposit.client'));
     var statusBase = @json(url('payment/desposits'));
@@ -232,8 +241,36 @@
         }
         tick();
     }
+    document.getElementById('depositAddPhone').addEventListener('click', function () {
+        phoneRow.style.display = 'block';
+        customerId.value = '';
+        phoneInput.focus();
+    });
+    var phoneWait = null;
+    phoneInput.addEventListener('input', function () {
+        clearTimeout(phoneWait);
+        var raw = phoneInput.value.trim();
+        if (raw.replace(/\D/g, '').length < 9) {
+            chosen.textContent = '';
+            return;
+        }
+        chosen.textContent = 'Looking up…';
+        phoneWait = setTimeout(function () {
+            fetch(phoneUrl + '?phone=' + encodeURIComponent(raw), {headers: {Accept: 'application/json'}})
+                .then(function (response) { return response.json(); })
+                .then(function (info) {
+                    if (!info || !info.ok) {
+                        chosen.textContent = (info && info.error) ? info.error : 'Name not found';
+                        return;
+                    }
+                    customerId.value = '';
+                    phoneInput.value = info.phone;
+                    chosen.textContent = (info.name ? info.name : 'Name not found on MoMo') + ' · ' + info.phone;
+                });
+        }, 400);
+    });
     form.addEventListener('submit', function (event) {
-        if (methodInput.value !== '1' && !customerId.value) {
+        if (methodInput.value !== '1' && !customerId.value && !phoneInput.value.trim()) {
             event.preventDefault();
             hint.textContent = 'Choose the client who is paying.';
             return;

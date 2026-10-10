@@ -66,6 +66,23 @@ class PaymentController extends Controller
         return response()->json(['people' => $people]);
     }
 
+    public function phoneLookup(Request $request)
+    {
+        $campay = app(CampayPayoutService::class);
+        $phone = $campay->momoNumber($request->get('phone'));
+        if (! $phone) {
+            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
+        }
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+
+        return response()->json([
+            'ok' => true,
+            'phone' => $phone,
+            'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
+            'operator' => $campay->operatorName($phone),
+        ]);
+    }
+
     public function clientCheck(Request $request)
     {
         $customer = Customer::find((int) $request->get('customer_id'));
@@ -121,6 +138,7 @@ class PaymentController extends Controller
             'payment_method' => 'required|in:1,3,4',
             'note' => 'nullable|string|max:1000',
             'customer_id' => 'nullable|integer',
+            'client_phone' => 'nullable|string|max:30',
         ]);
         $account = Account::where('is_active', true)->findOrFail($data['account_id']);
         $method = (int) $data['payment_method'];
@@ -128,6 +146,9 @@ class PaymentController extends Controller
         $customer = null;
         if (! empty($data['customer_id'])) {
             $customer = Customer::find($data['customer_id']);
+        }
+        if (! $customer && ! empty($data['client_phone'])) {
+            $customer = $this->customerFromPhone($data['client_phone']);
         }
         if ($method === 1) {
             $deposit = $deposits->record($account, $data['amount'], $method, $note, Auth::id());
@@ -281,6 +302,38 @@ class PaymentController extends Controller
         }
 
         return 'Your Mobile Money payment of '.$money.' XAF failed.';
+    }
+
+    protected function customerFromPhone($raw)
+    {
+        $campay = app(CampayPayoutService::class);
+        $phone = $campay->momoNumber($raw);
+        if (! $phone) {
+            $digits = preg_replace('/\D/', '', (string) $raw);
+            $phone = $digits !== '' ? $digits : null;
+        }
+        if (! $phone) {
+            return null;
+        }
+        $tail = substr($phone, -9);
+        $customer = Customer::where(function ($query) use ($phone, $tail) {
+            $query->where('phone_number', $phone)->orWhere('phone_number', 'like', '%'.$tail);
+        })->first();
+        if ($customer) {
+            return $customer;
+        }
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+        $name = ($hit && ! empty($hit['name'])) ? $hit['name'] : $phone;
+        $groupId = \App\CustomerGroup::query()->value('id');
+
+        return Customer::create([
+            'customer_group_id' => $groupId ? $groupId : 1,
+            'name' => $name,
+            'phone_number' => $phone,
+            'address' => 'N/A',
+            'city' => 'N/A',
+            'is_active' => true,
+        ]);
     }
 
     protected function tellClient($phone, $message)
