@@ -49,14 +49,17 @@
                 <h2>{{ $review->requester_name }} @if($review->note)<span class="pay-muted">· {{ $review->note }}</span>@endif</h2>
                 <span>
                     @if($reviewLines->whereIn('status', ['pending', 'failed'])->count() > 0)
-                        <a class="pay-open" href="{{ route('payout.mass', $review->id) }}" style="background:#e7eef8;color:#0b3f90 !important">Mass Payout file</a>
+                        <form method="POST" action="{{ route('payout.mass', $review->id) }}" style="display:inline">
+                            @csrf
+                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send this Mass Payout now? People already paid are left out.')">Mass Payout</button>
+                        </form>
                     @endif
                     <a href="{{ route('payout.request') }}" style="margin-left:12px">Close</a>
                 </span>
             </div>
             <div class="pay-card-body">
                 @if($review->status === 'pending')
-                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request. Mass Payout file is Campay’s sheet for the people not yet paid. Upload that file on Campay. It does not send the money by itself.</p>
+                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request. Mass Payout sends everyone not yet paid through Campay. A number already paid is not sent again.</p>
                     <form method="POST" action="{{ route('payout.request.revise') }}" id="reviewForm">
                         @csrf
                         <input type="hidden" name="id" value="{{ $review->id }}">
@@ -221,7 +224,10 @@
                             <td>
                                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                                 @if($item['kind'] === 'submitted' && ($linePending + $lineFailed) > 0)
-                                    <a class="pay-open" href="{{ route('payout.mass', $row->id) }}" style="background:#e7eef8;color:#0b3f90 !important">Mass Payout</a>
+                                    <form method="POST" action="{{ route('payout.mass', $row->id) }}">
+                                        @csrf
+                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer;background:#e7eef8;color:#0b3f90" onclick="return confirm('Send this Mass Payout now? People already paid are left out.')">Mass Payout</button>
+                                    </form>
                                 @endif
                                 @if($item['kind'] === 'submitted' && $lineFailed > 0)
                                     <form method="POST" action="{{ route('payout.retry') }}">

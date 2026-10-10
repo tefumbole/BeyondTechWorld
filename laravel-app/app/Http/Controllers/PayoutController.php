@@ -234,30 +234,50 @@ class PayoutController extends Controller
             ->orderBy('id')
             ->get();
         if ($lines->count() < 1) {
-            return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to put on the Mass Payout file.');
+            return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
         }
 
         $service = app(CampayPayoutService::class);
-        $sheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $grid = $sheet->getActiveSheet();
-        $grid->setCellValue('A1', 'Numéro / Number (ex 237........)');
-        $grid->setCellValue('B1', 'Nom / Name ou Description(Facultif / Optional)');
-        $grid->setCellValue('C1', 'Amount');
-        $rowNumber = 2;
+        $paid = 0;
+        $failed = 0;
+        $skipped = 0;
+        $seen = [];
         foreach ($lines as $line) {
-            $phone = $service->momoNumber($line->phone) ?: preg_replace('/\D/', '', (string) $line->phone);
-            $grid->setCellValueExplicit('A'.$rowNumber, $phone, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $grid->setCellValue('B'.$rowNumber, (string) $line->person_name);
-            $grid->setCellValue('C'.$rowNumber, (int) $line->amount);
-            $rowNumber++;
+            $phone = $service->momoNumber($line->phone);
+            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line->id)) {
+                $skipped++;
+                continue;
+            }
+            $seen[$phone] = true;
+            $existing = $this->confirmExisting($service, $line);
+            if ($existing === 'paid') {
+                $paid++;
+                continue;
+            }
+            if ($existing === 'pending') {
+                $skipped++;
+                continue;
+            }
+            $line->phone = $phone;
+            $line->external_reference = 'po-'.date('YmdHis').'-'.$line->id.'-'.substr(md5(uniqid('', true)), 0, 8);
+            $line->status = 'pending';
+            $line->error = null;
+            $line->campay_reference = null;
+            $line->save();
+            $service->pay($line);
+            if ($line->status === 'paid') {
+                $paid++;
+                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note);
+            } else {
+                $failed++;
+            }
         }
-        foreach (['A', 'B', 'C'] as $column) {
-            $grid->getColumnDimension($column)->setAutoSize(true);
-        }
-        $path = storage_path('app/campay-mass-payout-'.$batch->id.'.xlsx');
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($sheet))->save($path);
+        $this->closeBatch($batch);
 
-        return response()->download($path, 'campay-mass-payout-'.$batch->id.'.xlsx')->deleteFileAfterSend(true);
+        return redirect()->route('payout.request', ['review' => $batch->id])->with(
+            'message',
+            $paid.' paid. '.$failed.' not paid. '.$skipped.' not sent again.'
+        );
     }
 
     public function resend(Request $request)
