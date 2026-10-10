@@ -1,30 +1,43 @@
 @extends('layout.main')
 @section('content')
-<section class="container-fluid">
+@include('payout.partials.style')
+@php
+    $balanceParts = [];
+    foreach (explode(' · ', (string) $balance) as $piece) {
+        $piece = trim($piece);
+        $space = strpos($piece, ' ');
+        if ($piece === '' || $space === false) {
+            continue;
+        }
+        $balanceParts[substr($piece, 0, $space)] = trim(substr($piece, $space + 1));
+    }
+    $totalBalance = isset($balanceParts['Total']) ? $balanceParts['Total'] : null;
+@endphp
+<section class="container-fluid pay-app">
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
-    <div class="mb-3">
-        <a class="btn {{ !empty($making) ? 'btn-primary' : 'btn-default' }}" href="{{ route('payout.index', ['new' => 1]) }}">New Payout</a>
+    <div class="pay-toolbar">
+        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Payout</a>
     </div>
 
     @if(!empty($making))
-        <div class="card mb-3">
-            <div class="card-header"><h4 class="mb-0">New Payout</h4></div>
-            <div class="card-body">
-                <p>Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. Campay shows the name on the number.</p>
-                <div class="form-group" style="max-width:420px;position:relative">
+        <div class="pay-card">
+            <div class="pay-card-head"><h2>New Payout</h2></div>
+            <div class="pay-card-body">
+                <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. Campay shows the name on the number.</p>
+                <div class="pay-search">
                     <input type="search" id="payoutSearch" class="form-control" placeholder="Type a name or number" autocomplete="off">
                     <div id="payoutHits" class="list-group" style="position:absolute;z-index:5;width:100%;max-height:240px;overflow:auto"></div>
                 </div>
                 <form method="POST" action="{{ route('payout.direct') }}" id="newPayoutForm">
                     @csrf
-                    <div class="form-group" style="max-width:420px">
+                    <div class="form-group" style="max-width:420px;margin-top:14px">
                         <label>Note</label>
                         <input type="text" name="note" class="form-control" maxlength="180" placeholder="Salary, refund, allowance">
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="pay-table">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -35,42 +48,47 @@
                                 </tr>
                             </thead>
                             <tbody id="newPayoutBody">
-                                <tr id="newPayoutEmpty"><td colspan="5" class="text-muted">No one added yet.</td></tr>
+                                <tr id="newPayoutEmpty"><td colspan="5" class="pay-muted">No one added yet.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="d-flex align-items-center mb-3">
-                        <button class="btn btn-default" type="button" id="addPhone" title="Add a number" style="width:44px;height:44px;border-radius:22px;font-size:24px;line-height:1">+</button>
-                        <span class="ml-3 text-muted" id="newPayoutTotal"></span>
+                    <div class="pay-actions">
+                        <button class="pay-plus" type="button" id="addPhone" title="Add a number">+</button>
+                        <span class="pay-muted" id="newPayoutTotal"></span>
+                        <button class="pay-go" type="submit">Pay</button>
                     </div>
-                    <button class="btn btn-primary" type="submit">Pay</button>
                 </form>
             </div>
         </div>
     @endif
 
-    <div class="card mb-3">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <div class="text-muted">Campay balance</div>
-                <h4 class="mb-0">{{ $balance ?: 'Balance could not be read' }}</h4>
-            </div>
-            <div class="text-muted">MTN and Orange are separate balances.</div>
+    <div class="pay-balance">
+        <div>
+            <div class="pay-kicker">Campay balance</div>
+            <div class="pay-total">{{ $totalBalance !== null ? $totalBalance.' XAF' : ($balance ?: 'Balance could not be read') }}</div>
+            <div class="pay-sub">MTN and Orange are separate balances.</div>
+        </div>
+        <div class="pay-chips">
+            @foreach($balanceParts as $label => $value)
+                @if($label !== 'Total')
+                    <span class="pay-chip">{{ $label }} <strong>{{ $value }}</strong></span>
+                @endif
+            @endforeach
         </div>
     </div>
 
     @if($open)
-        <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">{{ $open->requester_name }} @if($open->note)<span class="text-muted">· {{ $open->note }}</span>@endif</h4>
+        <div class="pay-card">
+            <div class="pay-card-head">
+                <h2>{{ $open->requester_name }} @if($open->note)<span class="pay-muted">· {{ $open->note }}</span>@endif</h2>
                 <a href="{{ route('payout.index') }}">All pending</a>
             </div>
-            <div class="card-body">
+            <div class="pay-card-body">
                 <form method="POST" action="{{ route('payout.pay') }}" id="payoutForm">
                     @csrf
                     <input type="hidden" name="request_id" value="{{ $open->id }}">
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="pay-table">
                             <thead>
                                 <tr>
                                     <th style="width:36px"><input type="checkbox" id="payoutAll"></th>
@@ -83,6 +101,10 @@
                             </thead>
                             <tbody>
                                 @foreach($lines as $line)
+                                    @php
+                                        $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
+                                        $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Not paid');
+                                    @endphp
                                     <tr>
                                         <td>
                                             @if($line->status === 'pending')
@@ -90,7 +112,7 @@
                                             @endif
                                         </td>
                                         <td>{{ $line->person_name }}</td>
-                                        <td>{{ $line->phone }} @if($line->network)<span class="text-muted">{{ $line->network }}</span>@endif</td>
+                                        <td>{{ $line->phone }} @if($line->network)<span class="pay-net">{{ $line->network }}</span>@endif</td>
                                         <td>{{ $line->momo_name !== '' && $line->momo_name !== null ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : 'Looking up…') }}</td>
                                         <td>
                                             @if($line->status === 'pending')
@@ -99,25 +121,30 @@
                                                 {{ number_format($line->amount, 0, '.', ' ') }}
                                             @endif
                                         </td>
-                                        <td>{{ $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Not paid') }}@if($line->error)<div class="small text-danger">{{ $line->error }}</div>@endif</td>
+                                        <td>
+                                            <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                            @if($line->error)<div class="pay-note">{{ $line->error }}</div>@endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
                     @if($open->status === 'pending')
-                        <button class="btn btn-primary" type="submit" id="payoutButton">Payout</button>
-                        <span class="ml-2 text-muted" id="payoutTotal"></span>
+                        <div class="pay-actions">
+                            <button class="pay-go" type="submit" id="payoutButton">Payout</button>
+                            <span class="pay-muted" id="payoutTotal"></span>
+                        </div>
                     @endif
                 </form>
             </div>
         </div>
     @endif
 
-    <div class="card mb-3">
-        <div class="card-header"><h4 class="mb-0">Pending</h4></div>
-        <div class="card-body table-responsive">
-            <table class="table table-sm">
+    <div class="pay-card">
+        <div class="pay-card-head"><h2>Pending</h2></div>
+        <div class="table-responsive">
+            <table class="pay-table">
                 <thead>
                     <tr><th>When</th><th>From</th><th>Note</th><th>People</th><th>Total</th><th></th></tr>
                 </thead>
@@ -130,35 +157,42 @@
                             <td>{{ $row->note }}</td>
                             <td>{{ $sum ? $sum->people : 0 }}</td>
                             <td>{{ number_format($sum ? $sum->total : 0, 0, '.', ' ') }} XAF</td>
-                            <td><a class="btn btn-sm btn-primary" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a></td>
+                            <td><a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="6">No payment requests are waiting.</td></tr>
+                        <tr><td colspan="6" class="pay-muted">No payment requests are waiting.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><h4 class="mb-0">Recent payouts</h4></div>
-        <div class="card-body table-responsive">
-            <table class="table table-sm">
+    <div class="pay-card">
+        <div class="pay-card-head"><h2>Recent payouts</h2></div>
+        <div class="table-responsive">
+            <table class="pay-table">
                 <thead>
                     <tr><th>When</th><th>Person</th><th>Number</th><th>Name on MoMo</th><th>Amount</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                     @forelse($history as $row)
+                        @php
+                            $tone = $row->status === 'paid' ? 'ok' : 'no';
+                            $statusLabel = $row->status === 'paid' ? 'Paid' : 'Not paid';
+                        @endphp
                         <tr>
                             <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
                             <td>{{ $row->person_name }}</td>
                             <td>{{ $row->phone }}</td>
                             <td>{{ $row->momo_name }}</td>
                             <td>{{ number_format($row->amount, 0, '.', ' ') }} XAF</td>
-                            <td>{{ $row->status === 'paid' ? 'Paid' : 'Not paid' }}@if($row->error)<div class="small text-danger">{{ $row->error }}</div>@endif</td>
+                            <td>
+                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                @if($row->error)<div class="pay-note">{{ $row->error }}</div>@endif
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6">No payouts yet.</td></tr>
+                        <tr><td colspan="6" class="pay-muted">No payouts yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>

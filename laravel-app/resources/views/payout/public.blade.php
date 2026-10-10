@@ -7,10 +7,10 @@
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #f3f6fb; color: #1f2a44; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-        .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
-        h1 { font-size: 24px; margin: 0 0 8px; }
+        .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 80px; }
+        h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.02em; }
         p { color: #6f7b91; }
-        .card { background: #fff; border: 1px solid #e3e9f4; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+        .card { background: #fff; border: 1px solid #e3e9f4; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16, 33, 61, .04); }
         label { display: block; font-size: 13px; margin-bottom: 4px; }
         input[type="text"], input[type="search"], input[type="number"], input[type="tel"] { width: 100%; border: 1px solid #d5deee; border-radius: 8px; padding: 10px 12px; font-size: 16px; }
         .row { display: flex; gap: 12px; }
@@ -18,7 +18,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid #e3e9f4; vertical-align: middle; }
         th { font-size: 13px; color: #6f7b91; }
-        .btn { background: #0b3f90; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font-size: 16px; cursor: pointer; }
+        .btn { background: #0b3f90; color: #fff; border: 0; border-radius: 999px; padding: 10px 16px; font-size: 16px; font-weight: 700; cursor: pointer; }
         .plus { width: 44px; height: 44px; border-radius: 22px; font-size: 24px; line-height: 1; }
         .ghost { background: #e7eef8; color: #0b3f90; }
         .alert { padding: 12px 14px; border-radius: 8px; margin-bottom: 12px; }

@@ -1,17 +1,16 @@
 @extends('layout.main')
 @section('content')
-<section class="container-fluid">
-    <div class="card">
-        <div class="card-header"><h4 class="mb-0">Request for Payment</h4></div>
-        <div class="card-body">
-            <p>Send this link to anyone who should prepare a payment. They can choose customers, set each amount, or add a phone number. When they submit, the list appears under Payout as pending. Nothing is paid until you approve it.</p>
-            <div class="input-group" style="max-width:720px">
+@include('payout.partials.style')
+<section class="container-fluid pay-app">
+    <div class="pay-card">
+        <div class="pay-card-head"><h2>Request for Payment</h2></div>
+        <div class="pay-card-body">
+            <p class="pay-help">Send this link to anyone who should prepare a payment. They can choose customers, set each amount, or add a phone number. When they submit, the list appears under Payout as pending. Nothing is paid until you approve it.</p>
+            <div class="pay-linkbox">
                 <input type="text" id="requestUrl" class="form-control" readonly value="{{ $url }}">
-                <div class="input-group-append">
-                    <button class="btn btn-primary" type="button" id="copyLink">Copy link</button>
-                </div>
+                <button class="pay-go" type="button" id="copyLink">Copy link</button>
             </div>
-            <p class="mt-3 mb-0"><a href="{{ $url }}" target="_blank" rel="noopener">Open the request form</a></p>
+            <p class="pay-help" style="margin-top:14px;margin-bottom:0"><a href="{{ $url }}" target="_blank" rel="noopener">Open the request form</a></p>
         </div>
     </div>
 </section>
