@@ -374,10 +374,122 @@ class PayoutController extends Controller
         $total = CampayPayout::where('request_id', $batch->id)->count();
         if ($paid > 0) {
             $batch->status = 'done';
+        } elseif ($total === 0 || $rejected === $total) {
+            $batch->status = 'rejected';
         } else {
-            $batch->status = ($total === 0 || $rejected === $total) ? 'rejected' : 'done';
+            $failed = CampayPayout::where('request_id', $batch->id)->where('status', 'failed')->count();
+            $batch->status = ($failed === $total) ? 'failed' : 'done';
         }
         $batch->save();
+    }
+
+    public function retry(Request $request)
+    {
+        $this->guard();
+        $service = app(CampayPayoutService::class);
+        if ($request->filled('request_id')) {
+            $batch = $this->requests($this->tenantId())->where('id', (int) $request->input('request_id'))->first();
+            if (! $batch) {
+                abort(404);
+            }
+            $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'failed')->orderBy('id')->get();
+        } else {
+            $row = $this->retryRow((int) $request->input('id'));
+            $rows = collect([$row]);
+            $batch = $row->request_id ? CampayPayoutRequest::find($row->request_id) : null;
+        }
+        $paid = 0;
+        $skipped = 0;
+        $failed = 0;
+        $seen = [];
+        foreach ($rows as $row) {
+            $phone = $service->momoNumber($row->phone);
+            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $row->id)) {
+                $skipped++;
+                continue;
+            }
+            $seen[$phone] = true;
+            $existing = $this->confirmExisting($service, $row);
+            if ($existing === 'paid') {
+                $paid++;
+                continue;
+            }
+            if ($existing === 'pending') {
+                $skipped++;
+                continue;
+            }
+            $row->external_reference = 'po-'.date('YmdHis').'-'.$row->id.'-'.substr(md5(uniqid('', true)), 0, 8);
+            $row->status = 'pending';
+            $row->error = null;
+            $row->campay_reference = null;
+            $row->save();
+            $service->pay($row);
+            if ($row->status === 'paid') {
+                $paid++;
+                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
+            } else {
+                $failed++;
+            }
+        }
+        if ($batch) {
+            $this->closeBatch($batch);
+        }
+
+        return redirect()->back()->with(
+            'message',
+            $paid.' paid. '.$failed.' not paid. '.$skipped.' not sent again.'
+        );
+    }
+
+    protected function retryRow($id)
+    {
+        $row = CampayPayout::find($id);
+        if (! $row) {
+            abort(404);
+        }
+        if ($row->request_id && ! $this->requests($this->tenantId())->where('id', $row->request_id)->exists()) {
+            abort(404);
+        }
+        if ($row->status === 'paid') {
+            abort(404);
+        }
+
+        return $row;
+    }
+
+    protected function alreadyPaid($phone, $exceptId)
+    {
+        return CampayPayout::where('phone', $phone)
+            ->where('id', '!=', $exceptId)
+            ->where('status', 'paid')
+            ->where('created_at', '>=', now()->subHours(12))
+            ->exists();
+    }
+
+    protected function confirmExisting(CampayPayoutService $service, CampayPayout $row)
+    {
+        if (! $row->campay_reference) {
+            return false;
+        }
+        $body = $service->transaction($row->campay_reference);
+        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+        if ($status === 'SUCCESSFUL') {
+            $row->status = 'paid';
+            $row->error = null;
+            $row->save();
+            $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
+
+            return 'paid';
+        }
+        if ($status === 'PENDING') {
+            $row->status = 'pending';
+            $row->error = 'Campay status: PENDING';
+            $row->save();
+
+            return 'pending';
+        }
+
+        return false;
     }
 
     protected function collectLines(Request $request)

@@ -189,6 +189,13 @@
                             <td>
                                 <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
                                 @if($row->error)<div class="pay-note">{{ $row->error }}</div>@endif
+                                @if($row->status === 'failed')
+                                    <form method="POST" action="{{ route('payout.retry') }}" style="margin-top:6px">
+                                        @csrf
+                                        <input type="hidden" name="id" value="{{ $row->id }}">
+                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @empty

@@ -190,18 +190,38 @@
                             </td>
                             <td>{{ $item['kind'] === 'invite' ? $row->reason : $row->note }}</td>
                             <td>
+                                @php
+                                    $linePaid = $item['kind'] === 'submitted' ? $row->lines->where('status', 'paid')->count() : 0;
+                                    $lineFailed = $item['kind'] === 'submitted' ? $row->lines->where('status', 'failed')->count() : 0;
+                                    $linePending = $item['kind'] === 'submitted' ? $row->lines->where('status', 'pending')->count() : 0;
+                                @endphp
                                 @if($item['kind'] === 'invite')
                                     <span class="pay-pill pay-pill-wait">Asked</span>
-                                @elseif($row->status === 'done')
-                                    <span class="pay-pill pay-pill-ok">Paid</span>
                                 @elseif($row->status === 'rejected')
                                     <span class="pay-pill pay-pill-no">Rejected</span>
+                                @elseif($linePending > 0)
+                                    <span class="pay-pill pay-pill-wait">Submitted</span>
+                                @elseif($linePaid > 0 && $lineFailed === 0)
+                                    <span class="pay-pill pay-pill-ok">Paid</span>
+                                @elseif($lineFailed > 0 && $linePaid === 0)
+                                    <span class="pay-pill pay-pill-no">Not paid</span>
+                                @elseif($linePaid > 0)
+                                    <span class="pay-pill pay-pill-wait">Partly paid</span>
+                                @elseif($row->status === 'done')
+                                    <span class="pay-pill pay-pill-ok">Paid</span>
                                 @else
                                     <span class="pay-pill pay-pill-wait">Submitted</span>
                                 @endif
                             </td>
                             <td>
                                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                @if($item['kind'] === 'submitted' && $lineFailed > 0)
+                                    <form method="POST" action="{{ route('payout.retry') }}">
+                                        @csrf
+                                        <input type="hidden" name="request_id" value="{{ $row->id }}">
+                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
+                                    </form>
+                                @endif
                                 @if($item['kind'] === 'submitted' && $row->status === 'pending')
                                     <form method="POST" action="{{ route('payout.request.revise') }}">
                                         @csrf
