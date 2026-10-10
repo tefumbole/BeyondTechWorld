@@ -282,11 +282,38 @@ class PayoutController extends Controller
 
     public function publicForm(Request $request, $token)
     {
+        $this->link($token);
+
+        return view('payout.public', compact('token'));
+    }
+
+    public function publicSearch(Request $request, $token)
+    {
         $link = $this->link($token);
         $q = trim((string) $request->get('q', ''));
-        $people = $this->people($link, $q);
+        if (strlen($q) < 2) {
+            return response()->json(['people' => []]);
+        }
 
-        return view('payout.public', compact('people', 'q', 'token'));
+        return response()->json(['people' => $this->searchPeople($link, $q)]);
+    }
+
+    public function publicLookup(Request $request, $token)
+    {
+        $this->link($token);
+        $service = app(CampayPayoutService::class);
+        $phone = $service->momoNumber($request->get('phone'));
+        if (! $phone) {
+            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
+        }
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+
+        return response()->json([
+            'ok' => true,
+            'phone' => $phone,
+            'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
+            'operator' => $service->operatorName($phone),
+        ]);
     }
 
     public function publicStore(Request $request, $token)
@@ -329,11 +356,42 @@ class PayoutController extends Controller
                     'person_name' => (string) $customer->name,
                     'phone' => $phone,
                     'amount' => $amount,
+                    'momo_name' => $this->postedName($request, 'customer_momo', $customer->id),
+                ];
+            }
+        }
+        $userIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('user_id', [])))));
+        $userAmounts = (array) $request->input('user_amount', []);
+        if ($userIds) {
+            $users = \App\User::whereIn('id', $userIds)->get(['id', 'name', 'phone', 'additional_phone']);
+            if ($users->count() !== count($userIds)) {
+                return back()->withInput()->with('not_permitted', 'One of the selected people is not on this list.');
+            }
+            foreach ($users as $user) {
+                $phone = $service->momoNumber($user->whatsappPhone());
+                $amount = isset($userAmounts[$user->id]) ? (int) $userAmounts[$user->id] : 0;
+                if (! $phone) {
+                    return back()->withInput()->with('not_permitted', $user->name.' does not have an MTN or Orange Cameroon number.');
+                }
+                if (isset($seen[$phone])) {
+                    return back()->withInput()->with('not_permitted', 'That number is already on the list.');
+                }
+                if ($amount < 100 || $amount > 1000000) {
+                    return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF for '.$user->name.'.');
+                }
+                $seen[$phone] = true;
+                $lines[] = [
+                    'customer_id' => null,
+                    'person_name' => (string) $user->name,
+                    'phone' => $phone,
+                    'amount' => $amount,
+                    'momo_name' => $this->postedName($request, 'user_momo', $user->id),
                 ];
             }
         }
         $extraPhones = (array) $request->input('extra_phone', []);
         $extraAmounts = (array) $request->input('extra_amount', []);
+        $extraNames = (array) $request->input('extra_momo', []);
         foreach ($extraPhones as $index => $rawPhone) {
             $rawPhone = trim((string) $rawPhone);
             if ($rawPhone === '') {
@@ -352,11 +410,13 @@ class PayoutController extends Controller
             }
             $seen[$phone] = true;
             $match = $this->customerByPhone($link, $phone);
+            $name = isset($extraNames[$index]) ? trim((string) $extraNames[$index]) : '';
             $lines[] = [
                 'customer_id' => $match ? $match->id : null,
-                'person_name' => $match ? (string) $match->name : $phone,
+                'person_name' => $match ? (string) $match->name : ($name !== '' ? $name : $phone),
                 'phone' => $phone,
                 'amount' => $amount,
+                'momo_name' => $name,
             ];
         }
         if (count($lines) < 1 || count($lines) > 40) {
@@ -378,6 +438,8 @@ class PayoutController extends Controller
                 'amount' => $line['amount'],
                 'currency' => 'XAF',
                 'note' => $batch->note ?: 'Payout',
+                'momo_name' => $line['momo_name'] !== '' ? substr($line['momo_name'], 0, 180) : null,
+                'momo_checked' => $line['momo_name'] !== '' ? 1 : 0,
                 'external_reference' => 'po-'.date('YmdHis').'-'.$batch->id.'-'.substr(md5(uniqid('', true)), 0, 8),
                 'status' => 'pending',
             ]);
@@ -403,6 +465,59 @@ class PayoutController extends Controller
             $line->momo_checked = 1;
             $line->save();
         }
+    }
+
+    protected function searchPeople(CampayPayoutLink $link, $q)
+    {
+        $like = '%'.$q.'%';
+        $customers = app(CloudTenantContext::class)->withoutIsolation(function () use ($link, $like) {
+            $query = Customer::query()->where('phone_number', '!=', '')->orderBy('name');
+            if ($link->cloud_tenant_id) {
+                $query->where('cloud_tenant_id', $link->cloud_tenant_id);
+            }
+            $query->where(function ($rows) use ($like) {
+                $rows->where('name', 'like', $like)->orWhere('phone_number', 'like', $like);
+            });
+
+            return $query->limit(15)->get(['id', 'name', 'phone_number']);
+        });
+        $users = \App\User::query()
+            ->where('is_active', 1)
+            ->where(function ($rows) {
+                $rows->whereNull('is_deleted')->orWhere('is_deleted', 0);
+            })
+            ->where(function ($rows) {
+                $rows->where('phone', '!=', '')->orWhere('additional_phone', '!=', '');
+            })
+            ->where(function ($rows) use ($like) {
+                $rows->where('name', 'like', $like)->orWhere('phone', 'like', $like)->orWhere('additional_phone', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(15)
+            ->get(['id', 'name', 'phone', 'additional_phone']);
+        $people = [];
+        foreach ($customers as $customer) {
+            $people[] = [
+                'kind' => 'customer',
+                'id' => (int) $customer->id,
+                'name' => (string) $customer->name,
+                'phone' => (string) $customer->phone_number,
+            ];
+        }
+        foreach ($users as $user) {
+            $phone = $user->whatsappPhone();
+            if (! $phone) {
+                continue;
+            }
+            $people[] = [
+                'kind' => 'user',
+                'id' => (int) $user->id,
+                'name' => (string) $user->name,
+                'phone' => (string) $phone,
+            ];
+        }
+
+        return $people;
     }
 
     protected function people(CampayPayoutLink $link, $q)

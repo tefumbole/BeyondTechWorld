@@ -396,6 +396,8 @@ Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo
 Route::get('/c/{slug}', 'CloudPublicPageController@show')->where('slug', '[a-z0-9\-]+')->name('cloud.public.company');
 Route::post('/cloud/billing/webhook/{provider}', 'CloudBillingWebhookController@handle')->name('cloud.billing.webhook');
 
+Route::get('/payout/request/{token}/search', 'PayoutController@publicSearch')->where('token', '[A-Za-z0-9]{32,64}')->middleware('throttle:30,1')->name('payout.request.search');
+Route::get('/payout/request/{token}/lookup', 'PayoutController@publicLookup')->where('token', '[A-Za-z0-9]{32,64}')->middleware('throttle:20,1')->name('payout.request.lookup');
 Route::get('/payout/request/{token}', 'PayoutController@publicForm')->where('token', '[A-Za-z0-9]{32,64}')->name('payout.request.form');
 Route::post('/payout/request/{token}', 'PayoutController@publicStore')->where('token', '[A-Za-z0-9]{32,64}')->middleware('throttle:8,1')->name('payout.request.store');
 
