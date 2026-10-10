@@ -4,6 +4,66 @@ namespace App\Services;
 
 class BinancePayService
 {
+    public function instructions($amountXaf, $donationId)
+    {
+        $usdt = $this->usdtAmount($amountXaf);
+        if ($usdt === null) {
+            return ['ok' => false, 'error' => 'The crypto rate could not be loaded. Try again in a moment.'];
+        }
+        $exact = number_format(((float) $usdt) + (((int) $donationId % 97) + 1) / 10000, 4, '.', '');
+        $body = $this->signedGet('/sapi/v1/capital/deposit/address', [
+            'coin' => 'USDT',
+            'network' => 'TRX',
+        ]);
+        $address = is_array($body) && ! empty($body['address']) ? trim((string) $body['address']) : '';
+        if ($address === '' || stripos($address, 'T') !== 0) {
+            return ['ok' => false, 'error' => $this->spotError($body)];
+        }
+
+        return [
+            'ok' => true,
+            'address' => $address,
+            'network' => 'Tron (TRC20)',
+            'usdt' => $exact,
+            'coin' => 'USDT',
+        ];
+    }
+
+    public function findPayment($address, $usdt, $sinceMs)
+    {
+        $rows = $this->signedGet('/sapi/v1/capital/deposit/hisrec', [
+            'coin' => 'USDT',
+            'startTime' => (int) $sinceMs,
+            'limit' => 50,
+        ]);
+        if (! is_array($rows) || isset($rows['msg']) || isset($rows['code'])) {
+            return null;
+        }
+        $wanted = number_format((float) $usdt, 4, '.', '');
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (trim((string) (isset($row['address']) ? $row['address'] : '')) !== $address) {
+                continue;
+            }
+            $amount = number_format((float) (isset($row['amount']) ? $row['amount'] : 0), 4, '.', '');
+            if ($amount !== $wanted) {
+                continue;
+            }
+            $state = (int) (isset($row['status']) ? $row['status'] : 0);
+            if (! in_array($state, [1, 6], true)) {
+                continue;
+            }
+            $tx = trim((string) (isset($row['txId']) ? $row['txId'] : ''));
+            if ($tx !== '') {
+                return substr($tx, 0, 64);
+            }
+        }
+
+        return null;
+    }
+
     public function createOrder($tradeNo, $amountXaf, $description, $returnUrl)
     {
         $usdt = $this->usdtAmount($amountXaf);
@@ -126,6 +186,38 @@ class BinancePayService
         }
 
         return $decoded;
+    }
+
+    protected function signedGet($path, array $params)
+    {
+        $key = trim((string) config('services.binance.key'));
+        $secret = trim((string) config('services.binance.secret'));
+        if ($key === '' || $secret === '') {
+            return ['msg' => 'Crypto payments are not configured.'];
+        }
+        $params['timestamp'] = (string) round(microtime(true) * 1000);
+        $params['recvWindow'] = 10000;
+        $query = http_build_query($params);
+        $signature = hash_hmac('sha256', $query, $secret);
+        $ch = curl_init('https://api.binance.com'.$path.'?'.$query.'&signature='.$signature);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-MBX-APIKEY: '.$key]);
+        $raw = curl_exec($ch);
+        curl_close($ch);
+        $decoded = json_decode((string) $raw, true);
+
+        return is_array($decoded) ? $decoded : ['msg' => 'Binance did not answer.'];
+    }
+
+    protected function spotError($body)
+    {
+        $message = is_array($body) && ! empty($body['msg']) ? trim((string) $body['msg']) : '';
+        if ($message === '') {
+            return 'Binance could not open a crypto payment.';
+        }
+
+        return substr($message, 0, 180);
     }
 
     protected function errorText($decoded)

@@ -21,15 +21,23 @@
             @else
                 <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
                     @if($donation->method === 'crypto')
-                        Open Binance and pay the USDT amount for this donation.
+                        Send the exact USDT amount below. This page updates when Binance receives it.
                     @elseif($donation->method === 'visa')
                         Open the VISA page and complete the card payment.
                     @else
                         Approve the prompt on your phone. MTN and Orange both use this step.
                     @endif
                 </div>
-                @if($donation->payment_link)
-                    <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">{{ $donation->method === 'crypto' ? 'Pay with Binance' : 'Open the VISA page' }}</a>
+                @php $crypto = ($donation->method === 'crypto') ? json_decode((string) $donation->payment_link, true) : null; @endphp
+                @if(is_array($crypto) && ! empty($crypto['address']))
+                    <p class="mt-4 mb-1 text-sm text-slate-600">Send exactly</p>
+                    <p class="text-2xl font-extrabold text-brand-blue m-0">{{ $crypto['usdt'] }} {{ $crypto['coin'] }}</p>
+                    <p class="mt-3 mb-1 text-sm font-semibold">Network: {{ $crypto['network'] }}</p>
+                    <p class="text-sm text-slate-600 m-0">Use this network only. A transfer on another network is not received.</p>
+                    <p id="cryptoAddress" class="mt-3 break-all font-mono text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ $crypto['address'] }}</p>
+                    <button type="button" id="copyAddress" class="mt-3 w-full rounded-full border border-brand-blue text-brand-blue font-bold py-3 bg-white">Copy address</button>
+                @elseif($donation->payment_link)
+                    <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">Open the VISA page</a>
                 @endif
             @endif
         </div>
@@ -48,6 +56,17 @@
         }).catch(function () {});
     }
     setInterval(tick, 4000);
+    var copy = document.getElementById('copyAddress');
+    var address = document.getElementById('cryptoAddress');
+    if (copy && address) {
+        copy.addEventListener('click', function () {
+            var text = address.textContent || '';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            }
+            copy.textContent = 'Address copied';
+        });
+    }
 })();
 </script>
 @endpush

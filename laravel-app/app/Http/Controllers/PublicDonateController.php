@@ -68,8 +68,7 @@ class PublicDonateController extends Controller
         $description = $note !== '' ? substr($note, 0, 80) : 'Donation';
         $return = route('donate.status', ['token' => $donation->token]);
         if ($method === 'crypto') {
-            $trade = 'don'.$donation->id.'x'.substr(bin2hex(random_bytes(4)), 0, 8);
-            $result = app(BinancePayService::class)->createOrder($trade, $amount, $description, $return);
+            $result = app(BinancePayService::class)->instructions($amount, $donation->id);
             if (empty($result['ok'])) {
                 $donation->status = 'failed';
                 $donation->error = isset($result['error']) ? substr((string) $result['error'], 0, 250) : 'Binance could not open this payment.';
@@ -77,8 +76,13 @@ class PublicDonateController extends Controller
 
                 return redirect($return)->with('not_permitted', $donation->error);
             }
-            $donation->campay_reference = $trade;
-            $donation->payment_link = (string) $result['url'];
+            $donation->campay_reference = 'usdt:'.$result['usdt'];
+            $donation->payment_link = json_encode([
+                'address' => $result['address'],
+                'network' => $result['network'],
+                'usdt' => $result['usdt'],
+                'coin' => $result['coin'],
+            ]);
             $donation->save();
 
             return redirect($return);
@@ -139,13 +143,18 @@ class PublicDonateController extends Controller
             return;
         }
         if ($donation->method === 'crypto') {
-            $status = app(BinancePayService::class)->status($donation->campay_reference);
-            if ($status === 'PAID') {
-                $this->markPaid($donation);
-            } elseif (in_array($status, ['CANCELED', 'ERROR', 'EXPIRED', 'REFUND'], true)) {
-                $donation->status = 'failed';
-                $donation->error = 'The Binance payment was not completed.';
+            $info = json_decode((string) $donation->payment_link, true);
+            if (! is_array($info) || empty($info['address']) || empty($info['usdt'])) {
+                return;
+            }
+            $since = $donation->created_at
+                ? $donation->created_at->copy()->subMinutes(10)->getTimestamp() * 1000
+                : (time() - 3600) * 1000;
+            $tx = app(BinancePayService::class)->findPayment($info['address'], $info['usdt'], $since);
+            if ($tx && ! PublicDonation::where('campay_reference', $tx)->exists()) {
+                $donation->campay_reference = $tx;
                 $donation->save();
+                $this->markPaid($donation);
             }
 
             return;
