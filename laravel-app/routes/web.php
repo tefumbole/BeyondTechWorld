@@ -600,6 +600,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/payout/lookup', 'PayoutController@lookup')->name('payout.lookup');
     Route::get('/admin/payout/search', 'PayoutController@search')->name('payout.search');
     Route::get('/admin/payout/request', 'PayoutController@requestLink')->name('payout.request');
+    Route::post('/admin/payout/request/invite', 'PayoutController@invite')->name('payout.request.invite');
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');

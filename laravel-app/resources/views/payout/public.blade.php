@@ -41,8 +41,9 @@
 
     <div class="card">
         <div class="bar">
-            <input type="search" id="searchBox" placeholder="Search a name or number">
+            <input type="search" id="searchBox" placeholder="Search by name or phone number">
             <button class="btn" type="button" id="searchBtn">Search</button>
+            <button class="btn plus" type="button" id="addPhoneTop" title="Add a number">+</button>
         </div>
         <div id="results"></div>
     </div>
@@ -239,7 +240,7 @@
             search();
         }
     });
-    document.getElementById('addPhone').addEventListener('click', function () {
+    function openExtraPhone() {
         var row = document.createElement('tr');
         row.className = 'extra';
         row.innerHTML = '<td colspan="2"><input class="extra-phone" type="tel" name="extra_phone[]" placeholder="Phone number, 6xxxxxxxx"></td><td><span class="momo-label"></span><input type="hidden" name="extra_momo[]" value=""></td><td><input class="extra-amount amt" type="number" name="extra_amount[]" min="100" max="1000000" step="1" placeholder="Amount"></td><td></td>';
@@ -265,7 +266,9 @@
         row.querySelector('.extra-amount').addEventListener('input', refresh);
         phone.focus();
         refresh();
-    });
+    }
+    document.getElementById('addPhone').addEventListener('click', openExtraPhone);
+    document.getElementById('addPhoneTop').addEventListener('click', openExtraPhone);
     form.addEventListener('submit', function (event) {
         if (!body.querySelector('tr[data-phone], tr.extra')) event.preventDefault();
     });

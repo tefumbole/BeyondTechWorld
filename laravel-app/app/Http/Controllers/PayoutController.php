@@ -144,6 +144,25 @@ class PayoutController extends Controller
         return view('payout.request', compact('url'));
     }
 
+    public function invite(Request $request)
+    {
+        $this->guard();
+        $reason = trim((string) $request->input('reason', ''));
+        $people = $this->invitePeople($request);
+        if (isset($people['error'])) {
+            return back()->with('not_permitted', $people['error']);
+        }
+        $url = $this->requestUrl();
+        $notice = app(\App\Services\ClientNoticeService::class);
+        $sent = 0;
+        foreach ($people['lines'] as $line) {
+            $notice->send($line['phone'], $this->inviteText($line['name'], $reason, $url));
+            $sent++;
+        }
+
+        return redirect()->route('payout.request')->with('message', 'Sent to '.$sent.' '.($sent === 1 ? 'person' : 'people').'.');
+    }
+
     public function pay(Request $request)
     {
         $this->guard();
@@ -190,7 +209,7 @@ class PayoutController extends Controller
                 $total += (int) $row->amount;
                 app(\App\Services\ClientNoticeService::class)->send(
                     $row->phone,
-                    'Beyond Enterprise has sent you '.number_format((int) $row->amount, 0, '.', ' ').' XAF on Mobile Money.'
+                    $this->paidText($this->systemName($row), $row->amount, $row->note)
                 );
             } else {
                 $failed++;
@@ -453,14 +472,14 @@ class PayoutController extends Controller
                 return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF for '.$phone.'.');
             }
             $seen[$phone] = true;
-            $match = $this->customerByPhone($link, $phone);
-            $name = isset($extraNames[$index]) ? trim((string) $extraNames[$index]) : '';
+            $campayName = isset($extraNames[$index]) ? trim((string) $extraNames[$index]) : '';
+            $known = $this->nameOnFile($link, $phone, $campayName !== '' ? $campayName : $phone);
             $lines[] = [
-                'customer_id' => $match ? $match->id : null,
-                'person_name' => $match ? (string) $match->name : ($name !== '' ? $name : $phone),
+                'customer_id' => $known['customer_id'],
+                'person_name' => $known['name'],
                 'phone' => $phone,
                 'amount' => $amount,
-                'momo_name' => $name,
+                'momo_name' => $campayName,
             ];
         }
         if (count($lines) < 1 || count($lines) > 40) {
@@ -489,7 +508,145 @@ class PayoutController extends Controller
             ]);
         }
 
+        $notice = app(\App\Services\ClientNoticeService::class);
+        foreach ($lines as $line) {
+            $notice->send($line['phone'], $this->submittedText($line['person_name'], $line['amount'], $batch->note));
+        }
+
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
+    }
+
+    protected function requestUrl()
+    {
+        $tenantId = $this->tenantId();
+        $query = CampayPayoutLink::query();
+        if ($tenantId) {
+            $query->where('cloud_tenant_id', $tenantId);
+        } else {
+            $query->whereNull('cloud_tenant_id');
+        }
+        $link = $query->first();
+        if (! $link) {
+            $link = new CampayPayoutLink();
+            $link->token = bin2hex(random_bytes(20));
+            $link->cloud_tenant_id = $tenantId;
+            $link->save();
+        }
+
+        return route('payout.request.form', ['token' => $link->token]);
+    }
+
+    protected function invitePeople(Request $request)
+    {
+        $service = app(CampayPayoutService::class);
+        $lines = [];
+        $seen = [];
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('customer_id', [])))));
+        if ($ids) {
+            $customers = Customer::whereIn('id', $ids)->get(['id', 'name', 'phone_number']);
+            foreach ($customers as $customer) {
+                $phone = $service->momoNumber($customer->phone_number);
+                if (! $phone || isset($seen[$phone])) {
+                    continue;
+                }
+                $seen[$phone] = true;
+                $lines[] = ['name' => (string) $customer->name, 'phone' => $phone];
+            }
+        }
+        $userIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('user_id', [])))));
+        if ($userIds) {
+            $users = \App\User::whereIn('id', $userIds)->get(['id', 'name', 'phone', 'additional_phone']);
+            foreach ($users as $user) {
+                $phone = $service->momoNumber($user->whatsappPhone());
+                if (! $phone || isset($seen[$phone])) {
+                    continue;
+                }
+                $seen[$phone] = true;
+                $lines[] = ['name' => (string) $user->name, 'phone' => $phone];
+            }
+        }
+        foreach ((array) $request->input('extra_phone', []) as $raw) {
+            $phone = $service->momoNumber($raw);
+            if (! $phone || isset($seen[$phone])) {
+                continue;
+            }
+            $seen[$phone] = true;
+            $tail = substr($phone, -9);
+            $match = \App\User::query()->where('is_active', 1)
+                ->where(function ($query) use ($tail) {
+                    $query->where('phone', 'like', '%'.$tail)->orWhere('additional_phone', 'like', '%'.$tail);
+                })
+                ->limit(10)
+                ->get(['id', 'name', 'phone', 'additional_phone'])
+                ->first(function ($user) use ($service, $phone) {
+                    return $service->momoNumber($user->whatsappPhone()) === $phone;
+                });
+            $customer = Customer::query()->where('phone_number', 'like', '%'.$tail)->limit(10)->get(['id', 'name', 'phone_number'])
+                ->first(function ($row) use ($service, $phone) {
+                    return $service->momoNumber($row->phone_number) === $phone;
+                });
+            $name = $customer ? (string) $customer->name : ($match ? (string) $match->name : $phone);
+            $lines[] = ['name' => $name, 'phone' => $phone];
+        }
+        if (count($lines) < 1) {
+            return ['error' => 'Choose at least one person.'];
+        }
+        if (count($lines) > 40) {
+            return ['error' => 'Choose up to 40 people.'];
+        }
+
+        return ['lines' => $lines];
+    }
+
+    protected function systemName(CampayPayout $row)
+    {
+        if ($row->customer_id) {
+            $customer = Customer::find($row->customer_id);
+            if ($customer && trim((string) $customer->name) !== '') {
+                return trim((string) $customer->name);
+            }
+        }
+        $name = trim((string) $row->person_name);
+
+        return $name !== '' ? $name : 'Client';
+    }
+
+    protected function moneyText($amount)
+    {
+        return number_format((float) $amount, 0, '.', ' ');
+    }
+
+    protected function paidText($name, $amount, $reason)
+    {
+        $text = 'Dear '.$name.','."\n".'A payment of '.$this->moneyText($amount).' XAF has been made to you.';
+        $reason = trim((string) $reason);
+        if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
+            $text .= "\n".$reason;
+        }
+
+        return $text;
+    }
+
+    protected function submittedText($name, $amount, $reason)
+    {
+        $text = 'Dear '.$name.','."\n".'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.';
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            $text .= "\n".$reason;
+        }
+
+        return $text;
+    }
+
+    protected function inviteText($name, $reason, $url)
+    {
+        $text = 'Dear '.$name.','."\n".'You have been requested to submit payment information.';
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            $text .= "\n".$reason;
+        }
+
+        return $text."\n".$url;
     }
 
     protected function fillMomoNames($lines)
@@ -628,6 +785,30 @@ class PayoutController extends Controller
 
             return $query->limit(80)->get(['id', 'name', 'phone_number']);
         });
+    }
+
+    protected function nameOnFile(CampayPayoutLink $link, $phone, $fallback)
+    {
+        $customer = $this->customerByPhone($link, $phone);
+        if ($customer) {
+            return ['customer_id' => $customer->id, 'name' => (string) $customer->name];
+        }
+        $service = app(CampayPayoutService::class);
+        $tail = substr($phone, -9);
+        $user = \App\User::query()->where('is_active', 1)
+            ->where(function ($query) use ($tail) {
+                $query->where('phone', 'like', '%'.$tail)->orWhere('additional_phone', 'like', '%'.$tail);
+            })
+            ->limit(10)
+            ->get(['id', 'name', 'phone', 'additional_phone'])
+            ->first(function ($row) use ($service, $phone) {
+                return $service->momoNumber($row->whatsappPhone()) === $phone;
+            });
+        if ($user) {
+            return ['customer_id' => null, 'name' => (string) $user->name];
+        }
+
+        return ['customer_id' => null, 'name' => $fallback];
     }
 
     protected function customerByPhone(CampayPayoutLink $link, $phone)
