@@ -153,10 +153,9 @@ class PayoutController extends Controller
             return back()->with('not_permitted', $people['error']);
         }
         $url = $this->requestUrl();
-        $notice = app(\App\Services\ClientNoticeService::class);
         $sent = 0;
         foreach ($people['lines'] as $line) {
-            $notice->send($line['phone'], $this->inviteText($line['name'], $reason, $url));
+            $this->sendInvite($line['phone'], $line['name'], $reason, $url);
             $sent++;
         }
 
@@ -207,10 +206,7 @@ class PayoutController extends Controller
             if ($row->status === 'paid') {
                 $paid++;
                 $total += (int) $row->amount;
-                app(\App\Services\ClientNoticeService::class)->send(
-                    $row->phone,
-                    $this->paidText($this->systemName($row), $row->amount, $row->note)
-                );
+                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
             } else {
                 $failed++;
             }
@@ -508,10 +504,10 @@ class PayoutController extends Controller
             ]);
         }
 
-        $notice = app(\App\Services\ClientNoticeService::class);
         foreach ($lines as $line) {
-            $notice->send($line['phone'], $this->submittedText($line['person_name'], $line['amount'], $batch->note));
+            $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note);
         }
+        $this->notifySubmission($requester, $batch->note, $lines);
 
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
     }
@@ -614,6 +610,104 @@ class PayoutController extends Controller
     protected function moneyText($amount)
     {
         return number_format((float) $amount, 0, '.', ' ');
+    }
+
+    protected function sendInvite($phone, $name, $reason, $url)
+    {
+        $reason = trim((string) $reason);
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedAction(
+            $phone,
+            $name,
+            \App\Support\WhatsAppMessage::companyName(),
+            'submit payment information',
+            $reason !== '' ? $reason : 'Request for Payment',
+            $url
+        );
+        if (empty($result['success'])) {
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->inviteText($name, $reason, $url));
+        }
+    }
+
+    protected function sendSubmitted($phone, $name, $amount, $reason)
+    {
+        $reason = trim((string) $reason);
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
+            $phone,
+            $name,
+            \App\Support\WhatsAppMessage::companyName(),
+            'payment',
+            $reason !== '' ? $reason : 'Payment request',
+            'Submitted',
+            'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.'
+        );
+        if (empty($result['success'])) {
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason));
+        }
+    }
+
+    protected function sendPaid($phone, $name, $amount, $reason)
+    {
+        $reason = trim((string) $reason);
+        if (strcasecmp($reason, 'Payout') === 0) {
+            $reason = '';
+        }
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedConfirmation(
+            $phone,
+            $name,
+            \App\Support\WhatsAppMessage::companyName(),
+            'payment',
+            $reason !== '' ? $reason : 'Payment',
+            date('d M Y'),
+            'A payment has been made to you.',
+            $this->moneyText($amount).' XAF'
+        );
+        if (empty($result['success'])) {
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason));
+        }
+    }
+
+    protected function notifySubmission($requester, $reason, array $lines)
+    {
+        $parts = [];
+        $total = 0;
+        foreach ($lines as $line) {
+            $total += (int) $line['amount'];
+            $parts[] = $line['person_name'].' '.$this->moneyText($line['amount']).' XAF';
+        }
+        $detail = $requester.' submitted a payment request. '.implode('. ', $parts).'. Total '.$this->moneyText($total).' XAF.';
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            $detail .= ' Reason: '.$reason.'.';
+        }
+        if (function_exists('mb_strlen') && mb_strlen($detail) > 800) {
+            $detail = rtrim(mb_substr($detail, 0, 799)).'…';
+        }
+        $phone = \App\Support\TwilioAdminCopy::PHONE;
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
+            $phone,
+            $this->copyName(),
+            \App\Support\WhatsAppMessage::companyName(),
+            'payment request',
+            $requester,
+            'Submitted',
+            $detail
+        );
+        if (empty($result['success'])) {
+            app(\App\Services\ClientNoticeService::class)->send($phone, $detail);
+        }
+    }
+
+    protected function copyName()
+    {
+        $tail = substr(preg_replace('/\D/', '', \App\Support\TwilioAdminCopy::PHONE), -9);
+        $user = \App\User::query()->where('is_active', 1)
+            ->where(function ($query) use ($tail) {
+                $query->where('phone', 'like', '%'.$tail)->orWhere('additional_phone', 'like', '%'.$tail);
+            })
+            ->first(['name', 'phone', 'additional_phone']);
+        $name = $user ? trim((string) $user->name) : '';
+
+        return $name !== '' ? $name : 'Admin';
     }
 
     protected function paidText($name, $amount, $reason)
