@@ -40,7 +40,7 @@
             <div class="alert ok">This payment has been received.</div>
         @else
             @if($link->status === 'pending' && $link->method === 'momo')
-                <div class="alert wait" id="waitNote">Approve the prompt on your phone. MTN and Orange both use this step.</div>
+                <div class="alert wait" id="waitNote">A request is on your phone. Enter your PIN there to approve it. Stay on this Beyond page.</div>
             @elseif($link->status === 'failed')
                 <div class="alert no">{{ $link->error ?: 'The payment was not approved.' }}</div>
             @endif

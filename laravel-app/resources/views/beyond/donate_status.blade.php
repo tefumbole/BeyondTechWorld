@@ -23,11 +23,14 @@
             @else
                 @php $crypto = ($donation->method === 'crypto') ? json_decode((string) $donation->payment_link, true) : null; @endphp
                 @if($donation->method === 'momo')
-                    <p class="text-sm font-bold uppercase tracking-wide text-amber-800 m-0 mb-2">Pending</p>
+                    <p class="text-sm font-bold uppercase tracking-wide text-amber-800 m-0 mb-2">Validate payment</p>
                     <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
-                        This page stays pending until the payment is completed.
-                        Approve the prompt on your phone. MTN and Orange both use this step.
+                        A request is on your phone. Enter your PIN there to approve it. Stay on this Beyond page.
                     </div>
+                    @if($donation->payment_link && preg_match('/^[#*]/', $donation->payment_link))
+                        <p class="mt-4 mb-1 text-sm text-slate-600">Or dial this code on the same phone</p>
+                        <p class="text-2xl font-extrabold text-brand-blue m-0">{{ $donation->payment_link }}</p>
+                    @endif
                 @endif
                 @if(is_array($crypto) && ! empty($crypto['address']))
                     <p class="mt-4 mb-1 text-sm text-slate-600">Send exactly</p>

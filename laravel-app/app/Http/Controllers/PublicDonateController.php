@@ -157,6 +157,16 @@ class PublicDonateController extends Controller
             return redirect($return)->with('not_permitted', $donation->error);
         }
         $donation->campay_reference = (string) $body['reference'];
+        $ussd = '';
+        foreach (['ussd_code', 'ussd'] as $key) {
+            if (! empty($body[$key]) && is_string($body[$key]) && preg_match('/^[#*]/', $body[$key])) {
+                $ussd = $body[$key];
+                break;
+            }
+        }
+        if ($ussd !== '') {
+            $donation->payment_link = $ussd;
+        }
         $donation->save();
 
         return redirect($return);
