@@ -77,6 +77,47 @@ class CampayPayoutService
         return isset($names[$key]) ? $names[$key] : ucfirst(str_replace('_', ' ', $key));
     }
 
+    public function collect($phone, $amount, $reference, $description)
+    {
+        return $this->call('POST', 'collect/', [
+            'amount' => (string) (int) $amount,
+            'currency' => 'XAF',
+            'from' => (string) $phone,
+            'description' => (string) $description,
+            'external_reference' => (string) $reference,
+        ]);
+    }
+
+    public function cardLink($phone, $amount, $reference, $description, $returnUrl, $name)
+    {
+        $parts = preg_split('/\s+/', trim((string) $name), 2);
+        $first = isset($parts[0]) && $parts[0] !== '' ? $parts[0] : 'Client';
+        $last = isset($parts[1]) && $parts[1] !== '' ? $parts[1] : $first;
+
+        return $this->call('POST', 'get_payment_link/', [
+            'amount' => (string) (int) $amount,
+            'currency' => 'XAF',
+            'from' => (string) $phone,
+            'description' => (string) $description,
+            'external_reference' => (string) $reference,
+            'redirect_url' => (string) $returnUrl,
+            'failure_redirect_url' => (string) $returnUrl,
+            'first_name' => $first,
+            'last_name' => $last,
+            'payment_options' => 'CARD',
+        ]);
+    }
+
+    public function transaction($reference)
+    {
+        $reference = trim((string) $reference);
+        if ($reference === '') {
+            return null;
+        }
+
+        return $this->call('GET', 'transaction/'.$reference.'/', []);
+    }
+
     public function pay(CampayPayout $row)
     {
         $to = $this->momoNumber($row->phone);

@@ -1994,7 +1994,7 @@
                                         <li id="payout-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
                                         <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
                                     @endif
-                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">All Deposits</a></li>
+                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
                                 </ul>
                             </li>
                         @endif

@@ -188,6 +188,10 @@ class PayoutController extends Controller
             if ($row->status === 'paid') {
                 $paid++;
                 $total += (int) $row->amount;
+                app(\App\Services\ClientNoticeService::class)->send(
+                    $row->phone,
+                    'Beyond Enterprise has sent you '.number_format((int) $row->amount, 0, '.', ' ').' XAF on Mobile Money.'
+                );
             } else {
                 $failed++;
             }
