@@ -7,6 +7,7 @@ use App\Services\BinancePayService;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
 use App\Services\MobileMoneyHolderService;
+use App\Support\CountryDialCodes;
 use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
@@ -21,9 +22,15 @@ class PublicDonateController extends Controller
     public function lookup(Request $request)
     {
         $service = app(CampayPayoutService::class);
-        $phone = $service->momoNumber($request->get('phone'));
+        $full = $this->fullPhone($request->get('country_code'), $request->get('phone'));
+        $phone = $service->momoNumber($full);
         if (! $phone) {
-            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
+            return response()->json([
+                'ok' => true,
+                'phone' => $full,
+                'name' => '',
+                'operator' => '',
+            ]);
         }
         $hit = app(MobileMoneyHolderService::class)->lookup($phone);
 
@@ -38,13 +45,23 @@ class PublicDonateController extends Controller
     public function store(Request $request)
     {
         $service = app(CampayPayoutService::class);
-        $phone = $service->momoNumber($request->input('phone'));
+        $full = $this->fullPhone($request->input('country_code'), $request->input('phone'));
+        $phone = $service->momoNumber($full);
         $name = trim((string) $request->input('person_name'));
         $amount = (int) $request->input('amount');
         $note = trim((string) $request->input('note'));
         $method = (string) $request->input('method');
+        if (! in_array($method, ['momo', 'visa', 'crypto'], true)) {
+            $method = 'momo';
+        }
+        if ($full === '') {
+            return back()->withInput()->with('not_permitted', 'Enter a phone number.');
+        }
+        if ($method === 'momo' && ! $phone) {
+            return back()->withInput()->with('not_permitted', 'MTN and Orange need a Cameroon number. Choose VISA or Crypto for another country.');
+        }
         if (! $phone) {
-            return back()->withInput()->with('not_permitted', 'Enter an MTN or Orange Cameroon number.');
+            $phone = $full;
         }
         if ($name === '' || strlen($name) > 191) {
             return back()->withInput()->with('not_permitted', 'Enter the name on this number.');
@@ -219,6 +236,22 @@ class PublicDonateController extends Controller
         $name = $user ? trim((string) $user->name) : '';
 
         return $name !== '' ? $name : 'Admin';
+    }
+
+    protected function fullPhone($code, $number)
+    {
+        $codes = CountryDialCodes::all();
+        $code = trim((string) $code);
+        if (! isset($codes[$code])) {
+            $code = '+237';
+        }
+        $full = CountryDialCodes::combine($code, $number);
+        $digits = preg_replace('/\D/', '', $full);
+        if (strlen($digits) < 8 || strlen($digits) > 15) {
+            return '';
+        }
+
+        return $digits;
     }
 
     protected function find($token)
