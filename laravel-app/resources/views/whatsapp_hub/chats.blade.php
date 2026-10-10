@@ -35,6 +35,12 @@
     .chat-ai { color: var(--beyond-primary); font-size: 11px; font-weight: 700; }
     .chats-thread { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--beyond-bg); }
     .chats-head { min-height: 60px; background: var(--beyond-card); border-bottom: 1px solid #e3e9f4; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; }
+    .chat-back { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: var(--beyond-primary); font-size: 28px; font-weight: 700; text-decoration: none; flex: none; line-height: 1; }
+    .chats-head-person { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .chats-head-person h2, .chats-head-person p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .load-earlier { align-self: center; border: 1px solid #d5deee; background: #fff; color: var(--beyond-primary); border-radius: 999px; min-height: 32px; padding: 0 14px; font-weight: 700; cursor: pointer; margin: 8px 0; }
+    .chat-live { display: none; background: #fff8e6; color: #7a5b10; text-align: center; font-size: 13px; font-weight: 700; padding: 6px 10px; }
+    .chat-live.is-on { display: block; }
     .chats-head h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--beyond-text); }
     .chats-head p { margin: 0; color: var(--beyond-muted); font-size: 12px; }
     .mode-switch { display: flex; gap: 6px; }
@@ -68,12 +74,23 @@
     .group-card h2 { margin: 8px 0; color: var(--beyond-text); }
     .chat-note { background: #fff8e6; color: #7a5b10; border-bottom: 1px solid #ead79a; padding: 8px 16px; font-size: 13px; }
     @media (max-width: 800px) {
-        #content { height: calc(100vh - 56px); }
-        .chats-app { height: auto; }
+        #content { height: calc(100dvh - 56px); }
+        .chats-app { min-height: 0; }
         .chats-side { width: 100%; max-width: none; }
         .chats-thread { display: none; }
         .chats-app.has-open .chat-rail, .chats-app.has-open .chats-side { display: none; }
         .chats-app.has-open .chats-thread { display: flex; }
+        .chat-back { display: inline-flex; }
+        .chats-stream { padding: 8px 12px 12px; }
+        .bubble { max-width: 92%; }
+        .chats-compose { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+        .chats-head { padding: 8px 10px; }
+        .mode-switch button, .announce-btn, .call-btn { min-height: 36px; }
+        .beyond-module-tabs { margin-bottom: 0; }
+        .beyond-module-tabs-label { display: none; }
+        .beyond-module-tabs-nav { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
+        .beyond-module-tab { padding: 8px 12px; font-size: 12px; }
+        .chat-row { padding: 12px; }
     }
 </style>
 @php
@@ -127,7 +144,7 @@
                         $preview = $previewLabels[$previewKey];
                     }
                 @endphp
-                <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-kind="person" data-read="{{ (int) $row->unread_count > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
+                <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ (int) $row->unread_count > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar">{{ strtoupper(substr($person, 0, 1)) }}</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -246,9 +263,12 @@
         @if($open)
             @php $title = optional($open->contact)->displayName() ?: 'WhatsApp'; @endphp
             <header class="chats-head">
-                <div>
-                    <h2>{{ $title }}</h2>
-                    <p>{{ optional($open->contact)->display_phone }} · {{ $open->mode === 'AI' ? 'AI mode' : 'Human mode' }}</p>
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats') }}" aria-label="Back to chats">‹</a>
+                    <div>
+                        <h2>{{ $title }}</h2>
+                        <p>{{ optional($open->contact)->display_phone }} · {{ $open->mode === 'AI' ? 'AI mode' : 'Human mode' }}</p>
+                    </div>
                 </div>
                 <div class="mode-switch">
                     @php $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone); @endphp
@@ -266,7 +286,11 @@
                 </div>
             </header>
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            <div class="chat-live" id="chatLive">Reconnecting…</div>
             <div class="chats-stream" id="chatStream">
+                @if(!empty($hasEarlier) && $messages->first())
+                    <button type="button" class="load-earlier" id="loadEarlier" data-before="{{ $messages->first()->id }}">Earlier messages</button>
+                @endif
                 @php $prevDay = null; @endphp
                 @forelse($messages as $message)
                     @php
@@ -284,6 +308,8 @@
                         <div class="day-chip">{{ $dayLabel }}</div>
                     @endif
                     @include('whatsapp_hub.partials.chat_bubble', [
+                        'id' => $message->id,
+                        'day' => $message->created_at ? $message->created_at->format('Y-m-d') : '',
                         'out' => $message->direction === 'OUTGOING',
                         'text' => $message->body,
                         'time' => $message->created_at ? $message->created_at->format('H:i') : '',
@@ -309,9 +335,12 @@
             @endif
         @elseif($group)
             <header class="chats-head">
-                <div>
-                    <h2>{{ $group['name'] }}</h2>
-                    <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
+                <div class="chats-head-person">
+                    <a class="chat-back" href="{{ route('whatsapp.chats', ['pane' => 'chats']) }}" aria-label="Back to chats">‹</a>
+                    <div>
+                        <h2>{{ $group['name'] }}</h2>
+                        <p>{{ $group['members'] === null ? 'WhatsApp group' : number_format($group['members']).' contacts' }}</p>
+                    </div>
                 </div>
                 <a class="announce-btn" href="{{ route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
             </header>
@@ -346,6 +375,8 @@
                         <div class="day-chip">{{ $dayLabel }}</div>
                     @endif
                     @include('whatsapp_hub.partials.chat_bubble', [
+                        'id' => $message->id,
+                        'day' => $dayKey,
                         'out' => ! empty($media['outgoing']),
                         'text' => $message->body,
                         'time' => $when ? $when->format('H:i') : '',
@@ -461,19 +492,164 @@
             if (!canSend()) event.preventDefault();
         });
     }
-    @if($open)
-    var seen = {{ (int) optional($messages->last())->id }};
-    setInterval(function () {
-        if (body && body.value.trim() !== '') return;
-        fetch(@json(route('whatsapp.conversation', $open->id).'?poll=1'), {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            credentials: 'same-origin'
-        }).then(function (r) { return r.json(); }).then(function (data) {
-            var last = data && data.messages && data.messages.length ? data.messages[data.messages.length - 1].id : 0;
-            if (last && last !== seen) window.location.reload();
-        }).catch(function () {});
-    }, 6000);
-    @endif
+    var chatPage = @json(route('whatsapp.chats'));
+    var openChat = {{ $open ? (int) $open->id : 0 }};
+    var openGroup = @json($group ? $group['jid'] : '');
+    var seen = {{ ($open && $messages->last()) ? (int) $messages->last()->id : 0 }};
+    var seenGroup = {{ ($group && $groupMessages->last()) ? (int) $groupMessages->last()->id : 0 }};
+    var misses = 0;
+    var polling = false;
+    function esc(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+        });
+    }
+    function tickHtml(tick) {
+        if (!tick) return '';
+        if (tick === 'failed') return '<span class="tick failed">!</span>';
+        if (tick === 'read' || tick === 'played' || tick === 'delivered') return '<span class="tick ' + tick + '">✓✓</span>';
+        return '<span class="tick">✓</span>';
+    }
+    function bubbleHtml(message) {
+        var media = '';
+        if (message.type === 'IMAGE' && message.media) {
+            media = '<img class="chat-photo" alt="" loading="lazy" decoding="async" src="' + esc(message.media) + '">';
+        } else if (message.type === 'AUDIO' && message.media) {
+            media = '<audio controls preload="none" src="' + esc(message.media) + '"></audio>';
+        } else if (message.type === 'VIDEO' && message.media) {
+            media = '<video controls preload="none" src="' + esc(message.media) + '"></video>';
+        } else if (message.media && (message.type === 'DOCUMENT' || message.type === 'LOCATION')) {
+            media = '<a class="chat-file" target="_blank" rel="noopener" href="' + esc(message.media) + '">' + esc(message.name || 'Document') + '</a>';
+        }
+        return '<div class="bubble ' + (message.out ? 'out' : 'in') + '" data-id="' + message.id + '" data-day="' + esc(message.day) + '">'
+            + (message.who ? '<span class="who">' + esc(message.who) + '</span>' : '')
+            + media
+            + (message.text ? esc(message.text) : '')
+            + '<time>' + esc(message.time || '') + (message.out ? tickHtml(message.tick) : '') + '</time></div>';
+    }
+    function nearBottom(node) {
+        return node.scrollHeight - node.scrollTop - node.clientHeight < 140;
+    }
+    function placeMessages(messages, prepend) {
+        if (!stream || !messages || !messages.length) return;
+        var stick = nearBottom(stream);
+        var html = '';
+        var previous = '';
+        if (!prepend) {
+            var last = stream.querySelector('.bubble:last-child');
+            previous = last ? (last.getAttribute('data-day') || '') : '';
+        }
+        messages.forEach(function (message) {
+            if (stream.querySelector('.bubble[data-id="' + message.id + '"]')) return;
+            if (message.day && message.day !== previous) {
+                html += '<div class="day-chip">' + esc(message.day_label || message.day) + '</div>';
+                previous = message.day;
+            }
+            html += bubbleHtml(message);
+            if (!prepend && message.id > seen) seen = message.id;
+            if (openGroup && message.id > seenGroup) seenGroup = message.id;
+        });
+        if (!html) return;
+        if (prepend) {
+            var hold = stream.scrollHeight;
+            var button = document.getElementById('loadEarlier');
+            if (button) button.insertAdjacentHTML('afterend', html);
+            else stream.insertAdjacentHTML('afterbegin', html);
+            stream.scrollTop += stream.scrollHeight - hold;
+        } else {
+            var empty = stream.querySelector('.chats-empty');
+            if (empty) empty.remove();
+            stream.insertAdjacentHTML('beforeend', html);
+            if (stick) stream.scrollTop = stream.scrollHeight;
+        }
+    }
+    function paintList(items) {
+        if (!list || !filters || !items) return;
+        list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
+        var anchor = list.querySelector('.chat-row[data-kind="group"]');
+        items.forEach(function (item) {
+            var row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
+            if (!row) {
+                row = document.createElement('a');
+                row.className = 'chat-row';
+                row.setAttribute('data-kind', 'person');
+                row.setAttribute('data-id', item.id);
+            }
+            row.href = chatPage + '?chat=' + item.id;
+            row.setAttribute('data-read', item.unread > 0 ? '0' : '1');
+            row.setAttribute('data-name', (item.name + ' ' + (item.phone || '')).toLowerCase());
+            if (openChat && item.id === openChat) row.classList.add('is-on');
+            var badge = item.unread > 0 ? '<span class="chat-badge">' + item.unread + '</span>' : '';
+            var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
+            var initial = (item.name || 'W').charAt(0).toUpperCase();
+            row.innerHTML = '<span class="chat-avatar">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span><span class="chat-time">' + esc(item.time) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
+            if (anchor) list.insertBefore(row, anchor);
+            else list.appendChild(row);
+        });
+        var unread = 0;
+        var read = 0;
+        list.querySelectorAll('.chat-row[data-kind="person"]').forEach(function (row) {
+            if (row.getAttribute('data-read') === '1') read += 1;
+            else unread += 1;
+        });
+        var unreadBtn = filters.querySelector('[data-filter="unread"] span');
+        var readBtn = filters.querySelector('[data-filter="read"] span');
+        if (unreadBtn) unreadBtn.textContent = unread;
+        if (readBtn) readBtn.textContent = read;
+        applyList();
+    }
+    function paintTicks(ticks) {
+        if (!stream || !ticks) return;
+        ticks.forEach(function (item) {
+            var node = stream.querySelector('.bubble[data-id="' + item.id + '"] .tick');
+            if (!node) return;
+            node.className = 'tick' + (item.tick ? ' ' + item.tick : '');
+            node.textContent = item.tick === 'failed' ? '!' : ((item.tick === 'read' || item.tick === 'played' || item.tick === 'delivered') ? '✓✓' : '✓');
+        });
+    }
+    function poll(extra) {
+        if (polling || document.hidden) return;
+        polling = true;
+        var url = chatPage + '?poll=1';
+        if (openChat) url += '&chat=' + openChat + '&after=' + seen;
+        if (openGroup) url += '&group=' + encodeURIComponent(openGroup) + '&after_group=' + seenGroup;
+        if (extra) url += extra;
+        var live = document.getElementById('chatLive');
+        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (response) { if (!response.ok) throw new Error('poll'); return response.json(); })
+            .then(function (data) {
+                misses = 0;
+                if (live) live.classList.remove('is-on');
+                if (extra) {
+                    placeMessages(data.earlier || [], true);
+                    var button = document.getElementById('loadEarlier');
+                    if (button) {
+                        if (data.has_earlier && data.earlier && data.earlier.length) button.setAttribute('data-before', data.earlier[0].id);
+                        else button.remove();
+                    }
+                } else {
+                    placeMessages(openGroup ? (data.group_messages || []) : (data.messages || []), false);
+                    paintTicks(data.ticks || []);
+                    paintList(data.items || []);
+                }
+            })
+            .catch(function () {
+                misses += 1;
+                if (live && misses > 1) live.classList.add('is-on');
+            })
+            .then(function () { polling = false; });
+    }
+    var earlier = document.getElementById('loadEarlier');
+    if (earlier) {
+        earlier.addEventListener('click', function () {
+            var before = earlier.getAttribute('data-before');
+            if (before) poll('&before=' + before);
+        });
+    }
+    if (liveReady()) setInterval(poll, 4000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+    function liveReady() { return true; }
+    poll();
 })();
 </script>
 @endsection

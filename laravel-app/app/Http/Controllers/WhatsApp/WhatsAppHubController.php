@@ -205,6 +205,9 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
         }
+        if ($request->get('poll')) {
+            return response()->json($this->chatsFeed($request))->header('Cache-Control', 'no-store');
+        }
         $conversations = WhatsAppConversation::with('contact')
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id')
@@ -218,6 +221,7 @@ class WhatsAppHubController extends Controller
         }
         $open = null;
         $messages = collect();
+        $hasEarlier = false;
         $group = null;
         $groupMessages = collect();
         $jid = trim((string) $request->get('group', ''));
@@ -246,7 +250,16 @@ class WhatsAppHubController extends Controller
             $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
             if ($open) {
                 $this->conversations->markRead($open);
-                $messages = WhatsAppMessage::where('conversation_id', $open->id)->orderBy('id')->get();
+                $messages = WhatsAppMessage::where('conversation_id', $open->id)
+                    ->orderByDesc('id')
+                    ->limit(60)
+                    ->get()
+                    ->reverse()
+                    ->values();
+                $first = $messages->first();
+                $hasEarlier = $first
+                    ? WhatsAppMessage::where('conversation_id', $open->id)->where('id', '<', $first->id)->exists()
+                    : false;
             }
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
@@ -281,9 +294,172 @@ class WhatsAppHubController extends Controller
         }
 
         return view('whatsapp_hub.chats', compact(
-            'conversations', 'groups', 'open', 'messages', 'group', 'groupMessages', 'canReply',
+            'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
             'pane', 'calls', 'callChats', 'mediaItems', 'updates'
         ));
+    }
+
+    protected function chatsFeed(Request $request)
+    {
+        $chatId = (int) $request->get('chat');
+        $after = (int) $request->get('after');
+        $before = (int) $request->get('before');
+        $payload = ['items' => [], 'messages' => [], 'ticks' => [], 'earlier' => [], 'has_earlier' => false];
+
+        if ($chatId > 0 && $before > 0) {
+            $older = WhatsAppMessage::where('conversation_id', $chatId)
+                ->where('id', '<', $before)
+                ->orderByDesc('id')
+                ->limit(40)
+                ->get()
+                ->reverse()
+                ->values();
+            $payload['earlier'] = $older->map(function ($message) {
+                return $this->chatFeedMessage($message);
+            })->values();
+            $first = $older->first();
+            $payload['has_earlier'] = $first
+                ? WhatsAppMessage::where('conversation_id', $chatId)->where('id', '<', $first->id)->exists()
+                : false;
+        } elseif ($chatId > 0) {
+            $fresh = WhatsAppMessage::where('conversation_id', $chatId)
+                ->where('id', '>', $after)
+                ->orderBy('id')
+                ->limit(30)
+                ->get();
+            if ($fresh->first(function ($message) {
+                return $message->direction === WhatsAppMessage::DIR_IN;
+            })) {
+                WhatsAppConversation::where('id', $chatId)->update(['unread_count' => 0]);
+            }
+            $payload['messages'] = $fresh->map(function ($message) {
+                return $this->chatFeedMessage($message);
+            })->values();
+            $ticks = WhatsAppMessage::where('conversation_id', $chatId)
+                ->where('direction', WhatsAppMessage::DIR_OUT)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
+            $payload['ticks'] = $ticks->map(function ($message) {
+                return ['id' => (int) $message->id, 'tick' => $message->ticks()];
+            })->values();
+        }
+
+        $jid = trim((string) $request->get('group', ''));
+        $afterGroup = (int) $request->get('after_group');
+        if ($jid !== '' && Schema::hasTable('whatsapp_group_messages') && Schema::hasTable('whatsapp_groups')) {
+            $record = \App\WhatsApp\WhatsAppGroup::where('group_jid', $jid)->first();
+            if ($record) {
+                $rows = \App\WhatsApp\WhatsAppGroupMessage::where('group_id', $record->id)
+                    ->where('id', '>', $afterGroup)
+                    ->orderBy('id')
+                    ->limit(30)
+                    ->get();
+                $payload['group_messages'] = $rows->map(function ($message) {
+                    return $this->groupFeedMessage($message);
+                })->values();
+            }
+        }
+
+        $conversations = WhatsAppConversation::with('contact')
+            ->orderByDesc('last_activity_at')
+            ->orderByDesc('id')
+            ->limit(80)
+            ->get();
+        $payload['items'] = $conversations->map(function ($row) {
+            $person = optional($row->contact)->displayName() ?: 'WhatsApp';
+            $when = $row->last_activity_at ?: $row->updated_at;
+            $preview = trim((string) $row->last_message);
+
+            return [
+                'id' => (int) $row->id,
+                'name' => $person,
+                'phone' => (string) optional($row->contact)->display_phone,
+                'preview' => $this->chatPreview($preview),
+                'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',
+                'unread' => (int) $row->unread_count,
+                'mode' => (string) $row->mode,
+            ];
+        })->values();
+
+        return $payload;
+    }
+
+    protected function chatPreview($preview)
+    {
+        $labels = [
+            '[IMAGE]' => 'Photo',
+            '[AUDIO]' => 'Voice message',
+            '[VIDEO]' => 'Video',
+            '[DOCUMENT]' => 'Document',
+            '[LOCATION]' => 'Location',
+        ];
+        $key = strtoupper(trim((string) $preview));
+
+        return isset($labels[$key]) ? $labels[$key] : $preview;
+    }
+
+    protected function chatFeedMessage(WhatsAppMessage $message)
+    {
+        $when = $message->created_at;
+
+        return [
+            'id' => (int) $message->id,
+            'out' => $message->direction === WhatsAppMessage::DIR_OUT,
+            'text' => (string) $message->body,
+            'time' => $when ? $when->format('H:i') : '',
+            'day' => $when ? $when->format('Y-m-d') : '',
+            'day_label' => $this->chatDayLabel($when),
+            'tick' => $message->ticks(),
+            'type' => (string) $message->type,
+            'media' => $message->chatMediaUrl(),
+            'name' => $message->chatMediaName(),
+        ];
+    }
+
+    protected function groupFeedMessage($message)
+    {
+        $media = [];
+        if ($message->media_json) {
+            $decoded = json_decode((string) $message->media_json, true);
+            $media = is_array($decoded) ? $decoded : [];
+        }
+        $when = $message->message_at ?: $message->created_at;
+        $mediaUrl = isset($media['url']) ? (string) $media['url'] : '';
+        if ($mediaUrl !== '' && strpos($mediaUrl, 'whatsapp-chat/') === 0) {
+            $mediaUrl = asset('public/'.$mediaUrl);
+        } elseif ($mediaUrl !== '' && ! preg_match('#^https?://#i', $mediaUrl)) {
+            $mediaUrl = '';
+        }
+
+        return [
+            'id' => (int) $message->id,
+            'out' => ! empty($media['outgoing']),
+            'who' => empty($media['outgoing']) ? ($message->participant_name ?: 'Member') : '',
+            'text' => (string) $message->body,
+            'time' => $when ? $when->format('H:i') : '',
+            'day' => $when ? $when->format('Y-m-d') : '',
+            'day_label' => $this->chatDayLabel($when),
+            'tick' => ! empty($media['outgoing']) ? 'sent' : '',
+            'type' => isset($media['type']) ? (string) $media['type'] : 'TEXT',
+            'media' => $mediaUrl,
+            'name' => isset($media['file_name']) ? (string) $media['file_name'] : '',
+        ];
+    }
+
+    protected function chatDayLabel($when)
+    {
+        if (! $when) {
+            return '';
+        }
+        if ($when->isToday()) {
+            return 'Today';
+        }
+        if ($when->isYesterday()) {
+            return 'Yesterday';
+        }
+
+        return $when->format('M j, Y');
     }
 
     public function chatsReply(Request $request, $id)
