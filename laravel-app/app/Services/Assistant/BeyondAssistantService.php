@@ -137,6 +137,15 @@ class BeyondAssistantService
         $turnDiag = null;
         $presentation = app(\App\Services\Event\EventOptionPresentation::class);
         $incoming = (string) $message->body;
+        $spoken = app(\App\Services\Assistant\AssistantLanguage::class)->follow(
+            $incoming,
+            isset($slots['reply_language']) ? $slots['reply_language'] : 'English',
+            isset($slots['reply_language_sample']) ? $slots['reply_language_sample'] : ''
+        );
+        $slots['reply_language'] = $spoken['language'];
+        $slots['reply_language_sample'] = $spoken['sample'];
+        $context['reply_language'] = $spoken['language'];
+        $context['reply_language_sample'] = $spoken['sample'];
         $screenPrice = $this->priceScreenSize($incoming, $slots, $context);
         if (is_string($screenPrice)) {
             $directReply = $screenPrice;
@@ -596,6 +605,11 @@ class BeyondAssistantService
                     $reply = $presentation->textWithChoices($reply, $choiceUi);
                 }
             }
+            $reply = app(\App\Services\Assistant\AssistantLanguage::class)->apply(
+                $reply,
+                isset($context['reply_language']) ? $context['reply_language'] : 'English',
+                isset($context['reply_language_sample']) ? $context['reply_language_sample'] : ''
+            );
             $send = $this->conversations->assistantReply($conversation, $reply, $media);
             $sent = ! empty($send['success']);
             // Persist cleaned slots so choice cards cannot resurrect next turn.

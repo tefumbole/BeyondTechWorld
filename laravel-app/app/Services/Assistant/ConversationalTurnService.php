@@ -6,7 +6,6 @@ use App\Assistant\AssistantKnowledge;
 use App\Assistant\AssistantMemory;
 use App\Contracts\Ai\AiProviderInterface;
 use App\WhatsApp\WhatsAppConversation;
-use App\WhatsApp\WhatsAppMessage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
@@ -285,14 +284,28 @@ class ConversationalTurnService
             $system .= "\nApproved company knowledge excerpts:\n".$knowledge;
         }
         $messages = [['role' => 'system', 'content' => $system]];
-        foreach ($this->history($conversation) as $row) {
+        $prior = $this->history($conversation);
+        $last = count($prior) ? $prior[count($prior) - 1] : null;
+        if (is_array($last) && isset($last['role'], $last['content']) && $last['role'] === 'user' && trim((string) $last['content']) === trim((string) $incoming)) {
+            array_pop($prior);
+        }
+        foreach ($prior as $row) {
             $messages[] = $row;
         }
         // Send the visitor message as plain text so the model answers naturally.
         $messages[] = ['role' => 'user', 'content' => (string) $incoming];
+        if (! empty($context['reply_language'])) {
+            $messages[] = [
+                'role' => 'system',
+                'content' => app(AssistantLanguage::class)->rule(
+                    $context['reply_language'],
+                    isset($context['reply_language_sample']) ? $context['reply_language_sample'] : ''
+                ),
+            ];
+        }
         $meta = array_filter([
             'known_name' => isset($context['contact_name']) ? $context['contact_name'] : null,
-            'channel' => method_exists($conversation, 'isWebsite') && $conversation->isWebsite() ? 'website' : 'whatsapp',
+            'channel' => method_exists($conversation, 'assistantChannel') ? $conversation->assistantChannel() : 'whatsapp',
             'memory' => $memory->parameters() ?: null,
         ]);
         if ($meta) {
@@ -452,18 +465,13 @@ class ConversationalTurnService
 
     protected function history(WhatsAppConversation $conversation)
     {
-        $rows = WhatsAppMessage::where('conversation_id', $conversation->id)
-            ->orderByDesc('id')
-            ->limit(max(24, (int) AssistantRuntimeSettings::historyLimit()))
-            ->get()
-            ->reverse();
         $out = [];
-        foreach ($rows as $row) {
-            if (! $row->body) {
-                continue;
+        foreach (app(AssistantContextBuilder::class)->lines($conversation) as $row) {
+            $content = $row['body'];
+            if ($row['speaker'] === 'Staff') {
+                $content = 'Staff: '.$content;
             }
-            $role = $row->direction === WhatsAppMessage::DIR_IN ? 'user' : 'assistant';
-            $out[] = ['role' => $role, 'content' => (string) $row->body];
+            $out[] = ['role' => $row['role'], 'content' => $content];
         }
 
         return $out;

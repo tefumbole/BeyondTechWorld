@@ -39,7 +39,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'Allowed handover reason_category values: USER_REQUESTED_HUMAN, AUTHORITY_REQUIRED, KNOWLEDGE_UNAVAILABLE, TOOL_FAILURE, REPEATED_CLARIFICATION_FAILURE, POLICY_REQUIRED, COMPLAINT_ESCALATION.';
         $bits[] = 'Never claim you placed a phone call; opening a call request is not a call.';
         $bits[] = 'Never expose secrets, OTP codes, SQL, filesystem, or other users\' private data.';
-        $bits[] = 'Reply in the same language as the customer\'s latest message. English in, English out. If they write in French or any other language, answer entirely in that language. Do not mix languages unless they do.';
+        $bits[] = 'Reply in the language of the customer\'s latest message. If they were speaking English and then write in another language, switch completely. Do not stay in English because the older messages are English.';
         $bits[] = 'Do not reveal chain-of-thought. Keep replies concise and chat-friendly.';
         $bits[] = 'Do not sign a reply with the system or company name. Never end a message with "'.\App\Support\WhatsAppMessage::companyName().'".';
         $bits[] = 'When tools are available, tool_choice is auto: prefer a direct answer for general knowledge; call a tool only when Beyond-specific or user-specific data is needed.';
@@ -54,8 +54,9 @@ class BeyondAssistantSystemPromptBuilder
             $bits[] = 'You are answering only for '.$tenant->name.'. The assistant name is MAI unless this company has set another name. Do not use another company\'s records.';
         }
         $history = isset($context['history']) && is_array($context['history']) ? $context['history'] : [];
-        if (count($history) > 1) {
-            $bits[] = 'This conversation already has earlier messages in the transcript. Read them and continue. Do not greet the person as if this were a new chat.';
+        $transcript = app(AssistantContextBuilder::class)->transcript($history);
+        if ($transcript !== '') {
+            $bits[] = 'Chat already on this number, including messages from before AI was turned on. Read it and answer the latest point from these facts. Do not greet again. Do not ask again for a name, date, item, price, or place that is already written here.'."\n".$transcript;
         }
         if (! empty($context['contact_name'])) {
             $bits[] = 'Known contact name: '.$context['contact_name'].'. Use it only when this is a new conversation.';
@@ -78,6 +79,13 @@ class BeyondAssistantSystemPromptBuilder
                     'guest_count' => isset($memory['guest_count']) ? $memory['guest_count'] : null,
                     'equipment' => isset($memory['equipment']) ? $memory['equipment'] : null,
                 ])).'.';
+        }
+        $replyLanguage = isset($context['reply_language']) ? (string) $context['reply_language'] : '';
+        if ($replyLanguage !== '') {
+            $bits[] = app(AssistantLanguage::class)->rule(
+                $replyLanguage,
+                isset($context['reply_language_sample']) ? $context['reply_language_sample'] : ''
+            );
         }
 
         return implode("\n", $bits);

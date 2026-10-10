@@ -35,7 +35,7 @@ class AssistantContactVoice
             }
         }
         if ($language !== '') {
-            $parts[] = 'They speak '.$language.'. Answer them in '.$language.'.';
+            $parts[] = 'They often speak '.$language.'. If their latest message is in another language, answer in that language instead.';
         }
         if ($note !== '') {
             $parts[] = $note;
