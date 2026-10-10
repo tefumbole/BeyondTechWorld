@@ -423,7 +423,7 @@ class PayoutController extends Controller
             if ($line->status === 'paid') {
                 $paid++;
                 $total += (int) $line->amount;
-                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note);
+                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note, $this->requesterName($line));
             } else {
                 $failed++;
             }
@@ -548,7 +548,7 @@ class PayoutController extends Controller
             $row->status = 'paid';
             $row->error = null;
             $row->save();
-            $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
+            $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row));
 
             return 'paid';
         }
@@ -1005,48 +1005,30 @@ class PayoutController extends Controller
         }
     }
 
-    protected function sendPaid($phone, $name, $amount, $reason)
+    protected function sendPaid($phone, $name, $amount, $reason, $requester = '')
     {
         $reason = trim((string) $reason);
         if (strcasecmp($reason, 'Payout') === 0) {
             $reason = '';
         }
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedConfirmation(
-            $phone,
-            $name,
-            \App\Support\WhatsAppMessage::companyName(),
-            'payment',
-            $reason !== '' ? $reason : 'Payment',
-            date('d M Y'),
-            'A payment has been made to you.',
-            $this->moneyText($amount).' XAF'
-        );
-        if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason));
-        }
-        $this->notifyPaid($name, $amount, $reason);
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason, $requester));
+        $this->notifyPaid($name, $amount, $reason, $requester);
     }
 
-    protected function notifyPaid($name, $amount, $reason)
+    protected function notifyPaid($name, $amount, $reason, $requester = '')
     {
-        $detail = 'A payment of '.$this->moneyText($amount).' XAF has been made to '.$name.'.';
-        $reason = trim((string) $reason);
-        if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
-            $detail .= ' Reason: '.$reason.'.';
-        }
         $admin = \App\Support\TwilioAdminCopy::PHONE;
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
-            $admin,
-            $this->copyName(),
-            \App\Support\WhatsAppMessage::companyName(),
-            'payment',
-            $name,
-            'Paid',
-            $detail
-        );
-        if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($admin, $detail);
+        app(\App\Services\ClientNoticeService::class)->send($admin, $this->paidAdminText($name, $amount, $reason, $requester));
+    }
+
+    protected function requesterName(CampayPayout $line)
+    {
+        if (! $line->request_id) {
+            return '';
         }
+        $batch = CampayPayoutRequest::find($line->request_id);
+
+        return $batch ? trim((string) $batch->requester_name) : '';
     }
 
     protected function notifySubmission($requester, $reason, array $lines, $url)
@@ -1097,16 +1079,41 @@ class PayoutController extends Controller
         return $name !== '' ? $name : 'Admin';
     }
 
-    protected function paidText($name, $amount, $reason)
+    protected function paidText($name, $amount, $reason, $requester = '')
     {
-        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Sent');
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmed');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
         $msg .= 'A payment of *'.$this->moneyText($amount)."* XAF has been made to you.\n";
+        $msg .= $this->paidDetails($reason, $requester);
+        $msg .= \App\Support\WhatsAppMessage::footer();
+
+        return $msg;
+    }
+
+    protected function paidAdminText($name, $amount, $reason, $requester = '')
+    {
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmed');
+        $msg .= 'Dear *'.$this->copyName().'*,'."\n\n";
+        $msg .= 'A payment of *'.$this->moneyText($amount).'* XAF has been made to *'.$name."*.\n";
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Paid to', $name);
+        $msg .= $this->paidDetails($reason, $requester);
+        $msg .= \App\Support\WhatsAppMessage::footer();
+
+        return $msg;
+    }
+
+    protected function paidDetails($reason, $requester = '')
+    {
+        $msg = '';
+        $requester = trim((string) $requester);
         $reason = trim((string) $reason);
+        if ($requester !== '') {
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Requested by', $requester);
+        }
         if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
             $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
         }
-        $msg .= \App\Support\WhatsAppMessage::footer();
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Date', date('d M Y'));
 
         return $msg;
     }

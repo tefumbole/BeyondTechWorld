@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\PublicDonation;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
-use App\Services\Messaging\TwilioTemplateSender;
 use App\Services\MobileMoneyHolderService;
 use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
@@ -149,43 +148,20 @@ class PublicDonateController extends Controller
         if ($note !== '') {
             $donor .= "\n".WhatsAppMessage::bullet('Note', $note);
         }
+        $donor .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $donor .= WhatsAppMessage::footer();
-        $detail = $donation->person_name.' donated '.$amount.' XAF.';
+        app(ClientNoticeService::class)->send($donation->phone, $donor);
+        $copy = WhatsAppMessage::statusBlock('✅', 'Donation Received');
+        $copy .= 'Dear *'.$this->adminName().'*,'."\n\n";
+        $copy .= 'A donation of *'.$amount.'* XAF has been received from *'.$donation->person_name."*.\n";
+        $copy .= "\n".WhatsAppMessage::bullet('From', $donation->person_name);
         if ($note !== '') {
-            $detail .= ' Note: '.$note.'.';
+            $copy .= "\n".WhatsAppMessage::bullet('Note', $note);
         }
-        $twilio = app(TwilioTemplateSender::class);
-        $company = WhatsAppMessage::companyName();
-        $donorResult = $twilio->sendSharedConfirmation(
-            $donation->phone,
-            $donation->person_name,
-            $company,
-            'donation',
-            $note !== '' ? $note : 'Donation',
-            date('d M Y'),
-            'Your donation has been received.',
-            $amount.' XAF'
-        );
-        if (empty($donorResult['success'])) {
-            app(ClientNoticeService::class)->send($donation->phone, $donor);
-        }
-        $admin = TwilioAdminCopy::PHONE;
-        $adminResult = $twilio->sendSharedStatus(
-            $admin,
-            $this->adminName(),
-            $company,
-            'donation',
-            $donation->person_name,
-            'Received',
-            $detail
-        );
-        if (empty($adminResult['success'])) {
-            $copy = WhatsAppMessage::statusBlock('✅', 'Donation Received');
-            $copy .= 'Dear *'.$this->adminName().'*,'."\n\n";
-            $copy .= $detail."\n";
-            $copy .= WhatsAppMessage::footer();
-            app(ClientNoticeService::class)->send($admin, $copy);
-        }
+        $copy .= "\n".WhatsAppMessage::bullet('Amount', $amount.' XAF');
+        $copy .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
+        $copy .= WhatsAppMessage::footer();
+        app(ClientNoticeService::class)->send(TwilioAdminCopy::PHONE, $copy);
     }
 
     protected function adminName()
