@@ -32,8 +32,83 @@ class PayoutController extends Controller
         }
         $history = $this->history($tenantId)->orderByDesc('id')->limit(30)->get();
         $balance = app(CampayPayoutService::class)->balance();
+        $making = $request->get('new') === '1';
+        $q = trim((string) $request->get('q', ''));
+        $people = $making ? $this->customers($q) : collect();
 
-        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'balance'));
+        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'balance', 'making', 'q', 'people'));
+    }
+
+    public function lookup(Request $request)
+    {
+        $this->guard();
+        $service = app(CampayPayoutService::class);
+        $phone = $service->momoNumber($request->get('phone'));
+        if (! $phone) {
+            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
+        }
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+
+        return response()->json([
+            'ok' => true,
+            'phone' => $phone,
+            'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
+            'operator' => $service->operatorName($phone),
+        ]);
+    }
+
+    public function direct(Request $request)
+    {
+        $this->guard();
+        $note = trim((string) $request->input('note', ''));
+        if ($note === '') {
+            $note = 'Payout';
+        }
+        $lines = $this->collectLines($request);
+        if (isset($lines['error'])) {
+            return redirect()->route('payout.index', ['new' => 1])->with('not_permitted', $lines['error']);
+        }
+        $lookup = app(MobileMoneyHolderService::class);
+        @set_time_limit(90);
+        $checked = 0;
+        foreach ($lines['lines'] as $index => $line) {
+            if ($line['momo_name'] !== '' || $checked >= 20) {
+                continue;
+            }
+            $checked++;
+            $hit = $lookup->lookup($line['phone']);
+            if ($hit && ! empty($hit['name'])) {
+                $lines['lines'][$index]['momo_name'] = $hit['name'];
+                if ($line['person_name'] === $line['phone']) {
+                    $lines['lines'][$index]['person_name'] = $hit['name'];
+                }
+            }
+        }
+        $batch = new CampayPayoutRequest();
+        $batch->cloud_tenant_id = $this->tenantId();
+        $batch->requester_name = Auth::user() ? (string) Auth::user()->name : 'Payout';
+        $batch->note = substr($note, 0, 180);
+        $batch->status = 'pending';
+        $batch->save();
+        $rows = [];
+        foreach ($lines['lines'] as $line) {
+            $rows[] = CampayPayout::create([
+                'user_id' => Auth::id(),
+                'customer_id' => $line['customer_id'],
+                'request_id' => $batch->id,
+                'person_name' => substr($line['person_name'], 0, 191),
+                'phone' => $line['phone'],
+                'amount' => $line['amount'],
+                'currency' => 'XAF',
+                'note' => $batch->note,
+                'momo_name' => $line['momo_name'] !== '' ? substr($line['momo_name'], 0, 180) : null,
+                'momo_checked' => $line['momo_name'] !== '' ? 1 : 0,
+                'external_reference' => 'po-'.date('YmdHis').'-'.$batch->id.'-'.substr(md5(uniqid('', true)), 0, 8),
+                'status' => 'pending',
+            ]);
+        }
+
+        return $this->sendRows($batch, $rows);
     }
 
     public function requestLink()
@@ -87,6 +162,11 @@ class PayoutController extends Controller
             $row->save();
         }
 
+        return $this->sendRows($open, $rows);
+    }
+
+    protected function sendRows(CampayPayoutRequest $open, $rows)
+    {
         @set_time_limit(180);
         $service = app(CampayPayoutService::class);
         $paid = 0;
@@ -111,6 +191,93 @@ class PayoutController extends Controller
             'message',
             $paid.' paid ('.number_format($total, 0, '.', ' ').' XAF). '.$failed.' not paid.'
         );
+    }
+
+    protected function collectLines(Request $request)
+    {
+        $service = app(CampayPayoutService::class);
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('customer_id', [])))));
+        $amounts = (array) $request->input('amount', []);
+        $lines = [];
+        $seen = [];
+        if ($ids) {
+            $customers = Customer::whereIn('id', $ids)->get(['id', 'name', 'phone_number']);
+            if ($customers->count() !== count($ids)) {
+                return ['error' => 'One of the selected people is not on this list.'];
+            }
+            foreach ($customers as $customer) {
+                $phone = $service->momoNumber($customer->phone_number);
+                $amount = isset($amounts[$customer->id]) ? (int) $amounts[$customer->id] : 0;
+                if (! $phone) {
+                    return ['error' => $customer->name.' does not have an MTN or Orange Cameroon number.'];
+                }
+                if ($amount < 100 || $amount > 1000000) {
+                    return ['error' => 'Enter an amount from 100 to 1,000,000 XAF for '.$customer->name.'.'];
+                }
+                $seen[$phone] = true;
+                $lines[] = [
+                    'customer_id' => $customer->id,
+                    'person_name' => (string) $customer->name,
+                    'phone' => $phone,
+                    'amount' => $amount,
+                    'momo_name' => $this->postedName($request, 'customer_momo', $customer->id),
+                ];
+            }
+        }
+        $extraPhones = (array) $request->input('extra_phone', []);
+        $extraAmounts = (array) $request->input('extra_amount', []);
+        $extraNames = (array) $request->input('extra_momo', []);
+        foreach ($extraPhones as $index => $rawPhone) {
+            $rawPhone = trim((string) $rawPhone);
+            if ($rawPhone === '') {
+                continue;
+            }
+            $phone = $service->momoNumber($rawPhone);
+            if (! $phone) {
+                return ['error' => $rawPhone.' is not an MTN or Orange Cameroon number.'];
+            }
+            if (isset($seen[$phone])) {
+                return ['error' => 'That number is already on the list.'];
+            }
+            $amount = isset($extraAmounts[$index]) ? (int) $extraAmounts[$index] : 0;
+            if ($amount < 100 || $amount > 1000000) {
+                return ['error' => 'Enter an amount from 100 to 1,000,000 XAF for '.$phone.'.'];
+            }
+            $seen[$phone] = true;
+            $name = isset($extraNames[$index]) ? trim((string) $extraNames[$index]) : '';
+            $lines[] = [
+                'customer_id' => null,
+                'person_name' => $name !== '' ? $name : $phone,
+                'phone' => $phone,
+                'amount' => $amount,
+                'momo_name' => $name,
+            ];
+        }
+        if (count($lines) < 1 || count($lines) > 40) {
+            return ['error' => 'Choose between 1 and 40 people.'];
+        }
+
+        return ['lines' => $lines];
+    }
+
+    protected function postedName(Request $request, $key, $id)
+    {
+        $bag = (array) $request->input($key, []);
+
+        return isset($bag[$id]) ? trim((string) $bag[$id]) : '';
+    }
+
+    protected function customers($q)
+    {
+        $query = Customer::query()->where('phone_number', '!=', '')->orderBy('name');
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function ($rows) use ($like) {
+                $rows->where('name', 'like', $like)->orWhere('phone_number', 'like', $like);
+            });
+        }
+
+        return $query->limit(80)->get(['id', 'name', 'phone_number']);
     }
 
     public function publicForm(Request $request, $token)

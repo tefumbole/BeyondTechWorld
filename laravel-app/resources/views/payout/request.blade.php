@@ -1,7 +1,6 @@
 @extends('layout.main')
 @section('content')
 <section class="container-fluid">
-    @include('payout.tabs', ['tab' => 'request'])
     <div class="card">
         <div class="card-header"><h4 class="mb-0">Request for Payment</h4></div>
         <div class="card-body">

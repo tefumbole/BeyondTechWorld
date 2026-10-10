@@ -50,17 +50,31 @@ class CampayPayoutService
         $lines = [];
         foreach ($body as $key => $value) {
             if (is_numeric($value)) {
-                $lines[] = ucfirst((string) $key).' '.number_format((float) $value, 0, '.', ' ');
+                $lines[] = $this->balanceLabel($key).' '.number_format((float) $value, 0, '.', ' ');
             } elseif (is_array($value)) {
                 foreach ($value as $innerKey => $inner) {
                     if (is_numeric($inner)) {
-                        $lines[] = ucfirst((string) $innerKey).' '.number_format((float) $inner, 0, '.', ' ');
+                        $lines[] = $this->balanceLabel($innerKey).' '.number_format((float) $inner, 0, '.', ' ');
                     }
                 }
             }
         }
 
         return $lines ? implode(' · ', $lines) : null;
+    }
+
+    protected function balanceLabel($key)
+    {
+        $names = [
+            'total_balance' => 'Total',
+            'mtn_balance' => 'MTN',
+            'orange_balance' => 'Orange',
+            'utility_balance' => 'Utility',
+            'utility_commission_balance' => 'Commission',
+        ];
+        $key = strtolower((string) $key);
+
+        return isset($names[$key]) ? $names[$key] : ucfirst(str_replace('_', ' ', $key));
     }
 
     public function pay(CampayPayout $row)
