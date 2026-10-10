@@ -184,6 +184,14 @@ class PayoutController extends Controller
 
             return redirect()->route('payout.request')->with('message', 'Request rejected.');
         }
+        if ($request->input('action') === 'approve') {
+            $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->orderBy('id')->get();
+            if ($rows->count() < 1) {
+                return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
+            }
+
+            return $this->sendRows($batch, $rows, route('payout.request'));
+        }
         $amounts = (array) $request->input('amounts', []);
         if ($request->input('action') === 'delete') {
             $removeIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('remove_ids', [])))));

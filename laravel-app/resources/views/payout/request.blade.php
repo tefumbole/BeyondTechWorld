@@ -95,7 +95,7 @@
                         </div>
                         <div class="pay-actions">
                             <button class="pay-go" type="submit" name="action" value="delete" formnovalidate style="background:#fdecec;color:#9b1c1c" id="reviewDelete">Delete</button>
-                            <button class="pay-go" type="submit" name="action" value="pay">Pay</button>
+                            <button class="pay-go" type="submit" name="action" value="pay">Approve and Pay</button>
                             <button class="pay-go" type="submit" name="action" value="reject" formnovalidate style="background:#fff;color:#9b1c1c;border:1px solid #f3c7c7" onclick="return confirm('Reject this request?')">Reject</button>
                         </div>
                     </form>
@@ -201,9 +201,14 @@
                                 @endif
                             </td>
                             <td>
-                                <div style="display:flex;gap:8px;align-items:center">
+                                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                                 @if($item['kind'] === 'submitted' && $row->status === 'pending')
-                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}">Edit</a>
+                                    <form method="POST" action="{{ route('payout.request.revise') }}">
+                                        @csrf
+                                        <input type="hidden" name="id" value="{{ $row->id }}">
+                                        <button class="pay-open" type="submit" name="action" value="approve" style="border:0;cursor:pointer" onclick="return confirm('Approve and pay everyone still waiting on this request?')">Approve and Pay</button>
+                                    </form>
+                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}" style="background:#e7eef8;color:#0b3f90 !important">Edit</a>
                                 @endif
                                 <form method="POST" action="{{ route('payout.request.resend') }}">
                                     @csrf
