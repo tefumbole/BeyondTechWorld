@@ -618,35 +618,45 @@ class PayoutController extends Controller
 
     protected function paidText($name, $amount, $reason)
     {
-        $text = 'Dear '.$name.','."\n".'A payment of '.$this->moneyText($amount).' XAF has been made to you.';
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Sent');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= 'A payment of *'.$this->moneyText($amount)."* XAF has been made to you.\n";
         $reason = trim((string) $reason);
         if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
-            $text .= "\n".$reason;
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
         }
+        $msg .= \App\Support\WhatsAppMessage::footer();
 
-        return $text;
+        return $msg;
     }
 
     protected function submittedText($name, $amount, $reason)
     {
-        $text = 'Dear '.$name.','."\n".'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.';
+        $msg = \App\Support\WhatsAppMessage::statusBlock('📨', 'Payment Submitted');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= 'Your name has been submitted for a payment of *'.$this->moneyText($amount)."* XAF.\n";
         $reason = trim((string) $reason);
         if ($reason !== '') {
-            $text .= "\n".$reason;
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
         }
+        $msg .= \App\Support\WhatsAppMessage::footer();
 
-        return $text;
+        return $msg;
     }
 
     protected function inviteText($name, $reason, $url)
     {
-        $text = 'Dear '.$name.','."\n".'You have been requested to submit payment information.';
+        $msg = \App\Support\WhatsAppMessage::statusBlock('📋', 'Request for Payment');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= "You have been requested to submit payment information.\n";
         $reason = trim((string) $reason);
         if ($reason !== '') {
-            $text .= "\n".$reason;
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
         }
+        $msg .= \App\Support\WhatsAppMessage::actionLink('Submit payment information', $url);
+        $msg .= \App\Support\WhatsAppMessage::footer();
 
-        return $text."\n".$url;
+        return $msg;
     }
 
     protected function fillMomoNames($lines)
