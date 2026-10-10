@@ -5,7 +5,12 @@
     #content { padding: 0 !important; background: var(--beyond-bg); }
     #content > .container-fluid { display: none; }
     .chats-app { display: flex; height: calc(100vh - 70px); min-height: 520px; background: var(--beyond-bg); color: var(--beyond-text); }
-    .chats-side { width: 380px; max-width: 42vw; flex: none; display: flex; flex-direction: column; border-right: 1px solid #e3e9f4; background: var(--beyond-card); }
+    .chat-rail { width: 76px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: var(--beyond-primary); }
+    .chat-rail a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: rgba(255,255,255,.82); text-decoration: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; text-align: center; }
+    .chat-rail a i { font-size: 16px; color: var(--beyond-accent); }
+    .chat-rail a.is-on, .chat-rail a:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .chats-side { width: 340px; max-width: 38vw; flex: none; display: flex; flex-direction: column; border-right: 1px solid #e3e9f4; background: var(--beyond-card); }
+    .call-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; min-height: 32px; padding: 0 12px; background: var(--beyond-primary); color: #fff !important; text-decoration: none; font-weight: 700; }
     .chats-search { padding: 10px 12px; background: var(--beyond-card); border-bottom: 1px solid #e3e9f4; }
     .chats-search input { width: 100%; border: 1px solid #e3e9f4; border-radius: 8px; background: var(--beyond-bg); color: var(--beyond-text); min-height: 38px; padding: 0 12px; }
     .chats-search input::placeholder { color: var(--beyond-muted); }
@@ -63,27 +68,50 @@
         .chats-app { height: calc(100vh - 56px); }
         .chats-side { width: 100%; max-width: none; }
         .chats-thread { display: none; }
-        .chats-app.has-open .chats-side { display: none; }
+        .chats-app.has-open .chat-rail, .chats-app.has-open .chats-side { display: none; }
         .chats-app.has-open .chats-thread { display: flex; }
     }
 </style>
+@php
+    $paneKeep = array_filter([
+        'chat' => $open ? $open->id : null,
+        'group' => (! $open && $group) ? $group['jid'] : null,
+    ]);
+    $rail = [
+        'chats' => ['Chats', 'fa-comments'],
+        'updates' => ['Updates', 'fa-bell'],
+        'calls' => ['Calls', 'fa-phone'],
+        'media' => ['Media', 'fa-image'],
+        'more' => ['More', 'fa-ellipsis-h'],
+    ];
+@endphp
 <div class="chats-app {{ ($open || $group) ? 'has-open' : '' }}">
+    <nav class="chat-rail">
+        @foreach($rail as $key => $item)
+            <a class="{{ $pane === $key ? 'is-on' : '' }}" href="{{ route('whatsapp.chats', $paneKeep + ['pane' => $key]) }}">
+                <i class="fa {{ $item[1] }}"></i>{{ $item[0] }}
+            </a>
+        @endforeach
+    </nav>
     <aside class="chats-side">
         @php
             $unreadChats = $conversations->filter(function ($row) { return (int) $row->unread_count > 0; })->count();
             $readChats = $conversations->count() - $unreadChats;
         @endphp
         <div class="chats-search">
-            <input type="search" id="chatSearch" placeholder="Search a name" autocomplete="off">
+            <input type="search" id="chatSearch" placeholder="{{ $pane === 'chats' ? 'Search a name' : 'Search this list' }}" autocomplete="off">
         </div>
+        @if($pane === 'chats')
         <div class="chat-filters" id="chatFilters">
             <button type="button" class="is-on" data-filter="all">All</button>
             <button type="button" data-filter="unread">Unread <span>{{ $unreadChats }}</span></button>
             <button type="button" data-filter="read">Read <span>{{ $readChats }}</span></button>
             <button type="button" data-filter="groups">Groups <span>{{ count($groups) }}</span></button>
         </div>
+        @endif
         <div class="chats-list" id="chatList">
             <div class="chat-none" id="chatNone">Nothing in this list.</div>
+            @if($pane === 'chats')
             @foreach($conversations as $row)
                 @php
                     $person = optional($row->contact)->displayName() ?: 'WhatsApp';
@@ -128,6 +156,86 @@
                     </span>
                 </a>
             @endforeach
+            @elseif($pane === 'calls')
+                @forelse($calls as $call)
+                    @php
+                        $person = optional($call->contact)->displayName() ?: ($call->caller_phone ?: 'Unknown');
+                        $when = $call->called_at ?: $call->created_at;
+                        $chatId = $call->contact_id && isset($callChats[$call->contact_id]) ? $callChats[$call->contact_id] : null;
+                    @endphp
+                    <a class="chat-row" data-name="{{ strtolower($person.' '.$call->caller_phone) }}" @if($chatId) href="{{ route('whatsapp.chats', ['chat' => $chatId]) }}" @else href="tel:+{{ preg_replace('/\D/', '', (string) $call->caller_phone) }}" @endif>
+                        <span class="chat-avatar"><i class="fa fa-phone"></i></span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $person }}</span>
+                                <span class="chat-time">{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            </span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ ucfirst(strtolower(str_replace('_', ' ', (string) $call->status))) }}{{ $call->call_type ? ' · '.$call->call_type : '' }}</span></span>
+                        </span>
+                    </a>
+                @empty
+                    <div class="chats-empty"><strong>No calls yet</strong>When someone calls the WhatsApp line, it shows here.</div>
+                @endforelse
+            @elseif($pane === 'media')
+                @forelse($mediaItems as $item)
+                    @php
+                        $person = optional($item->contact)->displayName() ?: 'WhatsApp';
+                        $labels = ['IMAGE' => 'Photo', 'AUDIO' => 'Voice message', 'VIDEO' => 'Video', 'DOCUMENT' => 'Document'];
+                        $label = isset($labels[$item->type]) ? $labels[$item->type] : $item->type;
+                    @endphp
+                    <a class="chat-row" data-name="{{ strtolower($person.' '.$label.' '.$item->body) }}" href="{{ route('whatsapp.chats', ['chat' => $item->conversation_id]) }}">
+                        <span class="chat-avatar"><i class="fa fa-image"></i></span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $person }}</span>
+                                <span class="chat-time">{{ $item->created_at ? $item->created_at->format($item->created_at->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            </span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ $label }}{{ $item->body ? ' · '.$item->body : '' }}</span></span>
+                        </span>
+                    </a>
+                @empty
+                    <div class="chats-empty"><strong>No media yet</strong>Photos, voice messages, videos, and documents show here.</div>
+                @endforelse
+            @elseif($pane === 'updates')
+                <a class="chat-row" data-name="new announcement" href="{{ route('announcements.compose') }}">
+                    <span class="chat-avatar is-group">+</span>
+                    <span class="chat-main"><span class="chat-name">New announcement</span><span class="chat-preview">Send an update to a group or a list</span></span>
+                </a>
+                @forelse($updates as $update)
+                    @php $when = $update->created_at; $title = $update->subject ?: 'Announcement'; @endphp
+                    <a class="chat-row" data-name="{{ strtolower($title) }}" href="{{ route('announcements.index') }}">
+                        <span class="chat-avatar"><i class="fa fa-bell"></i></span>
+                        <span class="chat-main">
+                            <span class="chat-top">
+                                <span class="chat-name">{{ $title }}</span>
+                                <span class="chat-time">{{ $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '' }}</span>
+                            </span>
+                            <span class="chat-bottom"><span class="chat-preview">{{ \Illuminate\Support\Str::limit(trim(strip_tags((string) $update->body)), 80) }}</span></span>
+                        </span>
+                    </a>
+                @empty
+                    <div class="chats-empty"><strong>No updates yet</strong>Announcements you send show up in this list.</div>
+                @endforelse
+            @else
+                @php
+                    $more = [
+                        ['People', 'Names and numbers', route('whatsapp.people')],
+                        ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
+                        ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
+                        ['Announcements', 'Write and send an update', route('announcements.compose')],
+                        ['Settings', 'Assistant and WhatsApp settings', route('whatsapp.settings')],
+                    ];
+                @endphp
+                @foreach($more as $item)
+                    <a class="chat-row" data-name="{{ strtolower($item[0].' '.$item[1]) }}" href="{{ $item[2] }}">
+                        <span class="chat-avatar">{{ strtoupper(substr($item[0], 0, 1)) }}</span>
+                        <span class="chat-main">
+                            <span class="chat-name">{{ $item[0] }}</span>
+                            <span class="chat-preview">{{ $item[1] }}</span>
+                        </span>
+                    </a>
+                @endforeach
+            @endif
         </div>
     </aside>
     <section class="chats-thread">
@@ -139,6 +247,10 @@
                     <p>{{ optional($open->contact)->display_phone }} · {{ $open->mode === 'AI' ? 'AI mode' : 'Human mode' }}</p>
                 </div>
                 <div class="mode-switch">
+                    @php $callDigits = preg_replace('/\D/', '', (string) optional($open->contact)->normalized_phone); @endphp
+                    @if($callDigits !== '')
+                        <a class="call-btn" href="tel:+{{ $callDigits }}"><i class="fa fa-phone"></i> Call</a>
+                    @endif
                     <form method="POST" action="{{ route('whatsapp.conversation.enable_ai', $open->id) }}">
                         @csrf
                         <button type="submit" class="{{ $open->mode === 'AI' ? 'is-on' : '' }}">AI</button>
@@ -264,7 +376,7 @@
     var list = document.getElementById('chatList');
     var filters = document.getElementById('chatFilters');
     var none = document.getElementById('chatNone');
-    var filter = @json($group ? 'groups' : 'all');
+    var filter = @json($pane === 'chats' && $group ? 'groups' : 'all');
     function applyList() {
         if (!list) return;
         var q = search ? search.value.toLowerCase().trim() : '';

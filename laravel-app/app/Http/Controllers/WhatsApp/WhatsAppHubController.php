@@ -246,8 +246,40 @@ class WhatsAppHubController extends Controller
             }
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
+        $pane = (string) $request->get('pane', 'chats');
+        if (! in_array($pane, ['chats', 'updates', 'calls', 'media', 'more'], true)) {
+            $pane = 'chats';
+        }
+        $calls = collect();
+        $callChats = collect();
+        $mediaItems = collect();
+        $updates = collect();
+        if ($pane === 'calls' && Schema::hasTable('whatsapp_calls')) {
+            $calls = WhatsAppCall::with('contact')->orderByDesc('called_at')->orderByDesc('id')->limit(80)->get();
+            $contactIds = $calls->pluck('contact_id')->filter()->unique()->values();
+            if ($contactIds->count()) {
+                $callChats = WhatsAppConversation::whereIn('contact_id', $contactIds)
+                    ->orderByDesc('id')
+                    ->get()
+                    ->groupBy('contact_id')
+                    ->map(function ($rows) {
+                        return $rows->first()->id;
+                    });
+            }
+        } elseif ($pane === 'media') {
+            $mediaItems = WhatsAppMessage::with('contact')
+                ->whereIn('type', ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'])
+                ->orderByDesc('id')
+                ->limit(80)
+                ->get();
+        } elseif ($pane === 'updates' && Schema::hasTable('wa_announcements')) {
+            $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
+        }
 
-        return view('whatsapp_hub.chats', compact('conversations', 'groups', 'open', 'messages', 'group', 'groupMessages', 'canReply'));
+        return view('whatsapp_hub.chats', compact(
+            'conversations', 'groups', 'open', 'messages', 'group', 'groupMessages', 'canReply',
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates'
+        ));
     }
 
     public function chatsReply(Request $request, $id)
