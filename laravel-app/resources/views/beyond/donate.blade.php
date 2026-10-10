@@ -31,9 +31,11 @@
                 <input id="donateAmount" name="amount" type="number" required min="100" max="1000000" step="1" value="{{ old('amount') }}" class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-4">
                 <label class="block text-sm font-semibold mb-1" for="donateNote">Note</label>
                 <textarea id="donateNote" name="note" maxlength="180" rows="3" class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-5" placeholder="What this donation is for">{{ old('note') }}</textarea>
-                <button class="w-full rounded-full bg-brand-blue text-white font-bold py-3" type="submit" name="method" value="momo">Donate with MTN or Orange</button>
-                <button class="w-full rounded-full border border-brand-blue text-brand-blue font-bold py-3 mt-3 bg-white" type="submit" name="method" value="visa">Donate with VISA</button>
-                <button class="w-full rounded-full border border-brand-gold text-brand-blue font-bold py-3 mt-3 bg-white" type="submit" name="method" value="crypto">Donate with Crypto</button>
+                <div class="flex gap-2">
+                    <button class="flex-1 min-w-0 rounded-full bg-brand-blue text-white font-bold py-3 px-2 text-sm" type="submit" name="method" value="momo">Momo/OM</button>
+                    <button class="flex-1 min-w-0 rounded-full border border-brand-blue text-brand-blue font-bold py-3 px-2 text-sm bg-white" type="submit" name="method" value="visa">VISA</button>
+                    <button class="flex-1 min-w-0 rounded-full border border-brand-gold text-brand-blue font-bold py-3 px-2 text-sm bg-white" type="submit" name="method" value="crypto">Crypto</button>
+                </div>
             </form>
         </div>
     </div>
