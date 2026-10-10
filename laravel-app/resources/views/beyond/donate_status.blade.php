@@ -38,8 +38,16 @@
                     <p class="text-2xl font-extrabold text-brand-blue m-0">{{ $crypto['usdt'] }} {{ $crypto['coin'] }}</p>
                     <p class="mt-3 mb-1 text-sm font-semibold">Network: {{ $crypto['network'] }}</p>
                     <p class="text-sm text-slate-600 m-0">Use this network only. A transfer on another network is not received.</p>
+                    @php
+                        $walletUrl = 'https://link.trustwallet.com/send?asset=c195_tTR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t&address='.rawurlencode($crypto['address']).'&amount='.rawurlencode((string) $crypto['usdt']);
+                    @endphp
+                    <div class="mt-4 flex justify-center">
+                        <img src="data:image/png;base64,{{ DNS2D::getBarcodePNG($walletUrl, 'QRCODE', 5, 5) }}" width="220" height="220" alt="QR to open this payment in a wallet" class="bg-white border border-slate-200 rounded-xl p-2">
+                    </div>
+                    <p class="mt-2 mb-0 text-center text-sm text-slate-500">Scan to open a wallet with this address and the exact amount, or copy the address.</p>
                     <p id="cryptoAddress" class="mt-3 break-all font-mono text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ $crypto['address'] }}</p>
                     <button type="button" id="copyAddress" class="mt-3 w-full rounded-full border border-brand-blue text-brand-blue font-bold py-3 bg-white">Copy address</button>
+                    <a class="block text-center mt-3 w-full rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $walletUrl }}">Open in wallet</a>
                 @elseif($donation->payment_link)
                     <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">Open the VISA page</a>
                 @endif
