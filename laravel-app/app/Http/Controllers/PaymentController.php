@@ -9,6 +9,7 @@ use App\Sale;
 use App\Services\AccountDepositService;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
+use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -65,6 +66,53 @@ class PaymentController extends Controller
         return response()->json(['people' => $people]);
     }
 
+    public function clientCheck(Request $request)
+    {
+        $customer = Customer::find((int) $request->get('customer_id'));
+        if (! $customer) {
+            return response()->json(['ok' => false]);
+        }
+        $campay = app(CampayPayoutService::class);
+        $phone = $campay->momoNumber($customer->phone_number);
+        $lookup = $phone ? app(MobileMoneyHolderService::class)->lookup($phone) : null;
+        $momoName = is_array($lookup) && ! empty($lookup['name']) ? (string) $lookup['name'] : '';
+        $last = $phone
+            ? Deposit::where('mtn_number', $phone)->where('status', 2)->orderByDesc('id')->first()
+            : null;
+        $low = $last && strpos(strtoupper((string) $last->failure_reason), 'LOW_BALANCE') !== false;
+        $recent = $low && $last->created_at && $last->created_at->gt(now()->subMinutes(20));
+
+        return response()->json([
+            'ok' => true,
+            'phone' => $phone ? $phone : (string) $customer->phone_number,
+            'operator' => $phone ? $campay->operatorName($phone) : '',
+            'momo_name' => $momoName,
+            'balance' => null,
+            'balance_note' => 'Campay does not show the money on this phone until the client approves or refuses.',
+            'warning' => $low ? 'The last request of '.$this->money($last->amount).' XAF failed because this number did not have enough money.' : '',
+            'block_amount' => $recent ? (int) $last->amount : 0,
+        ]);
+    }
+
+    public function depositStatus($id)
+    {
+        $deposit = Deposit::findOrFail($id);
+        if ((int) $deposit->status === 0 && $deposit->campay_reference) {
+            $this->settleOne($deposit);
+            $deposit = $deposit->fresh();
+        }
+        $state = (int) $deposit->status === 1 ? 'paid' : ((int) $deposit->status === 2 ? 'failed' : 'pending');
+
+        return response()->json([
+            'status' => $state,
+            'message' => $state === 'paid'
+                ? 'The client approved '.$this->money($deposit->amount).' XAF.'
+                : ($state === 'failed'
+                    ? $this->failureText($deposit->failure_reason, $deposit->amount)
+                    : 'Waiting for the client to approve on their phone.'),
+        ]);
+    }
+
     public function storeDeposit(Request $request, AccountDepositService $deposits)
     {
         $data = $request->validate([
@@ -95,23 +143,29 @@ class PaymentController extends Controller
         }
 
         if (! $customer) {
-            return back()->withInput()->with('not_permitted', 'Choose the client who is paying.');
+            return $this->depositProblem($request, 'Choose the client who is paying.');
         }
         $campay = app(CampayPayoutService::class);
         $phone = $campay->momoNumber($customer->phone_number);
         if ($method === 3 && ! $phone) {
-            return back()->withInput()->with('not_permitted', $customer->name.' does not have an MTN or Orange Cameroon number.');
+            return $this->depositProblem($request, $customer->name.' does not have an MTN or Orange Cameroon number.');
         }
         if (! $phone) {
             $digits = preg_replace('/\D/', '', (string) $customer->phone_number);
             if ($digits === '') {
-                return back()->withInput()->with('not_permitted', $customer->name.' does not have a phone number.');
+                return $this->depositProblem($request, $customer->name.' does not have a phone number.');
             }
             $phone = $digits;
         }
         $amount = (int) round((float) $data['amount']);
         if ($amount < 100 || abs((float) $data['amount'] - $amount) > 0.001) {
-            return back()->withInput()->with('not_permitted', 'Enter a whole amount of at least 100 XAF.');
+            return $this->depositProblem($request, 'Enter a whole amount of at least 100 XAF.');
+        }
+        if ($method === 3 && $phone) {
+            $recentLow = Deposit::where('mtn_number', $phone)->where('status', 2)->where('created_at', '>=', now()->subMinutes(20))->orderByDesc('id')->first();
+            if ($recentLow && strpos(strtoupper((string) $recentLow->failure_reason), 'LOW_BALANCE') !== false && $amount >= (int) $recentLow->amount) {
+                return $this->depositProblem($request, 'This number could not pay '.$this->money($recentLow->amount).' XAF a few minutes ago. Use a smaller amount, or wait until the phone has enough money.');
+            }
         }
         $reference = 'dep-'.date('YmdHis').'-'.substr(md5(uniqid('', true)), 0, 8);
         $deposit = Deposit::create([
@@ -130,29 +184,39 @@ class PaymentController extends Controller
         $description = $note !== null && trim((string) $note) !== '' ? substr(trim((string) $note), 0, 80) : 'Deposit';
         if ($method === 3) {
             $body = $campay->collect($phone, $amount, $reference, $description);
-            if (! is_array($body) || empty($body['reference']) || strtoupper((string) (isset($body['status']) ? $body['status'] : '')) === 'FAILED') {
-                $deposit->delete();
+            $campayStatus = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+            if (! is_array($body) || empty($body['reference']) || $campayStatus === 'FAILED') {
+                $reason = is_array($body) && ! empty($body['reason']) ? (string) $body['reason'] : $campayStatus;
+                $text = $reason !== '' ? $this->failureText($reason, $amount) : $this->campayError($body, 'Campay could not ask the client to approve.');
+                if ($reason !== '') {
+                    $this->tellClient($phone, $text);
+                }
+                $deposit->status = 2;
+                $deposit->failure_reason = $reason !== '' ? substr($reason, 0, 180) : null;
+                $deposit->campay_reference = is_array($body) && ! empty($body['reference']) ? (string) $body['reference'] : null;
+                $deposit->save();
 
-                return back()->withInput()->with('not_permitted', $this->campayError($body, 'Campay could not ask the client to approve.'));
+                return $this->depositProblem($request, $text);
             }
             $deposit->campay_reference = (string) $body['reference'];
             $deposit->save();
-            $this->tellClient($phone, 'Beyond Enterprise is requesting '.$this->money($amount).' XAF from your Mobile Money. Approve the prompt on your phone.');
-            $this->settleWaitingDeposits();
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => true, 'id' => $deposit->id, 'status' => 'pending']);
+            }
 
-            return redirect()->route('deposit.index')->with('message', 'The client has been asked to approve '.$this->money($amount).' XAF on their phone.');
+            return redirect()->route('deposit.index', ['new' => 1, 'wait' => $deposit->id]);
         }
 
         $body = $campay->cardLink($phone, $amount, $reference, $description, route('deposit.index'), $customer->name);
         if (! is_array($body) || empty($body['link'])) {
             $deposit->delete();
 
-            return back()->withInput()->with('not_permitted', $this->campayError($body, 'Campay did not return a card link.'));
+            return $this->depositProblem($request, $this->campayError($body, 'Campay did not return a card link.'));
         }
         $deposit->campay_reference = isset($body['reference']) ? (string) $body['reference'] : null;
         $deposit->payment_link = (string) $body['link'];
         $deposit->save();
-        $channel = $this->tellClient($phone, 'Beyond Enterprise: pay '.$this->money($amount).' XAF by card here: '.$body['link']);
+        $channel = $this->tellClient($phone, 'Open this link and enter your card details to pay '.$this->money($amount).' XAF: '.$body['link']);
 
         return redirect()->route('deposit.index')->with('message', $channel === 'none'
             ? 'The card link was created, but the client could not be notified.'
@@ -162,29 +226,61 @@ class PaymentController extends Controller
     protected function settleWaitingDeposits()
     {
         $waiting = Deposit::where('status', 0)->whereNotNull('campay_reference')->orderBy('id')->limit(8)->get();
-        if ($waiting->isEmpty()) {
+        foreach ($waiting as $deposit) {
+            $this->settleOne($deposit);
+        }
+    }
+
+    protected function settleOne(Deposit $deposit)
+    {
+        if ((int) $deposit->status !== 0 || ! $deposit->campay_reference) {
             return;
         }
-        $campay = app(CampayPayoutService::class);
-        $accounts = app(AccountDepositService::class);
-        foreach ($waiting as $deposit) {
-            $body = $campay->transaction($deposit->campay_reference);
-            if (! is_array($body)) {
-                continue;
+        $body = app(CampayPayoutService::class)->transaction($deposit->campay_reference);
+        if (! is_array($body)) {
+            return;
+        }
+        $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
+        if ($status === 'SUCCESSFUL') {
+            $paid = app(AccountDepositService::class)->creditPending($deposit);
+            if ($paid && (int) $paid->paid_notice !== 1) {
+                $paid->paid_notice = 1;
+                $paid->save();
+                $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
             }
-            $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
-            if ($status === 'SUCCESSFUL') {
-                $paid = $accounts->creditPending($deposit);
-                if ($paid && (int) $paid->paid_notice !== 1) {
-                    $paid->paid_notice = 1;
-                    $paid->save();
-                    $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
-                }
-            } elseif ($status === 'FAILED') {
-                $deposit->status = 2;
-                $deposit->save();
+        } elseif ($status === 'FAILED') {
+            $reason = isset($body['reason']) ? substr((string) $body['reason'], 0, 180) : 'FAILED';
+            $updated = Deposit::where('id', $deposit->id)->where('status', 0)->update([
+                'status' => 2,
+                'failure_reason' => $reason,
+            ]);
+            if ($updated) {
+                $this->tellClient($deposit->mtn_number, $this->failureText($reason, $deposit->amount));
             }
         }
+    }
+
+    protected function depositProblem(Request $request, $message)
+    {
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['ok' => false, 'message' => $message], 422);
+        }
+
+        return back()->withInput()->with('not_permitted', $message);
+    }
+
+    protected function failureText($reason, $amount)
+    {
+        $reason = strtoupper((string) $reason);
+        $money = $this->money($amount);
+        if (strpos($reason, 'LOW_BALANCE') !== false || strpos($reason, 'INSUFFICIENT') !== false) {
+            return 'Your Mobile Money payment of '.$money.' XAF failed because the number does not have enough money.';
+        }
+        if ($reason === '' || strpos($reason, 'CANCEL') !== false || strpos($reason, 'TIMEOUT') !== false || strpos($reason, 'EXPIRED') !== false || strpos($reason, 'NOT_APPROV') !== false || strpos($reason, 'DENIED') !== false || strpos($reason, 'REJECT') !== false) {
+            return 'Your Mobile Money payment of '.$money.' XAF failed because it was not approved.';
+        }
+
+        return 'Your Mobile Money payment of '.$money.' XAF failed.';
     }
 
     protected function tellClient($phone, $message)

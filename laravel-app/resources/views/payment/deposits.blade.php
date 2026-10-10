@@ -61,7 +61,7 @@
                         <label>Note</label>
                         <textarea name="note" class="form-control" rows="2">{{ old('note') }}</textarea>
                     </div>
-                    <button class="pay-go" type="submit">Save deposit</button>
+                    <button class="pay-go" type="submit" id="depositSubmit">Save Deposit</button>
                 </form>
             </div>
         </div>
@@ -99,7 +99,12 @@
                             <td>{{ $deposit->account ? $deposit->account->name : '—' }}</td>
                             <td>{{ number_format((float) $deposit->amount, 0, '.', ' ') }} XAF</td>
                             <td>{{ $methodLabel }}</td>
-                            <td><span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span></td>
+                            <td>
+                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                @if($deposit->failure_reason)
+                                    <div class="pay-note">{{ strpos(strtoupper($deposit->failure_reason), 'LOW_BALANCE') !== false ? 'Not enough money on the phone' : (strpos(strtoupper($deposit->failure_reason), 'CANCEL') !== false || strpos(strtoupper($deposit->failure_reason), 'APPROV') !== false ? 'Not approved' : 'Payment was not completed') }}</div>
+                                @endif
+                            </td>
                             <td>{{ $deposit->note }}</td>
                         </tr>
                     @empty
@@ -116,17 +121,25 @@
     if (!form) return;
     var methodInput = document.getElementById('depositMethod');
     var hint = document.getElementById('depositHint');
+    var submit = document.getElementById('depositSubmit');
+    var labels = {
+        '1': 'Save Deposit',
+        '3': 'Query the phone for approval',
+        '4': 'Send card link'
+    };
     var hints = {
         '1': 'Cash is saved now. Choose a client if they should get a WhatsApp or SMS.',
-        '3': 'The client gets a prompt on their phone and approves the Mobile Money payment.',
-        '4': 'A card link is sent to the client on WhatsApp, or by SMS if they have no WhatsApp.'
+        '3': 'This stays on the screen until the client approves the prompt on their phone.',
+        '4': 'The client receives a link on WhatsApp, or by SMS, and enters the card details there.'
     };
+    var clientGuard = {block_amount: 0, warning: ''};
     function showMethod(value) {
         methodInput.value = value;
         form.querySelectorAll('.pay-method').forEach(function (button) {
             button.classList.toggle('is-on', button.getAttribute('data-method') === value);
         });
         hint.textContent = hints[value] || hints['1'];
+        if (submit) submit.textContent = labels[value] || labels['1'];
     }
     form.querySelectorAll('.pay-method').forEach(function (button) {
         button.addEventListener('click', function () { showMethod(button.getAttribute('data-method')); });
@@ -138,6 +151,8 @@
     var chosen = document.getElementById('depositChosen');
     var customerId = document.getElementById('depositCustomerId');
     var searchUrl = @json(route('deposit.search'));
+    var clientUrl = @json(route('deposit.client'));
+    var statusBase = @json(url('payment/desposits'));
     var timer = null;
     search.addEventListener('input', function () {
         clearTimeout(timer);
@@ -161,6 +176,17 @@
                             chosen.textContent = person.name + ' · ' + person.phone;
                             hits.innerHTML = '';
                             search.value = '';
+                            fetch(clientUrl + '?customer_id=' + encodeURIComponent(person.id), {headers: {Accept: 'application/json'}})
+                                .then(function (response) { return response.json(); })
+                                .then(function (info) {
+                                    if (!info || !info.ok) return;
+                                    clientGuard = info;
+                                    var lines = [person.name + ' · ' + person.phone];
+                                    if (info.momo_name) lines.push('Name on MoMo: ' + info.momo_name + (info.operator ? ' · ' + info.operator : ''));
+                                    if (info.balance_note) lines.push(info.balance_note);
+                                    if (info.warning) lines.push(info.warning);
+                                    chosen.textContent = lines.join(' — ');
+                                });
                         });
                         hits.appendChild(button);
                     });
@@ -173,10 +199,76 @@
                 });
         }, 200);
     });
+    function token() {
+        var input = form.querySelector('input[name="_token"]');
+        return input ? input.value : '';
+    }
+    function watchDeposit(id) {
+        var started = Date.now();
+        function tick() {
+            fetch(statusBase + '/' + id + '/status', {headers: {Accept: 'application/json'}})
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.status === 'paid') {
+                        hint.textContent = data.message;
+                        window.setTimeout(function () { window.location = statusBase; }, 1200);
+                        return;
+                    }
+                    if (data.status === 'failed') {
+                        hint.textContent = data.message;
+                        submit.disabled = false;
+                        submit.textContent = labels['3'];
+                        return;
+                    }
+                    if (Date.now() - started > 180000) {
+                        hint.textContent = 'Still waiting. The prompt may have expired. You can query the phone again.';
+                        submit.disabled = false;
+                        submit.textContent = labels['3'];
+                        return;
+                    }
+                    window.setTimeout(tick, 4000);
+                })
+                .catch(function () { window.setTimeout(tick, 4000); });
+        }
+        tick();
+    }
     form.addEventListener('submit', function (event) {
         if (methodInput.value !== '1' && !customerId.value) {
             event.preventDefault();
             hint.textContent = 'Choose the client who is paying.';
+            return;
+        }
+        if (methodInput.value === '3') {
+            var amount = parseInt(form.querySelector('[name="amount"]').value, 10) || 0;
+            if (clientGuard.block_amount && amount >= clientGuard.block_amount) {
+                event.preventDefault();
+                hint.textContent = clientGuard.warning || 'This number does not have enough money for that amount.';
+                return;
+            }
+            event.preventDefault();
+            submit.disabled = true;
+            submit.textContent = 'Waiting for approval…';
+            hint.textContent = 'Ask the client to approve the prompt on their phone. This screen stays here until they do.';
+            var body = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': token()},
+                body: body
+            }).then(function (response) {
+                return response.json().then(function (data) { return {ok: response.ok, data: data}; });
+            }).then(function (result) {
+                if (!result.ok || !result.data.ok) {
+                    hint.textContent = (result.data && result.data.message) ? result.data.message : 'The phone could not be queried.';
+                    submit.disabled = false;
+                    submit.textContent = labels['3'];
+                    return;
+                }
+                watchDeposit(result.data.id);
+            }).catch(function () {
+                hint.textContent = 'The phone could not be queried.';
+                submit.disabled = false;
+                submit.textContent = labels['3'];
+            });
         }
     });
 })();
