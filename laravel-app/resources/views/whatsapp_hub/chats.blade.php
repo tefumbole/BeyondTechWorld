@@ -4,7 +4,8 @@
 <style>
     #content { padding: 0 !important; background: var(--beyond-bg); }
     #content > .container-fluid { display: none; }
-    .chats-app { display: flex; height: calc(100vh - 70px); min-height: 520px; background: var(--beyond-bg); color: var(--beyond-text); }
+    .main-footer { display: none !important; }
+    .chats-app { display: flex; height: calc(100vh - 70px); min-height: 0; background: var(--beyond-bg); color: var(--beyond-text); overflow: hidden; }
     .chat-rail { width: 76px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: var(--beyond-primary); }
     .chat-rail a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: rgba(255,255,255,.82); text-decoration: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; text-align: center; }
     .chat-rail a i { font-size: 16px; color: var(--beyond-accent); }
@@ -53,10 +54,10 @@
     .bubble a.chat-file { color: var(--beyond-primary); font-weight: 700; }
     .bubble .who { display: block; font-size: 12px; font-weight: 700; color: var(--beyond-primary); margin-bottom: 2px; }
     .day-chip { align-self: center; background: #fff; border: 1px solid #e3e9f4; color: var(--beyond-muted); border-radius: 8px; font-size: 12px; padding: 3px 10px; margin: 8px 0 4px; }
-    .clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e3e9f4; background: var(--beyond-bg); color: var(--beyond-primary); font-size: 24px; font-weight: 600; cursor: pointer; flex: none; }
+    .clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e3e9f4; background: var(--beyond-bg); color: var(--beyond-primary); font-size: 24px; font-weight: 600; cursor: pointer; flex: none; overflow: hidden; position: relative; }
     .clip input { display: none; }
     .file-name { align-self: center; color: var(--beyond-muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .chats-compose { display: flex; gap: 8px; padding: 10px 16px; background: var(--beyond-card); border-top: 1px solid #e3e9f4; }
+    .chats-compose { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 10px 16px; background: var(--beyond-card); border-top: 1px solid #e3e9f4; }
     .chats-compose textarea { flex: 1; border: 1px solid #e3e9f4; border-radius: 8px; background: var(--beyond-bg); color: var(--beyond-text); min-height: 44px; max-height: 120px; padding: 10px 12px; resize: none; }
     .chats-compose button { border: 0; border-radius: 50%; width: 44px; height: 44px; background: var(--beyond-primary); color: #fff; font-weight: 800; cursor: pointer; }
     .chats-empty { margin: auto; text-align: center; color: var(--beyond-muted); max-width: 420px; padding: 24px; }
@@ -296,7 +297,7 @@
             @if($canReply)
                 <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
-                    <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                    <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" data-skip-image-paste="1" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
                     <span class="file-name" id="chatFileName"></span>
                     <textarea name="body" id="chatBody" placeholder="Type a message"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
@@ -424,6 +425,25 @@
         file.addEventListener('change', function () {
             var picked = file.files && file.files[0];
             if (fileName) fileName.textContent = picked ? picked.name : '';
+        });
+    }
+    if (body && file) {
+        body.addEventListener('paste', function (event) {
+            var items = event.clipboardData && event.clipboardData.items;
+            if (!items) return;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== 0) continue;
+                var picked = items[i].getAsFile();
+                if (!picked) return;
+                event.preventDefault();
+                try {
+                    var list = new DataTransfer();
+                    list.items.add(picked);
+                    file.files = list.files;
+                } catch (e) {}
+                if (fileName) fileName.textContent = picked.name || 'Pasted image';
+                return;
+            }
         });
     }
     if (body) {
