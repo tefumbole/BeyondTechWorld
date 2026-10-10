@@ -6,6 +6,7 @@ use App\PublicDonation;
 use App\Services\BinancePayService;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
+use App\Services\StripeCheckoutService;
 use App\Services\MobileMoneyHolderService;
 use App\Support\CountryDialCodes;
 use App\Support\TwilioAdminCopy;
@@ -126,16 +127,22 @@ class PublicDonateController extends Controller
             return redirect($return);
         }
         if ($method === 'visa') {
-            $body = $service->cardLink($phone, $amount, $reference, $description, $return, $name);
-            if (! is_array($body) || empty($body['link'])) {
+            $card = app(StripeCheckoutService::class)->checkout(
+                'Donation',
+                $amount,
+                $return.'?session_id={CHECKOUT_SESSION_ID}',
+                $return,
+                ['donation' => (string) $donation->id]
+            );
+            if (empty($card['ok'])) {
                 $donation->status = 'failed';
-                $donation->error = 'Campay did not return a VISA link.';
+                $donation->error = isset($card['error']) ? substr((string) $card['error'], 0, 250) : 'VISA could not be opened.';
                 $donation->save();
 
                 return redirect($return)->with('not_permitted', $donation->error);
             }
-            $donation->campay_reference = isset($body['reference']) ? (string) $body['reference'] : null;
-            $donation->payment_link = (string) $body['link'];
+            $donation->campay_reference = (string) $card['id'];
+            $donation->payment_link = (string) $card['url'];
             $donation->save();
 
             return redirect($return);
@@ -159,8 +166,12 @@ class PublicDonateController extends Controller
     {
         $donation = $this->find($token);
         $this->refresh($donation);
+        $donation = $donation->fresh();
+        if ($donation->status === 'paid') {
+            return redirect()->route('donate.show')->with('message', 'Your donation of '.number_format($donation->amount, 0, '.', ' ').' XAF has been received.');
+        }
 
-        return view('beyond.donate_status', ['donation' => $donation->fresh()]);
+        return view('beyond.donate_status', ['donation' => $donation]);
     }
 
     public function status($token)
@@ -192,6 +203,13 @@ class PublicDonateController extends Controller
             if ($tx && ! PublicDonation::where('campay_reference', $tx)->exists()) {
                 $donation->campay_reference = $tx;
                 $donation->save();
+                $this->markPaid($donation);
+            }
+
+            return;
+        }
+        if (strpos((string) $donation->campay_reference, 'cs_') === 0) {
+            if (app(StripeCheckoutService::class)->isPaid($donation->campay_reference)) {
                 $this->markPaid($donation);
             }
 

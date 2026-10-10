@@ -647,8 +647,12 @@ class SettingController extends Controller
     	$pos_setting->warehouse_id = $data['warehouse_id'];
     	$pos_setting->biller_id = $data['biller_id'];
     	$pos_setting->product_number = $data['product_number'];
-    	$pos_setting->stripe_public_key = $data['stripe_public_key'];
-    	$pos_setting->stripe_secret_key = $data['stripe_secret_key'];
+    	if (trim((string) $data['stripe_public_key']) !== '') {
+    	    $pos_setting->stripe_public_key = $data['stripe_public_key'];
+    	}
+    	if (trim((string) $data['stripe_secret_key']) !== '') {
+    	    $pos_setting->stripe_secret_key = $data['stripe_secret_key'];
+    	}
 
         $lims_account_data = Account::where('is_default', true)->first();
         $lims_account_data->is_default = false;

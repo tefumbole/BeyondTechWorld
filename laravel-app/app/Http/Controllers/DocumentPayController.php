@@ -9,6 +9,7 @@ use App\Quotation;
 use App\Sale;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
+use App\Services\StripeCheckoutService;
 use App\Services\Cloud\CloudTenantContext;
 use App\Services\Messaging\TwilioTemplateSender;
 use App\Support\WhatsAppMessage;
@@ -91,13 +92,20 @@ class DocumentPayController extends Controller
 
             return redirect()->route('document.pay', ['token' => $link->token]);
         }
-        $body = $service->cardLink($from, (int) $link->amount, $reference, $description, route('document.pay', ['token' => $link->token]), $link->person_name);
-        if (! is_array($body) || empty($body['link'])) {
-            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Campay did not return a VISA link.');
+        $back = route('document.pay', ['token' => $link->token]);
+        $card = app(StripeCheckoutService::class)->checkout(
+            $description,
+            (int) $link->amount,
+            $back.'?session_id={CHECKOUT_SESSION_ID}',
+            $back,
+            ['document' => (string) $link->id]
+        );
+        if (empty($card['ok'])) {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', isset($card['error']) ? $card['error'] : 'VISA could not be opened.');
         }
         $link->method = 'visa';
-        $link->campay_reference = isset($body['reference']) ? (string) $body['reference'] : null;
-        $link->payment_link = (string) $body['link'];
+        $link->campay_reference = (string) $card['id'];
+        $link->payment_link = (string) $card['url'];
         $link->status = 'pending';
         $link->error = null;
         $link->save();
@@ -172,6 +180,13 @@ class DocumentPayController extends Controller
     protected function refresh(DocumentPaymentLink $link)
     {
         if ($link->status === 'paid' || ! $link->campay_reference) {
+            return;
+        }
+        if (strpos((string) $link->campay_reference, 'cs_') === 0) {
+            if (app(StripeCheckoutService::class)->isPaid($link->campay_reference)) {
+                $this->markPaid($link);
+            }
+
             return;
         }
         $body = app(CampayPayoutService::class)->transaction($link->campay_reference);

@@ -9,6 +9,7 @@ use App\Sale;
 use App\Services\AccountDepositService;
 use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
+use App\Services\StripeCheckoutService;
 use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -228,16 +229,23 @@ class PaymentController extends Controller
             return redirect()->route('deposit.index', ['new' => 1, 'wait' => $deposit->id]);
         }
 
-        $body = $campay->cardLink($phone, $amount, $reference, $description, route('deposit.index'), $customer->name);
-        if (! is_array($body) || empty($body['link'])) {
+        $back = route('deposit.index');
+        $card = app(StripeCheckoutService::class)->checkout(
+            'Deposit',
+            $amount,
+            $back.'?session_id={CHECKOUT_SESSION_ID}',
+            $back,
+            ['deposit' => (string) $deposit->id]
+        );
+        if (empty($card['ok'])) {
             $deposit->delete();
 
-            return $this->depositProblem($request, $this->campayError($body, 'Campay did not return a card link.'));
+            return $this->depositProblem($request, isset($card['error']) ? $card['error'] : 'VISA could not be opened.');
         }
-        $deposit->campay_reference = isset($body['reference']) ? (string) $body['reference'] : null;
-        $deposit->payment_link = (string) $body['link'];
+        $deposit->campay_reference = (string) $card['id'];
+        $deposit->payment_link = (string) $card['url'];
         $deposit->save();
-        $channel = $this->tellClient($phone, 'Open this link and enter your card details to pay '.$this->money($amount).' XAF: '.$body['link']);
+        $channel = $this->tellClient($phone, 'Open this link and enter your card details to pay '.$this->money($amount).' XAF: '.$card['url']);
 
         return redirect()->route('deposit.index')->with('message', $channel === 'none'
             ? 'The card link was created, but the client could not be notified.'
@@ -255,6 +263,18 @@ class PaymentController extends Controller
     protected function settleOne(Deposit $deposit)
     {
         if ((int) $deposit->status !== 0 || ! $deposit->campay_reference) {
+            return;
+        }
+        if (strpos((string) $deposit->campay_reference, 'cs_') === 0) {
+            if (app(StripeCheckoutService::class)->isPaid($deposit->campay_reference)) {
+                $paid = app(AccountDepositService::class)->creditPending($deposit);
+                if ($paid && (int) $paid->paid_notice !== 1) {
+                    $paid->paid_notice = 1;
+                    $paid->save();
+                    $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
+                }
+            }
+
             return;
         }
         $body = app(CampayPayoutService::class)->transaction($deposit->campay_reference);

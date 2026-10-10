@@ -52,7 +52,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Stripe Publishable key</label>
-                                        <input type="text" name="stripe_public_key" class="form-control" value="@if($lims_pos_setting_data){{$lims_pos_setting_data->stripe_public_key}}@endif" required />
+                                        <input type="text" name="stripe_public_key" class="form-control" value="" placeholder="Leave blank. The live key is stored on the server." autocomplete="off" />
                                     </div>
                                     <div class="form-group">
                                         <label>Paypal Pro API Username</label>
@@ -92,7 +92,7 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Stripe Secret key *</label>
-                                        <input type="text" name="stripe_secret_key" class="form-control" value="@if($lims_pos_setting_data){{$lims_pos_setting_data->stripe_secret_key}}@endif"required />
+                                        <input type="password" name="stripe_secret_key" class="form-control" value="" placeholder="Leave blank. The live secret is stored on the server." autocomplete="new-password" />
                                     </div>
                                     <div class="form-group">
                                         <label>Paypal Pro API Password</label>

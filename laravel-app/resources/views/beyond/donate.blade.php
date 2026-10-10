@@ -10,6 +10,9 @@
             <h1 class="text-2xl font-extrabold text-brand-blue m-0">Donate</h1>
             <div class="h-0.5 w-12 bg-brand-gold mt-3 mb-4"></div>
             <p class="text-slate-600 text-sm m-0 mb-5">Choose a country code. Cameroon is selected. A Cameroon Mobile Money number fills in the name. Any other country can still donate with VISA or Crypto.</p>
+            @if(session('message'))
+                <div class="mb-4 rounded-lg bg-green-50 text-green-800 px-3 py-2 text-sm">{{ session('message') }}</div>
+            @endif
             @if(session('not_permitted'))
                 <div class="mb-4 rounded-lg bg-red-50 text-red-800 px-3 py-2 text-sm">{{ session('not_permitted') }}</div>
             @endif
