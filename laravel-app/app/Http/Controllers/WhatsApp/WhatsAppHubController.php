@@ -94,6 +94,10 @@ class WhatsAppHubController extends Controller
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
             return $deny;
         }
+
+        if (! $request->wantsJson() && ! $request->get('poll')) {
+            return redirect()->route('whatsapp.chats');
+        }
         $q = trim((string) $request->get('q'));
         $filter = (string) $request->get('filter', 'all');
         $mode = strtoupper((string) $request->get('mode', ''));

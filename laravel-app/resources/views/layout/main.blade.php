@@ -2227,9 +2227,8 @@
                         @if($whatsapp_module_active)
                             <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
-                                    <li id="whatsapp-chats-menu"><a href="{{ route('whatsapp.chats') }}">Chats</a></li>
                                     <li id="whatsapp-command-menu"><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
-                                    <li id="whatsapp-conversations-menu"><a href="{{ route('whatsapp.conversations') }}">Conversations</a></li>
+                                    <li id="whatsapp-conversations-menu"><a href="{{ route('whatsapp.chats') }}">Conversations</a></li>
                                     <li id="whatsapp-leads-menu"><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
                                     <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
                                     <li id="whatsapp-rentals-menu"><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>

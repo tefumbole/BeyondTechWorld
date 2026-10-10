@@ -598,6 +598,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     Route::get('/admin/payout', 'PayoutController@index')->name('payout.index');
     Route::get('/admin/payout/lookup', 'PayoutController@lookup')->name('payout.lookup');
+    Route::get('/admin/payout/search', 'PayoutController@search')->name('payout.search');
     Route::get('/admin/payout/request', 'PayoutController@requestLink')->name('payout.request');
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');

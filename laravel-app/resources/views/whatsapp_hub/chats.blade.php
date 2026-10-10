@@ -2,10 +2,10 @@
 
 @section('content')
 <style>
-    #content { padding: 0 !important; background: var(--beyond-bg); }
-    #content > .container-fluid { display: none; }
+    #content { display: flex; flex-direction: column; height: calc(100vh - 70px); padding: 0 !important; background: var(--beyond-bg); overflow: hidden; }
+    #content > .container-fluid { flex: none; }
     .main-footer { display: none !important; }
-    .chats-app { display: flex; height: calc(100vh - 70px); min-height: 0; background: var(--beyond-bg); color: var(--beyond-text); overflow: hidden; }
+    .chats-app { display: flex; flex: 1; min-height: 0; background: var(--beyond-bg); color: var(--beyond-text); overflow: hidden; }
     .chat-rail { width: 76px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: var(--beyond-primary); }
     .chat-rail a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: rgba(255,255,255,.82); text-decoration: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; text-align: center; }
     .chat-rail a i { font-size: 16px; color: var(--beyond-accent); }
@@ -68,7 +68,8 @@
     .group-card h2 { margin: 8px 0; color: var(--beyond-text); }
     .chat-note { background: #fff8e6; color: #7a5b10; border-bottom: 1px solid #ead79a; padding: 8px 16px; font-size: 13px; }
     @media (max-width: 800px) {
-        .chats-app { height: calc(100vh - 56px); }
+        #content { height: calc(100vh - 56px); }
+        .chats-app { height: auto; }
         .chats-side { width: 100%; max-width: none; }
         .chats-thread { display: none; }
         .chats-app.has-open .chat-rail, .chats-app.has-open .chats-side { display: none; }

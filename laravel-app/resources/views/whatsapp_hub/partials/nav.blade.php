@@ -1,7 +1,6 @@
 <div class="mb-3">
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.chats') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.chats') }}">Chats</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.index') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.index') }}">Command Center</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.conversations*') || request()->routeIs('whatsapp.conversation') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.conversations') }}">Conversations</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.chats') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.chats') }}">Conversations</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.leads*') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.leads') }}">Leads</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.rentals*') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.rentals') }}">Rentals</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.tracking') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.tracking') }}">Tracking</a>

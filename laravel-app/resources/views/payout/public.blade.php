@@ -188,8 +188,7 @@
     function search() {
         var q = document.getElementById('searchBox').value.trim();
         results.innerHTML = '';
-        if (q.length < 2) {
-            results.innerHTML = '<p>Type at least 2 letters.</p>';
+        if (q.length < 1) {
             return;
         }
         results.innerHTML = '<p>Searching…</p>';
@@ -229,6 +228,11 @@
             .catch(function () { results.innerHTML = '<p>The search did not answer. Try again.</p>'; });
     }
     document.getElementById('searchBtn').addEventListener('click', search);
+    var searchWait = null;
+    document.getElementById('searchBox').addEventListener('input', function () {
+        clearTimeout(searchWait);
+        searchWait = setTimeout(search, 200);
+    });
     document.getElementById('searchBox').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
             event.preventDefault();
