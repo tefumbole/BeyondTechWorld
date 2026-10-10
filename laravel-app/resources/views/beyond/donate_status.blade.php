@@ -21,18 +21,14 @@
                 <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2">{{ $donation->error ?: 'The donation was not approved.' }}</div>
                 <a class="inline-block mt-4 text-brand-blue font-bold" href="{{ route('donate.show') }}">Try again</a>
             @else
-                <p class="text-sm font-bold uppercase tracking-wide text-amber-800 m-0 mb-2">Pending</p>
-                <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
-                    This page stays pending until the payment is completed.
-                    @if($donation->method === 'crypto')
-                        Send the exact USDT amount below. This page updates when it is received.
-                    @elseif($donation->method === 'visa')
-                        Open the VISA page and complete the card payment.
-                    @else
-                        Approve the prompt on your phone. MTN and Orange both use this step.
-                    @endif
-                </div>
                 @php $crypto = ($donation->method === 'crypto') ? json_decode((string) $donation->payment_link, true) : null; @endphp
+                @if($donation->method === 'momo')
+                    <p class="text-sm font-bold uppercase tracking-wide text-amber-800 m-0 mb-2">Pending</p>
+                    <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
+                        This page stays pending until the payment is completed.
+                        Approve the prompt on your phone. MTN and Orange both use this step.
+                    </div>
+                @endif
                 @if(is_array($crypto) && ! empty($crypto['address']))
                     <p class="mt-4 mb-1 text-sm text-slate-600">Send exactly</p>
                     <p class="text-2xl font-extrabold text-brand-blue m-0">{{ $crypto['usdt'] }} {{ $crypto['coin'] }}</p>
@@ -48,8 +44,6 @@
                     <p id="cryptoAddress" class="mt-3 break-all font-mono text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ $crypto['address'] }}</p>
                     <button type="button" id="copyAddress" class="mt-3 w-full rounded-full border border-brand-blue text-brand-blue font-bold py-3 bg-white">Copy address</button>
                     <a class="block text-center mt-3 w-full rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $walletUrl }}">Open in wallet</a>
-                @elseif($donation->payment_link)
-                    <a class="block text-center mt-4 rounded-full bg-brand-blue text-white font-bold py-3" href="{{ $donation->payment_link }}">Open the VISA page</a>
                 @endif
             @endif
         </div>

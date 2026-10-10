@@ -131,7 +131,7 @@ class PublicDonateController extends Controller
                 'Donation',
                 $amount,
                 $return.'?session_id={CHECKOUT_SESSION_ID}',
-                $return,
+                route('donate.show'),
                 ['donation' => (string) $donation->id]
             );
             if (empty($card['ok'])) {
@@ -145,7 +145,7 @@ class PublicDonateController extends Controller
             $donation->payment_link = (string) $card['url'];
             $donation->save();
 
-            return redirect($return);
+            return redirect($card['url']);
         }
         $body = $service->collect($phone, $amount, $reference, $description);
         $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
@@ -162,13 +162,17 @@ class PublicDonateController extends Controller
         return redirect($return);
     }
 
-    public function waiting($token)
+    public function waiting(Request $request, $token)
     {
         $donation = $this->find($token);
         $this->refresh($donation);
         $donation = $donation->fresh();
         if ($donation->status === 'paid') {
             return redirect()->route('donate.show')->with('message', 'Your donation of '.number_format($donation->amount, 0, '.', ' ').' XAF has been received.');
+        }
+        $returned = trim((string) $request->query('session_id')) !== '';
+        if ($donation->method === 'visa' && $donation->payment_link && ! $returned) {
+            return redirect($donation->payment_link);
         }
 
         return view('beyond.donate_status', ['donation' => $donation]);
