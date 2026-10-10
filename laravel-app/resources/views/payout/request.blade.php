@@ -43,6 +43,76 @@
         </div>
     </div>
 
+    @if($review)
+        <div class="pay-card">
+            <div class="pay-card-head">
+                <h2>{{ $review->requester_name }} @if($review->note)<span class="pay-muted">· {{ $review->note }}</span>@endif</h2>
+                <a href="{{ route('payout.request') }}">Close</a>
+            </div>
+            <div class="pay-card-body">
+                @if($review->status === 'pending')
+                    <p class="pay-help">Change an amount or remove a name, then pay the people who remain or reject the request.</p>
+                    <form method="POST" action="{{ route('payout.request.revise') }}">
+                        @csrf
+                        <input type="hidden" name="id" value="{{ $review->id }}">
+                        <div class="table-responsive">
+                            <table class="pay-table">
+                                <thead>
+                                    <tr><th>Name</th><th>Number</th><th>Amount (XAF)</th><th>Status</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($reviewLines as $line)
+                                        @php
+                                            $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
+                                            $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Rejected');
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $line->person_name }}</td>
+                                            <td>{{ $line->phone }}</td>
+                                            <td>
+                                                @if($line->status === 'pending')
+                                                    <input type="number" class="form-control form-control-sm" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ $line->amount }}" style="max-width:140px">
+                                                @else
+                                                    {{ number_format($line->amount, 0, '.', ' ') }}
+                                                @endif
+                                            </td>
+                                            <td><span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span></td>
+                                            <td>
+                                                @if($line->status === 'pending')
+                                                    <button class="btn btn-sm btn-link text-danger" type="submit" name="remove_id" value="{{ $line->id }}" formnovalidate onclick="return confirm('Remove this person?')">Remove</button>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pay-actions">
+                            <button class="pay-go" type="submit" name="action" value="pay">Pay</button>
+                            <button class="pay-go" type="submit" name="action" value="reject" formnovalidate style="background:#fdecec;color:#9b1c1c" onclick="return confirm('Reject this request?')">Reject</button>
+                        </div>
+                    </form>
+                @else
+                    <div class="table-responsive">
+                        <table class="pay-table">
+                            <thead><tr><th>Name</th><th>Number</th><th>Amount (XAF)</th><th>Status</th></tr></thead>
+                            <tbody>
+                                @foreach($reviewLines as $line)
+                                    <tr>
+                                        <td>{{ $line->person_name }}</td>
+                                        <td>{{ $line->phone }}</td>
+                                        <td>{{ number_format($line->amount, 0, '.', ' ') }}</td>
+                                        <td>{{ $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Rejected') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <div class="pay-card">
         <div class="pay-card-head"><h2>Requested payments</h2></div>
         <div class="table-responsive">
@@ -92,17 +162,24 @@
                                     <span class="pay-pill pay-pill-wait">Asked</span>
                                 @elseif($row->status === 'done')
                                     <span class="pay-pill pay-pill-ok">Paid</span>
+                                @elseif($row->status === 'rejected')
+                                    <span class="pay-pill pay-pill-no">Rejected</span>
                                 @else
                                     <span class="pay-pill pay-pill-wait">Submitted</span>
                                 @endif
                             </td>
                             <td>
+                                <div style="display:flex;gap:8px;align-items:center">
+                                @if($item['kind'] === 'submitted' && $row->status === 'pending')
+                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}">Edit</a>
+                                @endif
                                 <form method="POST" action="{{ route('payout.request.resend') }}">
                                     @csrf
                                     <input type="hidden" name="kind" value="{{ $item['kind'] }}">
                                     <input type="hidden" name="id" value="{{ $row->id }}">
                                     <button class="pay-open" type="submit" style="border:0;cursor:pointer">Resend</button>
                                 </form>
+                                </div>
                             </td>
                         </tr>
                     @empty

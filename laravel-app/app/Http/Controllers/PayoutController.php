@@ -123,7 +123,7 @@ class PayoutController extends Controller
         return $this->sendRows($batch, $rows);
     }
 
-    public function requestLink()
+    public function requestLink(Request $request)
     {
         $this->guard();
         $tenantId = $this->tenantId();
@@ -151,8 +151,56 @@ class PayoutController extends Controller
             ->limit(40)
             ->get();
         $submitted = $this->requests($tenantId)->with('lines')->orderByDesc('id')->limit(40)->get();
+        $review = null;
+        $reviewLines = collect();
+        $reviewId = (int) $request->get('review');
+        if ($reviewId) {
+            $review = $this->requests($tenantId)->where('id', $reviewId)->first();
+            if ($review) {
+                $reviewLines = CampayPayout::where('request_id', $review->id)->orderBy('id')->get();
+            }
+        }
 
-        return view('payout.request', compact('url', 'invites', 'submitted'));
+        return view('payout.request', compact('url', 'invites', 'submitted', 'review', 'reviewLines'));
+    }
+
+    public function revise(Request $request)
+    {
+        $this->guard();
+        $batch = $this->requests($this->tenantId())->where('id', (int) $request->input('id'))->first();
+        if (! $batch) {
+            abort(404);
+        }
+        if ($batch->status !== 'pending') {
+            return redirect()->route('payout.request', ['review' => $batch->id])->with('not_permitted', 'This request can no longer be changed.');
+        }
+        $back = redirect()->route('payout.request', ['review' => $batch->id]);
+        if ($request->input('action') === 'reject') {
+            CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->update([
+                'status' => 'rejected',
+                'error' => 'Rejected',
+            ]);
+            $this->closeBatch($batch);
+
+            return redirect()->route('payout.request')->with('message', 'Request rejected.');
+        }
+        $saved = $this->savePendingAmounts($batch, (array) $request->input('amounts', []));
+        if ($saved !== true) {
+            return $back->with('not_permitted', $saved);
+        }
+        $removeId = (int) $request->input('remove_id');
+        if ($removeId) {
+            CampayPayout::where('request_id', $batch->id)->where('id', $removeId)->where('status', 'pending')->delete();
+            $this->closeBatch($batch);
+
+            return $back->with('message', 'Name removed.');
+        }
+        $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->orderBy('id')->get();
+        if ($rows->count() < 1) {
+            return $back->with('not_permitted', 'There is no one left to pay.');
+        }
+
+        return $this->sendRows($batch, $rows, route('payout.request', ['review' => $batch->id]));
     }
 
     public function resend(Request $request)
@@ -249,7 +297,7 @@ class PayoutController extends Controller
         return $this->sendRows($open, $rows);
     }
 
-    protected function sendRows(CampayPayoutRequest $open, $rows)
+    protected function sendRows(CampayPayoutRequest $open, $rows, $returnTo = null)
     {
         @set_time_limit(180);
         $service = app(CampayPayoutService::class);
@@ -266,16 +314,51 @@ class PayoutController extends Controller
                 $failed++;
             }
         }
-        $left = CampayPayout::where('request_id', $open->id)->where('status', 'pending')->count();
-        if ($left === 0) {
-            $open->status = 'done';
-            $open->save();
-        }
+        $this->closeBatch($open);
 
-        return redirect()->route('payout.index', ['request' => $open->id])->with(
+        return redirect()->to($returnTo ?: route('payout.index', ['request' => $open->id]))->with(
             'message',
             $paid.' paid ('.number_format($total, 0, '.', ' ').' XAF). '.$failed.' not paid.'
         );
+    }
+
+    protected function savePendingAmounts(CampayPayoutRequest $batch, array $amounts)
+    {
+        $pending = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->get();
+        foreach ($pending as $line) {
+            if (! array_key_exists($line->id, $amounts)) {
+                continue;
+            }
+            $amount = (int) $amounts[$line->id];
+            if ($amount < 100 || $amount > 1000000) {
+                return 'Each amount must be from 100 to 1,000,000 XAF.';
+            }
+            $line->amount = $amount;
+            if ($batch->note) {
+                $line->note = $batch->note;
+            }
+            $line->user_id = Auth::id();
+            $line->save();
+        }
+
+        return true;
+    }
+
+    protected function closeBatch(CampayPayoutRequest $batch)
+    {
+        $left = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->count();
+        if ($left > 0) {
+            return;
+        }
+        $paid = CampayPayout::where('request_id', $batch->id)->where('status', 'paid')->count();
+        $rejected = CampayPayout::where('request_id', $batch->id)->where('status', 'rejected')->count();
+        $total = CampayPayout::where('request_id', $batch->id)->count();
+        if ($paid > 0) {
+            $batch->status = 'done';
+        } else {
+            $batch->status = ($total === 0 || $rejected === $total) ? 'rejected' : 'done';
+        }
+        $batch->save();
     }
 
     protected function collectLines(Request $request)

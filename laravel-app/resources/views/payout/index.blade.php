@@ -103,7 +103,7 @@
                                 @foreach($lines as $line)
                                     @php
                                         $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
-                                        $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Not paid');
+                                        $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : ($line->status === 'rejected' ? 'Rejected' : 'Not paid'));
                                     @endphp
                                     <tr>
                                         <td>
@@ -178,7 +178,7 @@
                     @forelse($history as $row)
                         @php
                             $tone = $row->status === 'paid' ? 'ok' : 'no';
-                            $statusLabel = $row->status === 'paid' ? 'Paid' : 'Not paid';
+                            $statusLabel = $row->status === 'paid' ? 'Paid' : ($row->status === 'rejected' ? 'Rejected' : 'Not paid');
                         @endphp
                         <tr>
                             <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
