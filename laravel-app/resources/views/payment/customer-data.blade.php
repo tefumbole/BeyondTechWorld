@@ -15,6 +15,7 @@
     @endif
 
     <section>
+        @include('payout.tabs', ['tab' => 'payment'])
 
         <div class="table-responsive">
             <table id="biller-table" class="table sale-list">

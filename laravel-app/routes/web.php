@@ -396,6 +396,9 @@ Route::get('/cloud/logo/{uuid}', 'CloudPortalController@logo')->name('cloud.logo
 Route::get('/c/{slug}', 'CloudPublicPageController@show')->where('slug', '[a-z0-9\-]+')->name('cloud.public.company');
 Route::post('/cloud/billing/webhook/{provider}', 'CloudBillingWebhookController@handle')->name('cloud.billing.webhook');
 
+Route::get('/payout/request/{token}', 'PayoutController@publicForm')->where('token', '[A-Za-z0-9]{32,64}')->name('payout.request.form');
+Route::post('/payout/request/{token}', 'PayoutController@publicStore')->where('token', '[A-Za-z0-9]{32,64}')->middleware('throttle:8,1')->name('payout.request.store');
+
 Route::group(['middleware' => 'auth'], function() {
 	Route::get('/dashboard', 'HomeController@dashboard');
 });
@@ -592,7 +595,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
 
     Route::get('/admin/payout', 'PayoutController@index')->name('payout.index');
-    Route::post('/admin/payout', 'PayoutController@store')->name('payout.store');
+    Route::get('/admin/payout/request', 'PayoutController@requestLink')->name('payout.request');
+    Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
     Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');

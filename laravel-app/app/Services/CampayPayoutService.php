@@ -27,6 +27,20 @@ class CampayPayoutService
         return '237'.$digits;
     }
 
+    public function operatorName($phone)
+    {
+        $to = $this->momoNumber($phone);
+        if (! $to) {
+            return '';
+        }
+        $digits = substr($to, 3);
+        $three = substr($digits, 0, 3);
+        $two = substr($digits, 0, 2);
+        $mtn = $two === '67' || ($three >= '650' && $three <= '654') || ($three >= '680' && $three <= '683');
+
+        return $mtn ? 'MTN' : 'Orange';
+    }
+
     public function balance()
     {
         $body = $this->call('GET', 'balance/', []);
@@ -37,6 +51,12 @@ class CampayPayoutService
         foreach ($body as $key => $value) {
             if (is_numeric($value)) {
                 $lines[] = ucfirst((string) $key).' '.number_format((float) $value, 0, '.', ' ');
+            } elseif (is_array($value)) {
+                foreach ($value as $innerKey => $inner) {
+                    if (is_numeric($inner)) {
+                        $lines[] = ucfirst((string) $innerKey).' '.number_format((float) $inner, 0, '.', ' ');
+                    }
+                }
             }
         }
 

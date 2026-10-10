@@ -1989,7 +1989,11 @@
                             <li>
                                 <a href="#payments" data-nav-key="payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
                                 <ul id="payments" class="collapse list-unstyled ">
-                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
+                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Payment</a></li>
+                                    @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
+                                        <li id="payout-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
+                                        <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
+                                    @endif
                                     <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">All Deposits</a></li>
                                 </ul>
                             </li>
@@ -2220,9 +2224,6 @@
                                 }
                             }
                         @endphp
-                        @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
-                            <li id="payout-menu"><a href="{{ route('payout.index') }}"><i class="fa fa-money"></i><span>Payout</span></a></li>
-                        @endif
                         @if($whatsapp_module_active)
                             <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
