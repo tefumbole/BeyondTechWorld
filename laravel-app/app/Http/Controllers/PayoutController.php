@@ -123,6 +123,40 @@ class PayoutController extends Controller
         return $this->sendRows($batch, $rows);
     }
 
+    public function drop(Request $request)
+    {
+        $this->guard();
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if ($request->filled('id')) {
+            $ids[] = (int) $request->input('id');
+        }
+        $ids = array_values(array_unique(array_filter($ids)));
+        if (count($ids) < 1) {
+            return back()->with('not_permitted', 'Select the failed payments to delete.');
+        }
+        $rows = CampayPayout::whereIn('id', $ids)->where('status', 'failed')->get();
+        $deleted = 0;
+        $batches = [];
+        foreach ($rows as $row) {
+            if ($row->request_id && ! $this->requests($this->tenantId())->where('id', $row->request_id)->exists()) {
+                continue;
+            }
+            if ($row->request_id) {
+                $batches[$row->request_id] = true;
+            }
+            $row->delete();
+            $deleted++;
+        }
+        foreach (array_keys($batches) as $requestId) {
+            $batch = CampayPayoutRequest::find($requestId);
+            if ($batch) {
+                $this->closeBatch($batch);
+            }
+        }
+
+        return back()->with('message', $deleted.' failed '.($deleted === 1 ? 'payment' : 'payments').' deleted. A retry will not send '.($deleted === 1 ? 'it' : 'them').'.');
+    }
+
     public function requestLink(Request $request)
     {
         $this->guard();
@@ -205,7 +239,7 @@ class PayoutController extends Controller
             if ($saved !== true) {
                 return $back->with('not_permitted', $saved);
             }
-            $deleted = CampayPayout::where('request_id', $batch->id)->whereIn('id', $removeIds)->where('status', 'pending')->delete();
+            $deleted = CampayPayout::where('request_id', $batch->id)->whereIn('id', $removeIds)->whereIn('status', ['pending', 'failed'])->delete();
             $this->closeBatch($batch);
 
             return $back->with('message', $deleted.' '.($deleted === 1 ? 'person' : 'people').' deleted.');
@@ -237,47 +271,7 @@ class PayoutController extends Controller
             return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
         }
 
-        $service = app(CampayPayoutService::class);
-        $paid = 0;
-        $failed = 0;
-        $skipped = 0;
-        $seen = [];
-        foreach ($lines as $line) {
-            $phone = $service->momoNumber($line->phone);
-            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line->id)) {
-                $skipped++;
-                continue;
-            }
-            $seen[$phone] = true;
-            $existing = $this->confirmExisting($service, $line);
-            if ($existing === 'paid') {
-                $paid++;
-                continue;
-            }
-            if ($existing === 'pending') {
-                $skipped++;
-                continue;
-            }
-            $line->phone = $phone;
-            $line->external_reference = 'po-'.date('YmdHis').'-'.$line->id.'-'.substr(md5(uniqid('', true)), 0, 8);
-            $line->status = 'pending';
-            $line->error = null;
-            $line->campay_reference = null;
-            $line->save();
-            $service->pay($line);
-            if ($line->status === 'paid') {
-                $paid++;
-                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note);
-            } else {
-                $failed++;
-            }
-        }
-        $this->closeBatch($batch);
-
-        return redirect()->route('payout.request', ['review' => $batch->id])->with(
-            'message',
-            $paid.' paid. '.$failed.' not paid. '.$skipped.' not sent again.'
-        );
+        return $this->sendRows($batch, $lines, route('payout.request', ['review' => $batch->id]));
     }
 
     public function resend(Request $request)
@@ -376,27 +370,63 @@ class PayoutController extends Controller
 
     protected function sendRows(CampayPayoutRequest $open, $rows, $returnTo = null)
     {
-        @set_time_limit(180);
-        $service = app(CampayPayoutService::class);
-        $paid = 0;
-        $failed = 0;
-        $total = 0;
-        foreach ($rows as $row) {
-            $service->pay($row);
-            if ($row->status === 'paid') {
-                $paid++;
-                $total += (int) $row->amount;
-                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
-            } else {
-                $failed++;
-            }
-        }
+        $result = $this->payLines($rows);
         $this->closeBatch($open);
 
         return redirect()->to($returnTo ?: route('payout.index', ['request' => $open->id]))->with(
             'message',
-            $paid.' paid ('.number_format($total, 0, '.', ' ').' XAF). '.$failed.' not paid.'
+            $result['paid'].' paid ('.number_format($result['total'], 0, '.', ' ').' XAF). '.$result['failed'].' not paid. '.$result['skipped'].' not sent again.'
         );
+    }
+
+    protected function payLines($rows)
+    {
+        @set_time_limit(180);
+        $service = app(CampayPayoutService::class);
+        $paid = 0;
+        $failed = 0;
+        $skipped = 0;
+        $total = 0;
+        $seen = [];
+        foreach ($rows as $line) {
+            $phone = $service->momoNumber($line->phone);
+            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line->id)) {
+                $skipped++;
+                continue;
+            }
+            $seen[$phone] = true;
+            $existing = $this->confirmExisting($service, $line);
+            if ($existing === 'paid') {
+                $paid++;
+                $total += (int) $line->amount;
+                continue;
+            }
+            if ($existing === 'pending') {
+                $skipped++;
+                continue;
+            }
+            $line->phone = $phone;
+            $line->external_reference = 'po-'.date('YmdHis').'-'.$line->id.'-'.substr(md5(uniqid('', true)), 0, 8);
+            $line->status = 'pending';
+            $line->error = null;
+            $line->campay_reference = null;
+            $line->save();
+            $service->pay($line);
+            if ($line->status === 'paid') {
+                $paid++;
+                $total += (int) $line->amount;
+                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note);
+            } else {
+                $failed++;
+            }
+        }
+
+        return [
+            'paid' => $paid,
+            'failed' => $failed,
+            'skipped' => $skipped,
+            'total' => $total,
+        ];
     }
 
     protected function savePendingAmounts(CampayPayoutRequest $batch, array $amounts)
@@ -444,7 +474,6 @@ class PayoutController extends Controller
     public function retry(Request $request)
     {
         $this->guard();
-        $service = app(CampayPayoutService::class);
         if ($request->filled('request_id')) {
             $batch = $this->requests($this->tenantId())->where('id', (int) $request->input('request_id'))->first();
             if (! $batch) {
@@ -456,46 +485,14 @@ class PayoutController extends Controller
             $rows = collect([$row]);
             $batch = $row->request_id ? CampayPayoutRequest::find($row->request_id) : null;
         }
-        $paid = 0;
-        $skipped = 0;
-        $failed = 0;
-        $seen = [];
-        foreach ($rows as $row) {
-            $phone = $service->momoNumber($row->phone);
-            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $row->id)) {
-                $skipped++;
-                continue;
-            }
-            $seen[$phone] = true;
-            $existing = $this->confirmExisting($service, $row);
-            if ($existing === 'paid') {
-                $paid++;
-                continue;
-            }
-            if ($existing === 'pending') {
-                $skipped++;
-                continue;
-            }
-            $row->external_reference = 'po-'.date('YmdHis').'-'.$row->id.'-'.substr(md5(uniqid('', true)), 0, 8);
-            $row->status = 'pending';
-            $row->error = null;
-            $row->campay_reference = null;
-            $row->save();
-            $service->pay($row);
-            if ($row->status === 'paid') {
-                $paid++;
-                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note);
-            } else {
-                $failed++;
-            }
-        }
+        $result = $this->payLines($rows);
         if ($batch) {
             $this->closeBatch($batch);
         }
 
         return redirect()->back()->with(
             'message',
-            $paid.' paid. '.$failed.' not paid. '.$skipped.' not sent again.'
+            $result['paid'].' paid. '.$result['failed'].' not paid. '.$result['skipped'].' not sent again.'
         );
     }
 

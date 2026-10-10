@@ -59,7 +59,7 @@
             </div>
             <div class="pay-card-body">
                 @if($review->status === 'pending')
-                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request. Mass Payout sends everyone not yet paid through Campay. A number already paid is not sent again.</p>
+                    <p class="pay-help">Change an amount, or select names and delete them. Pay, Approve and Pay, and Mass Payout all use the same send, even when only one person is left. A number already paid is not sent again. Delete a failed payment if a retry should leave it out.</p>
                     <form method="POST" action="{{ route('payout.request.revise') }}" id="reviewForm">
                         @csrf
                         <input type="hidden" name="id" value="{{ $review->id }}">
@@ -78,11 +78,11 @@
                                     @foreach($reviewLines as $line)
                                         @php
                                             $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
-                                            $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Rejected');
+                                            $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : ($line->status === 'failed' ? 'Not paid' : 'Rejected'));
                                         @endphp
                                         <tr>
                                             <td>
-                                                @if($line->status === 'pending')
+                                                @if(in_array($line->status, ['pending', 'failed'], true))
                                                     <input type="checkbox" class="review-line" name="remove_ids[]" value="{{ $line->id }}">
                                                 @endif
                                             </td>
@@ -95,7 +95,10 @@
                                                     {{ number_format($line->amount, 0, '.', ' ') }}
                                                 @endif
                                             </td>
-                                            <td><span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span></td>
+                                            <td>
+                                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                                @if($line->error)<div class="pay-note">{{ $line->error }}</div>@endif
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -133,21 +136,77 @@
                     })();
                     </script>
                 @else
-                    <div class="table-responsive">
-                        <table class="pay-table">
-                            <thead><tr><th>Name</th><th>Number</th><th>Amount (XAF)</th><th>Status</th></tr></thead>
-                            <tbody>
-                                @foreach($reviewLines as $line)
+                    @if($reviewLines->where('status', 'failed')->count() > 0)
+                        <p class="pay-help">Select the payments that failed and delete them. A retry will not send a deleted payment.</p>
+                    @endif
+                    <form method="POST" action="{{ route('payout.drop') }}" id="failedForm">
+                        @csrf
+                        <div class="table-responsive">
+                            <table class="pay-table">
+                                <thead>
                                     <tr>
-                                        <td>{{ $line->person_name }}</td>
-                                        <td>{{ $line->phone }}</td>
-                                        <td>{{ number_format($line->amount, 0, '.', ' ') }}</td>
-                                        <td>{{ $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : 'Rejected') }}</td>
+                                        <th style="width:36px"><input type="checkbox" id="failedAll" title="Select all failed"></th>
+                                        <th>Name</th>
+                                        <th>Number</th>
+                                        <th>Amount (XAF)</th>
+                                        <th>Status</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    @foreach($reviewLines as $line)
+                                        @php
+                                            $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
+                                            $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : ($line->status === 'failed' ? 'Not paid' : 'Rejected'));
+                                        @endphp
+                                        <tr>
+                                            <td>
+                                                @if($line->status === 'failed')
+                                                    <input type="checkbox" class="failed-line" name="ids[]" value="{{ $line->id }}">
+                                                @endif
+                                            </td>
+                                            <td>{{ $line->person_name }}</td>
+                                            <td>{{ $line->phone }}</td>
+                                            <td>{{ number_format($line->amount, 0, '.', ' ') }}</td>
+                                            <td>
+                                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                                @if($line->error)<div class="pay-note">{{ $line->error }}</div>@endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @if($reviewLines->where('status', 'failed')->count() > 0)
+                            <div class="pay-actions">
+                                <button class="pay-go" type="submit" style="background:#fdecec;color:#9b1c1c" id="failedDelete">Delete</button>
+                            </div>
+                        @endif
+                    </form>
+                    <script>
+                    (function () {
+                        var form = document.getElementById('failedForm');
+                        var all = document.getElementById('failedAll');
+                        var del = document.getElementById('failedDelete');
+                        if (!form || !del) return;
+                        function boxes() { return form.querySelectorAll('.failed-line'); }
+                        if (all) {
+                            all.addEventListener('change', function () {
+                                boxes().forEach(function (box) { box.checked = all.checked; });
+                            });
+                        }
+                        del.addEventListener('click', function (event) {
+                            var count = 0;
+                            boxes().forEach(function (box) { if (box.checked) count++; });
+                            if (!count) {
+                                event.preventDefault();
+                                return;
+                            }
+                            if (!confirm('Delete ' + count + (count === 1 ? ' failed payment? A retry will not send it.' : ' failed payments? A retry will not send them.'))) {
+                                event.preventDefault();
+                            }
+                        });
+                    })();
+                    </script>
                 @endif
             </div>
         </div>
@@ -230,6 +289,7 @@
                                     </form>
                                 @endif
                                 @if($item['kind'] === 'submitted' && $lineFailed > 0)
+                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}" style="background:#fdecec;color:#9b1c1c !important">Delete failed</a>
                                     <form method="POST" action="{{ route('payout.retry') }}">
                                         @csrf
                                         <input type="hidden" name="request_id" value="{{ $row->id }}">

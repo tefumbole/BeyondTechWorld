@@ -25,7 +25,7 @@
         <div class="pay-card">
             <div class="pay-card-head"><h2>New Payout</h2></div>
             <div class="pay-card-body">
-                <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. Campay shows the name on the number.</p>
+                <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. One person or many, the payout is sent the same way. A number already paid is left out.</p>
                 <div class="pay-search">
                     <input type="search" id="payoutSearch" class="form-control" placeholder="Type a name or number" autocomplete="off">
                     <div id="payoutHits" class="list-group" style="position:absolute;z-index:5;width:100%;max-height:240px;overflow:auto"></div>
@@ -190,11 +190,18 @@
                                 <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
                                 @if($row->error)<div class="pay-note">{{ $row->error }}</div>@endif
                                 @if($row->status === 'failed')
-                                    <form method="POST" action="{{ route('payout.retry') }}" style="margin-top:6px">
-                                        @csrf
-                                        <input type="hidden" name="id" value="{{ $row->id }}">
-                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
-                                    </form>
+                                    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+                                        <form method="POST" action="{{ route('payout.retry') }}">
+                                            @csrf
+                                            <input type="hidden" name="id" value="{{ $row->id }}">
+                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer">Retry</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('payout.drop') }}">
+                                            @csrf
+                                            <input type="hidden" name="id" value="{{ $row->id }}">
+                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer;background:#fdecec;color:#9b1c1c" onclick="return confirm('Delete this failed payment? A retry will not send it.')">Delete</button>
+                                        </form>
+                                    </div>
                                 @endif
                             </td>
                         </tr>
