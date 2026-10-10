@@ -331,6 +331,102 @@ class WhatsAppConversationService
         return $result;
     }
 
+    public function replyFile(WhatsAppConversation $conversation, $localPath, $originalName, $mime, $caption, $userId = null)
+    {
+        $caption = trim((string) $caption);
+        if (! is_file($localPath)) {
+            return ['success' => false, 'error' => 'Choose a photo or file to send.'];
+        }
+        if (AssistantRuntimeSettings::manualReplyTakesOver() && $conversation->mode === WhatsAppConversation::MODE_AI) {
+            $conversation->mode = WhatsAppConversation::MODE_HUMAN;
+            if ($userId) {
+                $conversation->assigned_user_id = $userId;
+            }
+            $conversation->save();
+            $this->event($conversation, WhatsAppConversationEvent::TAKEOVER, 'HUMAN_TAKEOVER_BY_REPLY', $userId);
+        }
+
+        $contact = $conversation->contact;
+        if (! $contact || $contact->isBlocked()) {
+            return ['success' => false, 'error' => 'Contact is blocked or missing.'];
+        }
+
+        $isImage = stripos((string) $mime, 'image/') === 0;
+        $type = $isImage ? 'IMAGE' : 'DOCUMENT';
+        $dir = public_path('whatsapp-chat');
+        if (! is_dir($dir) && ! @mkdir($dir, 0755, true)) {
+            return ['success' => false, 'error' => 'Could not store the file.'];
+        }
+        $safe = preg_replace('/[^A-Za-z0-9._-]/', '', (string) $originalName);
+        if ($safe === '' || $safe === '.' || $safe === '..') {
+            $safe = $isImage ? 'photo.jpg' : 'file';
+        }
+        $stored = date('YmdHis').'-'.substr(md5(uniqid('', true)), 0, 8).'-'.$safe;
+        $dest = $dir.DIRECTORY_SEPARATOR.$stored;
+        if (! @copy($localPath, $dest)) {
+            return ['success' => false, 'error' => 'Could not store the file.'];
+        }
+
+        $message = WhatsAppMessage::create([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => $type,
+            'body' => $caption !== '' ? $caption : null,
+            'media_json' => json_encode([
+                'url' => 'whatsapp-chat/'.$stored,
+                'file_name' => (string) $originalName,
+                'type' => $type,
+            ]),
+            'status' => WhatsAppMessage::STATUS_QUEUED,
+            'sender_type' => 'STAFF',
+            'sender_user_id' => $userId,
+            'queued_at' => now(),
+        ]);
+
+        if ($conversation->isWebsite()) {
+            $message->provider_message_id = 'webmsg:'.uniqid('', true);
+            $message->status = WhatsAppMessage::STATUS_SENT;
+            $message->sent_at = now();
+            $message->save();
+            $result = ['success' => true];
+        } elseif ($isImage) {
+            $result = $this->provider->sendImage($contact->normalized_phone, $dest, $caption !== '' ? $caption : null);
+        } else {
+            $result = $this->provider->sendDocument($contact->normalized_phone, $dest, $originalName, $caption !== '' ? $caption : null);
+        }
+
+        if (! $conversation->isWebsite()) {
+            if (! empty($result['success'])) {
+                $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
+                $message->status = WhatsAppMessage::STATUS_SENT;
+                $message->sent_at = now();
+                $message->save();
+            } else {
+                $message->status = WhatsAppMessage::STATUS_FAILED;
+                $message->failed_at = now();
+                $message->error = isset($result['error']) ? substr((string) $result['error'], 0, 500) : 'send failed';
+                $message->save();
+            }
+        }
+
+        $preview = $caption !== '' ? $caption : '['.$type.']';
+        if (! $conversation->first_message) {
+            $conversation->first_message = $preview;
+        }
+        $conversation->last_message = $preview;
+        $conversation->last_activity_at = now();
+        $conversation->last_outgoing_at = now();
+        $conversation->unread_count = 0;
+        if ($conversation->status !== WhatsAppConversation::STATUS_CLOSED) {
+            $conversation->status = WhatsAppConversation::STATUS_WAITING_CUSTOMER;
+        }
+        $conversation->save();
+        $result['message'] = $message;
+
+        return $result;
+    }
+
     public function sendServicePoll(WhatsAppConversation $conversation)
     {
         $contact = $conversation ? $conversation->contact : null;

@@ -40,6 +40,17 @@
     .bubble.in { background: #fff; border: 1px solid #e3e9f4; }
     .bubble.out { background: #e7eef8; border: 1px solid #d5e2f4; margin-left: auto; }
     .bubble time { float: right; margin: 6px 0 0 8px; color: var(--beyond-muted); font-size: 11px; line-height: 1; }
+    .bubble .tick { margin-left: 3px; letter-spacing: -1px; }
+    .bubble .tick.read { color: var(--beyond-primary); }
+    .bubble .tick.failed { color: #b42318; }
+    .bubble img.chat-photo { display: block; max-width: 260px; width: 100%; border-radius: 6px; margin-bottom: 4px; }
+    .bubble audio, .bubble video { display: block; max-width: 260px; width: 100%; margin-bottom: 4px; }
+    .bubble a.chat-file { color: var(--beyond-primary); font-weight: 700; }
+    .bubble .who { display: block; font-size: 12px; font-weight: 700; color: var(--beyond-primary); margin-bottom: 2px; }
+    .day-chip { align-self: center; background: #fff; border: 1px solid #e3e9f4; color: var(--beyond-muted); border-radius: 8px; font-size: 12px; padding: 3px 10px; margin: 8px 0 4px; }
+    .clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e3e9f4; background: var(--beyond-bg); color: var(--beyond-primary); font-size: 24px; font-weight: 600; cursor: pointer; flex: none; }
+    .clip input { display: none; }
+    .file-name { align-self: center; color: var(--beyond-muted); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chats-compose { display: flex; gap: 8px; padding: 10px 16px; background: var(--beyond-card); border-top: 1px solid #e3e9f4; }
     .chats-compose textarea { flex: 1; border: 1px solid #e3e9f4; border-radius: 8px; background: var(--beyond-bg); color: var(--beyond-text); min-height: 44px; max-height: 120px; padding: 10px 12px; resize: none; }
     .chats-compose button { border: 0; border-radius: 50%; width: 44px; height: 44px; background: var(--beyond-primary); color: #fff; font-weight: 800; cursor: pointer; }
@@ -77,6 +88,12 @@
                 @php
                     $person = optional($row->contact)->displayName() ?: 'WhatsApp';
                     $when = $row->last_activity_at ?: $row->updated_at;
+                    $preview = trim((string) $row->last_message);
+                    $previewLabels = ['[IMAGE]' => 'Photo', '[AUDIO]' => 'Voice message', '[VIDEO]' => 'Video', '[DOCUMENT]' => 'Document', '[LOCATION]' => 'Location'];
+                    $previewKey = strtoupper($preview);
+                    if (isset($previewLabels[$previewKey])) {
+                        $preview = $previewLabels[$previewKey];
+                    }
                 @endphp
                 <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-kind="person" data-read="{{ (int) $row->unread_count > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar">{{ strtoupper(substr($person, 0, 1)) }}</span>
@@ -88,7 +105,7 @@
                         <span class="chat-bottom">
                             <span class="chat-preview">
                                 @if($row->mode === 'AI')<span class="chat-ai">AI </span>@endif
-                                {{ $row->last_message }}
+                                {{ $preview }}
                             </span>
                             @if((int) $row->unread_count > 0)
                                 <span class="chat-badge">{{ $row->unread_count }}</span>
@@ -134,24 +151,42 @@
             </header>
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
             <div class="chats-stream" id="chatStream">
+                @php $prevDay = null; @endphp
                 @forelse($messages as $message)
                     @php
-                        $text = trim((string) $message->body);
-                        $text = preg_replace("/[ \t]+\n/", "\n", $text);
-                        $text = preg_replace("/\n{2,}/", "\n", $text);
+                        $day = $message->created_at ? $message->created_at->copy()->startOfDay() : null;
+                        $dayKey = $day ? $day->format('Y-m-d') : '';
                     @endphp
-                    <div class="bubble {{ $message->direction === 'OUTGOING' ? 'out' : 'in' }}">
-                        {{ $text }}
-                        <time>{{ $message->created_at ? $message->created_at->format('H:i') : '' }}</time>
-                    </div>
+                    @if($dayKey !== $prevDay)
+                        @php
+                            $prevDay = $dayKey;
+                            $dayLabel = 'Earlier';
+                            if ($day && $day->isToday()) $dayLabel = 'Today';
+                            elseif ($day && $day->isYesterday()) $dayLabel = 'Yesterday';
+                            elseif ($day) $dayLabel = $day->format('M j, Y');
+                        @endphp
+                        <div class="day-chip">{{ $dayLabel }}</div>
+                    @endif
+                    @include('whatsapp_hub.partials.chat_bubble', [
+                        'out' => $message->direction === 'OUTGOING',
+                        'text' => $message->body,
+                        'time' => $message->created_at ? $message->created_at->format('H:i') : '',
+                        'tick' => $message->ticks(),
+                        'type' => $message->type,
+                        'mediaUrl' => $message->chatMediaUrl(),
+                        'mediaName' => $message->chatMediaName(),
+                        'who' => null,
+                    ])
                 @empty
                     <div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>
                 @endforelse
             </div>
             @if($canReply)
-                <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}">
+                <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.reply', $open->id) }}" enctype="multipart/form-data">
                     @csrf
-                    <textarea name="body" id="chatBody" placeholder="Type a message" required></textarea>
+                    <label class="clip" title="Photo or file">+<input type="file" name="file" id="chatFile" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"></label>
+                    <span class="file-name" id="chatFileName"></span>
+                    <textarea name="body" id="chatBody" placeholder="Type a message"></textarea>
                     <button type="submit" aria-label="Send">➤</button>
                 </form>
             @endif
@@ -163,18 +198,62 @@
                 </div>
                 <a class="announce-btn" href="{{ route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
             </header>
-            <div class="chats-stream">
-                <div class="group-card">
-                    <span class="chat-avatar is-group" style="margin:0 auto;width:72px;height:72px;font-size:28px;">G</span>
-                    <h2>{{ $group['name'] }}</h2>
-                    <p>This is a WhatsApp group. Open it here, then create an announcement for its members.</p>
-                    <a class="announce-btn" href="{{ route('announcements.compose', ['group' => $group['jid']]) }}">Create announcement</a>
-                </div>
+            @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
+            <div class="chats-stream" id="chatStream">
+                @php $prevDay = null; @endphp
+                @forelse($groupMessages as $message)
+                    @php
+                        $media = [];
+                        if ($message->media_json) {
+                            $decoded = json_decode((string) $message->media_json, true);
+                            $media = is_array($decoded) ? $decoded : [];
+                        }
+                        $when = $message->message_at ?: $message->created_at;
+                        $day = $when ? $when->copy()->startOfDay() : null;
+                        $dayKey = $day ? $day->format('Y-m-d') : '';
+                        $mediaUrl = isset($media['url']) ? (string) $media['url'] : '';
+                        if ($mediaUrl !== '' && strpos($mediaUrl, 'whatsapp-chat/') === 0) {
+                            $mediaUrl = asset('public/'.$mediaUrl);
+                        } elseif ($mediaUrl !== '' && ! preg_match('#^https?://#i', $mediaUrl)) {
+                            $mediaUrl = '';
+                        }
+                    @endphp
+                    @if($dayKey !== $prevDay)
+                        @php
+                            $prevDay = $dayKey;
+                            $dayLabel = 'Earlier';
+                            if ($day && $day->isToday()) $dayLabel = 'Today';
+                            elseif ($day && $day->isYesterday()) $dayLabel = 'Yesterday';
+                            elseif ($day) $dayLabel = $day->format('M j, Y');
+                        @endphp
+                        <div class="day-chip">{{ $dayLabel }}</div>
+                    @endif
+                    @include('whatsapp_hub.partials.chat_bubble', [
+                        'out' => ! empty($media['outgoing']),
+                        'text' => $message->body,
+                        'time' => $when ? $when->format('H:i') : '',
+                        'tick' => ! empty($media['outgoing']) ? 'sent' : '',
+                        'type' => isset($media['type']) ? $media['type'] : 'TEXT',
+                        'mediaUrl' => $mediaUrl,
+                        'mediaName' => isset($media['file_name']) ? $media['file_name'] : '',
+                        'who' => empty($media['outgoing']) ? ($message->participant_name ?: 'Member') : null,
+                    ])
+                @empty
+                    <div class="chats-empty"><strong>{{ $group['name'] }}</strong>Send a message to this group, or create an announcement for its members.</div>
+                @endforelse
             </div>
+            @if($canReply)
+                <form class="chats-compose" method="POST" action="{{ route('whatsapp.chats.group') }}">
+                    @csrf
+                    <input type="hidden" name="jid" value="{{ $group['jid'] }}">
+                    <textarea name="body" id="chatBody" placeholder="Message the group"></textarea>
+                    <button type="submit" aria-label="Send">➤</button>
+                </form>
+            @endif
         @else
             <div class="chats-empty">
                 <strong>Chats</strong>
-                Search a name on the left. A person opens the WhatsApp thread. A group opens Create announcement.
+                Search a name on the left. A person opens the WhatsApp thread. A group opens so you can message it or create an announcement.
             </div>
         @endif
     </section>
@@ -222,12 +301,28 @@
     var stream = document.getElementById('chatStream');
     if (stream) stream.scrollTop = stream.scrollHeight;
     var body = document.getElementById('chatBody');
+    var file = document.getElementById('chatFile');
+    var fileName = document.getElementById('chatFileName');
+    function canSend() {
+        var typed = body && body.value.trim() !== '';
+        var picked = file && file.files && file.files.length;
+        return typed || picked;
+    }
+    if (file) {
+        file.addEventListener('change', function () {
+            var picked = file.files && file.files[0];
+            if (fileName) fileName.textContent = picked ? picked.name : '';
+        });
+    }
     if (body) {
         body.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
-                body.form.submit();
+                if (canSend()) body.form.submit();
             }
+        });
+        body.form.addEventListener('submit', function (event) {
+            if (!canSend()) event.preventDefault();
         });
     }
     @if($open)

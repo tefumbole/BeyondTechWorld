@@ -215,6 +215,7 @@ class WhatsAppHubController extends Controller
         $open = null;
         $messages = collect();
         $group = null;
+        $groupMessages = collect();
         $jid = trim((string) $request->get('group', ''));
         if ($jid !== '') {
             foreach ($groups as $row) {
@@ -226,6 +227,17 @@ class WhatsAppHubController extends Controller
             if (! $group && substr($jid, -5) === '@g.us') {
                 $group = ['jid' => $jid, 'name' => 'WhatsApp group', 'members' => null];
             }
+            if ($group && Schema::hasTable('whatsapp_group_messages')) {
+                $record = \App\WhatsApp\WhatsAppGroup::where('group_jid', $group['jid'])->first();
+                if ($record) {
+                    $groupMessages = \App\WhatsApp\WhatsAppGroupMessage::where('group_id', $record->id)
+                        ->orderByDesc('id')
+                        ->limit(200)
+                        ->get()
+                        ->reverse()
+                        ->values();
+                }
+            }
         } elseif ($request->filled('chat')) {
             $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
             if ($open) {
@@ -235,7 +247,7 @@ class WhatsAppHubController extends Controller
         }
         $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
 
-        return view('whatsapp_hub.chats', compact('conversations', 'groups', 'open', 'messages', 'group', 'canReply'));
+        return view('whatsapp_hub.chats', compact('conversations', 'groups', 'open', 'messages', 'group', 'groupMessages', 'canReply'));
     }
 
     public function chatsReply(Request $request, $id)
@@ -244,10 +256,63 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
-        $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
         $back = route('whatsapp.chats', ['chat' => $conversation->id]);
+        $file = $request->file('file');
+        if ($file) {
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
+            $ext = strtolower((string) $file->getClientOriginalExtension());
+            if (! in_array($ext, $allowed, true) || $file->getSize() > 8 * 1024 * 1024) {
+                return redirect()->to($back)->with('not_permitted', 'Send a photo or document up to 8 MB.');
+            }
+            $result = $this->conversations->replyFile(
+                $conversation,
+                $file->getRealPath(),
+                $file->getClientOriginalName(),
+                (string) $file->getMimeType(),
+                $request->input('body'),
+                Auth::id()
+            );
+        } else {
+            $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
+        }
         if (empty($result['success'])) {
             return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+        }
+
+        return redirect()->to($back);
+    }
+
+    public function chatsGroupReply(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $jid = trim((string) $request->input('jid'));
+        $body = trim((string) $request->input('body'));
+        $back = route('whatsapp.chats', ['group' => $jid]);
+        if (substr($jid, -5) !== '@g.us' || $body === '') {
+            return redirect()->to($back)->with('not_permitted', 'Type a message for the group.');
+        }
+        $result = $this->provider->sendGroupText($jid, $body);
+        if (empty($result['success'])) {
+            return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+        }
+        if (Schema::hasTable('whatsapp_groups') && Schema::hasTable('whatsapp_group_messages')) {
+            $record = \App\WhatsApp\WhatsAppGroup::firstOrCreate(
+                ['group_jid' => $jid],
+                ['name' => 'WhatsApp group', 'enabled' => false, 'mode' => \App\WhatsApp\WhatsAppGroup::OFF]
+            );
+            $msgId = isset($result['msg_id']) ? (string) $result['msg_id'] : ('staff:'.uniqid('', true));
+            if (! \App\WhatsApp\WhatsAppGroupMessage::where('provider_message_id', $msgId)->exists()) {
+                \App\WhatsApp\WhatsAppGroupMessage::create([
+                    'group_id' => $record->id,
+                    'provider_message_id' => $msgId,
+                    'participant_name' => Auth::user() ? Auth::user()->name : 'Beyond Enterprise',
+                    'body' => $body,
+                    'media_json' => json_encode(['outgoing' => true]),
+                    'message_at' => now(),
+                ]);
+            }
         }
 
         return redirect()->to($back);

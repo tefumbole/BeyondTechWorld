@@ -55,6 +55,36 @@ class WhatsAppMessage extends Model
         return is_array($decoded) ? $decoded : [];
     }
 
+    public function chatMediaUrl()
+    {
+        $media = $this->media();
+        $url = isset($media['url']) ? trim((string) $media['url']) : '';
+        if ($url === '') {
+            return '';
+        }
+        if (strpos($url, 'whatsapp-chat/') === 0) {
+            return asset('public/'.$url);
+        }
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+
+        return '';
+    }
+
+    public function chatMediaName()
+    {
+        $media = $this->media();
+        if (! empty($media['file_name'])) {
+            return (string) $media['file_name'];
+        }
+        if (! empty($media['path'])) {
+            return (string) $media['path'];
+        }
+
+        return '';
+    }
+
     public function ticks()
     {
         if ($this->direction !== self::DIR_OUT) {
