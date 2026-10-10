@@ -196,6 +196,63 @@ class WhatsAppHubController extends Controller
         ));
     }
 
+    public function chats(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $conversations = WhatsAppConversation::with('contact')
+            ->orderByDesc('last_activity_at')
+            ->orderByDesc('id')
+            ->limit(150)
+            ->get();
+        $groups = [];
+        try {
+            $groups = app(\App\Services\WhatsApp\GroupContactExportService::class)->namedGroups();
+        } catch (\Throwable $e) {
+            $groups = [];
+        }
+        $open = null;
+        $messages = collect();
+        $group = null;
+        $jid = trim((string) $request->get('group', ''));
+        if ($jid !== '') {
+            foreach ($groups as $row) {
+                if ((string) $row['jid'] === $jid) {
+                    $group = $row;
+                    break;
+                }
+            }
+            if (! $group && substr($jid, -5) === '@g.us') {
+                $group = ['jid' => $jid, 'name' => 'WhatsApp group', 'members' => null];
+            }
+        } elseif ($request->filled('chat')) {
+            $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
+            if ($open) {
+                $this->conversations->markRead($open);
+                $messages = WhatsAppMessage::where('conversation_id', $open->id)->orderBy('id')->get();
+            }
+        }
+        $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
+
+        return view('whatsapp_hub.chats', compact('conversations', 'groups', 'open', 'messages', 'group', 'canReply'));
+    }
+
+    public function chatsReply(Request $request, $id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $conversation = WhatsAppConversation::with('contact')->findOrFail($id);
+        $result = $this->conversations->reply($conversation, $request->input('body'), Auth::id());
+        $back = route('whatsapp.chats', ['chat' => $conversation->id]);
+        if (empty($result['success'])) {
+            return redirect()->to($back)->with('not_permitted', isset($result['error']) ? $result['error'] : 'Send failed.');
+        }
+
+        return redirect()->to($back);
+    }
+
     public function people(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {

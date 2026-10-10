@@ -597,6 +597,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/link/disconnect', 'WhatsApp\WhatsAppHubController@disconnectLink')->name('whatsapp.link.disconnect');
     Route::get('/admin/whatsapp/people', 'WhatsApp\WhatsAppHubController@people')->name('whatsapp.people');
     Route::post('/admin/whatsapp/contacts/{id}/voice', 'WhatsApp\WhatsAppHubController@saveContactVoice')->name('whatsapp.contact.voice');
+    Route::get('/admin/whatsapp/chats', 'WhatsApp\WhatsAppHubController@chats')->name('whatsapp.chats');
+    Route::post('/admin/whatsapp/chats/{id}/reply', 'WhatsApp\WhatsAppHubController@chatsReply')->name('whatsapp.chats.reply');
     Route::get('/admin/whatsapp/conversations', 'WhatsApp\WhatsAppHubController@conversations')->name('whatsapp.conversations');
     Route::post('/admin/whatsapp/conversations/delete', 'WhatsApp\WhatsAppHubController@destroyConversations')->name('whatsapp.conversations.delete');
     Route::post('/admin/whatsapp/conversations/{id}/delete', 'WhatsApp\WhatsAppHubController@destroyConversation')->name('whatsapp.conversation.delete');

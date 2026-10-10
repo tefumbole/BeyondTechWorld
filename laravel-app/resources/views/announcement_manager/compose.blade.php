@@ -904,4 +904,15 @@ window.AN_PRESELECT = @json([
     refreshCc();
 })();
 </script>
+@if(request('group'))
+<script>
+(function () {
+    var jid = @json((string) request('group'));
+    var pill = document.querySelector('.an-audience[data-audience="group"]');
+    if (pill) pill.click();
+    var row = document.querySelector('.an-group-row[data-jid="' + jid.replace(/"/g, '\\"') + '"] input');
+    if (row) row.checked = true;
+})();
+</script>
+@endif
 @endsection
