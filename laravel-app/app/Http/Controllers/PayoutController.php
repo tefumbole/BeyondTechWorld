@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\CampayPaymentInvite;
 use App\CampayPayout;
 use App\CampayPayoutLink;
 use App\CampayPayoutRequest;
@@ -140,8 +141,56 @@ class PayoutController extends Controller
             $link->save();
         }
         $url = route('payout.request.form', ['token' => $link->token]);
+        $invites = CampayPaymentInvite::query()
+            ->when($tenantId, function ($query) use ($tenantId) {
+                $query->where('cloud_tenant_id', $tenantId);
+            }, function ($query) {
+                $query->whereNull('cloud_tenant_id');
+            })
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get();
+        $submitted = $this->requests($tenantId)->with('lines')->orderByDesc('id')->limit(40)->get();
 
-        return view('payout.request', compact('url'));
+        return view('payout.request', compact('url', 'invites', 'submitted'));
+    }
+
+    public function resend(Request $request)
+    {
+        $this->guard();
+        $kind = (string) $request->input('kind');
+        $id = (int) $request->input('id');
+        if ($kind === 'invite') {
+            $row = $this->inviteRow($id);
+            $url = $this->requestUrl();
+            $count = 0;
+            foreach ((array) $row->people as $line) {
+                if (empty($line['phone']) || empty($line['name'])) {
+                    continue;
+                }
+                $this->sendInvite($line['phone'], $line['name'], (string) $row->reason, $url);
+                $count++;
+            }
+            $row->sent_at = now();
+            $row->save();
+
+            return redirect()->route('payout.request')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
+        }
+        if ($kind === 'submitted') {
+            $batch = $this->requests($this->tenantId())->where('id', $id)->first();
+            if (! $batch) {
+                abort(404);
+            }
+            $count = 0;
+            foreach ($batch->lines as $line) {
+                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note);
+                $count++;
+            }
+
+            return redirect()->route('payout.request')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
+        }
+
+        return redirect()->route('payout.request')->with('not_permitted', 'That request could not be sent again.');
     }
 
     public function invite(Request $request)
@@ -153,6 +202,12 @@ class PayoutController extends Controller
             return back()->with('not_permitted', $people['error']);
         }
         $url = $this->requestUrl();
+        $invite = new CampayPaymentInvite();
+        $invite->cloud_tenant_id = $this->tenantId();
+        $invite->reason = $reason !== '' ? substr($reason, 0, 191) : null;
+        $invite->people = $people['lines'];
+        $invite->sent_at = now();
+        $invite->save();
         $sent = 0;
         foreach ($people['lines'] as $line) {
             $this->sendInvite($line['phone'], $line['name'], $reason, $url);
@@ -933,6 +988,23 @@ class PayoutController extends Controller
 
             return null;
         });
+    }
+
+    protected function inviteRow($id)
+    {
+        $tenantId = $this->tenantId();
+        $query = CampayPaymentInvite::query()->where('id', (int) $id);
+        if ($tenantId) {
+            $query->where('cloud_tenant_id', $tenantId);
+        } else {
+            $query->whereNull('cloud_tenant_id');
+        }
+        $row = $query->first();
+        if (! $row) {
+            abort(404);
+        }
+
+        return $row;
     }
 
     protected function requests($tenantId)

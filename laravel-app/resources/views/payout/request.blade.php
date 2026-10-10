@@ -42,6 +42,76 @@
             </div>
         </div>
     </div>
+
+    <div class="pay-card">
+        <div class="pay-card-head"><h2>Requested payments</h2></div>
+        <div class="table-responsive">
+            <table class="pay-table">
+                <thead>
+                    <tr><th>When</th><th>People</th><th>Reason</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @php
+                        $rows = collect();
+                        foreach ($invites as $row) {
+                            $rows->push(['at' => $row->created_at, 'kind' => 'invite', 'row' => $row]);
+                        }
+                        foreach ($submitted as $row) {
+                            $rows->push(['at' => $row->created_at, 'kind' => 'submitted', 'row' => $row]);
+                        }
+                        $rows = $rows->sortByDesc(function ($item) {
+                            return $item['at'] ? $item['at']->timestamp : 0;
+                        })->values();
+                    @endphp
+                    @forelse($rows as $item)
+                        @php $row = $item['row']; @endphp
+                        <tr>
+                            <td>
+                                {{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}
+                                @if($item['kind'] === 'invite' && $row->sent_at && $row->created_at && $row->sent_at->gt($row->created_at->copy()->addMinute()))
+                                    <div class="pay-muted">Resent {{ $row->sent_at->format('M j, H:i') }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                @if($item['kind'] === 'invite')
+                                    @foreach((array) $row->people as $person)
+                                        <div>{{ $person['name'] ?? '' }} <span class="pay-muted">{{ $person['phone'] ?? '' }}</span></div>
+                                    @endforeach
+                                @else
+                                    @foreach($row->lines as $line)
+                                        <div>{{ $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
+                                    @endforeach
+                                    @if($row->requester_name)
+                                        <div class="pay-muted">From {{ $row->requester_name }}</div>
+                                    @endif
+                                @endif
+                            </td>
+                            <td>{{ $item['kind'] === 'invite' ? $row->reason : $row->note }}</td>
+                            <td>
+                                @if($item['kind'] === 'invite')
+                                    <span class="pay-pill pay-pill-wait">Asked</span>
+                                @elseif($row->status === 'done')
+                                    <span class="pay-pill pay-pill-ok">Paid</span>
+                                @else
+                                    <span class="pay-pill pay-pill-wait">Submitted</span>
+                                @endif
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ route('payout.request.resend') }}">
+                                    @csrf
+                                    <input type="hidden" name="kind" value="{{ $item['kind'] }}">
+                                    <input type="hidden" name="id" value="{{ $row->id }}">
+                                    <button class="pay-open" type="submit" style="border:0;cursor:pointer">Resend</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="pay-muted">No payment requests yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 </section>
 <script>
 (function () {
