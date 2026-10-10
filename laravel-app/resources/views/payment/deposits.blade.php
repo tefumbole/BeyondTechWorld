@@ -181,11 +181,11 @@
                                 .then(function (info) {
                                     if (!info || !info.ok) return;
                                     clientGuard = info;
-                                    var lines = [person.name + ' · ' + person.phone];
-                                    if (info.momo_name) lines.push('Name on MoMo: ' + info.momo_name + (info.operator ? ' · ' + info.operator : ''));
-                                    if (info.balance_note) lines.push(info.balance_note);
-                                    if (info.warning) lines.push(info.warning);
-                                    chosen.textContent = lines.join(' — ');
+                                    if (info.balance !== null && info.balance !== undefined && info.balance !== '') {
+                                        chosen.textContent = Number(info.balance).toLocaleString() + ' XAF';
+                                        return;
+                                    }
+                                    chosen.textContent = person.name + ' · ' + person.phone;
                                 });
                         });
                         hits.appendChild(button);
