@@ -2,8 +2,6 @@
 @section('content')
 @include('payout.partials.style')
 <section class="container-fluid pay-app">
-    @include('payout.tabs', ['tab' => 'donations'])
-
     <div class="pay-balance">
         <div>
             <div class="pay-kicker">Donations received</div>
