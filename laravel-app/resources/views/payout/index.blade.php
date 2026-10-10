@@ -14,6 +14,7 @@
     $totalBalance = isset($balanceParts['Total']) ? $balanceParts['Total'] : null;
 @endphp
 <section class="container-fluid pay-app">
+    @include('payout.tabs', ['tab' => 'payout'])
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 

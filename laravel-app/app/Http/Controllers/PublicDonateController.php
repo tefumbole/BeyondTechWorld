@@ -11,12 +11,36 @@ use App\Support\CountryDialCodes;
 use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class PublicDonateController extends Controller
 {
     public function show()
     {
         return view('beyond.donate');
+    }
+
+    public function adminIndex()
+    {
+        if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
+            abort(403);
+        }
+        $pending = PublicDonation::whereIn('status', ['pending', 'waiting'])->orderByDesc('id')->limit(30)->get();
+        foreach ($pending as $donation) {
+            try {
+                $this->refresh($donation);
+            } catch (\Throwable $e) {
+                \Log::warning('Donation status check failed', ['id' => $donation->id, 'error' => $e->getMessage()]);
+            }
+        }
+        $rows = PublicDonation::orderByDesc('id')->limit(100)->get();
+
+        return view('payment.donations', [
+            'rows' => $rows,
+            'tab' => 'donations',
+            'paidTotal' => (int) PublicDonation::where('status', 'paid')->sum('amount'),
+            'pendingTotal' => (int) PublicDonation::whereIn('status', ['pending', 'waiting'])->sum('amount'),
+        ]);
     }
 
     public function lookup(Request $request)
@@ -68,9 +92,6 @@ class PublicDonateController extends Controller
         }
         if ($amount < 100 || $amount > 1000000) {
             return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF.');
-        }
-        if (! in_array($method, ['momo', 'visa', 'crypto'], true)) {
-            $method = 'momo';
         }
         $donation = new PublicDonation();
         $donation->token = bin2hex(random_bytes(16));
@@ -192,19 +213,25 @@ class PublicDonateController extends Controller
         if ($donation->status === 'paid') {
             return;
         }
+        $updated = PublicDonation::where('id', $donation->id)->where('status', '!=', 'paid')->update([
+            'status' => 'paid',
+            'error' => null,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        if (! $updated) {
+            return;
+        }
         $donation->status = 'paid';
         $donation->error = null;
-        $donation->save();
         $amount = number_format($donation->amount, 0, '.', ' ');
         $note = trim((string) $donation->note);
+        $method = $this->methodLabel($donation->method);
         $donor = WhatsAppMessage::statusBlock('✅', 'Donation Received');
         $donor .= 'Dear *'.$donation->person_name.'*,'."\n\n";
         $donor .= 'Your donation of *'.$amount."* XAF has been received.\n";
+        $donor .= "\n".WhatsAppMessage::bullet('Paid with', $method);
         if ($note !== '') {
             $donor .= "\n".WhatsAppMessage::bullet('Note', $note);
-        }
-        if ($donation->method === 'crypto') {
-            $donor .= "\n".WhatsAppMessage::bullet('Paid with', 'Binance');
         }
         $donor .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $donor .= WhatsAppMessage::footer();
@@ -213,16 +240,27 @@ class PublicDonateController extends Controller
         $copy .= 'Dear *'.$this->adminName().'*,'."\n\n";
         $copy .= 'A donation of *'.$amount.'* XAF has been received from *'.$donation->person_name."*.\n";
         $copy .= "\n".WhatsAppMessage::bullet('From', $donation->person_name);
+        $copy .= "\n".WhatsAppMessage::bullet('Phone', $donation->phone);
+        $copy .= "\n".WhatsAppMessage::bullet('Paid with', $method);
+        $copy .= "\n".WhatsAppMessage::bullet('Amount', $amount.' XAF');
         if ($note !== '') {
             $copy .= "\n".WhatsAppMessage::bullet('Note', $note);
         }
-        if ($donation->method === 'crypto') {
-            $copy .= "\n".WhatsAppMessage::bullet('Paid with', 'Binance');
-        }
-        $copy .= "\n".WhatsAppMessage::bullet('Amount', $amount.' XAF');
         $copy .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $copy .= WhatsAppMessage::footer();
         app(ClientNoticeService::class)->send(TwilioAdminCopy::PHONE, $copy);
+    }
+
+    protected function methodLabel($method)
+    {
+        if ($method === 'visa') {
+            return 'VISA';
+        }
+        if ($method === 'crypto') {
+            return 'Crypto';
+        }
+
+        return 'Momo/OM';
     }
 
     protected function adminName()

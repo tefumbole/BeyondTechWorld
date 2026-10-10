@@ -8,6 +8,7 @@
     .pay-chosen { margin-top: 8px; font-weight: 700; }
 </style>
 <section class="container-fluid pay-app">
+    @include('payout.tabs', ['tab' => 'deposits'])
     @if(session()->has('message'))
         <div class="alert alert-success">{{ session()->get('message') }}</div>
     @endif

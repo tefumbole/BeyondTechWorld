@@ -2,6 +2,7 @@
 @section('content')
 @include('payout.partials.style')
 <section class="container-fluid pay-app">
+    @include('payout.tabs', ['tab' => 'request'])
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 

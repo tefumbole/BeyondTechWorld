@@ -14,14 +14,18 @@
             @if(session('not_permitted'))
                 <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2 text-sm">{{ session('not_permitted') }}</div>
             @elseif($donation->status === 'paid')
-                <div class="rounded-lg bg-green-50 text-green-800 px-3 py-2">Your donation has been received. Thank you.</div>
+                <p class="text-sm font-bold uppercase tracking-wide text-green-800 m-0 mb-2">Paid</p>
+                <div class="rounded-lg bg-green-50 text-green-800 px-3 py-2">Your donation has been received. A WhatsApp confirmation has been sent.</div>
             @elseif($donation->status === 'failed')
+                <p class="text-sm font-bold uppercase tracking-wide text-red-800 m-0 mb-2">Not paid</p>
                 <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2">{{ $donation->error ?: 'The donation was not approved.' }}</div>
                 <a class="inline-block mt-4 text-brand-blue font-bold" href="{{ route('donate.show') }}">Try again</a>
             @else
+                <p class="text-sm font-bold uppercase tracking-wide text-amber-800 m-0 mb-2">Pending</p>
                 <div class="rounded-lg bg-amber-50 text-amber-900 px-3 py-2" id="waitNote">
+                    This page stays pending until the payment is completed.
                     @if($donation->method === 'crypto')
-                        Send the exact USDT amount below. This page updates when Binance receives it.
+                        Send the exact USDT amount below. This page updates when it is received.
                     @elseif($donation->method === 'visa')
                         Open the VISA page and complete the card payment.
                     @else

@@ -617,6 +617,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/payout/drop', 'PayoutController@drop')->name('payout.drop');
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');
+    Route::get('/admin/donations', 'PublicDonateController@adminIndex')->name('donations.index');
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
     Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
