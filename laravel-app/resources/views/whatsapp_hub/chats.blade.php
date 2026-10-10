@@ -30,11 +30,11 @@
     .mode-switch button, .announce-btn { border: 0; border-radius: 999px; min-height: 32px; padding: 0 12px; font-weight: 700; cursor: pointer; background: #2a3942; color: #e9edef; }
     .mode-switch button.is-on { background: #00a884; color: #111b21; }
     .announce-btn { background: #00a884; color: #111b21; text-decoration: none; display: inline-flex; align-items: center; }
-    .chats-stream { flex: 1; overflow: auto; padding: 18px 8%; }
-    .bubble { max-width: min(680px, 82%); margin: 4px 0; padding: 7px 10px 4px; border-radius: 8px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+    .chats-stream { flex: 1; overflow: auto; padding: 8px 7% 10px; display: flex; flex-direction: column; gap: 2px; }
+    .bubble { max-width: min(680px, 82%); margin: 0; padding: 3px 8px 2px; border-radius: 8px; line-height: 1.25; white-space: pre-wrap; word-break: break-word; }
     .bubble.in { background: #202c33; }
     .bubble.out { background: #005c4b; margin-left: auto; }
-    .bubble time { display: block; text-align: right; color: #8696a0; font-size: 11px; margin-top: 2px; }
+    .bubble time { float: right; margin: 6px 0 0 8px; color: #8696a0; font-size: 11px; line-height: 1; }
     .chats-compose { display: flex; gap: 8px; padding: 10px 16px; background: #202c33; }
     .chats-compose textarea { flex: 1; border: 0; border-radius: 8px; background: #2a3942; color: #e9edef; min-height: 44px; max-height: 120px; padding: 10px 12px; resize: none; }
     .chats-compose button { border: 0; border-radius: 50%; width: 44px; height: 44px; background: #00a884; color: #111b21; font-weight: 800; cursor: pointer; }
@@ -119,8 +119,13 @@
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
             <div class="chats-stream" id="chatStream">
                 @forelse($messages as $message)
+                    @php
+                        $text = trim((string) $message->body);
+                        $text = preg_replace("/[ \t]+\n/", "\n", $text);
+                        $text = preg_replace("/\n{2,}/", "\n", $text);
+                    @endphp
                     <div class="bubble {{ $message->direction === 'OUTGOING' ? 'out' : 'in' }}">
-                        {{ $message->body }}
+                        {{ $text }}
                         <time>{{ $message->created_at ? $message->created_at->format('H:i') : '' }}</time>
                     </div>
                 @empty
