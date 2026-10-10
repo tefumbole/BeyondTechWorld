@@ -393,7 +393,7 @@ class PayoutController extends Controller
         $ready = [];
         foreach ($rows as $line) {
             $phone = $service->momoNumber($line->phone);
-            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line->id)) {
+            if (! $phone || isset($seen[$phone]) || $this->alreadyPaid($phone, $line)) {
                 $skipped++;
                 continue;
             }
@@ -520,12 +520,20 @@ class PayoutController extends Controller
         return $row;
     }
 
-    protected function alreadyPaid($phone, $exceptId)
+    protected function alreadyPaid($phone, CampayPayout $line)
     {
+        if (! $line->request_id) {
+            return CampayPayout::where('phone', $phone)
+                ->where('id', '!=', $line->id)
+                ->where('status', 'paid')
+                ->where('created_at', '>=', now()->subHours(12))
+                ->exists();
+        }
+
         return CampayPayout::where('phone', $phone)
-            ->where('id', '!=', $exceptId)
+            ->where('id', '!=', $line->id)
+            ->where('request_id', $line->request_id)
             ->where('status', 'paid')
-            ->where('created_at', '>=', now()->subHours(12))
             ->exists();
     }
 
