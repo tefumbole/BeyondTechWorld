@@ -13,7 +13,7 @@
             @if(session('not_permitted'))
                 <div class="mb-4 rounded-lg bg-red-50 text-red-800 px-3 py-2 text-sm">{{ session('not_permitted') }}</div>
             @endif
-            <form method="POST" action="{{ route('donate.store') }}" id="donateForm">
+            <form method="POST" action="{{ url('/donate') }}" id="donateForm">
                 @csrf
                 <label class="block text-sm font-semibold mb-1" for="donatePhone">Phone number</label>
                 <div class="flex gap-2 mb-1">

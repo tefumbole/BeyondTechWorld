@@ -400,6 +400,9 @@ class CartController extends Controller
 
     public function donateStore(Request $request) {
         $product = Product::where('id', $request->product_id)->first();
+        if (! $product) {
+            return redirect('/donate')->with('not_permitted', 'This donation could not be started. Enter the amount and try again.');
+        }
         $data = $request->all();
         $data['vendor_id'] = $product->vendor_id;
         if(!Auth::user()) {

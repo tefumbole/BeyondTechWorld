@@ -22,7 +22,7 @@
 
                         <div class="col-lg-3"></div>
                     <div class="col-lg-6">
-                        <form method="post" action="{{ route('donate.store') }}">
+                        <form method="post" action="{{ url('/donate/store') }}">
                         @csrf
                         <div class="box-border">
                             <div class="box-payment"><a class="btn btn-gpay"><img src="{{ asset('public/assets/imgs/page/checkout/mtn.png') }}" alt="Ecom" width="170px"></a>
