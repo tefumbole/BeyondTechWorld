@@ -53,6 +53,8 @@
     .bubble audio, .bubble video { display: block; max-width: 260px; width: 100%; margin-bottom: 4px; }
     .bubble a.chat-file { color: var(--beyond-primary); font-weight: 700; }
     .bubble .who { display: block; font-size: 12px; font-weight: 700; color: var(--beyond-primary); margin-bottom: 2px; }
+    .bubble .choices { clear: both; display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .bubble .choice { display: block; background: #fff; border: 1px solid #d5deee; border-radius: 8px; padding: 6px 8px; font-size: 13px; line-height: 1.3; }
     .day-chip { align-self: center; background: #fff; border: 1px solid #e3e9f4; color: var(--beyond-muted); border-radius: 8px; font-size: 12px; padding: 3px 10px; margin: 8px 0 4px; }
     .clip { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e3e9f4; background: var(--beyond-bg); color: var(--beyond-primary); font-size: 24px; font-weight: 600; cursor: pointer; flex: none; overflow: hidden; position: relative; }
     .clip input { display: none; }
@@ -289,6 +291,7 @@
                         'mediaUrl' => $message->chatMediaUrl(),
                         'mediaName' => $message->chatMediaName(),
                         'who' => null,
+                        'choices' => app(\App\Services\Event\EventOptionPresentation::class)->displayChoices($message->body, $message->media_json),
                     ])
                 @empty
                     <div class="chats-empty"><strong>No messages yet</strong>Send the first message below.</div>

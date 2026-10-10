@@ -22,5 +22,12 @@
         <span>{{ $fileLabel }}</span>
     @endif
     @if($text !== ''){{ $text }}@endif
+    @if(!empty($choices))
+        <div class="choices">
+            @foreach($choices as $choice)
+                <div class="choice">{{ $choice }}</div>
+            @endforeach
+        </div>
+    @endif
     <time>{{ $time ?? '' }}@if(!empty($out))<span class="tick {{ $tick }}">@if($tick === 'failed')!@elseif(in_array($tick, ['read', 'played', 'delivered'], true))✓✓@else ✓@endif</span>@endif</time>
 </div>

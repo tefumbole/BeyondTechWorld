@@ -545,7 +545,9 @@ class BeyondAssistantService
             if (! $isClosing && (! is_array($media) || (empty($media['choices']) && empty($media['ui']['options']))) && is_string($reply)) {
                 $inferred = $presentation->inferUiFromReply($reply);
                 if ($inferred) {
-                    $reply = $presentation->tidyReplyForUi($reply, $inferred);
+                    if ($conversation->isWebsite()) {
+                        $reply = $presentation->tidyReplyForUi($reply, $inferred);
+                    }
                     $media = $presentation->mediaFromUi($inferred);
                 }
             }
@@ -585,6 +587,15 @@ class BeyondAssistantService
             }
 
             unset($slots['pending_ui']);
+            if (! $isClosing && ! $conversation->isWebsite() && is_string($reply) && is_array($media)) {
+                $choiceUi = (! empty($media['ui']) && is_array($media['ui'])) ? $media['ui'] : null;
+                if (! $choiceUi && ! empty($media['choices']) && is_array($media['choices'])) {
+                    $choiceUi = ['options' => $media['choices']];
+                }
+                if ($choiceUi) {
+                    $reply = $presentation->textWithChoices($reply, $choiceUi);
+                }
+            }
             $send = $this->conversations->assistantReply($conversation, $reply, $media);
             $sent = ! empty($send['success']);
             // Persist cleaned slots so choice cards cannot resurrect next turn.

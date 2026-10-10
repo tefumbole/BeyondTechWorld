@@ -216,6 +216,101 @@ class EventOptionPresentation
     }
 
     /**
+     * WhatsApp has no tap cards, so the choices have to be in the message.
+     */
+    public function textWithChoices($reply, array $ui)
+    {
+        $reply = trim((string) $reply);
+        $lines = $this->choiceLines($ui);
+        if (count($lines) < 2) {
+            return $reply;
+        }
+        if ($this->alreadyListsChoices($reply, $lines)) {
+            return $reply;
+        }
+        $reply = preg_replace('/\n*Tap an option below, or reply with the number\.?\s*$/i', '', $reply);
+        $reply = preg_replace('/\n*Select all that apply below, or reply with numbers[^\n]*$/i', '', $reply);
+        $reply = preg_replace('/\s*Your options are:\s*$/i', '', $reply);
+        $reply = trim($reply);
+        $cat = isset($ui['category']) ? strtoupper((string) $ui['category']) : '';
+        $hint = $cat === 'EXTRAS'
+            ? 'Reply with the numbers, for example 1 and 3.'
+            : 'Reply with the number.';
+
+        return $reply."\n\n".implode("\n", $lines)."\n\n".$hint;
+    }
+
+    /**
+     * Labels to show under a chat bubble when the saved text only says to tap an option.
+     *
+     * @return array
+     */
+    public function displayChoices($body, $mediaJson = null)
+    {
+        $decoded = json_decode((string) $mediaJson, true);
+        if (is_array($decoded)) {
+            $fromMedia = $this->choiceLines(isset($decoded['ui']) && is_array($decoded['ui']) ? $decoded['ui'] : ['options' => isset($decoded['choices']) ? $decoded['choices'] : []]);
+            if (count($fromMedia) >= 2) {
+                return $fromMedia;
+            }
+        }
+        $text = (string) $body;
+        $ui = $this->inferUiFromReply($text);
+        if (! $ui && stripos($text, 'sound experience') !== false) {
+            $ui = $this->soundUi();
+        } elseif (! $ui && (stripos($text, 'lighting package') !== false || stripos($text, 'which lighting') !== false)) {
+            $ui = $this->lightingUi();
+        } elseif (! $ui && (stripos($text, 'select all that apply') !== false || stripos($text, 'lights or stage') !== false)) {
+            $ui = $this->extrasUi();
+        }
+        if (! $ui) {
+            return [];
+        }
+        $lines = $this->choiceLines($ui);
+        if ($this->alreadyListsChoices($text, $lines)) {
+            return [];
+        }
+
+        return $lines;
+    }
+
+    protected function choiceLines(array $ui)
+    {
+        $options = isset($ui['options']) && is_array($ui['options']) ? $ui['options'] : [];
+        $lines = [];
+        foreach ($options as $opt) {
+            if (! is_array($opt)) {
+                continue;
+            }
+            $label = trim((string) (isset($opt['label']) ? $opt['label'] : ''));
+            if ($label !== '') {
+                $lines[] = $label;
+            }
+        }
+
+        return $lines;
+    }
+
+    protected function alreadyListsChoices($reply, array $lines)
+    {
+        if (! preg_match('/\b1[\.\)]/', (string) $reply) || ! preg_match('/\b2[\.\)]/', (string) $reply)) {
+            return false;
+        }
+        $present = 0;
+        foreach ($lines as $label) {
+            $token = preg_replace('/^\d+\.\s*/', '', $label);
+            $token = trim(preg_replace('/^[^\p{L}\p{N}]+/u', '', $token));
+            $parts = preg_split('/\s+[—–-]\s+/u', $token);
+            $token = trim(isset($parts[0]) ? $parts[0] : $token);
+            if (strlen($token) >= 3 && stripos((string) $reply, $token) !== false) {
+                $present++;
+            }
+        }
+
+        return $present >= 2;
+    }
+
+    /**
      * Soften a plain-text option dump when clickable choices will be shown.
      */
     public function tidyReplyForUi($reply, array $ui)

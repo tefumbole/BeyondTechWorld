@@ -569,7 +569,7 @@ class WhatsAppConversationService
 
         $mediaJson = null;
         $hadServiceMenu = strpos($body, '1. Sound') !== false;
-        if ($conversation->isWebsite() && is_array($media) && (! empty($media['choices']) || ! empty($media['ui']))) {
+        if (is_array($media) && (! empty($media['choices']) || ! empty($media['ui']))) {
             $payload = array_filter([
                 'choices' => isset($media['choices']) ? $media['choices'] : null,
                 'ui' => isset($media['ui']) ? $media['ui'] : null,
