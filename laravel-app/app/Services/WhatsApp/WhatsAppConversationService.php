@@ -391,9 +391,9 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true];
         } elseif ($isImage) {
-            $result = $this->provider->sendImage($contact->normalized_phone, $dest, $caption !== '' ? $caption : null);
+            $result = $this->provider->sendImage($contact->normalized_phone, $dest, $caption !== '' ? $caption : null, true);
         } else {
-            $result = $this->provider->sendDocument($contact->normalized_phone, $dest, $originalName, $caption !== '' ? $caption : null);
+            $result = $this->provider->sendDocument($contact->normalized_phone, $dest, $originalName, $caption !== '' ? $caption : null, true);
         }
 
         if (! $conversation->isWebsite()) {

@@ -23,7 +23,7 @@ class WaSenderProvider implements WhatsAppProviderInterface
 
     public function sendText($phone, $message)
     {
-        return $this->wasender->sendTextRaw($phone, $message);
+        return $this->wasender->sendTextRaw($phone, $message, false);
     }
 
     public function sendPlainText($phone, $message)
@@ -31,14 +31,14 @@ class WaSenderProvider implements WhatsAppProviderInterface
         return $this->wasender->sendTextRaw($phone, $message, false);
     }
 
-    public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
+    public function sendDocument($phone, $localPath, $fileName = null, $caption = null, $plain = false)
     {
-        return $this->wasender->sendDocument($phone, $localPath, $fileName, $caption);
+        return $this->wasender->sendDocument($phone, $localPath, $fileName, $caption, $plain);
     }
 
-    public function sendImage($phone, $localPath, $caption = null)
+    public function sendImage($phone, $localPath, $caption = null, $plain = false)
     {
-        return $this->wasender->sendImage($phone, $localPath, $caption);
+        return $this->wasender->sendImage($phone, $localPath, $caption, $plain);
     }
 
     public function sessionStatus()

@@ -12,12 +12,12 @@ interface WhatsAppProviderInterface
     /**
      * @return array{success:bool,error?:string,msg_id?:mixed,http?:int,publicUrl?:string}
      */
-    public function sendDocument($phone, $localPath, $fileName = null, $caption = null);
+    public function sendDocument($phone, $localPath, $fileName = null, $caption = null, $plain = false);
 
     /**
      * @return array{success:bool,error?:string,msg_id?:mixed,http?:int,publicUrl?:string}
      */
-    public function sendImage($phone, $localPath, $caption = null);
+    public function sendImage($phone, $localPath, $caption = null, $plain = false);
 
     /**
      * @return array{connected:bool,status:string,session_name:?string,error?:string,configured:bool}

@@ -288,7 +288,7 @@ class BeyondWasenderService
      *
      * @return array{success:bool,error?:string,msg_id?:mixed,publicUrl?:string}
      */
-    public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
+    public function sendDocument($phone, $localPath, $fileName = null, $caption = null, $plain = false)
     {
         $blocked = $this->messagingBlocked();
         if ($blocked) {
@@ -312,9 +312,11 @@ class BeyondWasenderService
         }
 
         $fileName = $fileName ?: basename($localPath);
-        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, $fileName, $caption);
-        if (! empty($twilio['success'])) {
-            return $twilio;
+        if (! $plain) {
+            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, $fileName, $caption);
+            if (! empty($twilio['success'])) {
+                return $twilio;
+            }
         }
 
         try {
@@ -328,10 +330,11 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
             }
 
-            $caption = \App\Support\LetterReference::applyToMessage(
-                (string) ($caption !== null && $caption !== '' ? $caption : $fileName),
-                'whatsapp'
-            );
+            $captionText = (string) ($caption !== null && $caption !== '' ? $caption : $fileName);
+            if (! $plain) {
+                $captionText = \App\Support\LetterReference::applyToMessage($captionText, 'whatsapp');
+            }
+            $caption = $captionText;
             $posted = $this->postSendMessage([
                 'to' => $to,
                 'documentUrl' => $publicUrl,
@@ -362,7 +365,7 @@ class BeyondWasenderService
      *
      * @return array{success:bool,error?:string,msg_id?:mixed,publicUrl?:string}
      */
-    public function sendImage($phone, $localPath, $caption = null)
+    public function sendImage($phone, $localPath, $caption = null, $plain = false)
     {
         $blocked = $this->messagingBlocked();
         if ($blocked) {
@@ -384,9 +387,11 @@ class BeyondWasenderService
             return ['success' => false, 'error' => 'Image file not found.'];
         }
 
-        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, basename($localPath), $caption);
-        if (! empty($twilio['success'])) {
-            return $twilio;
+        if (! $plain) {
+            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, basename($localPath), $caption);
+            if (! empty($twilio['success'])) {
+                return $twilio;
+            }
         }
 
         try {
@@ -405,10 +410,9 @@ class BeyondWasenderService
                 'imageUrl' => $publicUrl,
             ];
             if ($caption !== null && trim((string) $caption) !== '') {
-                $payload['text'] = \App\Support\LetterReference::applyToMessage(
-                    (string) $caption,
-                    'whatsapp'
-                );
+                $payload['text'] = $plain
+                    ? (string) $caption
+                    : \App\Support\LetterReference::applyToMessage((string) $caption, 'whatsapp');
             }
             $posted = $this->postSendMessage($payload, 60);
             if (empty($posted['success'])) {
