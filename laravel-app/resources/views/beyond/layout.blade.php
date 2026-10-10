@@ -235,6 +235,8 @@
         'permissions'  => ['label' => 'Permissions', 'url' => url('/permissions')],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
         'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
+        'donations'    => ['label' => 'Donations', 'url' => url('/donate')],
+        'request-payment' => ['label' => 'Request Payment', 'url' => url('/request-payment')],
     ];
     $navLinks = [];
     foreach (\App\Support\SiteMenu::landingOrder() as $navKey) {

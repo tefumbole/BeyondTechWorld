@@ -23,6 +23,8 @@ class SiteMenu
             'permissions'  => 'Permissions',
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
+            'donations'    => 'Donations',
+            'request-payment' => 'Request Payment',
             // Register Now removed — Training already covers course signup
             // Shareholders hidden from public nav (routes remain available)
             // Contact is merged into About Us (#contact) — not a separate nav item

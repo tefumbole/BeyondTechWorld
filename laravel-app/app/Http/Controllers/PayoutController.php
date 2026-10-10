@@ -671,6 +671,19 @@ class PayoutController extends Controller
         return $query->limit(80)->get(['id', 'name', 'phone_number']);
     }
 
+    public function publicOpen()
+    {
+        $link = CampayPayoutLink::orderBy('id')->first();
+        if (! $link) {
+            $link = new CampayPayoutLink();
+            $link->token = bin2hex(random_bytes(20));
+            $link->save();
+        }
+        $token = $link->token;
+
+        return view('payout.public', compact('token'));
+    }
+
     public function publicForm(Request $request, $token)
     {
         $this->link($token);
@@ -1002,6 +1015,29 @@ class PayoutController extends Controller
         );
         if (empty($result['success'])) {
             app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason));
+        }
+        $this->notifyPaid($name, $amount, $reason);
+    }
+
+    protected function notifyPaid($name, $amount, $reason)
+    {
+        $detail = 'A payment of '.$this->moneyText($amount).' XAF has been made to '.$name.'.';
+        $reason = trim((string) $reason);
+        if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
+            $detail .= ' Reason: '.$reason.'.';
+        }
+        $admin = \App\Support\TwilioAdminCopy::PHONE;
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
+            $admin,
+            $this->copyName(),
+            \App\Support\WhatsAppMessage::companyName(),
+            'payment',
+            $name,
+            'Paid',
+            $detail
+        );
+        if (empty($result['success'])) {
+            app(\App\Services\ClientNoticeService::class)->send($admin, $detail);
         }
     }
 

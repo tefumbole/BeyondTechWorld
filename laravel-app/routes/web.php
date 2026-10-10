@@ -62,6 +62,12 @@ Route::get('/about', 'BeyondController@about')->name('beyond.about');
 Route::get('/services', 'BeyondController@services')->name('beyond.services');
 Route::get('/projects', 'BeyondController@projects')->name('beyond.projects');
 Route::get('/gallery', 'BeyondController@gallery')->name('beyond.gallery');
+Route::get('/donate', 'PublicDonateController@show')->name('donate.show');
+Route::get('/donate/lookup', 'PublicDonateController@lookup')->middleware('throttle:40,1')->name('donate.lookup');
+Route::post('/donate', 'PublicDonateController@store')->middleware('throttle:12,1')->name('donate.store');
+Route::get('/donate/{token}/status', 'PublicDonateController@status')->where('token', '[A-Za-z0-9]+')->name('donate.poll');
+Route::get('/donate/{token}', 'PublicDonateController@waiting')->where('token', '[A-Za-z0-9]+')->name('donate.status');
+Route::get('/request-payment', 'PayoutController@publicOpen')->name('payout.request.open');
 Route::get('/contact', 'BeyondController@contact')->name('beyond.contact');
 Route::post('/contact', 'PublicContactController@store')->middleware('throttle:12,1')->name('beyond.contact.store');
 
