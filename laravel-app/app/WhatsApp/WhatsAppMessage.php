@@ -58,12 +58,20 @@ class WhatsAppMessage extends Model
     public function chatMediaUrl()
     {
         $media = $this->media();
+        $stored = isset($media['stored']) ? trim((string) $media['stored']) : '';
+        if ($stored !== '' && strpos($stored, 'whatsapp-media/') === 0) {
+            return route('whatsapp.chats.media', $this->id);
+        }
         $url = isset($media['url']) ? trim((string) $media['url']) : '';
         if ($url === '') {
             return '';
         }
         if (strpos($url, 'whatsapp-chat/') === 0) {
             return asset('public/'.$url);
+        }
+        $host = (string) parse_url($url, PHP_URL_HOST);
+        if ($host !== '' && stripos($host, 'whatsapp.net') !== false) {
+            return route('whatsapp.chats.media', $this->id);
         }
         if (preg_match('#^https?://#i', $url)) {
             return $url;

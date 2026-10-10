@@ -314,6 +314,24 @@ class WhatsAppHubController extends Controller
         return redirect()->to($back);
     }
 
+    public function chatMedia($id)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.conversations', 'whatsapp.view', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $message = WhatsAppMessage::findOrFail($id);
+        $file = app(\App\Services\WhatsApp\WhatsAppMediaLibrary::class)->file($message);
+        if (! $file || ! is_file($file['path'])) {
+            abort(404);
+        }
+
+        return response()->file($file['path'], [
+            'Content-Type' => $file['mime'],
+            'Content-Disposition' => 'inline; filename="'.$file['name'].'"',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
     public function chatsGroupReply(Request $request)
     {
         if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
