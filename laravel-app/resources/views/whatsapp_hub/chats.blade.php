@@ -9,7 +9,12 @@
     .chats-search { padding: 10px 12px; background: var(--beyond-card); border-bottom: 1px solid #e3e9f4; }
     .chats-search input { width: 100%; border: 1px solid #e3e9f4; border-radius: 8px; background: var(--beyond-bg); color: var(--beyond-text); min-height: 38px; padding: 0 12px; }
     .chats-search input::placeholder { color: var(--beyond-muted); }
+    .chat-filters { display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; background: var(--beyond-card); border-bottom: 1px solid #e3e9f4; }
+    .chat-filters button { border: 1px solid #d5deee; background: #fff; color: var(--beyond-text); border-radius: 999px; min-height: 30px; padding: 0 12px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .chat-filters button.is-on { background: var(--beyond-primary); border-color: var(--beyond-primary); color: #fff; }
+    .chat-filters button span { margin-left: 4px; }
     .chats-list { overflow: auto; flex: 1; }
+    .chat-none { display: none; padding: 28px 16px; text-align: center; color: var(--beyond-muted); }
     .chat-row { display: flex; gap: 12px; align-items: center; padding: 10px 14px; color: var(--beyond-text); text-decoration: none; border-bottom: 1px solid #e3e9f4; }
     .chat-row:hover { background: var(--beyond-bg); color: var(--beyond-text); text-decoration: none; }
     .chat-row.is-on { background: #e7eef8; }
@@ -53,16 +58,27 @@
 </style>
 <div class="chats-app {{ ($open || $group) ? 'has-open' : '' }}">
     <aside class="chats-side">
+        @php
+            $unreadChats = $conversations->filter(function ($row) { return (int) $row->unread_count > 0; })->count();
+            $readChats = $conversations->count() - $unreadChats;
+        @endphp
         <div class="chats-search">
             <input type="search" id="chatSearch" placeholder="Search a name" autocomplete="off">
         </div>
+        <div class="chat-filters" id="chatFilters">
+            <button type="button" class="is-on" data-filter="all">All</button>
+            <button type="button" data-filter="unread">Unread <span>{{ $unreadChats }}</span></button>
+            <button type="button" data-filter="read">Read <span>{{ $readChats }}</span></button>
+            <button type="button" data-filter="groups">Groups <span>{{ count($groups) }}</span></button>
+        </div>
         <div class="chats-list" id="chatList">
+            <div class="chat-none" id="chatNone">Nothing in this list.</div>
             @foreach($conversations as $row)
                 @php
                     $person = optional($row->contact)->displayName() ?: 'WhatsApp';
                     $when = $row->last_activity_at ?: $row->updated_at;
                 @endphp
-                <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
+                <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-kind="person" data-read="{{ (int) $row->unread_count > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar">{{ strtoupper(substr($person, 0, 1)) }}</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -82,7 +98,7 @@
                 </a>
             @endforeach
             @foreach($groups as $row)
-                <a class="chat-row {{ $group && $group['jid'] === $row['jid'] ? 'is-on' : '' }}" data-name="{{ strtolower($row['name']) }}" href="{{ route('whatsapp.chats', ['group' => $row['jid']]) }}">
+                <a class="chat-row {{ $group && $group['jid'] === $row['jid'] ? 'is-on' : '' }}" data-kind="group" data-name="{{ strtolower($row['name']) }}" href="{{ route('whatsapp.chats', ['group' => $row['jid']]) }}">
                     <span class="chat-avatar is-group">G</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -167,15 +183,42 @@
 (function () {
     var search = document.getElementById('chatSearch');
     var list = document.getElementById('chatList');
-    if (search && list) {
-        search.addEventListener('input', function () {
-            var q = search.value.toLowerCase().trim();
-            list.querySelectorAll('.chat-row').forEach(function (row) {
-                var name = row.getAttribute('data-name') || '';
-                row.style.display = !q || name.indexOf(q) !== -1 ? '' : 'none';
+    var filters = document.getElementById('chatFilters');
+    var none = document.getElementById('chatNone');
+    var filter = @json($group ? 'groups' : 'all');
+    function applyList() {
+        if (!list) return;
+        var q = search ? search.value.toLowerCase().trim() : '';
+        var shown = 0;
+        list.querySelectorAll('.chat-row').forEach(function (row) {
+            var name = row.getAttribute('data-name') || '';
+            var kind = row.getAttribute('data-kind') || 'person';
+            var read = row.getAttribute('data-read') === '1';
+            var ok = !q || name.indexOf(q) !== -1;
+            if (filter === 'unread') ok = ok && kind === 'person' && !read;
+            if (filter === 'read') ok = ok && kind === 'person' && read;
+            if (filter === 'groups') ok = ok && kind === 'group';
+            row.style.display = ok ? '' : 'none';
+            if (ok) shown += 1;
+        });
+        if (none) none.style.display = shown ? 'none' : 'block';
+    }
+    if (filters) {
+        filters.querySelectorAll('button').forEach(function (button) {
+            if (button.getAttribute('data-filter') === filter) {
+                filters.querySelectorAll('button').forEach(function (other) { other.classList.remove('is-on'); });
+                button.classList.add('is-on');
+            }
+            button.addEventListener('click', function () {
+                filter = button.getAttribute('data-filter') || 'all';
+                filters.querySelectorAll('button').forEach(function (other) { other.classList.remove('is-on'); });
+                button.classList.add('is-on');
+                applyList();
             });
         });
     }
+    if (search) search.addEventListener('input', applyList);
+    applyList();
     var stream = document.getElementById('chatStream');
     if (stream) stream.scrollTop = stream.scrollHeight;
     var body = document.getElementById('chatBody');
