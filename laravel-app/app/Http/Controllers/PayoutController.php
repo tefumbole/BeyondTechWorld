@@ -18,6 +18,7 @@ class PayoutController extends Controller
     public function index(Request $request)
     {
         $this->guard();
+        $this->settleRecorded();
         $tenantId = $this->tenantId();
         $pending = $this->requests($tenantId)->where('status', 'pending')->orderByDesc('id')->limit(40)->get();
         $totals = $this->totals($pending->pluck('id')->all());
@@ -160,6 +161,7 @@ class PayoutController extends Controller
     public function requestLink(Request $request)
     {
         $this->guard();
+        $this->settleRecorded();
         $tenantId = $this->tenantId();
         $query = CampayPayoutLink::query();
         if ($tenantId) {
@@ -302,7 +304,7 @@ class PayoutController extends Controller
             }
             $count = 0;
             foreach ($batch->lines as $line) {
-                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id));
+                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id), (string) $batch->requester_name);
                 $count++;
             }
 
@@ -836,7 +838,7 @@ class PayoutController extends Controller
 
         $reviewUrl = $this->reviewUrl($batch->id);
         foreach ($lines as $line) {
-            $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl);
+            $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl, $requester);
         }
         $this->notifySubmission($requester, $batch->note, $lines, $reviewUrl);
 
@@ -959,10 +961,15 @@ class PayoutController extends Controller
         }
     }
 
-    protected function sendSubmitted($phone, $name, $amount, $reason, $url)
+    protected function sendSubmitted($phone, $name, $amount, $reason, $url, $requester = '')
     {
         $reason = trim((string) $reason);
-        $detail = 'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF. Accept or deny: '.$url;
+        $requester = trim((string) $requester);
+        $detail = 'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.';
+        if ($requester !== '') {
+            $detail .= ' Requested by '.$requester.'.';
+        }
+        $detail .= ' Accept or deny: '.$url;
         $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
             $phone,
             $name,
@@ -973,7 +980,7 @@ class PayoutController extends Controller
             $detail
         );
         if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url));
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester));
         }
     }
 
@@ -1060,7 +1067,33 @@ class PayoutController extends Controller
         return $msg;
     }
 
-    protected function submittedText($name, $amount, $reason, $url, $detail = null)
+    public function settleRecorded()
+    {
+        $rows = CampayPayout::whereNotNull('campay_reference')
+            ->where('campay_reference', '!=', '')
+            ->whereIn('status', ['pending', 'failed'])
+            ->orderBy('id')
+            ->limit(20)
+            ->get();
+        if ($rows->count() < 1) {
+            return;
+        }
+        $service = app(CampayPayoutService::class);
+        $batches = [];
+        foreach ($rows as $row) {
+            if ($this->confirmExisting($service, $row) === 'paid' && $row->request_id) {
+                $batches[$row->request_id] = true;
+            }
+        }
+        foreach (array_keys($batches) as $id) {
+            $batch = CampayPayoutRequest::find($id);
+            if ($batch) {
+                $this->closeBatch($batch);
+            }
+        }
+    }
+
+    protected function submittedText($name, $amount, $reason, $url, $detail = null, $requester = '')
     {
         $msg = \App\Support\WhatsAppMessage::statusBlock('📨', 'Payment Submitted');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
@@ -1068,6 +1101,10 @@ class PayoutController extends Controller
             $msg .= $detail."\n";
         } else {
             $msg .= 'Your name has been submitted for a payment of *'.$this->moneyText($amount)."* XAF.\n";
+        }
+        $requester = trim((string) $requester);
+        if ($requester !== '' && strpos((string) $detail, 'Requested by') === false) {
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Requested by', $requester);
         }
         $reason = trim((string) $reason);
         if ($reason !== '' && strpos((string) $detail, 'Reason:') === false) {

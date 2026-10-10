@@ -336,8 +336,14 @@ class SaleController extends Controller
                 $nestedData['options'] .=
                     '<li>
                         <button type="button" class="add-payment btn btn-link" data-id = "'.$sale->id.'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
-                    </li>
-                    <li>
+                    </li>';
+                if(((float) $sale->grand_total - (float) $sale->paid_amount) >= 100) {
+                    $nestedData['options'] .= '<li>'.\Form::open(["route" => ["sale.request_payment", $sale->id], "method" => "POST"] ).'
+                        <button type="submit" class="btn btn-link" onclick="return confirm(\'Send a payment link to the client? They can pay with MTN, Orange, or VISA.\')"><i class="fa fa-whatsapp"></i> Request payment</button>'
+                        .\Form::close().'</li>';
+                }
+                $nestedData['options'] .=
+                    '<li>
                         <button type="button" class="get-payment btn btn-link" data-id = "'.$sale->id.'"><i class="fa fa-money"></i> '.trans('file.View Payment').'</button>
                     </li>
                     <li>
@@ -1164,14 +1170,6 @@ class SaleController extends Controller
             ];
         }
 
-        $currencyCode = '';
-        try {
-            $currency = \App\Currency::find(optional(GeneralSetting::first())->currency);
-            $currencyCode = $currency->code ?? '';
-        } catch (\Throwable $e) {
-            $currencyCode = '';
-        }
-
         $orderDate = $lims_sale_data->created_at;
         if ($orderDate instanceof \DateTimeInterface) {
             $orderDate = $orderDate->format('D, M d, Y H:i');
@@ -1187,23 +1185,20 @@ class SaleController extends Controller
             @$biller->name ?: @$biller->company_name,
             @$biller->address,
             @$lims_customer_data->address,
-            $currencyCode
+            ''
         );
 
         $message = 'Sale created successfully';
         $amount = $mail_data['grand_total'] ?? $lims_sale_data->grand_total;
-        $money = function ($value) use ($currencyCode) {
-            $formatted = is_numeric($value) ? number_format((float) $value, 2) : (string) $value;
-
-            return trim(($currencyCode !== '' ? $currencyCode.' ' : '').$formatted);
-        };
-        $amountLabel = $money($amount);
+        $amountLabel = \App\Support\WhatsAppMessage::plainAmount($amount);
         $itemParts = [];
-        foreach ($lines as $index => $line) {
-            $itemParts[] = ($index + 1).') '.($line['name'] ?? 'Item')
-                .' x '.($line['qty'] ?? '')
-                .' @ '.$money($line['unit_price'] ?? 0)
-                .' = '.$money($line['total'] ?? 0);
+        foreach ($lines as $line) {
+            $itemParts[] = \App\Support\WhatsAppMessage::itemSummary(
+                $line['name'] ?? 'Item',
+                $line['qty'] ?? 0,
+                $line['unit_price'] ?? 0,
+                $line['total'] ?? null
+            );
         }
         $company = \App\Support\WhatsAppMessage::companyName();
         $servedBy = trim((string) (@$biller->name ?: @$biller->company_name));
@@ -1218,7 +1213,7 @@ class SaleController extends Controller
                     'company' => $company,
                     'order' => $lims_sale_data->reference_no,
                     'date' => (string) $orderDate,
-                    'items' => $itemParts ? implode(' | ', $itemParts) : '-',
+                    'items' => $itemParts ? implode(' ', $itemParts) : '-',
                     'total' => $amountLabel,
                     'payment' => $paying_method ?: '-',
                     'billing' => trim((string) (@$biller->address ?: '')) ?: '-',

@@ -28,6 +28,9 @@ Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->n
 Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
 Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');
 Route::post('/quotation-approval/{token}/quote', 'QuotationApprovalController@quote')->name('quotation.client.quote');
+Route::get('/pay/{token}', 'DocumentPayController@show')->where('token', '[A-Za-z0-9]+')->name('document.pay');
+Route::post('/pay/{token}', 'DocumentPayController@pay')->where('token', '[A-Za-z0-9]+')->name('document.pay.submit');
+Route::get('/pay/{token}/status', 'DocumentPayController@status')->where('token', '[A-Za-z0-9]+')->name('document.pay.status');
 
 Route::get('/delivery-sign/{token}', 'DeliverySignatureController@show')->name('delivery.client.show');
 Route::post('/delivery-sign/{token}/sign', 'DeliverySignatureController@sign')->name('delivery.client.sign');
@@ -1017,6 +1020,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::get('sales/print-last-reciept', 'SaleController@printLastReciept')->name('sales.printLastReciept');
 	Route::get('sales/today-sale', 'SaleController@todaySale');
 	Route::get('sales/today-profit/{warehouse_id}', 'SaleController@todayProfit');
+	Route::post('sales/{id}/request-payment', 'DocumentPayController@requestSale')->where('id', '[0-9]+')->name('sale.request_payment');
+	Route::post('quotations/{id}/request-payment', 'DocumentPayController@requestQuotation')->where('id', '[0-9]+')->name('quotation.request_payment');
 	Route::resource('sales', 'SaleController');
     Route::post('sales/sendwhatsapp', 'SaleController@sendWhatsapp')->name('sale.sendwhatsapp');
 
