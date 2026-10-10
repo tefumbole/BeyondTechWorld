@@ -47,11 +47,16 @@
         <div class="pay-card">
             <div class="pay-card-head">
                 <h2>{{ $review->requester_name }} @if($review->note)<span class="pay-muted">· {{ $review->note }}</span>@endif</h2>
-                <a href="{{ route('payout.request') }}">Close</a>
+                <span>
+                    @if($reviewLines->whereIn('status', ['pending', 'failed'])->count() > 0)
+                        <a class="pay-open" href="{{ route('payout.mass', $review->id) }}" style="background:#e7eef8;color:#0b3f90 !important">Mass Payout file</a>
+                    @endif
+                    <a href="{{ route('payout.request') }}" style="margin-left:12px">Close</a>
+                </span>
             </div>
             <div class="pay-card-body">
                 @if($review->status === 'pending')
-                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request.</p>
+                    <p class="pay-help">Change an amount, or select names and delete them. Then pay the people who remain, or reject the request. Mass Payout file is Campay’s sheet for the people not yet paid. Upload that file on Campay. It does not send the money by itself.</p>
                     <form method="POST" action="{{ route('payout.request.revise') }}" id="reviewForm">
                         @csrf
                         <input type="hidden" name="id" value="{{ $review->id }}">
@@ -215,6 +220,9 @@
                             </td>
                             <td>
                                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                                @if($item['kind'] === 'submitted' && ($linePending + $lineFailed) > 0)
+                                    <a class="pay-open" href="{{ route('payout.mass', $row->id) }}" style="background:#e7eef8;color:#0b3f90 !important">Mass Payout</a>
+                                @endif
                                 @if($item['kind'] === 'submitted' && $lineFailed > 0)
                                     <form method="POST" action="{{ route('payout.retry') }}">
                                         @csrf

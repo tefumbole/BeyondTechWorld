@@ -222,6 +222,44 @@ class PayoutController extends Controller
         return $this->sendRows($batch, $rows, route('payout.request', ['review' => $batch->id]));
     }
 
+    public function massPayout($id)
+    {
+        $this->guard();
+        $batch = $this->requests($this->tenantId())->where('id', (int) $id)->first();
+        if (! $batch) {
+            abort(404);
+        }
+        $lines = CampayPayout::where('request_id', $batch->id)
+            ->whereIn('status', ['pending', 'failed'])
+            ->orderBy('id')
+            ->get();
+        if ($lines->count() < 1) {
+            return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to put on the Mass Payout file.');
+        }
+
+        $service = app(CampayPayoutService::class);
+        $sheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $grid = $sheet->getActiveSheet();
+        $grid->setCellValue('A1', 'Numéro / Number (ex 237........)');
+        $grid->setCellValue('B1', 'Nom / Name ou Description(Facultif / Optional)');
+        $grid->setCellValue('C1', 'Amount');
+        $rowNumber = 2;
+        foreach ($lines as $line) {
+            $phone = $service->momoNumber($line->phone) ?: preg_replace('/\D/', '', (string) $line->phone);
+            $grid->setCellValueExplicit('A'.$rowNumber, $phone, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $grid->setCellValue('B'.$rowNumber, (string) $line->person_name);
+            $grid->setCellValue('C'.$rowNumber, (int) $line->amount);
+            $rowNumber++;
+        }
+        foreach (['A', 'B', 'C'] as $column) {
+            $grid->getColumnDimension($column)->setAutoSize(true);
+        }
+        $path = storage_path('app/campay-mass-payout-'.$batch->id.'.xlsx');
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($sheet))->save($path);
+
+        return response()->download($path, 'campay-mass-payout-'.$batch->id.'.xlsx')->deleteFileAfterSend(true);
+    }
+
     public function resend(Request $request)
     {
         $this->guard();
