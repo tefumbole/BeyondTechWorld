@@ -2220,6 +2220,9 @@
                                 }
                             }
                         @endphp
+                        @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
+                            <li id="payout-menu"><a href="{{ route('payout.index') }}"><i class="fa fa-money"></i><span>Payout</span></a></li>
+                        @endif
                         @if($whatsapp_module_active)
                             <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">

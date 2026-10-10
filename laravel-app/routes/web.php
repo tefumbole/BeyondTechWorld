@@ -591,6 +591,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/announcements/settings', 'AnnouncementManagerController@settings')->name('announcements.settings');
     Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
 
+    Route::get('/admin/payout', 'PayoutController@index')->name('payout.index');
+    Route::post('/admin/payout', 'PayoutController@store')->name('payout.store');
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
     Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
