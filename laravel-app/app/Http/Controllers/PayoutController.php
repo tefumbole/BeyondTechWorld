@@ -302,7 +302,7 @@ class PayoutController extends Controller
             }
             $count = 0;
             foreach ($batch->lines as $line) {
-                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note);
+                $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id));
                 $count++;
             }
 
@@ -828,10 +828,11 @@ class PayoutController extends Controller
             ]);
         }
 
+        $reviewUrl = $this->reviewUrl($batch->id);
         foreach ($lines as $line) {
-            $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note);
+            $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl);
         }
-        $this->notifySubmission($requester, $batch->note, $lines);
+        $this->notifySubmission($requester, $batch->note, $lines, $reviewUrl);
 
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
     }
@@ -952,9 +953,10 @@ class PayoutController extends Controller
         }
     }
 
-    protected function sendSubmitted($phone, $name, $amount, $reason)
+    protected function sendSubmitted($phone, $name, $amount, $reason, $url)
     {
         $reason = trim((string) $reason);
+        $detail = 'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF. Accept or deny: '.$url;
         $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
             $phone,
             $name,
@@ -962,10 +964,10 @@ class PayoutController extends Controller
             'payment',
             $reason !== '' ? $reason : 'Payment request',
             'Submitted',
-            'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.'
+            $detail
         );
         if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason));
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url));
         }
     }
 
@@ -990,7 +992,7 @@ class PayoutController extends Controller
         }
     }
 
-    protected function notifySubmission($requester, $reason, array $lines)
+    protected function notifySubmission($requester, $reason, array $lines, $url)
     {
         $parts = [];
         $total = 0;
@@ -1003,22 +1005,26 @@ class PayoutController extends Controller
         if ($reason !== '') {
             $detail .= ' Reason: '.$reason.'.';
         }
-        if (function_exists('mb_strlen') && mb_strlen($detail) > 800) {
-            $detail = rtrim(mb_substr($detail, 0, 799)).'…';
+        if (function_exists('mb_strlen') && mb_strlen($detail) > 700) {
+            $detail = rtrim(mb_substr($detail, 0, 699)).'…';
         }
         $phone = \App\Support\TwilioAdminCopy::PHONE;
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
+        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedAction(
             $phone,
             $this->copyName(),
             \App\Support\WhatsAppMessage::companyName(),
-            'payment request',
-            $requester,
-            'Submitted',
-            $detail
+            'accept or deny this payment',
+            $reason !== '' ? $reason : 'Payment request',
+            $url
         );
         if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $detail);
+            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($this->copyName(), $total, $reason, $url, $detail));
         }
+    }
+
+    protected function reviewUrl($id)
+    {
+        return route('payout.request', ['review' => (int) $id]);
     }
 
     protected function copyName()
@@ -1048,15 +1054,20 @@ class PayoutController extends Controller
         return $msg;
     }
 
-    protected function submittedText($name, $amount, $reason)
+    protected function submittedText($name, $amount, $reason, $url, $detail = null)
     {
         $msg = \App\Support\WhatsAppMessage::statusBlock('📨', 'Payment Submitted');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
-        $msg .= 'Your name has been submitted for a payment of *'.$this->moneyText($amount)."* XAF.\n";
+        if ($detail) {
+            $msg .= $detail."\n";
+        } else {
+            $msg .= 'Your name has been submitted for a payment of *'.$this->moneyText($amount)."* XAF.\n";
+        }
         $reason = trim((string) $reason);
-        if ($reason !== '') {
+        if ($reason !== '' && strpos((string) $detail, 'Reason:') === false) {
             $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
         }
+        $msg .= \App\Support\WhatsAppMessage::actionLink('Accept or deny', $url);
         $msg .= \App\Support\WhatsAppMessage::footer();
 
         return $msg;
