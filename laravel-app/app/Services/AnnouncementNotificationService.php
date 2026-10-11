@@ -93,6 +93,11 @@ class AnnouncementNotificationService extends Controller
             return;
         }
         try {
+            if ($this->attachmentIsImage($announcement)) {
+                $this->sendAnnouncementImage($phone, $announcement, $announcement->subject ?: null);
+
+                return;
+            }
             $customer = (object) ['phone_number' => $phone, 'phone' => $phone];
             $this->wpPDFAnnouncement(
                 $announcement->attachment_path,
@@ -101,6 +106,34 @@ class AnnouncementNotificationService extends Controller
             );
         } catch (\Exception $e) {
             Log::warning('Announcement attachment WhatsApp failed: ' . $e->getMessage());
+        }
+    }
+
+    protected function attachmentIsImage(WaAnnouncement $announcement)
+    {
+        $ext = strtolower(pathinfo((string) $announcement->attachment_path, PATHINFO_EXTENSION));
+
+        return in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
+    }
+
+    protected function sendAnnouncementImage($phone, WaAnnouncement $announcement, $caption = null)
+    {
+        $full = public_path((string) $announcement->attachment_path);
+        if (! is_file($full) || trim((string) $phone) === '' || strpos((string) $phone, '@') !== false) {
+            return false;
+        }
+        $caption = trim((string) $caption);
+        if ($caption === '') {
+            $caption = trim((string) ($announcement->subject ?: $announcement->attachment_name ?: basename($full)));
+        }
+        try {
+            $posted = app(BeyondWasenderService::class)->sendImage($phone, $full, $caption, true);
+
+            return ! empty($posted['success']);
+        } catch (\Exception $e) {
+            Log::warning('Announcement image Wasender failed: '.$e->getMessage());
+
+            return false;
         }
     }
 
@@ -195,7 +228,9 @@ class AnnouncementNotificationService extends Controller
             $ok = ! empty($posted['success']);
             if ($ok && ! empty($announcement->attachment_path)) {
                 $full = public_path($announcement->attachment_path);
-                if (is_file($full)) {
+                if (is_file($full) && $this->attachmentIsImage($announcement)) {
+                    $wasender->sendGroupImage($jid, $full, $announcement->subject ?: 'Announcement');
+                } elseif (is_file($full)) {
                     $wasender->sendGroupDocument(
                         $jid,
                         $full,
@@ -283,6 +318,9 @@ class AnnouncementNotificationService extends Controller
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
                     $sent++;
+                } elseif ($this->attachmentIsImage($announcement) && $this->sendAnnouncementImage($phone, $announcement, $msg)) {
+                    $sent++;
+                    $ok = true;
                 }
             }
             $results[] = [
@@ -308,6 +346,9 @@ class AnnouncementNotificationService extends Controller
                 if ($ok) {
                     $this->sendAttachment($phone, $announcement);
                     $ccSent++;
+                } elseif ($this->attachmentIsImage($announcement) && $this->sendAnnouncementImage($phone, $announcement, $msg)) {
+                    $ccSent++;
+                    $ok = true;
                 }
             }
             $results[] = [
