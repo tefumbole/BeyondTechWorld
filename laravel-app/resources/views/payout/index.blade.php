@@ -132,7 +132,7 @@
                     </div>
                     @if($open->status === 'pending')
                         <div class="pay-actions">
-                            <button class="pay-go" type="submit" id="payoutButton">Payout</button>
+                            <button class="pay-go" type="submit" id="payoutButton">Pay</button>
                             <span class="pay-muted" id="payoutTotal"></span>
                         </div>
                     @endif
@@ -177,8 +177,8 @@
                 <tbody>
                     @forelse($history as $row)
                         @php
-                            $tone = $row->status === 'paid' ? 'ok' : 'no';
-                            $statusLabel = $row->status === 'paid' ? 'Paid' : ($row->status === 'rejected' ? 'Rejected' : 'Not paid');
+                            $tone = $row->status === 'paid' ? 'ok' : ($row->status === 'pending' ? 'wait' : 'no');
+                            $statusLabel = $row->status === 'paid' ? 'Paid' : ($row->status === 'pending' ? 'Waiting' : ($row->status === 'rejected' ? 'Rejected' : 'Not paid'));
                         @endphp
                         <tr>
                             <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
@@ -194,7 +194,7 @@
                                         <form method="POST" action="{{ route('payout.retry') }}">
                                             @csrf
                                             <input type="hidden" name="id" value="{{ $row->id }}">
-                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send this payment as a Mass Payout? One person is sent the same way as many.')">Retry</button>
+                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Pay this person?')">Pay</button>
                                         </form>
                                         <form method="POST" action="{{ route('payout.drop') }}">
                                             @csrf

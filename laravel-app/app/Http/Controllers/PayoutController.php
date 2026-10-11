@@ -221,7 +221,7 @@ class PayoutController extends Controller
             return redirect()->route('payout.request')->with('message', 'Request rejected.');
         }
         if ($request->input('action') === 'approve') {
-            $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->orderBy('id')->get();
+            $rows = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->orderBy('id')->get();
             if ($rows->count() < 1) {
                 return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
             }
@@ -250,7 +250,7 @@ class PayoutController extends Controller
         if ($saved !== true) {
             return $back->with('not_permitted', $saved);
         }
-        $rows = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->orderBy('id')->get();
+        $rows = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->orderBy('id')->get();
         if ($rows->count() < 1) {
             return $back->with('not_permitted', 'There is no one left to pay.');
         }
@@ -377,7 +377,7 @@ class PayoutController extends Controller
 
         return redirect()->to($returnTo ?: route('payout.index', ['request' => $open->id]))->with(
             'message',
-            $result['paid'].' paid ('.number_format($result['total'], 0, '.', ' ').' XAF). '.$result['failed'].' not paid. '.$result['skipped'].' not sent again.'
+            $this->payMessage($result)
         );
     }
 
@@ -388,6 +388,7 @@ class PayoutController extends Controller
         $paid = 0;
         $failed = 0;
         $skipped = 0;
+        $waiting = 0;
         $total = 0;
         $seen = [];
         $ready = [];
@@ -405,7 +406,7 @@ class PayoutController extends Controller
                 continue;
             }
             if ($existing === 'pending') {
-                $skipped++;
+                $waiting++;
                 continue;
             }
             $line->phone = $phone;
@@ -417,13 +418,16 @@ class PayoutController extends Controller
             $ready[] = $line;
         }
         if ($ready) {
-            $service->massPay($ready);
+            $service->send($ready);
         }
         foreach ($ready as $line) {
+            $line->refresh();
             if ($line->status === 'paid') {
                 $paid++;
                 $total += (int) $line->amount;
                 $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note, $this->requesterName($line));
+            } elseif ($line->status === 'pending' && $line->campay_reference) {
+                $waiting++;
             } else {
                 $failed++;
             }
@@ -431,10 +435,23 @@ class PayoutController extends Controller
 
         return [
             'paid' => $paid,
+            'waiting' => $waiting,
             'failed' => $failed,
             'skipped' => $skipped,
             'total' => $total,
         ];
+    }
+
+    protected function payMessage(array $result)
+    {
+        $parts = [$result['paid'].' paid ('.number_format($result['total'], 0, '.', ' ').' XAF).'];
+        if (! empty($result['waiting'])) {
+            $parts[] = $result['waiting'].' waiting for the phone.';
+        }
+        $parts[] = $result['failed'].' not paid.';
+        $parts[] = $result['skipped'].' not sent again.';
+
+        return implode(' ', $parts);
     }
 
     protected function savePendingAmounts(CampayPayoutRequest $batch, array $amounts)
@@ -498,10 +515,7 @@ class PayoutController extends Controller
             $this->closeBatch($batch);
         }
 
-        return redirect()->back()->with(
-            'message',
-            $result['paid'].' paid. '.$result['failed'].' not paid. '.$result['skipped'].' not sent again.'
-        );
+        return redirect()->back()->with('message', $this->payMessage($result));
     }
 
     protected function retryRow($id)

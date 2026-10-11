@@ -48,10 +48,10 @@
             <div class="pay-card-head">
                 <h2>{{ $review->requester_name }} @if($review->note)<span class="pay-muted">· {{ $review->note }}</span>@endif</h2>
                 <span>
-                    @if($reviewLines->whereIn('status', ['pending', 'failed'])->count() > 0)
+                    @if($review->status !== 'pending' && $reviewLines->whereIn('status', ['pending', 'failed'])->count() > 0)
                         <form method="POST" action="{{ route('payout.mass', $review->id) }}" style="display:inline">
                             @csrf
-                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send this Mass Payout now? People already paid are left out.')">Mass Payout</button>
+                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Pay everyone still waiting? People already paid are left out.')">Pay</button>
                         </form>
                     @endif
                     <a href="{{ route('payout.request') }}" style="margin-left:12px">Close</a>
@@ -59,7 +59,7 @@
             </div>
             <div class="pay-card-body">
                 @if($review->status === 'pending')
-                    <p class="pay-help">Change an amount, or select names and delete them. Pay, Approve and Pay, and Mass Payout all use the same send, even when only one person is left. A number already paid is not sent again. Delete a failed payment if a retry should leave it out.</p>
+                    <p class="pay-help">Change an amount, or select names and delete them. Approve and Pay sends every person still waiting. One person is paid directly. Several people are sent together. A number already paid is not sent again.</p>
                     <form method="POST" action="{{ route('payout.request.revise') }}" id="reviewForm">
                         @csrf
                         <input type="hidden" name="id" value="{{ $review->id }}">
@@ -282,20 +282,6 @@
                             </td>
                             <td>
                                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                                @if($item['kind'] === 'submitted' && ($linePending + $lineFailed) > 0)
-                                    <form method="POST" action="{{ route('payout.mass', $row->id) }}">
-                                        @csrf
-                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer;background:#e7eef8;color:#0b3f90" onclick="return confirm('Send this Mass Payout now? People already paid are left out.')">Mass Payout</button>
-                                    </form>
-                                @endif
-                                @if($item['kind'] === 'submitted' && $lineFailed > 0)
-                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}" style="background:#fdecec;color:#9b1c1c !important">Delete failed</a>
-                                    <form method="POST" action="{{ route('payout.retry') }}">
-                                        @csrf
-                                        <input type="hidden" name="request_id" value="{{ $row->id }}">
-                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Send the failed payments as a Mass Payout? One person is sent the same way as many.')">Retry</button>
-                                    </form>
-                                @endif
                                 @if($item['kind'] === 'submitted' && $row->status === 'pending')
                                     <form method="POST" action="{{ route('payout.request.revise') }}">
                                         @csrf
@@ -303,6 +289,12 @@
                                         <button class="pay-open" type="submit" name="action" value="approve" style="border:0;cursor:pointer" onclick="return confirm('Approve and pay everyone still waiting on this request?')">Approve and Pay</button>
                                     </form>
                                     <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}" style="background:#e7eef8;color:#0b3f90 !important">Edit</a>
+                                @elseif($item['kind'] === 'submitted' && ($linePending + $lineFailed) > 0)
+                                    <form method="POST" action="{{ route('payout.mass', $row->id) }}">
+                                        @csrf
+                                        <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Pay everyone still waiting? People already paid are left out.')">Pay</button>
+                                    </form>
+                                    <a class="pay-open" href="{{ route('payout.request', ['review' => $row->id]) }}" style="background:#fdecec;color:#9b1c1c !important">Delete failed</a>
                                 @endif
                                 <form method="POST" action="{{ route('payout.request.resend') }}">
                                     @csrf

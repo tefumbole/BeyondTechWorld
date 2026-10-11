@@ -120,9 +120,72 @@ class CampayPayoutService
 
     public function pay(CampayPayout $row)
     {
-        $this->massPay([$row]);
+        $this->send([$row]);
 
         return $row;
+    }
+
+    public function send(array $rows)
+    {
+        $rows = array_values($rows);
+        if (count($rows) < 1) {
+            return;
+        }
+        if (count($rows) === 1) {
+            $this->withdraw($rows[0]);
+
+            return;
+        }
+        $this->massPay($rows);
+        foreach ($rows as $row) {
+            if ($row->status === 'failed' && ! $row->campay_reference && $row->error !== 'This number is not an MTN or Orange Cameroon number.') {
+                $this->withdraw($row);
+            }
+        }
+    }
+
+    public function withdraw(CampayPayout $row)
+    {
+        $phone = $this->momoNumber($row->phone);
+        if (! $phone) {
+            $row->status = 'failed';
+            $row->error = 'This number is not an MTN or Orange Cameroon number.';
+            $row->save();
+
+            return;
+        }
+        $row->phone = $phone;
+        $description = trim((string) ($row->note ?: 'Payout'));
+        if ($description === '') {
+            $description = 'Payout';
+        }
+        $body = $this->call('POST', 'withdraw/', [
+            'amount' => (string) (int) $row->amount,
+            'to' => $phone,
+            'description' => substr($description, 0, 120),
+            'external_reference' => (string) $row->external_reference,
+        ]);
+        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+        $reference = $this->massReference(is_array($body) ? $body : []);
+        if ($reference) {
+            $row->campay_reference = $reference;
+        }
+        if (is_array($body) && ! empty($body['operator'])) {
+            $row->operator = (string) $body['operator'];
+        } elseif (! $row->operator) {
+            $row->operator = $this->operatorName($phone);
+        }
+        if ($status === 'SUCCESSFUL') {
+            $row->status = 'paid';
+            $row->error = null;
+        } elseif ($status === 'PENDING') {
+            $row->status = 'pending';
+            $row->error = null;
+        } else {
+            $row->status = 'failed';
+            $row->error = is_array($body) ? $this->errorText($body, $status) : 'Campay did not accept this payment.';
+        }
+        $row->save();
     }
 
     public function massPay(array $rows)
