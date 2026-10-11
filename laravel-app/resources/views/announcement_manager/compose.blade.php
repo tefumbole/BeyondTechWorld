@@ -543,13 +543,42 @@ window.AN_PRESELECT = @json([
         });
     }
 
-    document.querySelectorAll('.an-ph').forEach(function (ph) {
-        ph.addEventListener('click', function () {
-            var ta = document.getElementById('an-body');
-            ta.value = (ta.value || '') + ph.getAttribute('data-token');
-            ta.focus();
+    (function () {
+        var ta = document.getElementById('an-body');
+        var caret = null;
+        function remember() {
+            if (!ta || typeof ta.selectionStart !== 'number') return;
+            caret = { start: ta.selectionStart, end: ta.selectionEnd };
+        }
+        if (ta) {
+            ['keyup', 'click', 'mouseup', 'select', 'input'].forEach(function (eventName) {
+                ta.addEventListener(eventName, remember);
+            });
+        }
+        document.querySelectorAll('.an-ph').forEach(function (ph) {
+            ph.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+            });
+            ph.addEventListener('click', function () {
+                if (!ta) return;
+                var token = ph.getAttribute('data-token') || '';
+                var value = ta.value || '';
+                var start = caret ? caret.start : value.length;
+                var end = caret ? caret.end : start;
+                if (document.activeElement === ta && typeof ta.selectionStart === 'number') {
+                    start = ta.selectionStart;
+                    end = ta.selectionEnd;
+                }
+                ta.value = value.slice(0, start) + token + value.slice(end);
+                var cursor = start + token.length;
+                caret = { start: cursor, end: cursor };
+                ta.focus();
+                if (ta.setSelectionRange) {
+                    ta.setSelectionRange(cursor, cursor);
+                }
+            });
         });
-    });
+    })();
 
     document.querySelectorAll('.an-send-opt').forEach(function (opt) {
         opt.addEventListener('click', function () {
