@@ -65,6 +65,11 @@ class TwilioMedia
             return '';
         }
 
-        return implode('/', array_map('rawurlencode', $parts));
+        $path = implode('/', array_map('rawurlencode', $parts));
+        if (strpos($path, 'public/') === 0) {
+            return $path;
+        }
+
+        return 'public/'.$path;
     }
 }

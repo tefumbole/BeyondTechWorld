@@ -933,37 +933,6 @@ class BeyondWasenderService
         return ['success' => true];
     }
 
-    public function sendGroupImage($groupJid, $localPath, $caption = null)
-    {
-        $blocked = $this->messagingBlocked();
-        if ($blocked) {
-            return $blocked;
-        }
-        if (! $this->isConfigured()) {
-            return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
-        }
-        if (! is_file($localPath)) {
-            return ['success' => false, 'error' => 'Image file not found.'];
-        }
-        $publicUrl = $this->uploadLocalFile($localPath);
-        if (empty($publicUrl)) {
-            return ['success' => false, 'error' => 'Wasender upload did not return a public URL.'];
-        }
-        $payload = [
-            'to' => (string) $groupJid,
-            'imageUrl' => $publicUrl,
-        ];
-        if ($caption !== null && trim((string) $caption) !== '') {
-            $payload['text'] = (string) $caption;
-        }
-        $posted = $this->postSendMessage($payload, 60);
-        if (empty($posted['success'])) {
-            return ['success' => false, 'error' => isset($posted['error']) ? $posted['error'] : 'send failed'];
-        }
-
-        return ['success' => true];
-    }
-
     /**
      * CUSTOMER companies with an expired or missing Messaging entitlement
      * get a normal failure, not an exception, so provider retries do not storm.
