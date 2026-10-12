@@ -63,7 +63,7 @@ class WebsiteChatService
                 $conversation->page_context = mb_substr((string) $pageContext, 0, 255);
                 $conversation->save();
             }
-            $conversation = $this->conversations->promoteToAiIfDefault($conversation);
+            $conversation = $this->ensureWebsiteAi($conversation);
             $conversation->load('contact');
             $this->ensureOnboardingPrompt($conversation);
 
@@ -73,7 +73,7 @@ class WebsiteChatService
         $contact = $this->ensureWebsiteContact($token);
         $conversation = WhatsAppConversation::create(array_filter([
             'contact_id' => $contact->id,
-            'mode' => $this->conversations->openingMode(),
+            'mode' => $this->enabled() ? WhatsAppConversation::MODE_AI : $this->conversations->openingMode(),
             'status' => WhatsAppConversation::STATUS_OPEN,
             'channel' => WhatsAppConversation::CHANNEL_WEBSITE,
             'session_token' => $token,
@@ -164,7 +164,7 @@ class WebsiteChatService
         }
 
         $assistantResult = null;
-        $conversation = $this->conversations->promoteToAiIfDefault($conversation->fresh(['contact']));
+        $conversation = $this->ensureWebsiteAi($conversation->fresh(['contact']));
         try {
             $assistantResult = $this->assistant->handleIncoming($message->fresh(['conversation.contact']));
         } catch (\Throwable $e) {
@@ -232,8 +232,26 @@ class WebsiteChatService
 
     public function answersImmediately()
     {
-        return app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()
-            && $this->conversations->defaultMode() === WhatsAppConversation::MODE_AI;
+        return $this->enabled();
+    }
+
+    protected function ensureWebsiteAi(WhatsAppConversation $conversation)
+    {
+        if (! $this->enabled() || ! $conversation->isWebsite()) {
+            return $conversation;
+        }
+        $mode = strtoupper((string) $conversation->mode);
+        if ($mode === WhatsAppConversation::MODE_PAUSED || $mode === WhatsAppConversation::MODE_CLOSED) {
+            return $conversation;
+        }
+        if ($mode === WhatsAppConversation::MODE_AI && empty($conversation->assigned_user_id)) {
+            return $conversation;
+        }
+        $conversation->mode = WhatsAppConversation::MODE_AI;
+        $conversation->assigned_user_id = null;
+        $conversation->save();
+
+        return $conversation->fresh() ?: $conversation;
     }
 
     public function onboardingState($contact)

@@ -21,7 +21,8 @@ class AssistantPolicyService
     public function mayProcess(WhatsAppConversation $conversation)
     {
         $mode = strtoupper((string) $conversation->mode);
-        if (! $this->globallyEnabled()) {
+        $websiteOn = $conversation->isWebsite() && AssistantRuntimeSettings::websiteAiEnabled();
+        if (! $this->globallyEnabled() && ! $websiteOn) {
             return [false, 'assistant_disabled'];
         }
         if ($mode === WhatsAppConversation::MODE_HUMAN) {

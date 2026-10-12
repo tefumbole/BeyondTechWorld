@@ -41,7 +41,7 @@
                 <label class="d-block mb-3">
                     <input type="hidden" name="assistant_enabled" value="0">
                     <input type="checkbox" name="assistant_enabled" value="1" {{ !empty($assistantEnabled) ? 'checked' : '' }}>
-                    Enable Beyond Assistant (uncheck to disable all AI replies immediately)
+                    Enable AI on WhatsApp (leave this off so AI does not reply from the business number)
                 </label>
                 <label class="d-block mb-2">
                     <input type="hidden" name="ai_first" value="0">
@@ -77,7 +77,7 @@
                 <input type="number" min="1" max="8" name="assistant_max_clarifications" class="form-control mb-3" style="max-width:240px" value="{{ $clarificationLimit }}">
                 <hr>
                 <h5>Website Assistant (Mbole AI)</h5>
-                <p class="small text-muted">Website chats: {{ $websiteMetrics['conversations'] ?? 0 }} · Website leads: {{ $websiteMetrics['leads'] ?? 0 }}</p>
+                <p class="small text-muted">Mbole AI on the website stays on even when WhatsApp AI is off. Website chats: {{ $websiteMetrics['conversations'] ?? 0 }} · Website leads: {{ $websiteMetrics['leads'] ?? 0 }}</p>
                 <label class="d-block mb-2">
                     <input type="hidden" name="website_ai_enabled" value="0">
                     <input type="checkbox" name="website_ai_enabled" value="1" {{ !empty($websiteAiEnabled) ? 'checked' : '' }}>
