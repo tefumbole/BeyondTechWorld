@@ -734,8 +734,8 @@ class LetterController extends Controller
             return true;
         }
         if ($data->otp_time == null || $data->otp_time < date('Y-m-d H:i:s', strtotime('-1 minutes'))) {
-            $otp = rand(1, 999999);
-            $msg = "Your OTP is: " . $otp . "\n That will be expired after 2 minutes";
+            $otp = \App\Support\MemorableOtp::code();
+            $msg = "Your code is ".\App\Support\MemorableOtp::display($otp)."\nThe first pair is repeated. It expires in 2 minutes.";
             try {
                 $this->wpMessage(Auth::user()->phone, $msg);
                 $data->update(['otp'=>$otp, 'otp_time'=>date('Y-m-d H:i:s')]);
@@ -1713,8 +1713,8 @@ class LetterController extends Controller
         $data = Letter::find($id_array[0]);
 
         if ($data->otp_time == null || $data->otp_time < date('Y-m-d H:i:s', strtotime('-30 seconds'))) {
-            $otp = rand(1, 999999);
-            $msg = "Your OTP is: " . $otp . "\n That will be expired after 2 minutes";
+            $otp = \App\Support\MemorableOtp::code();
+            $msg = "Your code is ".\App\Support\MemorableOtp::display($otp)."\nThe first pair is repeated. It expires in 2 minutes.";
             foreach ($id_array as $id) {
                 $letter = Letter::find($id);
                 $letter->update(['otp'=>$otp, 'otp_time'=>date('Y-m-d H:i:s')]);

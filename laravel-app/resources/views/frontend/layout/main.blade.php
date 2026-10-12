@@ -19,9 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"></noscript>
-    @if(Route::currentRouteName() === 'frontend.home')
-        <style>#preloader-active{display:none!important}</style>
-    @endif
+    <style>#preloader-active{display:none!important}</style>
     <title>{{ $general_setting->site_title }}</title>
 </head>
 <body>
@@ -89,7 +87,7 @@
                             <li><a href="{{ url('/') }}">Home</a></li>
                             <li><a href="{{ route('vendors', ['vendors' => 12]) }}">Vendors</a></li>
                             <li><a href="{{ route('shop', ['products' => 12]) }}">Shop</a></li>
-                            <li><a href="{{ route('donation', ['products' => 12]) }}">Donatation</a></li>
+                            <li><a href="{{ route('donation', ['products' => 12]) }}">Donation</a></li>
                             <li><a href="{{ route('rent', ['products' => 12]) }}">Book / Rent</a></li>
                             <li class="has-children"><a >Services</a>
                                 <ul class="sub-menu">
@@ -209,7 +207,7 @@
                             <li><a href="{{ url('/') }}">Home</a></li>
                             <li><a href="{{ route('vendors', ['vendors' => 12]) }}">Vendors</a></li>
                             <li><a href="{{ route('shop', ['products' => 12]) }}">Shop</a></li>
-                            <li><a href="{{ route('donation', ['products' => 12]) }}">Donatation</a></li>
+                            <li><a href="{{ route('donation', ['products' => 12]) }}">Donation</a></li>
                             <li><a href="{{ route('rent', ['products' => 12]) }}">Book / Rent</a></li>
                             <li class="has-children"><a >Services</a>
                                 <ul class="sub-menu">

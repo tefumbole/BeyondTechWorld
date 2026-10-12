@@ -28,7 +28,7 @@ class CloudSignupOtp
         if ($sentAt && $elapsed < 120) {
             throw new \RuntimeException('You can request another code in '.(120 - $elapsed).' seconds.');
         }
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = \App\Support\MemorableOtp::code();
         Cache::put($this->key($normalized), [
             'hash' => Hash::make($code),
             'attempts' => 0,
@@ -60,7 +60,8 @@ class CloudSignupOtp
             Cache::forget($this->key($normalized));
             throw new \RuntimeException('That code is no longer valid. Request a new one.');
         }
-        if (! Hash::check(trim((string) $code), $row['hash'])) {
+        $digits = preg_replace('/\D+/', '', (string) $code);
+        if (! Hash::check($digits, $row['hash'])) {
             $row['attempts'] = $attempts + 1;
             Cache::put($this->key($normalized), $row, now()->addMinutes(10));
             throw new \RuntimeException('That code does not match.');

@@ -149,7 +149,8 @@
     @if(Auth::user()->is_active)
         <form action="{{ route('check.otp.store') }}" method="post">
             @csrf
-            <input id="otp-code" class="otp-input" type="text" name="otp" maxlength="6" placeholder="000000" required>
+            <input id="otp-code" class="otp-input" type="text" name="otp" maxlength="8" inputmode="numeric" autocomplete="one-time-code" placeholder="47 47 82" required>
+            <div class="otp-meta">The first pair is repeated. Type the six digits.</div>
             @if ($errors->has('otp'))
                 <div class="alert alert-danger">{{ $errors->first('otp') }}</div>
             @endif

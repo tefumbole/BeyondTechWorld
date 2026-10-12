@@ -73,7 +73,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         //get general setting value
-        $general_setting = DB::table('general_settings')->latest()->first();
+        $general_setting = Cache::remember('general_setting_latest', 60, function () {
+            return DB::table('general_settings')->latest()->first();
+        });
         // Live version from laravel-app/VERSION (updated on each commit/push)
         if ($general_setting) {
             $general_setting->app_version = \App\Support\AppVersion::erp();
@@ -90,7 +92,9 @@ class AppServiceProvider extends ServiceProvider
             ]);
         }
 
-        $alert_product = DB::table('products')->where('is_active', true)->whereColumn('alert_quantity', '>', 'qty')->count();
+        $alert_product = Cache::remember('alert_product_count', 60, function () {
+            return DB::table('products')->where('is_active', true)->whereColumn('alert_quantity', '>', 'qty')->count();
+        });
         View::share('alert_product', $alert_product);
 
         View::composer('frontend.layout.main', function ($view) {

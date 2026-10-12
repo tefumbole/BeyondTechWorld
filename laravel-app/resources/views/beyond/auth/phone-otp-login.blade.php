@@ -12,7 +12,7 @@
     <form method="POST" action="{{ url('/phone-login/verify') }}">
         @csrf
         <div class="auth-field">
-            <input type="text" name="otp" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required autofocus
+            <input type="text" name="otp" maxlength="8" inputmode="numeric" autocomplete="one-time-code" placeholder="47 47 82" required autofocus
                    class="auth-input" placeholder="000000" style="text-align:center;letter-spacing:.3em;">
         </div>
         <button type="submit" class="auth-btn">Verify and continue</button>

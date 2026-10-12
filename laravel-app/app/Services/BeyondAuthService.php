@@ -101,7 +101,7 @@ class BeyondAuthService
     public function createOtp($phone, $purpose = 'login')
     {
         $formatted = $this->whatsapp->formatPhone($phone);
-        $code = (string) random_int(100000, 999999);
+        $code = \App\Support\MemorableOtp::code();
 
         BeyondOtpSession::create([
             'id' => (string) Str::uuid(),

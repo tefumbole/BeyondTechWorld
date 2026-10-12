@@ -9,14 +9,13 @@
 
 @section('auth_body')
 @if(($step ?? 'phone') === 'otp')
-    <p class="text-sm text-gray-600 mb-4">Enter the 6-digit code sent to {{ $maskedPhone ?? 'your WhatsApp' }}.</p>
+    <p class="text-sm text-gray-600 mb-4">Enter the code sent to {{ $maskedPhone ?? 'your WhatsApp' }}. The first pair is repeated, for example 47 47 82.</p>
     <form method="POST" action="{{ url('/staff-otp-login/verify') }}" class="space-y-4">
         @csrf
         <div>
             <label class="text-sm font-semibold text-gray-700">Verification code</label>
-            <input type="text" name="otp" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required autofocus
-                   class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 tracking-widest text-center text-lg"
-                   placeholder="000000">
+            <input type="text" name="otp" maxlength="8" inputmode="numeric" autocomplete="one-time-code" placeholder="47 47 82" required autofocus
+                   class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 tracking-widest text-center text-lg">
             @error('otp')
                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
             @enderror

@@ -580,8 +580,10 @@ class WhatsAppMessage
 
         $msg = self::statusBlock('🔐', 'Authentication');
         $msg .= "Welcome to *{$company}*.\n\n";
+        $shown = \App\Support\MemorableOtp::display($otp);
         $msg .= "Your one-time passcode (OTP) is:\n\n";
-        $msg .= "👉 *{$otp}*\n\n";
+        $msg .= "👉 *{$shown}*\n\n";
+        $msg .= "The first pair is repeated, so remember two numbers.\n\n";
         $msg .= "━━━━━━━━━━━━━━━━\n";
         $msg .= self::bullet('Purpose', $purposeLabel);
         $msg .= self::bullet('Expires in', "{$minutes} minutes");

@@ -27,7 +27,7 @@ class WhatsAppVerificationService
             ->whereNull('invalidated_at')
             ->update(['invalidated_at' => Carbon::now()]);
 
-        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = \App\Support\MemorableOtp::code();
         $challenge = WhatsAppVerificationChallenge::create([
             'whatsapp_contact_id' => $contactId,
             'conversation_id' => $conversationId ? (int) $conversationId : null,

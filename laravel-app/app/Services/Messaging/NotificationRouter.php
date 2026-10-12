@@ -206,7 +206,8 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $otpTemplate = app(TwilioTemplateSender::class)->sendSharedOtp($phone, $otp, $expiresMinutes);
+        $shown = \App\Support\MemorableOtp::display($otp);
+        $otpTemplate = app(TwilioTemplateSender::class)->sendSharedOtp($phone, $shown, $expiresMinutes);
         if (! empty($otpTemplate['success'])) {
             return $otpTemplate;
         }
@@ -224,7 +225,7 @@ class NotificationRouter
                 $vars = $this->statusVariablesFrom($message, [
                     'title' => 'Verification code',
                     'name' => 'Client',
-                    'message' => 'Your one-time passcode (OTP) is '.$otp.'. It expires in '.$minutes.' minutes. Do not share this code.',
+                    'message' => 'Your one-time passcode (OTP) is '.$shown.'. The first pair is repeated. It expires in '.$minutes.' minutes. Do not share this code.',
                     'reference' => $serial,
                     'details' => 'Expires in '.$minutes.' minutes',
                 ]);

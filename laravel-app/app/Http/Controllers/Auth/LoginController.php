@@ -43,7 +43,7 @@ class LoginController extends Controller
 
     public function sendOTP($phone)
     {
-        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = \App\Support\MemorableOtp::code();
         $result = app(\App\Services\Messaging\NotificationRouter::class)
             ->sendWhatsAppOtp($phone, $otp, 'login', 10);
 

@@ -129,7 +129,16 @@ class HomeController extends Controller
     public function otpCheckStore(Request $request) {
         $user = Auth::user();
 
-        if ($request->otp == $user->otp && $user->otp_time > date('Y-m-d H:i:s', strtotime('-5 minutes'))) {
+        $given = preg_replace('/\D+/', '', (string) $request->otp);
+        $fails = (int) $request->session()->get('staff_otp_fails', 0);
+        if ($fails >= 5) {
+            $user->update(['otp' => null, 'otp_time' => null]);
+            $request->session()->forget('staff_otp_fails');
+
+            return redirect()->back()->with('not_permitted', 'That code is no longer valid. Request a new one.');
+        }
+        if ($given !== '' && hash_equals((string) $user->otp, $given) && $user->otp_time > date('Y-m-d H:i:s', strtotime('-5 minutes'))) {
+            $request->session()->forget('staff_otp_fails');
             $user->update(['otp' => null, 'otp_time' => null, 'otp_verify' => '1']);
             \App\Services\ActivityLogService::log([
                 'action' => 'login',
@@ -142,6 +151,7 @@ class HomeController extends Controller
             return $this->redirectAfterStaffOtp($user);
         }
 
+        $request->session()->put('staff_otp_fails', $fails + 1);
         \App\Services\ActivityLogService::log([
             'action' => 'failed_login',
             'entity' => 'auth',
@@ -190,7 +200,7 @@ class HomeController extends Controller
 
     protected function forceSendOTP($user)
     {
-        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = \App\Support\MemorableOtp::code();
         $phone = trim((string) $user->phone);
         if ($phone === '') {
             throw new \Exception('No phone number on this account for WhatsApp OTP.');

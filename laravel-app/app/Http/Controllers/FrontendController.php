@@ -93,7 +93,7 @@ class FrontendController extends Controller
 
     public function index() {
 
-        $checkPayments = $this->checkOrderPayment();
+        $this->checkPaymentsLater();
         $new_arrival = Product::where('is_active', true)->where('price', '>', 0)->where('type','!=' , 'donation')->where('type','!=' , 'service')->orderByDesc('id')->take(6)->get();
         $best_selling = Product::where('is_active', true)->where('price', '>', 0)->where('type','!=' , 'donation')->where('type','!=' , 'service')->orderByDesc('qty')->take(6)->get();
         $hot_deal = Product::where('is_active', true)->where('price', '>', 0)->where('type','!=' , 'donation')->where('type','!=' , 'service')->orderBy('price')->take(6)->get();
@@ -114,8 +114,23 @@ class FrontendController extends Controller
         return view('frontend.index', compact('new_arrival', 'best_selling', 'hot_deal', 'categories', 'first_category', 'second_category', 'third_category', 'forth_category'));
     }
 
+    private function checkPaymentsLater()
+    {
+        if (! \Cache::add('frontend-momo-check', 1, 90)) {
+            return;
+        }
+        $controller = $this;
+        app()->terminating(function () use ($controller) {
+            try {
+                $controller->checkOrderPayment();
+            } catch (\Throwable $e) {
+                \Log::warning('Payment check after page: '.$e->getMessage());
+            }
+        });
+    }
+
     private function checkOrderPayment(){
-        $orders = Order::select('id', 'reference', 'name', 'user_id', 'vendor_id', 'grand_total', 'payment_method', 'payment_status')->where('payment_method', 'MTN')->where('payment_status', 0)->get();
+        $orders = Order::select('id', 'reference', 'name', 'user_id', 'vendor_id', 'grand_total', 'payment_method', 'payment_status')->where('payment_method', 'MTN')->where('payment_status', 0)->orderByDesc('id')->limit(8)->get();
         $general_setting = GeneralSetting::first();
         $token = getenv("MOMO_TOKEN");
         foreach ($orders as $order) {
@@ -156,7 +171,7 @@ class FrontendController extends Controller
             }
         }
 
-        $bookings = Booking::where('payment_method', 'MTN')->where('payment_status', 1)->get();
+        $bookings = Booking::where('payment_method', 'MTN')->where('payment_status', 1)->orderByDesc('id')->limit(8)->get();
 
         if($bookings->isEmpty()) {
             return true;
@@ -194,7 +209,8 @@ class FrontendController extends Controller
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_TIMEOUT => 4,
+            CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'GET',
