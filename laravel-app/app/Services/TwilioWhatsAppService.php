@@ -107,6 +107,10 @@ class TwilioWhatsAppService
             return ['success' => false, 'error' => 'Twilio Content SID is missing.'];
         }
 
+        if (! filter_var(config('services.whatsapp.twilio_templates', true), FILTER_VALIDATE_BOOLEAN)) {
+            return ['success' => false, 'error' => 'Twilio WhatsApp templates are paused.'];
+        }
+
         if (! $this->isConfigured()) {
             \Log::warning('[twilio-whatsapp] not configured (SID/token/from)');
 

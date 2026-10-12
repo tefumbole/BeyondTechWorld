@@ -50,6 +50,8 @@ return [
         'twilio_sid' => env('TWILIO_SID', env('ACCOUNT_SID')),
         'twilio_token' => env('TWILIO_AUTH_TOKEN', env('AUTH_TOKEN')),
         'twilio_whatsapp_from' => env('TWILIO_WHATSAPP_FROM'),
+        // Turn off while Meta is rejecting this sender, so notices fall back to Wasender.
+        'twilio_templates' => env('TWILIO_WHATSAPP_TEMPLATES', true),
         // beyond_notice — 5 vars: headline, name, message, reference, extra
         'content_sid_admission' => env(
             'TWILIO_WHATSAPP_CONTENT_SID_ADMISSION',
