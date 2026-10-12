@@ -8,7 +8,7 @@
     <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center">
         <p class="text-brand-gold font-semibold tracking-wide text-sm mb-2">Beyond Company Limited</p>
         <h1 class="text-2xl sm:text-3xl font-bold text-white m-0">Client reviews</h1>
-        <p class="text-white/90 mt-3 mb-0 max-w-2xl mx-auto">People who worked with us share their country, a photo, and a signature. A review appears here when it is 5 stars.</p>
+        <p class="text-white/90 mt-3 mb-0 max-w-2xl mx-auto">Clients score value, equipment, beauty, professionalism, and time. A review appears here when every score is 5 stars.</p>
         <a href="{{ route('reviews.create') }}" class="inline-flex items-center gap-2 mt-5 bg-brand-gold text-brand-blue font-bold px-5 py-2.5 rounded-lg">
             <i data-lucide="star" class="w-4 h-4"></i> Write a review
         </a>
@@ -41,7 +41,14 @@
                                 <p class="text-sm text-brand-blue m-0">From {{ $review->countryLabel() }}</p>
                             </div>
                         </div>
-                        <div class="mt-3 text-brand-gold tracking-wide" aria-label="5 stars">★★★★★</div>
+                        <ul class="mt-3 mb-0 pl-0" style="list-style:none;">
+                            @foreach($review->scoreRows() as $label => $score)
+                                <li class="flex items-center justify-between text-sm text-gray-700 py-0.5">
+                                    <span>{{ $label }}</span>
+                                    <span class="text-brand-gold tracking-wide">{{ str_repeat('★', max(0, (int) $score)) }}{{ str_repeat('☆', max(0, 5 - (int) $score)) }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
                         <p class="text-gray-700 mt-3 mb-4 leading-relaxed flex-1">“{{ $review->comment }}”</p>
                         @if($review->signatureUrl())
                             <div class="mt-auto pt-3 border-t border-gray-100">

@@ -1,19 +1,22 @@
 @extends('beyond.layout')
 
 @section('title', 'Write a review | Beyond Company Limited')
-@section('meta_description', 'Review Beyond Company Limited with your Google account, a photo, your country, and your signature.')
+@section('meta_description', 'Review Beyond Company Limited. Confirm your phone, then score value, equipment, beauty, professionalism, and time.')
 
 @section('content')
 <section class="bg-gradient-to-r from-brand-blue via-brand-light to-brand-blue py-8">
     <div class="max-w-3xl mx-auto px-4 text-center">
         <p class="text-brand-gold font-semibold text-sm mb-2">Beyond Company Limited</p>
         <h1 class="text-2xl sm:text-3xl font-bold text-white m-0">Write a review</h1>
-        <p class="text-white/90 mt-2 mb-0">Confirm your Google account, choose your country, add a photo, and sign.</p>
+        <p class="text-white/90 mt-2 mb-0">Confirm your phone number, then tell us how we did.</p>
     </div>
 </section>
 
 <section class="py-8 bg-gray-50">
     <div class="max-w-3xl mx-auto px-4">
+        @if(session('message'))
+            <div class="mb-4 rounded-lg border border-green-200 bg-green-50 text-green-800 px-4 py-3">{{ session('message') }}</div>
+        @endif
         @if(session('error'))
             <div class="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-800 px-4 py-3">{{ session('error') }}</div>
         @endif
@@ -26,74 +29,82 @@
         @endif
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8">
-            <h2 class="text-lg font-bold text-gray-900 mt-0">1. Confirm with Google</h2>
-            @if($googleClientId === '')
-                <p class="text-gray-600 mb-0">Google sign-in is not connected yet, so a review cannot be sent. An administrator can connect it from the Reviews menu.</p>
-            @elseif(empty($google['email']))
-                <p class="text-gray-600">Use the Google account that should stand behind this review.</p>
-                <form id="review-google-form" method="POST" action="{{ route('reviews.google') }}">
+            @if($step === 'phone')
+                <h2 class="text-lg font-bold text-gray-900 mt-0">Your phone number</h2>
+                <p class="text-gray-600">We will send a code to this number. You type the code on this page.</p>
+                <form method="POST" action="{{ route('reviews.phone') }}" class="space-y-4">
                     @csrf
-                    <input type="hidden" name="credential" id="review-google-credential">
+                    <label for="review-phone" class="text-sm font-semibold text-gray-700 block">Phone number</label>
+                    <input id="review-phone" name="phone" type="tel" required value="{{ old('phone') }}" placeholder="+237 6 75 32 17 39" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+                    <button type="submit" class="w-full bg-brand-gold text-brand-blue font-bold py-3.5 rounded-lg">Send code</button>
                 </form>
-                <div id="g_id_onload"
-                     data-client_id="{{ $googleClientId }}"
-                     data-context="signin"
-                     data-callback="onReviewGoogle"
-                     data-auto_prompt="false"></div>
-                <div class="g_id_signin" data-type="standard" data-theme="outline" data-size="large" data-text="continue_with" data-shape="rectangular"></div>
+            @elseif($step === 'otp')
+                <h2 class="text-lg font-bold text-gray-900 mt-0">Type the code</h2>
+                <p class="text-gray-600">The code was sent to {{ $phone }}. The first pair is repeated, for example 47 47 82. Type it here on this page.</p>
+                <form method="POST" action="{{ route('reviews.otp') }}" class="space-y-4">
+                    @csrf
+                    <label for="review-otp" class="text-sm font-semibold text-gray-700 block">Code</label>
+                    <input id="review-otp" name="otp" type="text" inputmode="numeric" required maxlength="8" placeholder="47 47 82" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+                    <button type="submit" class="w-full bg-brand-gold text-brand-blue font-bold py-3.5 rounded-lg">Confirm code</button>
+                </form>
+                <form method="POST" action="{{ route('reviews.phone') }}" class="mt-4">
+                    @csrf
+                    <input type="hidden" name="phone" value="{{ $phone }}">
+                    <button type="submit" class="text-sm text-brand-blue underline">Send a new code</button>
+                </form>
             @else
-                <div class="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-100 p-3">
-                    @if(!empty($google['picture']))
-                        <img src="{{ $google['picture'] }}" alt="" class="w-12 h-12 rounded-full object-cover">
-                    @endif
-                    <div>
-                        <p class="font-semibold text-gray-900 m-0">{{ !empty($google['name']) ? $google['name'] : 'Google account' }}</p>
-                        <p class="text-sm text-green-700 m-0">Google account confirmed</p>
-                    </div>
-                </div>
-            @endif
-
-            @if($googleClientId !== '' && !empty($google['email']))
-                <form id="review-form" method="POST" action="{{ route('reviews.store') }}" enctype="multipart/form-data" class="mt-8 space-y-6">
+                @if($skippedOtp)
+                    <p class="text-sm text-green-700 mt-0">This link is for a client already in our records, so no code is needed.</p>
+                @endif
+                <form id="review-form" method="POST" action="{{ route('reviews.store') }}" enctype="multipart/form-data" class="space-y-6">
                     @csrf
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900 mt-0 mb-1">2. Your country</h2>
-                        <label for="review-country" class="text-sm font-semibold text-gray-700 block mb-2">Where are you reviewing from?</label>
+                        <label for="review-name" class="text-sm font-semibold text-gray-700 block mb-2">Name on the review</label>
+                        <input id="review-name" name="reviewer_name" type="text" required maxlength="191" value="{{ old('reviewer_name', $suggestedName) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+                        @if($suggestedName !== '')
+                            <p class="text-xs text-gray-500 mt-1 mb-0">This name is from our records. You can change it.</p>
+                        @endif
+                    </div>
+
+                    <div>
+                        <label for="review-country" class="text-sm font-semibold text-gray-700 block mb-2">Your country</label>
                         <select id="review-country" name="country" required class="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
                             <option value="">Choose a country</option>
                             @foreach($countries as $name => $flag)
                                 <option value="{{ $name }}" {{ old('country') === $name ? 'selected' : '' }}>{{ $flag }} {{ $name }}</option>
                             @endforeach
                         </select>
-                        <p class="text-xs text-gray-500 mt-1 mb-0">The review shows this country, for example United States or Cameroon.</p>
                     </div>
 
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900 mt-0 mb-1">3. Your rating</h2>
-                        <input type="hidden" name="rating" id="review-rating" value="{{ old('rating') }}">
-                        <div class="flex gap-1" id="review-stars" role="group" aria-label="Star rating">
-                            @for($star = 1; $star <= 5; $star++)
-                                <button type="button" data-star="{{ $star }}" class="text-3xl leading-none text-gray-300" aria-label="{{ $star }} star{{ $star > 1 ? 's' : '' }}">★</button>
-                            @endfor
-                        </div>
-                        <p id="review-rating-note" class="text-sm text-gray-600 mt-2 mb-0">Only a 5-star review is published on the website.</p>
+                        <h2 class="text-lg font-bold text-gray-900 mt-0 mb-1">Your scores</h2>
+                        <p id="review-rating-note" class="text-sm text-gray-600 mt-0">The review is shown on the website only when every score is 5 stars.</p>
+                        @foreach($scores as $field => $label)
+                            <div class="mt-4">
+                                <p class="text-sm font-semibold text-gray-800 mb-1">{{ $label }}</p>
+                                <input type="hidden" name="{{ $field }}" id="score-{{ $field }}" value="{{ old($field) }}">
+                                <div class="flex gap-1 review-stars" data-field="{{ $field }}">
+                                    @for($star = 1; $star <= 5; $star++)
+                                        <button type="button" data-star="{{ $star }}" class="text-3xl leading-none text-gray-300" aria-label="{{ $star }} stars for {{ $label }}">★</button>
+                                    @endfor
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
 
                     <div>
                         <label for="review-comment" class="text-sm font-semibold text-gray-700 block mb-2">Your review</label>
-                        <textarea id="review-comment" name="comment" rows="5" required minlength="20" maxlength="800" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" placeholder="What was your experience with Beyond Company Limited?">{{ old('comment') }}</textarea>
+                        <textarea id="review-comment" name="comment" rows="5" required minlength="20" maxlength="800" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" placeholder="Tell us about your experience with Beyond Company Limited.">{{ old('comment') }}</textarea>
                     </div>
 
                     <div>
                         <label for="review-photo" class="text-sm font-semibold text-gray-700 block mb-2">Your picture</label>
                         <input id="review-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="block w-full text-sm">
-                        <p class="text-xs text-gray-500 mt-1 mb-0">Optional. JPG, PNG, or WebP, up to 4 MB. If you skip this, your Google picture is used.</p>
                         <img id="review-photo-preview" alt="" class="mt-3 w-20 h-20 rounded-full object-cover hidden border-2 border-brand-gold">
                     </div>
 
                     <div>
                         <label class="text-sm font-semibold text-gray-700 block mb-2">Your signature</label>
-                        <p class="text-xs text-gray-500 mb-2">Sign with your mouse or finger.</p>
                         <div class="border-2 border-dashed border-brand-blue rounded-xl bg-blue-50 p-3">
                             <canvas id="review-signature" class="w-full bg-white rounded-lg touch-none"></canvas>
                         </div>
@@ -112,46 +123,27 @@
 @endsection
 
 @push('scripts')
-@if($googleClientId !== '' && empty($google['email']))
-<script>
-function onReviewGoogle(response) {
-    var input = document.getElementById('review-google-credential');
-    var form = document.getElementById('review-google-form');
-    if (!input || !form || !response || !response.credential) return;
-    input.value = response.credential;
-    form.submit();
-}
-</script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-@endif
-@if($googleClientId !== '' && !empty($google['email']))
+@if($step === 'review')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
 (function () {
-    var stars = document.querySelectorAll('#review-stars [data-star]');
-    var ratingInput = document.getElementById('review-rating');
-    var note = document.getElementById('review-rating-note');
-    function paint(value) {
-        stars.forEach(function (btn) {
-            var n = parseInt(btn.getAttribute('data-star'), 10);
-            btn.style.color = n <= value ? '#D4AF37' : '#d1d5db';
-        });
-        if (!note) return;
-        if (!value) {
-            note.textContent = 'Only a 5-star review is published on the website.';
-        } else if (value === 5) {
-            note.textContent = 'This review will be shown on the website.';
-        } else {
-            note.textContent = 'This review will be saved, and it will not appear on the website.';
+    document.querySelectorAll('.review-stars').forEach(function (group) {
+        var field = group.getAttribute('data-field');
+        var input = document.getElementById('score-' + field);
+        function paint(value) {
+            group.querySelectorAll('[data-star]').forEach(function (btn) {
+                var n = parseInt(btn.getAttribute('data-star'), 10);
+                btn.style.color = n <= value ? '#D4AF37' : '#d1d5db';
+            });
         }
-    }
-    stars.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            ratingInput.value = btn.getAttribute('data-star');
-            paint(parseInt(ratingInput.value, 10));
+        group.querySelectorAll('[data-star]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                input.value = btn.getAttribute('data-star');
+                paint(parseInt(input.value, 10));
+            });
         });
+        paint(parseInt(input.value || '0', 10));
     });
-    paint(parseInt(ratingInput.value || '0', 10));
 
     var photo = document.getElementById('review-photo');
     var preview = document.getElementById('review-photo-preview');
@@ -179,11 +171,15 @@ function onReviewGoogle(response) {
     var pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)', penColor: 'rgb(0, 61, 130)' });
     var clearBtn = document.getElementById('review-signature-clear');
     if (clearBtn) clearBtn.addEventListener('click', function () { pad.clear(); });
-    var form = document.getElementById('review-form');
-    form.addEventListener('submit', function (e) {
-        if (!ratingInput.value) {
+    document.getElementById('review-form').addEventListener('submit', function (e) {
+        var missing = false;
+        document.querySelectorAll('.review-stars').forEach(function (group) {
+            var input = document.getElementById('score-' + group.getAttribute('data-field'));
+            if (!input.value) missing = true;
+        });
+        if (missing) {
             e.preventDefault();
-            alert('Please choose a star rating.');
+            alert('Please choose a star score for every item.');
             return;
         }
         if (pad.isEmpty()) {
