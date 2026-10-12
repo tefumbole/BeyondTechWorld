@@ -4,6 +4,10 @@
 @section('meta_description', 'Beyond Enterprise — your technology bridge to Kigali. IT consultancy, networking, CCTV security, and professional audio-visual solutions in Rwanda.')
 @section('body_class', 'home-lock')
 
+@push('head')
+<link rel="preload" as="image" href="{{ \App\Support\SiteContent::image('home.hero_image', '/branding/beyond-hero.png') }}">
+@endpush
+
 @section('content')
 {{-- Single-viewport homepage: copy + CTAs pin to the top so the Kigali skyline stays visible --}}
 <section class="home-hero relative flex flex-col items-center justify-start overflow-hidden w-full">

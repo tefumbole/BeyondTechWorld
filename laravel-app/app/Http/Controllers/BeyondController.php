@@ -7,7 +7,8 @@ class BeyondController extends Controller
     public function home()
     {
         $pubService = app(\App\Services\EventPublicationService::class);
-        $homeEvents = $pubService->publishedQuery()
+        $homeEvents = \Cache::remember('beyond.home.events', 60, function () use ($pubService) {
+            return $pubService->publishedQuery()
             ->orderBy('event_start_at')
             ->limit(6)
             ->get()
@@ -24,6 +25,7 @@ class BeyondController extends Controller
                     'status' => $pubService->computePublicStatus($event, $pub),
                 ];
             });
+        });
 
         return view('beyond.home', ['homeEvents' => $homeEvents]);
     }

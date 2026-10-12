@@ -11,19 +11,11 @@
     @endphp
     <title>@yield('title', 'Sign in') | {{ $siteTitle }}</title>
     <link rel="icon" href="{{ $siteLogoUrl }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { blue: '#0b3f90', dark: '#083272', light: '#2563eb', gold: '#D4AF37', navy: '#0a2540' },
-                    },
-                },
-            },
-        };
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ asset('public/css/beyond-auth.css') }}?v={{ \App\Support\AppVersion::erp() }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -260,9 +252,9 @@
         <div class="auth-version">BCL V.{{ $versionLabel }}</div>
     </div>
 </div>
-<script src="https://unpkg.com/lucide@latest"></script>
+<script defer src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 <script>
-    if (window.lucide) lucide.createIcons();
+    window.addEventListener('DOMContentLoaded', function () { if (window.lucide) lucide.createIcons(); });
 </script>
 @stack('scripts')
 </body>

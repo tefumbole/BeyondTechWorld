@@ -21,19 +21,12 @@
     <meta name="description" content="@yield('meta_description', 'Beyond Enterprise — IT consultancy, networks, CCTV security, and professional sound/screen/lighting solutions.')">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="{{ $siteLogoUrl }}">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { blue: '#003D82', dark: '#002855', light: '#0066CC', gold: '#D4AF37', navy: '#1a1a2e' },
-                    },
-                },
-            },
-        };
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ asset('public/css/beyond-public.css') }}?v={{ \App\Support\AppVersion::erp() }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
+    @stack('head')
     <style>
         body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
         img, video, svg { max-width: 100%; }
@@ -382,8 +375,8 @@
 
 @include('beyond.partials.mbole_ai_widget')
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script defer src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
 <script>
     window.addEventListener('DOMContentLoaded', () => { if (window.lucide) lucide.createIcons(); });
     document.addEventListener('alpine:initialized', () => { if (window.lucide) lucide.createIcons(); });
