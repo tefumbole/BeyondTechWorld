@@ -1235,7 +1235,8 @@ class SaleController extends Controller
                 $this->wpMessage($lims_customer_data->phone_number, $msg);
             }
         }
-        catch(\Exception $e){
+        catch(\Throwable $e){
+            \Log::warning('Sale WhatsApp notice failed: '.$e->getMessage());
             $message = 'Sale created successfully. Please setup your whatsapp setting.';
         }
 

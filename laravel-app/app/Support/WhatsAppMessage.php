@@ -33,6 +33,46 @@ class WhatsAppMessage
         return "◾ *{$label}:* {$value}\n";
     }
 
+    /**
+     * Whole numbers stay whole. 500.00 becomes 500. Currency codes are left off.
+     */
+    public static function plainAmount($amount)
+    {
+        $raw = trim((string) $amount);
+        if ($raw !== '' && ! is_numeric($raw)) {
+            $raw = str_replace([',', ' '], '', $raw);
+            $raw = preg_replace('/[^0-9.\-]/', '', $raw);
+        }
+        if ($raw === '' || ! is_numeric($raw)) {
+            return '0';
+        }
+        $number = (float) $raw;
+        if (abs($number - round($number)) < 0.001) {
+            return (string) (int) round($number);
+        }
+
+        return rtrim(rtrim(number_format($number, 2, '.', ''), '0'), '.');
+    }
+
+    /**
+     * One item, Mulema style: • Name 1*500 = 500
+     */
+    public static function itemSummary($name, $qty, $unit, $total = null)
+    {
+        $quantity = self::plainAmount($qty);
+        $price = self::plainAmount($unit);
+        $lineTotal = ($total === null || $total === '')
+            ? ((float) $quantity * (float) $price)
+            : $total;
+        $math = $quantity.'*'.$price.' = '.self::plainAmount($lineTotal);
+        $label = trim((string) $name);
+        if ($label === '') {
+            return '• '.$math;
+        }
+
+        return '• '.$label.' '.$math;
+    }
+
     public static function actionLink($label, $url)
     {
         return "\n👉 *{$label}:*\n{$url}\n";
@@ -41,6 +81,54 @@ class WhatsAppMessage
     public static function footer()
     {
         return "\n_" . self::companyName() . '_';
+    }
+
+    /**
+     * One line for a WhatsApp template variable. Templates reject line breaks.
+     */
+    public static function plainLine($text)
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", (string) $text);
+        $text = preg_replace('/\*+|_+/', '', $text);
+        $text = preg_replace('/\s+/u', ' ', (string) $text);
+
+        return trim((string) $text);
+    }
+
+    public static function withEmoji($emoji, $text)
+    {
+        $emoji = trim((string) $emoji);
+        $text = self::plainLine($text);
+        if ($text === '') {
+            return $emoji !== '' ? $emoji : '-';
+        }
+        if ($emoji !== '' && mb_strpos($text, $emoji) !== 0) {
+            return $emoji.' '.$text;
+        }
+
+        return $text;
+    }
+
+    public static function statusLabel($status)
+    {
+        $status = self::plainLine($status);
+        if ($status === '') {
+            return '📌 Updated';
+        }
+        if (preg_match('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', $status)) {
+            return $status;
+        }
+        $lower = strtolower($status);
+        $emoji = '📌';
+        if (strpos($lower, 'approv') !== false || strpos($lower, 'confirm') !== false || strpos($lower, 'paid') !== false || strpos($lower, 'success') !== false) {
+            $emoji = '✅';
+        } elseif (strpos($lower, 'reject') !== false || strpos($lower, 'fail') !== false || strpos($lower, 'cancel') !== false) {
+            $emoji = '❌';
+        } elseif (strpos($lower, 'pend') !== false || strpos($lower, 'review') !== false || strpos($lower, 'await') !== false) {
+            $emoji = '⏳';
+        }
+
+        return $emoji.' '.$status;
     }
 
     /**
@@ -485,12 +573,6 @@ class WhatsAppMessage
         $currencyCode = ''
     ) {
         $company = self::companyName();
-        $money = function ($amount) use ($currencyCode) {
-            $formatted = is_numeric($amount)
-                ? number_format((float) $amount, 2)
-                : (string) $amount;
-            return $currencyCode !== '' ? trim($currencyCode.' '.$formatted) : $formatted;
-        };
 
         $msg = self::statusBlock('🧾', 'Sale Confirmed');
         $msg .= self::greeting($customerName);
@@ -500,27 +582,18 @@ class WhatsAppMessage
 
         if (! empty($lines)) {
             $msg .= "\n*Items:*\n";
-            foreach ($lines as $index => $line) {
-                $name = $line['name'] ?? 'Item';
-                $qty = $line['qty'] ?? '';
-                $unit = isset($line['unit_price']) ? $money($line['unit_price']) : null;
-                $total = isset($line['total']) ? $money($line['total']) : '';
-                $msg .= ($index + 1).") *{$name}*";
-                if ($qty !== '' && $qty !== null) {
-                    $msg .= " × {$qty}";
-                }
-                if ($unit !== null) {
-                    $msg .= " @ {$unit}";
-                }
-                if ($total !== '') {
-                    $msg .= " = *{$total}*";
-                }
-                $msg .= "\n";
+            foreach ($lines as $line) {
+                $msg .= self::itemSummary(
+                    $line['name'] ?? 'Item',
+                    $line['qty'] ?? 0,
+                    $line['unit_price'] ?? 0,
+                    $line['total'] ?? null
+                )."\n";
             }
         }
 
         $msg .= "\n━━━━━━━━━━━━━━━━\n";
-        $msg .= self::bullet('Total', $money($grandTotal));
+        $msg .= self::bullet('Total', self::plainAmount($grandTotal));
         $msg .= self::bullet('Payment', $payingMethod ?: '—');
         if (trim((string) $billingAddress) !== '') {
             $msg .= self::bullet('Billing', $billingAddress);
