@@ -228,6 +228,7 @@
         'permissions'  => ['label' => 'Permissions', 'url' => url('/permissions')],
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
         'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
+        'reviews'      => ['label' => 'Reviews', 'url' => url('/reviews')],
         'donations'    => ['label' => 'Donations', 'url' => url('/donate')],
         'request-payment' => ['label' => 'Request Payment', 'url' => url('/request-payment')],
     ];

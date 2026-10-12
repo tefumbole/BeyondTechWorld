@@ -62,6 +62,11 @@ Route::get('/about', 'BeyondController@about')->name('beyond.about');
 Route::get('/services', 'BeyondController@services')->name('beyond.services');
 Route::get('/projects', 'BeyondController@projects')->name('beyond.projects');
 Route::get('/gallery', 'BeyondController@gallery')->name('beyond.gallery');
+Route::get('/reviews', 'CompanyReviewController@index')->name('reviews.index');
+Route::get('/reviews/write/{token}', 'CompanyReviewController@create')->where('token', '[A-Za-z0-9]{32}')->name('reviews.invite');
+Route::get('/reviews/write', 'CompanyReviewController@create')->name('reviews.create');
+Route::post('/reviews/google', 'CompanyReviewController@google')->middleware('throttle:12,1')->name('reviews.google');
+Route::post('/reviews', 'CompanyReviewController@store')->middleware('throttle:8,1')->name('reviews.store');
 Route::get('/donate', 'PublicDonateController@show')->name('donate.show');
 Route::get('/donate/lookup', 'PublicDonateController@lookup')->middleware('throttle:40,1')->name('donate.lookup');
 Route::post('/donate', 'PublicDonateController@store')->middleware('throttle:12,1')->name('donate.store');
@@ -473,6 +478,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/subscriptions/signup', 'CloudAdminController@setPublicSignup')->name('cloud.admin.signup');
 
     Route::get('/admin/leaders', 'LeaderController@index')->name('leaders.index');
+    Route::get('/admin/reviews', 'CompanyReviewController@admin')->name('admin.reviews.index');
+    Route::post('/admin/reviews/google', 'CompanyReviewController@saveGoogle')->name('admin.reviews.google');
+    Route::post('/admin/reviews/{id}/visibility', 'CompanyReviewController@visibility')->where('id', '[0-9]+')->name('admin.reviews.visibility');
     Route::post('/admin/leaders', 'LeaderController@store')->name('leaders.store');
     Route::post('/admin/leaders/reorder', 'LeaderController@reorder')->name('leaders.reorder');
     Route::post('/admin/leaders/{id}', 'LeaderController@update')->name('leaders.update');

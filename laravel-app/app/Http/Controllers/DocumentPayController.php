@@ -240,6 +240,11 @@ class DocumentPayController extends Controller
         $label = $this->label($link);
         $text = 'Dear '.$link->person_name.', a payment of '.number_format($link->amount, 0, '.', ' ').' XAF has been received for '.$label.' '.$link->reference_no.'.';
         app(ClientNoticeService::class)->send($link->phone, $text);
+        try {
+            app(\App\Services\CompanyReviewInviteService::class)->sendForDocumentPayment($link);
+        } catch (\Throwable $e) {
+            \Log::warning('Review invite failed', ['error' => $e->getMessage()]);
+        }
     }
 
     protected function find($token)

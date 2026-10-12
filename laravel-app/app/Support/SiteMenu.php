@@ -23,6 +23,7 @@ class SiteMenu
             'permissions'  => 'Permissions',
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
+            'reviews'      => 'Reviews',
             'donations'    => 'Donations',
             'request-payment' => 'Request Payment',
             // Register Now removed — Training already covers course signup
@@ -39,6 +40,7 @@ class SiteMenu
             'dashboard'    => 'Dashboard',
             'site-content' => 'Site Content',
             'leaders'      => 'About Us Leaders',
+            'reviews'      => 'Reviews',
             'product'      => 'Product',
             'purchase'     => 'Purchase',
             'sale'         => 'Sale',
@@ -110,7 +112,29 @@ class SiteMenu
 
     public static function sideOrder()
     {
-        return self::ordered('side_menu_order', self::sideItems());
+        $saved = SiteSetting::getValue('side_menu_order', []);
+        $ordered = self::ordered('side_menu_order', self::sideItems());
+        if (! is_array($saved) || ! in_array('reviews', $saved, true)) {
+            $ordered = self::moveAfter($ordered, 'reviews', 'leaders');
+        }
+
+        return $ordered;
+    }
+
+    protected static function moveAfter(array $keys, $key, $after)
+    {
+        $keys = array_values(array_filter($keys, function ($item) use ($key) {
+            return $item !== $key;
+        }));
+        $pos = array_search($after, $keys, true);
+        if ($pos === false) {
+            $keys[] = $key;
+
+            return $keys;
+        }
+        array_splice($keys, $pos + 1, 0, [$key]);
+
+        return $keys;
     }
 
     /** Settings submenu items inside #setting (key => label). */

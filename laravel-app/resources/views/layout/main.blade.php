@@ -129,6 +129,7 @@
                             <li><a href="{{ url('/admin/site-content') }}" data-nav-key="site-content"> <i class="dripicons-web"></i><span>Site Content</span></a></li>
                             <li><a href="{{ route('cloud.admin') }}" data-nav-key="subscriptions"> <i class="dripicons-card"></i><span>Subscriptions</span></a></li>
                             <li><a href="{{ url('/admin/leaders') }}" data-nav-key="leaders"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
+                            <li><a href="{{ url('/admin/reviews') }}" data-nav-key="reviews"> <i class="dripicons-star"></i><span>Reviews</span></a></li>
                         @endif
                         <?php
                         $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);
