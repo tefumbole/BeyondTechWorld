@@ -914,11 +914,16 @@ class WhatsAppConversationService
         ]);
     }
 
+    public function openingMode()
+    {
+        return $this->initialMode();
+    }
+
     /**
      * When AI is the default and the assistant is on, answer unassigned chats
      * even if they were opened earlier in Human mode.
      */
-    protected function promoteToAiIfDefault(WhatsAppConversation $conversation)
+    public function promoteToAiIfDefault(WhatsAppConversation $conversation)
     {
         if ($conversation->mode === WhatsAppConversation::MODE_AI) {
             return $conversation;

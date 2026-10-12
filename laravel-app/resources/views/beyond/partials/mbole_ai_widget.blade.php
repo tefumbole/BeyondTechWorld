@@ -215,7 +215,7 @@
   var idleTimer = null;
   var sending = false;
   var onboarding = 'need_phone';
-  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true };
+  var cfg = { enabled: true, name: 'Mbole AI', greeting: 'Hello! How can I help?', greeting_delay_ms: 600, continue_whatsapp: true, assistant_on: false };
   var countries = @json(\App\Support\CountryDialCodes::list());
   var countryCode = '+237';
 
@@ -295,12 +295,14 @@
     if (input) input.value = '';
     showErr(phoneErr, '');
     showErr(nameErr, '');
-    applyOnboarding('need_phone');
+    applyOnboarding(cfg.assistant_on ? 'ready' : 'need_phone');
     if (reason === 'idle' && panel.classList.contains('open')) {
       appendMsg({
         id: 'idle-' + nowMs(),
         role: 'assistant',
-        body: 'This chat ended after 5 minutes of inactivity. Starting a new conversation — please confirm your phone number to continue.'
+        body: cfg.assistant_on
+          ? 'This chat ended after 5 minutes of inactivity. Starting a new conversation.'
+          : 'This chat ended after 5 minutes of inactivity. Starting a new conversation — please confirm your phone number to continue.'
       });
     }
     scheduleIdleCheck();

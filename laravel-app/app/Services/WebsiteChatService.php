@@ -63,6 +63,7 @@ class WebsiteChatService
                 $conversation->page_context = mb_substr((string) $pageContext, 0, 255);
                 $conversation->save();
             }
+            $conversation = $this->conversations->promoteToAiIfDefault($conversation);
             $conversation->load('contact');
             $this->ensureOnboardingPrompt($conversation);
 
@@ -72,9 +73,7 @@ class WebsiteChatService
         $contact = $this->ensureWebsiteContact($token);
         $conversation = WhatsAppConversation::create(array_filter([
             'contact_id' => $contact->id,
-            'mode' => app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()
-                ? WhatsAppConversation::MODE_AI
-                : WhatsAppConversation::MODE_HUMAN,
+            'mode' => $this->conversations->openingMode(),
             'status' => WhatsAppConversation::STATUS_OPEN,
             'channel' => WhatsAppConversation::CHANNEL_WEBSITE,
             'session_token' => $token,
@@ -165,16 +164,14 @@ class WebsiteChatService
         }
 
         $assistantResult = null;
-        $conversation = $conversation->fresh(['contact']);
-        if ($conversation->mode === WhatsAppConversation::MODE_AI) {
-            try {
-                $assistantResult = $this->assistant->handleIncoming($message->fresh(['conversation.contact']));
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[website-chat] assistant turn failed', [
-                    'message_id' => $message->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        $conversation = $this->conversations->promoteToAiIfDefault($conversation->fresh(['contact']));
+        try {
+            $assistantResult = $this->assistant->handleIncoming($message->fresh(['conversation.contact']));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[website-chat] assistant turn failed', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return $this->turnResponse($token, $conversation, $message, $assistantResult);
@@ -233,8 +230,17 @@ class WebsiteChatService
         return 'https://wa.me/'.$phone.'?text='.$text;
     }
 
+    public function answersImmediately()
+    {
+        return app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()
+            && $this->conversations->defaultMode() === WhatsAppConversation::MODE_AI;
+    }
+
     public function onboardingState($contact)
     {
+        if ($this->answersImmediately()) {
+            return self::ONBOARD_READY;
+        }
         if (! $contact) {
             return self::ONBOARD_NEED_PHONE;
         }
