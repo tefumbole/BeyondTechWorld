@@ -119,7 +119,8 @@
             <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
         @endif
         @php
-            $unreadChats = $conversations->filter(function ($row) { return (int) $row->unread_count > 0; })->count();
+            $openId = $open ? (int) $open->id : 0;
+            $unreadChats = $conversations->filter(function ($row) use ($openId) { return (int) $row->id !== $openId && (int) $row->unread_count > 0; })->count();
             $readChats = $conversations->count() - $unreadChats;
         @endphp
         <div class="chats-search">
@@ -146,8 +147,9 @@
                     if (isset($previewLabels[$previewKey])) {
                         $preview = $previewLabels[$previewKey];
                     }
+                    $rowUnread = (int) $row->id === $openId ? 0 : (int) $row->unread_count;
                 @endphp
-                <a class="chat-row {{ $open && (int) $open->id === (int) $row->id ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ (int) $row->unread_count > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
+                <a class="chat-row {{ (int) $row->id === $openId ? 'is-on' : '' }}" data-id="{{ $row->id }}" data-kind="person" data-read="{{ $rowUnread > 0 ? '0' : '1' }}" data-name="{{ strtolower($person.' '.optional($row->contact)->display_phone) }}" href="{{ route('whatsapp.chats', ['chat' => $row->id]) }}">
                     <span class="chat-avatar">{{ strtoupper(substr($person, 0, 1)) }}</span>
                     <span class="chat-main">
                         <span class="chat-top">
@@ -159,8 +161,8 @@
                                 @if($row->mode === 'AI')<span class="chat-ai">AI </span>@endif
                                 {{ $preview }}
                             </span>
-                            @if((int) $row->unread_count > 0)
-                                <span class="chat-badge">{{ $row->unread_count }}</span>
+                            @if($rowUnread > 0)
+                                <span class="chat-badge">{{ $rowUnread }}</span>
                             @endif
                         </span>
                     </span>
@@ -414,7 +416,9 @@
     var list = document.getElementById('chatList');
     var filters = document.getElementById('chatFilters');
     var none = document.getElementById('chatNone');
-    var filter = @json($pane === 'chats' && $group ? 'groups' : 'all');
+    var filter = @json($pane === 'chats' ? $listFilter : 'all');
+    var openId = {{ $openId }};
+    var listPage = @json(route('whatsapp.chats'));
     function applyList() {
         if (!list) return;
         var q = search ? search.value.toLowerCase().trim() : '';
@@ -423,8 +427,9 @@
             var name = row.getAttribute('data-name') || '';
             var kind = row.getAttribute('data-kind') || 'person';
             var read = row.getAttribute('data-read') === '1';
+            var isOpen = openId && row.getAttribute('data-id') === String(openId);
             var ok = !q || name.indexOf(q) !== -1;
-            if (filter === 'unread') ok = ok && kind === 'person' && !read;
+            if (filter === 'unread') ok = ok && kind === 'person' && (!read || isOpen);
             if (filter === 'read') ok = ok && kind === 'person' && read;
             if (filter === 'groups') ok = ok && kind === 'group';
             row.style.display = ok ? '' : 'none';
@@ -442,12 +447,41 @@
                 filter = button.getAttribute('data-filter') || 'all';
                 filters.querySelectorAll('button').forEach(function (other) { other.classList.remove('is-on'); });
                 button.classList.add('is-on');
+                if (list) list.scrollTop = 0;
+                if (window.history && history.replaceState) {
+                    var url = new URL(window.location.href);
+                    if (filter === 'all') url.searchParams.delete('filter');
+                    else url.searchParams.set('filter', filter);
+                    history.replaceState(null, '', url.toString());
+                }
                 applyList();
             });
         });
     }
+    if (list) {
+        list.addEventListener('click', function (event) {
+            var row = event.target.closest('a.chat-row');
+            if (!row || !row.getAttribute('href') || row.getAttribute('href').indexOf(listPage) !== 0) return;
+            if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+            var url = new URL(row.href, window.location.href);
+            if (filter !== 'all') url.searchParams.set('filter', filter);
+            else url.searchParams.delete('filter');
+            try { sessionStorage.setItem('chatListScroll', String(list.scrollTop)); } catch (e) {}
+            event.preventDefault();
+            window.location.href = url.toString();
+        });
+    }
     if (search) search.addEventListener('input', applyList);
     applyList();
+    if (list) {
+        try {
+            var kept = sessionStorage.getItem('chatListScroll');
+            if (kept !== null) {
+                list.scrollTop = parseInt(kept, 10) || 0;
+                sessionStorage.removeItem('chatListScroll');
+            }
+        } catch (e) {}
+    }
     var stream = document.getElementById('chatStream');
     if (stream) stream.scrollTop = stream.scrollHeight;
     var body = document.getElementById('chatBody');
@@ -568,8 +602,8 @@
     function paintList(items) {
         if (!list || !filters || !items) return;
         list.querySelectorAll('.chat-row.is-on').forEach(function (row) { row.classList.remove('is-on'); });
-        var anchor = list.querySelector('.chat-row[data-kind="group"]');
-        items.forEach(function (item) {
+        var head = document.getElementById('chatNone');
+        items.slice().reverse().forEach(function (item) {
             var row = list.querySelector('.chat-row[data-id="' + item.id + '"]');
             if (!row) {
                 row = document.createElement('a');
@@ -585,8 +619,7 @@
             var ai = item.mode === 'AI' ? '<span class="chat-ai">AI </span>' : '';
             var initial = (item.name || 'W').charAt(0).toUpperCase();
             row.innerHTML = '<span class="chat-avatar">' + esc(initial) + '</span><span class="chat-main"><span class="chat-top"><span class="chat-name">' + esc(item.name) + '</span><span class="chat-time">' + esc(item.time) + '</span></span><span class="chat-bottom"><span class="chat-preview">' + ai + esc(item.preview || '') + '</span>' + badge + '</span></span>';
-            if (anchor) list.insertBefore(row, anchor);
-            else list.appendChild(row);
+            list.insertBefore(row, head ? head.nextSibling : list.firstChild);
         });
         var unread = 0;
         var read = 0;

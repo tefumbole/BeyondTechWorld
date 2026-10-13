@@ -804,6 +804,36 @@ class BeyondWasenderService
         ];
     }
 
+    public function markRead(array $key)
+    {
+        if (! $this->isConfigured() || empty($key['id']) || empty($key['remoteJid'])) {
+            return false;
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $ch = curl_init($base.'/messages/read');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                'Accept: application/json',
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode(['key' => [
+                'id' => (string) $key['id'],
+                'remoteJid' => (string) $key['remoteJid'],
+                'fromMe' => false,
+            ]]),
+            CURLOPT_TIMEOUT => 8,
+        ]);
+        $body = curl_exec($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $decoded = json_decode((string) $body, true);
+
+        return $http < 400 && is_array($decoded) && ! empty($decoded['success']);
+    }
+
     protected function getJson($url)
     {
         $ch = curl_init($url);

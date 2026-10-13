@@ -176,7 +176,8 @@ class WhatsAppConversationService
         if (empty($parsed['phone'])) {
             return null;
         }
-        $contact = $this->findOrCreateContact($parsed['phone'], isset($parsed['wa_name']) ? $parsed['wa_name'] : null);
+        $waName = empty($parsed['from_me']) && isset($parsed['wa_name']) ? $parsed['wa_name'] : null;
+        $contact = $this->findOrCreateContact($parsed['phone'], $waName);
         if (! $contact) {
             return null;
         }
@@ -185,7 +186,11 @@ class WhatsAppConversationService
             $conversation = $this->openConversation($contact);
         }
 
-        $at = ! empty($parsed['timestamp']) ? \Carbon\Carbon::createFromTimestamp((int) $parsed['timestamp']) : null;
+        $stamp = isset($parsed['timestamp']) ? (int) $parsed['timestamp'] : 0;
+        if ($stamp > 1000000000000) {
+            $stamp = (int) floor($stamp / 1000);
+        }
+        $at = $stamp > 1000000000 ? \Carbon\Carbon::createFromTimestamp($stamp) : null;
         $created = false;
         if (! empty($parsed['message_id']) || ! empty($parsed['body'])) {
             $created = $this->storePhoneMessage($conversation, $contact, $parsed, $at);
@@ -569,6 +574,89 @@ class WhatsAppConversationService
     {
         $conversation->unread_count = 0;
         $conversation->save();
+    }
+
+    public function readOnWeb(WhatsAppConversation $conversation)
+    {
+        $wasUnread = (int) $conversation->unread_count > 0;
+        $this->markRead($conversation);
+        if (! $wasUnread) {
+            return;
+        }
+        $last = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNotNull('provider_message_id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+        if (! $last) {
+            return;
+        }
+        WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+        $messageId = (string) $last->provider_message_id;
+        app()->terminating(function () use ($messageId) {
+            try {
+                $event = \App\WhatsApp\WhatsAppWebhookEvent::where('provider_event_id', $messageId)->orderByDesc('id')->first();
+                if (! $event) {
+                    return;
+                }
+                $payload = $event->payloadArray();
+                $data = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : [];
+                $message = isset($data['messages']) && is_array($data['messages']) ? $data['messages'] : [];
+                if (isset($message[0]) && is_array($message[0])) {
+                    $message = $message[0];
+                }
+                $key = isset($message['key']) && is_array($message['key']) ? $message['key'] : [];
+                if (! empty($key['fromMe'])) {
+                    return;
+                }
+                app(\App\Services\BeyondWasenderService::class)->markRead($key);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info('[whatsapp-hub] mark read on phone failed', ['error' => $e->getMessage()]);
+            }
+        });
+    }
+
+    public function readOnPhone($providerMessageId, $phone)
+    {
+        $message = $providerMessageId
+            ? WhatsAppMessage::where('provider_message_id', $providerMessageId)->first()
+            : null;
+        $conversation = $message ? WhatsAppConversation::find($message->conversation_id) : null;
+        if (! $conversation && $phone) {
+            $normalized = $this->identity->normalize($phone);
+            $contact = $normalized !== '' ? WhatsAppContact::where('normalized_phone', $normalized)->first() : null;
+            $conversation = $contact
+                ? WhatsAppConversation::where('contact_id', $contact->id)->orderByDesc('id')->first()
+                : null;
+        }
+        if (! $conversation) {
+            return null;
+        }
+
+        $read = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_IN)
+            ->whereNull('read_at');
+        if ($message) {
+            $read->where('created_at', '<=', $message->created_at);
+        }
+        $read->update(['read_at' => now()]);
+
+        $left = $message
+            ? WhatsAppMessage::where('conversation_id', $conversation->id)
+                ->where('direction', WhatsAppMessage::DIR_IN)
+                ->where('created_at', '>', $message->created_at)
+                ->count()
+            : 0;
+        if ((int) $conversation->unread_count !== $left) {
+            $conversation->unread_count = $left;
+            $conversation->save();
+        }
+
+        return $conversation;
     }
 
     public function assign(WhatsAppConversation $conversation, $userId, $actorId = null)

@@ -29,7 +29,7 @@ class WaSenderEventParser
             'participant_phone' => null,
             'participant_jid' => null,
             'reply_to' => null,
-            'timestamp' => isset($payload['timestamp']) ? $payload['timestamp'] : null,
+            'timestamp' => $this->unixTime(isset($payload['timestamp']) ? $payload['timestamp'] : null),
             'raw' => $payload,
         ];
 
@@ -126,6 +126,7 @@ class WaSenderEventParser
         $parsed['body'] = $this->messageBody($message);
         $parsed['message_type'] = $this->messageType($message);
         $parsed['media'] = $this->mediaMeta($message);
+        $parsed['timestamp'] = $this->unixTime(isset($message['messageTimestamp']) ? $message['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
 
         return $parsed;
     }
@@ -163,7 +164,7 @@ class WaSenderEventParser
         $parsed['reply_to'] = isset($message['message']['extendedTextMessage']['contextInfo']['stanzaId'])
             ? $message['message']['extendedTextMessage']['contextInfo']['stanzaId']
             : null;
-        $parsed['timestamp'] = isset($payload['timestamp']) ? $payload['timestamp'] : (isset($message['messageTimestamp']) ? $message['messageTimestamp'] : null);
+        $parsed['timestamp'] = $this->unixTime(isset($message['messageTimestamp']) ? $message['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
 
         return $parsed;
     }

@@ -249,7 +249,7 @@ class WhatsAppHubController extends Controller
         } elseif ($request->filled('chat')) {
             $open = WhatsAppConversation::with('contact')->find($request->get('chat'));
             if ($open) {
-                $this->conversations->markRead($open);
+                $this->conversations->readOnWeb($open);
                 $messages = WhatsAppMessage::where('conversation_id', $open->id)
                     ->orderByDesc('id')
                     ->limit(60)
@@ -294,10 +294,14 @@ class WhatsAppHubController extends Controller
         }
 
         $phoneLink = $this->phoneLinkState();
+        $listFilter = (string) $request->get('filter', $group ? 'groups' : 'all');
+        if (! in_array($listFilter, ['all', 'unread', 'read', 'groups'], true)) {
+            $listFilter = 'all';
+        }
 
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink'
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink', 'listFilter'
         ));
     }
 
@@ -363,7 +367,10 @@ class WhatsAppHubController extends Controller
             if ($fresh->first(function ($message) {
                 return $message->direction === WhatsAppMessage::DIR_IN;
             })) {
-                WhatsAppConversation::where('id', $chatId)->update(['unread_count' => 0]);
+                $current = WhatsAppConversation::find($chatId);
+                if ($current) {
+                    $this->conversations->readOnWeb($current);
+                }
             }
             $payload['messages'] = $fresh->map(function ($message) {
                 return $this->chatFeedMessage($message);
@@ -397,7 +404,7 @@ class WhatsAppHubController extends Controller
         $conversations = WhatsAppConversation::with('contact')
             ->orderByDesc('last_activity_at')
             ->orderByDesc('id')
-            ->limit(80)
+            ->limit(150)
             ->get();
         $payload['items'] = $conversations->map(function ($row) {
             $person = optional($row->contact)->displayName() ?: 'WhatsApp';

@@ -100,7 +100,11 @@ class WhatsAppWebhookProcessor
             }
             $event->status = WhatsAppWebhookEvent::PROCESSED;
         } elseif (in_array($type, ['messages.update', 'message.update', 'message-receipt.update', 'messages.receipt', 'message.receipt'], true)) {
-            $this->conversations->applyStatus($parsed['message_id'], $parsed['status']);
+            if (empty($parsed['from_me']) && (int) $parsed['status_code'] >= 4) {
+                $this->conversations->readOnPhone($parsed['message_id'], $parsed['phone']);
+            } else {
+                $this->conversations->applyStatus($parsed['message_id'], $parsed['status']);
+            }
             $event->status = WhatsAppWebhookEvent::PROCESSED;
         } elseif (in_array($type, ['call', 'calls.received'], true)) {
             $this->recordCall($parsed);
