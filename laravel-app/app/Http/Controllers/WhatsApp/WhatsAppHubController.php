@@ -303,6 +303,14 @@ class WhatsAppHubController extends Controller
 
     protected function phoneLinkState()
     {
+        try {
+            $live = $this->provider->sessionStatus();
+            if (is_array($live) && ! empty($live['connected'])) {
+                return ['disconnected' => false, 'status' => 'connected', 'at' => null];
+            }
+        } catch (\Throwable $e) {
+        }
+
         $cached = \Illuminate\Support\Facades\Cache::get('whatsapp.phone_link');
         $status = is_array($cached) && isset($cached['status']) ? strtolower((string) $cached['status']) : '';
         $at = is_array($cached) && ! empty($cached['at']) ? (string) $cached['at'] : null;
