@@ -115,6 +115,9 @@
         @endforeach
     </nav>
     <aside class="chats-side">
+        @if(!empty($phoneLink['disconnected']))
+            <div class="chat-note">WhatsApp on the phone is not linked{{ !empty($phoneLink['at']) ? ' since '.$phoneLink['at'] : '' }}. Reconnect that number in Wasender. New chats will then stay up to date here.</div>
+        @endif
         @php
             $unreadChats = $conversations->filter(function ($row) { return (int) $row->unread_count > 0; })->count();
             $readChats = $conversations->count() - $unreadChats;

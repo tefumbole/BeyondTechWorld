@@ -39,8 +39,21 @@ class WaSenderEventParser
         if ($event === 'poll.results') {
             return $this->parsePoll($parsed, $data, $payload);
         }
-        if (in_array($event, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
+        if (in_array($event, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert', 'messages-personal.received', 'messages.personal.received'], true)) {
             return $this->parseIncoming($parsed, $data, $payload);
+        }
+        if ($event === 'message.sent') {
+            return $this->parseSent($parsed, $data, $payload);
+        }
+        if ($event === 'chats.update' || $event === 'chats.upsert') {
+            $parsed['type'] = $event;
+
+            return $parsed;
+        }
+        if ($event === 'session.status') {
+            $parsed['session_status'] = isset($data['status']) ? strtolower((string) $data['status']) : null;
+
+            return $parsed;
         }
         if ($event === 'messages.update' || $event === 'message.update') {
             return $this->parseStatus($parsed, $data);
@@ -256,22 +269,117 @@ class WaSenderEventParser
 
     protected function phoneFromKey(array $key, array $message)
     {
-        foreach (['cleanedSenderPn', 'senderPn'] as $field) {
+        foreach (['cleanedSenderPn', 'senderPn', 'remoteJidAlt', 'participantPn', 'remoteJid'] as $field) {
             if (! empty($key[$field])) {
-                $phone = $this->jidToPhone($key[$field]);
+                $phone = $this->phoneFromJid($key[$field]);
                 if ($phone) {
                     return $phone;
                 }
             }
         }
-        if (! empty($key['remoteJid'])) {
-            return $this->jidToPhone($key['remoteJid']);
-        }
         if (! empty($message['from'])) {
-            return $this->jidToPhone($message['from']);
+            return $this->phoneFromJid($message['from']);
         }
 
         return null;
+    }
+
+    /**
+     * A real phone number. Linked-device ids (@lid) and groups are not phone numbers.
+     */
+    public function phoneFromJid($jid)
+    {
+        $raw = (string) $jid;
+        if ($raw === '' || substr($raw, -4) === '@lid' || substr($raw, -5) === '@g.us' || strpos($raw, '@broadcast') !== false) {
+            return null;
+        }
+
+        return $this->jidToPhone($raw);
+    }
+
+    /**
+     * @return array<int, array>
+     */
+    public function chatUpdates(array $payload)
+    {
+        $data = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : [];
+        $chats = isset($data['chats']) && is_array($data['chats']) ? $data['chats'] : [];
+        if ($chats !== [] && (isset($chats['id']) || isset($chats['unreadCount']) || isset($chats['messages']))) {
+            $chats = [$chats];
+        }
+        $rows = [];
+        foreach ($chats as $chat) {
+            if (! is_array($chat)) {
+                continue;
+            }
+            $row = $this->parseChatRow($chat, $payload);
+            if (! empty($row['phone']) || $row['unread_count'] !== null) {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
+    protected function parseChatRow(array $chat, array $payload)
+    {
+        $wrapped = null;
+        if (isset($chat['messages'][0]['message']) && is_array($chat['messages'][0]['message'])) {
+            $wrapped = $chat['messages'][0]['message'];
+        } elseif (isset($chat['messages']['key']) || isset($chat['messages']['message'])) {
+            $wrapped = $chat['messages'];
+        }
+        $key = isset($wrapped['key']) && is_array($wrapped['key']) ? $wrapped['key'] : [];
+        $phone = $wrapped ? $this->phoneFromKey($key, $wrapped) : null;
+        if (! $phone && ! empty($chat['id'])) {
+            $phone = $this->phoneFromJid($chat['id']);
+        }
+        $stamp = isset($chat['conversationTimestamp']) ? $chat['conversationTimestamp'] : (isset($wrapped['messageTimestamp']) ? $wrapped['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
+
+        return [
+            'phone' => $phone,
+            'from_me' => ! empty($key['fromMe']),
+            'message_id' => isset($key['id']) ? (string) $key['id'] : null,
+            'wa_name' => $wrapped ? $this->pushName($wrapped, $chat) : (isset($chat['name']) ? (string) $chat['name'] : null),
+            'body' => $wrapped ? $this->messageBody($wrapped) : null,
+            'message_type' => $wrapped ? $this->messageType($wrapped) : 'TEXT',
+            'unread_count' => array_key_exists('unreadCount', $chat) ? (int) $chat['unreadCount'] : null,
+            'timestamp' => $this->unixTime($stamp),
+        ];
+    }
+
+    protected function parseSent(array $parsed, array $data, array $payload)
+    {
+        $result = isset($data['result']) && is_array($data['result']) ? $data['result'] : $data;
+        $key = isset($result['key']) && is_array($result['key']) ? $result['key'] : [];
+        $parsed['from_me'] = true;
+        $parsed['message_id'] = isset($key['id']) ? (string) $key['id'] : (isset($data['msgId']) ? (string) $data['msgId'] : null);
+        $parsed['provider_event_id'] = $parsed['message_id'];
+        $parsed['phone'] = $this->phoneFromKey($key, $result);
+        if (! $parsed['phone'] && ! empty($data['jid'])) {
+            $parsed['phone'] = $this->phoneFromJid($data['jid']);
+        }
+        $parsed['body'] = $this->messageBody($result);
+        $parsed['message_type'] = $this->messageType($result);
+        $parsed['timestamp'] = $this->unixTime(isset($result['messageTimestamp']) ? $result['messageTimestamp'] : (isset($payload['timestamp']) ? $payload['timestamp'] : null));
+
+        return $parsed;
+    }
+
+    public function unixTime($value)
+    {
+        if (is_array($value) && isset($value['low'])) {
+            $value = $value['low'];
+        }
+        if (! is_numeric($value)) {
+            return null;
+        }
+        $stamp = (int) $value;
+        if ($stamp > 1000000000000) {
+            $stamp = (int) floor($stamp / 1000);
+        }
+
+        return $stamp > 1000000000 ? $stamp : null;
     }
 
     public function jidToPhone($jid)

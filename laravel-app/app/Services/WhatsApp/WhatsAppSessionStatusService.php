@@ -104,7 +104,7 @@ class WhatsAppSessionStatusService
         if (in_array($value, ['CONNECTING', 'PENDING', 'QR'], true)) {
             return 'CONNECTING';
         }
-        if (in_array($value, ['DISCONNECTED', 'LOGGED_OUT', 'OFFLINE'], true)) {
+        if (in_array($value, ['DISCONNECTED', 'LOGGED_OUT', 'OFFLINE', 'EXPIRED', 'CONFLICT'], true)) {
             return 'DISCONNECTED';
         }
         if (in_array($value, ['ERROR', 'FAILED'], true)) {

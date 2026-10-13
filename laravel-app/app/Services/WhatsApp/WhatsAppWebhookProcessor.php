@@ -65,7 +65,19 @@ class WhatsAppWebhookProcessor
         $parsed = $this->parser->parse($event->payloadArray());
         $type = $parsed['type'];
 
-        if (! empty($parsed['is_group']) || in_array($type, ['messages-group.received', 'messages.group.received', 'message-group.received'], true)) {
+        if ($type === 'session.status') {
+            $status = isset($parsed['session_status']) ? (string) $parsed['session_status'] : '';
+            \Illuminate\Support\Facades\Cache::forever('whatsapp.phone_link', [
+                'status' => $status,
+                'at' => $event->received_at ? (string) $event->received_at : now()->toDateTimeString(),
+            ]);
+            $event->status = WhatsAppWebhookEvent::PROCESSED;
+        } elseif ($type === 'chats.update' || $type === 'chats.upsert') {
+            foreach ($this->parser->chatUpdates($event->payloadArray()) as $chat) {
+                $this->conversations->syncPhoneChat($chat);
+            }
+            $event->status = WhatsAppWebhookEvent::PROCESSED;
+        } elseif (! empty($parsed['is_group']) || in_array($type, ['messages-group.received', 'messages.group.received', 'message-group.received'], true)) {
             if (! empty($parsed['from_me'])) {
                 $event->status = WhatsAppWebhookEvent::IGNORED;
                 $event->processed_at = now();
@@ -80,15 +92,12 @@ class WhatsAppWebhookProcessor
                 $this->conversations->recordIncoming($parsed);
             }
             $event->status = WhatsAppWebhookEvent::PROCESSED;
-        } elseif (in_array($type, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert'], true)) {
-            if (! empty($parsed['from_me'])) {
-                $event->status = WhatsAppWebhookEvent::IGNORED;
-                $event->processed_at = now();
-                $event->save();
-
-                return;
+        } elseif (in_array($type, ['messages.received', 'message.received', 'messages.upsert', 'message.upsert', 'messages-personal.received', 'messages.personal.received', 'message.sent'], true)) {
+            if (! empty($parsed['from_me']) || $type === 'message.sent') {
+                $this->conversations->syncPhoneChat($parsed);
+            } else {
+                $this->conversations->recordIncoming($parsed);
             }
-            $this->conversations->recordIncoming($parsed);
             $event->status = WhatsAppWebhookEvent::PROCESSED;
         } elseif (in_array($type, ['messages.update', 'message.update', 'message-receipt.update', 'messages.receipt', 'message.receipt'], true)) {
             $this->conversations->applyStatus($parsed['message_id'], $parsed['status']);

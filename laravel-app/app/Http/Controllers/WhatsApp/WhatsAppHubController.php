@@ -293,10 +293,35 @@ class WhatsAppHubController extends Controller
             $updates = \App\WaAnnouncement::orderByDesc('id')->limit(40)->get();
         }
 
+        $phoneLink = $this->phoneLinkState();
+
         return view('whatsapp_hub.chats', compact(
             'conversations', 'groups', 'open', 'messages', 'hasEarlier', 'group', 'groupMessages', 'canReply',
-            'pane', 'calls', 'callChats', 'mediaItems', 'updates'
+            'pane', 'calls', 'callChats', 'mediaItems', 'updates', 'phoneLink'
         ));
+    }
+
+    protected function phoneLinkState()
+    {
+        $cached = \Illuminate\Support\Facades\Cache::get('whatsapp.phone_link');
+        $status = is_array($cached) && isset($cached['status']) ? strtolower((string) $cached['status']) : '';
+        $at = is_array($cached) && ! empty($cached['at']) ? (string) $cached['at'] : null;
+        if ($status === '') {
+            $row = \App\WhatsApp\WhatsAppWebhookEvent::where('event_type', 'session.status')->orderByDesc('id')->first();
+            if ($row) {
+                $payload = json_decode((string) $row->payload, true);
+                $data = is_array($payload) && isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : [];
+                $status = isset($data['status']) ? strtolower((string) $data['status']) : '';
+                $at = $row->received_at ? (string) $row->received_at : null;
+            }
+        }
+        $disconnected = in_array($status, ['logged_out', 'expired', 'disconnected', 'conflict'], true);
+
+        return [
+            'disconnected' => $disconnected,
+            'status' => $status,
+            'at' => $at ? \Carbon\Carbon::parse($at)->format('j M Y, H:i') : null,
+        ];
     }
 
     protected function chatsFeed(Request $request)

@@ -167,6 +167,90 @@ class WhatsAppConversationService
         return $message;
     }
 
+    /**
+     * Apply one chat or message from the linked phone. Timestamps come from the
+     * phone, and unread is the phone's own count when Wasender sends one.
+     */
+    public function syncPhoneChat(array $parsed)
+    {
+        if (empty($parsed['phone'])) {
+            return null;
+        }
+        $contact = $this->findOrCreateContact($parsed['phone'], isset($parsed['wa_name']) ? $parsed['wa_name'] : null);
+        if (! $contact) {
+            return null;
+        }
+        $conversation = WhatsAppConversation::where('contact_id', $contact->id)->orderByDesc('id')->first();
+        if (! $conversation) {
+            $conversation = $this->openConversation($contact);
+        }
+
+        $at = ! empty($parsed['timestamp']) ? \Carbon\Carbon::createFromTimestamp((int) $parsed['timestamp']) : null;
+        $created = false;
+        if (! empty($parsed['message_id']) || ! empty($parsed['body'])) {
+            $created = $this->storePhoneMessage($conversation, $contact, $parsed, $at);
+        }
+
+        if (array_key_exists('unread_count', $parsed) && $parsed['unread_count'] !== null) {
+            $conversation->unread_count = max(0, (int) $parsed['unread_count']);
+        } elseif ($created && empty($parsed['from_me']) && $at && $at->greaterThan(now()->subMinutes(10))) {
+            $conversation->unread_count = (int) $conversation->unread_count + 1;
+        }
+
+        $current = $conversation->last_activity_at;
+        if ($at && (! $current || $at->greaterThan($current))) {
+            if (! empty($parsed['body'])) {
+                $preview = $this->preview($parsed['body'], isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT');
+                $conversation->last_message = $preview;
+                if (! $conversation->first_message) {
+                    $conversation->first_message = $preview;
+                }
+            }
+            $conversation->last_activity_at = $at;
+            if (! empty($parsed['from_me'])) {
+                $conversation->last_outgoing_at = $at;
+            } else {
+                $conversation->last_incoming_at = $at;
+            }
+        }
+        $conversation->save();
+
+        return $conversation;
+    }
+
+    protected function storePhoneMessage(WhatsAppConversation $conversation, WhatsAppContact $contact, array $parsed, $at)
+    {
+        if (! empty($parsed['message_id'])) {
+            $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
+            if ($existing) {
+                return false;
+            }
+        }
+        $outgoing = ! empty($parsed['from_me']);
+        $message = new WhatsAppMessage([
+            'conversation_id' => $conversation->id,
+            'contact_id' => $contact->id,
+            'direction' => $outgoing ? WhatsAppMessage::DIR_OUT : WhatsAppMessage::DIR_IN,
+            'type' => isset($parsed['message_type']) ? $parsed['message_type'] : 'TEXT',
+            'provider_message_id' => isset($parsed['message_id']) ? $parsed['message_id'] : null,
+            'body' => isset($parsed['body']) ? $parsed['body'] : null,
+            'status' => $outgoing ? WhatsAppMessage::STATUS_SENT : WhatsAppMessage::STATUS_DELIVERED,
+            'sender_type' => $outgoing ? 'PHONE' : 'CONTACT',
+        ]);
+        if ($at) {
+            $message->created_at = $at;
+            $message->updated_at = $at;
+            if ($outgoing) {
+                $message->sent_at = $at;
+            } else {
+                $message->delivered_at = $at;
+            }
+        }
+        $message->save();
+
+        return true;
+    }
+
     public function applyStatus($providerMessageId, $status)
     {
         if (! $providerMessageId || ! $status) {
