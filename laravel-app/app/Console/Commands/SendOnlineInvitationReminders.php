@@ -48,7 +48,7 @@ class SendOnlineInvitationReminders extends Command
                     : "Reminder: *{$eventName}*\n\nHi {$name}, this is a reminder about your invitation."
                         .($url ? "\n\nView invitation:\n{$url}" : '');
                 try {
-                    $controller->wpMessage($phone, $msg);
+                    $controller->wpMessage($phone, $msg, 'wasender');
                     usleep(5500000);
                 } catch (\Throwable $e) {
                     \Log::warning('Invitation reminder WhatsApp failed', [

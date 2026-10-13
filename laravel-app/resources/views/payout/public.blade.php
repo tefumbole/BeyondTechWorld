@@ -35,7 +35,7 @@
 <body>
 <div class="wrap">
     <p style="margin:0 0 12px"><a href="{{ route('payments.hub') }}" style="color:#0b3f90;font-weight:700;text-decoration:none">Back to Payments</a></p>
-    <h1>Withdrawal</h1>
+    <h1>Payout</h1>
     <p>Search for a person, add them, then enter the amount. The name on their Mobile Money number appears beside them. Money is not taken until the payment is approved.</p>
     @if(session('message'))<div class="alert ok">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert bad">{{ session('not_permitted') }}</div>@endif

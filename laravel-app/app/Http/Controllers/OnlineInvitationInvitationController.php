@@ -949,7 +949,7 @@ class OnlineInvitationInvitationController extends Controller
         $eventName = optional($invitation->event)->name ?: 'the event';
         $msg = "Welcome, {$name}!\n\nYou have been admitted to *{$eventName}*. Enjoy the event.";
         try {
-            (new \App\Http\Controllers\Controller())->wpMessage($phone, $msg);
+            (new \App\Http\Controllers\Controller())->wpMessage($phone, $msg, 'wasender');
         } catch (\Throwable $e) {
             \Log::warning('Welcome WhatsApp failed', [
                 'invitation_id' => $invitation->id,

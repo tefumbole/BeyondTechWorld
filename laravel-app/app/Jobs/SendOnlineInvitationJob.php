@@ -204,9 +204,9 @@ class SendOnlineInvitationJob implements ShouldQueue
                 if (!file_exists($attachmentPath)) {
                     throw new \Exception('Invitation file was not created at: ' . $attachmentPath);
                 }
-                $result = $controller->wpAttachMessage($attachmentPath, $phone, $attachmentFilename, $attachmentUrl);
+                $result = $controller->wpAttachMessage($attachmentPath, $phone, $attachmentFilename, $attachmentUrl, true);
 
-                if (env('WHATSAPP_SERVICE') === 'WASENDER' && is_array($result) && ($result['status'] ?? null) === 'error') {
+                if (is_array($result) && ($result['status'] ?? null) === 'error') {
                     throw new \Exception('WASENDER attachment error: ' . ($result['message'] ?? 'Unknown error'));
                 }
                 $pdfSent = true;
@@ -226,7 +226,7 @@ class SendOnlineInvitationJob implements ShouldQueue
                     $fallback .= "*RSVP:* " . trim((string) $invitation->rsvp) . "\n";
                 }
                 $fallback .= "\nAccept / View:\n" . $acceptUrl . "\n";
-                $controller->wpMessage($phone, $fallback);
+                $controller->wpMessage($phone, $fallback, 'wasender');
             }
 
             // WASENDER fetches the document from `documentUrl` asynchronously, so deleting immediately can break delivery.
