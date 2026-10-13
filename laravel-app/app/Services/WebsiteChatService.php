@@ -35,9 +35,7 @@ class WebsiteChatService
 
     public function enabled()
     {
-        $saved = WhatsAppSetting::getValue('website_ai_enabled', '1');
-
-        return $saved === '1' || $saved === 'true';
+        return true;
     }
 
     public function openOrResume($token = null, $pageContext = null)
@@ -174,6 +172,17 @@ class WebsiteChatService
             ]);
         }
 
+        $answered = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('id', '>', $message->id)
+            ->where('direction', WhatsAppMessage::DIR_OUT)
+            ->exists();
+        if (! $answered) {
+            $this->postAssistant(
+                $conversation->fresh(['contact']),
+                'Thanks for your message. A BeyondTechWorld team member will reply here shortly.'
+            );
+        }
+
         return $this->turnResponse($token, $conversation, $message, $assistantResult);
     }
 
@@ -241,9 +250,6 @@ class WebsiteChatService
             return $conversation;
         }
         $mode = strtoupper((string) $conversation->mode);
-        if ($mode === WhatsAppConversation::MODE_PAUSED || $mode === WhatsAppConversation::MODE_CLOSED) {
-            return $conversation;
-        }
         if ($mode === WhatsAppConversation::MODE_AI && empty($conversation->assigned_user_id)) {
             return $conversation;
         }

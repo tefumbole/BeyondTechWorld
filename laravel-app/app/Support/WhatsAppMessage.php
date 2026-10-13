@@ -159,7 +159,6 @@ class WhatsAppMessage
         if ($company !== '') {
             $quoted = preg_quote($company, '/');
             $body = preg_replace('/(?:^|\n)[ \t]*_?'.$quoted.'_?[ \t]*(?=\n|$)/iu', "\n", $body);
-            $body = preg_replace('/\b'.$quoted.'\b/iu', '', $body);
         }
         $body = preg_replace('/\b(?:I am|I\'m|this is)\s+Beyond Assistant\b[^.!\n]*[.!]?\s*/iu', '', $body);
         $body = preg_replace('/\bBeyond Assistant\b/iu', '', $body);

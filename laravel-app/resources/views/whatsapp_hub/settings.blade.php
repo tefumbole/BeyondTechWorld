@@ -79,9 +79,9 @@
                 <h5>Website Assistant (Mbole AI)</h5>
                 <p class="small text-muted">Mbole AI on the website stays on even when WhatsApp AI is off. Website chats: {{ $websiteMetrics['conversations'] ?? 0 }} · Website leads: {{ $websiteMetrics['leads'] ?? 0 }}</p>
                 <label class="d-block mb-2">
-                    <input type="hidden" name="website_ai_enabled" value="0">
-                    <input type="checkbox" name="website_ai_enabled" value="1" {{ !empty($websiteAiEnabled) ? 'checked' : '' }}>
-                    Enable website assistant widget
+                    <input type="hidden" name="website_ai_enabled" value="1">
+                    <input type="checkbox" checked disabled>
+                    Website assistant widget is always on
                 </label>
                 <label class="d-block mb-2">
                     <input type="hidden" name="website_ai_auto_greeting" value="0">

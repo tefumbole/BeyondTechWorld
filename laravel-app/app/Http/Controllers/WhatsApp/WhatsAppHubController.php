@@ -414,6 +414,7 @@ class WhatsAppHubController extends Controller
             return [
                 'id' => (int) $row->id,
                 'name' => $person,
+                'tone' => (int) (sprintf('%u', crc32(strtolower($person))) % 8),
                 'phone' => (string) optional($row->contact)->display_phone,
                 'preview' => $this->chatPreview($preview),
                 'time' => $when ? $when->format($when->isToday() ? 'H:i' : 'M j') : '',

@@ -60,7 +60,7 @@ class AssistantRuntimeSettings
 
     public static function websiteAiEnabled()
     {
-        return self::flag('website_ai_enabled', true);
+        return true;
     }
 
     public static function websiteHandoverEnabled()
