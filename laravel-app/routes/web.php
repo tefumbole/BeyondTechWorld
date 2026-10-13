@@ -68,6 +68,7 @@ Route::get('/reviews/write', 'CompanyReviewController@create')->name('reviews.cr
 Route::post('/reviews/phone', 'CompanyReviewController@sendCode')->middleware('throttle:6,10')->name('reviews.phone');
 Route::post('/reviews/otp', 'CompanyReviewController@confirmCode')->middleware('throttle:12,1')->name('reviews.otp');
 Route::post('/reviews', 'CompanyReviewController@store')->middleware('throttle:8,1')->name('reviews.store');
+Route::get('/payments', 'PublicDonateController@hub')->name('payments.hub');
 Route::get('/donate', 'PublicDonateController@show')->name('donate.show');
 Route::get('/donate/lookup', 'PublicDonateController@lookup')->middleware('throttle:40,1')->name('donate.lookup');
 Route::post('/donate', 'PublicDonateController@store')->middleware('throttle:12,1')->name('donate.store');
@@ -138,6 +139,8 @@ Route::get('/nbc/events', 'NbcPublicController@events')->name('nbc.events');
 Route::get('/nbc/announcements', 'NbcPublicController@announcements')->name('nbc.announcements');
 Route::get('/nbc/announcements/{id}', 'NbcPublicController@announcement')->name('nbc.announcement');
 Route::get('/nbc/join', 'NbcPublicController@join')->name('nbc.join');
+Route::post('/nbc/join/otp', 'NbcPublicController@sendJoinOtp')->middleware('throttle:6,10')->name('nbc.join.otp');
+Route::post('/nbc/join/verify', 'NbcPublicController@verifyJoinOtp')->middleware('throttle:12,10')->name('nbc.join.verify');
 Route::post('/nbc/join', 'NbcPublicController@storeJoin')->middleware('throttle:8,10')->name('nbc.join.store');
 Route::get('/nbc/login', 'NbcPublicController@showLogin')->name('nbc.login');
 Route::post('/nbc/login', 'NbcPublicController@login')->middleware('throttle:10,10')->name('nbc.login.submit');
@@ -181,6 +184,10 @@ Route::get('/yong/card/{id}', 'YongInvitationController@card')->name('yong.card'
 Route::get('/yong/card/{id}/download', 'YongInvitationController@downloadCard')->name('yong.card.download');
 Route::get('/yong/card/{id}/food', 'YongInvitationController@downloadFood')->name('yong.card.food');
 Route::get('/yong/pass/{id}', 'YongInvitationController@pass')->name('yong.pass');
+Route::get('/yong/donate/lookup', 'YongInvitationController@donateLookup')->middleware('throttle:40,1')->name('yong.donate.lookup');
+Route::post('/yong/donate', 'YongInvitationController@donatePay')->middleware('throttle:12,1')->name('yong.donate.pay');
+Route::get('/yong/donate/payment/check', 'YongInvitationController@donatePayment')->name('yong.donate.payment');
+Route::get('/yong/donate/stripe/check', 'YongInvitationController@donateStripe')->name('yong.donate.stripe');
 Route::get('/yong/donate/{id}', 'YongInvitationController@donate')->name('yong.donate');
 Route::get('/yong/donate/{id}/start', 'YongInvitationController@startPayment')->name('yong.donate.start');
 Route::get('/yong/payment/check', 'YongInvitationController@payment')->name('yong.payment');
@@ -623,6 +630,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/payout/request/{id}/mass-payout', 'PayoutController@massPayout')->where('id', '[0-9]+')->name('payout.mass');
     Route::post('/admin/payout/retry', 'PayoutController@retry')->name('payout.retry');
     Route::post('/admin/payout/drop', 'PayoutController@drop')->name('payout.drop');
+    Route::post('/admin/payout/pending/delete', 'PayoutController@deletePending')->name('payout.pending.delete');
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');
     Route::get('/admin/donations', 'PublicDonateController@adminIndex')->name('donations.index');
@@ -631,6 +639,10 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
     Route::post('/admin/whatsapp/link/disconnect', 'WhatsApp\WhatsAppHubController@disconnectLink')->name('whatsapp.link.disconnect');
     Route::get('/admin/whatsapp/people', 'WhatsApp\WhatsAppHubController@people')->name('whatsapp.people');
+    Route::post('/admin/whatsapp/people/delete', 'WhatsApp\WhatsAppHubController@deletePeople')->name('whatsapp.people.delete');
+    Route::get('/admin/mai-voice', 'MaiVoiceController@index')->name('mai.voice');
+    Route::get('/admin/mai-voice/{id}', 'MaiVoiceController@show')->where('id', '[0-9]+')->name('mai.voice.show');
+    Route::post('/admin/mai-voice/switch', 'MaiVoiceController@switchVoice')->name('mai.voice.switch');
     Route::post('/admin/whatsapp/contacts/{id}/voice', 'WhatsApp\WhatsAppHubController@saveContactVoice')->name('whatsapp.contact.voice');
     Route::get('/admin/whatsapp/chats', 'WhatsApp\WhatsAppHubController@chats')->name('whatsapp.chats');
     Route::get('/admin/whatsapp/chats/media/{id}', 'WhatsApp\WhatsAppHubController@chatMedia')->where('id', '[0-9]+')->name('whatsapp.chats.media');
@@ -660,6 +672,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/leads/{id}/note', 'WhatsApp\WhatsAppLeadController@note')->name('whatsapp.leads.note');
     Route::post('/admin/whatsapp/leads/{id}/convert', 'WhatsApp\WhatsAppLeadController@convert')->name('whatsapp.leads.convert');
     Route::get('/admin/whatsapp/tracking', 'WhatsApp\WhatsAppHubController@tracking')->name('whatsapp.tracking');
+    Route::get('/admin/whatsapp/twilio-log', 'WhatsApp\WhatsAppHubController@twilioLog')->name('whatsapp.twilio_log');
+    Route::post('/admin/whatsapp/twilio-log/reply', 'WhatsApp\WhatsAppHubController@twilioReply')->name('whatsapp.twilio_log.reply');
     Route::get('/admin/whatsapp/calls', 'WhatsApp\WhatsAppHubController@calls')->name('whatsapp.calls');
     Route::post('/admin/whatsapp/calls/{id}', 'WhatsApp\WhatsAppHubController@updateCall')->name('whatsapp.calls.update');
     Route::post('/admin/whatsapp/calls/{id}/follow-up', 'WhatsApp\WhatsAppHubController@followUpCall')->name('whatsapp.calls.followup');

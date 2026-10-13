@@ -279,7 +279,7 @@
                         <!-- </tfoot> -->
                     </table>
                     @if($general_setting->invoice_format != 'mini')
-                        <h1>{{trans('file.Sale Note')}}:</h1> {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->sale_note) !!}<br>
+                        <div style="margin:0;line-height:1.35;"><strong>{{trans('file.Sale Note')}}:</strong><br>{!! \App\Support\BookingNoteFormatter::forCompactHtml($lims_sale_data->sale_note) !!}</div><br>
                         <table>
                         <tbody>
                         @foreach($lims_payment_data as $payment_data)

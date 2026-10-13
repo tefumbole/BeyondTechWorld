@@ -1137,7 +1137,7 @@ class LetterController extends Controller
 
                 return $message;
             }
-            $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf');
+            $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf', null, null, $this->isInternshipAcceptanceLetter($letter));
             if ($this->isInternshipAcceptanceLetter($letter)) {
                 $this->sendInternshipLoginGuideWhatsApp($lims_customer_data);
             }
@@ -1150,7 +1150,7 @@ class LetterController extends Controller
         if($letter->attachment) {
             $attachment_name = 'attachment-'.$letter->attachment;
             try{
-                $this->wpPDFMessage($attachment_path . $letter->attachment, $lims_customer_data, $attachment_name);
+                $this->wpPDFMessage($attachment_path . $letter->attachment, $lims_customer_data, $attachment_name, null, null, $this->isInternshipAcceptanceLetter($letter));
             }
             catch(\Exception $e){
                 $message = 'Letter not sent. Please setup your whatsapp setting.';
@@ -1163,7 +1163,7 @@ class LetterController extends Controller
                 }
                 $attachment_name = 'attachment-'.$attachment->attachment;
                 try{
-                    $this->wpPDFMessage($attachment_path . $attachment->attachment, $lims_customer_data, $attachment_name);
+                    $this->wpPDFMessage($attachment_path . $attachment->attachment, $lims_customer_data, $attachment_name, null, null, $this->isInternshipAcceptanceLetter($letter));
                 }
                 catch(\Exception $e){
                     $message = 'Letter not sent. Please setup your whatsapp setting.';
@@ -1248,7 +1248,7 @@ class LetterController extends Controller
         );
 
         $result = app(\App\Services\Messaging\NotificationRouter::class)
-            ->sendWhatsAppTextWithLink($phone, $msg);
+            ->sendWasenderText($phone, $msg);
         if (empty($result['success']) && empty($result['skipped'])) {
             throw new \RuntimeException($result['error'] ?? 'Could not send the acceptance sign link.');
         }
@@ -1295,7 +1295,7 @@ class LetterController extends Controller
             // Throttle is handled by Wasender account protection retries in NotificationRouter/Wasender.
             // A short pause after the PDF document is enough; long sleeps in-request caused nginx 502s.
             usleep(1500000);
-            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppTextWithLink($phone, $msg);
+            app(\App\Services\Messaging\NotificationRouter::class)->sendWasenderText($phone, $msg);
         } catch (\Throwable $e) {
             \Log::warning('Internship login guide WhatsApp failed', [
                 'phone' => $phone,
@@ -1508,7 +1508,7 @@ class LetterController extends Controller
             .\App\Support\WhatsAppMessage::footer();
 
         try {
-            $this->wpPDFMessage($path, $ccRecipient, 'letter.pdf', null, $caption);
+            $this->wpPDFMessage($path, $ccRecipient, 'letter.pdf', null, $caption, $this->isInternshipAcceptanceLetter($letter));
         } catch (\Exception $e) {
             $message = 'Letter not sent. Please setup your whatsapp setting.';
         }
@@ -1516,7 +1516,7 @@ class LetterController extends Controller
         if ($letter->attachment) {
             $attachment_name = 'attachment-'.$letter->attachment;
             try {
-                $this->wpPDFMessage($attachment_path.$letter->attachment, $ccRecipient, $attachment_name, null, $caption);
+                $this->wpPDFMessage($attachment_path.$letter->attachment, $ccRecipient, $attachment_name, null, $caption, $this->isInternshipAcceptanceLetter($letter));
             } catch (\Exception $e) {
                 $message = 'Letter not sent. Please setup your whatsapp setting.';
             }
@@ -1528,7 +1528,7 @@ class LetterController extends Controller
                 }
                 $attachment_name = 'attachment-'.$attachment->attachment;
                 try {
-                    $this->wpPDFMessage($attachment_path.$attachment->attachment, $ccRecipient, $attachment_name, null, $caption);
+                    $this->wpPDFMessage($attachment_path.$attachment->attachment, $ccRecipient, $attachment_name, null, $caption, $this->isInternshipAcceptanceLetter($letter));
                 } catch (\Exception $e) {
                     $message = 'Letter not sent. Please setup your whatsapp setting.';
                 }

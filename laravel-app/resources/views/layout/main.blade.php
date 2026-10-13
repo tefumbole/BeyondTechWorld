@@ -732,7 +732,7 @@
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
                                         <li id="payout-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
                                         <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
-                                        <li id="donations-menu"><a href="{{ route('donations.index') }}">Donations</a></li>
+                                        <li id="donations-menu"><a href="{{ route('donations.index') }}">Payments</a></li>
                                     @endif
                                     <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
                                 </ul>
@@ -964,27 +964,21 @@
                                 }
                             }
                         @endphp
+                        @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
+                            <li id="mai-voice-menu"><a href="{{ route('mai.voice') }}"><i class="fa fa-phone"></i><span>MAI Voice</span></a></li>
+                        @endif
                         @if($whatsapp_module_active)
                             <li><a href="#whatsapp-module" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-whatsapp"></i><span>WhatsApp Hub</span></a>
                                 <ul id="whatsapp-module" class="collapse list-unstyled ">
-                                    <li id="whatsapp-command-menu"><a href="{{ route('whatsapp.index') }}">Command Center</a></li>
+                                    <li id="whatsapp-twilio-log-menu"><a href="{{ route('whatsapp.twilio_log') }}">Twilio log</a></li>
                                     <li id="whatsapp-conversations-menu"><a href="{{ route('whatsapp.chats') }}">Conversations</a></li>
                                     <li id="whatsapp-leads-menu"><a href="{{ route('whatsapp.leads') }}">Leads</a></li>
                                     <li id="whatsapp-groups-menu"><a href="{{ route('whatsapp.groups') }}">Groups</a></li>
-                                    <li id="whatsapp-rentals-menu"><a href="{{ route('whatsapp.rentals') }}">Rentals</a></li>
-                                    <li id="whatsapp-internship-menu"><a href="{{ route('whatsapp.internship') }}">Internship</a></li>
                                     <li id="whatsapp-attendance-menu"><a href="{{ route('whatsapp.attendance') }}">Attendance</a></li>
                                     <li id="whatsapp-documents-menu"><a href="{{ route('whatsapp.documents') }}">Documents</a></li>
-                                    <li id="whatsapp-tenants-menu"><a href="{{ route('whatsapp.tenants') }}">Tenant Operations</a></li>
-                                    <li id="whatsapp-bills-menu"><a href="{{ route('whatsapp.bills') }}">Bill Payments</a></li>
-                                    <li id="whatsapp-appointments-menu"><a href="{{ route('whatsapp.appointments') }}">Appointments</a></li>
-                                    <li id="whatsapp-tracking-menu"><a href="{{ route('whatsapp.tracking') }}">Message Tracking</a></li>
-                                    <li id="whatsapp-calls-menu"><a href="{{ route('whatsapp.calls') }}">Calls</a></li>
-                                    <li id="whatsapp-diagnostics-menu"><a href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a></li>
                                     <li id="whatsapp-assistant-menu"><a href="{{ route('whatsapp.assistant') }}">AI Assistant</a></li>
                                     <li id="whatsapp-brief-menu"><a href="{{ route('whatsapp.brief') }}">AI brief</a></li>
                                     <li id="whatsapp-people-menu"><a href="{{ route('whatsapp.people') }}">People I know</a></li>
-                                    <li id="whatsapp-settings-menu"><a href="{{ route('whatsapp.settings') }}">Settings</a></li>
                                 </ul>
                             </li>
                         @endif

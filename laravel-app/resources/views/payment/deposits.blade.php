@@ -174,31 +174,26 @@
             fetch(searchUrl + '?q=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
                 .then(function (response) { return response.json(); })
                 .then(function (data) {
+                    var people = data.people || [];
                     hits.innerHTML = '';
-                    (data.people || []).forEach(function (person) {
+                    people.forEach(function (person) {
                         var button = document.createElement('button');
                         button.type = 'button';
                         button.className = 'list-group-item list-group-item-action';
                         button.textContent = person.name + ' (' + person.phone + ')';
-                        button.addEventListener('click', function () {
-                            customerId.value = person.id;
-                            chosen.textContent = person.name + ' · ' + person.phone;
-                            hits.innerHTML = '';
-                            search.value = '';
-                            fetch(clientUrl + '?customer_id=' + encodeURIComponent(person.id), {headers: {Accept: 'application/json'}})
-                                .then(function (response) { return response.json(); })
-                                .then(function (info) {
-                                    if (!info || !info.ok) return;
-                                    clientGuard = info;
-                                    if (info.balance !== null && info.balance !== undefined && info.balance !== '') {
-                                        chosen.textContent = Number(info.balance).toLocaleString() + ' XAF';
-                                        return;
-                                    }
-                                    chosen.textContent = person.name + ' · ' + person.phone;
-                                });
-                        });
+                        button.addEventListener('click', function () { selectPerson(person); });
                         hits.appendChild(button);
                     });
+                    var digits = q.replace(/\D/g, '');
+                    if (digits.length >= 9) {
+                        var matched = people.filter(function (person) {
+                            return (person.phone || '').replace(/\D/g, '').indexOf(digits) !== -1;
+                        });
+                        if (matched.length === 1) {
+                            selectPerson(matched[0]);
+                            return;
+                        }
+                    }
                     if (!hits.children.length) {
                         var none = document.createElement('div');
                         none.className = 'list-group-item text-muted';
@@ -208,6 +203,20 @@
                 });
         }, 200);
     });
+    function selectPerson(person) {
+        customerId.value = person.id;
+        phoneInput.value = person.phone || '';
+        chosen.textContent = person.name + ' · ' + person.phone;
+        hits.innerHTML = '';
+        search.value = person.name + ' (' + person.phone + ')';
+        fetch(clientUrl + '?customer_id=' + encodeURIComponent(person.id), {headers: {Accept: 'application/json'}})
+            .then(function (response) { return response.json(); })
+            .then(function (info) {
+                if (!info || !info.ok) return;
+                clientGuard = info;
+                chosen.textContent = person.name + ' · ' + person.phone;
+            });
+    }
     function token() {
         var input = form.querySelector('input[name="_token"]');
         return input ? input.value : '';
@@ -270,6 +279,16 @@
         }, 400);
     });
     form.addEventListener('submit', function (event) {
+        if (methodInput.value !== '1' && !customerId.value) {
+            var visible = hits.querySelector('button');
+            if (visible && hits.querySelectorAll('button').length === 1) {
+                visible.click();
+            }
+            var typed = (search.value || '').replace(/\D/g, '');
+            if (!customerId.value && typed.length >= 9 && !phoneInput.value.trim()) {
+                phoneInput.value = typed;
+            }
+        }
         if (methodInput.value !== '1' && !customerId.value && !phoneInput.value.trim()) {
             event.preventDefault();
             hint.textContent = 'Choose the client who is paying.';

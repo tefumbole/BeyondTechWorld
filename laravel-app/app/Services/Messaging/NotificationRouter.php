@@ -75,6 +75,27 @@ class NotificationRouter
     }
 
     /**
+     * WhatsApp text through Wasender only. Internship, payments, quotations, and sales use this
+     * so an approved Twilio template cannot take the message instead.
+     *
+     * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
+     */
+    public function sendWasenderText($phone, $body)
+    {
+        if (! $this->whatsappEnabled()) {
+            \Log::info('[messaging] WhatsApp disabled — skip Wasender text');
+
+            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
+        }
+
+        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        $result = $this->wasender->sendTextRaw($phone, $body);
+        $result['provider'] = 'wasender';
+
+        return $result;
+    }
+
+    /**
      * Approved beyond_status_update template. Does not use Wasender.
      *
      * @return array{success:bool,sid?:string,error?:string,provider?:string}
@@ -376,7 +397,7 @@ class NotificationRouter
     /**
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool}
      */
-    public function sendSms($phone, $body)
+    public function sendSms($phone, $body, $fromOverride = null)
     {
         if (! $this->smsEnabled()) {
             \Log::info('[messaging] SMS disabled — skip');
@@ -396,11 +417,14 @@ class NotificationRouter
             if ($gateway === 'twilio') {
                 $sid = trim((string) (config('services.sms.account_sid') ?: env('ACCOUNT_SID') ?: env('TWILIO_SID')));
                 $token = trim((string) (config('services.sms.auth_token') ?: env('AUTH_TOKEN') ?: env('TWILIO_AUTH_TOKEN')));
-                $from = trim((string) (
-                    config('services.sms.twilio_number')
-                    ?: env('TWILIO_NUMBER')
-                    ?: env('Twilio_Number')
-                ));
+                $from = trim((string) $fromOverride);
+                if ($from === '') {
+                    $from = trim((string) (
+                        config('services.sms.twilio_number')
+                        ?: env('TWILIO_NUMBER')
+                        ?: env('Twilio_Number')
+                    ));
+                }
 
                 if ($sid === '' || $token === '' || $from === '') {
                     return ['success' => false, 'error' => 'Twilio SMS is not configured.', 'provider' => 'twilio'];

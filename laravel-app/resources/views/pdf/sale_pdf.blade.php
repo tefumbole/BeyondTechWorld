@@ -192,8 +192,8 @@
             @endif
             @if($saleNote !== '')
                 <div class="inv-box inv-note">
-                    <span class="inv-label">{{ trans('file.Sale Note') }}</span>
-                    {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->sale_note) !!}
+                    <span class="inv-label" style="display:block;">{{ trans('file.Sale Note') }}</span>
+                    <div style="margin:0;line-height:1.35;">{!! \App\Support\BookingNoteFormatter::forCompactHtml($lims_sale_data->sale_note) !!}</div>
                 </div>
             @endif
             @if($staffNote !== '')

@@ -19,19 +19,35 @@
         <div class="row">
             <div class="col-md-5">
                 <div class="wa-card">
-                    @forelse($contacts as $row)
-                        <div class="mb-2">
-                            <a href="{{ route('whatsapp.people', array_filter(['q' => $q, 'contact' => $row->id])) }}">
-                                <strong>{{ $row->displayName() }}</strong>
-                            </a>
-                            <div class="small text-muted">{{ $row->display_phone ?: $row->normalized_phone }}
-                                @if($row->call_name) · you call them {{ $row->call_name }}@endif
-                                @if($row->relationship) · {{ $row->relationship }}@endif
-                            </div>
+                    @if($contacts->count())
+                    <form method="post" action="{{ route('whatsapp.people.delete') }}" id="peopleDeleteForm">
+                        @csrf
+                        <input type="hidden" name="q" value="{{ $q }}">
+                        <input type="hidden" name="all" id="peopleAllMatching" value="0">
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                            <label style="margin:0; font-weight:600;">
+                                <input type="checkbox" id="peopleAll"> Select all
+                            </label>
+                            <button type="submit" class="btn btn-danger btn-sm">Delete selected</button>
                         </div>
-                    @empty
+                        @foreach($contacts as $row)
+                            <div class="mb-2" style="display:flex; gap:10px; align-items:flex-start;">
+                                <input type="checkbox" class="people-row" name="ids[]" value="{{ $row->id }}" style="margin-top:4px;">
+                                <div>
+                                    <a href="{{ route('whatsapp.people', array_filter(['q' => $q, 'contact' => $row->id])) }}">
+                                        <strong>{{ $row->displayName() }}</strong>
+                                    </a>
+                                    <div class="small text-muted">{{ $row->display_phone ?: $row->normalized_phone }}
+                                        @if($row->call_name) · you call them {{ $row->call_name }}@endif
+                                        @if($row->relationship) · {{ $row->relationship }}@endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </form>
+                    @else
                         <p class="text-muted mb-0">No contacts match.</p>
-                    @endforelse
+                    @endif
                     <div class="mt-3">{{ $contacts->appends(['q' => $q])->links() }}</div>
                 </div>
             </div>
@@ -53,5 +69,44 @@
     $("ul#whatsapp-module").siblings('a').attr('aria-expanded','true');
     $("ul#whatsapp-module").addClass("show");
     $("#whatsapp-people-menu").addClass("active");
+    (function () {
+        var form = document.getElementById('peopleDeleteForm');
+        if (!form) return;
+        var allBox = document.getElementById('peopleAll');
+        var allMatching = document.getElementById('peopleAllMatching');
+        var total = {{ (int) $contacts->total() }};
+        function rows() { return form.querySelectorAll('.people-row'); }
+        if (allBox) {
+            allBox.addEventListener('change', function () {
+                rows().forEach(function (box) { box.checked = allBox.checked; });
+                allMatching.value = allBox.checked ? '1' : '0';
+            });
+        }
+        rows().forEach(function (box) {
+            box.addEventListener('change', function () {
+                if (!box.checked && allBox) {
+                    allBox.checked = false;
+                    allMatching.value = '0';
+                }
+            });
+        });
+        form.addEventListener('submit', function (event) {
+            var chosen = form.querySelectorAll('.people-row:checked').length;
+            if (allMatching.value === '1') {
+                if (!confirm('Delete all ' + total + ' contact' + (total === 1 ? '' : 's') + ' in this list?')) {
+                    event.preventDefault();
+                }
+                return;
+            }
+            if (!chosen) {
+                event.preventDefault();
+                alert('Select at least one contact.');
+                return;
+            }
+            if (!confirm('Delete ' + chosen + ' contact' + (chosen === 1 ? '' : 's') + '?')) {
+                event.preventDefault();
+            }
+        });
+    })();
 </script>
 @endsection

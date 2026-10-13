@@ -22,7 +22,7 @@ class ApplicationNotifier
         return $application->whatsapp_number ?: $application->phone;
     }
 
-    public function send(Application $application, $message, array $statusVars = [])
+    public function send(Application $application, $message, array $statusVars = [], $wasender = false)
     {
         $phone = $this->notifyPhone($application);
         if (! $phone) {
@@ -36,7 +36,9 @@ class ApplicationNotifier
             $statusVars['reference'] = $application->reference_number ?: '-';
         }
 
-        $result = $this->router->sendWhatsAppText($phone, $message, $statusVars);
+        $result = $wasender
+            ? $this->router->sendWasenderText($phone, $message)
+            : $this->router->sendWhatsAppText($phone, $message, $statusVars);
         if (empty($result['success'])) {
             Log::warning('Application WhatsApp failed', [
                 'application_id' => $application->id,
@@ -57,18 +59,23 @@ class ApplicationNotifier
             $job->isInternship()
         );
 
-        $template = $this->router->sendTwilioStatusUpdate(
-            $this->notifyPhone($application),
-            $application->full_name ?: 'Applicant',
-            'application for '.$job->title,
-            $application->reference_number ?: '-',
-            'Under review'
-        );
-        $result = ! empty($template['success']) ? $template : $this->send($application, $message, [
+        $statusVars = [
             'title' => 'Application received',
             'message' => 'Your application for '.$job->title.' has been received and is under review.',
             'details' => $job->isInternship() ? 'Type: Internship' : 'Type: Job',
-        ]);
+        ];
+        if ($job->isInternship()) {
+            $result = $this->send($application, $message, $statusVars, true);
+        } else {
+            $template = $this->router->sendTwilioStatusUpdate(
+                $this->notifyPhone($application),
+                $application->full_name ?: 'Applicant',
+                'application for '.$job->title,
+                $application->reference_number ?: '-',
+                'Under review'
+            );
+            $result = ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
+        }
 
         $applicationId = $application->id;
         $jobId = $job->id;
@@ -124,11 +131,14 @@ class ApplicationNotifier
             );
             // Wasender account protection: wait after applicant message and between admins.
             usleep(5500000);
-            $send = $this->router->sendWhatsAppText($phone, $message, [
+            $statusVars = [
                 'title' => 'New application',
                 'message' => ($application->full_name ?: 'Applicant').' applied for '.$job->title,
                 'details' => $application->reference_number ?: '-',
-            ]);
+            ];
+            $send = $job->isInternship()
+                ? $this->router->sendWasenderText($phone, $message)
+                : $this->router->sendWhatsAppText($phone, $message, $statusVars);
             if (! empty($send['success'])) {
                 $sent++;
             } else {
@@ -172,11 +182,7 @@ class ApplicationNotifier
                 $loginUrl
             );
             usleep(5500000);
-            $send = $this->router->sendWhatsAppText(trim((string) $admin->phone), $message, [
-                'title' => 'Placement needs attention',
-                'message' => ($application->full_name ?: 'Applicant').' signed the offer but has no placement.',
-                'details' => $application->reference_number ?: '-',
-            ]);
+            $send = $this->router->sendWasenderText(trim((string) $admin->phone), $message);
             if (! empty($send['success'])) {
                 $sent++;
             } else {
@@ -209,7 +215,7 @@ class ApplicationNotifier
                 ? 'You have been selected for '.$job->title.'. Accept your offer and set up your account.'
                 : 'You have been selected for '.$job->title.'. Please sign your agreement.',
             'details' => $agreementUrl ?: '-',
-        ]);
+        ], $job->isInternship());
     }
 
     public function rejected(Application $application, JobPosting $job)
@@ -221,6 +227,15 @@ class ApplicationNotifier
             $application->rejection_reason
         );
 
+        $statusVars = [
+            'title' => 'Application update',
+            'message' => 'We are unable to proceed with your application for '.$job->title.' at this time.',
+            'details' => $application->rejection_reason ?: '-',
+        ];
+        if ($job->isInternship()) {
+            return $this->send($application, $message, $statusVars, true);
+        }
+
         $template = $this->router->sendTwilioStatusUpdate(
             $this->notifyPhone($application),
             $application->full_name ?: 'Applicant',
@@ -229,11 +244,7 @@ class ApplicationNotifier
             'Not proceeding'
         );
 
-        return ! empty($template['success']) ? $template : $this->send($application, $message, [
-            'title' => 'Application update',
-            'message' => 'We are unable to proceed with your application for '.$job->title.' at this time.',
-            'details' => $application->rejection_reason ?: '-',
-        ]);
+        return ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
     }
 
     public function documentsUpdateRequested(Application $application, $job, $updateUrl, array $missingLabels = [], $note = null)
@@ -252,7 +263,7 @@ class ApplicationNotifier
             'title' => 'Documents needed',
             'message' => 'Please upload missing documents for '.$title,
             'details' => implode(', ', $missingLabels) ?: '-',
-        ]);
+        ], ! $job || $job->isInternship());
     }
 
     public function agreementSigned(Application $application, JobPosting $job)
@@ -264,6 +275,15 @@ class ApplicationNotifier
             $job->isInternship()
         );
 
+        $statusVars = [
+            'title' => 'Agreement signed',
+            'message' => 'Your agreement for '.$job->title.' has been signed and received.',
+            'details' => $job->isInternship() ? 'Working hours per Working Week' : 'Working hours 7:30 AM – 4:00 PM',
+        ];
+        if ($job->isInternship()) {
+            return $this->send($application, $message, $statusVars, true);
+        }
+
         $template = $this->router->sendTwilioStatusUpdate(
             $this->notifyPhone($application),
             $application->full_name ?: 'Applicant',
@@ -272,11 +292,7 @@ class ApplicationNotifier
             'Signed and received'
         );
 
-        return ! empty($template['success']) ? $template : $this->send($application, $message, [
-            'title' => 'Agreement signed',
-            'message' => 'Your agreement for '.$job->title.' has been signed and received.',
-            'details' => $job->isInternship() ? 'Working hours per Working Week' : 'Working hours 7:30 AM – 4:00 PM',
-        ]);
+        return ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
     }
 
     /**
@@ -294,7 +310,16 @@ class ApplicationNotifier
             ?: ($job->isInternship() ? 'Internship Programme' : 'Employment Programme');
         $year = date('Y').'/'.(date('Y') + 1);
 
-        $result = $this->router->sendWhatsAppAdmission($phone, $program, $department, $year, $mediaUrl);
+        if ($job->isInternship()) {
+            $company = WhatsAppMessage::companyName();
+            $body = "Dear ".($application->full_name ?: 'Intern')."\n\nCongratulations!\n\n"
+                ."Your application to *{$program}* has been successfully received. "
+                ."You have been admitted to the *{$department}* programme for the *{$year}* academic year.\n\n"
+                ."Welcome to our institution!\n\n_{$company}_";
+            $result = $this->router->sendWasenderText($phone, $body);
+        } else {
+            $result = $this->router->sendWhatsAppAdmission($phone, $program, $department, $year, $mediaUrl);
+        }
         if (empty($result['success'])) {
             Log::warning('Application admission WhatsApp failed', [
                 'application_id' => $application->id,
@@ -341,11 +366,7 @@ class ApplicationNotifier
                 $durationLabel,
                 url('/staff-otp-login')
             );
-            $send = $this->router->sendWhatsAppText($phone, $message, [
-                'title' => 'Internship supervision assigned',
-                'message' => 'You have been assigned to supervise intern(s).',
-                'details' => implode(', ', $internNames),
-            ]);
+            $send = $this->router->sendWasenderText($phone, $message);
             if (! empty($send['success'])) {
                 $result['sent']++;
             } else {

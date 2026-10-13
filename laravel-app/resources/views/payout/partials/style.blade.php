@@ -1,7 +1,7 @@
 <style>
     .pay-app { color: #1f2a44; }
     .pay-app a { color: #0b3f90; }
-    .pay-toolbar { display: flex; justify-content: flex-end; margin: 0 0 16px; }
+    .pay-toolbar { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
     .pay-new {
         display: inline-flex;
         align-items: center;
@@ -60,6 +60,9 @@
     .pay-go { min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: #0b3f90; color: #fff; font-weight: 700; }
     .pay-go:hover { background: #072f6b; color: #fff; }
     .pay-open { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; background: #0b3f90; color: #fff !important; font-size: 13px; font-weight: 700; text-decoration: none !important; }
+    .pay-danger { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: #fdecec; color: #9b1c1c; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .pay-danger:hover { background: #9b1c1c; color: #fff; }
+    .pay-row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     .pay-linkbox { display: flex; gap: 8px; max-width: 760px; }
     .pay-linkbox input { flex: 1; }
     .pay-muted { color: #6f7b91; }

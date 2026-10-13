@@ -15,6 +15,7 @@ class WaAnnouncement extends Model
     protected $casts = [
         'is_scheduled' => 'boolean',
         'send_whatsapp' => 'boolean',
+        'send_sms' => 'boolean',
         'personalized' => 'boolean',
         'scheduled_for' => 'datetime',
         'sent_count' => 'integer',

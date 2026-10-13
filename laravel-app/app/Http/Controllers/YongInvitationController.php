@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\BeyondWasenderService;
+use App\Services\YongDonateService;
 use App\Services\YongInvitationService;
 use App\Support\CountryDialCodes;
 use App\Support\WhatsAppPhone;
@@ -29,8 +30,71 @@ class YongInvitationController extends Controller
             'countries' => CountryDialCodes::list(),
             'lookupUrl' => url('/yong/lookup'),
             'submitUrl' => url('/yong/submit'),
+            'donateLookupUrl' => url('/yong/donate/lookup'),
+            'donatePayUrl' => url('/yong/donate'),
+            'donateNote' => (string) request('donate'),
             'serviceAt' => $this->invitations->serviceAt()->toIso8601String(),
         ]);
+    }
+
+    public function donateLookup(Request $request)
+    {
+        $phone = trim((string) $request->get('phone', ''));
+        $code = trim((string) $request->get('country_code', '+237'));
+        if ($phone === '') {
+            return response()->json(['ok' => false, 'found' => false, 'name' => '']);
+        }
+        try {
+            $result = app(YongDonateService::class)->resolveName($code, $phone);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'found' => false, 'name' => '', 'message' => 'Enter a valid phone number.']);
+        }
+
+        return response()->json($result);
+    }
+
+    public function donatePay(Request $request)
+    {
+        $data = $request->validate([
+            'country_code' => 'required|string|max:10',
+            'phone' => 'required|string|max:40',
+            'name' => 'nullable|string|max:80',
+            'amount' => 'required|integer|min:100|max:5000000',
+            'method' => 'required|in:orange,mtn,visa',
+        ]);
+        try {
+            $link = app(YongDonateService::class)->start(
+                $data['country_code'],
+                $data['phone'],
+                isset($data['name']) ? $data['name'] : '',
+                $data['amount'],
+                $data['method']
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            Log::warning('yong donate start failed: '.$e->getMessage());
+
+            return response()->json(['message' => 'Could not start the payment. Please try again.'], 500);
+        }
+
+        return response()->json(['redirect' => $link]);
+    }
+
+    public function donatePayment(Request $request)
+    {
+        $url = app(YongDonateService::class)->handleCampay(
+            $request->get('status'),
+            $request->get('reference'),
+            $request->get('external_reference')
+        );
+
+        return redirect()->to($url);
+    }
+
+    public function donateStripe(Request $request)
+    {
+        return redirect()->to(app(YongDonateService::class)->handleStripe($request->get('session_id')));
     }
 
     public function lookup(Request $request)

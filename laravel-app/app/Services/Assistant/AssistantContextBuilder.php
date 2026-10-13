@@ -44,20 +44,7 @@ class AssistantContextBuilder
                 $lead = ['id' => $row->id, 'status' => $row->status, 'category' => $row->category];
             }
         }
-        $history = WhatsAppMessage::where('conversation_id', $conversation->id)
-            ->orderByDesc('id')
-            ->limit(AssistantRuntimeSettings::historyLimit())
-            ->get()
-            ->reverse()
-            ->values()
-            ->map(function ($m) {
-                return [
-                    'direction' => $m->direction,
-                    'sender' => $m->sender_type,
-                    'body' => mb_substr((string) $m->body, 0, 240),
-                ];
-            })
-            ->all();
+        $history = $this->lines($conversation);
 
         return [
             'conversation' => $conversation,
@@ -93,5 +80,73 @@ class AssistantContextBuilder
             'history' => $context['history'],
             'tools' => $context['tools'],
         ];
+    }
+
+    /**
+     * Messages already in this person's chats, including turns from before AI was switched on.
+     *
+     * @return array<int, array{direction:string,sender:?string,speaker:string,body:string,role:string}>
+     */
+    public function lines(WhatsAppConversation $conversation)
+    {
+        $limit = max(40, (int) AssistantRuntimeSettings::historyLimit());
+        $query = WhatsAppMessage::query()->orderByDesc('id');
+        if ($conversation->contact_id) {
+            $ids = WhatsAppConversation::where('contact_id', $conversation->contact_id)->pluck('id');
+            $query->whereIn('conversation_id', $ids->isEmpty() ? [$conversation->id] : $ids->all());
+        } else {
+            $query->where('conversation_id', $conversation->id);
+        }
+        $rows = $query->limit($limit)->get()->reverse();
+        $out = [];
+        foreach ($rows as $row) {
+            $body = trim((string) $row->body);
+            if ($body === '') {
+                continue;
+            }
+            if (mb_strlen($body) > 700) {
+                $body = rtrim(mb_substr($body, 0, 699)).'…';
+            }
+            $speaker = $this->speaker($row);
+            $out[] = [
+                'direction' => (string) $row->direction,
+                'sender' => $row->sender_type,
+                'speaker' => $speaker,
+                'body' => $body,
+                'role' => $speaker === 'Customer' ? 'user' : 'assistant',
+            ];
+        }
+
+        return $out;
+    }
+
+    public function transcript(array $history)
+    {
+        $lines = [];
+        foreach ($history as $row) {
+            if (! is_array($row) || trim((string) (isset($row['body']) ? $row['body'] : '')) === '') {
+                continue;
+            }
+            $who = isset($row['speaker']) ? $row['speaker'] : 'Customer';
+            $lines[] = $who.': '.$row['body'];
+        }
+        $text = implode("\n", $lines);
+        if (mb_strlen($text) <= 12000) {
+            return $text;
+        }
+
+        return mb_substr($text, -12000);
+    }
+
+    protected function speaker(WhatsAppMessage $row)
+    {
+        if ($row->direction === WhatsAppMessage::DIR_IN || $row->sender_type === 'CONTACT') {
+            return 'Customer';
+        }
+        if ($row->sender_type === 'ASSISTANT') {
+            return 'Assistant';
+        }
+
+        return 'Staff';
     }
 }

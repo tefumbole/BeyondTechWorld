@@ -25,7 +25,7 @@
         .brand strong { display: block; font-size: 18px; line-height: 1.15; }
         .brand span { display: block; font-size: 13px; color: #5c6574; }
         .pills { display: flex; gap: 8px; }
-        .pill { border: 0; background: transparent; color: var(--navy); border-radius: 999px; padding: 8px 16px; font-weight: 700; font-family: inherit; font-size: 14px; }
+        .pill { border: 0; background: transparent; color: var(--navy); border-radius: 999px; padding: 8px 16px; font-weight: 700; font-family: inherit; font-size: 14px; cursor: pointer; }
         .pill.is-on { background: var(--navy); color: #fff; }
         .stage, .copy, .hero-copy, .card, .field, .phone-row, .positions, .count { min-width: 0; max-width: 100%; }
         .stage {
@@ -83,6 +83,14 @@
         .choice { appearance: none; border: 1px solid #e4e0d8; background: #fff; border-radius: 999px; min-height: 44px; min-width: 0; padding: 8px 6px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 700; color: var(--navy); flex: 1 1 64px; }
         .choice.is-on { border-color: #e6c56a; background: #f6e3a8; }
         .btn-navy { appearance: none; border: 0; border-radius: 12px; background: var(--navy); color: #fff; width: 100%; margin-top: 18px; min-height: 50px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .panel.is-hidden { display: none; }
+        .pay-methods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .pay-method { appearance: none; border: 1px solid #e4e0d8; background: #fff; border-radius: 12px; min-height: 52px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 800; color: var(--navy); }
+        .pay-method.is-on { box-shadow: inset 0 0 0 2px var(--navy); }
+        .pay-orange.is-on { background: #fff1e6; color: #c2410c; }
+        .pay-mtn.is-on { background: #fff7cc; color: #854d0e; }
+        .pay-visa.is-on { background: #e8ecf8; color: #1a1f71; }
+        .donate-note { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: #f6e3a8; color: var(--navy); font-weight: 700; }
         .fine { text-align: center; color: #8b93a0; font-size: 13px; margin: 10px 0 0; }
         .err { color: #991b1b; font-size: 13px; min-height: 1em; margin: 8px 0 0; }
         .busy { opacity: .7; pointer-events: none; }
@@ -96,7 +104,7 @@
             .wrap { padding: 0 12px; }
             header { align-items: center; padding: 14px 0 10px; }
             .brand strong { font-size: 16px; }
-            .pills { display: none; }
+            .pills { display: flex; flex-wrap: wrap; justify-content: center; }
             .stage { display: block; min-height: 0; padding: 0; overflow: visible; background: transparent; border-radius: 0; }
             .copy {
                 max-width: none;
@@ -185,8 +193,9 @@
                 <span>Obili District</span>
             </div>
         </div>
-        <nav class="pills" aria-label="Invitation">
-            <span class="pill is-on">Invitation</span>
+        <nav class="pills" id="yongTabs" aria-label="Sections">
+            <button type="button" class="pill is-on" data-tab="invite">Invitation</button>
+            <button type="button" class="pill" data-tab="donate">Donate</button>
         </nav>
     </header>
     <section class="stage">
@@ -213,7 +222,7 @@
             <p class="join">Join us for a joyful service of worship and celebration.</p>
             </div>
         </div>
-        <form class="card" id="yform" method="POST" action="{{ $submitUrl }}">
+        <form class="card panel" id="yform" method="POST" action="{{ $submitUrl }}">
             @csrf
             <input type="hidden" name="country_code" id="countryCode" value="+237">
             <h2>Receive your invitation</h2>
@@ -255,6 +264,57 @@
             <p class="err" id="formErr">@if($errors->any()){{ $errors->first() }}@endif</p>
             <button type="submit" class="btn-navy" id="goBtn">Receive My Invitation →</button>
             <p class="fine">Your invitation will be sent to your WhatsApp number.</p>
+        </form>
+        <form class="card panel is-hidden" id="dform" method="POST" action="{{ $donatePayUrl }}">
+            @csrf
+            <input type="hidden" name="country_code" id="donateCountry" value="+237">
+            <input type="hidden" name="method" id="donateMethod" value="">
+            <h2>Give an offering</h2>
+            <p class="lead">Enter your phone number. We will find your name, then you choose the amount and how to pay.</p>
+            @if($donateNote === 'ok')
+                <p class="donate-note">Thank you. Your donation was received.</p>
+            @elseif($donateNote === 'pending')
+                <p class="donate-note">Your payment is still processing.</p>
+            @elseif($donateNote === 'failed')
+                <p class="donate-note">The payment did not go through. You can try again.</p>
+            @endif
+            <div class="field">
+                <label>Phone number</label>
+                <div class="phone-row">
+                    <div class="cc" id="donateCc">
+                        <button type="button" class="cc-btn" id="donateCcBtn" aria-expanded="false">
+                            <span class="flag" id="donateFlag">🇨🇲</span>
+                            <span class="dial" id="donateDial">+237</span>
+                            <span class="cc-caret">▾</span>
+                        </button>
+                        <div class="cc-menu" id="donateCcMenu">
+                            <input type="search" class="cc-search" id="donateCcSearch" placeholder="Search country" autocomplete="off">
+                            <ul class="cc-list" id="donateCcList"></ul>
+                        </div>
+                    </div>
+                    <input type="tel" name="phone" id="donatePhone" placeholder="6XX XXX XXX" inputmode="numeric" autocomplete="tel" required>
+                </div>
+                <p class="status" id="donateStatus"></p>
+            </div>
+            <div class="field" id="donateNameField">
+                <label>Name</label>
+                <input type="text" name="name" id="donateName" maxlength="80" placeholder="Name from your number" readonly>
+            </div>
+            <div class="field">
+                <label>Amount (XAF)</label>
+                <input type="number" name="amount" id="donateAmount" min="100" max="5000000" step="1" inputmode="numeric" placeholder="5000" required>
+            </div>
+            <div class="field">
+                <label>Payment method</label>
+                <div class="pay-methods" id="donateMethods">
+                    <button type="button" class="pay-method pay-orange" data-method="orange">Orange</button>
+                    <button type="button" class="pay-method pay-mtn" data-method="mtn">MTN</button>
+                    <button type="button" class="pay-method pay-visa" data-method="visa">VISA</button>
+                </div>
+            </div>
+            <p class="err" id="donateErr"></p>
+            <button type="submit" class="btn-navy" id="donateGo">Make payment</button>
+            <p class="fine">Orange and MTN use Campay. Visa uses a card.</p>
         </form>
     </section>
     <div class="count" id="count" aria-live="polite">
@@ -372,6 +432,163 @@
             form.classList.remove('busy');
         }).catch(function () {
             form.submit();
+        });
+    });
+
+    var inviteForm = document.getElementById('yform');
+    var donateForm = document.getElementById('dform');
+    function showTab(name) {
+        var donate = name === 'donate';
+        inviteForm.classList.toggle('is-hidden', donate);
+        donateForm.classList.toggle('is-hidden', !donate);
+        document.querySelectorAll('#yongTabs .pill').forEach(function (pill) {
+            pill.classList.toggle('is-on', pill.getAttribute('data-tab') === name);
+        });
+    }
+    document.getElementById('yongTabs').addEventListener('click', function (e) {
+        var pill = e.target.closest('.pill');
+        if (!pill) return;
+        showTab(pill.getAttribute('data-tab'));
+    });
+    if (@json($donateNote) !== '') {
+        showTab('donate');
+    }
+
+    var donateHidden = document.getElementById('donateCountry');
+    var donatePicker = document.getElementById('donateCc');
+    var donateSearch = document.getElementById('donateCcSearch');
+    var donateList = document.getElementById('donateCcList');
+    function setDonateCountry(row) {
+        donateHidden.value = row.code;
+        document.getElementById('donateFlag').textContent = row.flag;
+        document.getElementById('donateDial').textContent = row.code;
+        donateHidden.dispatchEvent(new Event('change'));
+    }
+    function renderDonate() {
+        var q = (donateSearch.value || '').toLowerCase().trim();
+        var rows = !q ? countries : countries.filter(function (c) {
+            return (c.name + ' ' + c.code).toLowerCase().indexOf(q) !== -1;
+        });
+        donateList.innerHTML = '';
+        rows.forEach(function (c) {
+            var li = document.createElement('li');
+            if (c.code === donateHidden.value) li.className = 'is-on';
+            li.innerHTML = '<span class="flag"></span><span class="name"></span><span class="dial"></span>';
+            li.querySelector('.flag').textContent = c.flag;
+            li.querySelector('.name').textContent = c.name;
+            li.querySelector('.dial').textContent = c.code;
+            li.addEventListener('click', function () {
+                setDonateCountry(c);
+                donatePicker.classList.remove('is-open');
+            });
+            donateList.appendChild(li);
+        });
+    }
+    document.getElementById('donateCcBtn').addEventListener('click', function () {
+        var open = donatePicker.classList.toggle('is-open');
+        this.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) { donateSearch.value = ''; renderDonate(); donateSearch.focus(); }
+    });
+    donateSearch.addEventListener('input', renderDonate);
+    document.addEventListener('click', function (e) {
+        if (!donatePicker.contains(e.target)) donatePicker.classList.remove('is-open');
+    });
+
+    var donatePhone = document.getElementById('donatePhone');
+    var donateName = document.getElementById('donateName');
+    var donateStatus = document.getElementById('donateStatus');
+    var donateTimer = null;
+    function setDonateStatus(text, ok) {
+        donateStatus.textContent = text || '';
+        donateStatus.style.display = text ? 'block' : 'none';
+        donateStatus.style.color = ok ? '#166534' : '#64748b';
+    }
+    function lookupDonate() {
+        var phone = donatePhone.value.replace(/\D/g, '');
+        if (phone.length < 8) {
+            setDonateStatus('');
+            donateName.value = '';
+            donateName.readOnly = true;
+            return;
+        }
+        setDonateStatus('Looking up this number…', false);
+        var url = @json($donateLookupUrl) + '?phone=' + encodeURIComponent(donatePhone.value) + '&country_code=' + encodeURIComponent(donateHidden.value);
+        fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.found && data.name) {
+                    donateName.value = data.name;
+                    donateName.readOnly = true;
+                    setDonateStatus(data.source === 'whatsapp'
+                        ? 'Name found on WhatsApp.'
+                        : 'Name found with Campay.', true);
+                    return;
+                }
+                donateName.value = '';
+                donateName.readOnly = false;
+                donateName.placeholder = 'Type your name';
+                setDonateStatus('No name was found. Type your name to continue.', false);
+            }).catch(function () {
+                setDonateStatus('Could not look up this number.', false);
+            });
+    }
+    donatePhone.addEventListener('input', function () {
+        clearTimeout(donateTimer);
+        donateTimer = setTimeout(lookupDonate, 450);
+    });
+    donatePhone.addEventListener('blur', lookupDonate);
+    donateHidden.addEventListener('change', lookupDonate);
+
+    document.getElementById('donateMethods').addEventListener('click', function (e) {
+        var button = e.target.closest('.pay-method');
+        if (!button) return;
+        document.getElementById('donateMethod').value = button.getAttribute('data-method');
+        document.querySelectorAll('.pay-method').forEach(function (el) {
+            el.classList.toggle('is-on', el === button);
+        });
+    });
+
+    var donateErr = document.getElementById('donateErr');
+    var donateGo = document.getElementById('donateGo');
+    donateForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        donateErr.textContent = '';
+        if (!donateName.value.trim()) {
+            donateErr.textContent = 'Enter your phone number so we can find your name.';
+            return;
+        }
+        if (!document.getElementById('donateAmount').value || Number(document.getElementById('donateAmount').value) < 100) {
+            donateErr.textContent = 'Enter an amount of at least 100 XAF.';
+            return;
+        }
+        if (!document.getElementById('donateMethod').value) {
+            donateErr.textContent = 'Choose Orange, MTN, or VISA.';
+            return;
+        }
+        donateGo.disabled = true;
+        donateForm.classList.add('busy');
+        fetch(donateForm.action, {
+            method: 'POST',
+            body: new FormData(donateForm),
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) {
+            if (res.ok && res.data && res.data.redirect) {
+                window.location = res.data.redirect;
+                return;
+            }
+            var msg = (res.data && res.data.message) ? res.data.message : 'Could not start the payment.';
+            if (res.data && res.data.errors) {
+                var keys = Object.keys(res.data.errors);
+                if (keys.length && res.data.errors[keys[0]][0]) msg = res.data.errors[keys[0]][0];
+            }
+            donateErr.textContent = msg;
+            donateGo.disabled = false;
+            donateForm.classList.remove('busy');
+        }).catch(function () {
+            donateErr.textContent = 'Could not start the payment.';
+            donateGo.disabled = false;
+            donateForm.classList.remove('busy');
         });
     });
 })();

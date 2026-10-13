@@ -391,7 +391,8 @@
         'searchreplace visualblocks code fullscreen',
         'insertdatetime media table contextmenu paste code wordcount'
       ],
-      toolbar: 'insert | undo redo |  formatselect | bold italic backcolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat',
+      toolbar: 'insert | undo redo |  formatselect | bold italic backcolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | image',
+      paste_data_images: true,
       branding:false
     });
 
@@ -828,6 +829,7 @@
             return time + file.name;
         },
         acceptedFiles: ".jpeg,.jpg,.png,.gif",
+        dictDefaultMessage: "Drop files here to upload, or paste an image",
         init: function () {
             var myDropzone = this;
             $('#submit-btn').on("click", function (e) {
@@ -915,6 +917,30 @@
             this.removeAllFiles(true);
         }
     });
+
+    (function () {
+        var zone = document.getElementById('imageUpload');
+        if (!zone || typeof myDropzone === 'undefined') return;
+        zone.setAttribute('tabindex', '0');
+        document.addEventListener('paste', function (event) {
+            var data = event.clipboardData || window.clipboardData;
+            if (!data || !data.items) return;
+            var images = [];
+            for (var i = 0; i < data.items.length; i++) {
+                var item = data.items[i];
+                if (item.kind !== 'file' || !item.type || item.type.indexOf('image/') !== 0) continue;
+                var blob = item.getAsFile();
+                if (!blob) continue;
+                var ext = 'png';
+                if (blob.type.indexOf('jpeg') !== -1) ext = 'jpg';
+                else if (blob.type.indexOf('gif') !== -1) ext = 'gif';
+                images.push(new File([blob], 'pasted-' + Date.now() + '-' + i + '.' + ext, { type: blob.type || 'image/png' }));
+            }
+            if (!images.length) return;
+            images.forEach(function (file) { myDropzone.addFile(file); });
+            event.preventDefault();
+        });
+    })();
 
 </script>
 @endsection

@@ -11,7 +11,6 @@ use App\Services\CampayPayoutService;
 use App\Services\ClientNoticeService;
 use App\Services\StripeCheckoutService;
 use App\Services\Cloud\CloudTenantContext;
-use App\Services\Messaging\TwilioTemplateSender;
 use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -155,17 +154,6 @@ class DocumentPayController extends Controller
     protected function tell(DocumentPaymentLink $link, $url)
     {
         $label = $this->label($link);
-        $result = app(TwilioTemplateSender::class)->sendSharedAction(
-            $link->phone,
-            $link->person_name,
-            WhatsAppMessage::companyName(),
-            'pay this '.strtolower($label),
-            $link->reference_no ?: $label,
-            $url
-        );
-        if (! empty($result['success'])) {
-            return;
-        }
         $msg = WhatsAppMessage::statusBlock('💳', 'Payment Request');
         $msg .= 'Dear *'.$link->person_name.'*,'."\n\n";
         $msg .= 'You have been requested to pay *'.number_format($link->amount, 0, '.', ' ')."* XAF for ".$label.' '.$link->reference_no.".\n";

@@ -97,12 +97,13 @@ class EventPaymentController extends Controller
             try {
                 $msg = 'Beyond Enterprise: Labour payment of ' . number_format($payment->amount) . ' XAF for '
                     . $payment->event->name . ' (' . $payment->reference_no . ') has been processed.';
-                $this->sendWhatsAppToPhone($phone, $msg);
+                $this->sendWhatsAppToPhone($phone, $msg, 'wasender');
                 $this->sendWhatsAppDocumentToPhone(
                     $phone,
                     public_path($payment->receipt_path),
                     $payment->reference_no . '_receipt.pdf',
-                    url($payment->receipt_path)
+                    url($payment->receipt_path),
+                    true
                 );
             } catch (\Exception $e) {
                 Log::warning('Payment receipt WhatsApp failed: ' . $e->getMessage());

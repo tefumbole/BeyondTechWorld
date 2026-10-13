@@ -229,8 +229,7 @@
         'about'        => ['label' => 'About Us', 'url' => url('/about')],
         'gallery'      => ['label' => 'Gallery', 'url' => url('/gallery')],
         'reviews'      => ['label' => 'Reviews', 'url' => url('/reviews')],
-        'donations'    => ['label' => 'Donations', 'url' => url('/donate')],
-        'request-payment' => ['label' => 'Request Payment', 'url' => url('/request-payment')],
+        'payments'     => ['label' => 'Payments', 'url' => url('/payments')],
     ];
     $navLinks = [];
     foreach (\App\Support\SiteMenu::landingOrder() as $navKey) {
@@ -253,7 +252,13 @@
 
         <nav class="hidden lg:flex items-center gap-x-4 xl:gap-x-6 flex-1 justify-center min-w-0">
             @foreach ($navLinks as $link)
-                @php $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/'); @endphp
+                @php
+                    $active = rtrim($currentUrl,'/') === rtrim($link['url'],'/');
+                    if ($link['url'] === url('/payments')) {
+                        $payPath = request()->path();
+                        $active = $payPath === 'payments' || $payPath === 'donate' || $payPath === 'request-payment' || strpos($payPath, 'donate/') === 0;
+                    }
+                @endphp
                 <a href="{{ $link['url'] }}"
                    class="text-sm xl:text-base font-medium transition-colors duration-300 whitespace-nowrap
                       @if($active) text-brand-gold border-b-2 border-brand-gold pb-1

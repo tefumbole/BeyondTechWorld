@@ -1121,7 +1121,7 @@
             var staffNote = String(sale[24] || '').replace(/^<br>|<br>$/g, '').trim();
             var htmlfooter = '';
             if (saleNote && saleNote.toLowerCase() !== 'null') {
-                htmlfooter += '<p class="mb-1"><strong>{{trans("file.Sale Note")}}:</strong> ' + saleNote + '</p>';
+                htmlfooter += '<div style="margin:0 0 6px;line-height:1.35;"><strong>{{trans("file.Sale Note")}}:</strong><br>' + saleNote + '</div>';
             }
             if (staffNote && staffNote.toLowerCase() !== 'null') {
                 htmlfooter += '<p class="mb-1"><strong>{{trans("file.Staff Note")}}:</strong> ' + staffNote + '</p>';

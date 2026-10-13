@@ -24,12 +24,8 @@ class AnnouncementNotificationService extends Controller
         }
         try {
             $router = app(NotificationRouter::class);
-            if (trim((string) ($statusVars['body'] ?? '')) !== '' && $router->sharedNoticeIsApproved()) {
-                $template = $router->sendSharedNotice($phone, $statusVars);
-                if (! empty($template['success'])) {
-                    return true;
-                }
-            }
+            $statusVars['kind'] = $this->noticeKind($statusVars);
+            $statusVars['message'] = $this->noticeText($statusVars);
             $result = $router->sendWhatsAppAnnouncement($phone, $message, $statusVars);
 
             return ! empty($result['success']);
@@ -37,6 +33,86 @@ class AnnouncementNotificationService extends Controller
             Log::warning('Announcement WhatsApp failed: ' . $e->getMessage());
 
             return false;
+        }
+    }
+
+    protected function noticeKind(array $statusVars)
+    {
+        $subject = \App\Support\WhatsAppMessage::plainLine($statusVars['subject'] ?? $statusVars['title'] ?? '');
+        if ($subject === '' || strcasecmp($subject, 'Announcement') === 0 || strcasecmp($subject, 'Notice') === 0) {
+            return 'a notice';
+        }
+
+        return $subject;
+    }
+
+    protected function noticeText(array $statusVars)
+    {
+        $header = \App\Support\WhatsAppMessage::plainLine($statusVars['header'] ?? '');
+        $body = \App\Support\WhatsAppMessage::plainLine($statusVars['body'] ?? $statusVars['message'] ?? '');
+        if ($header !== '' && strcasecmp($header, $body) !== 0) {
+            $body = trim($header.'. '.$body);
+        }
+
+        return \App\Support\WhatsAppMessage::withEmoji('📢', $body);
+    }
+
+    /**
+     * Send one announcement by the channels selected on the form.
+     */
+    protected function deliverPerson(WaAnnouncement $announcement, array $person, $phone, $isCc)
+    {
+        $msg = AnnouncementPersonalization::buildMessage($announcement, $person, $isCc);
+        $ok = false;
+        if ($announcement->send_whatsapp) {
+            $vars = $this->twilioVars($announcement, $person, $isCc);
+            if ($this->sendPhone($phone, $msg, $vars)) {
+                $this->sendAttachment($phone, $announcement);
+                $ok = true;
+            }
+        }
+        if ($announcement->send_sms && $this->sendSmsPhone($phone, $msg)) {
+            $ok = true;
+        }
+
+        return $ok;
+    }
+
+    protected function sendSmsPhone($phone, $message)
+    {
+        $phone = trim((string) $phone);
+        if ($phone === '' || strpos($phone, '@') !== false) {
+            return false;
+        }
+        $text = trim(preg_replace('/\*+|_+/', '', (string) $message));
+        $text = trim(preg_replace("/\n{3,}/", "\n\n", $text));
+        if ($text === '') {
+            return false;
+        }
+        if (function_exists('mb_strlen') && mb_strlen($text) > 900) {
+            $text = rtrim(mb_substr($text, 0, 899)).'…';
+        }
+
+        try {
+            $result = app(NotificationRouter::class)->sendSms($phone, $text, 'Beyond Ltd');
+
+            return ! empty($result['success']) && empty($result['skipped']);
+        } catch (\Exception $e) {
+            Log::warning('Announcement SMS failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    protected function pauseBetweenRecipients(WaAnnouncement $announcement)
+    {
+        if ($announcement->send_whatsapp) {
+            usleep(5000000);
+
+            return;
+        }
+        if ($announcement->send_sms) {
+            usleep(200000);
         }
     }
 
@@ -194,8 +270,13 @@ class AnnouncementNotificationService extends Controller
             ];
             $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
             $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
-            $posted = $jid !== '' ? $wasender->sendGroupText($jid, $msg) : ['success' => false, 'error' => 'Missing group'];
-            $ok = ! empty($posted['success']);
+            $ok = false;
+            $error = 'Missing group';
+            if ($announcement->send_whatsapp && $jid !== '') {
+                $posted = $wasender->sendGroupText($jid, $msg);
+                $ok = ! empty($posted['success']);
+                $error = $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group');
+            }
             if ($ok && ! empty($announcement->attachment_path)) {
                 $full = public_path($announcement->attachment_path);
                 if (is_file($full)) {
@@ -207,6 +288,24 @@ class AnnouncementNotificationService extends Controller
                     );
                 }
             }
+            if ($announcement->send_sms && $jid !== '') {
+                $smsSent = 0;
+                foreach ($export->notifiableMembers($jid) as $member) {
+                    $memberPerson = [
+                        'name' => isset($member['name']) ? $member['name'] : '',
+                        'phone' => isset($member['phone']) ? $member['phone'] : '',
+                    ];
+                    $smsMsg = AnnouncementPersonalization::buildMessage($announcement, $memberPerson, false);
+                    if ($this->sendSmsPhone($memberPerson['phone'], $smsMsg)) {
+                        $smsSent++;
+                    }
+                    usleep(200000);
+                }
+                if (! $announcement->send_whatsapp) {
+                    $ok = $smsSent > 0;
+                    $error = $ok ? '' : 'No SMS could be sent to this group';
+                }
+            }
             if ($ok) {
                 $sent++;
             }
@@ -216,7 +315,7 @@ class AnnouncementNotificationService extends Controller
                 'name' => $person['name'],
                 'phone' => '',
                 'ok' => $ok,
-                'error' => $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group'),
+                'error' => $error,
             ];
         }
         if ($private) {
@@ -277,16 +376,9 @@ class AnnouncementNotificationService extends Controller
             if (! empty($announcement->personalized)) {
                 $person['name'] = $this->personalName($person);
             }
-            $ok = false;
-            if ($announcement->send_whatsapp) {
-                // Wasender sends the OTP-style formatted text; Twilio still uses template vars.
-                $vars = $this->twilioVars($announcement, $person, false);
-                $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
-                $ok = $this->sendPhone($phone, $msg, $vars);
-                if ($ok) {
-                    $this->sendAttachment($phone, $announcement);
-                    $sent++;
-                }
+            $ok = $this->deliverPerson($announcement, $person, $phone, false);
+            if ($ok) {
+                $sent++;
             }
             $results[] = [
                 'type' => 'to',
@@ -295,7 +387,7 @@ class AnnouncementNotificationService extends Controller
                 'phone' => $phone,
                 'ok' => $ok,
             ];
-            usleep(5000000);
+            $this->pauseBetweenRecipients($announcement);
         }
 
         foreach ($ccs as $person) {
@@ -303,15 +395,9 @@ class AnnouncementNotificationService extends Controller
             if (! empty($announcement->personalized)) {
                 $person['name'] = $this->personalName($person);
             }
-            $ok = false;
-            if ($announcement->send_whatsapp) {
-                $vars = $this->twilioVars($announcement, $person, true);
-                $msg = AnnouncementPersonalization::buildMessage($announcement, $person, true);
-                $ok = $this->sendPhone($phone, $msg, $vars);
-                if ($ok) {
-                    $this->sendAttachment($phone, $announcement);
-                    $ccSent++;
-                }
+            $ok = $this->deliverPerson($announcement, $person, $phone, true);
+            if ($ok) {
+                $ccSent++;
             }
             $results[] = [
                 'type' => 'cc',
@@ -320,7 +406,7 @@ class AnnouncementNotificationService extends Controller
                 'phone' => $phone,
                 'ok' => $ok,
             ];
-            usleep(5000000);
+            $this->pauseBetweenRecipients($announcement);
         }
 
         $announcement->sent_count = $sent;
@@ -533,10 +619,17 @@ class AnnouncementNotificationService extends Controller
                 $vars = $this->twilioVars($announcement, $person, false);
                 $vars['kind'] = 'a reminder';
                 $msg = $this->reminderText($announcement, $person);
-                if ($this->sendPhone($phone, $msg, $vars)) {
+                $ok = false;
+                if ($announcement->send_whatsapp && $this->sendPhone($phone, $msg, $vars)) {
+                    $ok = true;
+                }
+                if ($announcement->send_sms && $this->sendSmsPhone($phone, $msg)) {
+                    $ok = true;
+                }
+                if ($ok) {
                     $sent++;
                 }
-                usleep(5000000);
+                $this->pauseBetweenRecipients($announcement);
             }
         } finally {
             if ($broadcast) {
@@ -581,14 +674,21 @@ class AnnouncementNotificationService extends Controller
             try {
             foreach ($members as $index => $member) {
                 if ($index > 0) {
-                    usleep(5000000);
+                    $this->pauseBetweenRecipients($announcement);
                 }
                 $memberPerson = $person;
                 $memberPerson['name'] = $member['name'] ?? '';
                 $memberPerson['phone'] = $member['phone'] ?? '';
                 $vars = $this->twilioVars($announcement, $memberPerson, false);
                 $vars['kind'] = 'a reminder';
-                if ($this->sendPhone($member['phone'], $msg, $vars)) {
+                $ok = false;
+                if ($announcement->send_whatsapp && $this->sendPhone($member['phone'], $msg, $vars)) {
+                    $ok = true;
+                }
+                if ($announcement->send_sms && $this->sendSmsPhone($member['phone'], $msg)) {
+                    $ok = true;
+                }
+                if ($ok) {
                     $delivered++;
                 }
             }
@@ -600,9 +700,25 @@ class AnnouncementNotificationService extends Controller
                 }
             }
         }
-        $posted = app(BeyondWasenderService::class)->sendGroupText($jid, $msg);
+        $ok = false;
+        if ($announcement->send_whatsapp) {
+            $posted = app(BeyondWasenderService::class)->sendGroupText($jid, $msg);
+            $ok = ! empty($posted['success']);
+        }
+        if ($announcement->send_sms) {
+            $smsSent = 0;
+            foreach ($export->notifiableMembers($jid) as $member) {
+                if ($this->sendSmsPhone(isset($member['phone']) ? $member['phone'] : '', $msg)) {
+                    $smsSent++;
+                }
+                usleep(200000);
+            }
+            if (! $announcement->send_whatsapp) {
+                $ok = $smsSent > 0;
+            }
+        }
 
-        return ! empty($posted['success']);
+        return $ok;
     }
 
     protected function reminderText(WaAnnouncement $announcement, array $person)

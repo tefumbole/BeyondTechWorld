@@ -19,6 +19,7 @@
 
     <div class="pay-toolbar">
         <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Payout</a>
+        <a class="pay-new" href="{{ route('payout.request') }}">Request for payment</a>
     </div>
 
     @if(!empty($making))
@@ -142,25 +143,44 @@
     @endif
 
     <div class="pay-card">
-        <div class="pay-card-head"><h2>Pending</h2></div>
+        <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
+        <div class="pay-card-head">
+            <h2>Pending</h2>
+            @if($pending->count())
+                <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
+            @endif
+        </div>
         <div class="table-responsive">
             <table class="pay-table">
                 <thead>
-                    <tr><th>When</th><th>From</th><th>Note</th><th>People</th><th>Total</th><th></th></tr>
+                    <tr>
+                        <th style="width:36px">@if($pending->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
+                        <th>When</th><th>From</th><th>Note</th><th>People</th><th>Total</th><th></th>
+                    </tr>
                 </thead>
                 <tbody>
                     @forelse($pending as $row)
                         @php $sum = $totals->get($row->id); @endphp
                         <tr>
+                            <td><input type="checkbox" class="pending-row" form="pendingDeleteForm" name="ids[]" value="{{ $row->id }}"></td>
                             <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
                             <td>{{ $row->requester_name }}</td>
                             <td>{{ $row->note }}</td>
                             <td>{{ $sum ? $sum->people : 0 }}</td>
                             <td>{{ number_format($sum ? $sum->total : 0, 0, '.', ' ') }} XAF</td>
-                            <td><a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a></td>
+                            <td>
+                                <div class="pay-row-actions">
+                                    <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
+                                    <form method="POST" action="{{ route('payout.pending.delete') }}">
+                                        @csrf
+                                        <input type="hidden" name="ids[]" value="{{ $row->id }}">
+                                        <button class="pay-danger" type="submit" onclick="return confirm('Delete this pending payout?')">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="pay-muted">No payment requests are waiting.</td></tr>
+                        <tr><td colspan="7" class="pay-muted">No payment requests are waiting.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -213,6 +233,29 @@
         </div>
     </div>
 </section>
+<script>
+(function () {
+    var form = document.getElementById('pendingDeleteForm');
+    if (!form) return;
+    var all = document.getElementById('pendingAll');
+    function boxes() { return document.querySelectorAll('.pending-row'); }
+    if (all) all.addEventListener('change', function () {
+        boxes().forEach(function (box) { box.checked = all.checked; });
+    });
+    form.addEventListener('submit', function (event) {
+        var count = 0;
+        boxes().forEach(function (box) { if (box.checked) count += 1; });
+        if (count < 1) {
+            event.preventDefault();
+            window.alert('Select the pending payouts to delete.');
+            return;
+        }
+        if (!window.confirm('Delete ' + count + ' pending ' + (count === 1 ? 'payout' : 'payouts') + '?')) {
+            event.preventDefault();
+        }
+    });
+})();
+</script>
 <script>
 (function () {
     var form = document.getElementById('payoutForm');

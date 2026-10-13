@@ -13,8 +13,8 @@
         .card { background: #fff; border: 1px solid #e3e9f4; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16, 33, 61, .04); }
         label { display: block; font-size: 13px; margin-bottom: 4px; }
         input[type="text"], input[type="search"], input[type="number"], input[type="tel"] { width: 100%; border: 1px solid #d5deee; border-radius: 8px; padding: 10px 12px; font-size: 16px; }
-        .row { display: flex; gap: 12px; }
-        .row > div { flex: 1; }
+        .row { display: flex; flex-wrap: wrap; gap: 12px; }
+        .row > div { flex: 1 1 180px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid #e3e9f4; vertical-align: middle; }
         th { font-size: 13px; color: #6f7b91; }
@@ -34,7 +34,8 @@
 </head>
 <body>
 <div class="wrap">
-    <h1>Request for Payment</h1>
+    <p style="margin:0 0 12px"><a href="{{ route('payments.hub') }}" style="color:#0b3f90;font-weight:700;text-decoration:none">Back to Payments</a></p>
+    <h1>Withdrawal</h1>
     <p>Search for a person, add them, then enter the amount. The name on their Mobile Money number appears beside them. Money is not taken until the payment is approved.</p>
     @if(session('message'))<div class="alert ok">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert bad">{{ session('not_permitted') }}</div>@endif
@@ -55,6 +56,10 @@
                 <div>
                     <label>Your name</label>
                     <input type="text" name="requester_name" maxlength="80" required value="{{ old('requester_name') }}">
+                </div>
+                <div>
+                    <label>Your WhatsApp number</label>
+                    <input type="tel" name="requester_phone" maxlength="32" required placeholder="+237 6 00 00 00 00" value="{{ old('requester_phone') }}">
                 </div>
                 <div>
                     <label>Note</label>

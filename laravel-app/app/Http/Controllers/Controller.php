@@ -542,7 +542,7 @@ class Controller extends BaseController
         return false;
     }
 
-    public function wpMessage($number, $msg){
+    public function wpMessage($number, $msg, $provider = null){
         if (! $this->whatsappMessagingEnabled()) {
             \Log::info('[whatsapp] messaging disabled — skip wpMessage');
             return true;
@@ -551,7 +551,9 @@ class Controller extends BaseController
         $msg = \App\Support\LetterReference::applyToMessage((string) $msg, 'whatsapp');
 
         $router = app(\App\Services\Messaging\NotificationRouter::class);
-        $result = $router->sendWhatsAppText($number, $msg);
+        $result = $provider === 'wasender'
+            ? $router->sendWasenderText($number, $msg)
+            : $router->sendWhatsAppText($number, $msg);
 
         if (! empty($result['success']) || ! empty($result['skipped'])) {
             return $result['sid'] ?? true;
@@ -606,13 +608,13 @@ class Controller extends BaseController
         return $this->wpMessage($phone, $msg);
     }
 
-    protected function sendWhatsAppToPhone($phone, $msg)
+    protected function sendWhatsAppToPhone($phone, $msg, $provider = null)
     {
         if (empty(trim((string) $phone))) {
             throw new \Exception('Phone number is missing');
         }
 
-        return $this->wpMessage($phone, $msg);
+        return $this->wpMessage($phone, $msg, $provider);
     }
 
     protected function sendWhatsAppDocumentToCustomer($customer, $path, $filename, $publicUrl = null)
@@ -644,14 +646,14 @@ class Controller extends BaseController
         return $this->sendUltraMsgDocumentRequest($path, $phone, $filename);
     }
 
-    protected function sendWhatsAppDocumentToPhone($phone, $path, $filename, $publicUrl = null)
+    protected function sendWhatsAppDocumentToPhone($phone, $path, $filename, $publicUrl = null, $forceWasender = false)
     {
         if (! $this->whatsappMessagingEnabled()) {
             \Log::info('[whatsapp] messaging disabled — skip document');
             return true;
         }
 
-        if ($this->usesWasenderForDocuments()) {
+        if ($forceWasender || $this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
             if (is_file($path)) {
                 $publicUrl = $this->wasenderUploadLocalFile($path);
@@ -672,11 +674,13 @@ class Controller extends BaseController
     }
 
 
-    public function wpAttachMessage($path, $number, $filename='compile_result.pdf', $wa_path = null){
-        if ($this->usesWasender()) {
+    public function wpAttachMessage($path, $number, $filename='compile_result.pdf', $wa_path = null, $forceWasender = false){
+        if ($forceWasender || $this->usesWasender()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
-                $wa_path = $this->resolveWhatsAppDocumentUrl($path);
+                $wa_path = ($forceWasender && is_file($path))
+                    ? $this->wasenderUploadLocalFile($path)
+                    : $this->resolveWhatsAppDocumentUrl($path);
             }
             $customer = (object) ['phone_number' => $number];
             return $this->wasenderAttachment($path, $customer, $wa_path, $filename);
@@ -691,7 +695,7 @@ class Controller extends BaseController
     }
 
 
-    public function wpPDFMessage($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null, $captionOverride = null){
+    public function wpPDFMessage($path, $lims_customer_data, $filename='invoice.pdf', $wa_path = null, $captionOverride = null, $forceWasender = false){
         $customerName = $lims_customer_data->name ?? 'Customer';
         $caption = $captionOverride !== null && $captionOverride !== ''
             ? $captionOverride
@@ -699,20 +703,24 @@ class Controller extends BaseController
                 . \App\Support\WhatsAppMessage::greeting($customerName)
                 . 'Please find your *' . $filename . '* attached.'
                 . \App\Support\WhatsAppMessage::footer());
-        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend(
-            $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '',
-            $path,
-            $filename,
-            $caption
-        );
-        if (! empty($twilio['success'])) {
-            return $twilio;
+        if (! $forceWasender) {
+            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend(
+                $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '',
+                $path,
+                $filename,
+                $caption
+            );
+            if (! empty($twilio['success'])) {
+                return $twilio;
+            }
         }
 
-        if ($this->usesWasender()) {
+        if ($forceWasender || $this->usesWasender()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
-                $wa_path = $this->resolveWhatsAppDocumentUrl($path);
+                $wa_path = ($forceWasender && is_file($path))
+                    ? $this->wasenderUploadLocalFile($path)
+                    : $this->resolveWhatsAppDocumentUrl($path);
             }
 
             try {

@@ -22,6 +22,7 @@ class WhatsAppConversation extends Model
 
     const CHANNEL_WHATSAPP = 'whatsapp';
     const CHANNEL_WEBSITE = 'website';
+    const CHANNEL_VOICE = 'voice';
 
     protected $table = 'whatsapp_conversations';
 
@@ -94,8 +95,32 @@ class WhatsAppConversation extends Model
         return (string) $this->channel === self::CHANNEL_WEBSITE;
     }
 
+    public function isVoice()
+    {
+        return (string) $this->channel === self::CHANNEL_VOICE;
+    }
+
+    public function assistantChannel()
+    {
+        if ($this->isWebsite()) {
+            return self::CHANNEL_WEBSITE;
+        }
+        if ($this->isVoice()) {
+            return self::CHANNEL_VOICE;
+        }
+
+        return self::CHANNEL_WHATSAPP;
+    }
+
     public function channelLabel()
     {
-        return $this->isWebsite() ? 'Website' : 'WhatsApp';
+        if ($this->isWebsite()) {
+            return 'Website';
+        }
+        if ($this->isVoice()) {
+            return 'Voice';
+        }
+
+        return 'WhatsApp';
     }
 }

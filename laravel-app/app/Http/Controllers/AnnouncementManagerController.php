@@ -189,6 +189,10 @@ class AnnouncementManagerController extends Controller
             $attachmentName = $file->getClientOriginalName();
         }
 
+        if (! $request->has('send_whatsapp') && ! $request->has('send_sms')) {
+            return back()->withInput()->with('not_permitted', 'Choose WhatsApp or SMS.');
+        }
+
         try {
             $row = $this->announcements->create([
             'subject' => $request->input('subject'),
@@ -201,7 +205,8 @@ class AnnouncementManagerController extends Controller
             'audience' => $request->input('audience', 'people'),
             'group_jids' => $request->input('group_jids', []),
             'name_overrides' => $request->input('name_overrides', []),
-            'send_whatsapp' => $request->has('send_whatsapp') ? true : ((string) $request->input('send_whatsapp', '1') === '1'),
+            'send_whatsapp' => $request->has('send_whatsapp'),
+            'send_sms' => $request->has('send_sms'),
             'personalized' => $request->has('personalized'),
             'send_mode' => $request->input('send_mode', 'now'),
             'schedule_at' => $request->input('schedule_at'),
@@ -229,7 +234,7 @@ class AnnouncementManagerController extends Controller
             $count = count($row->recipients());
 
             return redirect()->route('announcements.index')
-                ->with('message', 'Announcement is going out to '.$count.' WhatsApp contact'.($count === 1 ? '' : 's').' ('.$row->reference.'). Delivery continues in the background.');
+                ->with('message', 'Announcement is going out to '.$count.' contact'.($count === 1 ? '' : 's').' by '.$this->announcementChannels($row).' ('.$row->reference.'). Delivery continues in the background.');
         }
 
         if ($row->status === 'scheduled') {
@@ -247,7 +252,7 @@ class AnnouncementManagerController extends Controller
 
         if ($row->whatsapp_status === 'sent' && empty($failures)) {
             return redirect()->route('announcements.index')
-                ->with('message', 'Announcement sent on WhatsApp (' . $row->reference . ').');
+                ->with('message', 'Announcement sent by '.$this->announcementChannels($row).' (' . $row->reference . ').');
         }
 
         if ($row->whatsapp_status === 'partial') {
@@ -368,5 +373,18 @@ class AnnouncementManagerController extends Controller
         ));
 
         return back()->with('message', 'Settings saved.');
+    }
+
+    protected function announcementChannels($row)
+    {
+        $channels = [];
+        if ($row->send_whatsapp) {
+            $channels[] = 'WhatsApp';
+        }
+        if ($row->send_sms) {
+            $channels[] = 'SMS';
+        }
+
+        return $channels ? implode(' and ', $channels) : 'WhatsApp';
     }
 }

@@ -471,7 +471,8 @@
                 'insertdatetime media table contextmenu paste code wordcount'
             ],
             toolbar: 'insert | undo redo |  formatselect | bold italic backcolor  | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat',
-            branding:false
+            branding:false,
+            content_style: 'p { margin: 0; line-height: 1.35; }'
         });
 
         $('.selectpicker').selectpicker({

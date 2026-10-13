@@ -25,6 +25,18 @@ Route::post('/webhooks/wasender', 'WhatsApp\WaSenderWebhookController@handle')
     ->middleware('throttle:300,1')
     ->name('whatsapp.webhook');
 
+Route::post('/webhooks/twilio/whatsapp', 'WhatsApp\TwilioInboundController@handle')
+    ->middleware('throttle:300,1')
+    ->name('whatsapp.twilio.inbound');
+
+Route::post('/webhooks/twilio/whatsapp-voice', 'TwilioWhatsAppVoiceController@inbound')
+    ->middleware('throttle:120,1')
+    ->name('voice.twilio.whatsapp');
+
+Route::post('/webhooks/twilio/whatsapp-voice/status', 'TwilioWhatsAppVoiceController@status')
+    ->middleware('throttle:120,1')
+    ->name('voice.twilio.whatsapp.status');
+
 Route::post('/webhooks/google-calendar', 'Calendar\GoogleCalendarWebhookController@handle')
     ->middleware('throttle:120,1')
     ->name('calendar.webhook');

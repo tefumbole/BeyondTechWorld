@@ -1,12 +1,12 @@
 @extends('beyond.layout')
 
-@section('title', 'Donation')
+@section('title', 'Deposit')
 
 @section('content')
 <section class="py-10 sm:py-14 bg-slate-50">
     <div class="max-w-xl mx-auto px-4">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-            <h1 class="text-2xl font-extrabold text-brand-blue m-0">Donation</h1>
+            <h1 class="text-2xl font-extrabold text-brand-blue m-0">Deposit</h1>
             <div class="h-0.5 w-12 bg-brand-gold mt-3 mb-4"></div>
             <p class="text-slate-700 m-0">{{ $donation->person_name }}</p>
             <p class="text-3xl font-extrabold text-brand-blue my-3">{{ number_format($donation->amount, 0, '.', ' ') }} XAF</p>
@@ -15,10 +15,10 @@
                 <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2 text-sm">{{ session('not_permitted') }}</div>
             @elseif($donation->status === 'paid')
                 <p class="text-sm font-bold uppercase tracking-wide text-green-800 m-0 mb-2">Paid</p>
-                <div class="rounded-lg bg-green-50 text-green-800 px-3 py-2">Your donation has been received. A WhatsApp confirmation has been sent.</div>
+                <div class="rounded-lg bg-green-50 text-green-800 px-3 py-2">Your deposit has been received. A WhatsApp confirmation has been sent.</div>
             @elseif($donation->status === 'failed')
                 <p class="text-sm font-bold uppercase tracking-wide text-red-800 m-0 mb-2">Not paid</p>
-                <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2">{{ $donation->error ?: 'The donation was not approved.' }}</div>
+                <div class="rounded-lg bg-red-50 text-red-800 px-3 py-2">{{ $donation->error ?: 'The deposit was not approved.' }}</div>
                 <a class="inline-block mt-4 text-brand-blue font-bold" href="{{ route('donate.show') }}">Try again</a>
             @else
                 @php $crypto = ($donation->method === 'crypto') ? json_decode((string) $donation->payment_link, true) : null; @endphp

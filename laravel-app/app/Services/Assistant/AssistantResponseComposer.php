@@ -616,7 +616,7 @@ class AssistantResponseComposer
             return 'Thank you. A BeyondTechWorld team member can help with the next step if you need more detail.';
         }
         $result = $this->provider->complete([
-            ['role' => 'system', 'content' => 'Reply in JSON {"reply":"..."}. Short WhatsApp style. Tone: fluent and polite. Reply in the same language as the customer\'s latest message. Do not introduce yourself. Do not say you are Beyond Assistant or Mbole AI. Do not add a reference or a company name. If the history already has earlier messages, continue that chat and do not greet. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it.'],
+            ['role' => 'system', 'content' => 'Reply in JSON {"reply":"..."}. Short WhatsApp style. Tone: fluent and polite. Reply in the same language as the customer\'s latest message. Do not introduce yourself. Do not say you are Beyond Assistant or Mbole AI. Do not add a reference or a company name. The history is the real chat, including messages from before AI was turned on. Answer from those facts. If it already has earlier messages, continue that chat and do not greet. Do not ask again for a name, date, item, price, or place already in the history. Never invent prices, availability, balances, payments, grades or booking facts. If a tool result is missing, say you could not find it.'],
             ['role' => 'user', 'content' => json_encode([
                 'intent' => $intent,
                 'incoming' => $incoming,

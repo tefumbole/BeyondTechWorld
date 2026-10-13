@@ -1952,7 +1952,7 @@ class InternshipProgramService
         }
 
         try {
-            $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $msg);
+            $result = app(NotificationRouter::class)->sendWasenderText($phone, $msg);
             $result['url'] = $weekUrl;
 
             return $result;
@@ -2493,7 +2493,7 @@ class InternshipProgramService
 
         try {
             TwilioAdminCopy::rememberUser(\Illuminate\Support\Facades\Auth::id());
-            $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $message);
+            $result = app(NotificationRouter::class)->sendWasenderText($phone, $message);
             DB::table('internship_notification_logs')->where('idempotency_key', $idempotencyKey)->update([
                 'status' => $this->notificationOutcome($result),
                 'provider_message_id' => $result['sid'] ?? $result['provider_sid'] ?? null,

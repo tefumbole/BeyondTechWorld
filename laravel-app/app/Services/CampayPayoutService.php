@@ -118,6 +118,77 @@ class CampayPayoutService
         return $this->call('GET', 'transaction/'.$reference.'/', []);
     }
 
+    /**
+     * Live Campay status for a collection. Paid only when Campay confirms SUCCESSFUL,
+     * the amount and currency match, and the operator returned a debit reference.
+     * A webhook body is never trusted by itself.
+     *
+     * @return array{state:string,confirmed:bool}
+     */
+    public function collectionOutcome($reference, $expectedAmount, $expectedPhone = null, $externalPattern = null)
+    {
+        $body = $this->transaction($reference);
+        $http = is_array($body) ? (int) ($body['_http'] ?? 0) : 0;
+        if (! is_array($body) || $http !== 200) {
+            return ['state' => 'pending', 'confirmed' => false];
+        }
+
+        $status = strtoupper(trim((string) (isset($body['status']) ? $body['status'] : '')));
+        if ($status === 'SUCCESSFUL') {
+            if (! $this->collectionDebited($body, $expectedAmount, $expectedPhone, $externalPattern)) {
+                Log::warning('Campay success was not a confirmed debit', [
+                    'reference' => $reference,
+                    'amount' => isset($body['amount']) ? $body['amount'] : null,
+                    'expected' => (int) $expectedAmount,
+                ]);
+
+                return ['state' => 'pending', 'confirmed' => false];
+            }
+
+            return ['state' => 'paid', 'confirmed' => true];
+        }
+
+        if (in_array($status, ['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'], true)) {
+            return ['state' => 'failed', 'confirmed' => true];
+        }
+
+        return ['state' => 'pending', 'confirmed' => true];
+    }
+
+    protected function collectionDebited(array $body, $expectedAmount, $expectedPhone = null, $externalPattern = null)
+    {
+        if (! isset($body['amount']) || ! is_numeric($body['amount'])) {
+            return false;
+        }
+        if ((int) round((float) $body['amount']) !== (int) $expectedAmount) {
+            return false;
+        }
+        $currency = strtoupper(trim((string) (isset($body['currency']) ? $body['currency'] : 'XAF')));
+        if ($currency !== 'XAF') {
+            return false;
+        }
+        if (trim((string) (isset($body['operator_reference']) ? $body['operator_reference'] : '')) === '') {
+            return false;
+        }
+        $external = trim((string) (isset($body['external_reference']) ? $body['external_reference'] : ''));
+        if ($externalPattern && $external !== '' && ! preg_match($externalPattern, $external)) {
+            return false;
+        }
+        if ($externalPattern && $external === '') {
+            return false;
+        }
+        if ($expectedPhone) {
+            $got = preg_replace('/\D/', '', (string) (isset($body['phone_number']) ? $body['phone_number'] : (isset($body['from']) ? $body['from'] : '')));
+            $want = substr(preg_replace('/\D/', '', (string) $expectedPhone), -9);
+            $got9 = $got !== '' ? substr($got, -9) : '';
+            if ($got9 !== '' && $want !== '' && $got9 !== $want) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function pay(CampayPayout $row)
     {
         $this->send([$row]);
@@ -384,6 +455,7 @@ class CampayPayoutService
 
             return null;
         }
+        $decoded['_http'] = $http;
         if ($http >= 400 && ! isset($decoded['status'])) {
             $decoded['status'] = 'FAILED';
         }

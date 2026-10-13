@@ -39,11 +39,17 @@ class OwnerAuthorizationService
         if (! $row) {
             return null;
         }
-        if ($row->normalized_phone !== '' && $row->normalized_phone !== $normalized && $row->normalized_phone !== $phone) {
-            return null;
-        }
         $user = User::find($userId);
         if (! $user || ! $this->hasOwnerPermission($user)) {
+            return null;
+        }
+        $incoming = preg_replace('/\D/', '', (string) $normalized);
+        $allowed = array_filter([
+            preg_replace('/\D/', '', (string) $row->normalized_phone),
+            preg_replace('/\D/', '', (string) $user->phone),
+            preg_replace('/\D/', '', (string) $user->additional_phone),
+        ]);
+        if ($allowed !== [] && $incoming !== '' && ! in_array($incoming, $allowed, true)) {
             return null;
         }
 

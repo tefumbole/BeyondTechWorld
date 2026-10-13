@@ -93,7 +93,7 @@ class SaleController extends Controller
 
         $message = 'Sale notification sent successfully';
         try{
-            $this->wpPDFMessage($path, $lims_customer_data, 'sale_invoice.pdf');
+            $this->wpPDFMessage($path, $lims_customer_data, 'sale_invoice.pdf', null, null, true);
         }
         catch(\Exception $e){
             $message = 'Sale notification not sent: '.$e->getMessage().'. Please verify WhatsApp settings and customer phone number.';
@@ -363,7 +363,7 @@ class SaleController extends Controller
                 else
                     $coupon_code = null;
 
-                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$sale_status.'"', ' "'.$sale->biller->name.'"', ' "'.$sale->biller->company_name.'"', ' "'.$sale->biller->email.'"', ' "'.$sale->biller->phone_number.'"', ' "'.$sale->biller->address.'"', ' "'.$sale->biller->city.'"', ' "'.$sale->customer->name.'"', ' "'.$sale->customer->phone_number.'"', ' "'.$sale->customer->address.'"', ' "'.$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->sale_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.$sale->user->name.'"', ' "'.$sale->user->email.'"', ' "'.$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
+                $nestedData['sale'] = array( '[ "'.date(config('date_format'), strtotime($sale->created_at->toDateString())).'"', ' "'.$sale->reference_no.'"', ' "'.$sale_status.'"', ' "'.$sale->biller->name.'"', ' "'.$sale->biller->company_name.'"', ' "'.$sale->biller->email.'"', ' "'.$sale->biller->phone_number.'"', ' "'.$sale->biller->address.'"', ' "'.$sale->biller->city.'"', ' "'.$sale->customer->name.'"', ' "'.$sale->customer->phone_number.'"', ' "'.$sale->customer->address.'"', ' "'.$sale->customer->city.'"', ' "'.$sale->id.'"', ' "'.$sale->total_tax.'"', ' "'.$sale->total_discount.'"', ' "'.$sale->total_price.'"', ' "'.$sale->order_tax.'"', ' "'.$sale->order_tax_rate.'"', ' "'.$sale->order_discount.'"', ' "'.$sale->shipping_cost.'"', ' "'.$sale->grand_total.'"', ' "'.$sale->paid_amount.'"', ' "'.\App\Support\BookingNoteFormatter::forCompactHtml($sale->sale_note).'"', ' "'.preg_replace('/[\n\r]/', "<br>", $sale->staff_note).'"', ' "'.$sale->user->name.'"', ' "'.$sale->user->email.'"', ' "'.$sale->warehouse->name.'"', ' "'.$coupon_code.'"', ' "'.$sale->coupon_discount.'"]'
                 );
                 $data[] = $nestedData;
             }
@@ -1189,50 +1189,14 @@ class SaleController extends Controller
         );
 
         $message = 'Sale created successfully';
-        $amount = $mail_data['grand_total'] ?? $lims_sale_data->grand_total;
-        $amountLabel = \App\Support\WhatsAppMessage::plainAmount($amount);
-        $itemParts = [];
-        foreach ($lines as $line) {
-            $itemParts[] = \App\Support\WhatsAppMessage::itemSummary(
-                $line['name'] ?? 'Item',
-                $line['qty'] ?? 0,
-                $line['unit_price'] ?? 0,
-                $line['total'] ?? null
-            );
-        }
-        $company = \App\Support\WhatsAppMessage::companyName();
-        $servedBy = trim((string) (@$biller->name ?: @$biller->company_name));
         \App\Support\TwilioAdminCopy::rememberUser(isset($lims_sale_data->user_id) ? $lims_sale_data->user_id : null);
         try{
-            $router = app(\App\Services\Messaging\NotificationRouter::class);
-            $template = ['success' => false];
-            if ($router->saleReceiptIsApproved()) {
-                $letterRef = \App\Support\LetterReference::next('whatsapp');
-                $template = $router->sendSaleReceipt($lims_customer_data->phone_number, [
-                    'name' => $lims_customer_data->name,
-                    'company' => $company,
-                    'order' => $lims_sale_data->reference_no,
-                    'date' => (string) $orderDate,
-                    'items' => $itemParts ? implode(' ', $itemParts) : '-',
-                    'total' => $amountLabel,
-                    'payment' => $paying_method ?: '-',
-                    'billing' => trim((string) (@$biller->address ?: '')) ?: '-',
-                    'delivery' => trim((string) (@$lims_customer_data->address ?: '')) ?: '-',
-                    'served_by' => $servedBy !== '' ? $servedBy : $company,
-                    'reference' => $letterRef,
-                ]);
-            }
-            if (empty($template['success'])) {
-                $template = $router->sendSaleConfirmation(
-                    $lims_customer_data->phone_number,
-                    $lims_customer_data->name,
-                    $company,
-                    $lims_sale_data->reference_no,
-                    $amountLabel
-                );
-            }
-            if (empty($template['success'])) {
-                $this->wpMessage($lims_customer_data->phone_number, $msg);
+            $sent = app(\App\Services\Messaging\NotificationRouter::class)->sendWasenderText(
+                $lims_customer_data->phone_number,
+                $msg
+            );
+            if (empty($sent['success']) && empty($sent['skipped'])) {
+                throw new \RuntimeException($sent['error'] ?? 'WhatsApp message sending failed.');
             }
         }
         catch(\Throwable $e){
@@ -1249,7 +1213,7 @@ class SaleController extends Controller
             $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
             $url = url("sale/scan/$lims_sale_data->reference_no");
             QrCode::format('png')->size(300)->generate($url, $path . DIRECTORY_SEPARATOR . $filename);
-            $this->wpAttachMessage($path . DIRECTORY_SEPARATOR . $filename, $lims_customer_data->phone_number, $filename);
+            $this->wpAttachMessage($path . DIRECTORY_SEPARATOR . $filename, $lims_customer_data->phone_number, $filename, null, true);
             if (file_exists($path . DIRECTORY_SEPARATOR . $filename)) {
                 @unlink($path . DIRECTORY_SEPARATOR . $filename);
             }

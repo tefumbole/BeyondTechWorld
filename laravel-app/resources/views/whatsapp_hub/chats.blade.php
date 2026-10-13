@@ -2,10 +2,10 @@
 
 @section('content')
 <style>
-    #content { display: flex; flex-direction: column; height: calc(100dvh - 70px); max-height: calc(100dvh - 70px); padding: 0 !important; background: var(--beyond-bg); overflow: hidden; }
+    #content { display: block !important; height: auto !important; max-height: none !important; overflow: visible !important; padding: 0 !important; background: var(--beyond-bg); }
     #content > .container-fluid { flex: none; }
     .main-footer { display: none !important; }
-    .chats-app { display: flex; flex: 1 1 auto; height: 0; min-height: 0; background: var(--beyond-bg); color: var(--beyond-text); overflow: hidden; }
+    .chats-app { display: flex; height: calc(100vh - 220px); min-height: 640px; background: var(--beyond-bg); color: var(--beyond-text); overflow: hidden; }
     .chat-rail { width: 76px; flex: none; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: var(--beyond-primary); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .chat-rail a { display: flex; flex-direction: column; align-items: center; gap: 3px; color: rgba(255,255,255,.82); text-decoration: none; border-radius: 10px; padding: 8px 2px; font-size: 11px; font-weight: 700; text-align: center; }
     .chat-rail a i { font-size: 16px; color: var(--beyond-accent); }
@@ -75,7 +75,7 @@
     .group-card h2 { margin: 8px 0; color: var(--beyond-text); }
     .chat-note { background: #fff8e6; color: #7a5b10; border-bottom: 1px solid #ead79a; padding: 8px 16px; font-size: 13px; }
     @media (max-width: 800px) {
-        #content { height: calc(100dvh - 56px); max-height: calc(100dvh - 56px); }
+        .chats-app { height: calc(100vh - 180px); min-height: 520px; }
         .chats-side { width: 100%; max-width: none; }
         .chats-thread { display: none; }
         .chats-app.has-open .chat-rail, .chats-app.has-open .chats-side { display: none; }
@@ -131,7 +131,7 @@
         </div>
         @endif
         <div class="chats-list" id="chatList">
-            <div class="chat-none" id="chatNone">Nothing in this list.</div>
+            <div class="chat-none" id="chatNone" @if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0) style="display:block" @endif>@if($pane === 'chats' && $conversations->isEmpty() && count($groups) === 0)No conversations yet. Chats from the Wasender number appear here.@else Nothing in this list.@endif</div>
             @if($pane === 'chats')
             @foreach($conversations as $row)
                 @php
@@ -244,7 +244,6 @@
                         ['Groups', 'WhatsApp groups', route('whatsapp.groups')],
                         ['Leads', 'Enquiries from chats', route('whatsapp.leads')],
                         ['Announcements', 'Write and send an update', route('announcements.compose')],
-                        ['Settings', 'Assistant and WhatsApp settings', route('whatsapp.settings')],
                     ];
                 @endphp
                 @foreach($more as $item)

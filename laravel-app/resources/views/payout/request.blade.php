@@ -104,10 +104,15 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="rejectBox" style="display:none;margin:12px 0 0;max-width:520px">
+                            <label for="rejectReason">Reason for rejection</label>
+                            <textarea id="rejectReason" name="reason" maxlength="500" rows="3" class="form-control" placeholder="Why this request is rejected" style="margin-top:4px"></textarea>
+                        </div>
                         <div class="pay-actions">
                             <button class="pay-go" type="submit" name="action" value="delete" formnovalidate style="background:#fdecec;color:#9b1c1c" id="reviewDelete">Delete</button>
                             <button class="pay-go" type="submit" name="action" value="pay">Approve and Pay</button>
-                            <button class="pay-go" type="submit" name="action" value="reject" formnovalidate style="background:#fff;color:#9b1c1c;border:1px solid #f3c7c7" onclick="return confirm('Reject this request?')">Reject</button>
+                            <button class="pay-go" type="button" id="rejectOpen" style="background:#fff;color:#9b1c1c;border:1px solid #f3c7c7">Reject</button>
+                            <button class="pay-go" type="submit" name="action" value="reject" id="rejectSend" formnovalidate style="display:none;background:#9b1c1c;color:#fff;border:0">Reject and notify</button>
                         </div>
                     </form>
                     <script>
@@ -133,6 +138,24 @@
                                 event.preventDefault();
                             }
                         });
+                        var rejectOpen = document.getElementById('rejectOpen');
+                        var rejectSend = document.getElementById('rejectSend');
+                        var rejectBox = document.getElementById('rejectBox');
+                        var rejectReason = document.getElementById('rejectReason');
+                        if (rejectOpen && rejectSend && rejectBox && rejectReason) {
+                            rejectOpen.addEventListener('click', function () {
+                                rejectBox.style.display = 'block';
+                                rejectOpen.style.display = 'none';
+                                rejectSend.style.display = '';
+                                rejectReason.focus();
+                            });
+                            rejectSend.addEventListener('click', function (event) {
+                                if (rejectReason.value.trim() === '') {
+                                    event.preventDefault();
+                                    rejectReason.focus();
+                                }
+                            });
+                        }
                     })();
                     </script>
                 @else
@@ -266,6 +289,10 @@
                                     <span class="pay-pill pay-pill-wait">Asked</span>
                                 @elseif($row->status === 'rejected')
                                     <span class="pay-pill pay-pill-no">Rejected</span>
+                                    @php $why = trim((string) optional($row->lines->first())->error); @endphp
+                                    @if($why !== '' && $why !== 'Rejected')
+                                        <div class="pay-muted">{{ $why }}</div>
+                                    @endif
                                 @elseif($linePending > 0)
                                     <span class="pay-pill pay-pill-wait">Submitted</span>
                                 @elseif($linePaid > 0 && $lineFailed === 0)

@@ -17,7 +17,7 @@ return [
     'display_name' => env('WHATSAPP_ASSISTANT_NAME', 'Mbole AI'),
     'max_replies_per_contact_hour' => max(1, (int) env('AI_MAX_REPLIES_PER_CONTACT_HOUR', 20)),
     'memory_ttl_hours' => max(1, (int) env('AI_MEMORY_TTL_HOURS', 12)),
-    'history_limit' => max(2, (int) env('AI_HISTORY_LIMIT', 8)),
+    'history_limit' => max(2, (int) env('AI_HISTORY_LIMIT', 40)),
     'rental_auto_quote_max' => (float) env('WHATSAPP_RENTAL_AUTO_QUOTE_MAX', 500000),
     'website_max_turns_per_day' => max(20, (int) env('WEBSITE_AI_MAX_TURNS_PER_DAY', 80)),
     // Future web search — disabled in v1

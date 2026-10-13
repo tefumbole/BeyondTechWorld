@@ -43,7 +43,7 @@ class AssistantRuntimeSettings
         $saved = (int) WhatsAppSetting::getValue('assistant_history_limit', '0');
         $base = $saved > 0 ? $saved : (int) config('assistant.history_limit');
 
-        return max(2, min(20, $base));
+        return max(2, min(80, $base));
     }
 
     public static function maxClarifications()

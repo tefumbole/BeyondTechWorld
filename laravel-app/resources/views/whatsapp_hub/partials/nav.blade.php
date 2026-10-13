@@ -1,11 +1,11 @@
 <div class="mb-3">
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.index') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.index') }}">Command Center</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.twilio_log') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.twilio_log') }}">Twilio log</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.chats') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.chats') }}">Conversations</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.leads*') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.leads') }}">Leads</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.rentals*') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.rentals') }}">Rentals</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.tracking') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.tracking') }}">Tracking</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.calls') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.calls') }}">Calls</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.diagnostics') ? 'btn-outline-info btn-info' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.diagnostics') }}">Diagnostics</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.groups*') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.groups') }}">Groups</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.attendance') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.attendance') }}">Attendance</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.documents') ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('whatsapp.documents') }}">Documents</a>
     <a class="btn btn-sm {{ request()->routeIs('whatsapp.assistant*') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.assistant') }}">AI Assistant</a>
-    <a class="btn btn-sm {{ request()->routeIs('whatsapp.settings') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.settings') }}">Settings</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.brief') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.brief') }}">AI brief</a>
+    <a class="btn btn-sm {{ request()->routeIs('whatsapp.people') ? 'btn-primary' : 'btn-outline-secondary' }}" href="{{ route('whatsapp.people') }}">People I know</a>
 </div>

@@ -189,6 +189,7 @@ class AnnouncementService
             'status' => $isScheduled ? 'scheduled' : 'draft',
             'whatsapp_status' => $isScheduled ? 'scheduled' : 'pending',
             'send_whatsapp' => ! empty($data['send_whatsapp']),
+            'send_sms' => ! empty($data['send_sms']),
             'personalized' => ! empty($data['personalized']),
             'is_scheduled' => (bool) $isScheduled,
             'scheduled_for' => $isScheduled ? $scheduleAt : null,
@@ -214,7 +215,7 @@ class AnnouncementService
             ]);
         }
 
-        if (! $isScheduled && ! empty($data['send_whatsapp'])) {
+        if (! $isScheduled && (! empty($data['send_whatsapp']) || ! empty($data['send_sms']))) {
             $this->startDelivery($announcement->fresh());
         }
 
@@ -488,7 +489,7 @@ class AnnouncementService
                 continue;
             }
             $a = $a->fresh();
-            if ($a->send_whatsapp) {
+            if ($a->send_whatsapp || $a->send_sms) {
                 $this->startDelivery($a);
                 $count++;
             } else {

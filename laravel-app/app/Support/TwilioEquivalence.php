@@ -89,24 +89,28 @@ class TwilioEquivalence
                 $org,
                 $statusVars['title'],
                 $reference,
-                trim((string) ($statusVars['message'] ?? 'Updated')) ?: 'Updated',
+                WhatsAppMessage::statusLabel($statusVars['message'] ?? 'Updated'),
                 trim((string) ($statusVars['details'] ?? '-')) ?: '-'
             );
         }
 
-        $subject = trim((string) ($statusVars['subject'] ?? $statusVars['title'] ?? ''));
-        if ($subject === '') {
-            $subject = 'Notice';
+        $subject = WhatsAppMessage::plainLine($statusVars['subject'] ?? $statusVars['title'] ?? '');
+        $header = WhatsAppMessage::plainLine($statusVars['header'] ?? '');
+        $bodyLine = WhatsAppMessage::plainLine($plain);
+        if ($header !== '' && strcasecmp($header, $bodyLine) !== 0) {
+            $bodyLine = trim($header.'. '.$bodyLine);
         }
+        $kind = ($subject !== '' && strcasecmp($subject, 'Notice') !== 0 && strcasecmp($subject, 'Announcement') !== 0)
+            ? $subject
+            : 'a notice';
 
-        return $sender->sendSharedNotice($phone, [
-            'subject' => $subject,
-            'header' => trim((string) ($statusVars['header'] ?? '')) !== '' ? $statusVars['header'] : $org,
-            'name' => $name,
-            'body' => $plain !== '' ? $plain : '-',
-            'footer' => trim((string) ($statusVars['footer'] ?? '')) !== '' ? $statusVars['footer'] : $org,
-            'reference' => $reference,
-        ]);
+        return $sender->sendAnnouncement(
+            $phone,
+            $name,
+            $kind,
+            WhatsAppMessage::withEmoji('📢', $bodyLine),
+            $reference
+        );
     }
 
     protected function name($body, array $statusVars)

@@ -16,6 +16,11 @@ use Illuminate\Support\Facades\Auth;
 
 class PublicDonateController extends Controller
 {
+    public function hub()
+    {
+        return view('beyond.payments');
+    }
+
     public function show()
     {
         return view('beyond.donate');
@@ -178,7 +183,7 @@ class PublicDonateController extends Controller
         $this->refresh($donation);
         $donation = $donation->fresh();
         if ($donation->status === 'paid') {
-            return redirect()->route('donate.show')->with('message', 'Your donation of '.number_format($donation->amount, 0, '.', ' ').' XAF has been received.');
+            return redirect()->route('donate.show')->with('message', 'Your deposit of '.number_format($donation->amount, 0, '.', ' ').' XAF has been received.');
         }
         $returned = trim((string) $request->query('session_id')) !== '';
         if ($donation->method === 'visa' && $donation->payment_link && ! $returned) {
@@ -196,7 +201,7 @@ class PublicDonateController extends Controller
 
         return response()->json([
             'status' => $donation->status,
-            'message' => $donation->status === 'paid' ? 'Donation received.' : ($donation->error ?: 'Waiting for approval.'),
+            'message' => $donation->status === 'paid' ? 'Deposit received.' : ($donation->error ?: 'Waiting for approval.'),
         ]);
     }
 
@@ -235,7 +240,7 @@ class PublicDonateController extends Controller
             $this->markPaid($donation);
         } elseif ($status === 'FAILED') {
             $donation->status = 'failed';
-            $donation->error = 'The donation was not approved.';
+            $donation->error = 'The deposit was not approved.';
             $donation->save();
         }
     }
@@ -258,9 +263,9 @@ class PublicDonateController extends Controller
         $amount = number_format($donation->amount, 0, '.', ' ');
         $note = trim((string) $donation->note);
         $method = $this->methodLabel($donation->method);
-        $donor = WhatsAppMessage::statusBlock('✅', 'Donation Received');
+        $donor = WhatsAppMessage::statusBlock('✅', 'Payment Received');
         $donor .= 'Dear *'.$donation->person_name.'*,'."\n\n";
-        $donor .= 'Your donation of *'.$amount."* XAF has been received.\n";
+        $donor .= 'Your payment of *'.$amount."* XAF has been received.\n";
         $donor .= "\n".WhatsAppMessage::bullet('Paid with', $method);
         if ($note !== '') {
             $donor .= "\n".WhatsAppMessage::bullet('Note', $note);
@@ -268,9 +273,9 @@ class PublicDonateController extends Controller
         $donor .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $donor .= WhatsAppMessage::footer();
         app(ClientNoticeService::class)->send($donation->phone, $donor);
-        $copy = WhatsAppMessage::statusBlock('✅', 'Donation Received');
+        $copy = WhatsAppMessage::statusBlock('✅', 'Payment Received');
         $copy .= 'Dear *'.$this->adminName().'*,'."\n\n";
-        $copy .= 'A donation of *'.$amount.'* XAF has been received from *'.$donation->person_name."*.\n";
+        $copy .= 'A payment of *'.$amount.'* XAF has been received from *'.$donation->person_name."*.\n";
         $copy .= "\n".WhatsAppMessage::bullet('From', $donation->person_name);
         $copy .= "\n".WhatsAppMessage::bullet('Phone', $donation->phone);
         $copy .= "\n".WhatsAppMessage::bullet('Paid with', $method);

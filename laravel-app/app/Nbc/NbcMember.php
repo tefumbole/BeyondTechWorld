@@ -8,7 +8,7 @@ class NbcMember extends NbcModel
 
     protected $fillable = [
         'name', 'email', 'phone', 'password', 'role', 'part', 'about', 'status',
-        'permissions', 'bylaws_version', 'agreed_at', 'signature',
+        'permissions', 'bylaws_version', 'agreed_at', 'signature', 'profile',
     ];
 
     protected $hidden = ['password', 'signature'];

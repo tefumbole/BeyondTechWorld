@@ -24,8 +24,7 @@ class SiteMenu
             'about'        => 'About Us',
             'gallery'      => 'Gallery',
             'reviews'      => 'Reviews',
-            'donations'    => 'Donations',
-            'request-payment' => 'Request Payment',
+            'payments'     => 'Payments',
             // Register Now removed — Training already covers course signup
             // Shareholders hidden from public nav (routes remain available)
             // Contact is merged into About Us (#contact) — not a separate nav item
@@ -188,24 +187,15 @@ class SiteMenu
     public static function whatsappItems()
     {
         return [
-            'command' => 'Command Center',
+            'twilio' => 'Twilio log',
             'conversations' => 'Conversations',
             'leads' => 'Leads',
             'groups' => 'Groups',
-            'rentals' => 'Rentals',
-            'internship' => 'Internship',
             'attendance' => 'Attendance',
             'documents' => 'Documents',
-            'tenants' => 'Tenant Operations',
-            'bills' => 'Bill Payments',
-            'appointments' => 'Appointments',
-            'tracking' => 'Message Tracking',
-            'calls' => 'Calls',
-            'diagnostics' => 'Diagnostics',
             'assistant' => 'AI Assistant',
             'brief' => 'AI brief',
             'people' => 'People I know',
-            'settings' => 'Settings',
         ];
     }
 
@@ -217,24 +207,15 @@ class SiteMenu
     public static function whatsappLiKeyMap()
     {
         return [
-            'whatsapp-command-menu' => 'command',
+            'whatsapp-twilio-log-menu' => 'twilio',
             'whatsapp-conversations-menu' => 'conversations',
             'whatsapp-leads-menu' => 'leads',
             'whatsapp-groups-menu' => 'groups',
-            'whatsapp-rentals-menu' => 'rentals',
-            'whatsapp-internship-menu' => 'internship',
             'whatsapp-attendance-menu' => 'attendance',
             'whatsapp-documents-menu' => 'documents',
-            'whatsapp-tenants-menu' => 'tenants',
-            'whatsapp-bills-menu' => 'bills',
-            'whatsapp-appointments-menu' => 'appointments',
-            'whatsapp-tracking-menu' => 'tracking',
-            'whatsapp-calls-menu' => 'calls',
-            'whatsapp-diagnostics-menu' => 'diagnostics',
             'whatsapp-assistant-menu' => 'assistant',
             'whatsapp-brief-menu' => 'brief',
             'whatsapp-people-menu' => 'people',
-            'whatsapp-settings-menu' => 'settings',
         ];
     }
 

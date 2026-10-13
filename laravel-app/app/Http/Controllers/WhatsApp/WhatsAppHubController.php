@@ -554,20 +554,7 @@ class WhatsAppHubController extends Controller
             return $deny;
         }
         $q = trim((string) $request->get('q', ''));
-        $query = WhatsAppContact::query()->orderByDesc('id');
-        if ($q !== '') {
-            $like = '%'.$q.'%';
-            $query->where(function ($rows) use ($like) {
-                $rows->where('wa_name', 'like', $like)
-                    ->orWhere('display_phone', 'like', $like)
-                    ->orWhere('normalized_phone', 'like', $like);
-                if (Schema::hasColumn('whatsapp_contacts', 'call_name')) {
-                    $rows->orWhere('call_name', 'like', $like)
-                        ->orWhere('relationship', 'like', $like);
-                }
-            });
-        }
-        $contacts = $query->paginate(30);
+        $contacts = $this->peopleQuery($q)->paginate(30);
         $selected = $request->filled('contact')
             ? WhatsAppContact::find($request->get('contact'))
             : null;
@@ -593,6 +580,81 @@ class WhatsAppHubController extends Controller
         }
 
         return redirect()->back()->with('message', 'The assistant will use this when talking to '.($contact->call_name ?: $contact->displayName()).'.');
+    }
+
+    public function deletePeople(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.manage', 'whatsapp.conversations'])) {
+            return $deny;
+        }
+        $q = trim((string) $request->input('q', ''));
+        if ($request->boolean('all')) {
+            $ids = $this->peopleQuery($q)->pluck('id')->all();
+        } else {
+            $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        }
+        $removed = 0;
+        foreach (array_chunk($ids, 40) as $chunk) {
+            $contacts = WhatsAppContact::whereIn('id', $chunk)->get();
+            foreach ($contacts as $contact) {
+                $this->deleteKnownContact($contact);
+                $removed++;
+            }
+        }
+
+        return redirect()->route('whatsapp.people', array_filter(['q' => $q]))
+            ->with('message', $removed === 1 ? '1 contact deleted.' : $removed.' contacts deleted.');
+    }
+
+    protected function peopleQuery($q)
+    {
+        $query = WhatsAppContact::query()->orderByDesc('id');
+        $q = trim((string) $q);
+        if ($q === '') {
+            return $query;
+        }
+        $like = '%'.$q.'%';
+        $query->where(function ($rows) use ($like) {
+            $rows->where('wa_name', 'like', $like)
+                ->orWhere('display_phone', 'like', $like)
+                ->orWhere('normalized_phone', 'like', $like);
+            if (Schema::hasColumn('whatsapp_contacts', 'call_name')) {
+                $rows->orWhere('call_name', 'like', $like)
+                    ->orWhere('relationship', 'like', $like);
+            }
+        });
+
+        return $query;
+    }
+
+    protected function deleteKnownContact(WhatsAppContact $contact)
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($contact) {
+            $conversations = WhatsAppConversation::where('contact_id', $contact->id)->get();
+            foreach ($conversations as $conversation) {
+                $this->conversations->destroy($conversation);
+            }
+            $id = (int) $contact->id;
+            foreach ([
+                'whatsapp_contact_links' => 'contact_id',
+                'whatsapp_messages' => 'contact_id',
+                'whatsapp_verification_challenges' => 'whatsapp_contact_id',
+                'whatsapp_verification_sessions' => 'whatsapp_contact_id',
+            ] as $table => $column) {
+                if (Schema::hasTable($table) && Schema::hasColumn($table, $column)) {
+                    \Illuminate\Support\Facades\DB::table($table)->where($column, $id)->delete();
+                }
+            }
+            if (Schema::hasTable('whatsapp_document_requests') && Schema::hasColumn('whatsapp_document_requests', 'whatsapp_contact_id')) {
+                \Illuminate\Support\Facades\DB::table('whatsapp_document_requests')->where('whatsapp_contact_id', $id)->update(['whatsapp_contact_id' => null]);
+            }
+            foreach (['leads', 'whatsapp_calls', 'whatsapp_call_requests', 'whatsapp_rental_requests', 'appointments'] as $table) {
+                if (Schema::hasTable($table) && Schema::hasColumn($table, 'contact_id')) {
+                    \Illuminate\Support\Facades\DB::table($table)->where('contact_id', $id)->update(['contact_id' => null]);
+                }
+            }
+            $contact->delete();
+        });
     }
 
     public function reply(Request $request, $id)
@@ -703,6 +765,70 @@ class WhatsAppHubController extends Controller
         $businessLine = $this->businessLine();
 
         return view('whatsapp_hub.diagnostics', compact('session', 'diag', 'businessLine'));
+    }
+
+    public function twilioLog(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.view', 'whatsapp.settings', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $service = app(\App\Services\TwilioWhatsAppService::class);
+        $inbox = $service->whatsAppInbox();
+        $chat = preg_replace('/\D/', '', (string) $request->query('chat', ''));
+        $open = null;
+        $tail = strlen($chat) >= 9 ? substr($chat, -9) : $chat;
+        foreach ($inbox['chats'] as $row) {
+            if ($row['digits'] === $chat || ($tail !== '' && substr($row['digits'], -9) === $tail)) {
+                $open = $row;
+                break;
+            }
+        }
+        $canReply = $this->canAny(['whatsapp.reply', 'whatsapp.manage']);
+        $justSent = session('twilio_just_sent');
+
+        return view('whatsapp_hub.twilio_log', compact('inbox', 'open', 'canReply', 'justSent'));
+    }
+
+    public function twilioReply(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.reply', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        $chat = preg_replace('/\D/', '', (string) $request->input('chat', $request->input('to')));
+        $back = redirect()->route('whatsapp.twilio_log', $chat !== '' ? ['chat' => $chat] : []);
+
+        $body = trim((string) $request->input('body', ''));
+        if ($body === '') {
+            return $back->with('not_permitted', 'Write a reply before sending.');
+        }
+        if (mb_strlen($body) > 1500) {
+            return $back->with('not_permitted', 'Keep the reply under 1,500 characters.');
+        }
+
+        try {
+            $to = \App\Support\WhatsAppPhone::normalize($request->input('to'));
+        } catch (\InvalidArgumentException $e) {
+            return $back->with('not_permitted', 'That number cannot be used for a reply.');
+        }
+
+        $service = app(\App\Services\TwilioWhatsAppService::class);
+        $own = preg_replace('/\D/', '', $service->displayNumber());
+        if ($to === '' || $to === $own) {
+            return $back->with('not_permitted', 'That number cannot be used for a reply.');
+        }
+
+        $result = $service->sendText($to, $body);
+        $service->forgetWhatsAppInbox();
+        if (empty($result['success'])) {
+            return $back->with('not_permitted', $this->publicTwilioError(isset($result['error']) ? $result['error'] : ''));
+        }
+
+        return $back->with('twilio_just_sent', [
+            'digits' => $to,
+            'body' => $body,
+            'time' => date('H:i'),
+            'day' => date('Y-m-d'),
+        ]);
     }
 
     public function testOpenAi()
@@ -1705,5 +1831,20 @@ class WhatsAppHubController extends Controller
         }
 
         return false;
+    }
+
+    protected function publicTwilioError($error)
+    {
+        $error = trim((string) $error);
+        $service = app(\App\Services\TwilioWhatsAppService::class);
+        $error = str_replace([$service->accountSid(), $service->authToken()], '', $error);
+        if (strpos($error, '63016') !== false || stripos($error, 'allowed window') !== false) {
+            return 'WhatsApp only accepts a free reply within 24 hours of their last message. This chat is outside that window.';
+        }
+        if ($error === '') {
+            return 'Twilio did not send the reply.';
+        }
+
+        return mb_substr($error, 0, 240);
     }
 }

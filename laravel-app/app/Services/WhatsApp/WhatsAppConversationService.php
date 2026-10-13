@@ -230,7 +230,7 @@ class WhatsAppConversationService
         if ($body === '' || ! $contact) {
             return ['success' => false];
         }
-        $result = $this->provider->sendText($contact->normalized_phone, $body);
+        $result = $this->deliverText($contact->normalized_phone, $body);
         WhatsAppMessage::create([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
@@ -618,11 +618,7 @@ class WhatsAppConversationService
             $message->save();
             $result = ['success' => true, 'msg_id' => $message->provider_message_id, 'channel' => 'website', 'had_service_menu' => $hadServiceMenu];
         } else {
-            if (method_exists($this->provider, 'sendPlainText')) {
-                $result = $this->provider->sendPlainText($contact->normalized_phone, $body);
-            } else {
-                $result = $this->provider->sendText($contact->normalized_phone, $body);
-            }
+            $result = $this->deliverText($contact->normalized_phone, $body);
             if (! empty($result['success'])) {
                 $message->provider_message_id = isset($result['msg_id']) ? (string) $result['msg_id'] : null;
                 $message->status = WhatsAppMessage::STATUS_SENT;
@@ -961,6 +957,24 @@ class WhatsAppConversationService
         }
 
         return $mode;
+    }
+
+    protected function deliverText($phone, $body)
+    {
+        if (strtoupper((string) config('services.whatsapp.service', '')) === 'TWILIO') {
+            $sent = app(\App\Services\TwilioWhatsAppService::class)->sendText($phone, $body);
+
+            return [
+                'success' => ! empty($sent['success']),
+                'msg_id' => isset($sent['sid']) ? $sent['sid'] : null,
+                'error' => isset($sent['error']) ? $sent['error'] : null,
+            ];
+        }
+        if (method_exists($this->provider, 'sendPlainText')) {
+            return $this->provider->sendPlainText($phone, $body);
+        }
+
+        return $this->provider->sendText($phone, $body);
     }
 
     protected function preview($body, $type)

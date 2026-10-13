@@ -4,14 +4,14 @@
 <section class="container-fluid pay-app">
     <div class="pay-balance">
         <div>
-            <div class="pay-kicker">Donations received</div>
+            <div class="pay-kicker">Payments received</div>
             <div class="pay-total">{{ number_format($paidTotal, 0, '.', ' ') }} XAF</div>
             <div class="pay-sub">Pending {{ number_format($pendingTotal, 0, '.', ' ') }} XAF</div>
         </div>
     </div>
 
     <div class="pay-card">
-        <div class="pay-card-head"><h2>Donations</h2></div>
+        <div class="pay-card-head"><h2>Payments</h2></div>
         <div class="table-responsive">
             <table class="pay-table">
                 <thead>

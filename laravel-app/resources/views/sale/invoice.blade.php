@@ -130,6 +130,8 @@
             padding: 6px 8px;
             margin-bottom: 6px;
         }
+        .sale-note { margin: 0; line-height: 1.35; }
+        .sale-note p, .sale-note div { margin: 0; padding: 0; }
         table.totals { width: 100%; border-collapse: collapse; }
         table.totals th, table.totals td {
             padding: 4px 6px;
@@ -341,7 +343,7 @@
                     @if($saleNote !== '')
                         <div class="box">
                             <span class="label">{{ trans('file.Sale Note') }}</span>
-                            {!! \App\Support\BookingNoteFormatter::forDisplay($lims_sale_data->sale_note) !!}
+                            <div class="sale-note">{!! \App\Support\BookingNoteFormatter::forCompactHtml($lims_sale_data->sale_note) !!}</div>
                         </div>
                     @endif
                     @if($staffNote !== '')

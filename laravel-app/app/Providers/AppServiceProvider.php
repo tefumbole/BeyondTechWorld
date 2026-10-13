@@ -41,6 +41,10 @@ class AppServiceProvider extends ServiceProvider
         });
         // Empty until a later phase selects a company. Existing ERP requests do not read this.
         $this->app->singleton(\App\Services\Cloud\CloudTenantContext::class);
+        $this->app->singleton(\App\Services\Voice\StubVoiceProvider::class);
+        $this->app->bind(\App\Contracts\Voice\VoiceProvider::class, function ($app) {
+            return $app->make(\App\Services\Voice\StubVoiceProvider::class);
+        });
     }
 
     public function boot()

@@ -45,6 +45,31 @@ class BookingNoteFormatter
         return nl2br(e($note), false);
     }
 
+    /**
+     * One visual line per Enter or Shift+Enter. The label stays on its own line.
+     */
+    public static function forCompactHtml($note)
+    {
+        $text = self::forPlainText($note);
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = preg_replace("/[ \t]+\n/", "\n", $text);
+        $text = preg_replace("/\n{2,}/", "\n", $text);
+        $text = trim((string) $text);
+        if ($text === '') {
+            return '';
+        }
+
+        $lines = [];
+        foreach (explode("\n", $text) as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $lines[] = e($line);
+            }
+        }
+
+        return implode('<br>', $lines);
+    }
+
     public static function forPlainText($note)
     {
         if ($note === null || trim((string) $note) === '') {

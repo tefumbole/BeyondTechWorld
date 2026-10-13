@@ -571,7 +571,7 @@ class QuotationController extends Controller
         try {
             $path = $this->buildQuotationPdf($id);
             $filename = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $lims_sale_data->reference_no).'.pdf';
-            $this->wpPDFMessage($path, $lims_customer_data, $filename);
+            $this->wpPDFMessage($path, $lims_customer_data, $filename, null, null, true);
         } catch (\Throwable $e) {
             \Log::error('Quotation WhatsApp PDF failed: '.$e->getMessage());
             $message = 'Quotation PDF could not be sent: '.$e->getMessage();
@@ -602,7 +602,7 @@ class QuotationController extends Controller
 
         $message = 'Quotation sent for client signature via WhatsApp. The PDF is delivered after the client signs.';
         try{
-            $this->wpMessage($lims_customer_data->phone_number, $msg);
+            $this->wpMessage($lims_customer_data->phone_number, $msg, 'wasender');
         }
         catch(\Exception $e){
             \Log::warning('Quotation client WhatsApp failed for '.$lims_quotation_data->reference_no.': '.$e->getMessage());
@@ -639,7 +639,7 @@ class QuotationController extends Controller
             : WhatsAppMessage::quotationSignedPdf($customer->name, $quotation->reference_no, $quotation->grand_total);
 
         try {
-            $this->wpMessage($customer->phone_number, $text);
+            $this->wpMessage($customer->phone_number, $text, 'wasender');
         } catch (\Throwable $e) {
             \Log::warning('Quotation PDF text WhatsApp failed for '.$quotation->reference_no.': '.$e->getMessage());
         }
@@ -647,7 +647,7 @@ class QuotationController extends Controller
         try {
             $pdfPath = $this->buildQuotationPdf($quotation->id);
             $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $quotation->reference_no).'.pdf';
-            $this->wpPDFMessage($pdfPath, $customer, $pdfName);
+            $this->wpPDFMessage($pdfPath, $customer, $pdfName, null, null, true);
             // Staff who created the quotation gets a copy (not a broadcast to all admins).
             $this->sendQuotationPdfCopyToStaff($quotation, $pdfPath, $pdfName, $customer);
             $this->sendQuotationPdfCopyToCc($quotation, $pdfPath, $pdfName, $customer, $context);
@@ -695,9 +695,10 @@ class QuotationController extends Controller
                         $quotation->reference_no,
                         $customer ? $customer->name : 'client',
                         $quotation->grand_total
-                    )
+                    ),
+                    'wasender'
                 );
-                $this->sendWhatsAppDocumentToPhone($phone, $pdfPath, $pdfName);
+                $this->sendWhatsAppDocumentToPhone($phone, $pdfPath, $pdfName, null, true);
             } catch (\Throwable $e) {
                 \Log::warning('Quotation PDF staff copy failed for '.$quotation->reference_no.': '.$e->getMessage());
             }
@@ -744,9 +745,10 @@ class QuotationController extends Controller
                         $customer ? $customer->name : 'client',
                         $quotation->grand_total,
                         $signed
-                    )
+                    ),
+                    'wasender'
                 );
-                $this->sendWhatsAppDocumentToPhone($cc->phone_number, $pdfPath, $pdfName);
+                $this->sendWhatsAppDocumentToPhone($cc->phone_number, $pdfPath, $pdfName, null, true);
             } catch (\Throwable $e) {
                 \Log::warning('Quotation PDF CC copy failed for '.$quotation->reference_no.': '.$e->getMessage());
             }
@@ -842,7 +844,7 @@ class QuotationController extends Controller
                     $listUrl,
                     $pricing
                 );
-                $this->wpMessage($recipient['phone'], $msg);
+                $this->wpMessage($recipient['phone'], $msg, 'wasender');
             } catch (\Throwable $e) {
                 \Log::warning('Quotation stakeholder notify failed: '.$e->getMessage());
             }
@@ -892,7 +894,7 @@ class QuotationController extends Controller
                     $reviewUrl,
                     (string) ($quote->client_note ?? '')
                 );
-                $this->wpMessage($recipient['phone'], $msg);
+                $this->wpMessage($recipient['phone'], $msg, 'wasender');
             } catch (\Throwable $e) {
                 \Log::warning('Client quote WhatsApp failed: '.$e->getMessage());
             }

@@ -158,6 +158,41 @@ class PayoutController extends Controller
         return back()->with('message', $deleted.' failed '.($deleted === 1 ? 'payment' : 'payments').' deleted. A retry will not send '.($deleted === 1 ? 'it' : 'them').'.');
     }
 
+    public function deletePending(Request $request)
+    {
+        $this->guard();
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('payout.index')->with('not_permitted', 'Select the pending payouts to delete.');
+        }
+        $batches = $this->requests($this->tenantId())->whereIn('id', $ids)->where('status', 'pending')->get();
+        $deleted = 0;
+        $skipped = 0;
+        foreach ($batches as $batch) {
+            $paid = CampayPayout::where('request_id', $batch->id)->where('status', 'paid')->count();
+            if ($paid > 0) {
+                $skipped++;
+                continue;
+            }
+            CampayPayout::where('request_id', $batch->id)->delete();
+            $batch->delete();
+            $deleted++;
+        }
+        if ($deleted < 1) {
+            $reason = $skipped > 0
+                ? 'A payout that already paid someone was left in place.'
+                : 'Those payouts are no longer pending.';
+
+            return redirect()->route('payout.index')->with('not_permitted', $reason);
+        }
+        $message = $deleted.' pending '.($deleted === 1 ? 'payout' : 'payouts').' deleted.';
+        if ($skipped > 0) {
+            $message .= ' '.$skipped.' already paid '.($skipped === 1 ? 'was' : 'were').' left in place.';
+        }
+
+        return redirect()->route('payout.index')->with('message', $message);
+    }
+
     public function requestLink(Request $request)
     {
         $this->guard();
@@ -212,13 +247,28 @@ class PayoutController extends Controller
         }
         $back = redirect()->route('payout.request', ['review' => $batch->id]);
         if ($request->input('action') === 'reject') {
+            $reason = trim((string) $request->input('reason', ''));
+            if ($reason === '') {
+                return $back->with('not_permitted', 'Enter a reason for the rejection.');
+            }
+            if (function_exists('mb_strlen') && mb_strlen($reason) > 500) {
+                return $back->with('not_permitted', 'Keep the reason under 500 characters.');
+            }
+            $reason = function_exists('mb_substr') ? mb_substr($reason, 0, 500) : substr($reason, 0, 500);
             CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->update([
                 'status' => 'rejected',
-                'error' => 'Rejected',
+                'error' => $reason,
             ]);
             $this->closeBatch($batch);
+            $sent = $this->notifyRejected($batch, $reason);
+            $message = 'Request rejected.';
+            if ($sent > 0) {
+                $message .= ' '.$sent.' '.($sent === 1 ? 'person was' : 'people were').' told, including the reason.';
+            } else {
+                $message .= ' No WhatsApp number was found, so the message was not sent.';
+            }
 
-            return redirect()->route('payout.request')->with('message', 'Request rejected.');
+            return redirect()->route('payout.request')->with('message', $message);
         }
         if ($request->input('action') === 'approve') {
             $rows = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->orderBy('id')->get();
@@ -750,6 +800,11 @@ class PayoutController extends Controller
         if ($requester === '' || strlen($requester) > 80) {
             return back()->withInput()->with('not_permitted', 'Enter your name.');
         }
+        try {
+            $requesterPhone = \App\Support\WhatsAppPhone::normalize($request->input('requester_phone'));
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('not_permitted', 'Enter your WhatsApp number.');
+        }
         $service = app(CampayPayoutService::class);
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('customer_id', [])))));
         $amounts = (array) $request->input('amount', []);
@@ -852,6 +907,9 @@ class PayoutController extends Controller
         $batch = new CampayPayoutRequest();
         $batch->cloud_tenant_id = $link->cloud_tenant_id;
         $batch->requester_name = $requester;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('campay_payout_requests', 'requester_phone')) {
+            $batch->requester_phone = $requesterPhone;
+        }
         $batch->note = $note !== '' ? substr($note, 0, 180) : null;
         $batch->status = 'pending';
         $batch->save();
@@ -983,40 +1041,14 @@ class PayoutController extends Controller
     protected function sendInvite($phone, $name, $reason, $url)
     {
         $reason = trim((string) $reason);
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedAction(
-            $phone,
-            $name,
-            \App\Support\WhatsAppMessage::companyName(),
-            'submit payment information',
-            $reason !== '' ? $reason : 'Request for Payment',
-            $url
-        );
-        if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->inviteText($name, $reason, $url));
-        }
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->inviteText($name, $reason, $url));
     }
 
     protected function sendSubmitted($phone, $name, $amount, $reason, $url, $requester = '')
     {
         $reason = trim((string) $reason);
         $requester = trim((string) $requester);
-        $detail = 'Your name has been submitted for a payment of '.$this->moneyText($amount).' XAF.';
-        if ($requester !== '') {
-            $detail .= ' Requested by '.$requester.'.';
-        }
-        $detail .= ' Accept or deny: '.$url;
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedStatus(
-            $phone,
-            $name,
-            \App\Support\WhatsAppMessage::companyName(),
-            'payment',
-            $reason !== '' ? $reason : 'Payment request',
-            'Submitted',
-            $detail
-        );
-        if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester));
-        }
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester));
     }
 
     protected function sendPaid($phone, $name, $amount, $reason, $requester = '')
@@ -1033,6 +1065,87 @@ class PayoutController extends Controller
     {
         $admin = \App\Support\TwilioAdminCopy::PHONE;
         app(\App\Services\ClientNoticeService::class)->send($admin, $this->paidAdminText($name, $amount, $reason, $requester));
+    }
+
+    protected function notifyRejected(CampayPayoutRequest $batch, $reason)
+    {
+        $phones = [];
+        $requesterPhone = $this->requesterPhone($batch);
+        if ($requesterPhone !== '') {
+            $phones[$requesterPhone] = trim((string) $batch->requester_name) !== '' ? trim((string) $batch->requester_name) : 'Client';
+        }
+        if ($phones === []) {
+            foreach (CampayPayout::where('request_id', $batch->id)->orderBy('id')->get() as $line) {
+                $phone = preg_replace('/\D/', '', (string) $line->phone);
+                if ($phone !== '' && ! isset($phones[$phone])) {
+                    $phones[$phone] = $this->systemName($line);
+                }
+            }
+        }
+        $sent = 0;
+        foreach ($phones as $phone => $name) {
+            if ($this->sendRejected($phone, $name, $reason, (string) $batch->note) !== 'none') {
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    protected function requesterPhone(CampayPayoutRequest $batch)
+    {
+        if (\Illuminate\Support\Facades\Schema::hasColumn('campay_payout_requests', 'requester_phone')) {
+            $saved = preg_replace('/\D/', '', (string) $batch->requester_phone);
+            if ($saved !== '') {
+                return $saved;
+            }
+        }
+        $name = trim((string) $batch->requester_name);
+        if ($name !== '') {
+            $line = CampayPayout::where('request_id', $batch->id)->where('person_name', $name)->first();
+            if ($line) {
+                $phone = preg_replace('/\D/', '', (string) $line->phone);
+                if ($phone !== '') {
+                    return $phone;
+                }
+            }
+            $user = \App\User::query()->where('is_active', 1)->where('name', $name)->first(['name', 'phone', 'additional_phone']);
+            if ($user && method_exists($user, 'whatsappPhone')) {
+                $phone = preg_replace('/\D/', '', (string) $user->whatsappPhone());
+                if ($phone !== '') {
+                    return $phone;
+                }
+            }
+        }
+        $only = CampayPayout::where('request_id', $batch->id)->get(['phone']);
+        if ($only->count() === 1) {
+            return preg_replace('/\D/', '', (string) $only->first()->phone);
+        }
+
+        return '';
+    }
+
+    protected function sendRejected($phone, $name, $reason, $note)
+    {
+        $reason = trim((string) $reason);
+        $note = trim((string) $note);
+
+        return app(\App\Services\ClientNoticeService::class)->send($phone, $this->rejectedText($name, $reason, $note));
+    }
+
+    protected function rejectedText($name, $reason, $note)
+    {
+        $msg = \App\Support\WhatsAppMessage::statusBlock('❌', 'Request Rejected');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= "Your payment request has been rejected.\n";
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Reason', $reason);
+        $note = trim((string) $note);
+        if ($note !== '') {
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Request', $note);
+        }
+        $msg .= \App\Support\WhatsAppMessage::footer();
+
+        return $msg;
     }
 
     protected function requesterName(CampayPayout $line)
@@ -1062,17 +1175,7 @@ class PayoutController extends Controller
             $detail = rtrim(mb_substr($detail, 0, 699)).'…';
         }
         $phone = \App\Support\TwilioAdminCopy::PHONE;
-        $result = app(\App\Services\Messaging\TwilioTemplateSender::class)->sendSharedAction(
-            $phone,
-            $this->copyName(),
-            \App\Support\WhatsAppMessage::companyName(),
-            'accept or deny this payment',
-            $reason !== '' ? $reason : 'Payment request',
-            $url
-        );
-        if (empty($result['success'])) {
-            app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($this->copyName(), $total, $reason, $url, $detail));
-        }
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($this->copyName(), $total, $reason, $url, $detail));
     }
 
     protected function reviewUrl($id)

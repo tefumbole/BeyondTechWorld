@@ -103,7 +103,7 @@ class TwilioTemplateSender
         return $this->send('content_sid_reminder', $phone, [
             '1' => $name,
             '2' => $company,
-            '3' => $subject,
+            '3' => \App\Support\WhatsAppMessage::withEmoji('⏰', $subject),
             '4' => $reference,
             '5' => $when,
         ]);
@@ -168,8 +168,8 @@ class TwilioTemplateSender
             '2' => $organisation,
             '3' => $recordType,
             '4' => $reference,
-            '5' => $status,
-            '6' => $detail,
+            '5' => \App\Support\WhatsAppMessage::statusLabel($status),
+            '6' => \App\Support\WhatsAppMessage::plainLine($detail),
         ], true);
     }
 

@@ -8,7 +8,7 @@ class CampayPayoutRequest extends Model
 {
     protected $table = 'campay_payout_requests';
 
-    protected $fillable = ['cloud_tenant_id', 'requester_name', 'note', 'status'];
+    protected $fillable = ['cloud_tenant_id', 'requester_name', 'requester_phone', 'note', 'status'];
 
     public function lines()
     {
