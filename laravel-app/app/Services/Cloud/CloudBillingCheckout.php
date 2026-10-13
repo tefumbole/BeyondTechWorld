@@ -21,6 +21,7 @@ class CloudBillingCheckout
         if ($tenant->type === CloudTenantType::INTERNAL) {
             throw new \RuntimeException('The internal company does not pay a subscription.');
         }
+        CloudCatalog::installPaymentMethods();
         $method = CloudPaymentMethod::where('code', strtoupper((string) $methodCode))->where('active', true)->first();
         if (! $method) {
             throw new \RuntimeException('That payment method is not available.');

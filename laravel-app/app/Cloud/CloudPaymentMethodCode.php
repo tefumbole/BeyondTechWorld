@@ -9,10 +9,13 @@ namespace App\Cloud;
 class CloudPaymentMethodCode
 {
     const MOMO = 'MOMO';
+    const MTN = 'MTN';
+    const ORANGE = 'ORANGE';
     const VISA = 'VISA';
+    const CRYPTO = 'CRYPTO';
 
     public static function all()
     {
-        return [self::MOMO, self::VISA];
+        return [self::MOMO, self::MTN, self::ORANGE, self::VISA, self::CRYPTO];
     }
 }

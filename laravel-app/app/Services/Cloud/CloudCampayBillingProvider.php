@@ -18,6 +18,19 @@ class CloudCampayBillingProvider implements CloudBillingProviderInterface
         return 'campay';
     }
 
+    public function paymentOptions(CloudSubscriptionPayment $payment)
+    {
+        $code = strtoupper((string) $payment->method_code);
+        if ($code === 'MTN') {
+            return 'MTN';
+        }
+        if ($code === 'ORANGE') {
+            return 'ORANGE';
+        }
+
+        return 'MOMO';
+    }
+
     public function begin(CloudSubscriptionPayment $payment)
     {
         $payment->load('cloudTenant');
@@ -36,7 +49,7 @@ class CloudCampayBillingProvider implements CloudBillingProviderInterface
             'first_name' => $parts[0],
             'last_name' => isset($parts[1]) && $parts[1] !== '' ? $parts[1] : $parts[0],
             'email' => $tenant && ! empty($tenant->email) ? (string) $tenant->email : '',
-            'payment_options' => 'MOMO',
+            'payment_options' => $this->paymentOptions($payment),
         ]);
         if (! is_array($body) || empty($body['reference']) || empty($body['link'])) {
             return null;

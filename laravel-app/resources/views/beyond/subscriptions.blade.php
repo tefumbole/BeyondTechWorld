@@ -27,6 +27,7 @@
                         <p class="text-sm text-gray-500">per {{ strtolower($plan->billing_interval ?: 'month') }}</p>
                         <p class="text-sm text-brand-blue mt-2">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</p>
                         <a href="{{ url('/cloud/register') }}{{ $plan->module ? '?service='.$plan->module->code : '' }}" class="mt-4 inline-flex justify-center bg-brand-gold hover:bg-[#C19B2A] text-brand-blue font-bold rounded-full px-4 py-2.5">Subscribe</a>
+                        <p class="text-xs text-gray-500 mt-2">Pay with MTN, Orange, VISA, or crypto.</p>
                     </article>
                 @endforeach
             </div>

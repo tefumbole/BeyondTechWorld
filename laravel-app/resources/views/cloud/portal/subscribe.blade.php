@@ -17,11 +17,20 @@
             <p class="muted">Trial: {{ (int) $plan->trial_value }} {{ strtolower($plan->trial_unit) }}{{ (int) $plan->trial_value === 1 ? '' : 's' }}</p>
             @if($current)
                 <p>Status: {{ $current->status }}</p>
+                <form method="POST" action="{{ route('cloud.pay', $current->id) }}" class="pay-methods">
+                    @csrf
+                    <p class="muted">Pay with</p>
+                    <button type="submit" name="method" value="MTN">MTN</button>
+                    <button type="submit" name="method" value="ORANGE">Orange</button>
+                    <button type="submit" name="method" value="VISA">VISA</button>
+                    <button type="submit" name="method" value="CRYPTO">Crypto</button>
+                </form>
             @else
                 <form method="POST" action="{{ route('cloud.trial', $plan->id) }}">
                     @csrf
                     <button type="submit">Start trial</button>
                 </form>
+                <p class="muted">After the trial, pay with MTN, Orange, VISA, or crypto.</p>
             @endif
         </article>
     @endforeach

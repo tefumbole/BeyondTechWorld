@@ -103,7 +103,7 @@ class CloudCatalog
      * MoMo and VISA are the payment methods already used in this application.
      * MoMo charges through Campay. VISA charges through the existing Stripe card checkout.
      */
-    protected static function installPaymentMethods()
+    public static function installPaymentMethods()
     {
         $methods = [
             [
@@ -113,10 +113,28 @@ class CloudCatalog
                 'sort_order' => 1,
             ],
             [
+                'code' => CloudPaymentMethodCode::MTN,
+                'name' => 'MTN',
+                'provider' => 'campay',
+                'sort_order' => 2,
+            ],
+            [
+                'code' => CloudPaymentMethodCode::ORANGE,
+                'name' => 'Orange',
+                'provider' => 'campay',
+                'sort_order' => 3,
+            ],
+            [
                 'code' => CloudPaymentMethodCode::VISA,
                 'name' => 'VISA',
                 'provider' => 'stripe',
-                'sort_order' => 2,
+                'sort_order' => 4,
+            ],
+            [
+                'code' => CloudPaymentMethodCode::CRYPTO,
+                'name' => 'Crypto',
+                'provider' => 'binance',
+                'sort_order' => 5,
             ],
         ];
 

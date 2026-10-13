@@ -51,6 +51,9 @@ class CloudCheckoutService
         if ($payment->method_code === CloudPaymentMethodCode::VISA) {
             return $this->stripeLink($tenant, $payment);
         }
+        if ($payment->method_code === CloudPaymentMethodCode::CRYPTO) {
+            return $this->cryptoLink($payment);
+        }
 
         $link = app(CloudCampayBillingProvider::class)->begin($payment);
         if (! $link) {
@@ -81,6 +84,9 @@ class CloudCheckoutService
         }
         if ($payment->method_code === CloudPaymentMethodCode::VISA) {
             return $this->stripeLink($tenant, $payment);
+        }
+        if ($payment->method_code === CloudPaymentMethodCode::CRYPTO) {
+            return $this->cryptoLink($payment);
         }
         $link = app(CloudCampayBillingProvider::class)->begin($payment);
         if (! $link) {
@@ -205,7 +211,130 @@ class CloudCheckoutService
      */
     public function confirmVisa(CloudSubscriptionPayment $payment, $sessionId)
     {
-        return false;
+        return $this->settle($payment);
+    }
+
+    /**
+     * Asks the provider whether this charge was collected. A browser return alone does not count.
+     */
+    public function settle(CloudSubscriptionPayment $payment)
+    {
+        if ($payment->status === CloudSubscriptionPayment::PAID) {
+            return true;
+        }
+        if ($payment->method_code === CloudPaymentMethodCode::CRYPTO || $payment->provider === 'binance') {
+            return $this->settleCrypto($payment);
+        }
+        if ($payment->method_code === CloudPaymentMethodCode::VISA || $payment->provider === 'stripe') {
+            return $this->settleVisa($payment);
+        }
+
+        return $this->settleCampay($payment);
+    }
+
+    protected function cryptoLink(CloudSubscriptionPayment $payment)
+    {
+        $result = app(\App\Services\BinancePayService::class)->instructions((float) $payment->amount, (int) $payment->id);
+        if (empty($result['ok'])) {
+            throw new \RuntimeException(isset($result['error']) ? $result['error'] : 'Crypto payment could not be opened.');
+        }
+        $snap = json_decode((string) $payment->snapshot, true);
+        if (! is_array($snap)) {
+            $snap = [];
+        }
+        $snap['crypto'] = $result;
+        $payment->provider = 'binance';
+        $payment->snapshot = json_encode($snap);
+        $payment->provider_reference = 'usdt:'.$result['usdt'];
+        $payment->status = CloudSubscriptionPayment::PENDING;
+        $payment->save();
+
+        return route('cloud.pay.return', ['payment' => $payment->id]);
+    }
+
+    protected function settleCampay(CloudSubscriptionPayment $payment)
+    {
+        $remote = app(CloudCampayBillingProvider::class)->status($payment);
+        if (! is_array($remote)) {
+            return false;
+        }
+        $remoteStatus = isset($remote['status']) ? strtoupper((string) $remote['status']) : '';
+        if ($remoteStatus !== 'SUCCESSFUL' && $remoteStatus !== 'FAILED') {
+            return false;
+        }
+        $reference = (string) ($payment->provider_reference ?: '');
+        app(CloudSubscriptionService::class)->confirmPayment($payment, [
+            'provider' => 'campay',
+            'event_id' => 'campay:'.$reference.':'.strtolower($remoteStatus),
+            'status' => $remoteStatus === 'SUCCESSFUL' ? 'paid' : 'failed',
+            'amount' => isset($remote['amount']) ? $remote['amount'] : null,
+            'currency' => isset($remote['currency']) ? $remote['currency'] : '',
+            'tenant_id' => (int) $payment->cloud_tenant_id,
+            'provider_reference' => $reference,
+        ]);
+
+        return $payment->fresh()->status === CloudSubscriptionPayment::PAID;
+    }
+
+    protected function settleVisa(CloudSubscriptionPayment $payment)
+    {
+        $sessionId = (string) $payment->provider_reference;
+        if (strpos($sessionId, 'cs_') !== 0) {
+            return false;
+        }
+        $secret = config('services.stripe.secret') ?: getenv('STRIPE_SECRET');
+        if (! $secret) {
+            return false;
+        }
+        Stripe::setApiKey($secret);
+        try {
+            $session = StripeSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return false;
+        }
+        if (! isset($session->payment_status) || $session->payment_status !== 'paid') {
+            return false;
+        }
+        $paidAmount = isset($session->amount_total) ? ((float) $session->amount_total) : null;
+        $paidCurrency = isset($session->currency) ? strtoupper((string) $session->currency) : '';
+        app(CloudSubscriptionService::class)->confirmPayment($payment, [
+            'provider' => 'stripe',
+            'event_id' => 'stripe:'.$sessionId.':paid',
+            'status' => 'paid',
+            'amount' => $paidAmount,
+            'currency' => $paidCurrency,
+            'tenant_id' => (int) $payment->cloud_tenant_id,
+            'provider_reference' => $sessionId,
+        ]);
+
+        return $payment->fresh()->status === CloudSubscriptionPayment::PAID;
+    }
+
+    protected function settleCrypto(CloudSubscriptionPayment $payment)
+    {
+        $snap = json_decode((string) $payment->snapshot, true);
+        $crypto = is_array($snap) && isset($snap['crypto']) && is_array($snap['crypto']) ? $snap['crypto'] : [];
+        $address = isset($crypto['address']) ? (string) $crypto['address'] : '';
+        $usdt = isset($crypto['usdt']) ? (string) $crypto['usdt'] : '';
+        if ($address === '' || $usdt === '') {
+            return false;
+        }
+        $since = $payment->created_at ? ($payment->created_at->getTimestamp() * 1000) - 60000 : (time() - 86400) * 1000;
+        $tx = app(\App\Services\BinancePayService::class)->findPayment($address, $usdt, $since);
+        if (! $tx) {
+            return false;
+        }
+        app(CloudSubscriptionService::class)->confirmPayment($payment, [
+            'provider' => 'binance',
+            'event_id' => 'binance:'.$tx,
+            'status' => 'paid',
+            'amount' => (float) $payment->amount,
+            'currency' => $payment->currency ?: 'XAF',
+            'tenant_id' => (int) $payment->cloud_tenant_id,
+            'provider_reference' => (string) $payment->provider_reference,
+        ]);
+
+        return $payment->fresh()->status === CloudSubscriptionPayment::PAID;
     }
 
     protected function postJson($url, $payload, array $headers)

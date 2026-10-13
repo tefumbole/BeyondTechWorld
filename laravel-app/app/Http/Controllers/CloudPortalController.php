@@ -95,6 +95,10 @@ class CloudPortalController extends Controller
             ]);
         }
         $data = $this->companyInput($request, true);
+        $payMethod = strtoupper((string) $request->input('payment_method'));
+        if ($request->input('start_mode') === 'pay' && ! in_array($payMethod, ['MTN', 'ORANGE', 'VISA', 'CRYPTO'], true)) {
+            return redirect()->route('cloud.register')->with('not_permitted', 'Choose MTN, Orange, VISA, or crypto before paying.')->withInput();
+        }
         if (! app(\App\Services\Cloud\CloudSignupOtp::class)->matches($data['phone'])) {
             return redirect()->route('cloud.register')->with('not_permitted', 'Verify the phone number before continuing.')->withInput();
         }
@@ -110,12 +114,18 @@ class CloudPortalController extends Controller
         $request->session()->regenerate();
         session([CloudTenantResolver::SESSION_KEY => $tenant->id]);
 
-        $message = config('cloud.trial_welcome');
         if ($request->input('start_mode') === 'pay') {
-            $message = 'Your company is open on the 24-hour trial. Pay records that you want to pay the monthly total. It does not collect money from this page.';
+            $subscriptions = CloudSubscription::where('cloud_tenant_id', $tenant->id)->get()->all();
+            try {
+                $url = app(\App\Services\Cloud\CloudCheckoutService::class)->startMany($tenant, $subscriptions, $payMethod);
+
+                return redirect()->away($url);
+            } catch (\Exception $e) {
+                return redirect()->route('cloud.subscribe')->with('not_permitted', $e->getMessage());
+            }
         }
 
-        return redirect()->route('cloud.home')->with('message', $message);
+        return redirect()->route('cloud.home')->with('message', config('cloud.trial_welcome'));
     }
 
     protected function registrationOpen(Request $request)
@@ -220,14 +230,22 @@ class CloudPortalController extends Controller
         if ((int) $payment->cloud_tenant_id !== (int) $tenant->id) {
             abort(403);
         }
-        $paid = false;
-        if ($request->query('session_id') && $payment->provider === 'stripe') {
-            $paid = app(CloudCheckoutService::class)->confirmVisa($payment, $request->query('session_id'));
+        $paid = app(CloudCheckoutService::class)->settle($payment->fresh());
+        $payment = $payment->fresh();
+        if (! $paid && $payment->method_code === 'CRYPTO') {
+            $snap = json_decode((string) $payment->snapshot, true);
+            $crypto = is_array($snap) && isset($snap['crypto']) ? $snap['crypto'] : [];
+
+            return view('cloud.portal.crypto', [
+                'tenant' => $tenant,
+                'payment' => $payment,
+                'crypto' => is_array($crypto) ? $crypto : [],
+            ]);
         }
 
         return redirect()->route('cloud.home')->with(
             $paid ? 'message' : 'not_permitted',
-            $paid ? 'Payment confirmed. This module is active.' : 'Payment is not confirmed yet. The trial stays as it is until MoMo or VISA confirms it.'
+            $paid ? 'Payment confirmed. This module is active.' : 'Payment is not confirmed yet. Finish it on your phone, then open this page again.'
         );
     }
 

@@ -375,7 +375,7 @@
                     <div id="price-lines"></div>
                     <div class="flex justify-between mt-2"><span>Monthly total</span><span id="price-total">0</span></div>
                     <div class="flex justify-between"><span>Free trial</span><span>{{ $quote['trial'] }}</span></div>
-                    <p class="text-sm mt-2">This total is the monthly price from the plan list. Pay does not collect money in this form. BeyondTechWorld confirms the payment separately.</p>
+                    <p class="text-sm mt-2">Pay now with MTN, Orange, VISA, or crypto. The free trial does not charge you.</p>
                 </div>
                 <div>
                     <h3 class="text-left font-semibold mb-2">Digital Signature</h3>
@@ -393,9 +393,21 @@
                 </div>
                 <input type="hidden" name="signature" id="signature" value="">
                 <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="signature-error" hidden>Add your signature before continuing.</p>
+                <fieldset class="mt-4 text-left">
+                    <legend class="font-semibold mb-2">Payment method, if you pay now</legend>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach(['MTN' => 'MTN', 'ORANGE' => 'Orange', 'VISA' => 'VISA', 'CRYPTO' => 'Crypto'] as $code => $label)
+                            <label class="rounded-full border border-brand-gold px-4 py-2 font-bold">
+                                <input type="radio" name="payment_method" value="{{ $code }}" {{ old('payment_method') === $code ? 'checked' : '' }}>
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </fieldset>
+                <p class="mt-3 rounded-xl bg-red-50 text-red-800 px-3 py-2" id="pay-method-error" hidden>Choose MTN, Orange, VISA, or crypto before paying.</p>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
                     <button type="submit" name="start_mode" value="trial" class="bg-brand-gold text-brand-blue font-bold rounded-full px-5 py-2.5">Start free trial</button>
-                    <button type="submit" name="start_mode" value="pay" class="bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Pay</button>
+                    <button type="submit" name="start_mode" value="pay" id="pay-now" class="bg-white/15 border border-brand-gold text-brand-gold font-bold rounded-full px-5 py-2.5">Pay</button>
                 </div>
             </section>
         </form>
@@ -684,12 +696,27 @@
                 $resume = 3;
             } elseif (session('not_permitted') && (strpos((string) session('not_permitted'), 'username') !== false || strpos((string) session('not_permitted'), 'email') !== false)) {
                 $resume = 5;
+            } elseif (session('not_permitted') && strpos((string) session('not_permitted'), 'crypto') !== false) {
+                $resume = 7;
             }
         @endphp
         @if($resume > 1)
         if (kind) kind.value = '{{ old('account_kind', 'company') }}';
         show({{ $resume }});
         @endif
+        var payNow = document.getElementById('pay-now');
+        if (payNow) {
+            payNow.addEventListener('click', function (event) {
+                var picked = document.querySelector('input[name="payment_method"]:checked');
+                var note = document.getElementById('pay-method-error');
+                if (picked) {
+                    if (note) note.hidden = true;
+                    return;
+                }
+                event.preventDefault();
+                if (note) note.hidden = false;
+            });
+        }
     })();
 </script>
 @endpush
