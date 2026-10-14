@@ -28,7 +28,7 @@
         .err { margin: 12px 16px 0; background: #fdecec; color: #9b1c1c; border-radius: 12px; padding: 10px 12px; font-weight: 700; }
         .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; padding: 14px; align-items: start; }
         .map { min-width: 0; background: var(--cream); border-radius: 16px; padding: 8px 10px 12px; }
-        .hall { position: relative; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+        .hall { position: relative; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
         .swipe { display: none; margin: 0 0 8px; text-align: center; font-size: 14px; font-weight: 800; color: #8a6a24; }
         .hall-inner { position: relative; width: max-content; min-width: 100%; }
         .stage {
