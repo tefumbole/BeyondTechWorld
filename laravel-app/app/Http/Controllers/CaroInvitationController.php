@@ -24,6 +24,13 @@ class CaroInvitationController extends Controller
         return view('beyond.caro.index', $this->formData());
     }
 
+    public function help()
+    {
+        return view('beyond.caro.help', [
+            'homeUrl' => $this->invitations->pageUrl(),
+        ]);
+    }
+
     public function start(Request $request)
     {
         $guest = $this->guestFrom($request);
@@ -124,6 +131,7 @@ class CaroInvitationController extends Controller
             'startUrl' => $this->invitations->pageUrl('start'),
             'claimUrl' => $this->invitations->pageUrl('seat'),
             'lookupUrl' => $this->invitations->pageUrl('lookup'),
+            'helpUrl' => $this->invitations->pageUrl('help'),
             'serviceAt' => '2026-11-08T13:00:00+01:00',
         ];
     }

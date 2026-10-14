@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>MSATA 2026 — Special Invitation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="image" href="{{ asset('public/caro/landing-blank.jpg') }}?v={{ @filemtime(public_path('caro/landing-blank.jpg')) }}">
     <style>
         :root { --navy: #140b2e; --gold: #e4c16a; --ink: #1d2433; --muted: #6d7380; --line: #e6e1d6; --cream: #f6f3ec; }
         * { box-sizing: border-box; }
@@ -80,10 +82,19 @@
         .err { color: #991b1b; font-size: 13px; min-height: 1em; margin: 8px 0 0; }
         .later { display: none; }
         .later.is-on { display: block; }
-        .count { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: min(520px, 100%); margin: 22px auto 6px; }
-        .count div { text-align: center; background: #fff; border: 1px solid #e6dfd0; border-radius: 16px; padding: 12px 6px; }
-        .count strong { display: block; font-family: "Playfair Display", serif; font-size: clamp(22px, 7vw, 32px); color: var(--navy); line-height: 1; }
-        .count span { display: block; margin-top: 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8172; }
+        .count-wrap { width: min(640px, 100%); margin: 28px auto 8px; }
+        .count-kicker { margin: 0 0 12px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .22em; color: #8a6a24; }
+        .count { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .count div {
+            text-align: center; color: #f6e3a8;
+            background: linear-gradient(180deg, #243056 0%, #14182b 100%);
+            border: 1px solid #c9a45a; border-radius: 18px; padding: 16px 6px 12px;
+            box-shadow: 0 12px 28px rgba(20, 16, 40, .14);
+        }
+        .count strong { display: block; font-family: "Playfair Display", serif; font-size: clamp(28px, 7vw, 42px); color: #f3d98a; line-height: 1; font-variant-numeric: tabular-nums; }
+        .count span { display: block; margin-top: 6px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #d7d1c4; font-weight: 700; }
+        .count .is-live { box-shadow: 0 0 0 1px rgba(243, 217, 138, .45), 0 12px 28px rgba(20, 16, 40, .14); }
+        .help-link { display: block; width: fit-content; margin: 8px auto 0; color: var(--navy); font-weight: 800; }
         .site-foot {
             position: relative; display: flex; align-items: center; justify-content: center;
             margin-top: 28px; min-height: 72px;
@@ -124,7 +135,11 @@
             .stage { display: block; }
             .flyer { border-radius: 22px; }
             .flyer-copy { width: 54%; }
-            .site-foot { padding-right: 84px; padding-left: 12px; }
+            .site-foot { display: grid; grid-template-columns: 1fr 64px; align-items: center; gap: 8px; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); min-height: 0; }
+            .logo-mark { position: static; transform: none; justify-self: end; }
+            .site-foot p { font-size: 13px; line-height: 1.45; }
+            .count { gap: 8px; }
+            .count div { padding: 12px 4px 10px; border-radius: 14px; }
             .card { margin-top: 14px; padding: 22px 16px 16px; }
             .positions { display: grid; grid-template-columns: 1fr 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -166,7 +181,7 @@
     </header>
     <section class="stage">
         <div class="flyer">
-            <img src="{{ asset('public/caro/landing-blank.jpg') }}?v={{ @filemtime(public_path('caro/landing-blank.jpg')) }}" alt="">
+            <img src="{{ asset('public/caro/landing-blank.jpg') }}?v={{ @filemtime(public_path('caro/landing-blank.jpg')) }}" alt="" width="1024" height="768" decoding="async" fetchpriority="high">
             <div class="flyer-copy">
                 <p class="flyer-kicker">SPECIAL INVITATION</p>
                 <p class="sw">Spirit Waves Music</p>
@@ -233,18 +248,23 @@
                 <p class="err" id="formErr">@if(session('not_permitted')){{ session('not_permitted') }}@elseif($errors->any()){{ $errors->first() }}@endif</p>
                 <button type="submit" class="btn-navy" id="goBtn">Choose a seat →</button>
                 <p class="fine">Your invitation will be sent to your WhatsApp number.</p>
+                <a class="help-link" href="{{ $helpUrl }}">How to book a seat</a>
             </div>
         </form>
     </section>
-    <div class="count" aria-live="polite">
-        <div><strong id="cd-d">0</strong><span>Days</span></div>
-        <div><strong id="cd-h">0</strong><span>Hours</span></div>
-        <div><strong id="cd-m">0</strong><span>Minutes</span></div>
-        <div><strong id="cd-s">0</strong><span>Seconds</span></div>
+    <div class="count-wrap">
+        <p class="count-kicker">THE SERVICE BEGINS IN</p>
+        <div class="count" aria-live="polite">
+            <div><strong id="cd-d">00</strong><span>Days</span></div>
+            <div><strong id="cd-h">00</strong><span>Hours</span></div>
+            <div><strong id="cd-m">00</strong><span>Minutes</span></div>
+            <div class="is-live"><strong id="cd-s">00</strong><span>Seconds</span></div>
+        </div>
+        <a class="help-link" href="{{ $helpUrl }}">See the picture guide</a>
     </div>
 </div>
 <footer class="site-foot">
-    <p>© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Papa Rolly<span class="sep">|</span><a href="tel:+237675321739">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
+    <p>© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Sr. Engr. Tefu R. Mbole (A.K.A Papa Rolly)<span class="sep">|</span><a href="{{ url('/#mbole-ai') }}" title="Chat with Mbole AI">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
     <span class="logo-mark"><img class="beyond-mark" src="{{ asset('public/branding/beyond-mark.png') }}?v={{ @filemtime(public_path('branding/beyond-mark.png')) }}" alt="Beyond"></span>
 </footer>
 <script type="application/json" id="countryData">@json($countryRows)</script>
@@ -252,13 +272,21 @@
 <script>
 (function () {
     var target = new Date(@json($serviceAt)).getTime();
+    var nodes = {
+        d: document.getElementById('cd-d'),
+        h: document.getElementById('cd-h'),
+        m: document.getElementById('cd-m'),
+        s: document.getElementById('cd-s')
+    };
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+    function put(node, value) { if (node.textContent !== value) node.textContent = value; }
     function tick() {
         var left = Math.max(0, target - Date.now());
-        var s = Math.floor(left / 1000);
-        document.getElementById('cd-d').textContent = Math.floor(s / 86400);
-        document.getElementById('cd-h').textContent = Math.floor((s % 86400) / 3600);
-        document.getElementById('cd-m').textContent = Math.floor((s % 3600) / 60);
-        document.getElementById('cd-s').textContent = s % 60;
+        var secs = Math.floor(left / 1000);
+        put(nodes.d, pad(Math.floor(secs / 86400)));
+        put(nodes.h, pad(Math.floor((secs % 86400) / 3600)));
+        put(nodes.m, pad(Math.floor((secs % 3600) / 60)));
+        put(nodes.s, pad(secs % 60));
     }
     tick();
     setInterval(tick, 1000);

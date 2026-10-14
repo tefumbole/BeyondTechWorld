@@ -202,6 +202,7 @@ Route::post('/yong/gallery', 'YongInvitationController@storeGallery')->middlewar
 
 $caroRoutes = function () {
     Route::get('/', 'CaroInvitationController@index');
+    Route::get('/help', 'CaroInvitationController@help');
     Route::get('/lookup', 'PublicPhoneLookupController@lookup')->middleware('throttle:40,1');
     Route::post('/start', 'CaroInvitationController@start')->middleware('throttle:30,1');
     Route::post('/seat', 'CaroInvitationController@claim')->middleware('throttle:20,1');

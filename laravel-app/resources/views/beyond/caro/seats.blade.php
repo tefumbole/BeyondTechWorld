@@ -28,7 +28,8 @@
         .err { margin: 12px 16px 0; background: #fdecec; color: #9b1c1c; border-radius: 12px; padding: 10px 12px; font-weight: 700; }
         .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; padding: 14px; align-items: start; }
         .map { min-width: 0; background: var(--cream); border-radius: 16px; padding: 8px 10px 12px; }
-        .hall { position: relative; overflow-x: auto; padding-bottom: 6px; }
+        .hall { position: relative; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+        .swipe { display: none; margin: 0 0 8px; text-align: center; font-size: 14px; font-weight: 800; color: #8a6a24; }
         .hall-inner { position: relative; width: max-content; min-width: 100%; }
         .stage {
             position: relative; width: 100%; height: 46px; margin: 0 0 4px;
@@ -133,9 +134,12 @@
             .brand { border-right: 0; padding-right: 0; }
             .top h1 { font-size: 24px; }
             .view { margin-left: 0; }
-            .layout { grid-template-columns: 1fr; padding-bottom: 250px; }
-            .panel { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 5; }
-            .pretty { font-size: 32px; }
+            .swipe { display: block; }
+            .layout { grid-template-columns: 1fr; padding-bottom: 230px; }
+            .panel { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 5; max-height: 38vh; overflow: auto; padding: 12px; }
+            .pretty { font-size: 28px; min-height: 32px; }
+            .facts { margin-bottom: 8px; }
+            .hint { margin-top: 6px; }
         }
     </style>
 </head>
@@ -156,6 +160,7 @@
             <h1>Choose your seat</h1>
             <p>8 November 2026 · Presbyterian Hall Ntamulung</p>
         </div>
+        <a class="view" href="{{ $helpUrl }}">How to book</a>
         <a class="view" href="{{ $homeUrl }}">View invitation</a>
     </header>
     @if($error)<p class="err">{{ $error }}</p>@endif
@@ -168,6 +173,7 @@
         <input type="hidden" name="seat_code" id="seatCode" value="">
         <div class="layout">
             <div class="map">
+                <p class="swipe">Swipe sideways to see sections A to D</p>
                 <div class="hall" id="hall">
                     <div class="hall-inner">
                     <div class="stage"><span class="pin">STAGE</span></div>
