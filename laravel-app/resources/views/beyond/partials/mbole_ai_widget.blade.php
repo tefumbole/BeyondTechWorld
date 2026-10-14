@@ -206,7 +206,7 @@
   var DISMISS_KEY = 'mbole_ai_greet_dismissed';
   var OPENED_KEY = 'mbole_ai_opened_once';
   var LAST_ACTIVE_KEY = 'mbole_ai_last_active';
-  var IDLE_MS = 5 * 60 * 1000;
+  var IDLE_MS = 2 * 60 * 1000;
   var CSRF = document.querySelector('meta[name="csrf-token"]');
   var csrf = CSRF ? CSRF.getAttribute('content') : '';
   var token = localStorage.getItem(TOKEN_KEY) || '';
@@ -252,7 +252,7 @@
 
   function touchActivity() {
     try { localStorage.setItem(LAST_ACTIVE_KEY, String(nowMs())); } catch (e) {}
-    scheduleIdleCheck();
+    if (panel.classList.contains('open')) scheduleIdleCheck();
   }
 
   function lastActivityMs() {
@@ -267,15 +267,24 @@
     return (nowMs() - last) >= IDLE_MS;
   }
 
+  function closeForIdle() {
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    stopPoll();
+    try { localStorage.setItem(LAST_ACTIVE_KEY, String(nowMs())); } catch (e) {}
+    if (panel.classList.contains('open')) setOpen(false);
+  }
+
   function scheduleIdleCheck() {
     if (idleTimer) clearTimeout(idleTimer);
+    if (!panel.classList.contains('open')) return;
+    var last = lastActivityMs() || nowMs();
+    var remain = IDLE_MS - (nowMs() - last);
+    if (remain < 1000) remain = 1000;
     idleTimer = setTimeout(function () {
-      if (isIdleExpired()) {
-        startFreshChat('idle');
-      } else {
-        scheduleIdleCheck();
-      }
-    }, Math.min(30000, IDLE_MS));
+      if (!panel.classList.contains('open')) return;
+      if (isIdleExpired()) closeForIdle();
+      else scheduleIdleCheck();
+    }, remain);
   }
 
   function startFreshChat(reason) {
@@ -301,8 +310,8 @@
         id: 'idle-' + nowMs(),
         role: 'assistant',
         body: cfg.assistant_on
-          ? 'This chat ended after 5 minutes of inactivity. Starting a new conversation.'
-          : 'This chat ended after 5 minutes of inactivity. Starting a new conversation — please confirm your phone number to continue.'
+          ? 'This chat ended after 2 minutes of inactivity. Starting a new conversation.'
+          : 'This chat ended after 2 minutes of inactivity. Starting a new conversation — please confirm your phone number to continue.'
       });
     }
     scheduleIdleCheck();
@@ -775,6 +784,14 @@
     input.addEventListener('focus', function () { touchActivity(); });
   }
 
+  ['pointerdown', 'keydown', 'input'].forEach(function (name) {
+    document.addEventListener(name, function () {
+      if (panel.classList.contains('open')) touchActivity();
+    }, true);
+  });
+  document.addEventListener('scroll', function () {
+    if (panel.classList.contains('open')) touchActivity();
+  }, true);
   fab.addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-greet-cta').addEventListener('click', function (e) { e.preventDefault(); setOpen(true); });
   document.getElementById('mbole-close').addEventListener('click', function (e) {
