@@ -124,6 +124,8 @@ class CaroInvitationController extends Controller
             'homeUrl' => $this->invitations->pageUrl(),
             'startUrl' => $this->invitations->pageUrl('start'),
             'claimUrl' => $this->invitations->pageUrl('seat'),
+            'lookupUrl' => $this->invitations->pageUrl('lookup'),
+            'serviceAt' => '2026-11-08T13:00:00+01:00',
         ];
     }
 
