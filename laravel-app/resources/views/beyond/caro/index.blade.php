@@ -85,22 +85,46 @@
         .count strong { display: block; font-family: "Playfair Display", serif; font-size: clamp(22px, 7vw, 32px); color: var(--navy); line-height: 1; }
         .count span { display: block; margin-top: 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8172; }
         .site-foot {
-            display: flex; align-items: center; justify-content: space-between; gap: 16px;
-            margin-top: 28px; padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+            position: relative; display: flex; align-items: center; justify-content: center;
+            margin-top: 28px; min-height: 72px;
+            padding: 8px 92px calc(8px + env(safe-area-inset-bottom));
             background: linear-gradient(90deg, #082a72 0%, #12408f 42%, #0b327c 100%);
             color: #f6e3a8;
         }
-        .site-foot p { margin: 0; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
+        .site-foot p { margin: 0; text-align: center; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
         .site-foot a { color: #fff; text-decoration: none; font-weight: 700; }
         .site-foot .sep { margin: 0 8px; color: rgba(246, 227, 168, .7); }
-        .beyond-mark { height: 72px; width: 72px; object-fit: contain; flex: none; border-radius: 50%; border: 2px solid #e4c16a; background: #05070d; padding: 3px; }
+        .site-foot .ver { color: #e4c16a; letter-spacing: .04em; }
+        .logo-mark {
+            position: absolute; right: 14px; top: 50%; width: 62px; height: 62px;
+            transform: translateY(-50%); display: grid; place-items: center;
+        }
+        .logo-mark::before {
+            content: ""; position: absolute; inset: -4px; border-radius: 50%;
+            background: conic-gradient(from 0deg, transparent 0 62%, #e1b368 84%, #fff6df 92%, transparent 100%);
+            animation: logo-spin 2.8s linear infinite;
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+        }
+        .beyond-mark {
+            width: 62px; height: 62px; object-fit: contain; display: block; position: relative; z-index: 1;
+            background: none; border: 0; border-radius: 0; padding: 0;
+            animation: logo-glow 2.6s ease-in-out infinite;
+        }
+        @keyframes logo-spin { to { transform: rotate(360deg); } }
+        @keyframes logo-glow {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(225, 179, 104, 0)); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(225, 179, 104, .9)); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .beyond-mark, .logo-mark::before { animation: none; }
+        }
         @media (max-width: 900px) {
             .wrap { padding: 0 12px; }
             .stage { display: block; }
             .flyer { border-radius: 22px; }
             .flyer-copy { width: 54%; }
-            .site-foot { flex-wrap: wrap; }
-            .site-foot p { flex: 1 1 220px; }
+            .site-foot { padding-right: 84px; padding-left: 12px; }
             .card { margin-top: 14px; padding: 22px 16px 16px; }
             .positions { display: grid; grid-template-columns: 1fr 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -220,8 +244,8 @@
     </div>
 </div>
 <footer class="site-foot">
-    <p>© 2026 Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Papa Rolly<span class="sep">|</span><a href="tel:+237675321739">+237 675 321 739</a></p>
-    <img class="beyond-mark" src="{{ asset('public/branding/beyond-logo.png') }}" alt="Beyond">
+    <p>© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Papa Rolly<span class="sep">|</span><a href="tel:+237675321739">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
+    <span class="logo-mark"><img class="beyond-mark" src="{{ asset('public/branding/beyond-mark.png') }}?v={{ @filemtime(public_path('branding/beyond-mark.png')) }}" alt="Beyond"></span>
 </footer>
 <script type="application/json" id="countryData">@json($countryRows)</script>
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
