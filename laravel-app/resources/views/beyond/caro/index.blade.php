@@ -120,7 +120,7 @@
         </div>
     </header>
     <section class="stage">
-        <img class="flyer" src="{{ asset('public/caro/landing.jpg') }}" alt="MSATA 2026 special invitation for Caroline F Vubangsi">
+        <img class="flyer" src="{{ asset('public/caro/landing.jpg') }}?v={{ @filemtime(public_path('caro/landing.jpg')) }}" alt="MSATA 2026 special invitation for Caroline F Vubangsi">
         <form class="card" id="cform" method="POST" action="{{ $startUrl }}">
             @csrf
             <input type="hidden" name="country_code" id="countryCode" value="{{ old('country_code', '+237') }}">
