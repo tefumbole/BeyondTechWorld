@@ -7,8 +7,10 @@ use App\Biller;
 use App\Booking;
 use App\BookingProduct;
 use App\Customer;
+use App\Employee;
 use App\GeneralSetting;
 use App\Letter;
+use App\Support\LetterRecipients;
 use App\Payment;
 use App\Product_Sale;
 use App\ProductQuotation;
@@ -124,13 +126,72 @@ class QRController extends Controller
 
     public function letterScan($id)
     {
-        $data = Letter::with('category')->find($id);
-        if (!$data) {
-            abort(404, 'Letter not found');
+        $letter = Letter::find($id);
+        $error = null;
+        $payload = null;
+
+        if (! $letter || $letter->is_rejected) {
+            $error = $letter
+                ? 'This letter is no longer valid.'
+                : 'This letter could not be verified. The link may be invalid or incomplete.';
+        } else {
+            $issuedTo = $this->letterIssuedTo($letter);
+            $subject = trim(preg_replace('/^Subject:\s*/i', '', (string) $letter->subject));
+            if (count($issuedTo) === 1) {
+                $subject = str_replace('[name]', $issuedTo[0], $subject);
+            }
+            $when = $letter->sign_signed_at ?: $letter->created_at;
+            $payload = [
+                'valid' => true,
+                'reference' => $letter->reference,
+                'subject' => $subject !== '' ? $subject : '—',
+                'issued_to' => $issuedTo ? implode(', ', $issuedTo) : '—',
+                'date' => $when ? \Carbon\Carbon::parse($when)->format('d M Y') : '—',
+            ];
         }
 
-        $general_setting = GeneralSetting::first();
+        return view('letter.verify', [
+            'error' => $error,
+            'data' => $payload,
+        ]);
+    }
 
-        return view('letter.public_view', compact('data', 'general_setting'));
+    private function letterIssuedTo(Letter $letter)
+    {
+        $names = [];
+        if ($letter->people_type === 'directory') {
+            foreach (LetterRecipients::decodePeopleJson($letter->recipients_json) as $person) {
+                if (! empty($person['name'])) {
+                    $names[] = $person['name'];
+                }
+            }
+        } elseif ($letter->people_type === 'all') {
+            if (preg_match('/c:([^|]*)/', (string) $letter->to, $customerMatch)) {
+                foreach (array_filter(explode(',', $customerMatch[1])) as $id) {
+                    $person = Customer::find($id);
+                    if ($person && $person->name) {
+                        $names[] = $person->name;
+                    }
+                }
+            }
+            if (preg_match('/e:([^|]*)/', (string) $letter->to, $employeeMatch)) {
+                foreach (array_filter(explode(',', $employeeMatch[1])) as $id) {
+                    $person = Employee::find($id);
+                    if ($person && $person->name) {
+                        $names[] = $person->name;
+                    }
+                }
+            }
+        } elseif ($letter->people_type !== 'csv') {
+            $model = $letter->people_type === 'customer' ? Customer::class : Employee::class;
+            foreach (explode(',', (string) $letter->to) as $id) {
+                $person = $model::find(trim($id));
+                if ($person && $person->name) {
+                    $names[] = $person->name;
+                }
+            }
+        }
+
+        return array_values(array_unique($names));
     }
 }
