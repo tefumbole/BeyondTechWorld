@@ -40,31 +40,56 @@
         .sections { display: flex; gap: 18px; min-width: max-content; justify-content: center; }
         .section { min-width: 0; }
         .section h2 { margin: 0 0 8px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
-        .srow { display: flex; align-items: center; gap: 4px; margin: 3px 0; }
-        .rn { width: 22px; text-align: right; font-size: 11px; color: #8a8172; font-weight: 700; }
-        .seats { display: flex; gap: 3px; }
+        .srow { display: flex; align-items: flex-end; gap: 4px; margin: 4px 0; }
+        .rn { width: 22px; text-align: right; font-size: 11px; color: #8a8172; font-weight: 700; padding-bottom: 8px; }
+        .seats { display: flex; gap: 4px; align-items: flex-end; }
         .passage { margin: 8px 0; text-align: center; font-size: 11px; letter-spacing: .16em; font-weight: 800; color: #8a8172; }
+        .premium-box { background: #fbf6e6; border: 1px solid #e4d3a2; border-radius: 12px; padding: 6px 4px 2px; margin-bottom: 6px; }
+        .premium-tag { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 0 0 4px; font-size: 9px; letter-spacing: .08em; font-weight: 800; color: #6b5420; }
+        .crown-mini { width: 12px; height: 8px; background: #e4c16a; clip-path: polygon(0 100%, 16% 28%, 32% 100%, 50% 0, 68% 100%, 84% 28%, 100% 100%); }
         .seat {
-            width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #e4d8c4;
-            background: #fffaf3; color: var(--ink); font: 700 11px/1 "Source Sans Pro", sans-serif; cursor: pointer;
+            position: relative; width: 34px; height: 46px; padding: 0; border: 0; background: transparent;
+            cursor: pointer; flex: none; font-family: "Source Sans Pro", sans-serif;
         }
-        .seat .check { display: none; }
-        .seat.is-reserved { background: #ddd4f3; border-color: #c9bcec; color: #5c4d86; cursor: not-allowed; }
-        .seat.is-taken { background: #f3efe8; border-color: #e0d8cc; color: #9a9186; cursor: not-allowed; }
-        .seat.is-on { background: #f3d98a; border-color: #c9a227; color: #140b2e; box-shadow: inset 0 0 0 1px #c9a227; }
-        .seat.is-on .num { display: none; }
-        .seat.is-on .check { display: inline; }
-        .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 12px 4px 0; color: #6d6458; font-size: 13px; font-weight: 700; }
-        .legend i { display: inline-flex; width: 18px; height: 16px; border-radius: 4px; align-items: center; justify-content: center; margin-right: 4px; vertical-align: -3px; font-style: normal; font-size: 11px; border: 1px solid #e4d8c4; background: #fffaf3; }
-        .legend .lg-res { background: #ddd4f3; border-color: #c9bcec; color: #5c4d86; }
-        .legend .lg-occ { color: #9a9186; }
-        .legend .lg-sel { background: #f3d98a; border-color: #c9a227; }
+        .seat .crown { display: none; position: absolute; top: 0; left: 50%; width: 14px; height: 8px; transform: translateX(-50%); background: #e4c16a; clip-path: polygon(0 100%, 16% 28%, 32% 100%, 50% 0, 68% 100%, 84% 28%, 100% 100%); }
+        .seat.is-premium .crown { display: block; }
+        .seat .back {
+            position: absolute; left: 5px; right: 5px; top: 8px; height: 14px;
+            background: #f7f1e6; border: 2px solid #c9a45a; border-bottom: 0; border-radius: 8px 8px 2px 2px;
+        }
+        .seat .cushion {
+            position: absolute; left: 1px; right: 1px; top: 20px; height: 16px; z-index: 1;
+            display: flex; align-items: center; justify-content: center;
+            background: #fffaf3; border: 2px solid #c9a45a; border-radius: 3px 3px 6px 6px;
+            color: #1d2433; font-size: 10px; font-weight: 800;
+        }
+        .seat .legs {
+            position: absolute; left: 6px; right: 6px; bottom: 2px; height: 7px;
+            background: linear-gradient(#c9a45a, #c9a45a) left / 3px 100% no-repeat, linear-gradient(#c9a45a, #c9a45a) right / 3px 100% no-repeat;
+        }
+        .seat.is-premium .back { top: 7px; height: 16px; background: linear-gradient(#6d42b8, #4a2888); border-color: #e4c16a; }
+        .seat.is-premium .cushion { background: linear-gradient(#5b349e, #3e2174); border-color: #e4c16a; color: #fff; }
+        .seat .check, .seat .lock, .seat .x { display: none; }
+        .seat.is-on .num, .seat.is-reserved .num, .seat.is-taken .num { display: none; }
+        .seat.is-on .check, .seat.is-reserved .lock, .seat.is-taken .x { display: inline; }
+        .seat.is-on .back, .seat.is-on .cushion { background: linear-gradient(#f8e7b0, #e4c16a); border-color: #a8842a; color: #241c08; }
+        .seat.is-on .crown { background: #8a6a24; }
+        .seat.is-taken .back, .seat.is-taken .cushion { background: #d9d3cb; border-color: #b7b0a6; color: #6e655c; }
+        .seat.is-taken .crown, .seat.is-taken .legs { filter: grayscale(1); opacity: .55; }
+        .seat:disabled { cursor: not-allowed; }
+        .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin: 12px 4px 0; color: #6d6458; font-size: 12px; font-weight: 700; }
+        .legend .key { display: inline-flex; align-items: center; gap: 2px; }
+        .legend .seat { transform: scale(.62); transform-origin: left center; margin-right: -8px; pointer-events: none; }
+        .id-note { margin-right: auto; font-weight: 700; color: #8a8172; }
         .panel {
             background: var(--navy); color: #fff; border-radius: 16px; padding: 16px 16px 14px;
             box-shadow: 0 10px 30px rgba(16, 18, 32, .18);
         }
         .panel .k { margin: 0; font-size: 13px; color: #c9c3b6; }
-        .pretty { margin: 2px 0 12px; font-family: "Playfair Display", serif; font-size: 40px; line-height: 1; color: var(--gold); min-height: 44px; }
+        .pretty { margin: 2px 0 8px; font-family: "Playfair Display", serif; font-size: 40px; line-height: 1; color: var(--gold); min-height: 44px; }
+        .kind { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; border: 1px solid var(--gold); color: var(--gold); border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: .14em; font-weight: 800; }
+        .kind[hidden] { display: none; }
+        .kind.is-standard .crown-mini { display: none; }
         .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-bottom: 12px; }
         .facts b { display: block; font-size: 18px; }
         .facts span, .status-label, .name-label { display: block; font-size: 12px; color: #b7b1a4; }
@@ -124,9 +149,17 @@
                     <div class="front">FRONT</div>
                     <div class="sections">
                         @foreach($columns as $column)
+                            @php $premiumHere = in_array($column, ['B', 'C'], true); @endphp
                             <section class="section">
                                 <h2>SECTION {{ $column }}</h2>
+                                @if($premiumHere)
+                                    <div class="premium-box">
+                                        <div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> PREMIUM · ROWS 01–03</div>
+                                @endif
                                 @foreach($rows as $row)
+                                    @if($premiumHere && $row === 4)
+                                        </div>
+                                    @endif
                                     @if($row === 11)
                                         <div class="passage">PASSAGE</div>
                                     @endif
@@ -137,9 +170,10 @@
                                                 @php
                                                     $code = \App\Support\CaroSeats::code($column, $row, $chair);
                                                     $takenSeat = ! empty($takenMap[$code]);
+                                                    $premium = \App\Support\CaroSeats::executive($code);
                                                     $open = \App\Support\CaroSeats::allowed($guest['role'], $code) && ! $takenSeat;
                                                     $owner = \App\Support\CaroSeats::ownerRole($code);
-                                                    $classes = 'seat';
+                                                    $classes = 'seat'.($premium ? ' is-premium' : '');
                                                     if ($takenSeat) {
                                                         $classes .= ' is-taken';
                                                     } elseif (! $open) {
@@ -154,15 +188,16 @@
                                                         $title = $pretty;
                                                     }
                                                 @endphp
-                                                <button class="{{ $classes }}" type="button" data-code="{{ $code }}" data-section="{{ $column }}" data-row="{{ sprintf('%02d', $row) }}" data-chair="{{ sprintf('%02d', $chair) }}" data-pretty="{{ $pretty }}" title="{{ $title }}" aria-label="{{ $title }}" {{ $open ? '' : 'disabled' }}>
-                                                    @if($takenSeat)
-                                                        <span>×</span>
-                                                    @elseif(! $open)
-                                                        <span aria-hidden="true">🔒</span>
-                                                    @else
+                                                <button class="{{ $classes }}" type="button" data-code="{{ $code }}" data-kind="{{ $premium ? 'premium' : 'standard' }}" data-section="{{ $column }}" data-row="{{ sprintf('%02d', $row) }}" data-chair="{{ sprintf('%02d', $chair) }}" data-pretty="{{ $pretty }}" title="{{ $title }}" aria-label="{{ $title }}" {{ $open ? '' : 'disabled' }}>
+                                                    <span class="crown" aria-hidden="true"></span>
+                                                    <span class="back"></span>
+                                                    <span class="cushion">
                                                         <span class="num">{{ $chair }}</span>
                                                         <span class="check" aria-hidden="true">✓</span>
-                                                    @endif
+                                                        <span class="lock" aria-hidden="true">🔒</span>
+                                                        <span class="x" aria-hidden="true">×</span>
+                                                    </span>
+                                                    <span class="legs"></span>
                                                 </button>
                                             @endfor
                                         </span>
@@ -173,15 +208,18 @@
                     </div>
                 </div>
                 <p class="legend">
-                    <span><i></i>Available</span>
-                    <span><i class="lg-res">🔒</i>Reserved</span>
-                    <span><i class="lg-occ">×</i>Occupied</span>
-                    <span><i class="lg-sel">✓</i>Selected</span>
+                    <span class="id-note">Seat ID = section · row · seat</span>
+                    <span class="key"><span class="seat demo is-premium" aria-hidden="true"><span class="crown"></span><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Premium</span>
+                    <span class="key"><span class="seat demo" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Standard</span>
+                    <span class="key"><span class="seat demo is-reserved" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="lock">🔒</span></span><span class="legs"></span></span> Reserved</span>
+                    <span class="key"><span class="seat demo is-taken" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="x">×</span></span><span class="legs"></span></span> Occupied</span>
+                    <span class="key"><span class="seat demo is-on" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="check">✓</span></span><span class="legs"></span></span> Selected</span>
                 </p>
             </div>
             <aside class="panel">
                 <p class="k">Selected seat</p>
                 <div class="pretty" id="pretty">—</div>
+                <div class="kind" id="kind" hidden><span class="crown-mini" aria-hidden="true"></span><b id="kindLabel">PREMIUM</b></div>
                 <div class="facts">
                     <div><span>Section</span><b id="sec">—</b></div>
                     <div><span>Row</span><b id="rowN">—</b></div>
@@ -191,7 +229,7 @@
                 <span class="name-label">Guest name</span>
                 <div class="name-box">{{ $guest['name'] }}</div>
                 <p class="hint">{{ $note }}</p>
-                <button class="go" type="submit" id="goBtn" disabled>Get my invitation</button>
+                <button class="go" type="submit" id="goBtn" disabled>Assign seat</button>
                 <button class="clear" type="button" id="clearBtn">Clear selection</button>
             </aside>
         </div>
@@ -206,6 +244,8 @@
     var chairN = document.getElementById('chairN');
     var status = document.getElementById('status');
     var go = document.getElementById('goBtn');
+    var kind = document.getElementById('kind');
+    var kindLabel = document.getElementById('kindLabel');
     function clearSeat() {
         document.querySelectorAll('button.seat.is-on').forEach(function (item) { item.classList.remove('is-on'); });
         input.value = '';
@@ -214,10 +254,12 @@
         rowN.textContent = '—';
         chairN.textContent = '—';
         status.textContent = 'Waiting';
+        kind.hidden = true;
         go.disabled = true;
     }
     document.querySelectorAll('button.seat:not(:disabled)').forEach(function (button) {
         button.addEventListener('click', function () {
+            var tone = button.getAttribute('data-kind') === 'premium' ? 'premium' : 'standard';
             document.querySelectorAll('button.seat.is-on').forEach(function (item) { item.classList.remove('is-on'); });
             button.classList.add('is-on');
             input.value = button.getAttribute('data-code');
@@ -225,7 +267,10 @@
             sec.textContent = button.getAttribute('data-section');
             rowN.textContent = button.getAttribute('data-row');
             chairN.textContent = button.getAttribute('data-chair');
-            status.textContent = 'Selected';
+            status.textContent = 'Available';
+            kind.hidden = false;
+            kind.className = 'kind is-' + tone;
+            kindLabel.textContent = tone === 'premium' ? 'PREMIUM' : 'STANDARD';
             go.disabled = false;
         });
     });
