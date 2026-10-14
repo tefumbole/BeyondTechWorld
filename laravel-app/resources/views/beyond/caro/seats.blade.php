@@ -34,17 +34,17 @@
             position: relative; width: 100%; height: 46px; margin: 0 0 4px;
             background: linear-gradient(#1c2744, #12182c); color: var(--gold);
             border: 2px solid #c9a45a; border-top: 0; border-radius: 0 0 90px 90px;
-            letter-spacing: .28em; font-weight: 800; font-size: 13px;
+            letter-spacing: .28em; font-weight: 800; font-size: 16px;
         }
-        .front { position: relative; height: 28px; margin: 4px 0 8px; color: #8a8172; font-size: 11px; letter-spacing: .22em; font-weight: 800; }
+        .front { position: relative; height: 32px; margin: 4px 0 8px; color: #8a8172; font-size: 14px; letter-spacing: .22em; font-weight: 800; }
         .pin { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
         .front .pin { gap: 10px; }
         .front .pin:before, .front .pin:after { content: ""; width: 72px; height: 1px; background: #d9c48a; }
         .sections { display: flex; gap: 18px; min-width: max-content; justify-content: flex-start; }
         .section { min-width: 0; }
-        .section h2 { margin: 0 0 6px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
-        .role-head { height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; margin: 0 0 4px; }
-        .role-head .tag { font-size: 9px; letter-spacing: .08em; font-weight: 800; line-height: 1.15; color: transparent; }
+        .section h2 { margin: 0 0 6px; text-align: center; font-size: 16px; letter-spacing: .12em; color: #5c564c; }
+        .role-head { height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; margin: 0 0 4px; }
+        .role-head .tag { font-size: 14px; letter-spacing: .04em; font-weight: 800; line-height: 1.2; color: transparent; white-space: nowrap; }
         .role-head .tag-gm { color: #9a3058; }
         .role-head .tag-pastor { color: #1f4f96; }
         .role-head .tag-gospel { color: #5b349e; }
@@ -53,9 +53,9 @@
         .srow.tint-pastor { background: #eef3fb; }
         .srow.tint-gospel { background: #f4eefb; }
         .srow { display: flex; align-items: flex-end; gap: 4px; margin: 4px 0; }
-        .rn { width: 22px; text-align: right; font-size: 11px; color: #8a8172; font-weight: 700; padding-bottom: 8px; }
+        .rn { width: 26px; text-align: right; font-size: 13px; color: #8a8172; font-weight: 700; padding-bottom: 8px; }
         .seats { display: flex; gap: 4px; align-items: flex-end; }
-        .passage { margin: 8px 0; text-align: center; font-size: 11px; letter-spacing: .16em; font-weight: 800; color: #8a8172; }
+        .passage { margin: 8px 0; text-align: center; font-size: 13px; letter-spacing: .16em; font-weight: 800; color: #8a8172; }
         .passage.is-quiet { visibility: hidden; }
         .premium-box { background: #fbf6e6; border: 1px solid #e4d3a2; border-radius: 12px; padding: 6px 4px 2px; margin-bottom: 6px; }
         .premium-tag { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 0 0 4px; font-size: 9px; letter-spacing: .08em; font-weight: 800; color: #6b5420; }
@@ -74,7 +74,7 @@
             position: absolute; left: 1px; right: 1px; top: 20px; height: 16px; z-index: 1;
             display: flex; align-items: center; justify-content: center;
             background: #fffaf3; border: 2px solid #c9a45a; border-radius: 3px 3px 6px 6px;
-            color: #1d2433; font-size: 10px; font-weight: 800;
+            color: #1d2433; font-size: 12px; font-weight: 800;
         }
         .seat .legs {
             position: absolute; left: 6px; right: 6px; bottom: 2px; height: 7px;
@@ -102,7 +102,7 @@
         .seat.is-taken .back, .seat.is-taken .cushion { background: #d9d3cb; border-color: #b7b0a6; color: #6e655c; }
         .seat.is-taken .crown, .seat.is-taken .legs { filter: grayscale(1); opacity: .55; }
         .seat:disabled { cursor: not-allowed; }
-        .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin: 12px 4px 0; color: #6d6458; font-size: 12px; font-weight: 700; }
+        .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin: 12px 4px 0; color: #6d6458; font-size: 15px; font-weight: 700; }
         .legend .key { display: inline-flex; align-items: center; gap: 2px; }
         .legend .seat { transform: scale(.62); transform-origin: left center; margin-right: -8px; pointer-events: none; }
         .id-note { margin-right: auto; font-weight: 700; color: #8a8172; }
