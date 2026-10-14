@@ -29,7 +29,7 @@ class SendCaroInvitationJob implements ShouldQueue
     public function handle(BeyondWasenderService $whatsapp)
     {
         $row = CaroInvitation::find($this->invitationId);
-        if (! $row || ! is_file($row->imagePath())) {
+        if (! $row || ! is_file($row->imagePath()) || $row->invitation_sent_at) {
             return;
         }
 
@@ -60,7 +60,10 @@ class SendCaroInvitationJob implements ShouldQueue
     {
         try {
             $result = $whatsapp->sendImage($row->phone, $row->imagePath(), null, true);
-            if (empty($result['success'])) {
+            if (! empty($result['success'])) {
+                $row->invitation_sent_at = \Carbon\Carbon::now('Africa/Douala');
+                $row->save();
+            } else {
                 Log::info('caro invitation send failed', ['error' => isset($result['error']) ? $result['error'] : 'unknown']);
             }
         } catch (\Throwable $e) {

@@ -21,11 +21,25 @@ class CaroInvitation extends Model
         'role',
         'seat_code',
         'image_file',
+        'presented_at',
+        'thanks_sent_at',
+        'invitation_sent_at',
+    ];
+
+    protected $dates = [
+        'presented_at',
+        'thanks_sent_at',
+        'invitation_sent_at',
     ];
 
     public function roleLabel()
     {
         return CaroSeats::roleLabel($this->role);
+    }
+
+    public function seatLabel()
+    {
+        return CaroSeats::label($this->seat_code);
     }
 
     public function imagePath()

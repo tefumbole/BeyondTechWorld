@@ -87,7 +87,10 @@ class CaroInvitationService
                 return $created;
             });
         } catch (QueryException $e) {
-            throw new \InvalidArgumentException('That seat was just taken. Choose another.');
+            $row = $this->findByPhone($phone);
+            if (! $row) {
+                throw new \InvalidArgumentException('That seat was just taken. Choose another.');
+            }
         }
 
         if (! is_file($row->imagePath())) {
@@ -104,6 +107,63 @@ class CaroInvitationService
         return $row;
     }
 
+    /**
+     * Mark the guest present on the event day and thank them once.
+     */
+    public function markPresent(CaroInvitation $row)
+    {
+        if (! CaroSeats::isEventDay()) {
+            throw new \InvalidArgumentException('Present is only available on 8 November 2026.');
+        }
+
+        $shouldThank = false;
+        DB::transaction(function () use ($row, &$shouldThank) {
+            $fresh = CaroInvitation::where('id', $row->id)->lockForUpdate()->first();
+            if (! $fresh || $fresh->presented_at) {
+                return;
+            }
+            $fresh->presented_at = \Carbon\Carbon::now('Africa/Douala');
+            $fresh->save();
+            $shouldThank = empty($fresh->thanks_sent_at);
+            $row->presented_at = $fresh->presented_at;
+        });
+
+        if ($shouldThank) {
+            \App\Jobs\SendCaroThanksJob::dispatch($row->id)->onQueue('whatsapp');
+        }
+
+        return $shouldThank;
+    }
+
+    public function retakeSeat(CaroInvitation $row, $seatCode)
+    {
+        $seatCode = CaroSeats::normalize($seatCode);
+        if (! $seatCode || CaroSeats::removed($seatCode) || ! CaroSeats::ownerRole($seatCode)) {
+            throw new \InvalidArgumentException('That seat address is not in the hall.');
+        }
+
+        DB::transaction(function () use ($row, $seatCode) {
+            $fresh = CaroInvitation::where('id', $row->id)->lockForUpdate()->first();
+            if (! $fresh) {
+                throw new \InvalidArgumentException('That invitation is no longer here.');
+            }
+            $taken = CaroInvitation::where('seat_code', $seatCode)->where('id', '!=', $fresh->id)->lockForUpdate()->first();
+            if ($taken) {
+                throw new \InvalidArgumentException('That seat is already assigned.');
+            }
+            $fresh->seat_code = $seatCode;
+            $fresh->role = CaroSeats::ownerRole($seatCode);
+            $fresh->save();
+            $row->seat_code = $fresh->seat_code;
+            $row->role = $fresh->role;
+        });
+
+        $this->ensureOutDir();
+        $this->compose($row);
+
+        return $row;
+    }
+
     public function compose(CaroInvitation $row)
     {
         $template = public_path('caro/invitation.jpg');
@@ -114,7 +174,7 @@ class CaroInvitationService
         $ink = imagecolorallocate($img, 48, 32, 12);
         $font = $this->fontPath();
         $this->drawCentered($img, $row->name, $font, 18, 136, 880, 500, 30, $ink);
-        $this->drawCentered($img, $row->seat_code, $font, 14, 407, 930, 128, 24, $ink);
+        $this->drawCentered($img, CaroSeats::label($row->seat_code), $font, 13, 391, 926, 160, 28, $ink);
 
         $qrFile = $row->imagePath().'.qr.png';
         $this->writeQr($this->passUrl($row->id), $qrFile, 240);

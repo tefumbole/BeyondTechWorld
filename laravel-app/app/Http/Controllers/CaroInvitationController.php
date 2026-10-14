@@ -77,7 +77,9 @@ class CaroInvitationController extends Controller
             return $this->seats($guest, 'Could not build the invitation. Please try again.');
         }
 
-        return redirect($this->invitations->pageUrl('card/'.$row->id));
+        $suffix = $row->wasRecentlyCreated ? '' : '?existing=1';
+
+        return redirect($this->invitations->pageUrl('card/'.$row->id).$suffix);
     }
 
     public function card($id)
@@ -106,7 +108,7 @@ class CaroInvitationController extends Controller
             $safe = 'invitation';
         }
 
-        return response()->download($row->imagePath(), $safe.'-'.$row->seat_code.'.jpg', [
+        return response()->download($row->imagePath(), $safe.'-'.$row->seatLabel().'.jpg', [
             'Content-Type' => 'image/jpeg',
         ]);
     }
@@ -119,7 +121,31 @@ class CaroInvitationController extends Controller
         return view('beyond.caro.pass', [
             'invitation' => $row,
             'error' => $error,
+            'canPresent' => $row && \App\Support\CaroSeats::isEventDay() && empty($row->presented_at),
+            'onEventDay' => \App\Support\CaroSeats::isEventDay(),
+            'presentUrl' => $row ? $this->invitations->pageUrl('pass/'.$row->id.'/present') : null,
+            'notice' => session('notice'),
         ]);
+    }
+
+    public function present($id)
+    {
+        $row = CaroInvitation::find($id);
+        if (! $row) {
+            abort(404);
+        }
+        $back = $this->invitations->pageUrl('pass/'.$row->id);
+        try {
+            $thanked = $this->invitations->markPresent($row);
+        } catch (\InvalidArgumentException $e) {
+            return redirect($back)->with('notice', $e->getMessage());
+        }
+
+        $notice = $thanked
+            ? 'Marked present. A thank-you message is on its way to the guest.'
+            : 'This guest is already marked present.';
+
+        return redirect($back)->with('notice', $notice);
     }
 
     protected function formData()

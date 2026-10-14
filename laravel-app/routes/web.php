@@ -203,12 +203,19 @@ Route::post('/yong/gallery', 'YongInvitationController@storeGallery')->middlewar
 $caroRoutes = function () {
     Route::get('/', 'CaroInvitationController@index');
     Route::get('/help', 'CaroInvitationController@help');
+    Route::get('/admin/login', 'CaroAdminController@showLogin');
+    Route::post('/admin/login', 'CaroAdminController@login')->middleware('throttle:8,1');
+    Route::post('/admin/logout', 'CaroAdminController@logout');
+    Route::get('/admin', 'CaroAdminController@index');
+    Route::post('/admin/{id}/seat', 'CaroAdminController@updateSeat');
+    Route::post('/admin/{id}/delete', 'CaroAdminController@destroy');
     Route::get('/lookup', 'PublicPhoneLookupController@lookup')->middleware('throttle:40,1');
     Route::post('/start', 'CaroInvitationController@start')->middleware('throttle:30,1');
     Route::post('/seat', 'CaroInvitationController@claim')->middleware('throttle:20,1');
     Route::get('/card/{id}/download', 'CaroInvitationController@download');
     Route::get('/card/{id}', 'CaroInvitationController@card');
     Route::get('/pass/{id}', 'CaroInvitationController@pass');
+    Route::post('/pass/{id}/present', 'CaroInvitationController@present')->middleware('throttle:12,1');
 };
 Route::prefix('caro')->group($caroRoutes);
 Route::domain('caro.beyondtechworld.com')->group($caroRoutes);

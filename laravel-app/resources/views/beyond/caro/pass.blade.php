@@ -18,6 +18,9 @@
         .seat { font-size: 22px; }
         .foot { text-align: center; color: #98a2b3; font-size: 12px; margin: 16px 0 0; }
         .miss { text-align: center; color: #66748c; }
+        .notice { background: #f8f1df; color: #6b5420; border-radius: 12px; padding: 10px 12px; font-weight: 700; margin: 0 0 12px; }
+        .present { width: 100%; margin-top: 16px; min-height: 48px; border: 0; border-radius: 12px; background: #0b3f90; color: #fff; font-weight: 800; font-size: 16px; cursor: pointer; }
+        .wait { text-align: center; color: #66748c; margin: 14px 0 0; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -32,10 +35,22 @@
         <div class="pill">Status: Valid</div>
         <div class="row"><span>Name</span><strong>{{ $invitation->name }}</strong></div>
         <div class="row"><span>Attending as</span><strong>{{ $invitation->roleLabel() }}</strong></div>
-        <div class="row"><span>Seat</span><strong class="seat">{{ $invitation->seat_code }}</strong></div>
+        <div class="row"><span>Seat</span><strong class="seat">{{ $invitation->seatLabel() }}</strong></div>
         <div class="row"><span>Event</span><strong>MSATA 2026</strong></div>
         <div class="row"><span>When</span><strong>8 Nov 2026, 1:00 PM</strong></div>
-        <div class="row"><span>Where</span><strong>Presbyterian Hall, Ntamilung</strong></div>
+        <div class="row"><span>Where</span><strong>Presbyterian Hall Ntamulung</strong></div>
+        <div class="row"><span>Attendance</span><strong>{{ $invitation->presented_at ? 'Present' : 'Not yet' }}</strong></div>
+        @if($notice)<p class="notice">{{ $notice }}</p>@endif
+        @if($canPresent)
+            <form method="POST" action="{{ $presentUrl }}">
+                @csrf
+                <button class="present" type="submit">Mark present</button>
+            </form>
+        @elseif($invitation->presented_at)
+            <p class="wait">This guest is marked present.</p>
+        @elseif(! $onEventDay)
+            <p class="wait">Present is available only on Sunday, 8 November 2026.</p>
+        @endif
     @endif
     <p class="foot">Spirit Waves Music · Invitation verification</p>
 </div>

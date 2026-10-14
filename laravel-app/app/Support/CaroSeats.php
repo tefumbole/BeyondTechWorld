@@ -36,6 +36,49 @@ class CaroSeats
         return $column.$number;
     }
 
+    /**
+     * Full seat address, for example B-01-02.
+     */
+    public static function label($code)
+    {
+        $seat = self::parse($code);
+        if (! $seat) {
+            return strtoupper(trim((string) $code));
+        }
+
+        return $seat['column'].'-'.sprintf('%02d', $seat['row']).'-'.sprintf('%02d', $seat['chair']);
+    }
+
+    /**
+     * Accept B-01-02 or the stored code B10.
+     */
+    public static function normalize($value)
+    {
+        $value = strtoupper(trim((string) $value));
+        if (preg_match('/^([A-D])-(\d{1,2})-(\d{1,2})$/', $value, $match)) {
+            $row = (int) $match[2];
+            $chair = (int) $match[3];
+            if ($row < 1 || $row > self::ROWS || $chair < 1 || $chair > self::PER_ROW) {
+                return null;
+            }
+
+            return self::code($match[1], $row, $chair);
+        }
+        $seat = self::parse($value);
+
+        return $seat ? $seat['code'] : null;
+    }
+
+    public static function eventDay()
+    {
+        return '2026-11-08';
+    }
+
+    public static function isEventDay()
+    {
+        return \Carbon\Carbon::now('Africa/Douala')->toDateString() === self::eventDay();
+    }
+
     public static function parse($code)
     {
         $code = strtoupper(trim((string) $code));
