@@ -29,6 +29,7 @@
         .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; padding: 14px; align-items: start; }
         .map { min-width: 0; background: var(--cream); border-radius: 16px; padding: 8px 10px 12px; }
         .hall { position: relative; overflow-x: auto; padding-bottom: 6px; }
+        .hall-inner { position: relative; width: max-content; min-width: 100%; }
         .stage {
             width: 100%; margin: 0 0 4px; text-align: center;
             background: linear-gradient(#1c2744, #12182c); color: var(--gold);
@@ -39,7 +40,16 @@
         .front:before, .front:after { content: ""; width: 72px; height: 1px; background: #d9c48a; }
         .sections { display: flex; gap: 18px; min-width: max-content; justify-content: flex-start; }
         .section { min-width: 0; }
-        .section h2 { margin: 0 0 8px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
+        .section h2 { margin: 0 0 6px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
+        .role-head { height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; margin: 0 0 4px; }
+        .role-head .tag { font-size: 9px; letter-spacing: .08em; font-weight: 800; line-height: 1.15; color: transparent; }
+        .role-head .tag-gm { color: #9a3058; }
+        .role-head .tag-pastor { color: #1f4f96; }
+        .role-head .tag-gospel { color: #5b349e; }
+        .srow.tint-gm, .srow.tint-pastor, .srow.tint-gospel { border-radius: 8px; }
+        .srow.tint-gm { background: #f8eef2; }
+        .srow.tint-pastor { background: #eef3fb; }
+        .srow.tint-gospel { background: #f4eefb; }
         .srow { display: flex; align-items: flex-end; gap: 4px; margin: 4px 0; }
         .rn { width: 22px; text-align: right; font-size: 11px; color: #8a8172; font-weight: 700; padding-bottom: 8px; }
         .seats { display: flex; gap: 4px; align-items: flex-end; }
@@ -156,26 +166,42 @@
         <input type="hidden" name="seat_code" id="seatCode" value="">
         <div class="layout">
             <div class="map">
-                <div class="stage">STAGE</div>
-                <div class="front">FRONT</div>
                 <div class="hall" id="hall">
+                    <div class="hall-inner">
+                    <div class="stage">STAGE</div>
+                    <div class="front">FRONT</div>
                     <div class="foh" id="foh">FOH<span>Sound engineer</span></div>
                     <div class="sections">
                         @foreach($columns as $column)
                             <section class="section">
                                 <h2>SECTION {{ $column }}</h2>
-                                @foreach($rows as $row)
-                                    @if($column === 'B' && $row === 1)
-                                        <div class="premium-box band-gm"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> GUEST MINISTERS</div>
-                                    @elseif($column === 'B' && $row === 2)
-                                        <div class="premium-box band-pastor"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> PASTORS</div>
-                                    @elseif($column === 'C' && $row === 1)
-                                        <div class="premium-box band-gospel"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> GOSPEL MINISTERS</div>
+                                <div class="role-head">
+                                    @if($column === 'B')
+                                        <span class="tag tag-gm">GUEST MINISTERS · ROW 01</span>
+                                        <span class="tag tag-pastor">PASTORS · ROWS 02–03</span>
+                                    @elseif($column === 'C')
+                                        <span class="tag tag-gospel">GOSPEL MINISTERS</span>
+                                        <span class="tag tag-gospel">ROWS 01–03</span>
+                                    @else
+                                        <span class="tag">.</span>
+                                        <span class="tag">.</span>
                                     @endif
+                                </div>
+                                @foreach($rows as $row)
                                     @if($row === 11)
                                         <div class="passage {{ ($column === 'B' || $column === 'C') ? 'is-quiet' : '' }}">PASSAGE</div>
                                     @endif
-                                    <div class="srow">
+                                    @php
+                                        $tint = '';
+                                        if ($column === 'B' && $row === 1) {
+                                            $tint = ' tint-gm';
+                                        } elseif ($column === 'B' && ($row === 2 || $row === 3)) {
+                                            $tint = ' tint-pastor';
+                                        } elseif ($column === 'C' && $row <= 3) {
+                                            $tint = ' tint-gospel';
+                                        }
+                                    @endphp
+                                    <div class="srow{{ $tint }}">
                                         <span class="rn">{{ sprintf('%02d', $row) }}</span>
                                         <span class="seats">
                                             @for($chair = 1; $chair <= 8; $chair++)
@@ -221,12 +247,10 @@
                                             @endfor
                                         </span>
                                     </div>
-                                    @if(($column === 'B' && ($row === 1 || $row === 3)) || ($column === 'C' && $row === 3))
-                                        </div>
-                                    @endif
                                 @endforeach
                             </section>
                         @endforeach
+                    </div>
                     </div>
                 </div>
                 <p class="legend">
@@ -303,15 +327,16 @@
     if (autoSeat) autoSeat.click();
     function placeFoh() {
         var hall = document.getElementById('hall');
+        var inner = hall.querySelector('.hall-inner');
         var start = hall.querySelector('.foh-start');
         var end = hall.querySelector('.foh-end');
         var box = document.getElementById('foh');
-        if (!start || !end) return;
-        var hallBox = hall.getBoundingClientRect();
+        if (!inner || !start || !end) return;
+        var innerBox = inner.getBoundingClientRect();
         var a = start.getBoundingClientRect();
         var b = end.getBoundingClientRect();
-        box.style.left = (a.left - hallBox.left + hall.scrollLeft) + 'px';
-        box.style.top = (a.top - hallBox.top + hall.scrollTop) + 'px';
+        box.style.left = (a.left - innerBox.left) + 'px';
+        box.style.top = (a.top - innerBox.top) + 'px';
         box.style.width = Math.max(40, b.right - a.left) + 'px';
         box.style.height = Math.max(40, b.bottom - a.top) + 'px';
     }

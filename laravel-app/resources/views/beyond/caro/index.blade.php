@@ -93,7 +93,7 @@
         .site-foot p { margin: 0; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
         .site-foot a { color: #fff; text-decoration: none; font-weight: 700; }
         .site-foot .sep { margin: 0 8px; color: rgba(246, 227, 168, .7); }
-        .beyond-mark { height: 52px; width: auto; flex: none; mix-blend-mode: screen; }
+        .beyond-mark { height: 72px; width: 72px; object-fit: contain; flex: none; border-radius: 50%; border: 2px solid #e4c16a; background: #05070d; padding: 3px; }
         @media (max-width: 900px) {
             .wrap { padding: 0 12px; }
             .stage { display: block; }
