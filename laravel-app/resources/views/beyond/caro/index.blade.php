@@ -22,35 +22,19 @@
         .brand svg { width: 36px; height: 36px; flex: none; }
         .brand strong { display: block; font-size: 18px; line-height: 1.15; }
         .brand span { display: block; font-size: 13px; color: #5c6574; }
-        .stage, .copy, .hero-copy, .card, .field, .phone-row, .positions { min-width: 0; max-width: 100%; }
+        .stage, .card, .field, .phone-row, .positions { min-width: 0; max-width: 100%; }
         .stage {
-            position: relative;
-            min-height: 640px;
-            border-radius: 28px;
-            overflow: hidden;
-            background: #1a0d33 url('{{ asset('public/caro/invitation.jpg') }}') 72% 18% / cover no-repeat;
             display: grid;
-            grid-template-columns: minmax(280px, 1fr) minmax(300px, 430px);
+            grid-template-columns: minmax(0, 1.15fr) minmax(300px, 420px);
             align-items: center;
-            gap: 18px;
-            padding: 28px 28px 28px 36px;
+            gap: 22px;
         }
-        .stage:before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(90deg, rgba(16, 8, 36, .92) 0%, rgba(16, 8, 36, .72) 42%, rgba(16, 8, 36, .15) 68%, rgba(16, 8, 36, .05) 100%);
+        .flyer {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 28px;
         }
-        .hero-photo { display: none; }
-        .copy { color: #fff; max-width: 430px; position: relative; z-index: 1; text-shadow: 0 2px 16px rgba(8, 20, 48, .35); }
-        .kicker { margin: 0 0 8px; letter-spacing: .22em; font-size: 12px; font-weight: 700; color: var(--gold); }
-        .kicker:before { content: ""; display: inline-block; width: 28px; height: 1px; background: var(--gold); vertical-align: middle; margin-right: 8px; }
-        h1 { font-family: "Playfair Display", serif; font-weight: 700; font-size: clamp(42px, 5vw, 64px); line-height: .95; margin: 0; color: var(--gold); }
-        .who { font-family: "Playfair Display", serif; font-size: clamp(26px, 3vw, 34px); line-height: 1.15; margin: 12px 0 18px; color: #fff; }
-        .facts { list-style: none; margin: 0; padding: 0; }
-        .facts li { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 16px; font-weight: 600; }
-        .facts svg { width: 28px; height: 28px; flex: none; }
-        .join { margin: 22px 0 0; max-width: min(280px, 100%); font-size: 16px; line-height: 1.45; }
         .card {
             position: relative; z-index: 1;
             background: #fff; border-radius: 22px; padding: 26px 22px 18px;
@@ -94,13 +78,8 @@
         footer:before, footer:after { content: ""; flex: 1; height: 1px; background: #e3dccf; }
         @media (max-width: 900px) {
             .wrap { padding: 0 12px; }
-            .stage { display: block; min-height: 0; padding: 0; overflow: visible; background: transparent; border-radius: 0; }
-            .stage:before { display: none; }
-            .copy { max-width: none; min-height: 0; padding: 0 0 18px; overflow: hidden; border-radius: 22px; background: #140b2e; text-shadow: none; }
-            .hero-photo { display: block; height: 52vw; min-height: 190px; max-height: 320px; background: #140b2e url('{{ asset('public/caro/invitation.jpg') }}') center 18% / cover no-repeat; }
-            .hero-copy { padding: 18px 16px 0; }
-            h1 { font-size: clamp(36px, 11vw, 52px); }
-            .who { font-size: clamp(22px, 6.4vw, 30px); }
+            .stage { display: block; }
+            .flyer { border-radius: 22px; }
             .card { margin-top: 14px; padding: 22px 16px 16px; }
             .positions { display: grid; grid-template-columns: 1fr 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -141,29 +120,7 @@
         </div>
     </header>
     <section class="stage">
-        <div class="copy">
-            <div class="hero-photo" aria-hidden="true"></div>
-            <div class="hero-copy">
-                <p class="kicker">YOU ARE CORDIALLY INVITED</p>
-                <h1>MSATA<br>2026</h1>
-                <p class="who">My Sacrifice<br>at the Altar</p>
-                <ul class="facts">
-                    <li>
-                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M10 14h12M10 18h8M12 10h8"/></svg>
-                        Sunday, 8 November 2026
-                    </li>
-                    <li>
-                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M16 9v8l5 3"/></svg>
-                        1:00 PM prompt
-                    </li>
-                    <li>
-                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="#e4c16a" stroke-width="1.4"/><path fill="#fff" d="M16 8a6 6 0 0 0-6 6c0 5 6 10 6 10s6-5 6-10a6 6 0 0 0-6-6zm0 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>
-                        Presbyterian Hall, Ntamilung
-                    </li>
-                </ul>
-                <p class="join">Spirit Waves Music cordially invites you. Enter your number, then choose your seat.</p>
-            </div>
-        </div>
+        <img class="flyer" src="{{ asset('public/caro/landing.jpg') }}" alt="MSATA 2026 special invitation for Caroline F Vubangsi">
         <form class="card" id="cform" method="POST" action="{{ $startUrl }}">
             @csrf
             <input type="hidden" name="country_code" id="countryCode" value="{{ old('country_code', '+237') }}">
