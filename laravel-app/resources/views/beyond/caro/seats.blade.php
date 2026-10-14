@@ -31,13 +31,15 @@
         .hall { position: relative; overflow-x: auto; padding-bottom: 6px; }
         .hall-inner { position: relative; width: max-content; min-width: 100%; }
         .stage {
-            width: 100%; margin: 0 0 4px; text-align: center;
+            position: relative; width: 100%; height: 46px; margin: 0 0 4px;
             background: linear-gradient(#1c2744, #12182c); color: var(--gold);
             border: 2px solid #c9a45a; border-top: 0; border-radius: 0 0 90px 90px;
-            padding: 12px 24px 16px; letter-spacing: .28em; font-weight: 800; font-size: 13px;
+            letter-spacing: .28em; font-weight: 800; font-size: 13px;
         }
-        .front { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 8px 0 12px; color: #8a8172; font-size: 11px; letter-spacing: .22em; font-weight: 800; }
-        .front:before, .front:after { content: ""; width: 72px; height: 1px; background: #d9c48a; }
+        .front { position: relative; height: 28px; margin: 4px 0 8px; color: #8a8172; font-size: 11px; letter-spacing: .22em; font-weight: 800; }
+        .pin { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .front .pin { gap: 10px; }
+        .front .pin:before, .front .pin:after { content: ""; width: 72px; height: 1px; background: #d9c48a; }
         .sections { display: flex; gap: 18px; min-width: max-content; justify-content: flex-start; }
         .section { min-width: 0; }
         .section h2 { margin: 0 0 6px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
@@ -168,8 +170,8 @@
             <div class="map">
                 <div class="hall" id="hall">
                     <div class="hall-inner">
-                    <div class="stage">STAGE</div>
-                    <div class="front">FRONT</div>
+                    <div class="stage"><span class="pin">STAGE</span></div>
+                    <div class="front"><span class="pin">FRONT</span></div>
                     <div class="foh" id="foh">FOH<span>Sound engineer</span></div>
                     <div class="sections">
                         @foreach($columns as $column)
@@ -340,9 +342,18 @@
         box.style.width = Math.max(40, b.right - a.left) + 'px';
         box.style.height = Math.max(40, b.bottom - a.top) + 'px';
     }
+    function pinLabels() {
+        var hall = document.getElementById('hall');
+        hall.querySelectorAll('.pin').forEach(function (pin) {
+            pin.style.left = hall.scrollLeft + 'px';
+            pin.style.width = hall.clientWidth + 'px';
+        });
+    }
     placeFoh();
-    window.addEventListener('resize', placeFoh);
-    window.addEventListener('load', placeFoh);
+    pinLabels();
+    window.addEventListener('resize', function () { placeFoh(); pinLabels(); });
+    window.addEventListener('load', function () { placeFoh(); pinLabels(); });
+    document.getElementById('hall').addEventListener('scroll', pinLabels);
     document.getElementById('clearBtn').addEventListener('click', clearSeat);
     document.getElementById('seatForm').addEventListener('submit', function (event) {
         if (!input.value) {
