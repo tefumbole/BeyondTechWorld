@@ -61,14 +61,31 @@ class OwnerCommandService
         return $this->dispatch($tool, $params, $owner, $conversation, false);
     }
 
+    public function commandToken($text)
+    {
+        $t = strtoupper(trim(preg_replace('/\s+/u', ' ', (string) $text)));
+
+        return trim($t, " \t*_~.`'!?,;:");
+    }
+
+    public function isControlCommand($text)
+    {
+        return in_array($this->commandToken($text), ['AI ON', 'AI OFF', 'AI FIRST ON', 'AI FIRST OFF', 'AI STATUS', 'GROUPS', 'YES'], true);
+    }
+
+    public function setAssistantEnabled($on, $actorId = null)
+    {
+        return $this->setEnabled((bool) $on, $actorId);
+    }
+
     protected function exact($text, User $owner)
     {
-        $t = strtoupper(trim(preg_replace('/\s+/', ' ', $text)));
+        $t = $this->commandToken($text);
         if ($t === 'AI ON') {
-            return $this->setEnabled(true);
+            return $this->setEnabled(true, $owner->id);
         }
         if ($t === 'AI OFF') {
-            return $this->setEnabled(false);
+            return $this->setEnabled(false, $owner->id);
         }
         if ($t === 'AI FIRST ON') {
             return $this->setAiFirst(true);
@@ -90,10 +107,10 @@ class OwnerCommandService
     {
         $t = strtolower($text);
         if (preg_match('/\b(turn ai on|enable (the )?ai|start the ai)\b/', $t) && strpos($t, 'first') === false) {
-            return $this->setEnabled(true);
+            return $this->setEnabled(true, $owner->id);
         }
         if (preg_match('/\b(stop the ai|turn ai off|disable (the )?ai)\b/', $t)) {
-            return $this->setEnabled(false);
+            return $this->setEnabled(false, $owner->id);
         }
         if (preg_match('/\b(ai handle all new|new conversations|ai-first|ai first)\b/', $t) && strpos($t, 'off') === false && strpos($t, 'stop') === false) {
             return $this->setAiFirst(true);
@@ -141,7 +158,7 @@ class OwnerCommandService
             return ['success' => true, 'message' => $this->statusText()];
         }
         if ($tool === 'set_ai_enabled') {
-            return ['success' => true, 'message' => $this->setEnabled(! empty($params['enabled']))];
+            return ['success' => true, 'message' => $this->setEnabled(! empty($params['enabled']), $owner->id)];
         }
         if ($tool === 'set_ai_first') {
             return ['success' => true, 'message' => $this->setAiFirst(! empty($params['enabled']))];
@@ -170,21 +187,25 @@ class OwnerCommandService
         return ['success' => false, 'error' => 'unknown_tool'];
     }
 
-    protected function setEnabled($on)
+    protected function setEnabled($on, $actorId = null)
     {
         WhatsAppSetting::putValue('assistant_enabled', $on ? '1' : '0');
         if (! $on) {
             WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
-            $switched = app(ConversationAiSwitchService::class)->holdOpenConversations();
+            $switched = app(ConversationAiSwitchService::class)->holdOpenConversations($actorId);
 
             return 'Human mode is on. '.$switched.' chat(s) are now with a person, and AI will stay quiet on every number until you send AI On.';
         }
 
-        WhatsAppSetting::putValue('default_conversation_mode', 'AI');
-        WhatsAppSetting::putValue('ai_first', '1');
-        $switched = app(ConversationAiSwitchService::class)->resumeOpenConversations();
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        WhatsAppSetting::putValue('ai_first', '0');
+        $switched = app(ConversationAiSwitchService::class)->resumeOpenConversations($actorId);
+        $notice = 'AI is on for open WhatsApp chats. '.$switched.' open chat(s) will be answered from the messages already in the thread. New chats are not AI-first. Closed chats stay closed until someone writes again.';
+        if (! config('assistant.enabled')) {
+            $notice .= ' The server still has the assistant blocked, so replies stay off until that is allowed.';
+        }
 
-        return 'AI mode is on. '.$switched.' open chat(s) are with AI and will continue from the messages already in the thread. Paused and closed chats were left alone.';
+        return $notice;
     }
 
     protected function setAiFirst($on)
@@ -402,7 +423,7 @@ class OwnerCommandService
 
     protected function isExactCommand($text)
     {
-        return in_array(strtoupper(trim($text)), ['AI ON', 'AI OFF', 'AI FIRST ON', 'AI FIRST OFF', 'AI STATUS', 'GROUPS', 'YES'], true);
+        return $this->isControlCommand($text);
     }
 
     public function audit($groupId, $userId, $type, $body)

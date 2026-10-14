@@ -334,6 +334,7 @@
                     </form>
                 </div>
             </header>
+            @if(session('message'))<div class="chat-note">{{ session('message') }}</div>@endif
             @if(session('not_permitted'))<div class="chat-note">{{ session('not_permitted') }}</div>@endif
             <div class="chat-live" id="chatLive">Reconnecting…</div>
             <div class="chats-stream" id="chatStream">

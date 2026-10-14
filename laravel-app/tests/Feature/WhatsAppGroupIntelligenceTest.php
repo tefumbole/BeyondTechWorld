@@ -32,12 +32,12 @@ class GroupFakeProvider implements WhatsAppProviderInterface
         return ['success' => true, 'msg_id' => 'P'.uniqid()];
     }
 
-    public function sendDocument($phone, $localPath, $fileName = null, $caption = null)
+    public function sendDocument($phone, $localPath, $fileName = null, $caption = null, $plain = false)
     {
         return ['success' => true, 'msg_id' => 'D'];
     }
 
-    public function sendImage($phone, $localPath, $caption = null)
+    public function sendImage($phone, $localPath, $caption = null, $plain = false)
     {
         return ['success' => true];
     }
@@ -80,6 +80,66 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         WhatsAppSetting::putValue('ai_first', '0');
         $role = Role::firstOrCreate(['id' => 1, 'name' => 'Admin', 'guard_name' => 'web']);
         $this->grantWhatsApp($role);
+    }
+
+    public function test_ai_on_turns_the_assistant_on_for_open_chats()
+    {
+        WhatsAppSetting::putValue('assistant_enabled', '0');
+        WhatsAppSetting::putValue('ai_first', '0');
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $this->owner('237650200040');
+        $open = $this->humanChat('237650200041', 'Open');
+        $paused = $this->humanChat('237650200042', 'Paused');
+        $paused->mode = WhatsAppConversation::MODE_PAUSED;
+        $paused->save();
+
+        $closed = $this->humanChat('237650200048', 'Closed');
+        $closed->status = WhatsAppConversation::STATUS_CLOSED;
+        $closed->mode = WhatsAppConversation::MODE_HUMAN;
+        $closed->save();
+
+        $this->postWebhook($this->text('237650200040', 'AI ON', 'OWNON'))->assertStatus(200);
+
+        $notice = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertNotNull($notice);
+        $this->assertStringContainsString('not AI-first', $notice->body);
+
+        $this->assertSame(WhatsAppConversation::STATUS_CLOSED, $closed->fresh()->status);
+        $this->assertSame(WhatsAppConversation::MODE_HUMAN, $closed->fresh()->mode);
+        $before = (int) WhatsAppConversation::max('id');
+        $this->postWebhook($this->text('237650200049', 'I need speakers for Saturday', 'NEWAFTER'))->assertStatus(200);
+        $created = WhatsAppConversation::where('id', '>', $before)->orderByDesc('id')->first();
+        $this->assertNotNull($created);
+        $this->assertSame(WhatsAppConversation::MODE_HUMAN, $created->mode);
+
+        $this->postWebhook($this->text('237650200048', 'Bonjour, je veux un devis pour samedi', 'REOPEN1'))->assertStatus(200);
+        $this->assertSame(WhatsAppConversation::MODE_AI, $closed->fresh()->mode);
+        $this->assertNotSame(WhatsAppConversation::STATUS_CLOSED, $closed->fresh()->status);
+
+        $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
+        $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
+        $this->assertSame('HUMAN', WhatsAppSetting::getValue('default_conversation_mode', 'HUMAN'));
+        $this->assertSame(WhatsAppConversation::MODE_AI, $open->fresh()->mode);
+        $this->assertSame(WhatsAppConversation::MODE_PAUSED, $paused->fresh()->mode);
+    }
+
+    public function test_typing_ai_on_in_a_chat_turns_the_assistant_on()
+    {
+        WhatsAppSetting::putValue('assistant_enabled', '0');
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $chat = $this->humanChat('237650200043', 'Desk');
+
+        $result = app(\App\Services\WhatsApp\WhatsAppConversationService::class)->reply($chat, 'AI ON', 1);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
+        $this->assertSame(WhatsAppConversation::MODE_AI, $chat->fresh()->mode);
+        $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
+        $this->assertStringContainsString('not AI-first', $result['notice']);
+        $sent = array_filter($this->fake->sent, function ($row) {
+            return isset($row[1]) && $row[1] === 'AI ON';
+        });
+        $this->assertSame([], array_values($sent));
     }
 
     public function test_owner_can_turn_ai_first_on_without_rewriting_chats()

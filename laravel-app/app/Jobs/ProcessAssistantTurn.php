@@ -39,6 +39,11 @@ class ProcessAssistantTurn implements ShouldQueue
                 return $conversation ? $conversation->cloud_tenant_id : null;
             });
             if (! $tenantId) {
+                if ($this->isControlCommand($message)) {
+                    $this->runTurn($assistant, $message);
+
+                    return;
+                }
                 \Illuminate\Support\Facades\Log::warning('[beyond-assistant] turn has no company', [
                     'message_id' => $this->messageId,
                 ]);
@@ -49,7 +54,8 @@ class ProcessAssistantTurn implements ShouldQueue
         try {
             $run = function () use ($assistant, $message) {
                 $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
-                if ($tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER
+                if (! $this->isControlCommand($message)
+                    && $tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER
                     && \Illuminate\Support\Facades\Schema::hasTable('cloud_subscriptions')
                     && ! app(\App\Services\Cloud\CloudModuleAccessService::class)->canWriteCapability($tenant, 'messaging')) {
                     \Illuminate\Support\Facades\Log::info('[beyond-assistant] reply skipped, messaging not entitled', [
@@ -59,6 +65,7 @@ class ProcessAssistantTurn implements ShouldQueue
 
                     return;
                 }
+                $message->unsetRelation('conversation');
                 $assistant->handleIncoming($message);
             };
             if ($tenantId) {
@@ -72,5 +79,18 @@ class ProcessAssistantTurn implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    protected function isControlCommand(WhatsAppMessage $message)
+    {
+        return app(\App\Services\WhatsApp\OwnerCommandService::class)->isControlCommand((string) $message->body);
+    }
+
+    protected function runTurn(BeyondAssistantService $assistant, WhatsAppMessage $message)
+    {
+        app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($assistant, $message) {
+            $message->unsetRelation('conversation');
+            $assistant->handleIncoming($message);
+        });
     }
 }

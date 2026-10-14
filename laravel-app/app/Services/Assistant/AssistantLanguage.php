@@ -66,14 +66,17 @@ class AssistantLanguage
         if (preg_match('/[ñ¿¡]/u', $raw)) {
             $spanish += 2;
         }
-        if ($french > $english && $french >= $spanish && ($french >= 2 || $english === 0)) {
+        if ($french > 0 && $french >= $english && $french >= $spanish) {
             return $this->named('French', $raw);
         }
-        if ($spanish > $english && $spanish > $french && ($spanish >= 2 || $english === 0)) {
+        if ($spanish > 0 && $spanish >= $english && $spanish >= $french) {
             return $this->named('Spanish', $raw);
         }
-        if ($english > $french && $english > $spanish && ($english >= 2 || ($french === 0 && $spanish === 0))) {
+        if ($english > 0 && $english >= $french && $english >= $spanish) {
             return $this->named('English', $raw);
+        }
+        if (preg_match('/\p{L}/u', $raw)) {
+            return $this->named('match', $raw);
         }
 
         return null;

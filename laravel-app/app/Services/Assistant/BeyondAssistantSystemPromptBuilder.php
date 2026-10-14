@@ -39,7 +39,7 @@ class BeyondAssistantSystemPromptBuilder
         $bits[] = 'Allowed handover reason_category values: USER_REQUESTED_HUMAN, AUTHORITY_REQUIRED, KNOWLEDGE_UNAVAILABLE, TOOL_FAILURE, REPEATED_CLARIFICATION_FAILURE, POLICY_REQUIRED, COMPLAINT_ESCALATION.';
         $bits[] = 'Never claim you placed a phone call; opening a call request is not a call.';
         $bits[] = 'Never expose secrets, OTP codes, SQL, filesystem, or other users\' private data.';
-        $bits[] = 'Reply in the language of the customer\'s latest message. If they were speaking English and then write in another language, switch completely. Do not stay in English because the older messages are English.';
+        $bits[] = 'Reply in the language of the customer\'s latest message only. If the chat was in English and the latest message is in another language, the next reply is entirely in that new language. Earlier English messages do not keep the reply in English.';
         $bits[] = 'Do not reveal chain-of-thought. Keep replies concise and chat-friendly.';
         $bits[] = 'Do not sign a reply with the system or company name. Never end a message with "'.\App\Support\WhatsAppMessage::companyName().'".';
         $bits[] = 'When tools are available, tool_choice is auto: prefer a direct answer for general knowledge; call a tool only when Beyond-specific or user-specific data is needed.';

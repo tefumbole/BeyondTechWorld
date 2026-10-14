@@ -94,7 +94,10 @@ class WhatsAppConversationService
         if ($conversation) {
             if (in_array($conversation->status, [WhatsAppConversation::STATUS_CLOSED, WhatsAppConversation::STATUS_RESOLVED], true)) {
                 $conversation->status = WhatsAppConversation::STATUS_WAITING_STAFF;
-                if ($conversation->mode === WhatsAppConversation::MODE_CLOSED) {
+                if ($this->assistantContinuesClosedChat($conversation)) {
+                    $conversation->mode = WhatsAppConversation::MODE_AI;
+                    $conversation->assigned_user_id = null;
+                } elseif ($conversation->mode === WhatsAppConversation::MODE_CLOSED) {
                     $conversation->mode = $this->initialMode();
                 }
                 $conversation->save();
@@ -341,7 +344,7 @@ class WhatsAppConversationService
         if ($body === '') {
             return ['success' => false, 'error' => 'Message is empty.'];
         }
-        $command = strtoupper(preg_replace('/\s+/', ' ', $body));
+        $command = app(OwnerCommandService::class)->commandToken($body);
         if ($command === 'AI OFF' || $command === 'AI ON') {
             return $this->switchModeFromReply($conversation, $command === 'AI ON', $userId);
         }
@@ -670,34 +673,17 @@ class WhatsAppConversationService
 
     protected function switchModeFromReply(WhatsAppConversation $conversation, $aiOn, $userId = null)
     {
-        if ($aiOn) {
-            if (! app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled()) {
-                if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_AI) {
-                    $conversation->mode = WhatsAppConversation::MODE_HUMAN;
-                    $conversation->save();
-                }
-
-                return ['success' => true, 'mode' => WhatsAppConversation::MODE_HUMAN];
-            }
-            $conversation->mode = WhatsAppConversation::MODE_AI;
-            $conversation->assigned_user_id = null;
-            if ($conversation->status === WhatsAppConversation::STATUS_CLOSED) {
-                $conversation->status = WhatsAppConversation::STATUS_OPEN;
-            }
-            $conversation->save();
-            $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI ON switched this chat to AI mode', $userId);
-            $this->resumeLatestCustomerMessage($conversation);
-
-            return ['success' => true, 'mode' => WhatsAppConversation::MODE_AI];
+        $notice = app(OwnerCommandService::class)->setAssistantEnabled((bool) $aiOn, $userId);
+        $fresh = $conversation->fresh() ?: $conversation;
+        if ($aiOn && strtoupper((string) $fresh->mode) === WhatsAppConversation::MODE_AI) {
+            $this->resumeLatestCustomerMessage($fresh);
         }
-        $conversation->mode = WhatsAppConversation::MODE_HUMAN;
-        if ($userId) {
-            $conversation->assigned_user_id = $userId;
-        }
-        $conversation->save();
-        $this->event($conversation, WhatsAppConversationEvent::MODE, 'AI OFF switched this chat to Human mode', $userId);
 
-        return ['success' => true, 'mode' => WhatsAppConversation::MODE_HUMAN];
+        return [
+            'success' => true,
+            'mode' => strtoupper((string) $fresh->mode),
+            'notice' => $notice,
+        ];
     }
 
     public function enableAi(WhatsAppConversation $conversation, $userId = null)
@@ -1113,6 +1099,25 @@ class WhatsAppConversationService
         }
 
         return $conversation->fresh() ?: $conversation;
+    }
+
+    /**
+     * A closed chat stays closed until someone writes. That new message is answered
+     * from the history already in the thread, on the website and on WhatsApp when AI is on.
+     */
+    protected function assistantContinuesClosedChat(WhatsAppConversation $conversation)
+    {
+        if (strtoupper((string) $conversation->mode) === WhatsAppConversation::MODE_PAUSED) {
+            return false;
+        }
+        if ($conversation->isWebsite()) {
+            return true;
+        }
+        try {
+            return app(\App\Services\Assistant\AssistantPolicyService::class)->globallyEnabled();
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     protected function initialMode()
