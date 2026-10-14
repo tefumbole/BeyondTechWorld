@@ -14,8 +14,10 @@ class AddMsataAssistantBrief extends Migration
         $details = <<<'TXT'
 This is a live recording concert by Spirit Waves Music. It is a worship and praise gathering. Beyond Enterprise does not organise, produce, or power this concert. Beyond only provides the free seat-booking page.
 
-When: Sunday, 8 November 2026, 1:00 PM prompt. Arrive on time. The hall is in Cameroon.
-Where: Presbyterian Hall, Ntamulung.
+People also call this Ma Caro's Concert, Caroline Forbah's Concert, and The Flames concert. Those names are this same MSATA 2026 event.
+
+When: Sunday, 8 November 2026, 1:00 PM prompt. Arrive on time.
+Where: Ntamulung Presbyterian Hall, Veterinary Junction, Bamenda. It is directly opposite the entrance to Franco Alliance, Bamenda.
 Entry: Free. A seat still has to be booked. There is no ticket price.
 Booking page: https://beyondtechworld.com/caro
 Picture guide: https://beyondtechworld.com/caro/help
