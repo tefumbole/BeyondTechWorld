@@ -80,9 +80,53 @@ class CaroSeats
         return 'guest';
     }
 
+    /**
+     * Seats removed for the front-of-house desk.
+     * B rows 10–11, chairs 4–8 and C rows 10–11, chairs 1–5.
+     */
+    public static function removed($code)
+    {
+        $seat = self::parse($code);
+        if (! $seat) {
+            return true;
+        }
+        if ($seat['column'] === 'B' && ($seat['row'] === 10 || $seat['row'] === 11) && $seat['chair'] >= 4) {
+            return true;
+        }
+        if ($seat['column'] === 'C' && ($seat['row'] === 10 || $seat['row'] === 11) && $seat['chair'] <= 5) {
+            return true;
+        }
+
+        return false;
+    }
+
     public static function allowed($role, $code)
     {
+        if (self::removed($code)) {
+            return false;
+        }
+
         return self::ownerRole($code) === $role;
+    }
+
+    /**
+     * First open seat from the front, left to right.
+     */
+    public static function firstOpen($role, array $taken)
+    {
+        $takenMap = array_fill_keys($taken, true);
+        for ($row = 1; $row <= self::ROWS; $row++) {
+            foreach (self::COLUMNS as $column) {
+                for ($chair = 1; $chair <= self::PER_ROW; $chair++) {
+                    $code = self::code($column, $row, $chair);
+                    if (self::allowed($role, $code) && empty($takenMap[$code])) {
+                        return $code;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     public static function executive($code)

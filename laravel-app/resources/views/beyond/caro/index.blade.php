@@ -29,12 +29,22 @@
             align-items: center;
             gap: 22px;
         }
-        .flyer {
-            display: block;
-            width: 100%;
-            height: auto;
-            border-radius: 28px;
-        }
+        .flyer { position: relative; border-radius: 28px; overflow: hidden; }
+        .flyer img { display: block; width: 100%; height: auto; }
+        .flyer-copy { position: absolute; left: 6.5%; top: 7%; width: 50%; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
+        .flyer-kicker { margin: 0 0 8px; color: #e4c16a; font-size: clamp(10px, 1.15vw, 13px); font-weight: 700; letter-spacing: .28em; }
+        .flyer-kicker:before { content: ""; display: inline-block; width: 28px; height: 2px; background: #e4c16a; vertical-align: middle; margin-right: 8px; }
+        .sw { margin: 0; font-family: "Playfair Display", serif; font-size: clamp(22px, 2.7vw, 38px); font-weight: 600; line-height: 1.05; }
+        .invite { margin: 2px 0 6px; font-family: "Playfair Display", serif; font-style: italic; font-size: clamp(13px, 1.45vw, 18px); }
+        .msata { margin: 0; font-family: "Playfair Display", serif; font-weight: 700; color: #e8c56b; font-size: clamp(28px, 4.1vw, 54px); line-height: .92; letter-spacing: .01em; }
+        .sub, .who { margin: 2px 0 0; font-family: "Playfair Display", serif; font-weight: 600; line-height: 1.15; }
+        .sub { font-size: clamp(16px, 2.05vw, 28px); }
+        .who { font-size: clamp(18px, 2.25vw, 30px); margin-bottom: 8px; }
+        .flyer-facts { list-style: none; margin: 8px 0; padding: 0; font-size: clamp(12px, 1.25vw, 16px); font-weight: 700; }
+        .flyer-facts li { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+        .flyer-facts svg { width: 22px; height: 22px; flex: none; }
+        .join { margin: 8px 0 2px; font-size: clamp(12px, 1.2vw, 15px); }
+        .more { margin: 0; color: #e8c56b; font-weight: 800; font-size: clamp(12px, 1.2vw, 15px); text-shadow: none; }
         .card {
             position: relative; z-index: 1;
             background: #fff; border-radius: 22px; padding: 26px 22px 18px;
@@ -74,12 +84,23 @@
         .count div { text-align: center; background: #fff; border: 1px solid #e6dfd0; border-radius: 16px; padding: 12px 6px; }
         .count strong { display: block; font-family: "Playfair Display", serif; font-size: clamp(22px, 7vw, 32px); color: var(--navy); line-height: 1; }
         .count span { display: block; margin-top: 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8172; }
-        footer { display: flex; align-items: center; gap: 16px; color: #8d93a0; font-size: 14px; text-align: center; padding: 22px 0 calc(28px + env(safe-area-inset-bottom)); }
-        footer:before, footer:after { content: ""; flex: 1; height: 1px; background: #e3dccf; }
+        .site-foot {
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            margin-top: 28px; padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+            background: linear-gradient(90deg, #082a72 0%, #12408f 42%, #0b327c 100%);
+            color: #f6e3a8;
+        }
+        .site-foot p { margin: 0; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
+        .site-foot a { color: #fff; text-decoration: none; font-weight: 700; }
+        .site-foot .sep { margin: 0 8px; color: rgba(246, 227, 168, .7); }
+        .beyond-mark { height: 52px; width: auto; flex: none; mix-blend-mode: screen; }
         @media (max-width: 900px) {
             .wrap { padding: 0 12px; }
             .stage { display: block; }
             .flyer { border-radius: 22px; }
+            .flyer-copy { width: 54%; }
+            .site-foot { flex-wrap: wrap; }
+            .site-foot p { flex: 1 1 220px; }
             .card { margin-top: 14px; padding: 22px 16px 16px; }
             .positions { display: grid; grid-template-columns: 1fr 1fr; }
             .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -120,7 +141,33 @@
         </div>
     </header>
     <section class="stage">
-        <img class="flyer" src="{{ asset('public/caro/landing.jpg') }}?v={{ @filemtime(public_path('caro/landing.jpg')) }}" alt="MSATA 2026 special invitation for Caroline F Vubangsi">
+        <div class="flyer">
+            <img src="{{ asset('public/caro/landing-blank.jpg') }}?v={{ @filemtime(public_path('caro/landing-blank.jpg')) }}" alt="">
+            <div class="flyer-copy">
+                <p class="flyer-kicker">SPECIAL INVITATION</p>
+                <p class="sw">Spirit Waves Music</p>
+                <p class="invite">cordially invites you to</p>
+                <p class="msata">MSATA 2026</p>
+                <p class="sub">My Sacrifice At The Altar</p>
+                <p class="who">Caroline F Vubangsi</p>
+                <ul class="flyer-facts">
+                    <li>
+                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="#e4c16a" stroke-width="1.6"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M10 14h12M11 10h10M10 18h8"/></svg>
+                        Sunday, 8 November 2026
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="#e4c16a" stroke-width="1.6"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M16 9v8l5 3"/></svg>
+                        1:00 PM PROMPT
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="#e4c16a" stroke-width="1.6"/><path fill="#fff" d="M16 8a5.5 5.5 0 0 0-5.5 5.5c0 4.2 5.5 9.5 5.5 9.5s5.5-5.3 5.5-9.5A5.5 5.5 0 0 0 16 8zm0 7.2a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6z"/></svg>
+                        Presbyterian Hall Ntamulung
+                    </li>
+                </ul>
+                <p class="join">Join us for a time of worship and praise.</p>
+                <p class="more">More info: +237 6 71 14 70 99</p>
+            </div>
+        </div>
         <form class="card" id="cform" method="POST" action="{{ $startUrl }}">
             @csrf
             <input type="hidden" name="country_code" id="countryCode" value="{{ old('country_code', '+237') }}">
@@ -171,8 +218,11 @@
         <div><strong id="cd-m">0</strong><span>Minutes</span></div>
         <div><strong id="cd-s">0</strong><span>Seconds</span></div>
     </div>
-    <footer>Spirit Waves Music · MSATA 2026</footer>
 </div>
+<footer class="site-foot">
+    <p>© 2026 Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Papa Rolly<span class="sep">|</span><a href="tel:+237675321739">+237 675 321 739</a></p>
+    <img class="beyond-mark" src="{{ asset('public/branding/beyond-logo.png') }}" alt="Beyond">
+</footer>
 <script type="application/json" id="countryData">@json($countryRows)</script>
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
 <script>

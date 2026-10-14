@@ -28,22 +28,23 @@
         .err { margin: 12px 16px 0; background: #fdecec; color: #9b1c1c; border-radius: 12px; padding: 10px 12px; font-weight: 700; }
         .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 14px; padding: 14px; align-items: start; }
         .map { min-width: 0; background: var(--cream); border-radius: 16px; padding: 8px 10px 12px; }
-        .hall { overflow-x: auto; padding-bottom: 6px; }
+        .hall { position: relative; overflow-x: auto; padding-bottom: 6px; }
         .stage {
-            width: min(460px, 78%); margin: 4px auto 0; text-align: center;
+            width: 100%; margin: 0 0 4px; text-align: center;
             background: linear-gradient(#1c2744, #12182c); color: var(--gold);
             border: 2px solid #c9a45a; border-top: 0; border-radius: 0 0 90px 90px;
             padding: 12px 24px 16px; letter-spacing: .28em; font-weight: 800; font-size: 13px;
         }
         .front { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 8px 0 12px; color: #8a8172; font-size: 11px; letter-spacing: .22em; font-weight: 800; }
         .front:before, .front:after { content: ""; width: 72px; height: 1px; background: #d9c48a; }
-        .sections { display: flex; gap: 18px; min-width: max-content; justify-content: center; }
+        .sections { display: flex; gap: 18px; min-width: max-content; justify-content: flex-start; }
         .section { min-width: 0; }
         .section h2 { margin: 0 0 8px; text-align: center; font-size: 12px; letter-spacing: .14em; color: #5c564c; }
         .srow { display: flex; align-items: flex-end; gap: 4px; margin: 4px 0; }
         .rn { width: 22px; text-align: right; font-size: 11px; color: #8a8172; font-weight: 700; padding-bottom: 8px; }
         .seats { display: flex; gap: 4px; align-items: flex-end; }
         .passage { margin: 8px 0; text-align: center; font-size: 11px; letter-spacing: .16em; font-weight: 800; color: #8a8172; }
+        .passage.is-quiet { visibility: hidden; }
         .premium-box { background: #fbf6e6; border: 1px solid #e4d3a2; border-radius: 12px; padding: 6px 4px 2px; margin-bottom: 6px; }
         .premium-tag { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 0 0 4px; font-size: 9px; letter-spacing: .08em; font-weight: 800; color: #6b5420; }
         .crown-mini { width: 12px; height: 8px; background: #e4c16a; clip-path: polygon(0 100%, 16% 28%, 32% 100%, 50% 0, 68% 100%, 84% 28%, 100% 100%); }
@@ -69,6 +70,18 @@
         }
         .seat.is-premium .back { top: 7px; height: 16px; background: linear-gradient(#6d42b8, #4a2888); border-color: #e4c16a; }
         .seat.is-premium .cushion { background: linear-gradient(#5b349e, #3e2174); border-color: #e4c16a; color: #fff; }
+        .seat.is-gm .back, .seat.is-gm .cushion { background: linear-gradient(#9a3058, #6d1d3c); border-color: #e4c16a; color: #fff; }
+        .seat.is-pastor .back, .seat.is-pastor .cushion { background: linear-gradient(#1f4f96, #16386c); border-color: #e4c16a; color: #fff; }
+        .foh-slot { width: 34px; height: 46px; flex: none; }
+        .foh {
+            position: absolute; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #14182b; color: #e4c16a; border: 2px solid #c9a45a; border-radius: 14px;
+            font-weight: 800; letter-spacing: .18em; font-size: 18px; pointer-events: none;
+        }
+        .foh span { display: block; margin-top: 4px; letter-spacing: .06em; font-size: 11px; color: #fff; font-weight: 700; }
+        .band-gm { background: #f8eef2; border-color: #e4c0ce; }
+        .band-pastor { background: #eef3fb; border-color: #c5d4ee; }
+        .band-gospel { background: #f4eefb; border-color: #d4c6ee; }
         .seat .check, .seat .lock, .seat .x { display: none; }
         .seat.is-on .num, .seat.is-reserved .num, .seat.is-taken .num { display: none; }
         .seat.is-on .check, .seat.is-reserved .lock, .seat.is-taken .x { display: inline; }
@@ -89,7 +102,7 @@
         .pretty { margin: 2px 0 8px; font-family: "Playfair Display", serif; font-size: 40px; line-height: 1; color: var(--gold); min-height: 44px; }
         .kind { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; border: 1px solid var(--gold); color: var(--gold); border-radius: 999px; padding: 3px 10px; font-size: 11px; letter-spacing: .14em; font-weight: 800; }
         .kind[hidden] { display: none; }
-        .kind.is-standard .crown-mini { display: none; }
+        .kind.is-standard .crown-mini, .kind.is-guest .crown-mini { display: none; }
         .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-bottom: 12px; }
         .facts b { display: block; font-size: 18px; }
         .facts span, .status-label, .name-label { display: block; font-size: 12px; color: #b7b1a4; }
@@ -118,9 +131,8 @@
 @php
     $takenMap = array_fill_keys($taken, true);
     $roleLabel = \App\Support\CaroSeats::roleLabel($guest['role']);
-    $note = $guest['role'] === 'guest'
-        ? 'Choose an open seat. Locked seats are reserved.'
-        : 'You can only choose the seats reserved for '.$roleLabel.'. Locked seats belong to another group.';
+    $autoCode = \App\Support\CaroSeats::firstOpen($guest['role'], $taken);
+    $note = 'Your first open '.$roleLabel.' seat is already selected. Keep it, or choose another.';
 @endphp
 <div class="sheet">
     <header class="top">
@@ -144,24 +156,24 @@
         <input type="hidden" name="seat_code" id="seatCode" value="">
         <div class="layout">
             <div class="map">
+                <div class="stage">STAGE</div>
+                <div class="front">FRONT</div>
                 <div class="hall" id="hall">
-                    <div class="stage">STAGE</div>
-                    <div class="front">FRONT</div>
+                    <div class="foh" id="foh">FOH<span>Sound engineer</span></div>
                     <div class="sections">
                         @foreach($columns as $column)
-                            @php $premiumHere = in_array($column, ['B', 'C'], true); @endphp
                             <section class="section">
                                 <h2>SECTION {{ $column }}</h2>
-                                @if($premiumHere)
-                                    <div class="premium-box">
-                                        <div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> PREMIUM · ROWS 01–03</div>
-                                @endif
                                 @foreach($rows as $row)
-                                    @if($premiumHere && $row === 4)
-                                        </div>
+                                    @if($column === 'B' && $row === 1)
+                                        <div class="premium-box band-gm"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> GUEST MINISTERS</div>
+                                    @elseif($column === 'B' && $row === 2)
+                                        <div class="premium-box band-pastor"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> PASTORS</div>
+                                    @elseif($column === 'C' && $row === 1)
+                                        <div class="premium-box band-gospel"><div class="premium-tag"><span class="crown-mini" aria-hidden="true"></span> GOSPEL MINISTERS</div>
                                     @endif
                                     @if($row === 11)
-                                        <div class="passage">PASSAGE</div>
+                                        <div class="passage {{ ($column === 'B' || $column === 'C') ? 'is-quiet' : '' }}">PASSAGE</div>
                                     @endif
                                     <div class="srow">
                                         <span class="rn">{{ sprintf('%02d', $row) }}</span>
@@ -169,17 +181,20 @@
                                             @for($chair = 1; $chair <= 8; $chair++)
                                                 @php
                                                     $code = \App\Support\CaroSeats::code($column, $row, $chair);
+                                                    $removed = \App\Support\CaroSeats::removed($code);
                                                     $takenSeat = ! empty($takenMap[$code]);
-                                                    $premium = \App\Support\CaroSeats::executive($code);
-                                                    $open = \App\Support\CaroSeats::allowed($guest['role'], $code) && ! $takenSeat;
                                                     $owner = \App\Support\CaroSeats::ownerRole($code);
-                                                    $classes = 'seat'.($premium ? ' is-premium' : '');
+                                                    $open = ! $removed && \App\Support\CaroSeats::allowed($guest['role'], $code) && ! $takenSeat;
+                                                    $tone = $owner === 'guest_minister' ? 'gm' : ($owner === 'pastor' ? 'pastor' : ($owner === 'gospel_minister' ? 'gospel' : 'guest'));
+                                                    $classes = 'seat'.($tone === 'guest' ? '' : ' is-premium is-'.$tone);
                                                     if ($takenSeat) {
                                                         $classes .= ' is-taken';
-                                                    } elseif (! $open) {
+                                                    } elseif (! $open && ! $removed) {
                                                         $classes .= ' is-reserved';
                                                     }
                                                     $pretty = $column.'-'.sprintf('%02d', $row).'-'.sprintf('%02d', $chair);
+                                                    $fohStart = $column === 'B' && $row === 10 && $chair === 4;
+                                                    $fohEnd = $column === 'C' && $row === 11 && $chair === 5;
                                                     if ($takenSeat) {
                                                         $title = $pretty.' is occupied';
                                                     } elseif (! $open) {
@@ -188,7 +203,10 @@
                                                         $title = $pretty;
                                                     }
                                                 @endphp
-                                                <button class="{{ $classes }}" type="button" data-code="{{ $code }}" data-kind="{{ $premium ? 'premium' : 'standard' }}" data-section="{{ $column }}" data-row="{{ sprintf('%02d', $row) }}" data-chair="{{ sprintf('%02d', $chair) }}" data-pretty="{{ $pretty }}" title="{{ $title }}" aria-label="{{ $title }}" {{ $open ? '' : 'disabled' }}>
+                                                @if($removed)
+                                                    <span class="foh-slot{{ $fohStart ? ' foh-start' : '' }}{{ $fohEnd ? ' foh-end' : '' }}"></span>
+                                                @else
+                                                <button class="{{ $classes }}" type="button" data-code="{{ $code }}" data-kind="{{ $tone }}" data-section="{{ $column }}" data-row="{{ sprintf('%02d', $row) }}" data-chair="{{ sprintf('%02d', $chair) }}" data-pretty="{{ $pretty }}" data-auto="{{ $code === $autoCode ? '1' : '0' }}" title="{{ $title }}" aria-label="{{ $title }}" {{ $open ? '' : 'disabled' }}>
                                                     <span class="crown" aria-hidden="true"></span>
                                                     <span class="back"></span>
                                                     <span class="cushion">
@@ -199,9 +217,13 @@
                                                     </span>
                                                     <span class="legs"></span>
                                                 </button>
+                                                @endif
                                             @endfor
                                         </span>
                                     </div>
+                                    @if(($column === 'B' && ($row === 1 || $row === 3)) || ($column === 'C' && $row === 3))
+                                        </div>
+                                    @endif
                                 @endforeach
                             </section>
                         @endforeach
@@ -209,7 +231,9 @@
                 </div>
                 <p class="legend">
                     <span class="id-note">Seat ID = section · row · seat</span>
-                    <span class="key"><span class="seat demo is-premium" aria-hidden="true"><span class="crown"></span><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Premium</span>
+                    <span class="key"><span class="seat demo is-premium is-gm" aria-hidden="true"><span class="crown"></span><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Guest Minister</span>
+                    <span class="key"><span class="seat demo is-premium is-pastor" aria-hidden="true"><span class="crown"></span><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Pastor</span>
+                    <span class="key"><span class="seat demo is-premium is-gospel" aria-hidden="true"><span class="crown"></span><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Gospel Minister</span>
                     <span class="key"><span class="seat demo" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="num">1</span></span><span class="legs"></span></span> Standard</span>
                     <span class="key"><span class="seat demo is-reserved" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="lock">🔒</span></span><span class="legs"></span></span> Reserved</span>
                     <span class="key"><span class="seat demo is-taken" aria-hidden="true"><span class="back"></span><span class="cushion"><span class="x">×</span></span><span class="legs"></span></span> Occupied</span>
@@ -259,7 +283,8 @@
     }
     document.querySelectorAll('button.seat:not(:disabled)').forEach(function (button) {
         button.addEventListener('click', function () {
-            var tone = button.getAttribute('data-kind') === 'premium' ? 'premium' : 'standard';
+            var tone = button.getAttribute('data-kind') || 'guest';
+            var labels = { gm: 'GUEST MINISTER', pastor: 'PASTOR', gospel: 'GOSPEL MINISTER', guest: 'STANDARD' };
             document.querySelectorAll('button.seat.is-on').forEach(function (item) { item.classList.remove('is-on'); });
             button.classList.add('is-on');
             input.value = button.getAttribute('data-code');
@@ -270,10 +295,29 @@
             status.textContent = 'Available';
             kind.hidden = false;
             kind.className = 'kind is-' + tone;
-            kindLabel.textContent = tone === 'premium' ? 'PREMIUM' : 'STANDARD';
+            kindLabel.textContent = labels[tone] || 'STANDARD';
             go.disabled = false;
         });
     });
+    var autoSeat = document.querySelector('button.seat[data-auto="1"]');
+    if (autoSeat) autoSeat.click();
+    function placeFoh() {
+        var hall = document.getElementById('hall');
+        var start = hall.querySelector('.foh-start');
+        var end = hall.querySelector('.foh-end');
+        var box = document.getElementById('foh');
+        if (!start || !end) return;
+        var hallBox = hall.getBoundingClientRect();
+        var a = start.getBoundingClientRect();
+        var b = end.getBoundingClientRect();
+        box.style.left = (a.left - hallBox.left + hall.scrollLeft) + 'px';
+        box.style.top = (a.top - hallBox.top + hall.scrollTop) + 'px';
+        box.style.width = Math.max(40, b.right - a.left) + 'px';
+        box.style.height = Math.max(40, b.bottom - a.top) + 'px';
+    }
+    placeFoh();
+    window.addEventListener('resize', placeFoh);
+    window.addEventListener('load', placeFoh);
     document.getElementById('clearBtn').addEventListener('click', clearSeat);
     document.getElementById('seatForm').addEventListener('submit', function (event) {
         if (!input.value) {
