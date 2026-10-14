@@ -312,7 +312,7 @@ class BeyondWasenderService
         }
 
         $fileName = $fileName ?: basename($localPath);
-        if (! $plain) {
+        if (! $plain && ! app(TwilioWhatsAppService::class)->creditIsExhausted()) {
             $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, $fileName, $caption);
             if (! empty($twilio['success'])) {
                 return $twilio;
@@ -387,7 +387,7 @@ class BeyondWasenderService
             return ['success' => false, 'error' => 'Image file not found.'];
         }
 
-        if (! $plain) {
+        if (! $plain && ! app(TwilioWhatsAppService::class)->creditIsExhausted()) {
             $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, basename($localPath), $caption);
             if (! empty($twilio['success'])) {
                 return $twilio;

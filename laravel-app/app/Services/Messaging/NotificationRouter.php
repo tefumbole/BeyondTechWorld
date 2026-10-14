@@ -327,6 +327,10 @@ class NotificationRouter
             'kind' => 'an announcement',
         ], $statusVars);
 
+        if ($this->announcementSkipsTwilio()) {
+            return $this->announcementViaWasender($phone, $body);
+        }
+
         $announcement = app(TwilioTemplateSender::class)->sendAnnouncement(
             $phone,
             $statusVars['name'],
@@ -337,12 +341,33 @@ class NotificationRouter
         if (! empty($announcement['success'])) {
             return $announcement;
         }
+        if ($this->announcementSkipsTwilio()) {
+            return $this->announcementViaWasender($phone, $body);
+        }
 
         $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, $statusVars);
         if (! empty($generic['success'])) {
             return $generic;
         }
 
+        return $this->announcementViaWasender($phone, $body);
+    }
+
+    /**
+     * Once Twilio credit is finished, the rest of an announcement stays on Wasender.
+     */
+    protected function announcementSkipsTwilio()
+    {
+        return $this->twilioFallbackWasender()
+            && $this->wasender->isConfigured()
+            && $this->twilioWhatsApp->creditIsExhausted();
+    }
+
+    /**
+     * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool}
+     */
+    protected function announcementViaWasender($phone, $body)
+    {
         $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 

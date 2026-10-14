@@ -8,6 +8,9 @@ use Twilio\Rest\Client;
 
 class TwilioWhatsAppService
 {
+    /** Cache: yes = balance remains, no = credit is finished, unknown = balance check failed. */
+    const CREDIT_CACHE_KEY = 'twilio_whatsapp_credit_state';
+
     public function isConfigured()
     {
         $sid = $this->accountSid();
@@ -145,7 +148,7 @@ class TwilioWhatsAppService
                 'content_sid' => $contentSid,
             ]);
 
-            return ['success' => false, 'error' => $e->getMessage()];
+            return $this->failure($e);
         }
     }
 
@@ -171,7 +174,133 @@ class TwilioWhatsAppService
         } catch (\Throwable $e) {
             \Log::warning('[twilio-whatsapp] free-form send failed', ['error' => $e->getMessage()]);
 
-            return ['success' => false, 'error' => $e->getMessage()];
+            return $this->failure($e);
+        }
+    }
+
+    /**
+     * True when the Twilio balance is empty or a send was refused for lack of credit.
+     * A failed balance lookup does not count as empty, so a later send can still try Twilio.
+     */
+    public function creditIsExhausted()
+    {
+        if (! $this->isConfigured()) {
+            return false;
+        }
+
+        $cached = Cache::get(self::CREDIT_CACHE_KEY);
+        if ($cached === 'no') {
+            return true;
+        }
+        if ($cached === 'yes' || $cached === 'unknown') {
+            return false;
+        }
+
+        $balance = $this->fetchAccountBalance();
+        if ($balance === null) {
+            Cache::put(self::CREDIT_CACHE_KEY, 'unknown', now()->addMinute());
+
+            return false;
+        }
+        if ($balance <= 0) {
+            $this->markCreditExhausted('Twilio balance is '.$balance);
+
+            return true;
+        }
+
+        Cache::put(self::CREDIT_CACHE_KEY, 'yes', now()->addMinutes(2));
+
+        return false;
+    }
+
+    public function markCreditExhausted($reason = '')
+    {
+        Cache::put(self::CREDIT_CACHE_KEY, 'no', now()->addMinutes(20));
+        if (Cache::add(self::CREDIT_CACHE_KEY.'_logged', 1, now()->addMinutes(20))) {
+            \Log::warning('[twilio-whatsapp] credit is finished — remaining WhatsApp continues on Wasender', [
+                'reason' => trim((string) $reason) !== '' ? $reason : 'balance',
+            ]);
+        }
+    }
+
+    public function isCreditError($error, $code = 0)
+    {
+        $code = (int) $code;
+        if (in_array($code, [20005, 30002], true)) {
+            return true;
+        }
+
+        $text = strtolower((string) $error);
+        if (preg_match('/\b(20005|30002)\b/', $text)) {
+            return true;
+        }
+
+        foreach ([
+            'insufficient',
+            'sufficient fund',
+            'account balance',
+            'low balance',
+            'no funds',
+            'out of credit',
+            'account not active',
+            'account is not active',
+            'account suspended',
+            'account is suspended',
+        ] as $needle) {
+            if (strpos($text, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{success:bool,error:string,code:int}
+     */
+    protected function failure(\Throwable $e)
+    {
+        $code = (int) $e->getCode();
+        $error = $e->getMessage();
+        if ($this->isCreditError($error, $code)) {
+            $this->markCreditExhausted($error);
+        }
+
+        return ['success' => false, 'error' => $error, 'code' => $code];
+    }
+
+    /**
+     * @return float|null
+     */
+    protected function fetchAccountBalance()
+    {
+        $sid = $this->accountSid();
+        $token = $this->authToken();
+        if ($sid === '' || $token === '') {
+            return null;
+        }
+
+        try {
+            $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/'.rawurlencode($sid).'/Balance.json');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => 1,
+                CURLOPT_USERPWD => $sid.':'.$token,
+                CURLOPT_TIMEOUT => 12,
+            ]);
+            $raw = curl_exec($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http < 200 || $http >= 300) {
+                return null;
+            }
+            $json = json_decode((string) $raw, true);
+            if (! is_array($json) || ! isset($json['balance']) || ! is_numeric($json['balance'])) {
+                return null;
+            }
+
+            return (float) $json['balance'];
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 

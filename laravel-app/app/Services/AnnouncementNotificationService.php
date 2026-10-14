@@ -67,7 +67,10 @@ class AnnouncementNotificationService extends Controller
         if ($announcement->send_whatsapp) {
             $vars = $this->twilioVars($announcement, $person, $isCc);
             if ($this->sendPhone($phone, $msg, $vars)) {
-                $this->sendAttachment($phone, $announcement);
+                if (! empty($announcement->attachment_path)) {
+                    $this->pauseBetweenRecipients($announcement);
+                    $this->sendAttachment($phone, $announcement);
+                }
                 $ok = true;
             }
         }
@@ -168,18 +171,50 @@ class AnnouncementNotificationService extends Controller
         if (! is_file($full)) {
             return;
         }
+        $fileName = $announcement->attachment_name ?: basename($full);
+        $caption = $announcement->subject ?: $fileName;
+        $twilio = app(\App\Services\TwilioWhatsAppService::class);
+        if (! $twilio->creditIsExhausted()) {
+            try {
+                $sent = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $full, $fileName, $caption);
+                if (! empty($sent['success'])) {
+                    return;
+                }
+                $error = isset($sent['error']) ? $sent['error'] : '';
+                $code = isset($sent['code']) ? $sent['code'] : 0;
+                if (! $twilio->isCreditError($error, $code)) {
+                    Log::warning('Announcement attachment Twilio failed: '.($error !== '' ? $error : 'not sent'));
+
+                    return;
+                }
+                $twilio->markCreditExhausted($error);
+            } catch (\Exception $e) {
+                if (! $twilio->isCreditError($e->getMessage(), $e->getCode())) {
+                    Log::warning('Announcement attachment WhatsApp failed: '.$e->getMessage());
+
+                    return;
+                }
+                $twilio->markCreditExhausted($e->getMessage());
+            }
+        }
+
+        $this->sendAttachmentViaWasender($phone, $full, $fileName, $caption);
+    }
+
+    protected function sendAttachmentViaWasender($phone, $full, $fileName, $caption)
+    {
         try {
-            $sent = app(\App\Support\TwilioMediaSender::class)->trySend(
-                $phone,
-                $full,
-                $announcement->attachment_name ?: basename($full),
-                $announcement->subject ?: basename($full)
-            );
+            $wasender = app(BeyondWasenderService::class);
+            $ext = strtolower(pathinfo((string) $full, PATHINFO_EXTENSION));
+            $images = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $sent = in_array($ext, $images, true)
+                ? $wasender->sendImage($phone, $full, $caption, true)
+                : $wasender->sendDocument($phone, $full, $fileName, $caption, true);
             if (empty($sent['success'])) {
-                Log::warning('Announcement attachment Twilio failed: '.(isset($sent['error']) ? $sent['error'] : 'not sent'));
+                Log::warning('Announcement attachment Wasender failed: '.(isset($sent['error']) ? $sent['error'] : 'not sent'));
             }
         } catch (\Exception $e) {
-            Log::warning('Announcement attachment WhatsApp failed: ' . $e->getMessage());
+            Log::warning('Announcement attachment Wasender failed: '.$e->getMessage());
         }
     }
 
@@ -261,7 +296,7 @@ class AnnouncementNotificationService extends Controller
         }
         foreach (array_values($broadcast) as $index => $group) {
             if ($index > 0) {
-                usleep(2000000);
+                usleep(5000000);
             }
             $person = [
                 'name' => isset($group['name']) ? $group['name'] : 'everyone',
@@ -278,6 +313,7 @@ class AnnouncementNotificationService extends Controller
                 $error = $ok ? '' : (isset($posted['error']) ? $posted['error'] : 'Could not post in the group');
             }
             if ($ok && ! empty($announcement->attachment_path)) {
+                $this->pauseBetweenRecipients($announcement);
                 $full = public_path($announcement->attachment_path);
                 if (is_file($full)) {
                     $wasender->sendGroupDocument(

@@ -16,7 +16,7 @@ class SendWaAnnouncementBatchJob implements ShouldQueue
 
     public $tries = 1;
 
-    public $timeout = 80;
+    public $timeout = 240;
 
     protected $announcementId;
 
