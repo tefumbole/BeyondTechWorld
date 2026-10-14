@@ -791,6 +791,7 @@
     greet.style.display = 'none';
   });
   window.addEventListener('mbole-ai-open', function () { setOpen(true); });
+  if (location.hash === '#mbole-ai') setOpen(true);
 
   // Expire stale sessions from a previous visit before wiring onboarding UI.
   if (token && isIdleExpired()) {
