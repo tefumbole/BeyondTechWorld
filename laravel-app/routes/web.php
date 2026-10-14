@@ -200,6 +200,17 @@ Route::post('/yong/meals/thanks', 'YongInvitationController@sendThanks')->middle
 Route::post('/yong/reviews', 'YongInvitationController@storeReview')->middleware('throttle:12,1')->name('yong.reviews.store');
 Route::post('/yong/gallery', 'YongInvitationController@storeGallery')->middleware('throttle:8,1')->name('yong.gallery.store');
 
+$caroRoutes = function () {
+    Route::get('/', 'CaroInvitationController@index');
+    Route::post('/start', 'CaroInvitationController@start')->middleware('throttle:30,1');
+    Route::post('/seat', 'CaroInvitationController@claim')->middleware('throttle:20,1');
+    Route::get('/card/{id}/download', 'CaroInvitationController@download');
+    Route::get('/card/{id}', 'CaroInvitationController@card');
+    Route::get('/pass/{id}', 'CaroInvitationController@pass');
+};
+Route::prefix('caro')->group($caroRoutes);
+Route::domain('caro.beyondtechworld.com')->group($caroRoutes);
+
 // Student portal (training) — requires Beyond auth + OTP
 Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::get('/student/dashboard', 'StudentDashboardController@dashboard')->name('student.dashboard');

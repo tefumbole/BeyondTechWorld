@@ -69,10 +69,10 @@ fix_writable_dirs() {
     public/birthday/mambole/out
 
   # Ownership: PHP-FPM must write here. Root-created cache shards cause admin 500s.
-  chown -R "$WEB_USER:$WEB_GROUP" storage bootstrap/cache public/logo public/images public/uploads public/quotation public/birthday 2>/dev/null || true
+  chown -R "$WEB_USER:$WEB_GROUP" storage bootstrap/cache public/logo public/images public/uploads public/quotation public/birthday public/caro 2>/dev/null || true
   find storage bootstrap/cache -type d -exec chmod 775 {} \;
   find storage bootstrap/cache -type f -exec chmod 664 {} \; 2>/dev/null || true
-  chmod -R ug+rwx public/logo public/images public/uploads public/quotation public/birthday 2>/dev/null || true
+  chmod -R ug+rwx public/logo public/images public/uploads public/quotation public/birthday public/caro 2>/dev/null || true
 
   # Sanity: discard root-owned leftovers if any remain outside storage (rare)
   if [[ "$(id -u)" -eq 0 ]]; then

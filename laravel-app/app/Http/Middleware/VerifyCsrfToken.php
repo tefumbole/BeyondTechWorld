@@ -30,6 +30,10 @@ class VerifyCsrfToken extends Middleware
         'yong/gallery',
         'yong/ticket/*',
         'yong/meals/thanks',
+        'caro/start',
+        'caro/seat',
+        'start',
+        'seat',
         // Website chat widget POSTs from the public site; CSRF cookies are
         // unreliable across cache/CDN and caused silent "Network error" sends.
         'api/website-chat/*',
