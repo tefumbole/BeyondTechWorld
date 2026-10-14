@@ -162,11 +162,6 @@
 (function () {
     var input = document.getElementById('seatCode');
     var label = document.getElementById('pickedLabel');
-    var hall = document.getElementById('hall');
-    var mine = hall.querySelector('button.seat[data-mine="1"]');
-    if (mine && hall.scrollWidth > hall.clientWidth) {
-        hall.scrollLeft = Math.max(0, mine.offsetLeft - 48);
-    }
     document.querySelectorAll('button.seat:not(:disabled)').forEach(function (button) {
         button.addEventListener('click', function () {
             document.querySelectorAll('button.seat.is-on').forEach(function (item) { item.classList.remove('is-on'); });
