@@ -91,7 +91,7 @@ class CaroInvitationController extends Controller
 
         return view('beyond.caro.card', [
             'invitation' => $row,
-            'existing' => request('existing') === '1',
+            'existing' => request('existing') === '1' || ! empty($row->invitation_sent_at),
             'downloadUrl' => $this->invitations->pageUrl('card/'.$row->id.'/download'),
             'homeUrl' => $this->invitations->pageUrl(),
         ]);
