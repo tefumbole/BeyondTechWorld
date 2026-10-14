@@ -125,10 +125,11 @@
             border-top: 1px solid var(--line);
             backdrop-filter: blur(10px);
         }
-        .dock-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
-        .total { font-size: 13px; color: var(--muted); font-weight: 700; min-width: 0; }
+        .dock-inner { max-width: 720px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .total { font-size: 13px; color: var(--muted); font-weight: 700; min-width: 0; flex: 1 1 120px; }
         .total strong { display: block; color: var(--ink); font-size: 16px; }
-        .dock .btn { margin-left: auto; }
+        .dock-actions { display: flex; gap: 8px; flex: 1 1 240px; }
+        .dock-actions .btn { flex: 1; text-align: center; text-decoration: none; }
         @media (min-width: 720px) {
             .wrap { padding-top: 28px; }
             .fields { grid-template-columns: 1fr 1fr; }
@@ -186,7 +187,10 @@
 <div class="dock">
     <div class="dock-inner">
         <div class="total" id="requestTotal">0 people</div>
-        <button class="btn" type="submit" form="requestForm">Submit request</button>
+        <div class="dock-actions">
+            <a class="btn ghost" href="{{ route('payments.hub') }}">Back to Payments</a>
+            <button class="btn" type="submit" form="requestForm">Submit request</button>
+        </div>
     </div>
 </div>
 <script>
