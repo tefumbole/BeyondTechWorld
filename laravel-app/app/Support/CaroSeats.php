@@ -85,6 +85,13 @@ class CaroSeats
         return self::ownerRole($code) === $role;
     }
 
+    public static function executive($code)
+    {
+        $owner = self::ownerRole($code);
+
+        return $owner && $owner !== 'guest';
+    }
+
     /**
      * Rows this role is shown. Guests see the whole hall.
      *

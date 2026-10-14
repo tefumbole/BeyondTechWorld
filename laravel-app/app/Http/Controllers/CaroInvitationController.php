@@ -43,9 +43,8 @@ class CaroInvitationController extends Controller
         return view('beyond.caro.seats', array_merge($this->formData(), [
             'guest' => $guest,
             'taken' => $this->invitations->takenCodes(),
-            'rows' => CaroSeats::rowsFor($guest['role']),
-            'columns' => CaroSeats::columnsFor($guest['role']),
-            'focused' => $guest['role'] !== 'guest',
+            'rows' => range(1, CaroSeats::ROWS),
+            'columns' => CaroSeats::COLUMNS,
             'error' => $error,
         ]));
     }
