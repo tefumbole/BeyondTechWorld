@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Choose your seat — MSATA 2026</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
@@ -369,5 +370,12 @@
     });
 })();
 </script>
+@include('beyond.partials.mbole_ai_widget')
+<style>
+@media (max-width: 900px) {
+    #mbole-ai-root { bottom: calc(38vh + 16px); }
+    #mbole-ai-root.is-open { bottom: 12px; }
+}
+</style>
 </body>
 </html>

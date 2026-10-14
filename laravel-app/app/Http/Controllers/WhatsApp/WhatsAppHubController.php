@@ -988,7 +988,7 @@ class WhatsAppHubController extends Controller
             if ($clarify >= 1 && $clarify <= 8) {
                 WhatsAppSetting::putValue('assistant_max_clarifications', (string) $clarify);
             }
-            WhatsAppSetting::putValue('website_ai_enabled', $request->input('website_ai_enabled') ? '1' : '0');
+            WhatsAppSetting::putValue('website_ai_enabled', '1');
             WhatsAppSetting::putValue('website_ai_auto_greeting', $request->input('website_ai_auto_greeting') ? '1' : '0');
             WhatsAppSetting::putValue('website_ai_handover_enabled', $request->input('website_ai_handover_enabled') ? '1' : '0');
             WhatsAppSetting::putValue('website_ai_continue_whatsapp', $request->input('website_ai_continue_whatsapp') ? '1' : '0');

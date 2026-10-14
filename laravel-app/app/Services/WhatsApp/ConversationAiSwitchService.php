@@ -100,6 +100,9 @@ class ConversationAiSwitchService
             if ($mode !== WhatsAppConversation::MODE_AI) {
                 continue;
             }
+            if ($conversation->channel === WhatsAppConversation::CHANNEL_WEBSITE) {
+                continue;
+            }
             $conversation->mode = WhatsAppConversation::MODE_HUMAN;
             $conversation->save();
             WhatsAppConversationEvent::create([

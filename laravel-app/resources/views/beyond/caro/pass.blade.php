@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Invitation verification</title>
     <style>
         body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 14px; background: #f4f7fb; color: #12203a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -54,5 +55,6 @@
     @endif
     <p class="foot">Spirit Waves Music · Invitation verification</p>
 </div>
+@include('beyond.partials.mbole_ai_widget')
 </body>
 </html>

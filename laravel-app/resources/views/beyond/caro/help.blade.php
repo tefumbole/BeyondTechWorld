@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>How to book a seat — MSATA 2026</title>
     <style>
         :root { --navy: #140b2e; --gold: #e4c16a; --ink: #1d2433; }
@@ -58,5 +59,6 @@
     <a href="{{ url('/#mbole-ai') }}">+237 675 321 739</a> |
     <span class="ver">{{ \App\Support\AppVersion::bcl() }}</span>
 </footer>
+@include('beyond.partials.mbole_ai_widget')
 </body>
 </html>

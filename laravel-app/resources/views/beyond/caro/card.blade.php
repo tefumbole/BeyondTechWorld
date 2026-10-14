@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $invitation->name }} — {{ $invitation->seatLabel() }}</title>
     <style>
         body { margin: 0; background: #140b2e; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -22,5 +23,6 @@
     <a class="btn" href="{{ $downloadUrl }}">Download invitation</a>
     <a class="btn ghost" href="{{ $homeUrl }}">Back</a>
 </div>
+@include('beyond.partials.mbole_ai_widget')
 </body>
 </html>
