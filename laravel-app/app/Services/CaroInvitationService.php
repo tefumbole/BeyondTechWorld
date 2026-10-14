@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\CaroInvitation;
+use App\Jobs\SendCaroHostNoticeJob;
 use App\Jobs\SendCaroInvitationJob;
 use App\Support\CaroSeats;
 use BaconQrCode\Common\ErrorCorrectionLevel;
@@ -102,6 +103,9 @@ class CaroInvitationService
                 throw $e;
             }
             SendCaroInvitationJob::dispatch($row->id)->onQueue('whatsapp');
+            if ($row->wasRecentlyCreated && empty($row->host_notified_at)) {
+                SendCaroHostNoticeJob::dispatch($row->id)->onQueue('whatsapp');
+            }
         }
 
         return $row;

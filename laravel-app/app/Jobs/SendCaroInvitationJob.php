@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\CaroInvitation;
 use App\Services\BeyondWasenderService;
+use App\Support\CaroSendGate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,27 +34,13 @@ class SendCaroInvitationJob implements ShouldQueue
             return;
         }
 
-        $lock = storage_path('framework/caro-wasender.lock');
-        $stamp = storage_path('framework/caro-wasender-last.txt');
-        $handle = fopen($lock, 'c');
-        if (! $handle) {
-            $this->send($whatsapp, $row);
-
-            return;
-        }
-        try {
-            flock($handle, LOCK_EX);
-            $last = is_file($stamp) ? (int) trim((string) file_get_contents($stamp)) : 0;
-            $wait = 5 - (time() - $last);
-            if ($last > 0 && $wait > 0) {
-                sleep($wait);
+        CaroSendGate::send(function () use ($whatsapp, $row) {
+            $fresh = CaroInvitation::find($row->id);
+            if (! $fresh || ! is_file($fresh->imagePath()) || $fresh->invitation_sent_at) {
+                return;
             }
-            $this->send($whatsapp, $row);
-            file_put_contents($stamp, (string) time());
-        } finally {
-            flock($handle, LOCK_UN);
-            fclose($handle);
-        }
+            $this->send($whatsapp, $fresh);
+        });
     }
 
     protected function send(BeyondWasenderService $whatsapp, CaroInvitation $row)

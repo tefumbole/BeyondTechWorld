@@ -74,6 +74,14 @@ class CaroSeats
         return '2026-11-08';
     }
 
+    /**
+     * Caroline, the host shown at the center of the flyer.
+     */
+    public static function hostPhone()
+    {
+        return '+237671147099';
+    }
+
     public static function isEventDay()
     {
         return \Carbon\Carbon::now('Africa/Douala')->toDateString() === self::eventDay();

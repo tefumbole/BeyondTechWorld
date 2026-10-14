@@ -24,12 +24,14 @@ class CaroInvitation extends Model
         'presented_at',
         'thanks_sent_at',
         'invitation_sent_at',
+        'host_notified_at',
     ];
 
     protected $dates = [
         'presented_at',
         'thanks_sent_at',
         'invitation_sent_at',
+        'host_notified_at',
     ];
 
     public function roleLabel()

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\CaroInvitation;
 use App\Services\BeyondWasenderService;
 use App\Support\CaroSeats;
+use App\Support\CaroSendGate;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -39,17 +40,23 @@ class SendCaroThanksJob implements ShouldQueue
             .'We are glad you were with us at Presbyterian Hall Ntamulung. '
             .'Your seat was '.$seat.'.';
 
-        try {
-            $result = $whatsapp->sendTextRaw($row->phone, $message, false);
-            if (empty($result['success'])) {
-                Log::info('caro thanks send failed', ['error' => isset($result['error']) ? $result['error'] : 'unknown']);
-                throw new \RuntimeException('Thanks message was not sent.');
+        CaroSendGate::send(function () use ($whatsapp, $row, $message) {
+            $fresh = CaroInvitation::find($row->id);
+            if (! $fresh || $fresh->thanks_sent_at) {
+                return;
             }
-            $row->thanks_sent_at = \Carbon\Carbon::now('Africa/Douala');
-            $row->save();
-        } catch (\Throwable $e) {
-            Log::warning('caro thanks send exception: '.$e->getMessage());
-            throw $e;
-        }
+            try {
+                $result = $whatsapp->sendTextRaw($fresh->phone, $message, false);
+                if (empty($result['success'])) {
+                    Log::info('caro thanks send failed', ['error' => isset($result['error']) ? $result['error'] : 'unknown']);
+                    throw new \RuntimeException('Thanks message was not sent.');
+                }
+                $fresh->thanks_sent_at = \Carbon\Carbon::now('Africa/Douala');
+                $fresh->save();
+            } catch (\Throwable $e) {
+                Log::warning('caro thanks send exception: '.$e->getMessage());
+                throw $e;
+            }
+        });
     }
 }

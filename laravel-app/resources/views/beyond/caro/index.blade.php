@@ -37,9 +37,21 @@
         .flyer-copy { position: absolute; left: 6.5%; top: 7%; width: 50%; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
         .flyer-kicker { margin: 0 0 8px; color: #e4c16a; font-size: clamp(10px, 1.15vw, 13px); font-weight: 700; letter-spacing: .28em; }
         .flyer-kicker:before { content: ""; display: inline-block; width: 28px; height: 2px; background: #e4c16a; vertical-align: middle; margin-right: 8px; }
-        .sw { margin: 0; font-family: "Playfair Display", serif; font-size: clamp(22px, 2.7vw, 38px); font-weight: 600; line-height: 1.05; }
+        .sw, .msata {
+            display: inline-block; background-size: 220% auto;
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            animation: gold-sweep 3.4s linear infinite;
+        }
+        .sw {
+            margin: 0; font-family: "Playfair Display", serif; font-size: clamp(22px, 2.7vw, 38px); font-weight: 600; line-height: 1.05;
+            background-image: linear-gradient(100deg, #ffffff 0%, #fff 32%, #e8c56b 50%, #fff 68%, #ffffff 100%);
+        }
         .invite { margin: 2px 0 6px; font-family: "Playfair Display", serif; font-style: italic; font-size: clamp(13px, 1.45vw, 18px); }
-        .msata { margin: 0; font-family: "Playfair Display", serif; font-weight: 700; color: #e8c56b; font-size: clamp(28px, 4.1vw, 54px); line-height: .92; letter-spacing: .01em; }
+        .msata {
+            margin: 0; font-family: "Playfair Display", serif; font-weight: 700; font-size: clamp(28px, 4.1vw, 54px); line-height: .92; letter-spacing: .01em;
+            background-image: linear-gradient(100deg, #c9a45a 0%, #e8c56b 30%, #fff6d0 50%, #e8c56b 70%, #c9a45a 100%);
+            animation: gold-sweep 2.8s linear infinite, title-float 2.6s ease-in-out infinite;
+        }
         .sub, .who { margin: 2px 0 0; font-family: "Playfair Display", serif; font-weight: 600; line-height: 1.15; }
         .sub { font-size: clamp(16px, 2.05vw, 28px); }
         .who { font-size: clamp(18px, 2.25vw, 30px); margin-bottom: 8px; }
@@ -103,7 +115,13 @@
             background: linear-gradient(90deg, #082a72 0%, #12408f 42%, #0b327c 100%);
             color: #f6e3a8;
         }
-        .site-foot p { margin: 0; text-align: center; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
+        .foot-marquee { overflow: hidden; flex: 1; min-width: 0; }
+        .foot-run { display: flex; width: max-content; animation: foot-move 22s linear infinite; }
+        .foot-marquee:hover .foot-run { animation-play-state: paused; }
+        .site-foot p { margin: 0; white-space: nowrap; padding-right: 48px; font-size: clamp(12px, 1.4vw, 15px); font-weight: 700; }
+        @keyframes gold-sweep { from { background-position: 0% center; } to { background-position: 220% center; } }
+        @keyframes title-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        @keyframes foot-move { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         .site-foot a { color: #fff; text-decoration: none; font-weight: 700; }
         .site-foot .sep { margin: 0 8px; color: rgba(246, 227, 168, .7); }
         .site-foot .ver { color: #e4c16a; letter-spacing: .04em; }
@@ -129,7 +147,10 @@
             50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgba(225, 179, 104, .9)); }
         }
         @media (prefers-reduced-motion: reduce) {
-            .beyond-mark, .logo-mark::before { animation: none; }
+            .beyond-mark, .logo-mark::before, .sw, .msata, .foot-run { animation: none; }
+            .sw { background: none; -webkit-text-fill-color: #fff; color: #fff; }
+            .msata { background: none; -webkit-text-fill-color: #e8c56b; color: #e8c56b; }
+            .site-foot p { white-space: normal; }
         }
         @media (max-width: 900px) {
             .wrap { padding: 0 12px; }
@@ -265,7 +286,12 @@
     </div>
 </div>
 <footer class="site-foot">
-    <p>© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Sr. Engr. Tefu R. Mbole (A.K.A Papa Rolly)<span class="sep">|</span><a href="{{ url('/#mbole-ai') }}" title="Chat with Mbole AI">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
+    <div class="foot-marquee">
+        <div class="foot-run">
+            <p>© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Sr. Engr. Tefu R. Mbole (A.K.A Papa Rolly)<span class="sep">|</span><a href="{{ url('/#mbole-ai') }}" title="Chat with Mbole AI">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
+            <p aria-hidden="true">© {{ date('Y') }} Beyond Enterprise. All rights reserved.<span class="sep">|</span>Developed By<span class="sep">|</span>Sr. Engr. Tefu R. Mbole (A.K.A Papa Rolly)<span class="sep">|</span><a href="{{ url('/#mbole-ai') }}" title="Chat with Mbole AI" tabindex="-1">+237 675 321 739</a><span class="sep">|</span><span class="ver">{{ \App\Support\AppVersion::bcl() }}</span></p>
+        </div>
+    </div>
     <span class="logo-mark"><img class="beyond-mark" src="{{ asset('public/branding/beyond-mark.png') }}?v={{ @filemtime(public_path('branding/beyond-mark.png')) }}" alt="Beyond"></span>
 </footer>
 <script type="application/json" id="countryData">@json($countryRows)</script>
