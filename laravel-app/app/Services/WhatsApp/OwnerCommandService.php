@@ -197,10 +197,10 @@ class OwnerCommandService
             return 'Human mode is on. '.$switched.' chat(s) are now with a person, and AI will stay quiet on every number until you send AI On.';
         }
 
-        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        WhatsAppSetting::putValue('default_conversation_mode', 'AI');
         WhatsAppSetting::putValue('ai_first', '0');
         $switched = app(ConversationAiSwitchService::class)->resumeOpenConversations($actorId);
-        $notice = 'AI is on for open WhatsApp chats. '.$switched.' open chat(s) will be answered from the messages already in the thread. New chats are not AI-first. Closed chats stay closed until someone writes again.';
+        $notice = 'WhatsApp AI is on. '.$switched.' open chat(s) will be answered from the messages already in the thread. New WhatsApp chats are answered when someone writes. The assistant does not message first. Closed chats stay closed until someone writes again.';
         if (! config('assistant.enabled')) {
             $notice .= ' The server still has the assistant blocked, so replies stay off until that is allowed.';
         }

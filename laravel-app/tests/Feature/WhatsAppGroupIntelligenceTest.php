@@ -102,7 +102,8 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
 
         $notice = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
         $this->assertNotNull($notice);
-        $this->assertStringContainsString('not AI-first', $notice->body);
+        $this->assertStringContainsString('WhatsApp AI is on', $notice->body);
+        $this->assertStringContainsString('does not message first', $notice->body);
 
         $this->assertSame(WhatsAppConversation::STATUS_CLOSED, $closed->fresh()->status);
         $this->assertSame(WhatsAppConversation::MODE_HUMAN, $closed->fresh()->mode);
@@ -110,7 +111,7 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         $this->postWebhook($this->text('237650200049', 'I need speakers for Saturday', 'NEWAFTER'))->assertStatus(200);
         $created = WhatsAppConversation::where('id', '>', $before)->orderByDesc('id')->first();
         $this->assertNotNull($created);
-        $this->assertSame(WhatsAppConversation::MODE_HUMAN, $created->mode);
+        $this->assertSame(WhatsAppConversation::MODE_AI, $created->mode);
 
         $this->postWebhook($this->text('237650200048', 'Bonjour, je veux un devis pour samedi', 'REOPEN1'))->assertStatus(200);
         $this->assertSame(WhatsAppConversation::MODE_AI, $closed->fresh()->mode);
@@ -118,7 +119,7 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
 
         $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
         $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
-        $this->assertSame('HUMAN', WhatsAppSetting::getValue('default_conversation_mode', 'HUMAN'));
+        $this->assertSame('AI', WhatsAppSetting::getValue('default_conversation_mode', 'HUMAN'));
         $this->assertSame(WhatsAppConversation::MODE_AI, $open->fresh()->mode);
         $this->assertSame(WhatsAppConversation::MODE_PAUSED, $paused->fresh()->mode);
     }
@@ -135,7 +136,8 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
         $this->assertSame(WhatsAppConversation::MODE_AI, $chat->fresh()->mode);
         $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
-        $this->assertStringContainsString('not AI-first', $result['notice']);
+        $this->assertSame('AI', WhatsAppSetting::getValue('default_conversation_mode', 'HUMAN'));
+        $this->assertStringContainsString('WhatsApp AI is on', $result['notice']);
         $sent = array_filter($this->fake->sent, function ($row) {
             return isset($row[1]) && $row[1] === 'AI ON';
         });
@@ -167,7 +169,7 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
 
         $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
         $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
-        $this->assertSame('HUMAN', WhatsAppSetting::getValue('default_conversation_mode', 'AI'));
+        $this->assertSame('AI', WhatsAppSetting::getValue('default_conversation_mode', 'HUMAN'));
         $this->assertSame(WhatsAppConversation::MODE_AI, $open->fresh()->mode);
         $notice = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
         $this->assertNotNull($notice);
