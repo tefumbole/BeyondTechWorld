@@ -11,44 +11,45 @@
         body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17324d; background: #f4f8ff; }
         a { color: inherit; text-decoration: none; }
         .hero { position: relative; background: #071426; }
-        .banner { display: block; width: 100%; height: auto; }
-        .hero-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 2.4rem; }
-        .brand img { height: 84px; width: auto; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
+        .banner { display: block; width: 100%; height: clamp(190px, 34vh, 300px); object-fit: cover; object-position: center 38%; }
+        .hero-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: .55rem 1.6rem; }
+        .brand img { height: 58px; width: auto; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
         .help { display: flex; align-items: center; gap: .45rem; color: #fff; font-weight: 700; font-size: .92rem; background: rgba(8, 22, 48, .35); border-radius: 999px; padding: .45rem .8rem; }
         .help small { display: block; color: rgba(255,255,255,.75); font-weight: 600; font-size: .72rem; }
-        .sheet { position: relative; margin: -4.5rem 3vw 1.2rem; background: #fff; border-radius: 28px; box-shadow: 0 24px 60px rgba(18, 52, 110, .12); padding: 1.35rem 1.25rem 1.15rem; }
-        .phone-row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+        .sheet { position: relative; margin: -1.6rem 2.2vw .6rem; background: #fff; border-radius: 22px; box-shadow: 0 24px 60px rgba(18, 52, 110, .12); padding: .75rem .9rem .7rem; }
+        .phone-row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: .55rem; }
         .field { flex: 1; min-width: 220px; display: flex; align-items: center; gap: .5rem; border: 1px solid #e1e7ee; border-radius: 12px; padding: 0 .8rem; min-height: 46px; background: #f8fbff; }
         .field input { border: 0; width: 100%; font: inherit; font-size: 16px; outline: none; background: transparent; }
         .links { display: flex; gap: .45rem; }
         .links button { border: 0; background: #eef4ff; color: #2458d6; border-radius: 10px; min-height: 40px; padding: 0 .75rem; font-weight: 700; cursor: pointer; }
         .extra { margin: 0 0 1rem; }
         .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
-        h3 { margin: 0; font-size: 1.55rem; }
+        h3 { margin: 0; font-size: 1.25rem; }
         .sub { margin: .2rem 0 0; color: #7b8794; font-size: .95rem; }
         .filters { display: flex; gap: .45rem; flex-wrap: wrap; }
         .filters button { border: 1px solid #e6edf5; background: #fff; border-radius: 999px; min-height: 40px; padding: 0 .9rem; font-weight: 700; color: #526274; cursor: pointer; }
         .filters button.on { background: #2f6bff; color: #fff; border-color: #2f6bff; }
         .err { background: #fff1f1; color: #9b1c1c; border-radius: 12px; padding: .7rem .8rem; margin-bottom: .8rem; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin-top: 1.1rem; }
-        .card { position: relative; border-radius: 22px; padding: 1.15rem .95rem 1rem; border: 1px solid transparent; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7rem; margin-top: .65rem; }
+        .card { position: relative; border-radius: 18px; padding: .7rem .7rem .65rem; border: 1px solid transparent; }
         .card.mint { background: linear-gradient(180deg, #f3fbf6, #eefaf3); }
         .card.sky { background: linear-gradient(180deg, #f4f8ff, #eef4ff); }
         .card.lilac { background: linear-gradient(180deg, #f7f4ff, #f3efff); }
         .card.sand { background: linear-gradient(180deg, #fff8ee, #fff4e4); }
         .badge { position: absolute; top: .75rem; left: .75rem; background: #22c55e; color: #fff; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .03em; padding: .28rem .55rem; }
-        .icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: .35rem auto .35rem; background: #fff; }
+        .icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: .15rem auto .15rem; background: #fff; }
+        .icon svg { width: 18px; height: 18px; }
         .card.mint .icon { color: #16a34a; }
         .card.sky .icon { color: #2563eb; }
         .card.lilac .icon { color: #7c3aed; }
         .card.sand .icon { color: #f59e0b; }
-        .card h4 { text-align: center; margin: .15rem 0; font-size: 1.35rem; }
-        .blurb { text-align: center; color: #7d8b99; margin: 0 0 .75rem; font-size: .92rem; }
-        .card ul { list-style: none; padding: 0; margin: 0 0 .85rem; }
-        .card li { margin: .38rem 0; font-size: .92rem; }
+        .card h4 { text-align: center; margin: .1rem 0; font-size: 1.15rem; }
+        .blurb { text-align: center; color: #7d8b99; margin: 0 0 .4rem; font-size: .82rem; }
+        .card ul { list-style: none; padding: 0; margin: 0 0 .45rem; }
+        .card li { margin: .18rem 0; font-size: .82rem; }
         .card li:before { content: "✓  "; color: #22a35a; font-weight: 800; }
-        .amount { text-align: center; font-size: 1.7rem; font-weight: 800; margin: .15rem 0 .75rem; }
-        .pay, .cardbtn, .go { width: 100%; border-radius: 12px; min-height: 46px; font-weight: 700; cursor: pointer; font-size: .95rem; }
+        .amount { text-align: center; font-size: 1.35rem; font-weight: 800; margin: .1rem 0 .4rem; }
+        .pay, .cardbtn, .go { width: 100%; border-radius: 10px; min-height: 38px; font-weight: 700; cursor: pointer; font-size: .88rem; }
         .pay { border: 0; color: #fff; margin-bottom: .45rem; }
         .card.mint .pay { background: #22c55e; }
         .card.sky .pay { background: #2f6bff; }
@@ -68,7 +69,8 @@
             .grid, .why { grid-template-columns: 1fr; }
             .sheet { margin: -2rem 0 1rem; border-radius: 22px 22px 0 0; }
             .hero-bar { padding: .7rem 1rem; }
-            .brand img { height: 64px; }
+            .brand img { height: 52px; }
+            .banner { height: 220px; }
         }
     </style>
 </head>
