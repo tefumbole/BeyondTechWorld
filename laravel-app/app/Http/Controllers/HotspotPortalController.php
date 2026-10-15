@@ -196,6 +196,7 @@ class HotspotPortalController extends Controller
                     $query->whereNull('location_id')->orWhere('location_id', $location->id);
                 })
                 ->orderBy('price')
+                ->orderBy('validity_seconds')
                 ->get();
         }
 

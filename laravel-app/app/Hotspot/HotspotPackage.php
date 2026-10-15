@@ -34,6 +34,6 @@ class HotspotPackage extends Model
 
     public function rateLabel()
     {
-        return HotspotLimits::rateLimit($this->rate_up, $this->rate_down);
+        return HotspotLimits::speedLabel($this->rate_up, $this->rate_down);
     }
 }

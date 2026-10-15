@@ -93,7 +93,7 @@ class HotspotAdminController extends Controller
     public function packages()
     {
         return view('hotspot.admin.packages', [
-            'rows' => HotspotPackage::orderBy('name')->get(),
+            'rows' => HotspotPackage::orderBy('price')->orderBy('validity_seconds')->get(),
             'locations' => HotspotLocation::orderBy('name')->get(),
         ]);
     }
@@ -373,11 +373,18 @@ class HotspotAdminController extends Controller
             'name' => 'required|string|max:120',
             'price' => 'required|integer|min:100',
             'validity_value' => 'required|integer|min:1',
-            'validity_unit' => 'required|in:minutes,hours,days',
+            'validity_unit' => 'required|in:minutes,hours,days,weeks,months',
+            'data_gb' => 'nullable|numeric|min:0.01',
         ]);
+        $multipliers = ['minutes' => 60, 'hours' => 3600, 'days' => 86400, 'weeks' => 604800, 'months' => 2592000];
         $unit = $request->input('validity_unit');
-        $seconds = (int) $request->input('validity_value') * ($unit === 'days' ? 86400 : ($unit === 'hours' ? 3600 : 60));
-        $data = $request->filled('data_mb') ? (int) $request->input('data_mb') * 1048576 : null;
+        $seconds = (int) $request->input('validity_value') * $multipliers[$unit];
+        $data = null;
+        if ($request->filled('data_gb') && (float) $request->input('data_gb') > 0) {
+            $data = (int) round((float) $request->input('data_gb') * 1073741824);
+        }
+        $uploadOpen = $request->input('unlimited_up') === '1';
+        $downloadOpen = $request->input('unlimited_down') === '1';
 
         return [
             'location_id' => $request->input('location_id') ?: null,
@@ -386,8 +393,8 @@ class HotspotAdminController extends Controller
             'currency' => 'XAF',
             'validity_seconds' => $seconds,
             'data_bytes' => $data,
-            'rate_up' => max(1, (int) $request->input('rate_up', 1024)),
-            'rate_down' => max(1, (int) $request->input('rate_down', 2048)),
+            'rate_up' => $uploadOpen ? null : max(1, (int) $request->input('rate_up', 1024)),
+            'rate_down' => $downloadOpen ? null : max(1, (int) $request->input('rate_down', 2048)),
             'shared_users' => max(1, (int) $request->input('shared_users', 1)),
             'simultaneous_sessions' => max(1, (int) $request->input('simultaneous_sessions', 1)),
             'active' => $request->input('active') === '1',

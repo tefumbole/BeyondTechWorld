@@ -3,7 +3,7 @@
 <section class="forms"><div class="container-fluid">
     <h3>Hotspot packages</h3>
     @include('hotspot.admin.nav')
-    <p>Prices are what you type here, in whole XAF, at least 100. Nothing is priced for you.</p>
+    <p>Prices are what you type here, in whole XAF, at least 100. Leave the volume cap empty for unlimited data. Tick unlimited upload or download when that direction should have no speed cap.</p>
     <div class="card p-3 mb-3">
         <form method="POST" action="{{ route('hotspot.packages.store') }}">
             @csrf
@@ -36,4 +36,18 @@
         <div class="alert alert-info">No packages yet.</div>
     @endforelse
 </div></section>
+<script>
+    (function () {
+        var boxes = document.querySelectorAll('.hs-unlimited');
+        function sync(box) {
+            var input = box.form ? box.form.querySelector('[name="' + box.getAttribute('data-target') + '"]') : null;
+            if (!input) return;
+            input.disabled = box.checked;
+        }
+        for (var i = 0; i < boxes.length; i++) {
+            boxes[i].addEventListener('change', function () { sync(this); });
+            sync(boxes[i]);
+        }
+    })();
+</script>
 @endsection

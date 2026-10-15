@@ -152,9 +152,9 @@
                         <h4>{{ $package->name }}</h4>
                         <p class="blurb">{{ \App\Hotspot\HotspotLimits::humanDuration($package->validity_seconds) }}</p>
                         <ul>
-                            <li>{{ $package->rateLabel() }} up / down</li>
+                            <li>{{ $package->rateLabel() }}</li>
                             <li>Up to {{ max(1, (int) $package->shared_users) }} {{ (int) $package->shared_users === 1 ? 'device' : 'devices' }}</li>
-                            <li>{{ $package->data_bytes ? \App\Hotspot\HotspotLimits::humanBytes($package->data_bytes).' included' : 'No data cap' }}</li>
+                            <li>{{ $package->data_bytes ? \App\Hotspot\HotspotLimits::humanBytes($package->data_bytes).' included' : 'Unlimited data' }}</li>
                         </ul>
                         <div class="amount">{{ number_format($package->price) }} XAF</div>
                         <form method="POST" action="{{ route('hotspot.pay') }}">

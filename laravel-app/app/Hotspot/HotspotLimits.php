@@ -9,7 +9,31 @@ class HotspotLimits
 {
     public static function rateLimit($uploadKbps, $downloadKbps)
     {
-        return self::bits($uploadKbps).'/'.self::bits($downloadKbps);
+        $uploadOpen = self::unlimited($uploadKbps);
+        $downloadOpen = self::unlimited($downloadKbps);
+        if ($uploadOpen && $downloadOpen) {
+            return '';
+        }
+
+        return ($uploadOpen ? '0' : self::bits($uploadKbps)).'/'.($downloadOpen ? '0' : self::bits($downloadKbps));
+    }
+
+    public static function speedLabel($uploadKbps, $downloadKbps)
+    {
+        $uploadOpen = self::unlimited($uploadKbps);
+        $downloadOpen = self::unlimited($downloadKbps);
+        if ($uploadOpen && $downloadOpen) {
+            return 'Unlimited speed';
+        }
+        $upload = $uploadOpen ? 'Unlimited' : self::bits($uploadKbps);
+        $download = $downloadOpen ? 'Unlimited' : self::bits($downloadKbps);
+
+        return $upload.' up / '.$download.' down';
+    }
+
+    public static function unlimited($kbps)
+    {
+        return $kbps === null || $kbps === '' || (int) $kbps === 0;
     }
 
     public static function bits($kbps)
@@ -59,6 +83,16 @@ class HotspotLimits
     public static function humanDuration($seconds)
     {
         $seconds = (int) $seconds;
+        if ($seconds % 2592000 === 0 && $seconds >= 2592000) {
+            $months = (int) ($seconds / 2592000);
+
+            return $months.' '.($months === 1 ? 'month' : 'months');
+        }
+        if ($seconds % 604800 === 0 && $seconds >= 604800) {
+            $weeks = (int) ($seconds / 604800);
+
+            return $weeks.' '.($weeks === 1 ? 'week' : 'weeks');
+        }
         if ($seconds % 86400 === 0 && $seconds >= 86400) {
             $days = (int) ($seconds / 86400);
 

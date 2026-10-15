@@ -34,10 +34,13 @@ class HotspotRadiusService
             'value' => $secret,
         ]);
         $replies = [
-            ['Mikrotik-Rate-Limit', HotspotLimits::rateLimit($package->rate_up, $package->rate_down)],
             ['Session-Timeout', (string) (int) $package->validity_seconds],
             ['Simultaneous-Use', (string) max(1, (int) $package->simultaneous_sessions)],
         ];
+        $rate = HotspotLimits::rateLimit($package->rate_up, $package->rate_down);
+        if ($rate !== '') {
+            array_unshift($replies, ['Mikrotik-Rate-Limit', $rate]);
+        }
         if ($package->data_bytes) {
             $replies[] = ['Mikrotik-Total-Limit', (string) (int) $package->data_bytes];
         }

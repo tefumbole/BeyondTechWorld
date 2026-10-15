@@ -12,6 +12,12 @@ class HotspotAccessTest extends TestCase
     {
         $this->assertSame('1M/2M', HotspotLimits::rateLimit(1024, 2048));
         $this->assertSame('512k/5M', HotspotLimits::rateLimit(512, 5120));
+        $this->assertSame('', HotspotLimits::rateLimit(null, null));
+        $this->assertSame('0/2M', HotspotLimits::rateLimit(null, 2048));
+        $this->assertSame('1M/0', HotspotLimits::rateLimit(1024, 0));
+        $this->assertSame('Unlimited speed', HotspotLimits::speedLabel(null, null));
+        $this->assertSame('1 week', HotspotLimits::humanDuration(604800));
+        $this->assertSame('1 month', HotspotLimits::humanDuration(2592000));
         $this->assertSame('30m', HotspotLimits::duration(1800));
         $this->assertSame('1h', HotspotLimits::duration(3600));
         $this->assertSame(3723, HotspotLimits::uptimeSeconds('1h2m3s'));
