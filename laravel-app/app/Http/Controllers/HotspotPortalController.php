@@ -49,12 +49,12 @@ class HotspotPortalController extends Controller
             return redirect()->route('hotspot.home')->with('hotspot_error', 'Choose a package that is still on sale.');
         }
         $request->validate([
-            'name' => 'required|string|max:120',
+            'name' => 'nullable|string|max:120',
             'phone' => 'required|string|max:30',
             'method' => 'required|in:momo,visa',
         ]);
         try {
-            $customer = $billing->customer($request->input('name'), $request->input('phone'));
+            $customer = $billing->customer($this->guestName($request), $request->input('phone'));
             if ($request->input('method') === 'visa') {
                 $started = $billing->startCard($package, $customer, $request->input('phone'), $location->id);
 
@@ -96,12 +96,27 @@ class HotspotPortalController extends Controller
         return response()->json(['state' => $state, 'login' => $login]);
     }
 
+    public function resume(Request $request)
+    {
+        $location = $this->location($request);
+        $tail = substr(preg_replace('/\D+/', '', (string) $request->input('phone')), -9);
+        $payment = ($location && strlen($tail) >= 9)
+            ? HotspotPayment::where('status', 'paid')->where('phone', 'like', '%'.$tail)->orderByDesc('id')->first()
+            : null;
+        $subscription = $payment ? HotspotSubscription::where('id', $payment->subscription_id)->where('state', 'active')->first() : null;
+        if (! $payment || ! $subscription) {
+            return redirect()->route('hotspot.home')->with('hotspot_error', 'No active access was found for that number.');
+        }
+
+        return redirect()->route('hotspot.login', ['token' => $payment->public_token]);
+    }
+
     public function voucher(Request $request, HotspotBillingService $billing)
     {
         $location = $this->location($request);
         $request->validate([
             'code' => 'required|string|max:32',
-            'name' => 'required|string|max:120',
+            'name' => 'nullable|string|max:120',
             'phone' => 'required|string|max:30',
         ]);
         $code = strtoupper(preg_replace('/[^A-Z0-9]/', '', $request->input('code')));
@@ -118,7 +133,7 @@ class HotspotPortalController extends Controller
             return redirect()->route('hotspot.portal')->with('hotspot_error', 'This voucher has already been used.');
         }
         try {
-            $customer = $billing->customer($request->input('name'), $request->input('phone'));
+            $customer = $billing->customer($this->guestName($request), $request->input('phone'));
             $subscription = $billing->redeem($voucher, $customer, $location->id);
         } catch (\Throwable $e) {
             return redirect()->route('hotspot.portal')->with('hotspot_error', $e->getMessage());
@@ -159,6 +174,17 @@ class HotspotPortalController extends Controller
             'password' => $this->chapPassword($subscription->access_secret, $capture),
             'support' => app(HotspotBillingService::class)->supportPhone(),
         ]))->withCookie(cookie('btw_hotspot', $subscription->id, 60 * 24 * 30));
+    }
+
+    protected function guestName(Request $request)
+    {
+        $name = trim((string) $request->input('name'));
+        if ($name !== '') {
+            return $name;
+        }
+        $phone = trim((string) $request->input('phone'));
+
+        return $phone !== '' ? 'Wi-Fi '.$phone : 'Wi-Fi guest';
     }
 
     protected function pageData(Request $request, $location)

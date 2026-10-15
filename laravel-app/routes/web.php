@@ -123,6 +123,7 @@ Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@
 Route::get('/hotspot', 'HotspotPortalController@home')->name('hotspot.home');
 Route::get('/hotspot/portal', 'HotspotPortalController@portal')->name('hotspot.portal');
 Route::post('/hotspot/pay', 'HotspotPortalController@pay')->middleware('throttle:20,1')->name('hotspot.pay');
+Route::post('/hotspot/resume', 'HotspotPortalController@resume')->middleware('throttle:20,1')->name('hotspot.resume');
 Route::get('/hotspot/waiting/{token}', 'HotspotPortalController@waiting')->name('hotspot.waiting');
 Route::get('/hotspot/status/{token}', 'HotspotPortalController@status')->middleware('throttle:60,1')->name('hotspot.status');
 Route::post('/hotspot/voucher', 'HotspotPortalController@voucher')->middleware('throttle:10,1')->name('hotspot.voucher');
