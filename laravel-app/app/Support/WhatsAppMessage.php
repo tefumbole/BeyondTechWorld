@@ -641,22 +641,20 @@ class WhatsAppMessage
     }
 
     /**
-     * Short OTP. The six digits sit alone on one line so WhatsApp can offer Copy
-     * without the person selecting the code. No extra purpose or security notice.
+     * Opens with Authentication. The code stays in the same sentence as
+     * "verification code" so WhatsApp shows its Copy code button.
      */
     public static function otpMessage($otp, $purpose = 'login', $expiresMinutes = 10)
     {
-        $company = self::companyName();
         $minutes = max(1, (int) $expiresMinutes);
         $digits = preg_replace('/\D+/', '', (string) $otp);
         if ($digits === '') {
             $digits = trim((string) $otp);
         }
 
-        return "*{$company}*\n\n"
-            ."Your verification code is\n\n"
-            .$digits."\n\n"
-            ."It expires in {$minutes} minutes.";
+        return self::statusBlock('🔐', 'Authentication')
+            ."*{$digits}* is your verification code.\n\n"
+            ."It expires in {$minutes} minutes. Do not share this code.";
     }
 
     public static function accountCreated($name, $phone, $password, $loginUrl = null, $note = null)
