@@ -10,11 +10,12 @@
         * { box-sizing: border-box; }
         body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17324d; background: #f4f8ff; }
         a { color: inherit; text-decoration: none; }
-        .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 4vw; background: #fff; }
-        .brand img { height: 46px; width: auto; display: block; }
-        .help { display: flex; align-items: center; gap: .55rem; color: #178a4a; font-weight: 700; font-size: .92rem; }
-        .help small { display: block; color: #8b98a6; font-weight: 600; font-size: .72rem; }
-        .banner { display: block; width: 100%; height: auto; background: #071426; }
+        .hero { position: relative; background: #071426; }
+        .banner { display: block; width: 100%; height: auto; }
+        .hero-bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 2.4rem; }
+        .brand img { height: 84px; width: auto; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
+        .help { display: flex; align-items: center; gap: .45rem; color: #fff; font-weight: 700; font-size: .92rem; background: rgba(8, 22, 48, .35); border-radius: 999px; padding: .45rem .8rem; }
+        .help small { display: block; color: rgba(255,255,255,.75); font-weight: 600; font-size: .72rem; }
         .sheet { position: relative; margin: -4.5rem 3vw 1.2rem; background: #fff; border-radius: 28px; box-shadow: 0 24px 60px rgba(18, 52, 110, .12); padding: 1.35rem 1.25rem 1.15rem; }
         .phone-row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
         .field { flex: 1; min-width: 220px; display: flex; align-items: center; gap: .5rem; border: 1px solid #e1e7ee; border-radius: 12px; padding: 0 .8rem; min-height: 46px; background: #f8fbff; }
@@ -66,14 +67,15 @@
         @media (max-width: 720px) {
             .grid, .why { grid-template-columns: 1fr; }
             .sheet { margin: -2rem 0 1rem; border-radius: 22px 22px 0 0; }
-            .top { padding: .7rem 1rem; }
+            .hero-bar { padding: .7rem 1rem; }
+            .brand img { height: 64px; }
         }
     </style>
 </head>
 <body>
     @php
         $logo = \App\Support\SiteBrand::logoUrl();
-        $hero = url('public/branding/hotspot-hero.jpg');
+        $hero = url('public/branding/hotspot-hero-2.jpg');
         $wa = 'https://wa.me/'.preg_replace('/\D+/', '', (string) $support);
         $blurbs = [
             '1 Hour' => 'Perfect for quick access',
@@ -82,11 +84,13 @@
             '1 Month' => 'Best value for frequent users',
         ];
     @endphp
-    <header class="top">
-        <a class="brand" href="{{ route('hotspot.home') }}"><img src="{{ $logo }}" alt="Beyond Tech World"></a>
-        <a class="help" href="{{ $wa }}"><span><small>Need help?</small>WhatsApp support</span></a>
-    </header>
-    <img class="banner" src="{{ $hero }}" alt="Stay connected with Beyond Tech World">
+    <section class="hero">
+        <img class="banner" src="{{ $hero }}" alt="Stay connected with Beyond Tech World">
+        <header class="hero-bar">
+            <a class="brand" href="{{ route('hotspot.home') }}"><img src="{{ $logo }}" alt="Beyond Tech World"></a>
+            <a class="help" href="{{ $wa }}"><span><small>Need help?</small>WhatsApp support</span></a>
+        </header>
+    </section>
     <section class="sheet" id="packages">
         @if(session('hotspot_error'))<div class="err">{{ session('hotspot_error') }}</div>@endif
         @if(!empty($errorText))<div class="err">{{ $errorText }}</div>@endif
