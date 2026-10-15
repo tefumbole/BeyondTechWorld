@@ -16,6 +16,11 @@ class OwnerAuthorizationService
         }
         $identity = app(WhatsAppIdentityService::class);
         $normalized = $identity->normalize($phone);
+        $incoming = preg_replace('/\D/', '', (string) $normalized);
+        $byListedPhone = $this->userForListedPhone($incoming);
+        if ($byListedPhone) {
+            return $byListedPhone;
+        }
         $matches = $identity->resolve($phone);
         $userId = null;
         foreach ($matches as $match) {
@@ -54,6 +59,29 @@ class OwnerAuthorizationService
         }
 
         return $user;
+    }
+
+    /**
+     * The command phone can differ from the business line. +250794006160 may
+     * turn on WhatsApp AI for +237675321739 when that number is the listed owner phone.
+     */
+    protected function userForListedPhone($incomingDigits)
+    {
+        if ($incomingDigits === '') {
+            return null;
+        }
+        foreach (WhatsAppOwnerUser::where('enabled', true)->get() as $row) {
+            $listed = preg_replace('/\D/', '', (string) $row->normalized_phone);
+            if ($listed === '' || $listed !== $incomingDigits) {
+                continue;
+            }
+            $user = User::find($row->user_id);
+            if ($user && $this->hasOwnerPermission($user)) {
+                return $user;
+            }
+        }
+
+        return null;
     }
 
     public function hasOwnerPermission(User $user)

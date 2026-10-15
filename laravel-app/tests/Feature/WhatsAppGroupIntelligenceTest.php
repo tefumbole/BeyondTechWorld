@@ -142,6 +142,38 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         $this->assertSame([], array_values($sent));
     }
 
+    public function test_listed_owner_phone_turns_on_the_business_whatsapp()
+    {
+        WhatsAppSetting::putValue('assistant_enabled', '0');
+        WhatsAppSetting::putValue('ai_first', '1');
+        WhatsAppSetting::putValue('default_conversation_mode', 'AI');
+        $business = User::create([
+            'name' => 'Business line',
+            'email' => 'business-line@example.test',
+            'password' => Hash::make('secret'),
+            'phone' => '237675321739',
+            'role_id' => Role::where('guard_name', 'web')->where('name', 'Admin')->value('id') ?: 1,
+            'is_active' => true,
+            'is_deleted' => false,
+        ]);
+        WhatsAppOwnerUser::create([
+            'user_id' => $business->id,
+            'normalized_phone' => '250794006160',
+            'enabled' => true,
+        ]);
+        $open = $this->humanChat('237650200055', 'Customer');
+
+        $this->postWebhook($this->text('250794006160', 'AI on', 'RWON'))->assertStatus(200);
+
+        $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
+        $this->assertSame('0', WhatsAppSetting::getValue('ai_first', '0'));
+        $this->assertSame('HUMAN', WhatsAppSetting::getValue('default_conversation_mode', 'AI'));
+        $this->assertSame(WhatsAppConversation::MODE_AI, $open->fresh()->mode);
+        $notice = WhatsAppMessage::where('sender_type', 'ASSISTANT')->orderByDesc('id')->first();
+        $this->assertNotNull($notice);
+        $this->assertStringContainsString('AI is on', $notice->body);
+    }
+
     public function test_owner_can_turn_ai_first_on_without_rewriting_chats()
     {
         $this->owner('237650200001');
