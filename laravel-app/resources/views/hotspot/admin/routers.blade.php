@@ -3,7 +3,7 @@
 <section class="forms"><div class="container-fluid">
     <h3>Hotspot routers</h3>
     @include('hotspot.admin.nav')
-    <p>Management uses the tunnel address only. Leave the router offline until that tunnel exists. Saving a router does not change its firewall.</p>
+    <p>You can save the router now and add the tunnel address later. A public IP is not accepted. Saving a router does not change its firewall.</p>
     <div class="card p-3 mb-3">
         <form method="POST" action="{{ route('hotspot.routers.store') }}">
             @csrf

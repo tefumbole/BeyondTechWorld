@@ -406,11 +406,12 @@ class HotspotAdminController extends Controller
         $request->validate([
             'location_id' => 'required|integer',
             'name' => 'required|string|max:120',
-            'api_host' => 'required|string|max:64',
+            'api_host' => 'nullable|string|max:64',
             'api_port' => 'nullable|integer|min:1|max:65535',
             'api_user' => 'required|string|max:80',
         ]);
-        if (! HotspotLimits::acceptsManagementHost($request->input('api_host'))) {
+        $host = trim((string) $request->input('api_host'));
+        if ($host !== '' && ! HotspotLimits::acceptsManagementHost($host)) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'api_host' => 'Use the tunnel address only. A public IP is not stored as the management path.',
             ]);
@@ -419,7 +420,7 @@ class HotspotAdminController extends Controller
         $row->location_id = $request->input('location_id');
         $row->name = $request->input('name');
         $row->identity = $request->input('identity');
-        $row->api_host = $request->input('api_host');
+        $row->api_host = $host !== '' ? $host : null;
         $row->api_port = $request->input('api_port') ?: 8728;
         $row->api_user = $request->input('api_user');
         $row->ros_version = $request->input('ros_version');
