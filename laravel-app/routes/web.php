@@ -120,6 +120,14 @@ Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('b
 Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');
 Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@confirmation')->name('beyond.permissions.confirmation');
 
+Route::get('/hotspot', 'HotspotPortalController@home')->name('hotspot.home');
+Route::get('/hotspot/portal', 'HotspotPortalController@portal')->name('hotspot.portal');
+Route::post('/hotspot/pay', 'HotspotPortalController@pay')->middleware('throttle:20,1')->name('hotspot.pay');
+Route::get('/hotspot/waiting/{token}', 'HotspotPortalController@waiting')->name('hotspot.waiting');
+Route::get('/hotspot/status/{token}', 'HotspotPortalController@status')->middleware('throttle:60,1')->name('hotspot.status');
+Route::post('/hotspot/voucher', 'HotspotPortalController@voucher')->middleware('throttle:10,1')->name('hotspot.voucher');
+Route::get('/hotspot/access/{token}', 'HotspotPortalController@login')->name('hotspot.login');
+
 Route::get('/pangwayu', 'PublicFuneralPledgeController@index')->name('funeral.pangwayu');
 Route::get('/pangwayu/remember', 'PublicFuneralPledgeController@remember')->name('funeral.pangwayu.remember');
 Route::get('/pangwayu/biography', 'PublicFuneralPledgeController@biography')->name('funeral.pangwayu.biography');
@@ -618,6 +626,31 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');
     Route::post('/admin/jobs/{id}/clone', 'JobBoardController@clone')->name('jobs.clone');
     Route::post('/admin/jobs/{id}/delete', 'JobBoardController@destroy')->name('jobs.destroy');
+
+    Route::get('/admin/hotspot', 'HotspotAdminController@index')->name('hotspot.dashboard');
+    Route::get('/admin/hotspot/locations', 'HotspotAdminController@locations')->name('hotspot.locations');
+    Route::post('/admin/hotspot/locations', 'HotspotAdminController@storeLocation')->name('hotspot.locations.store');
+    Route::post('/admin/hotspot/locations/{id}', 'HotspotAdminController@updateLocation')->name('hotspot.locations.update');
+    Route::get('/admin/hotspot/packages', 'HotspotAdminController@packages')->name('hotspot.packages');
+    Route::post('/admin/hotspot/packages', 'HotspotAdminController@storePackage')->name('hotspot.packages.store');
+    Route::post('/admin/hotspot/packages/{id}', 'HotspotAdminController@updatePackage')->name('hotspot.packages.update');
+    Route::post('/admin/hotspot/packages/{id}/profile', 'HotspotAdminController@pushProfile')->name('hotspot.packages.profile');
+    Route::get('/admin/hotspot/routers', 'HotspotAdminController@routers')->name('hotspot.routers');
+    Route::post('/admin/hotspot/routers', 'HotspotAdminController@storeRouter')->name('hotspot.routers.store');
+    Route::post('/admin/hotspot/routers/{id}', 'HotspotAdminController@updateRouter')->name('hotspot.routers.update');
+    Route::post('/admin/hotspot/routers/{id}/test', 'HotspotAdminController@testRouter')->name('hotspot.routers.test');
+    Route::get('/admin/hotspot/sessions', 'HotspotAdminController@sessions')->name('hotspot.sessions');
+    Route::post('/admin/hotspot/sessions/disconnect', 'HotspotAdminController@disconnect')->name('hotspot.sessions.disconnect');
+    Route::get('/admin/hotspot/access', 'HotspotAdminController@subscriptions')->name('hotspot.subscriptions');
+    Route::get('/admin/hotspot/vouchers', 'HotspotAdminController@vouchers')->name('hotspot.vouchers');
+    Route::post('/admin/hotspot/vouchers', 'HotspotAdminController@storeVouchers')->name('hotspot.vouchers.store');
+    Route::get('/admin/hotspot/vouchers/export', 'HotspotAdminController@exportVouchers')->name('hotspot.vouchers.export');
+    Route::get('/admin/hotspot/vouchers/{batch}/print', 'HotspotAdminController@printVouchers')->name('hotspot.vouchers.print');
+    Route::post('/admin/hotspot/vouchers/{id}/revoke', 'HotspotAdminController@revokeVoucher')->name('hotspot.vouchers.revoke');
+    Route::get('/admin/hotspot/messages', 'HotspotAdminController@templates')->name('hotspot.templates');
+    Route::post('/admin/hotspot/messages/{id}', 'HotspotAdminController@saveTemplate')->name('hotspot.templates.save');
+    Route::get('/admin/hotspot/reports', 'HotspotAdminController@reports')->name('hotspot.reports');
+    Route::get('/admin/hotspot/guide', 'HotspotAdminController@guide')->name('hotspot.guide');
 
     // WhatsApp Announcements Manager (AlphaBridge-style)
     Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');

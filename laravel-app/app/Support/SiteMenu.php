@@ -51,6 +51,7 @@ class SiteMenu
             'properties'   => 'Properties',
             'tasks'        => 'Task Manager',
             'jobs'         => 'Job Board',
+            'hotspot'      => 'Hotspot',
             'contracts'    => 'Contracts',
             'permissions'  => 'Permissions',
             'announcements'=> 'Announcements',

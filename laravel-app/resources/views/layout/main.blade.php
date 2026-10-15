@@ -556,6 +556,27 @@
                             </li>
                         @endif
                         @php
+                            $hotspot_module_permission = \Spatie\Permission\Models\Permission::where('name', 'hotspot_module')->first();
+                            $hotspot_module_active = $role && $hotspot_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $hotspot_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($hotspot_module_active)
+                            <li><a href="#hotspot-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-device-mobile"></i><span>Hotspot</span></a>
+                                <ul id="hotspot-module" class="collapse list-unstyled ">
+                                    <li id="hotspot-dashboard-menu"><a href="{{ route('hotspot.dashboard') }}">Dashboard</a></li>
+                                    <li id="hotspot-locations-menu"><a href="{{ route('hotspot.locations') }}">Locations</a></li>
+                                    <li id="hotspot-packages-menu"><a href="{{ route('hotspot.packages') }}">Packages</a></li>
+                                    <li id="hotspot-routers-menu"><a href="{{ route('hotspot.routers') }}">Routers</a></li>
+                                    <li id="hotspot-sessions-menu"><a href="{{ route('hotspot.sessions') }}">Sessions</a></li>
+                                    <li id="hotspot-vouchers-menu"><a href="{{ route('hotspot.vouchers') }}">Vouchers</a></li>
+                                    <li id="hotspot-reports-menu"><a href="{{ route('hotspot.reports') }}">Reports</a></li>
+                                    <li id="hotspot-guide-menu"><a href="{{ route('hotspot.guide') }}">Setup guide</a></li>
+                                </ul>
+                            </li>
+                        @endif
+                        @php
                             $internship_module_permission = \Spatie\Permission\Models\Permission::where('name', 'internship_module')->first();
                             $internship_module_active = $role && $internship_module_permission ? \DB::table('role_has_permissions')->where([
                                 ['permission_id', $internship_module_permission->id],

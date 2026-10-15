@@ -71,6 +71,7 @@ class Kernel extends ConsoleKernel
         if (config('services.calendar.reminders_enabled')) {
             $schedule->command('whatsapp:appointment-reminders')->hourlyAt(15)->withoutOverlapping();
         }
+        $schedule->command('hotspot:enforce')->everyMinute()->withoutOverlapping();
     }
 
     /**
