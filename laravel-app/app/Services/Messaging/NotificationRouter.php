@@ -214,8 +214,8 @@ class NotificationRouter
     }
 
     /**
-     * OTP via Twilio beyond_notice Content Template when WHATSAPP_SERVICE=TWILIO.
-     * Wasender remains available as fallback when enabled.
+     * OTP goes out on Wasender as one short message. Twilio templates were
+     * stacking the code, the letter reference, and several headings into one bubble.
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
@@ -227,52 +227,8 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $shown = \App\Support\MemorableOtp::display($otp);
-        $otpTemplate = app(TwilioTemplateSender::class)->sendSharedOtp($phone, $shown, $expiresMinutes);
-        if (! empty($otpTemplate['success'])) {
-            return $otpTemplate;
-        }
-
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $message = LetterReference::applyToMessage($message, 'whatsapp');
-        $serial = LetterReference::extractFromText($message) ?: WhatsAppMessage::otpPurposeLabel($purpose);
-        $purposeLabel = WhatsAppMessage::otpPurposeLabel($purpose);
-        $minutes = max(1, (int) $expiresMinutes);
-
-        if ($this->whatsappProvider() === 'TWILIO') {
-            $sid = $this->resolveNoticeContentSid('otp');
-
-            if ($sid !== '') {
-                $vars = $this->statusVariablesFrom($message, [
-                    'title' => 'Verification code',
-                    'name' => 'Client',
-                    'message' => 'Your one-time passcode (OTP) is '.$shown.'. The first pair is repeated. It expires in '.$minutes.' minutes. Do not share this code.',
-                    'reference' => $serial,
-                    'details' => 'Expires in '.$minutes.' minutes',
-                ]);
-
-                $result = $this->twilioWhatsApp->sendContentTemplate($phone, $sid, $vars);
-                $result['provider'] = 'twilio';
-
-                if (! empty($result['success']) || ! $this->twilioFallbackWasender()) {
-                    return $result;
-                }
-
-                \Log::warning('[messaging] Twilio OTP template failed — falling back to Wasender', [
-                    'error' => $result['error'] ?? null,
-                ]);
-            } elseif (! $this->twilioFallbackWasender()) {
-                return [
-                    'success' => false,
-                    'provider' => 'twilio',
-                    'error' => 'Twilio Content SID for OTP/status messages is not configured.',
-                ];
-            } else {
-                \Log::info('[messaging] TWILIO selected but no OTP/status Content SID — Wasender fallback for OTP');
-            }
-        }
-
-        $result = $this->wasender->sendTextRaw($phone, $message);
+        $result = $this->wasender->sendTextRaw($phone, $message, false);
         $result['provider'] = 'wasender';
 
         return $result;

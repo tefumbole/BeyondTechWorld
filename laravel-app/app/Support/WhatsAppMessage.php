@@ -641,28 +641,22 @@ class WhatsAppMessage
     }
 
     /**
-     * Standard OTP / authentication WhatsApp template.
-     * Heading is always "Authentication".
+     * Short OTP. The six digits sit alone on one line so WhatsApp can offer Copy
+     * without the person selecting the code. No extra purpose or security notice.
      */
     public static function otpMessage($otp, $purpose = 'login', $expiresMinutes = 10)
     {
         $company = self::companyName();
-        $purposeLabel = self::otpPurposeLabel($purpose);
         $minutes = max(1, (int) $expiresMinutes);
+        $digits = preg_replace('/\D+/', '', (string) $otp);
+        if ($digits === '') {
+            $digits = trim((string) $otp);
+        }
 
-        $msg = self::statusBlock('🔐', 'Authentication');
-        $msg .= "Welcome to *{$company}*.\n\n";
-        $shown = \App\Support\MemorableOtp::display($otp);
-        $msg .= "Your one-time passcode (OTP) is:\n\n";
-        $msg .= "👉 *{$shown}*\n\n";
-        $msg .= "The first pair is repeated, so remember two numbers.\n\n";
-        $msg .= "━━━━━━━━━━━━━━━━\n";
-        $msg .= self::bullet('Purpose', $purposeLabel);
-        $msg .= self::bullet('Expires in', "{$minutes} minutes");
-        $msg .= "\n⚠️ *Security notice:* Never share this code with anyone. Our team will never ask for your OTP.";
-        $msg .= self::footer();
-
-        return $msg;
+        return "*{$company}*\n\n"
+            ."Your verification code is\n\n"
+            .$digits."\n\n"
+            ."It expires in {$minutes} minutes.";
     }
 
     public static function accountCreated($name, $phone, $password, $loginUrl = null, $note = null)
