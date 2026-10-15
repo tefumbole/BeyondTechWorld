@@ -5,130 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Wi-Fi | Beyond Tech World</title>
     <link rel="icon" href="{{ \App\Support\SiteBrand::logoUrl() }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17324d; background: #fff; }
-        a { color: inherit; }
-        .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 6vw; background: #fff; }
-        .brand { display: flex; align-items: center; gap: .65rem; text-decoration: none; font-weight: 800; letter-spacing: .04em; }
-        .brand img { height: 42px; width: auto; }
-        .help { display: flex; align-items: center; gap: .45rem; color: #178a4a; font-weight: 700; text-decoration: none; font-size: .92rem; }
-        .hero { position: relative; margin: 0 4vw; border-radius: 18px; overflow: hidden; min-height: 430px; color: #fff; background: radial-gradient(900px 380px at 15% 20%, rgba(47,123,255,.45), transparent 55%), linear-gradient(115deg, #09182c 0%, #14375f 48%, #0c243f 100%); }
-        .hero:before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,22,42,.82) 0%, rgba(10,28,52,.55) 48%, rgba(8,22,42,.35) 100%); }
-        .hero-grid { position: relative; display: grid; grid-template-columns: 1.2fr .8fr; gap: 2rem; align-items: center; padding: 3.2rem 3rem; }
-        .kicker { margin: 0 0 .4rem; font-size: 1.35rem; font-weight: 600; }
-        h1 { margin: 0; font-size: clamp(2.1rem, 4vw, 3.4rem); line-height: 1.05; font-weight: 800; }
-        .tag { margin: .8rem 0 1.2rem; font-size: 1.25rem; font-weight: 700; }
-        .pills { display: flex; flex-wrap: wrap; gap: .8rem 1.1rem; }
-        .pills span { display: flex; align-items: center; gap: .45rem; font-weight: 600; font-size: .95rem; }
-        .dot { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: rgba(47,123,255,.95); font-size: .85rem; }
-        .panel { background: #fff; color: #17324d; border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.18); padding: 1.1rem; }
-        .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1rem; }
-        .tabs button { border: 0; background: #f3f5f8; border-radius: 10px; min-height: 44px; font-weight: 700; color: #5d6b7a; cursor: pointer; }
-        .tabs button.on { background: #2f7bff; color: #fff; }
-        .panel h2 { margin: .2rem 0 .25rem; font-size: 1.35rem; }
-        .panel p { margin: 0 0 .8rem; color: #66788a; }
-        .field { display: flex; align-items: center; gap: .5rem; border: 1px solid #e1e7ee; border-radius: 10px; padding: 0 .75rem; min-height: 46px; margin-bottom: .45rem; }
+        body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17324d; background: #f4f8ff; }
+        a { color: inherit; text-decoration: none; }
+        .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 4vw; background: #fff; }
+        .brand img { height: 46px; width: auto; display: block; }
+        .help { display: flex; align-items: center; gap: .55rem; color: #178a4a; font-weight: 700; font-size: .92rem; }
+        .help small { display: block; color: #8b98a6; font-weight: 600; font-size: .72rem; }
+        .banner { display: block; width: 100%; height: auto; background: #071426; }
+        .sheet { position: relative; margin: -4.5rem 3vw 1.2rem; background: #fff; border-radius: 28px; box-shadow: 0 24px 60px rgba(18, 52, 110, .12); padding: 1.35rem 1.25rem 1.15rem; }
+        .phone-row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+        .field { flex: 1; min-width: 220px; display: flex; align-items: center; gap: .5rem; border: 1px solid #e1e7ee; border-radius: 12px; padding: 0 .8rem; min-height: 46px; background: #f8fbff; }
         .field input { border: 0; width: 100%; font: inherit; font-size: 16px; outline: none; background: transparent; }
-        .hint { font-size: .82rem; color: #8b98a6; margin-bottom: .7rem; }
-        .go, .green, .ghost { width: 100%; border-radius: 10px; min-height: 46px; font-weight: 700; cursor: pointer; font-size: .98rem; }
-        .go { border: 0; background: #2f7bff; color: #fff; }
-        .or { display: flex; align-items: center; gap: .6rem; color: #9aa6b2; font-size: .8rem; margin: .75rem 0; }
-        .or:before, .or:after { content: ""; flex: 1; height: 1px; background: #e6ebf0; }
-        .ghost { border: 1px solid #d5dee8; background: #fff; color: #2f7bff; }
-        .err { background: #fff1f1; color: #9b1c1c; border-radius: 10px; padding: .7rem .8rem; margin-bottom: .7rem; }
-        .section { padding: 2.2rem 6vw 1rem; }
-        .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
-        h3 { margin: 0; font-size: 1.7rem; }
-        .sub { margin: .25rem 0 0; color: #7b8794; }
-        .filters { display: flex; gap: .5rem; flex-wrap: wrap; }
-        .filters button { border: 1px solid #e1e7ee; background: #fff; border-radius: 10px; min-height: 40px; padding: 0 .8rem; font-weight: 700; color: #526274; cursor: pointer; }
-        .filters button.on { background: #2f7bff; color: #fff; border-color: #2f7bff; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.2rem; }
-        .card { border-radius: 18px; padding: 1.1rem 1rem 1rem; border: 1px solid transparent; }
-        .card.mint { background: #f3fbf6; }
-        .card.sky { background: #f3f8ff; }
-        .card.lilac { background: #f7f4ff; }
-        .card.sand { background: #fff8ee; }
-        .badge { display: inline-block; background: #3dce7a; color: #fff; border-radius: 999px; font-size: .68rem; font-weight: 800; padding: .15rem .45rem; margin-left: .35rem; }
-        .icon { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: .2rem auto .4rem; background: #fff; font-size: 1.2rem; }
-        .card h4 { text-align: center; margin: .2rem 0; font-size: 1.45rem; }
-        .blurb { text-align: center; color: #7d8b99; margin: 0 0 .7rem; }
-        .card ul { list-style: none; padding: 0; margin: 0 0 .8rem; }
-        .card li { margin: .35rem 0; }
-        .card li:before { content: "✓ "; color: #21a35a; font-weight: 800; }
-        .amount { text-align: center; font-size: 1.55rem; font-weight: 800; margin: .4rem 0 .7rem; }
-        .green { border: 0; background: #2fbe63; color: #fff; margin-bottom: .45rem; }
-        .why { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin: 1.4rem 6vw 2rem; background: #f4f7fb; border-radius: 16px; padding: 1rem; }
-        .why div { display: flex; gap: .6rem; align-items: center; }
-        .why strong { display: block; }
-        .why span { color: #7b8794; font-size: .85rem; }
-        .foot { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .8rem 6vw 1.4rem; color: #8b98a6; font-size: .85rem; }
+        .links { display: flex; gap: .45rem; }
+        .links button { border: 0; background: #eef4ff; color: #2458d6; border-radius: 10px; min-height: 40px; padding: 0 .75rem; font-weight: 700; cursor: pointer; }
+        .extra { margin: 0 0 1rem; }
+        .section-head { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        h3 { margin: 0; font-size: 1.55rem; }
+        .sub { margin: .2rem 0 0; color: #7b8794; font-size: .95rem; }
+        .filters { display: flex; gap: .45rem; flex-wrap: wrap; }
+        .filters button { border: 1px solid #e6edf5; background: #fff; border-radius: 999px; min-height: 40px; padding: 0 .9rem; font-weight: 700; color: #526274; cursor: pointer; }
+        .filters button.on { background: #2f6bff; color: #fff; border-color: #2f6bff; }
+        .err { background: #fff1f1; color: #9b1c1c; border-radius: 12px; padding: .7rem .8rem; margin-bottom: .8rem; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin-top: 1.1rem; }
+        .card { position: relative; border-radius: 22px; padding: 1.15rem .95rem 1rem; border: 1px solid transparent; }
+        .card.mint { background: linear-gradient(180deg, #f3fbf6, #eefaf3); }
+        .card.sky { background: linear-gradient(180deg, #f4f8ff, #eef4ff); }
+        .card.lilac { background: linear-gradient(180deg, #f7f4ff, #f3efff); }
+        .card.sand { background: linear-gradient(180deg, #fff8ee, #fff4e4); }
+        .badge { position: absolute; top: .75rem; left: .75rem; background: #22c55e; color: #fff; border-radius: 999px; font-size: .68rem; font-weight: 800; letter-spacing: .03em; padding: .28rem .55rem; }
+        .icon { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: .35rem auto .35rem; background: #fff; }
+        .card.mint .icon { color: #16a34a; }
+        .card.sky .icon { color: #2563eb; }
+        .card.lilac .icon { color: #7c3aed; }
+        .card.sand .icon { color: #f59e0b; }
+        .card h4 { text-align: center; margin: .15rem 0; font-size: 1.35rem; }
+        .blurb { text-align: center; color: #7d8b99; margin: 0 0 .75rem; font-size: .92rem; }
+        .card ul { list-style: none; padding: 0; margin: 0 0 .85rem; }
+        .card li { margin: .38rem 0; font-size: .92rem; }
+        .card li:before { content: "✓  "; color: #22a35a; font-weight: 800; }
+        .amount { text-align: center; font-size: 1.7rem; font-weight: 800; margin: .15rem 0 .75rem; }
+        .pay, .cardbtn, .go { width: 100%; border-radius: 12px; min-height: 46px; font-weight: 700; cursor: pointer; font-size: .95rem; }
+        .pay { border: 0; color: #fff; margin-bottom: .45rem; }
+        .card.mint .pay { background: #22c55e; }
+        .card.sky .pay { background: #2f6bff; }
+        .card.lilac .pay { background: #7c3aed; }
+        .card.sand .pay { background: #f5a524; }
+        .cardbtn, .go { border: 1px solid #d7e0ea; background: #fff; color: #334155; }
+        .go { background: #2f6bff; color: #fff; border: 0; margin-top: .45rem; }
+        .why { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin: 0 3vw 1.2rem; background: #fff; border-radius: 22px; padding: 1rem 1.1rem; box-shadow: 0 10px 30px rgba(18, 52, 110, .05); }
+        .why > div { display: flex; gap: .7rem; align-items: center; }
+        .bubble { width: 42px; height: 42px; border-radius: 50%; background: #eef4ff; color: #2f6bff; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+        .why strong { display: block; font-size: .95rem; }
+        .why span { color: #7b8794; font-size: .82rem; }
+        .foot { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .2rem 4vw 1.4rem; color: #8b98a6; font-size: .85rem; }
         .hidden { display: none; }
-        @media (max-width: 980px) {
-            .hero-grid, .grid, .why { grid-template-columns: 1fr; }
-            .hero { margin: 0; border-radius: 0; }
-            .hero-grid { padding: 1.6rem 1rem 1.2rem; }
+        @media (max-width: 1100px) { .grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 720px) {
+            .grid, .why { grid-template-columns: 1fr; }
+            .sheet { margin: -2rem 0 1rem; border-radius: 22px 22px 0 0; }
+            .top { padding: .7rem 1rem; }
         }
     </style>
 </head>
 <body>
-    @php $logo = \App\Support\SiteBrand::logoUrl(); $wa = 'https://wa.me/'.preg_replace('/\D+/', '', (string) $support); @endphp
+    @php
+        $logo = \App\Support\SiteBrand::logoUrl();
+        $hero = url('public/branding/hotspot-hero.jpg');
+        $wa = 'https://wa.me/'.preg_replace('/\D+/', '', (string) $support);
+        $blurbs = [
+            '1 Hour' => 'Perfect for quick access',
+            '1 Day' => 'Ideal for daily use',
+            '1 Week' => 'Great for regular users',
+            '1 Month' => 'Best value for frequent users',
+        ];
+    @endphp
     <header class="top">
         <a class="brand" href="{{ route('hotspot.home') }}"><img src="{{ $logo }}" alt="Beyond Tech World"></a>
-        <a class="help" href="{{ $wa }}">WhatsApp support</a>
+        <a class="help" href="{{ $wa }}"><span><small>Need help?</small>WhatsApp support</span></a>
     </header>
-    <section class="hero">
-        <div class="hero-grid">
-            <div>
-                <p class="kicker">Welcome to</p>
-                <h1>Beyond Tech World<br>Wi-Fi Hotspot</h1>
-                <p class="tag">{{ $location ? $location->name : 'Fast. Reliable. Affordable internet access' }}</p>
-                <div class="pills">
-                    <span><i class="dot">⌁</i> Speed you set</span>
-                    <span><i class="dot">▣</i> Secure payment</span>
-                    <span><i class="dot">☰</i> Phone is the login</span>
-                    <span><i class="dot">◈</i> Your prices</span>
-                </div>
-            </div>
-            <div class="panel">
-                @if(session('hotspot_error'))<div class="err">{{ session('hotspot_error') }}</div>@endif
-                @if(!empty($errorText))<div class="err">{{ $errorText }}</div>@endif
-                <div class="tabs">
-                    <button type="button" class="on" id="tab-buy">Buy internet</button>
-                    <button type="button" id="tab-login">Login</button>
-                </div>
-                <div id="buy-box">
-                    <h2>Get connected</h2>
-                    <p>Choose a package and pay to use the internet.</p>
-                    <label class="field"><span>☎</span><input id="hs-phone" inputmode="tel" autocomplete="tel" placeholder="Enter your phone number"></label>
-                    <div class="hint">We’ll use this number for the receipt on WhatsApp.</div>
-                    <button class="go" type="button" id="view-packages">View packages</button>
-                    <div class="or">or</div>
-                    <button class="ghost" type="button" id="show-voucher">I have a voucher code</button>
-                    <form id="voucher-box" class="hidden" method="POST" action="{{ route('hotspot.voucher') }}" style="margin-top:.8rem">
-                        @csrf
-                        <input type="hidden" name="phone" class="phone-copy">
-                        <label class="field"><span>#</span><input name="code" placeholder="Voucher code" required></label>
-                        <button class="go" type="submit">Redeem code</button>
-                    </form>
-                </div>
-                <form id="login-box" class="hidden" method="POST" action="{{ route('hotspot.resume') }}">
-                    @csrf
-                    <h2>Already paid?</h2>
-                    <p>Enter the same phone number. We’ll open your access.</p>
-                    <label class="field"><span>☎</span><input name="phone" inputmode="tel" placeholder="Phone number" required></label>
-                    <button class="go" type="submit">Continue</button>
-                </form>
+    <img class="banner" src="{{ $hero }}" alt="Stay connected with Beyond Tech World">
+    <section class="sheet" id="packages">
+        @if(session('hotspot_error'))<div class="err">{{ session('hotspot_error') }}</div>@endif
+        @if(!empty($errorText))<div class="err">{{ $errorText }}</div>@endif
+        <div class="phone-row">
+            <label class="field"><span>☎</span><input id="hs-phone" inputmode="tel" autocomplete="tel" placeholder="Enter your phone number"></label>
+            <div class="links">
+                <button type="button" id="tab-login">Login</button>
+                <button type="button" id="show-voucher">Voucher</button>
             </div>
         </div>
-    </section>
-    <section class="section" id="packages">
+        <form id="login-box" class="extra hidden" method="POST" action="{{ route('hotspot.resume') }}">
+            @csrf
+            <label class="field"><span>☎</span><input name="phone" inputmode="tel" placeholder="Phone number used to pay" required></label>
+            <button class="go" type="submit">Open my access</button>
+        </form>
+        <form id="voucher-box" class="extra hidden" method="POST" action="{{ route('hotspot.voucher') }}">
+            @csrf
+            <input type="hidden" name="phone" class="phone-copy">
+            <label class="field"><span>#</span><input name="code" placeholder="Voucher code" required></label>
+            <button class="go" type="submit">Redeem code</button>
+        </form>
         <div class="section-head">
             <div>
-                <h3>Internet packages</h3>
-                <p class="sub">Choose a plan that fits your needs</p>
+                <h3>Choose Your Internet Plan</h3>
+                <p class="sub">Simple, affordable and secure. Pay with Mobile Money or card.</p>
             </div>
             <div class="filters">
                 <button type="button" class="on" data-filter="time">Time based</button>
@@ -145,24 +128,38 @@
                         $tone = ['mint', 'sky', 'lilac', 'sand'][$index % 4];
                         $kinds = 'time';
                         if ($package->data_bytes) { $kinds .= ' data'; } else { $kinds .= ' unlimited'; }
+                        $openSpeed = \App\Hotspot\HotspotLimits::unlimited($package->rate_up) && \App\Hotspot\HotspotLimits::unlimited($package->rate_down);
+                        $speedLine = $openSpeed ? 'High speed internet' : $package->rateLabel();
+                        $accessLine = $package->data_bytes ? \App\Hotspot\HotspotLimits::humanBytes($package->data_bytes).' included' : 'Full access to all sites';
+                        $blurb = isset($blurbs[$package->name]) ? $blurbs[$package->name] : \App\Hotspot\HotspotLimits::humanDuration($package->validity_seconds);
+                        $devices = max(1, (int) $package->shared_users);
                     @endphp
                     <article class="card {{ $tone }}" data-kinds="{{ $kinds }}">
-                        <div style="text-align:center">@if($index === 0 && $packages->count() > 1)<span class="badge">POPULAR</span>@endif</div>
-                        <div class="icon">{{ $package->data_bytes ? '▣' : '◷' }}</div>
+                        @if($index === 0 && $packages->count() > 1)<span class="badge">MOST POPULAR</span>@endif
+                        <div class="icon">
+                            @if($index % 4 === 3)
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l3-9h10l3 9"/><path d="M8 16v2h8v-2"/><path d="M12 7v3"/></svg>
+                            @elseif($index % 4 === 2)
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>
+                            @else
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>
+                            @endif
+                        </div>
                         <h4>{{ $package->name }}</h4>
-                        <p class="blurb">{{ \App\Hotspot\HotspotLimits::humanDuration($package->validity_seconds) }}</p>
+                        <p class="blurb">{{ $blurb }}</p>
                         <ul>
-                            <li>{{ $package->rateLabel() }}</li>
-                            <li>Up to {{ max(1, (int) $package->shared_users) }} {{ (int) $package->shared_users === 1 ? 'device' : 'devices' }}</li>
-                            <li>{{ $package->data_bytes ? \App\Hotspot\HotspotLimits::humanBytes($package->data_bytes).' included' : 'Unlimited data' }}</li>
+                            <li>{{ $speedLine }}</li>
+                            <li>Up to {{ $devices }} {{ $devices === 1 ? 'device' : 'devices' }}</li>
+                            <li>{{ $accessLine }}</li>
+                            <li>No hidden charges</li>
                         </ul>
                         <div class="amount">{{ number_format($package->price) }} XAF</div>
                         <form method="POST" action="{{ route('hotspot.pay') }}">
                             @csrf
                             <input type="hidden" name="package_id" value="{{ $package->id }}">
                             <input type="hidden" name="phone" class="phone-copy">
-                            <button class="green" type="submit" name="method" value="momo">Pay with Mobile Money</button>
-                            <button class="ghost" type="submit" name="method" value="visa">Pay with card</button>
+                            <button class="pay" type="submit" name="method" value="momo">Pay with Mobile Money →</button>
+                            <button class="cardbtn" type="submit" name="method" value="visa">Pay with Card →</button>
                         </form>
                     </article>
                 @endforeach
@@ -170,40 +167,30 @@
         @endif
     </section>
     <section class="why">
-        <div><i class="dot">⚡</i><div><strong>Activation after payment</strong><span>Access starts when the payment is confirmed.</span></div></div>
-        <div><i class="dot">▤</i><div><strong>MoMo and Visa</strong><span>Mobile money and card payments.</span></div></div>
-        <div><i class="dot">☎</i><div><strong>WhatsApp receipt</strong><span>The username is sent to the same number.</span></div></div>
-        <div><i class="dot">✓</i><div><strong>One payment, one access</strong><span>A repeated return does not buy it twice.</span></div></div>
+        <div><i class="bubble">⚡</i><div><strong>Instant Activation</strong><span>Starts when the payment is confirmed.</span></div></div>
+        <div><i class="bubble">▤</i><div><strong>Multiple Payment Options</strong><span>Mobile Money and Visa cards.</span></div></div>
+        <div><i class="bubble">☎</i><div><strong>24/7 Support</strong><span>Need help? Contact us on WhatsApp.</span></div></div>
+        <div><i class="bubble">✓</i><div><strong>Safe &amp; Reliable</strong><span>One payment opens one access.</span></div></div>
     </section>
-    <footer class="foot"><span>© {{ date('Y') }} Beyond Tech World</span><a href="{{ $wa }}">Contact support</a></footer>
+    <footer class="foot"><span>© {{ date('Y') }} Beyond Tech World. All rights reserved.</span><a href="{{ $wa }}">Contact support</a></footer>
     <script>
         (function () {
             var phone = document.getElementById('hs-phone');
-            var buy = document.getElementById('buy-box');
             var login = document.getElementById('login-box');
+            var voucher = document.getElementById('voucher-box');
             function copyPhone() {
                 var value = phone ? phone.value : '';
                 var fields = document.querySelectorAll('.phone-copy');
                 for (var i = 0; i < fields.length; i++) fields[i].value = value;
             }
-            document.getElementById('tab-buy').onclick = function () {
-                this.className = 'on';
-                document.getElementById('tab-login').className = '';
-                buy.className = '';
-                login.className = 'hidden';
-            };
             document.getElementById('tab-login').onclick = function () {
-                this.className = 'on';
-                document.getElementById('tab-buy').className = '';
-                buy.className = 'hidden';
-                login.className = '';
-            };
-            document.getElementById('view-packages').onclick = function () {
-                document.getElementById('packages').scrollIntoView({ behavior: 'smooth' });
+                login.className = login.className.indexOf('hidden') === -1 ? 'extra hidden' : 'extra';
+                voucher.className = 'extra hidden';
             };
             document.getElementById('show-voucher').onclick = function () {
                 copyPhone();
-                document.getElementById('voucher-box').className = '';
+                voucher.className = voucher.className.indexOf('hidden') === -1 ? 'extra hidden' : 'extra';
+                login.className = 'extra hidden';
             };
             var forms = document.querySelectorAll('form');
             for (var f = 0; f < forms.length; f++) {
