@@ -108,6 +108,12 @@ run_artisan cache:clear || true
 echo "==> 6. Re-fix writable dirs AFTER artisan (critical)"
 fix_writable_dirs
 
+echo "==> 6b. Restart queue workers so they load new code"
+# Long-running queue workers (e.g. beyondtechworld-whatsapp-queue) cache the
+# booted app in memory. Without this, deployed changes to queued jobs (AI
+# replies, etc.) are ignored until the worker is manually restarted.
+run_artisan queue:restart || true
+
 echo "==> 7. Reload PHP-FPM"
 if systemctl is-active --quiet php7.4-fpm 2>/dev/null; then
   systemctl reload php7.4-fpm && echo "    php7.4-fpm reloaded"
