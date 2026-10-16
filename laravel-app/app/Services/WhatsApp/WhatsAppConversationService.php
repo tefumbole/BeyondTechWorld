@@ -199,10 +199,29 @@ class WhatsAppConversationService
             $created = $this->storePhoneMessage($conversation, $contact, $parsed, $at);
         }
 
+        $markReadFromPhone = false;
         if (array_key_exists('unread_count', $parsed) && $parsed['unread_count'] !== null) {
-            $conversation->unread_count = max(0, (int) $parsed['unread_count']);
+            $phoneUnread = max(0, (int) $parsed['unread_count']);
+            // The phone reports its own unread count (chats.update). When it drops
+            // to zero the chat has been read on the phone, so mirror that here.
+            if ($phoneUnread === 0) {
+                $markReadFromPhone = true;
+            }
+            $conversation->unread_count = $phoneUnread;
+        } elseif (! empty($parsed['from_me'])) {
+            // An outgoing message straight from the phone means the owner had the
+            // thread open and has seen the incoming messages. Treat it as read.
+            $markReadFromPhone = true;
+            $conversation->unread_count = 0;
         } elseif ($created && empty($parsed['from_me']) && $at && $at->greaterThan(now()->subMinutes(10))) {
             $conversation->unread_count = (int) $conversation->unread_count + 1;
+        }
+
+        if ($markReadFromPhone) {
+            WhatsAppMessage::where('conversation_id', $conversation->id)
+                ->where('direction', WhatsAppMessage::DIR_IN)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
         }
 
         $current = $conversation->last_activity_at;
@@ -1138,15 +1157,9 @@ class WhatsAppConversationService
 
     protected function deliverText($phone, $body)
     {
-        if (strtoupper((string) config('services.whatsapp.service', '')) === 'TWILIO') {
-            $sent = app(\App\Services\TwilioWhatsAppService::class)->sendText($phone, $body);
-
-            return [
-                'success' => ! empty($sent['success']),
-                'msg_id' => isset($sent['sid']) ? $sent['sid'] : null,
-                'error' => isset($sent['error']) ? $sent['error'] : null,
-            ];
-        }
+        // AI replies and other automated sends always go through the bound
+        // WhatsApp provider (WaSender). The legacy Twilio branch was removed so
+        // a suspended/retired Twilio account can no longer swallow AI replies.
         if (method_exists($this->provider, 'sendPlainText')) {
             return $this->provider->sendPlainText($phone, $body);
         }
