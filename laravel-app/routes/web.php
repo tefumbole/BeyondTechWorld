@@ -120,6 +120,15 @@ Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('b
 Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');
 Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@confirmation')->name('beyond.permissions.confirmation');
 
+Route::get('/mix', 'MixPublicController@home')->name('mix.home');
+Route::get('/mix/compare', 'MixPublicController@compare')->name('mix.public.compare');
+Route::get('/mix/presets/{slug}/pdf', 'MixPublicController@presetPdf')->name('mix.public.preset.pdf');
+Route::get('/mix/presets/{slug}', 'MixPublicController@preset')->name('mix.public.preset');
+Route::get('/mix/templates/{slug}/pdf', 'MixPublicController@templatePdf')->name('mix.public.template.pdf');
+Route::get('/mix/templates/{slug}', 'MixPublicController@template')->name('mix.public.template');
+Route::get('/mix/shows/{slug}', 'MixPublicController@show')->name('mix.public.show');
+Route::get('/mix/mastering/{slug}', 'MixPublicController@mastering')->name('mix.public.mastering');
+
 Route::get('/hotspot', 'HotspotPortalController@home')->name('hotspot.home');
 Route::get('/hotspot/portal', 'HotspotPortalController@portal')->name('hotspot.portal');
 Route::post('/hotspot/pay', 'HotspotPortalController@pay')->middleware('throttle:20,1')->name('hotspot.pay');
@@ -652,6 +661,40 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/hotspot/messages/{id}', 'HotspotAdminController@saveTemplate')->name('hotspot.templates.save');
     Route::get('/admin/hotspot/reports', 'HotspotAdminController@reports')->name('hotspot.reports');
     Route::get('/admin/hotspot/guide', 'HotspotAdminController@guide')->name('hotspot.guide');
+
+    Route::get('/admin/mix', 'MixAdminController@dashboard')->name('mix.dashboard');
+    Route::get('/admin/mix/presets', 'MixAdminController@presets')->name('mix.presets');
+    Route::get('/admin/mix/presets/create', 'MixAdminController@createPreset')->name('mix.presets.create');
+    Route::post('/admin/mix/presets', 'MixAdminController@storePreset')->name('mix.presets.store');
+    Route::get('/admin/mix/presets/{id}/edit', 'MixAdminController@editPreset')->name('mix.presets.edit');
+    Route::post('/admin/mix/presets/{id}', 'MixAdminController@updatePreset')->name('mix.presets.update');
+    Route::post('/admin/mix/presets/{id}/publish', 'MixAdminController@publishPreset')->name('mix.presets.publish');
+    Route::get('/admin/mix/presets/{id}/compare', 'MixAdminController@comparePreset')->name('mix.presets.compare');
+    Route::get('/admin/mix/templates', 'MixAdminController@templates')->name('mix.templates');
+    Route::get('/admin/mix/templates/{id}', 'MixAdminController@editTemplate')->name('mix.templates.edit');
+    Route::post('/admin/mix/templates/{id}', 'MixAdminController@updateTemplate')->name('mix.templates.update');
+    Route::post('/admin/mix/templates/{id}/duplicate', 'MixAdminController@duplicateTemplate')->name('mix.templates.duplicate');
+    Route::post('/admin/mix/templates/{id}/upgrade', 'MixAdminController@upgradeTemplate')->name('mix.templates.upgrade');
+    Route::post('/admin/mix/templates/{id}/publish', 'MixAdminController@publishTemplate')->name('mix.templates.publish');
+    Route::get('/admin/mix/templates/{id}/print', 'MixAdminController@printTemplate')->name('mix.templates.print');
+    Route::get('/admin/mix/templates/{id}/pdf', 'MixAdminController@pdfTemplate')->name('mix.templates.pdf');
+    Route::get('/admin/mix/shows', 'MixAdminController@shows')->name('mix.shows');
+    Route::post('/admin/mix/shows', 'MixAdminController@storeShow')->name('mix.shows.store');
+    Route::post('/admin/mix/shows/{id}', 'MixAdminController@updateShow')->name('mix.shows.update');
+    Route::get('/admin/mix/buses', 'MixAdminController@buses')->name('mix.buses');
+    Route::post('/admin/mix/buses', 'MixAdminController@storeBus')->name('mix.buses.store');
+    Route::post('/admin/mix/buses/{id}', 'MixAdminController@updateBus')->name('mix.buses.update');
+    Route::get('/admin/mix/routing', 'MixAdminController@routing')->name('mix.routing');
+    Route::get('/admin/mix/effects', 'MixAdminController@effects')->name('mix.effects');
+    Route::get('/admin/mix/mastering', 'MixAdminController@mastering')->name('mix.mastering');
+    Route::post('/admin/mix/mastering', 'MixAdminController@storeMastering')->name('mix.mastering.store');
+    Route::post('/admin/mix/mastering/{id}', 'MixAdminController@updateMastering')->name('mix.mastering.update');
+    Route::get('/admin/mix/presonus', 'MixAdminController@presonus')->name('mix.presonus');
+    Route::get('/admin/mix/imports', 'MixAdminController@imports')->name('mix.imports');
+    Route::post('/admin/mix/imports/{id}', 'MixAdminController@saveImport')->name('mix.imports.save');
+    Route::get('/admin/mix/collections', 'MixAdminController@collections')->name('mix.collections');
+    Route::get('/admin/mix/settings', 'MixAdminController@settings')->name('mix.settings');
+    Route::post('/admin/mix/settings', 'MixAdminController@saveSettings')->name('mix.settings.save');
 
     // WhatsApp Announcements Manager (AlphaBridge-style)
     Route::get('/admin/announcements/compose', 'AnnouncementManagerController@compose')->name('announcements.compose');

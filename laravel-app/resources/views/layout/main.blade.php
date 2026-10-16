@@ -577,6 +577,32 @@
                             </li>
                         @endif
                         @php
+                            $mix_module_permission = \Spatie\Permission\Models\Permission::where('name', 'mix_module')->first();
+                            $mix_module_active = $role && $mix_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $mix_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($mix_module_active)
+                            <li><a href="#mix-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-media-shuffle"></i><span>Mix & Master</span></a>
+                                <ul id="mix-module" class="collapse list-unstyled ">
+                                    <li id="mix-dashboard-menu"><a href="{{ route('mix.dashboard') }}">Dashboard</a></li>
+                                    <li id="mix-presets-menu"><a href="{{ route('mix.presets') }}">Instrument Presets</a></li>
+                                    <li id="mix-templates-menu"><a href="{{ route('mix.templates') }}">Complete Mix Templates</a></li>
+                                    <li id="mix-shows-menu"><a href="{{ route('mix.shows') }}">Show Templates</a></li>
+                                    <li id="mix-eq-menu"><a href="{{ route('mix.presets.create') }}">EQ Designer</a></li>
+                                    <li id="mix-dynamics-menu"><a href="{{ route('mix.presets.create') }}">Compression & Dynamics</a></li>
+                                    <li id="mix-routing-menu"><a href="{{ route('mix.routing') }}">Bus & Routing Manager</a></li>
+                                    <li id="mix-effects-menu"><a href="{{ route('mix.effects') }}">Effects Presets</a></li>
+                                    <li id="mix-mastering-menu"><a href="{{ route('mix.mastering') }}">Mastering Presets</a></li>
+                                    <li id="mix-presonus-menu"><a href="{{ route('mix.presonus') }}">PreSonus Preset Library</a></li>
+                                    <li id="mix-import-menu"><a href="{{ route('mix.imports') }}">Import Presets</a></li>
+                                    <li id="mix-collections-menu"><a href="{{ route('mix.collections') }}">Preset Collections</a></li>
+                                    <li id="mix-settings-menu"><a href="{{ route('mix.settings') }}">Settings</a></li>
+                                </ul>
+                            </li>
+                        @endif
+                        @php
                             $internship_module_permission = \Spatie\Permission\Models\Permission::where('name', 'internship_module')->first();
                             $internship_module_active = $role && $internship_module_permission ? \DB::table('role_has_permissions')->where([
                                 ['permission_id', $internship_module_permission->id],
