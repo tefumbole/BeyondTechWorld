@@ -8,9 +8,32 @@
 </form>
 <div class="chips">
     @foreach(['drums' => 'Drums', 'keys' => 'Keys', 'vocals' => 'Vocals', 'guitars' => 'Guitars', 'other' => 'Other', 'buses' => 'Buses'] as $slug => $label)
-        <a href="{{ route('mix.home', ['category' => $slug, 'q' => $q]) }}">{{ $label }}</a>
+        <a href="{{ route('mix.home', ['category' => $slug]) }}" @if($category === $slug) style="background:#1d6fd6;color:#fff" @endif>{{ $label }}</a>
     @endforeach
 </div>
+@if($selected)
+    <h2>{{ $selected->name }}</h2>
+    <div class="grid">
+        @foreach($instruments as $instrument)
+            @php $saved = $instrument->presets->where('published', true); @endphp
+            @if($saved->count())
+                @foreach($saved as $preset)
+                    <a class="card" href="{{ route('mix.public.preset', $preset->slug) }}">
+                        <span class="tag">{{ $preset->sourceName() }}</span>
+                        <h3>{{ $instrument->name }}</h3>
+                        <div class="muted">{{ $preset->name }}</div>
+                        @include('mix.public.preset_brief', ['version' => $preset->currentVersion])
+                    </a>
+                @endforeach
+            @else
+                <div class="card">
+                    <h3>{{ $instrument->name }}</h3>
+                    <div class="muted">No saved settings yet.</div>
+                </div>
+            @endif
+        @endforeach
+    </div>
+@else
 <h2>Featured Beyond presets</h2>
 <div class="grid">
     @forelse($presets->where('collection', 'beyond') as $preset)
@@ -23,6 +46,7 @@
         <p class="muted">Published Beyond presets will appear here.</p>
     @endforelse
 </div>
+@endif
 <h2>PreSonus preset collection</h2>
 <div class="card">
     <p>Factory Fat Channel presets are not hosted here. PreSonus provides them to mixer owners from the official restore article.</p>

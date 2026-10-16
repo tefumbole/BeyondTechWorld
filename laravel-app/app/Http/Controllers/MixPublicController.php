@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mix\MixCatalog;
+use App\Mix\MixCategory;
 use App\Mix\MixMasteringPreset;
 use App\Mix\MixPreset;
 use App\Mix\MixPresetService;
@@ -30,11 +31,25 @@ class MixPublicController extends Controller
     {
         $q = trim((string) $request->get('q', ''));
         $category = trim((string) $request->get('category', ''));
+        if ($category === '' && $q !== '') {
+            $matched = MixCategory::where('name', 'like', $q)->orWhere('slug', MixSupport::slug($q))->first();
+            if ($matched) {
+                $category = $matched->slug;
+            }
+        }
         $presets = $this->publishedPresets($q, $category);
+        $selected = $category !== '' ? MixCategory::where('slug', $category)->first() : null;
+        $instruments = $selected
+            ? $selected->instruments()->with(['presets' => function ($query) {
+                $query->where('published', true)->with(['currentVersion.bands', 'currentVersion.dynamics', 'currentVersion.effects', 'console']);
+            }])->orderBy('sort')->get()
+            : collect();
 
         return view('mix.public.home', [
             'q' => $q,
             'category' => $category,
+            'selected' => $selected,
+            'instruments' => $instruments,
             'presets' => $presets,
             'templates' => MixTemplate::with('console')->where('published', true)->orderBy('name')->get(),
             'shows' => MixShow::with('console')->where('published', true)->orderBy('name')->get(),
@@ -159,8 +174,10 @@ class MixPublicController extends Controller
                 }
             })
             ->when($category !== '', function ($query) use ($category) {
-                $query->whereHas('instrument.category', function ($inner) use ($category) {
-                    $inner->where('slug', $category);
+                $query->whereHas('instrument', function ($inner) use ($category) {
+                    $inner->whereHas('category', function ($categoryQuery) use ($category) {
+                        $categoryQuery->where('slug', $category);
+                    });
                 });
             })
             ->orderBy('name')

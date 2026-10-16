@@ -9,6 +9,7 @@ class MixCatalog
         if (! MixCategory::query()->exists()) {
             $this->seedCatalog();
         }
+        $this->publishDocumentedPresets();
         if (! MixTemplate::query()->exists()) {
             $console = MixConsole::orderBy('id')->first();
             $template = new MixTemplate();
@@ -87,6 +88,54 @@ class MixCatalog
 
         MixSetting::putValue('presonus_official_url', 'https://support.presonus.com/hc/en-us/articles/360050575871-StudioLive-Series-III-Lost-Missing-PreSonus-FAT-Channel-Presets');
         MixSetting::putValue('presonus_redistribution', 'link_only');
+    }
+
+    /**
+     * Turn uploaded sheet readings into public presets.
+     * A field with no extracted value stays empty.
+     */
+    public function publishDocumentedPresets()
+    {
+        $console = MixConsole::orderBy('id')->first();
+        $manufacturer = MixManufacturer::where('slug', 'beyond')->first();
+        foreach (MixSourceCatalog::presets() as $rows) {
+            if (! $rows) {
+                continue;
+            }
+            $name = 'Beyond '.$rows[0]['preset_name'];
+            $existing = MixPreset::where('name', $name)->first();
+            if ($existing) {
+                if (! $existing->published) {
+                    $existing->published = true;
+                    $existing->save();
+                }
+                continue;
+            }
+            $confirmed = [];
+            foreach ($rows as $row) {
+                if ($row['extracted_value'] === null || $row['extracted_value'] === '') {
+                    continue;
+                }
+                $row['confirmed'] = true;
+                $confirmed[] = $row;
+            }
+            if (! $confirmed) {
+                continue;
+            }
+            $instrument = MixInstrument::where('slug', $rows[0]['instrument_slug'])->first();
+            $payload = MixImportService::buildInput($confirmed);
+            $payload['name'] = $name;
+            $payload['instrument_id'] = $instrument ? $instrument->id : null;
+            $payload['console_id'] = $console ? $console->id : null;
+            $payload['manufacturer_id'] = $manufacturer ? $manufacturer->id : null;
+            $payload['collection'] = 'beyond';
+            $payload['source_label'] = 'Beyond preset sheet';
+            $payload['notes'] = 'Settings read from the uploaded sheet. Fields the sheet did not show are left blank.';
+            $payload['version_label'] = 'Sheet import';
+            $preset = app(MixPresetService::class)->save(new MixPreset(), $payload);
+            $preset->published = true;
+            $preset->save();
+        }
     }
 
     protected function starterChannels()
