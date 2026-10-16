@@ -735,9 +735,8 @@ class LetterController extends Controller
         }
         if ($data->otp_time == null || $data->otp_time < date('Y-m-d H:i:s', strtotime('-1 minutes'))) {
             $otp = \App\Support\MemorableOtp::code();
-            $msg = "Your code is ".\App\Support\MemorableOtp::display($otp)."\nThe first pair is repeated. It expires in 2 minutes.";
             try {
-                $this->wpMessage(Auth::user()->phone, $msg);
+                app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppOtp(Auth::user()->phone, $otp, 'login', 2);
                 $data->update(['otp'=>$otp, 'otp_time'=>date('Y-m-d H:i:s')]);
             } catch (\Exception $e) {
                 return $otp;
@@ -1714,13 +1713,12 @@ class LetterController extends Controller
 
         if ($data->otp_time == null || $data->otp_time < date('Y-m-d H:i:s', strtotime('-30 seconds'))) {
             $otp = \App\Support\MemorableOtp::code();
-            $msg = "Your code is ".\App\Support\MemorableOtp::display($otp)."\nThe first pair is repeated. It expires in 2 minutes.";
             foreach ($id_array as $id) {
                 $letter = Letter::find($id);
                 $letter->update(['otp'=>$otp, 'otp_time'=>date('Y-m-d H:i:s')]);
             }
             try {
-                $this->wpMessage(Auth::user()->phone, $msg);
+                app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppOtp(Auth::user()->phone, $otp, 'login', 2);
             } catch (\Exception $e) {
                 return $otp;
             }

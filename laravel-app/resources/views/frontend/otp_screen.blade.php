@@ -165,8 +165,7 @@
                     <input name="user" type="hidden" value="">
                 @endif
 
-                <input id="otp-code" class="otp-code-input" name="otp" type="text" maxlength="8" inputmode="numeric" autocomplete="one-time-code" placeholder="47 47 82" required>
-                <div class="otp-meta">The first pair is repeated. Type the six digits.</div>
+                <input id="otp-code" class="otp-code-input" name="otp" type="text" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
 
                 <div class="otp-meta">
                     <span>Expires in: <strong id="otp-timer">5:00</strong></span>
@@ -213,4 +212,5 @@
         });
     })();
 </script>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endsection

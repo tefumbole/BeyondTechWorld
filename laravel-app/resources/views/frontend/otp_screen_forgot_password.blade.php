@@ -21,7 +21,7 @@
                         <div class="form-register mt-30 mb-30">
                             <div class="form-group">
                                 <label class="mb-5 font-sm color-gray-700">OTP *</label>
-                                <input class="form-control" name="otp" type="text" placeholder="******" required>
+                                <input id="otp-code" class="form-control" name="otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" required>
                             </div>
                             <div class="form-group">
                                 <input class="font-md-bold btn btn-buy" type="submit" value="Verify">
@@ -33,4 +33,5 @@
             </div>
         </section>
     </main>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endsection

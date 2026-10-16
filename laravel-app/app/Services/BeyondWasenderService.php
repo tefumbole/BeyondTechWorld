@@ -184,10 +184,6 @@ class BeyondWasenderService
         if ($blocked) {
             return $blocked;
         }
-        $choice = app(\App\Support\TwilioMediaSender::class)->tryChoice($phone, 'Friend', $question, $options);
-        if (! empty($choice['success'])) {
-            return $choice;
-        }
         if (! $this->isConfigured()) {
             return ['success' => false, 'error' => 'WhatsApp messaging is not configured.'];
         }
@@ -213,7 +209,12 @@ class BeyondWasenderService
         ];
     }
 
-    public function sendTextRaw($phone, $message, $stampReference = true)
+    public static function isOtpNotice($message)
+    {
+        return (bool) preg_match('/verification code/i', (string) $message);
+    }
+
+    public function sendTextRaw($phone, $message, $stampReference = true, $copyToAdmin = true)
     {
         $blocked = $this->messagingBlocked();
         if ($blocked) {
@@ -258,7 +259,9 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
 
-            \App\Support\TwilioAdminCopy::copyText($phone, $message);
+            if ($copyToAdmin && ! self::isOtpNotice($message)) {
+                \App\Support\TwilioAdminCopy::copyText($phone, $message);
+            }
 
             return [
                 'success' => true,
@@ -312,12 +315,6 @@ class BeyondWasenderService
         }
 
         $fileName = $fileName ?: basename($localPath);
-        if (! $plain && ! app(TwilioWhatsAppService::class)->creditIsExhausted()) {
-            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, $fileName, $caption);
-            if (! empty($twilio['success'])) {
-                return $twilio;
-            }
-        }
 
         try {
             $to = $this->formatPhone($phone);
@@ -385,13 +382,6 @@ class BeyondWasenderService
 
         if (! is_file($localPath)) {
             return ['success' => false, 'error' => 'Image file not found.'];
-        }
-
-        if (! $plain && ! app(TwilioWhatsAppService::class)->creditIsExhausted()) {
-            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $localPath, basename($localPath), $caption);
-            if (! empty($twilio['success'])) {
-                return $twilio;
-            }
         }
 
         try {

@@ -35,7 +35,7 @@
         @csrf
         <div>
             <label class="text-sm font-semibold text-gray-700">Verification Code</label>
-            <input type="text" name="otp" maxlength="6" required value="{{ old('otp') }}" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2" autocomplete="one-time-code">
+            <input id="otp-code" type="text" name="otp" maxlength="6" required value="{{ old('otp') }}" placeholder="000000" inputmode="numeric" class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 text-center tracking-widest" autocomplete="one-time-code">
         </div>
         <div>
             <label class="text-sm font-semibold text-gray-700">New Username</label>
@@ -94,6 +94,7 @@
             <i data-lucide="message-circle" class="w-4 h-4"></i> Send Verification Code
         </button>
     </form>
+    @include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endif
 
 <p class="text-center mt-6 text-sm space-x-3">

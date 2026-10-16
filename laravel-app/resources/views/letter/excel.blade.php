@@ -28,7 +28,7 @@
                                             <div class="form-group">
                                                 @if(Auth::user()->otp_verify == 0)
                                                     <label>OTP <strong>*</strong> </label>
-                                                    <input type="number" placeholder="One Time Password" name="otp" required class="form-control">
+                                                    <input id="otp-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" name="otp" required class="form-control">
                                                 @endif
                                             </div>
                                         </div>
@@ -61,4 +61,5 @@
 
 
 </script>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endsection

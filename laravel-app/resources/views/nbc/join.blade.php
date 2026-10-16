@@ -90,7 +90,7 @@
                     </div>
                     <div id="code-box" style="display:none">
                         <label for="otp-code">Code</label>
-                        <input id="otp-code" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="47 47 82">
+                        <input id="otp-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
                         <div class="actions">
                             <button type="button" id="verify-code">Verify</button>
                         </div>
@@ -482,6 +482,7 @@
     @endif
 })();
 </script>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endif
 </body>
 </html>

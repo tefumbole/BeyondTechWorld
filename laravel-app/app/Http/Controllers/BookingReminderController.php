@@ -81,23 +81,13 @@ class BookingReminderController extends Controller
 
             try {
                 $when = $reminder->remind_at->format('d M Y, H:i');
-                $template = app(\App\Services\Messaging\NotificationRouter::class)->sendReminder(
-                    $customer->phone_number,
+                $msg = WhatsAppMessage::bookingScheduledReminder(
                     $customer->name,
-                    WhatsAppMessage::companyName(),
-                    'booking',
                     $booking->reference_no,
-                    $when
+                    $when,
+                    $reminder->message
                 );
-                if (empty($template['success'])) {
-                    $msg = WhatsAppMessage::bookingScheduledReminder(
-                        $customer->name,
-                        $booking->reference_no,
-                        $when,
-                        $reminder->message
-                    );
-                    $controller->sendWhatsAppToCustomer($customer, $msg);
-                }
+                $controller->sendWhatsAppToCustomer($customer, $msg);
                 $reminder->update(['sent_at' => now()]);
             } catch (\Exception $e) {
                 \Log::warning('Booking reminder send failed for reminder #' . $reminder->id . ': ' . $e->getMessage());

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\CompanyReview;
 use App\CompanyReviewInvite;
 use App\DocumentPaymentLink;
-use App\Services\ClientNoticeService;
 use App\Services\PeopleDirectoryService;
 use App\Support\MemorableOtp;
 use App\Support\WhatsAppPhone;
@@ -75,9 +74,11 @@ class CompanyReviewController extends Controller
             'review_otp_tries' => 0,
         ]);
 
-        $text = 'Your Beyond Company Limited review code is '.MemorableOtp::display($code).'. The first pair is repeated. Type it on the review page. It expires in 10 minutes.';
         try {
-            app(ClientNoticeService::class)->send($phone, $text);
+            $sent = app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppOtp($phone, $code, 'review', 10);
+            if (empty($sent['success'])) {
+                throw new \RuntimeException($sent['error'] ?? 'The code could not be sent.');
+            }
         } catch (\Throwable $e) {
             return back()->withInput()->withErrors(['phone' => 'The code could not be sent. Check the number and try again.']);
         }
@@ -107,7 +108,7 @@ class CompanyReviewController extends Controller
         if (strlen($typed) !== 6 || ! hash_equals($hash, hash('sha256', $typed))) {
             session(['review_otp_tries' => $tries + 1]);
 
-            return $this->backToForm()->withErrors(['otp' => 'That code does not match. The first pair is repeated.']);
+            return $this->backToForm()->withErrors(['otp' => 'That code does not match.']);
         }
 
         session([

@@ -12,9 +12,8 @@
     @csrf
     <div class="space-y-2">
         <label class="text-sm font-semibold text-gray-700">Verification Code</label>
-        <input type="text" name="otp" inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="47 47 82" required autofocus
-               class="w-full text-center text-3xl tracking-[0.5em] rounded-lg border-2 border-brand-gold/60 px-3 py-3 focus:border-brand-blue outline-none"
-               placeholder="000000">
+        <input id="otp-code" type="text" name="otp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" required autofocus
+               class="w-full text-center text-3xl tracking-[0.5em] rounded-lg border-2 border-brand-gold/60 px-3 py-3 focus:border-brand-blue outline-none">
     </div>
     <p class="text-center text-sm font-semibold text-red-500">
         Code expires in <span id="otp-expiry">10:00</span>
@@ -62,5 +61,6 @@
     tick();
 })();
 </script>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endpush
 @endsection

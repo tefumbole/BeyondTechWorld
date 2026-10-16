@@ -64,18 +64,7 @@ class ApplicationNotifier
             'message' => 'Your application for '.$job->title.' has been received and is under review.',
             'details' => $job->isInternship() ? 'Type: Internship' : 'Type: Job',
         ];
-        if ($job->isInternship()) {
-            $result = $this->send($application, $message, $statusVars, true);
-        } else {
-            $template = $this->router->sendTwilioStatusUpdate(
-                $this->notifyPhone($application),
-                $application->full_name ?: 'Applicant',
-                'application for '.$job->title,
-                $application->reference_number ?: '-',
-                'Under review'
-            );
-            $result = ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
-        }
+        $result = $this->send($application, $message, $statusVars, true);
 
         $applicationId = $application->id;
         $jobId = $job->id;
@@ -232,19 +221,7 @@ class ApplicationNotifier
             'message' => 'We are unable to proceed with your application for '.$job->title.' at this time.',
             'details' => $application->rejection_reason ?: '-',
         ];
-        if ($job->isInternship()) {
-            return $this->send($application, $message, $statusVars, true);
-        }
-
-        $template = $this->router->sendTwilioStatusUpdate(
-            $this->notifyPhone($application),
-            $application->full_name ?: 'Applicant',
-            'application for '.$job->title,
-            $application->reference_number ?: '-',
-            'Not proceeding'
-        );
-
-        return ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
+        return $this->send($application, $message, $statusVars, true);
     }
 
     public function documentsUpdateRequested(Application $application, $job, $updateUrl, array $missingLabels = [], $note = null)
@@ -280,19 +257,7 @@ class ApplicationNotifier
             'message' => 'Your agreement for '.$job->title.' has been signed and received.',
             'details' => $job->isInternship() ? 'Working hours per Working Week' : 'Working hours 7:30 AM – 4:00 PM',
         ];
-        if ($job->isInternship()) {
-            return $this->send($application, $message, $statusVars, true);
-        }
-
-        $template = $this->router->sendTwilioStatusUpdate(
-            $this->notifyPhone($application),
-            $application->full_name ?: 'Applicant',
-            'agreement for '.$job->title,
-            $application->reference_number ?: '-',
-            'Signed and received'
-        );
-
-        return ! empty($template['success']) ? $template : $this->send($application, $message, $statusVars);
+        return $this->send($application, $message, $statusVars, true);
     }
 
     /**

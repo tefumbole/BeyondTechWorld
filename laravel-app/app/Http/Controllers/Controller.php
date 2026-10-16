@@ -341,14 +341,6 @@ class Controller extends BaseController
 
     public function wasenderAttachment($path, $lims_customer_data, $wa_path, $fileName)
     {
-        $phone = $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '';
-        $twilio = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $path, $fileName, $fileName);
-        if (! empty($twilio['success'])) {
-            self::$lastWhatsAppSendType = 'document';
-
-            return $twilio;
-        }
-
         $this->delayWasenderTextToDocument();
         $this->throttleWhatsAppSend();
         $this->assertWasenderConfigured();
@@ -675,7 +667,7 @@ class Controller extends BaseController
 
 
     public function wpAttachMessage($path, $number, $filename='compile_result.pdf', $wa_path = null, $forceWasender = false){
-        if ($forceWasender || $this->usesWasender()) {
+        if ($forceWasender || $this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
                 $wa_path = ($forceWasender && is_file($path))
@@ -703,19 +695,7 @@ class Controller extends BaseController
                 . \App\Support\WhatsAppMessage::greeting($customerName)
                 . 'Please find your *' . $filename . '* attached.'
                 . \App\Support\WhatsAppMessage::footer());
-        if (! $forceWasender) {
-            $twilio = app(\App\Support\TwilioMediaSender::class)->trySend(
-                $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? '',
-                $path,
-                $filename,
-                $caption
-            );
-            if (! empty($twilio['success'])) {
-                return $twilio;
-            }
-        }
-
-        if ($forceWasender || $this->usesWasender()) {
+        if ($forceWasender || $this->usesWasenderForDocuments()) {
             $this->assertWasenderConfigured();
             if (empty($wa_path)) {
                 $wa_path = ($forceWasender && is_file($path))
@@ -1172,9 +1152,8 @@ class Controller extends BaseController
 
     public function sendOTP($phone) {
         $otp = \App\Support\MemorableOtp::code();
-        $msg = \App\Support\WhatsAppMessage::otpMessage($otp);
         try {
-            $this->wpMessage($phone, $msg);
+            app(\App\Services\Messaging\NotificationRouter::class)->sendWhatsAppOtp($phone, $otp, 'login', 10);
         } catch (\Exception $e) {
             return $otp;
         }

@@ -26,6 +26,23 @@ const OTPVerificationScreen = () => {
         }
     }, [otpVerified, navigate]);
 
+    useEffect(() => {
+        if (!("OTPCredential" in window) || !navigator.credentials) return undefined;
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 60000);
+        navigator.credentials.get({ otp: { transport: ["sms"] }, signal: ac.signal })
+            .then((otpCredential) => {
+                if (otpCredential && otpCredential.code) {
+                    setOtp(String(otpCredential.code).replace(/\D/g, "").slice(0, 6));
+                }
+            })
+            .catch(() => {});
+        return () => {
+            clearTimeout(timer);
+            ac.abort();
+        };
+    }, []);
+
     // Timer Logic
     useEffect(() => {
         if (timeLeft > 0) {
@@ -157,7 +174,9 @@ const OTPVerificationScreen = () => {
                             <Input
                                 type="text"
                                 maxLength="6"
-                                placeholder="0 0 0 0 0 0"
+                                placeholder="000000"
+                                autoComplete="one-time-code"
+                                inputMode="numeric"
                                 className="text-center text-3xl tracking-[1em] h-16 font-bold border-gray-300 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 uppercase"
                                 value={otp}
                                 onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}

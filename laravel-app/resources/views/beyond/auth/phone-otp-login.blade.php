@@ -12,8 +12,8 @@
     <form method="POST" action="{{ url('/phone-login/verify') }}">
         @csrf
         <div class="auth-field">
-            <input type="text" name="otp" maxlength="8" inputmode="numeric" autocomplete="one-time-code" placeholder="47 47 82" required autofocus
-                   class="auth-input" placeholder="000000" style="text-align:center;letter-spacing:.3em;">
+            <input id="otp-code" type="text" name="otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus
+                   class="auth-input" style="text-align:center;letter-spacing:.3em;">
         </div>
         <button type="submit" class="auth-btn">Verify and continue</button>
     </form>
@@ -21,6 +21,7 @@
         @csrf
         <button type="submit" class="auth-links" style="background:none;border:0;cursor:pointer;color:#0b3f90;font-weight:600;">Resend code</button>
     </form>
+    @include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @else
     <p class="text-sm text-gray-600 mb-4" style="text-align:left;">
         Use the WhatsApp number already in the system. We show part of it after we send the code.

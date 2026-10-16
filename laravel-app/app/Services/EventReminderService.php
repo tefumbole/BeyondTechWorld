@@ -6,7 +6,6 @@ use App\Event;
 use App\EventAssignment;
 use App\EventReminder;
 use App\EventWorkerProfile;
-use App\Services\Messaging\NotificationRouter;
 use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
 use Illuminate\Support\Facades\Auth;
@@ -45,13 +44,6 @@ class EventReminderService
 
                 $event = $reminder->event;
                 $msg = $this->buildMessage($reminder, $event);
-                $when = $event->event_start_at
-                    ? $event->event_start_at->format('d M Y H:i')
-                    : $reminder->remind_at->format('d M Y H:i');
-                if ($event->venue) {
-                    $when .= ' at '.$event->venue;
-                }
-                $router = app(NotificationRouter::class);
                 $broadcast = count($recipients) > 1;
                 if ($broadcast) {
                     TwilioAdminCopy::hold();
@@ -64,17 +56,7 @@ class EventReminderService
 
                 try {
                     foreach ($recipients as $recipient) {
-                        $template = $router->sendReminder(
-                            $recipient['phone'],
-                            $recipient['name'],
-                            WhatsAppMessage::companyName(),
-                            $event->name ?: 'event',
-                            $event->reference_no ?: '-',
-                            $when
-                        );
-                        if (empty($template['success'])) {
-                            $controller->sendWhatsAppToPhone($recipient['phone'], $msg);
-                        }
+                        $controller->sendWhatsAppToPhone($recipient['phone'], $msg);
                     }
                 } finally {
                     if ($broadcast) {

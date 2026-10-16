@@ -173,31 +173,6 @@ class AnnouncementNotificationService extends Controller
         }
         $fileName = $announcement->attachment_name ?: basename($full);
         $caption = $announcement->subject ?: $fileName;
-        $twilio = app(\App\Services\TwilioWhatsAppService::class);
-        if (! $twilio->creditIsExhausted()) {
-            try {
-                $sent = app(\App\Support\TwilioMediaSender::class)->trySend($phone, $full, $fileName, $caption);
-                if (! empty($sent['success'])) {
-                    return;
-                }
-                $error = isset($sent['error']) ? $sent['error'] : '';
-                $code = isset($sent['code']) ? $sent['code'] : 0;
-                if (! $twilio->isCreditError($error, $code)) {
-                    Log::warning('Announcement attachment Twilio failed: '.($error !== '' ? $error : 'not sent'));
-
-                    return;
-                }
-                $twilio->markCreditExhausted($error);
-            } catch (\Exception $e) {
-                if (! $twilio->isCreditError($e->getMessage(), $e->getCode())) {
-                    Log::warning('Announcement attachment WhatsApp failed: '.$e->getMessage());
-
-                    return;
-                }
-                $twilio->markCreditExhausted($e->getMessage());
-            }
-        }
-
         $this->sendAttachmentViaWasender($phone, $full, $fileName, $caption);
     }
 

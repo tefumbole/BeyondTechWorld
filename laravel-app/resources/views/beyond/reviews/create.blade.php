@@ -40,11 +40,11 @@
                 </form>
             @elseif($step === 'otp')
                 <h2 class="text-lg font-bold text-gray-900 mt-0">Type the code</h2>
-                <p class="text-gray-600">The code was sent to {{ $phone }}. The first pair is repeated, for example 47 47 82. Type it here on this page.</p>
+                <p class="text-gray-600">The code was sent to {{ $phone }}. Type it here on this page.</p>
                 <form method="POST" action="{{ route('reviews.otp') }}" class="space-y-4">
                     @csrf
                     <label for="review-otp" class="text-sm font-semibold text-gray-700 block">Code</label>
-                    <input id="review-otp" name="otp" type="text" inputmode="numeric" required maxlength="8" placeholder="47 47 82" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+                    <input id="review-otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="000000" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-center tracking-[0.3em]">
                     <button type="submit" class="w-full bg-brand-gold text-brand-blue font-bold py-3.5 rounded-lg">Confirm code</button>
                 </form>
                 <form method="POST" action="{{ route('reviews.phone') }}" class="mt-4">
@@ -52,6 +52,7 @@
                     <input type="hidden" name="phone" value="{{ $phone }}">
                     <button type="submit" class="text-sm text-brand-blue underline">Send a new code</button>
                 </form>
+                @include('partials.otp_assist', ['otpInputId' => 'review-otp'])
             @else
                 @if($skippedOtp)
                     <p class="text-sm text-green-700 mt-0">This link is for a client already in our records, so no code is needed.</p>

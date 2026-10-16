@@ -85,9 +85,8 @@ class NbcPublicController extends Controller
             return response()->json(['ok' => false, 'error' => 'That number is already on the praise team list.'], 422);
         }
         $code = \App\Support\MemorableOtp::code();
-        $shown = \App\Support\MemorableOtp::display($code);
         $sent = $data['channel'] === 'sms'
-            ? app(NotificationRouter::class)->sendSms($digits, 'Your Nkwen Baptist Church Praise Team code is '.$shown.'. The first pair is repeated. It expires in 10 minutes.')
+            ? app(NotificationRouter::class)->sendSms($digits, $this->joinSmsOtp($code))
             : app(NotificationRouter::class)->sendWhatsAppOtp($digits, $code, 'signup', 10);
         if (empty($sent['success'])) {
             $error = isset($sent['error']) ? $sent['error'] : 'The code could not be sent.';
@@ -95,6 +94,7 @@ class NbcPublicController extends Controller
             return response()->json(['ok' => false, 'error' => $error], 422);
         }
         session([
+            'wa_otp_autofill' => preg_replace('/\D+/', '', (string) $code),
             'nbc_join_otp' => [
                 'phone' => $digits,
                 'hash' => Hash::make($code),
@@ -105,6 +105,18 @@ class NbcPublicController extends Controller
         ]);
 
         return response()->json(['ok' => true]);
+    }
+
+    protected function joinSmsOtp($code)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $code);
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+        $text = 'Your verification code is '.$digits.'. It expires in 10 minutes.';
+        if (is_string($host) && $host !== '') {
+            $text .= "\n\n@".$host.' #'.$digits;
+        }
+
+        return $text;
     }
 
     public function verifyJoinOtp(Request $request)

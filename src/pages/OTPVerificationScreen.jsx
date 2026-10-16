@@ -23,6 +23,23 @@ const OTPVerificationScreen = () => {
     "https://horizons-cdn.hostinger.com/81ef3422-3855-479e-bfe8-28a4ceb0df39/0e6288c4dcb5f1a443d2d1c74e86297f.png";
 
   useEffect(() => {
+    if (!("OTPCredential" in window) || !navigator.credentials) return undefined;
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 60000);
+    navigator.credentials.get({ otp: { transport: ["sms"] }, signal: ac.signal })
+      .then((otpCredential) => {
+        if (otpCredential && otpCredential.code) {
+          setOtp(String(otpCredential.code).replace(/\D/g, "").slice(0, 6));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     if (timeLeft <= 0) {
       setCanResend(true);
       return;
@@ -217,6 +234,8 @@ const OTPVerificationScreen = () => {
           <form onSubmit={handleVerifyOTP} className="space-y-6">
             <Input
               type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength="6"
               placeholder="000000"
               className="text-center text-4xl tracking-[0.5em] h-20 font-bold border-2 border-gray-200 focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 rounded-xl"

@@ -80,7 +80,7 @@
                                 @csrf
                                 <div>
                                     <label class="text-xs font-semibold text-gray-700">Verification code</label>
-                                    <input type="text" name="otp" maxlength="6" required inputmode="numeric" autocomplete="one-time-code"
+                                    <input id="otp-code" type="text" name="otp" maxlength="6" required inputmode="numeric" autocomplete="one-time-code"
                                            value="{{ old('otp') }}"
                                            class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 tracking-widest text-center text-lg"
                                            placeholder="000000">
@@ -93,6 +93,7 @@
                                 @csrf
                                 <button type="submit" class="text-sm text-brand-blue font-semibold hover:underline">Resend code</button>
                             </form>
+                            @include('partials.otp_assist', ['otpInputId' => 'otp-code'])
                         @endif
                     </div>
                     <div class="text-center text-sm space-y-2">

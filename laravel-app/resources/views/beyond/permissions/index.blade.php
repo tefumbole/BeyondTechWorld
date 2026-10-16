@@ -133,10 +133,10 @@
                         <p class="text-sm text-slate-600 m-0 mb-4">Sent to <strong>{{ $maskedPhone }}</strong></p>
                         <form method="POST" action="{{ route('beyond.permissions.verify') }}" class="space-y-3">
                             @csrf
-                            <input type="text" name="otp" maxlength="6" required inputmode="numeric"
+                            <input id="otp-code" type="text" name="otp" maxlength="6" required inputmode="numeric"
                                    autocomplete="one-time-code" enterkeyhint="done"
                                    class="apply-field text-center text-2xl tracking-[0.35em] font-extrabold"
-                                   placeholder="••••••">
+                                   placeholder="000000">
                             <div class="perm-actions" style="margin-top:0">
                                 <a href="{{ url('/') }}" class="perm-back"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</a>
                                 <button type="submit" class="perm-go w-full bg-brand-blue hover:bg-brand-dark text-white font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 min-h-[3.1rem]">
@@ -148,6 +148,7 @@
                             @csrf
                             <button type="submit" class="text-sm text-brand-light font-semibold hover:underline min-h-[2.5rem]">Resend code</button>
                         </form>
+                        @include('partials.otp_assist', ['otpInputId' => 'otp-code'])
                     </div>
                 @endif
 

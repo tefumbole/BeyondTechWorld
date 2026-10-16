@@ -34,7 +34,7 @@
                                     @if(Auth::user()->otp_verify == 0)
                                         <div class="form-group mt-3" style="max-width:320px;">
                                             <label>OTP <strong>*</strong></label>
-                                            <input type="number" placeholder="One Time Password" name="otp" required class="form-control">
+                                            <input id="otp-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" name="otp" required class="form-control">
                                         </div>
                                     @endif
                                 </form>
@@ -55,4 +55,5 @@
     $("ul#letter").addClass("show");
     $("ul#letter #letter-signed-menu").addClass("active");
 </script>
+@include('partials.otp_assist', ['otpInputId' => 'otp-code'])
 @endsection

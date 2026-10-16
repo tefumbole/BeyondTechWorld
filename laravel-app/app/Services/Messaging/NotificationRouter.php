@@ -45,33 +45,7 @@ class NotificationRouter
      */
     public function sendWhatsAppText($phone, $body, array $statusVars = [])
     {
-        if (! $this->whatsappEnabled()) {
-            \Log::info('[messaging] WhatsApp disabled — skip text');
-
-            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
-        }
-
-        if ($this->whatsappProvider() === 'TWILIO') {
-            $body = LetterReference::applyToMessage($body, 'whatsapp');
-            $extracted = LetterReference::extractFromText($body);
-            if ($extracted && (empty($statusVars['reference']) || ! LetterReference::extractFromText((string) $statusVars['reference']))) {
-                $statusVars['reference'] = $extracted;
-            }
-            $result = $this->sendTwilioStatusTemplate($phone, $body, $statusVars);
-            if ($result !== null) {
-                return $result;
-            }
-        }
-
-        $body = LetterReference::applyToMessage($body, 'whatsapp');
-        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, $statusVars);
-        if (! empty($generic['success'])) {
-            return $generic;
-        }
-        $result = $this->wasender->sendTextRaw($phone, $body);
-        $result['provider'] = 'wasender';
-
-        return $result;
+        return $this->sendWasenderText($phone, $body);
     }
 
     /**
@@ -102,13 +76,11 @@ class NotificationRouter
      */
     public function sendTwilioStatusUpdate($phone, $name, $recordType, $reference, $status)
     {
-        $sender = app(TwilioTemplateSender::class);
-        $generic = $sender->sendSharedStatus($phone, $name, \App\Support\WhatsAppMessage::companyName(), $recordType, $reference, $status, '-');
-        if (! empty($generic['success'])) {
-            return $generic;
-        }
-
-        return $sender->sendStatusUpdate($phone, $name, $recordType, $reference, $status);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('📌', $recordType)
+            .WhatsAppMessage::greeting($name)
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::bullet('Status', $status)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -118,7 +90,11 @@ class NotificationRouter
      */
     public function sendTwilioReviewLink($phone, $name, $recordType, $reference)
     {
-        return app(TwilioTemplateSender::class)->sendReviewLink($phone, $name, $recordType, $reference);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('⭐', 'Review')
+            .WhatsAppMessage::greeting($name)
+            .'Please review your *'.$recordType."*.\n\n"
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -128,7 +104,12 @@ class NotificationRouter
      */
     public function sendSaleConfirmation($phone, $name, $company, $reference, $amount)
     {
-        return app(TwilioTemplateSender::class)->sendSaleConfirmation($phone, $name, $company, $reference, $amount);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('✅', 'Sale confirmation')
+            .WhatsAppMessage::greeting($name)
+            .'Your sale with *'.$company."* is confirmed.\n\n"
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::bullet('Amount', $amount)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -137,7 +118,28 @@ class NotificationRouter
      */
     public function sendSaleReceipt($phone, array $fields)
     {
-        return app(TwilioTemplateSender::class)->sendSaleReceipt($phone, $fields);
+        $name = $fields['name'] ?? 'Client';
+        $lines = WhatsAppMessage::statusBlock('🧾', 'Sale receipt')
+            .WhatsAppMessage::greeting($name);
+        foreach ([
+            'Order' => 'order',
+            'Date' => 'date',
+            'Items' => 'items',
+            'Total' => 'total',
+            'Payment' => 'payment',
+            'Billing' => 'billing',
+            'Delivery' => 'delivery',
+            'Served by' => 'served_by',
+            'Reference' => 'reference',
+        ] as $label => $key) {
+            $value = trim((string) ($fields[$key] ?? ''));
+            if ($value !== '' && $value !== '-') {
+                $lines .= WhatsAppMessage::bullet($label, $value);
+            }
+        }
+        $lines .= WhatsAppMessage::footer();
+
+        return $this->formattedWasender($phone, $lines);
     }
 
     public function saleReceiptIsApproved()
@@ -154,7 +156,13 @@ class NotificationRouter
      */
     public function sendReminder($phone, $name, $company, $subject, $reference, $when)
     {
-        return app(TwilioTemplateSender::class)->sendReminder($phone, $name, $company, $subject, $reference, $when);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('⏰', 'Reminder')
+            .WhatsAppMessage::greeting($name)
+            .'This is a reminder from *'.$company."*.\n\n"
+            .WhatsAppMessage::bullet('Subject', $subject)
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::bullet('When', $when)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -164,7 +172,12 @@ class NotificationRouter
      */
     public function sendServiceUpdate($phone, $name, $recordType, $reference, $status)
     {
-        return app(TwilioTemplateSender::class)->sendServiceUpdate($phone, $name, $recordType, $reference, $status);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('📌', 'Update')
+            .WhatsAppMessage::greeting($name)
+            .WhatsAppMessage::bullet('Record', $recordType)
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::bullet('Status', $status)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -174,7 +187,11 @@ class NotificationRouter
      */
     public function sendAnnouncement($phone, $name, $kind, $message, $reference)
     {
-        return app(TwilioTemplateSender::class)->sendAnnouncement($phone, $name, $kind, $message, $reference);
+        return $this->formattedWasender($phone, WhatsAppMessage::statusBlock('📢', 'Announcement')
+            .WhatsAppMessage::greeting($name)
+            .trim((string) $message)."\n\n"
+            .WhatsAppMessage::bullet('Reference', $reference)
+            .WhatsAppMessage::footer());
     }
 
     /**
@@ -183,7 +200,25 @@ class NotificationRouter
      */
     public function sendSharedNotice($phone, array $fields)
     {
-        return app(TwilioTemplateSender::class)->sendSharedNotice($phone, $fields);
+        $name = $fields['name'] ?? 'Client';
+        $subject = trim((string) ($fields['subject'] ?? $fields['header'] ?? 'Notice'));
+        $body = trim((string) ($fields['body'] ?? ''));
+        $text = WhatsAppMessage::statusBlock('📩', $subject !== '' ? $subject : 'Notice')
+            .WhatsAppMessage::greeting($name);
+        if ($body !== '') {
+            $text .= $body."\n";
+        }
+        $reference = trim((string) ($fields['reference'] ?? ''));
+        if ($reference !== '' && $reference !== '-') {
+            $text .= "\n".WhatsAppMessage::bullet('Reference', $reference);
+        }
+        $footer = trim((string) ($fields['footer'] ?? ''));
+        if ($footer !== '') {
+            $text .= "\n".$footer;
+        }
+        $text .= WhatsAppMessage::footer();
+
+        return $this->formattedWasender($phone, $text);
     }
 
     public function sharedNoticeIsApproved()
@@ -198,24 +233,12 @@ class NotificationRouter
      */
     public function sendWhatsAppTextWithLink($phone, $body)
     {
-        if (! $this->whatsappEnabled()) {
-            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
-        }
-
-        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
-        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, []);
-        if (! empty($generic['success'])) {
-            return $generic;
-        }
-        $result = $this->wasender->sendTextRaw($phone, $body);
-        $result['provider'] = 'wasender';
-
-        return $result;
+        return $this->sendWasenderText($phone, $body);
     }
 
     /**
-     * OTP goes out on Wasender as one short message. Twilio templates were
-     * stacking the code, the letter reference, and several headings into one bubble.
+     * OTP on Wasender. The code is one line so WhatsApp can copy it in one tap.
+     * No admin copy and no extra purpose notice.
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
@@ -228,8 +251,11 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $result = $this->wasender->sendTextRaw($phone, $message, false);
+        $result = $this->wasender->sendTextRaw($phone, $message, false, false);
         $result['provider'] = 'wasender';
+        if (! empty($result['success'])) {
+            $this->rememberOtpForSameDevice($otp);
+        }
 
         return $result;
     }
@@ -262,51 +288,7 @@ class NotificationRouter
      */
     public function sendWhatsAppAnnouncement($phone, $body, array $statusVars = [])
     {
-        if (! $this->whatsappEnabled()) {
-            \Log::info('[messaging] WhatsApp disabled — skip announcement');
-
-            return ['success' => true, 'skipped' => true, 'provider' => 'none'];
-        }
-
-        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
-        $extracted = LetterReference::extractFromText($body);
-        if ($extracted) {
-            $statusVars['reference'] = $extracted;
-        }
-
-        $statusVars = array_merge([
-            'title' => 'Announcement',
-            'name' => 'Client',
-            'message' => $this->truncate((string) $body, 800),
-            'reference' => $extracted ?: 'Announcement',
-            'details' => '-',
-            'kind' => 'an announcement',
-        ], $statusVars);
-
-        if ($this->announcementSkipsTwilio()) {
-            return $this->announcementViaWasender($phone, $body);
-        }
-
-        $announcement = app(TwilioTemplateSender::class)->sendAnnouncement(
-            $phone,
-            $statusVars['name'],
-            $statusVars['kind'],
-            $statusVars['message'],
-            $statusVars['reference']
-        );
-        if (! empty($announcement['success'])) {
-            return $announcement;
-        }
-        if ($this->announcementSkipsTwilio()) {
-            return $this->announcementViaWasender($phone, $body);
-        }
-
-        $generic = app(\App\Support\TwilioEquivalence::class)->send($phone, $body, $statusVars);
-        if (! empty($generic['success'])) {
-            return $generic;
-        }
-
-        return $this->announcementViaWasender($phone, $body);
+        return $this->sendWasenderText($phone, $body);
     }
 
     /**
@@ -341,30 +323,9 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $provider = $this->whatsappProvider();
         $company = WhatsAppMessage::companyName();
-        $body = "Your application to {$programName} has been successfully received. "
-            ."You have been admitted to the {$departmentName} programme for the {$yearName} academic year. "
-            .'Your admission letter is attached to this message. Welcome to our institution!';
-
-        if ($provider === 'TWILIO') {
-            $sid = $this->resolveNoticeContentSid('admission');
-            $result = $this->twilioWhatsApp->sendContentTemplate($phone, $sid, [
-                '1' => 'Congratulations',
-                '2' => 'Client',
-                '3' => $this->truncate($body, 800),
-                '4' => $programName !== '' ? $programName : '-',
-                '5' => trim($departmentName.($yearName !== '' ? ' · '.$yearName : '')) ?: '-',
-            ], $mediaUrl);
-            $result['provider'] = 'twilio';
-
-            if (! empty($result['success']) || ! $this->twilioFallbackWasender()) {
-                return $result;
-            }
-        }
-
         $wasenderBody = "Dear Client\n\nCongratulations!\n\n"
-            ."Your application to *{$programName}* has been successful received. "
+            ."Your application to *{$programName}* has been successfully received. "
             ."You have been admitted to the *{$departmentName}* programme for the *{$yearName}* academic year.\n\n"
             .'Your admission letter is attached to this message.'."\n\n"
             ."Welcome to our institution!\n\n_{$company}_";
@@ -533,6 +494,25 @@ class NotificationRouter
             '4' => $reference !== '' ? $reference : '-',
             '5' => $details !== '' ? $details : '-',
         ];
+    }
+
+    protected function formattedWasender($phone, $body)
+    {
+        return $this->sendWasenderText($phone, $body);
+    }
+
+    protected function rememberOtpForSameDevice($otp)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $otp);
+        if (strlen($digits) < 4) {
+            return;
+        }
+        try {
+            if (session()->isStarted()) {
+                session(['wa_otp_autofill' => $digits]);
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     protected function truncate($text, $max)
