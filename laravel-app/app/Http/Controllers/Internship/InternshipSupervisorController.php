@@ -194,6 +194,7 @@ class InternshipSupervisorController extends Controller
             'accept_below_pass' => 'nullable|boolean',
         ]);
 
+        $priorStatus = $submission->assignment->status;
         try {
             $this->service->gradeSubmission($submission, Auth::user(), $data);
         } catch (\Throwable $e) {
@@ -202,7 +203,9 @@ class InternshipSupervisorController extends Controller
 
         $enrolment = $submission->assignment->enrolment->fresh();
         $accepted = $submission->assignment->fresh()->status === 'passed';
-        if ($accepted && $enrolment && $enrolment->status === 'completed') {
+        if ($priorStatus === 'passed' && $accepted) {
+            $message = 'Marks updated. This task was already accepted, so no new task was released.';
+        } elseif ($accepted && $enrolment && $enrolment->status === 'completed') {
             $message = 'Submission accepted. The internship is complete.';
         } elseif ($accepted && $enrolment && $enrolment->currentOpenAssignment()) {
             $next = $enrolment->currentOpenAssignment();

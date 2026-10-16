@@ -7,6 +7,12 @@
     $passMark = (int) ($task->pass_mark ?: 60);
     $totalHours = $hours->sum('hours');
     $canGrade = $submission->status === 'submitted' || optional($assignment)->status === 'submitted';
+    $savedGrade = $submission->grades->sortByDesc('id')->first();
+    $savedScores = $savedGrade ? $savedGrade->rubricScores() : [];
+    $savedScores = isset($savedScores['scores']) && is_array($savedScores['scores']) ? $savedScores['scores'] : $savedScores;
+    $canUpdateMarks = $savedGrade && in_array($submission->status, ['passed', 'revision_required'], true);
+    $canSave = $canGrade || $canUpdateMarks;
+    $decisionValue = old('decision', optional($savedGrade)->decision ?: 'pass');
 @endphp
 <section class="forms">
     <div class="container-fluid ip-shell">
@@ -55,6 +61,13 @@
                         @endif
                     </span>
                 </p>
+            @elseif($canUpdateMarks)
+                <div class="alert alert-info mb-0 mt-2">
+                    Already marked <strong>{{ str_replace('_', ' ', $submission->status) }}</strong>
+                    @if($savedGrade->score !== null) at {{ $savedGrade->score }}/100 @endif
+                    {{ $savedGrade->graded_at ? 'on '.$savedGrade->graded_at->format('D d M Y H:i') : '' }}.
+                    Change the marks below and save again. That updates this decision and does not release another task.
+                </div>
             @elseif(! $canGrade)
                 <div class="alert alert-info mb-0 mt-2">
                     This submission is already marked <strong>{{ str_replace('_', ' ', $submission->status) }}</strong>, so it can no longer be graded.
@@ -188,7 +201,7 @@
                                            name="rubric_scores[{{ $c['key'] }}]"
                                            data-max="{{ $c['max'] }}"
                                            min="0" max="{{ $c['max'] }}" step="1"
-                                           value="{{ old('rubric_scores.'.$c['key']) }}"
+                                           value="{{ old('rubric_scores.'.$c['key'], $savedScores[$c['key']] ?? '') }}"
                                            placeholder="0–{{ $c['max'] }}" required>
                                 </td>
                                 <td>
@@ -219,14 +232,14 @@
                 <div class="form-group">
                     <label>Feedback to the student</label>
                     <textarea name="feedback" class="form-control" rows="4"
-                              placeholder="What was done well, and what must be fixed. Required when you request a revision.">{{ old('feedback') }}</textarea>
+                              placeholder="What was done well, and what must be fixed. Required when you request a revision.">{{ old('feedback', optional($savedGrade)->feedback) }}</textarea>
                 </div>
 
                 <div class="form-group">
                     <label>Decision</label>
-                    <div class="ip-check-item {{ old('decision', 'pass') === 'pass' ? 'is-done' : '' }}">
+                    <div class="ip-check-item {{ $decisionValue === 'pass' ? 'is-done' : '' }}">
                         <label>
-                            <input type="radio" name="decision" value="pass" {{ old('decision', 'pass') === 'pass' ? 'checked' : '' }}>
+                            <input type="radio" name="decision" value="pass" {{ $decisionValue === 'pass' ? 'checked' : '' }}>
                             <span class="ip-check-text">
                                 <strong>Accept submission</strong><br>
                                 <span class="ip-meta">Task is marked passed and the next task is released immediately. Hours for that new task are logged on the next working day.</span>
@@ -235,7 +248,7 @@
                     </div>
                     <div class="ip-check-item">
                         <label>
-                            <input type="radio" name="decision" value="revision_required" {{ old('decision') === 'revision_required' ? 'checked' : '' }}>
+                            <input type="radio" name="decision" value="revision_required" {{ $decisionValue === 'revision_required' ? 'checked' : '' }}>
                             <span class="ip-check-text">
                                 <strong>Request revision</strong><br>
                                 <span class="ip-meta">Student keeps this task, fixes the work and resubmits. No new task is released.</span>
@@ -254,7 +267,8 @@
                     </div>
                 </div>
 
-                <button class="ip-btn" type="submit" {{ $canGrade ? '' : 'disabled' }}>Save decision</button>
+                @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
+                <button class="ip-btn" type="submit" {{ $canSave ? '' : 'disabled' }}>{{ $canUpdateMarks && ! $canGrade ? 'Update decision' : 'Save decision' }}</button>
             </form>
         </div>
     </div>

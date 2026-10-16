@@ -963,8 +963,13 @@ class InternshipProgramService
         if (! $assignment || ! $enrolment) {
             throw new \RuntimeException('This submission is no longer linked to a task.');
         }
-        $reviewable = $assignment->status === 'submitted' || $submission->status === 'submitted';
-        if (! $reviewable || in_array($assignment->status, ['passed', 'skipped'], true)) {
+        if ($assignment->status === 'skipped') {
+            throw new \RuntimeException('This task was skipped, so it cannot be graded.');
+        }
+        $awaiting = $assignment->status === 'submitted' || $submission->status === 'submitted';
+        $alreadyPassed = $assignment->status === 'passed' || $submission->status === 'passed';
+        $alreadyRevision = $assignment->status === 'revision_required' || $submission->status === 'revision_required';
+        if (! $awaiting && ! $alreadyPassed && ! $alreadyRevision) {
             throw new \RuntimeException('This submission has already been reviewed. Reload the queue to see the current decision.');
         }
 
@@ -995,6 +1000,37 @@ class InternshipProgramService
         if ($waived) {
             $feedback = trim($feedback."\n\nAccepted below the pass mark ({$score}/100 against a pass mark of {$passMark}) by "
                 .$grader->name.'.');
+        }
+
+        if ($alreadyPassed && $decision !== 'pass') {
+            throw new \RuntimeException('This task is already accepted. You can update the marks, but you cannot send it back for revision from here.');
+        }
+
+        $sameDecision = $existingDecision = null;
+        if (! $awaiting && ($alreadyPassed || $alreadyRevision)) {
+            $existingDecision = $submission->grades()->orderByDesc('id')->first();
+            $sameDecision = $existingDecision && $decision === ($alreadyPassed ? 'pass' : 'revision_required');
+        }
+
+        if ($sameDecision) {
+            $existingDecision->grader_id = $grader->id;
+            $existingDecision->score = $score;
+            $existingDecision->rubric_scores_json = json_encode($marking['stored']);
+            $existingDecision->feedback = $feedback !== '' ? $feedback : null;
+            $existingDecision->decision = $decision;
+            $existingDecision->graded_at = now();
+            $existingDecision->save();
+
+            $this->log($enrolment->id, 'graded', null, [
+                'submission_id' => $submission->id,
+                'decision' => $decision,
+                'score' => $existingDecision->score,
+                'rubric' => $marking['stored'] ?: null,
+                'below_pass_waiver' => $waived,
+                'updated' => true,
+            ]);
+
+            return $existingDecision;
         }
 
         $grade = InternshipGrade::create([
