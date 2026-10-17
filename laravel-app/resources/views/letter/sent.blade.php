@@ -86,6 +86,11 @@
                                         {{ Form::close() }}
                                     @endif
                                 @endif
+                                @if(in_array("letter_edit", $all_permission) || in_array("letter_send", $all_permission))
+                                    <li>
+                                        <a href="{{ route('letter.edit.last', $item->id) }}" class="btn btn-link"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</a>
+                                    </li>
+                                @endif
                                 @if(in_array("letter_send", $all_permission))
                                     <li>
                                         <a href="{{ route('letter.send', $item->id) }}" class="btn btn-link"><i class="fa fa-send"></i> Send Again</a>

@@ -713,12 +713,19 @@ class LetterController extends Controller
         } else {
             $user = null;
         }
-        return view('letter.edit_last', compact( 'user', 'data'));
+        $picker = $this->directoryPickerContext($data);
+
+        return view('letter.edit_last', array_merge(
+            compact('user', 'data'),
+            $picker
+        ));
     }
 
     public function updateLast(Request $request, Letter $letter, $id)
     {
-        $data = $request->all();
+        $data = $request->except([
+            '_token', 'attachments', 'to_csv', 'recipient_ids', 'cc_ids', 'send_again',
+        ]);
         $letter = $letter->find($id);
 
         $attachments = $request->attachments;
@@ -729,7 +736,18 @@ class LetterController extends Controller
                 LetterAttachment::create(['letter_id' => $id, 'attachment' => $attachmentName]);
             }
         }
-        if($letter->people_type == "csv") {
+        if ($request->has('recipient_ids') || $request->input('people_type') === 'directory') {
+            $recipientIds = array_values(array_unique(array_filter((array) $request->input('recipient_ids', []))));
+            $ccIds = array_values(array_unique(array_filter((array) $request->input('cc_ids', []))));
+            if (empty($recipientIds)) {
+                return back()->with('not_permitted', 'Please select at least one recipient.');
+            }
+            $data['people_type'] = 'directory';
+            $data['recipients_json'] = json_encode($this->resolveLetterDirectory($recipientIds));
+            $data['cc_json'] = json_encode($this->resolveLetterDirectory($ccIds));
+            $data['to'] = implode(',', $recipientIds);
+            $data['cc'] = ! empty($ccIds) ? implode(',', $ccIds) : null;
+        } elseif ($letter->people_type == "csv") {
             $to_csv = $request->to_csv;
             if (isset($to_csv)) {
                 $imageName = date("Ymdhis").$to_csv->getClientOriginalName();
@@ -737,13 +755,31 @@ class LetterController extends Controller
                 $data['to'] = $imageName;
             }
         } else {
-            $data['to'] = implode(",", $data['to']);
-            $data['cc'] = isset($data['cc']) ? implode(",", $data['cc']) : null;
+            $to = $data['to'] ?? [];
+            $data['to'] = is_array($to) ? implode(",", $to) : (string) $to;
+            $cc = $data['cc'] ?? null;
+            $data['cc'] = is_array($cc) ? implode(",", $cc) : $cc;
         }
-        unset($data['attachments']);
-        unset($data['to_csv']);
         $data['edit_by'] = Auth::user()->id;
         $letter->update($data);
+        $letter = $letter->fresh();
+
+        if ((string) $request->input('send_again') === '1' && (int) $letter->is_sign === 1 && (int) $letter->is_approve === 1) {
+            $customer = null;
+            if (! in_array($letter->people_type, ['directory', 'csv'], true)) {
+                $customer = LetterRecipients::recipientModel($letter->people_type ?? '');
+            }
+            $this->dispatchLetterQueueAfterResponse($letter, $id, $customer);
+            $letter->update(['is_sent' => true, 'sent_by' => Auth::user()->id]);
+
+            return redirect()->route('message.delivery.index')
+                ->with('message', 'Letter queued with the updated recipients. Watch WhatsApp delivery below.');
+        }
+
+        if ((int) $letter->is_sent === 1) {
+            return redirect()->route('letter.index.sent')
+                ->with('message', 'Recipients updated. Choose Send Again when you want this letter delivered.');
+        }
 
         return redirect()->route('letter.index.signed')->with('message', 'Letter updated successfully');
     }
@@ -2162,6 +2198,68 @@ class LetterController extends Controller
 
 //        $letter->update(['otp' => null]);
 //        return redirect()->route('letter.index.signed')->with('not_permitted', 'OTP is wrong or Expired');
+    }
+
+    protected function directoryPickerContext(Letter $data): array
+    {
+        $resolved = $this->resolveCloneRecipients($data);
+        $people = app(\App\Services\PeopleDirectoryService::class)->eligibleForTasks('all', '');
+        if ($people instanceof \Illuminate\Support\Collection) {
+            $people = $people->all();
+        }
+        $known = [];
+        foreach ($people as $person) {
+            if (! empty($person['id'])) {
+                $known[$person['id']] = true;
+            }
+        }
+        $snapshots = array_merge(
+            LetterRecipients::decodePeopleJson($data->recipients_json),
+            LetterRecipients::decodePeopleJson($data->cc_json)
+        );
+        foreach ($snapshots as $person) {
+            $pid = isset($person['id']) ? (string) $person['id'] : '';
+            if ($pid === '' || ! empty($known[$pid])) {
+                continue;
+            }
+            $people[] = [
+                'id' => $pid,
+                'name' => $person['name'] ?? $pid,
+                'phone' => $person['phone'] ?? ($person['phone_number'] ?? ''),
+                'email' => $person['email'] ?? '',
+                'source' => $person['source'] ?? ($person['role'] ?? ''),
+                'role' => $person['role'] ?? '',
+            ];
+            $known[$pid] = true;
+        }
+        $groups = $this->letterWhatsAppGroups();
+        $have = [];
+        foreach ($groups as $group) {
+            if (! empty($group['jid'])) {
+                $have[$group['jid']] = true;
+            }
+        }
+        foreach ($snapshots as $person) {
+            $jid = isset($person['group_jid']) ? (string) $person['group_jid'] : '';
+            if ($jid === '' || ! empty($have[$jid])) {
+                continue;
+            }
+            $groups[] = [
+                'jid' => $jid,
+                'name' => $person['name'] ?? 'WhatsApp group',
+                'members' => null,
+            ];
+            $have[$jid] = true;
+        }
+
+        return [
+            'useDirectoryPicker' => true,
+            'cloneDirectoryToIds' => $resolved['directoryToIds'] ?? [],
+            'cloneDirectoryCcIds' => $resolved['directoryCcIds'] ?? [],
+            'directoryPeople' => $people,
+            'directorySearchUrl' => route('letter.people.search'),
+            'waGroups' => $groups,
+        ];
     }
 
     protected function resolveCloneRecipients(Letter $clone): array

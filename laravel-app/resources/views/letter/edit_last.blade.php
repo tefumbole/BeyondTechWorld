@@ -11,46 +11,16 @@
                             <h4>{{trans('file.Update Letter')}}</h4>
                         </div>
                         <div class="card-body">
-                            <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
+                            @if(session()->has('not_permitted'))
+                                <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
+                            @endif
+                            <p class="italic"><small>People already on this letter stay selected. Add customers, a WhatsApp group, a phone number, or CC, then send it again.</small></p>
                             {!! Form::open(['route' => ['letter.update.last', $data->id], 'method' => 'post', 'files' => true]) !!}
                             <div class="row">
-                                @if($user)
-                                    <div class="col-md-12">
-                                        <div class="form-group">
-                                            <label>{{trans('file.To')}} <strong>*</strong> </label>
-                                            <select name="to[]" required class="selectpicker form-control" data-live-search="true" multiple>
-                                                <option value="">--choose any --</option>
-                                                @foreach($user as $item)
-                                                    <option {{ in_array($item->id, explode(",", $data->to)) ? 'selected' : '' }} value="{{$item->id}}">{{$item->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label>{{trans('file.CC')}} <strong>*</strong> </label>
-                                            <select name="cc[]" class="selectpicker form-control" data-live-search="true" multiple>
-                                                <option value="">--choose any --</option>
-                                                @foreach($user as $item)
-                                                    <option {{ in_array($item->id, explode(",", $data->cc)) ? 'selected' : '' }} value="{{$item->id}}">{{$item->name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
-                                @else
-                                    <div class="col-md-12 csv">
-                                        <div class="form-group">
-                                            <label>{{trans('file.To')}} <strong>*</strong></label>
-                                            <input type="file" name="to_csv" class="form-control to-csv" accept=".csv">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 csv">
-                                        <div class="form-group">
-                                            <label>Old file <strong>*</strong></label>
-                                            <a target=_blank"" href="{{url('public/letter/csv',$data->to)}}"><span class="fa fa-download"></span> Download Old CSV</a>
-                                        </div>
-                                    </div>
-                                @endif
+                                <div class="col-md-12">
+                                    <input type="hidden" name="people_type" value="directory">
+                                    @include('letter.partials.directory_recipient_picker')
+                                </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label>{{trans('file.Comment')}} </label>
@@ -99,7 +69,10 @@
                                 </div>
                                 <div class="col-md-12">
                                     <div class="form-group mt-4">
-                                        <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary">
+                                        <button type="submit" name="send_again" value="0" class="btn btn-primary">Save recipients</button>
+                                        @if((int) $data->is_sent === 1 || ((int) $data->is_sign === 1 && (int) $data->is_approve === 1))
+                                            <button type="submit" name="send_again" value="1" class="btn btn-success">Save and send again</button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
