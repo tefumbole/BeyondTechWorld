@@ -290,7 +290,10 @@ class NotificationRouter
             ]);
         }
 
-        $sms = $this->sendSms($phone, 'Your Beyond Tech World code is '.$otp.'. It expires in '.(int) $expiresMinutes.' minutes.');
+        $sms = $this->sendSms(
+            \App\Support\WhatsAppPhone::display($phone),
+            'Your Beyond Tech World code is '.$otp.'. It expires in '.(int) $expiresMinutes.' minutes.'
+        );
         if (! empty($sms['success']) && empty($sms['skipped'])) {
             return ['success' => true, 'provider' => 'sms'];
         }
