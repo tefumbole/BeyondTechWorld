@@ -68,6 +68,10 @@ class SettingController extends Controller
             ? ($tenant->timezone ?: 'Africa/Douala')
             : (EnvFile::get('APP_TIMEZONE') ?: $appTimezone);
 
+        if (\App\Gbhs\GbhsTenant::ready()) {
+            \App\Gbhs\GbhsTenant::bind();
+            \App\Gbhs\GbhsCatalog::letterOrganization();
+        }
         $letterOrganizations = \App\LetterOrganization::orderBy('name')->get();
 
         return view('setting.general_setting', compact(
@@ -94,6 +98,10 @@ class SettingController extends Controller
             'header' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
             'footer' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
         ]);
+
+        if (\App\LetterOrganization::query()->exists()) {
+            return redirect()->route('setting.general')->with('not_permitted', 'Beyond Tech World and one GBHS Kumbo organization are the only letterheads.');
+        }
 
         $org = new \App\LetterOrganization();
         $org->name = $data['name'];

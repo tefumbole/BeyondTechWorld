@@ -53,20 +53,47 @@ class GbhsCatalog
         if (! Schema::hasTable('letter_organizations')) {
             return null;
         }
-        $org = LetterOrganization::where('name', 'GBHS Kumbo Ex-Students Association')->first();
-        if (! $org) {
-            $org = LetterOrganization::create([
-                'name' => 'GBHS Kumbo Ex-Students Association',
+        $orgs = LetterOrganization::orderBy('id')->get();
+        $kept = null;
+        foreach ($orgs as $org) {
+            if ($org->header || $org->footer) {
+                $kept = $org;
+                break;
+            }
+        }
+        if (! $kept) {
+            foreach ($orgs as $org) {
+                if (stripos((string) $org->name, 'GBHS') !== false) {
+                    $kept = $org;
+                    break;
+                }
+            }
+        }
+        if (! $kept) {
+            $kept = LetterOrganization::create([
+                'name' => 'GBHS Kumbo',
                 'reference_prefix' => 'GBHS/L-',
             ]);
         }
+        foreach ($orgs as $org) {
+            if ((int) $org->id === (int) $kept->id) {
+                continue;
+            }
+            if (Schema::hasTable('letters') && Schema::hasColumn('letters', 'organization_id')) {
+                \App\Letter::where('organization_id', $org->id)->update(['organization_id' => $kept->id]);
+            }
+            if (Schema::hasTable('gbhs_settings') && Schema::hasColumn('gbhs_settings', 'letter_organization_id')) {
+                GbhsSetting::where('letter_organization_id', $org->id)->update(['letter_organization_id' => $kept->id]);
+            }
+            $org->delete();
+        }
         $setting = GbhsSetting::query()->first();
-        if ($setting && ! $setting->letter_organization_id) {
-            $setting->letter_organization_id = $org->id;
+        if ($setting && (int) $setting->letter_organization_id !== (int) $kept->id) {
+            $setting->letter_organization_id = $kept->id;
             $setting->save();
         }
 
-        return $org;
+        return $kept;
     }
 
     protected static function sections()
