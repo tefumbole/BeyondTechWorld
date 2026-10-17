@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\MessageDeliveryBatch;
+use App\MessageDeliveryItem;
 use App\Services\MessageDeliveryTracker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -157,6 +158,30 @@ class MessageDeliveryController extends Controller
 
         return redirect()->route('message.delivery.index', $module === 'invitations' ? ['module' => 'invitations'] : ($module === 'letters' ? ['module' => 'letters'] : []))
             ->with('message', $count.' queued message batch(es) deleted.');
+    }
+
+    /**
+     * Continue a letter batch that stopped before every recipient was sent.
+     */
+    public function resume($id)
+    {
+        $batch = MessageDeliveryBatch::findOrFail($id);
+        if (($batch->type ?? '') !== 'letter') {
+            return redirect()->back()->with('not_permitted', 'Resume is available for letter batches.');
+        }
+
+        $pending = MessageDeliveryItem::where('batch_id', $batch->id)
+            ->whereIn('status', ['queued', 'sending'])
+            ->count();
+        if ($pending < 1) {
+            return redirect()->back()->with('not_permitted', 'This batch has no remaining recipients to send.');
+        }
+
+        if (! \App\Jobs\ResumeLetterDelivery::start($batch->id)) {
+            return redirect()->back()->with('message', 'Sending is already continuing. Each message waits at least 5 seconds.');
+        }
+
+        return redirect()->back()->with('message', 'Sending resumed for '.$pending.' remaining recipient(s). Each message waits at least 5 seconds.');
     }
 
     /**

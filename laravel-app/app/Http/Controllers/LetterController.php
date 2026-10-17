@@ -1504,6 +1504,12 @@ class LetterController extends Controller
             }
         }
 
+        if ($batchId && config('queue.default') !== 'sync') {
+            \App\Jobs\ResumeLetterDelivery::start($batchId);
+
+            return;
+        }
+
         self::$pendingLetterDeliveries[] = [
             'letterId' => $letterId,
             'id' => $id,
@@ -1530,7 +1536,7 @@ class LetterController extends Controller
             if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
                 @session_write_close();
             }
-            @set_time_limit(900);
+            @set_time_limit(0);
             ignore_user_abort(true);
 
             $jobs = self::$pendingLetterDeliveries;

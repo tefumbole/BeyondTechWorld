@@ -169,7 +169,12 @@ class OnlineInvitationInvitationController extends Controller
                 }
             }
 
+            $paced = false;
             foreach ($ids as $id) {
+                if ($paced && ! app()->runningUnitTests()) {
+                    sleep(5);
+                }
+                $paced = true;
                 $ref = 'invitation:'.$id;
                 try {
                     if ($batchId) {

@@ -41,7 +41,22 @@ class ProcessQueue implements ShouldQueue
             $tracker->markBatchSending($batchId);
         }
 
-        $sendTo = function ($recipient, $ref) use ($letterController, $letter, $tracker, $batchId) {
+        $pace = function () {
+            if (app()->runningUnitTests()) {
+                return;
+            }
+            static $last = null;
+            if ($last !== null) {
+                $wait = 5 - (microtime(true) - $last);
+                if ($wait > 0) {
+                    sleep((int) ceil($wait));
+                }
+            }
+            $last = microtime(true);
+        };
+
+        $sendTo = function ($recipient, $ref) use ($letterController, $letter, $tracker, $batchId, $pace) {
+            $pace();
             $phone = $recipient->phone_number ?? $recipient->phone ?? null;
             if ($batchId) {
                 $tracker->markItemSending($batchId, $ref, $phone);
@@ -65,7 +80,8 @@ class ProcessQueue implements ShouldQueue
             }
         };
 
-        $sendCc = function ($ccRecipient, $ref, $original) use ($letterController, $letter, $tracker, $batchId) {
+        $sendCc = function ($ccRecipient, $ref, $original) use ($letterController, $letter, $tracker, $batchId, $pace) {
+            $pace();
             $phone = $ccRecipient->phone_number ?? $ccRecipient->phone ?? null;
             if ($batchId) {
                 $tracker->markItemSending($batchId, $ref, $phone);

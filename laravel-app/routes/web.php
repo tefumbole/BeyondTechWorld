@@ -1604,6 +1604,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/letters/queued-messages/status', 'MessageDeliveryController@status')->name('message.delivery.status');
     Route::post('/letters/queued-messages/bulk-delete', 'MessageDeliveryController@bulkDestroy')->name('message.delivery.bulk_destroy');
     Route::post('/letters/queued-messages/{id}/resend', 'MessageDeliveryController@resendFailed')->name('message.delivery.resend');
+    Route::post('/letters/queued-messages/{id}/resume', 'MessageDeliveryController@resume')->name('message.delivery.resume');
     Route::delete('/letters/queued-messages/{id}', 'MessageDeliveryController@destroy')->name('message.delivery.destroy');
     Route::get('/letters/queued-messages/{id}', 'MessageDeliveryController@show')->name('message.delivery.show');
     Route::get('/letters/queued-messages/{id}/status', 'MessageDeliveryController@itemStatus')->name('message.delivery.item-status');

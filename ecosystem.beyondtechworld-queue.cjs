@@ -5,7 +5,7 @@ module.exports = {
       cwd: '/var/www/beyondtechworld/laravel-app',
       script: 'artisan',
       interpreter: 'php',
-      args: 'queue:work database --queue=whatsapp,default --sleep=1 --tries=3 --timeout=90',
+      args: 'queue:work database --queue=whatsapp,default --sleep=1 --tries=3 --timeout=180',
       instances: 1,
       autorestart: true,
       max_memory_restart: '200M',
