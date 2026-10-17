@@ -696,22 +696,13 @@ class Controller extends BaseController
                 . 'Please find your *' . $filename . '* attached.'
                 . \App\Support\WhatsAppMessage::footer());
         if ($forceWasender || $this->usesWasenderForDocuments()) {
-            $this->assertWasenderConfigured();
-            if (empty($wa_path)) {
-                $wa_path = ($forceWasender && is_file($path))
-                    ? $this->wasenderUploadLocalFile($path)
-                    : $this->resolveWhatsAppDocumentUrl($path);
+            $phone = $lims_customer_data->phone_number ?? $lims_customer_data->phone ?? null;
+            $sent = app(\App\Services\BeyondWasenderService::class)->sendDocument($phone, $path, $filename, $caption, true);
+            if (empty($sent['success'])) {
+                throw new \Exception(isset($sent['error']) ? $sent['error'] : 'The document was not sent on WhatsApp.');
             }
 
-            try {
-                $this->sendWasenderTextMessage(
-                    $lims_customer_data->phone_number ?? $lims_customer_data->phone,
-                    $caption
-                );
-            } catch (\Exception $e) {
-            }
-
-            return $this->wasenderAttachment($path, $lims_customer_data, $wa_path, $filename);
+            return true;
         }
 
         $service = $this->whatsappServiceName();

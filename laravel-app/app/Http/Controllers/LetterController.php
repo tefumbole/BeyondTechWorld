@@ -1223,7 +1223,7 @@ class LetterController extends Controller
             $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'Letter')
                 .\App\Support\WhatsAppMessage::greeting($lims_customer_data->name ?? 'everyone')
                 .'Please find the letter attached.'
-                .\App\Support\WhatsAppMessage::footer();
+                .$this->letterSignOff($letter);
             $this->sendLetterFileToGroup($groupJid, $path, 'letter.pdf', $caption);
             if ($letter->attachment) {
                 $this->sendLetterFileToGroup($groupJid, $attachment_path.$letter->attachment, 'attachment-'.$letter->attachment, $caption);
@@ -1238,7 +1238,7 @@ class LetterController extends Controller
 
                 return $message;
             }
-            $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf', null, null, $this->isInternshipAcceptanceLetter($letter));
+            $this->wpPDFMessage($path, $lims_customer_data, 'letter.pdf', null, $this->letterDocumentCaption($letter, $lims_customer_data, 'letter.pdf'), $this->isInternshipAcceptanceLetter($letter));
             if ($this->isInternshipAcceptanceLetter($letter)) {
                 $this->sendInternshipLoginGuideWhatsApp($lims_customer_data);
             }
@@ -1608,7 +1608,7 @@ class LetterController extends Controller
                 .'This group has been *CC\'d* on a letter to *'.$originalName.'*.'
                 ."\n\n"
                 .'Please find the same letter PDF attached.'
-                .\App\Support\WhatsAppMessage::footer();
+                .$this->letterSignOff($letter);
             $this->sendLetterFileToGroup($groupJid, $path, 'letter.pdf', $caption);
 
             return $message;
@@ -1618,7 +1618,7 @@ class LetterController extends Controller
             .'You have been *CC\'d* on a letter to *'.$originalName.'*.'
             ."\n\n"
             .'Please find the same letter PDF attached.'
-            .\App\Support\WhatsAppMessage::footer();
+            .$this->letterSignOff($letter);
 
         try {
             $this->wpPDFMessage($path, $ccRecipient, 'letter.pdf', null, $caption, $this->isInternshipAcceptanceLetter($letter));
@@ -1657,6 +1657,30 @@ class LetterController extends Controller
      * @param  object|string|null  $hint
      * @return object|null
      */
+    protected function letterSignOff($letter)
+    {
+        $name = '';
+        if (! empty($letter->organization_id)) {
+            $org = $letter->relationLoaded('organization') ? $letter->organization : \App\LetterOrganization::find($letter->organization_id);
+            $name = $org ? trim((string) $org->name) : '';
+        }
+        if ($name === '') {
+            return \App\Support\WhatsAppMessage::footer();
+        }
+
+        return "\n_".$name.'_';
+    }
+
+    protected function letterDocumentCaption($letter, $recipient, $filename)
+    {
+        $name = is_object($recipient) ? ($recipient->name ?? 'Customer') : 'Customer';
+
+        return \App\Support\WhatsAppMessage::statusBlock('📄', 'Document Attached')
+            .\App\Support\WhatsAppMessage::greeting($name)
+            .'Please find your *'.$filename.'* attached.'
+            .$this->letterSignOff($letter);
+    }
+
     protected function letterGroupJid($recipient)
     {
         $jid = trim((string) (is_object($recipient) ? ($recipient->group_jid ?? '') : ''));

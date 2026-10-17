@@ -155,7 +155,14 @@
             return '';
         }
     };
+    $previewLetterhead = ! empty($data->organization_id)
+        ? \App\Support\Letterhead::forOrganization($data->organization ?? \App\LetterOrganization::find($data->organization_id))
+        : \App\Support\Letterhead::resolve();
 @endphp
+
+@if(!empty($previewLetterhead['header_url']))
+    <img src="{{ $previewLetterhead['header_url'] }}" alt="" style="width:100%;height:auto;display:block;margin:0 0 16px;">
+@endif
 
 <div class="letter-preview-top-right">
     @if(trim(strip_tags((string) $data->header)) !== '')
@@ -241,4 +248,7 @@
 </div>
 @if($data->comment)
     <p class="small text-muted mt-2">Internal comment: {{ $data->comment }}</p>
+@endif
+@if(!empty($previewLetterhead['footer_url']))
+    <img src="{{ $previewLetterhead['footer_url'] }}" alt="" style="width:100%;height:auto;display:block;margin:16px 0 0;">
 @endif

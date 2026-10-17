@@ -456,22 +456,44 @@ class BeyondWasenderService
                 'Content-Type: '.$mime,
             ],
             CURLOPT_POSTFIELDS => file_get_contents($path),
+            CURLOPT_CONNECTTIMEOUT => 12,
             CURLOPT_TIMEOUT => 90,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         ]);
-        $body = curl_exec($ch);
-        $err = curl_error($ch);
-        curl_close($ch);
-
-        if ($err) {
-            throw new \Exception($err);
+        $lastError = 'Wasender upload failed.';
+        for ($try = 0; $try < 2; $try++) {
+            if ($try > 0) {
+                usleep(1500000);
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_POST => true,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_HTTPHEADER => [
+                        'Authorization: Bearer '.config('services.whatsapp.wasender_api_key'),
+                        'Accept: application/json',
+                        'Content-Type: '.$mime,
+                    ],
+                    CURLOPT_POSTFIELDS => file_get_contents($path),
+                    CURLOPT_CONNECTTIMEOUT => 12,
+                    CURLOPT_TIMEOUT => 90,
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                ]);
+            }
+            $body = curl_exec($ch);
+            $err = curl_error($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            $decoded = json_decode((string) $body, true);
+            if (! $err && ! empty($decoded['publicUrl'])) {
+                return $decoded['publicUrl'];
+            }
+            $lastError = $err !== '' ? $err : (is_array($decoded) ? (string) ($decoded['message'] ?? $decoded['error'] ?? ('HTTP '.$http)) : ('HTTP '.$http));
+            if (! preg_match('/522|520|524|502|503|timed out|timeout/i', $lastError)) {
+                break;
+            }
         }
 
-        $decoded = json_decode($body, true);
-        if (! empty($decoded['publicUrl'])) {
-            return $decoded['publicUrl'];
-        }
-
-        throw new \Exception($decoded['message'] ?? $decoded['error'] ?? 'Wasender upload failed.');
+        throw new \Exception($lastError);
     }
 
     /**
