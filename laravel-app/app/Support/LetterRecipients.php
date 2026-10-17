@@ -119,6 +119,8 @@ class LetterRecipients
         $r->directory_id = $person['id'] ?? null;
         $r->role = $person['role'] ?? '';
         $r->source = $person['source'] ?? '';
+        $r->kind = $person['kind'] ?? '';
+        $r->group_jid = $person['group_jid'] ?? '';
 
         foreach ([
             'school', 'system_name', 'program', 'supervisors',

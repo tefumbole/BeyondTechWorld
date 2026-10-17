@@ -224,12 +224,13 @@ class LetterController extends Controller
         $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
         $directorySearchUrl = route('letter.people.search');
         $organizations = \App\LetterOrganization::orderBy('name')->get();
+        $waGroups = $this->letterWhatsAppGroups();
 
         return view('letter.create', compact(
             'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
             'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
             'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl',
-            'organizations'
+            'organizations', 'waGroups'
         ));
     }
 
@@ -251,12 +252,13 @@ class LetterController extends Controller
         $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
         $directorySearchUrl = route('letter.people.search');
         $organizations = \App\LetterOrganization::orderBy('name')->get();
+        $waGroups = $this->letterWhatsAppGroups();
 
         return view('letter.create', compact(
             'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
             'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
             'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl',
-            'organizations'
+            'organizations', 'waGroups'
         ));
     }
 
@@ -268,6 +270,78 @@ class LetterController extends Controller
         return response()->json(
             app(PeopleDirectoryService::class)->eligibleForTasks($filter, $q)
         );
+    }
+
+    public function quickRecipient(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:50',
+        ]);
+
+        try {
+            $result = app(PeopleDirectoryService::class)->findOrCreateCustomerQuick($data);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'user' => $result['person'],
+        ]);
+    }
+
+    protected function letterWhatsAppGroups()
+    {
+        try {
+            return app(\App\Services\WhatsApp\GroupContactExportService::class)->announcementGroups();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    protected function resolveLetterDirectory(array $ids)
+    {
+        $groupIds = [];
+        $peopleIds = [];
+        foreach ($ids as $id) {
+            $id = (string) $id;
+            if (strpos($id, 'group:') === 0) {
+                $groupIds[] = substr($id, 6);
+            } else {
+                $peopleIds[] = $id;
+            }
+        }
+        $people = LetterRecipients::resolveDirectoryIds($peopleIds);
+        if (! $groupIds) {
+            return $people;
+        }
+        $catalog = [];
+        foreach ($this->letterWhatsAppGroups() as $group) {
+            if (! empty($group['jid'])) {
+                $catalog[$group['jid']] = $group;
+            }
+        }
+        foreach ($groupIds as $jid) {
+            if (substr($jid, -5) !== '@g.us') {
+                continue;
+            }
+            $name = isset($catalog[$jid]['name']) ? trim((string) $catalog[$jid]['name']) : '';
+            $people[] = [
+                'id' => 'group:'.$jid,
+                'kind' => 'group',
+                'group_jid' => $jid,
+                'name' => $name !== '' ? $name : 'WhatsApp group',
+                'phone' => '',
+                'email' => '',
+                'role' => 'WhatsApp group',
+                'source' => 'WhatsApp group',
+            ];
+        }
+
+        return $people;
     }
 
     /**
@@ -291,8 +365,8 @@ class LetterController extends Controller
                 if (empty($recipientIds)) {
                     return $this->letterStoreResponse($request, false, 'Please select at least one recipient.', 422);
                 }
-                $recipients = LetterRecipients::resolveDirectoryIds($recipientIds);
-                $ccs = LetterRecipients::resolveDirectoryIds($ccIds);
+                $recipients = $this->resolveLetterDirectory($recipientIds);
+                $ccs = $this->resolveLetterDirectory($ccIds);
                 $data['recipients_json'] = json_encode($recipients);
                 $data['cc_json'] = json_encode($ccs);
                 $data['to'] = implode(',', $recipientIds);
@@ -1144,6 +1218,19 @@ class LetterController extends Controller
         $path = storage_path('app/public/letter/letter.pdf');
         $attachment_path = public_path('letter/attachment/');
         $message = 'Letter notification sent successfully';
+        $groupJid = $this->letterGroupJid($lims_customer_data);
+        if ($groupJid !== '') {
+            $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'Letter')
+                .\App\Support\WhatsAppMessage::greeting($lims_customer_data->name ?? 'everyone')
+                .'Please find the letter attached.'
+                .\App\Support\WhatsAppMessage::footer();
+            $this->sendLetterFileToGroup($groupJid, $path, 'letter.pdf', $caption);
+            if ($letter->attachment) {
+                $this->sendLetterFileToGroup($groupJid, $attachment_path.$letter->attachment, 'attachment-'.$letter->attachment, $caption);
+            }
+
+            return $message;
+        }
         try{
             if ($this->isInternshipAcceptanceLetter($letter)
                 && $this->recipientNeedsAcceptanceSignature($lims_customer_data)) {
@@ -1514,6 +1601,18 @@ class LetterController extends Controller
         $message = 'Letter notification sent successfully';
 
         $ccName = trim((string) ($ccRecipient->name ?? 'Colleague'));
+        $groupJid = $this->letterGroupJid($ccRecipient);
+        if ($groupJid !== '') {
+            $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'CC Copy')
+                .\App\Support\WhatsAppMessage::greeting($ccName !== '' ? $ccName : 'everyone')
+                .'This group has been *CC\'d* on a letter to *'.$originalName.'*.'
+                ."\n\n"
+                .'Please find the same letter PDF attached.'
+                .\App\Support\WhatsAppMessage::footer();
+            $this->sendLetterFileToGroup($groupJid, $path, 'letter.pdf', $caption);
+
+            return $message;
+        }
         $caption = \App\Support\WhatsAppMessage::statusBlock('📄', 'CC Copy')
             .\App\Support\WhatsAppMessage::greeting($ccName !== '' ? $ccName : 'Colleague')
             .'You have been *CC\'d* on a letter to *'.$originalName.'*.'
@@ -1558,6 +1657,24 @@ class LetterController extends Controller
      * @param  object|string|null  $hint
      * @return object|null
      */
+    protected function letterGroupJid($recipient)
+    {
+        $jid = trim((string) (is_object($recipient) ? ($recipient->group_jid ?? '') : ''));
+
+        return substr($jid, -5) === '@g.us' ? $jid : '';
+    }
+
+    protected function sendLetterFileToGroup($jid, $path, $filename, $caption)
+    {
+        if (! is_file($path)) {
+            throw new \RuntimeException('The letter file was not found.');
+        }
+        $posted = app(\App\Services\BeyondWasenderService::class)->sendGroupDocument($jid, $path, $filename, $caption);
+        if (empty($posted['success'])) {
+            throw new \RuntimeException(isset($posted['error']) ? $posted['error'] : 'The WhatsApp group did not accept the letter.');
+        }
+    }
+
     protected function resolveLetterOriginalRecipient($letter, $hint = null)
     {
         if (is_object($hint) && (isset($hint->name) || isset($hint->email) || isset($hint->phone_number))) {

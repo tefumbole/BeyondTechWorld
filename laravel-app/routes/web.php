@@ -1588,6 +1588,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/letters/prev/{id}', 'LetterController@prev')->name('letter.prev');
     Route::get('/letters/create', 'LetterController@create')->name('letter.create');
     Route::get('/letters/people/search', 'LetterController@searchPeople')->name('letter.people.search');
+    Route::post('/letters/people/quick', 'LetterController@quickRecipient')->name('letter.people.quick');
     Route::get('/letters/clone/{id}', 'LetterController@cloneLetter')->name('letter.clone');
     Route::get('/letters/index', 'LetterController@index')->name('letter.index');
     Route::get('/letters/all', 'LetterController@all')->name('letter.all');

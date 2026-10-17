@@ -145,6 +145,10 @@ class ProcessQueue implements ShouldQueue
 
                 LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($ccRecipient, $ref) use ($sendCc, $letter, $toRecipients) {
                     $originals = ! empty($toRecipients) ? $toRecipients : [null];
+                    $jid = trim((string) ($ccRecipient->group_jid ?? ''));
+                    if (substr($jid, -5) === '@g.us') {
+                        $originals = [$originals[0]];
+                    }
                     foreach ($originals as $original) {
                         try {
                             $sendCc($ccRecipient, $ref, $original);

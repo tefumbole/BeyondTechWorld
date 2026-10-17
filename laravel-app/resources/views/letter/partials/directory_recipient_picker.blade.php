@@ -29,17 +29,28 @@
             <strong id="lt-count" style="color:#0b3f90;font-size:1.15rem;margin-left:6px;">0</strong>
         </div>
     </div>
-    <p class="text-muted small mb-2">Choose customers, system users, applicants, or mix them — same as Announcements. Deleted applications are not listed.</p>
+    <p class="text-muted small mb-2">Choose customers, system users, applicants, a WhatsApp group, or a phone number — same as Announcements. Deleted applications are not listed.</p>
     <div class="mb-2">
         <button type="button" class="lt-pill active lt-rf" data-role="customers">Customers</button>
         <button type="button" class="lt-pill lt-rf" data-role="staff">System Users</button>
         <button type="button" class="lt-pill lt-rf" data-role="applicants">Applicants</button>
         <button type="button" class="lt-pill lt-rf" data-role="all">All</button>
+        <button type="button" class="lt-pill lt-rf" data-role="group">WhatsApp group</button>
+        <button type="button" class="lt-pill lt-rf" data-role="phone">Phone</button>
     </div>
-    <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+    <div class="d-flex mb-2 flex-wrap lt-rtools" style="gap:8px;">
         <input type="search" class="lt-field lt-rsearch" placeholder="Search name, email, phone…" style="flex:1;min-width:180px;">
         <button type="button" class="lt-btn-outline lt-rselect-all" style="white-space:nowrap;">Select all</button>
         <button type="button" class="lt-btn-outline lt-rdeselect-all" style="white-space:nowrap;">Deselect all</button>
+    </div>
+    <div class="lt-rphone mb-2" style="display:none;">
+        <p class="text-muted small mb-2">Add someone by WhatsApp number. They are saved as a customer and selected.</p>
+        <div class="d-flex flex-wrap" style="gap:8px;">
+            <input type="tel" class="lt-field lt-phone-number" placeholder="675321739 or +237…" style="flex:1;min-width:160px;">
+            <input type="text" class="lt-field lt-phone-name" placeholder="Full name" style="flex:1;min-width:160px;">
+            <button type="button" class="lt-btn-outline lt-phone-save" data-target="to">Save &amp; select</button>
+        </div>
+        <div class="small text-muted mt-1 lt-phone-status"></div>
     </div>
     <div class="lt-user-list lt-rlist"></div>
     <div class="lt-rchips mt-2"></div>
@@ -47,17 +58,27 @@
 
     <hr>
     <h6 style="font-weight:700;">CC</h6>
-    <p class="text-muted small">Copied recipients also receive the letter.</p>
+    <p class="text-muted small">Copied recipients also receive the letter. A WhatsApp group or a phone number can be copied too.</p>
     <div class="mb-2">
         <button type="button" class="lt-pill active lt-cf" data-role="all">All</button>
         <button type="button" class="lt-pill lt-cf" data-role="staff">System Users</button>
         <button type="button" class="lt-pill lt-cf" data-role="customers">Customers</button>
         <button type="button" class="lt-pill lt-cf" data-role="applicants">Applicants</button>
+        <button type="button" class="lt-pill lt-cf" data-role="group">WhatsApp group</button>
+        <button type="button" class="lt-pill lt-cf" data-role="phone">Phone</button>
     </div>
-    <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+    <div class="d-flex mb-2 flex-wrap lt-ctools" style="gap:8px;">
         <input type="search" class="lt-field lt-csearch" placeholder="Search CC…" style="flex:1;min-width:180px;">
         <button type="button" class="lt-btn-outline lt-cselect-all" style="white-space:nowrap;">Select all</button>
         <button type="button" class="lt-btn-outline lt-cdeselect-all" style="white-space:nowrap;">Deselect all</button>
+    </div>
+    <div class="lt-cphone mb-2" style="display:none;">
+        <div class="d-flex flex-wrap" style="gap:8px;">
+            <input type="tel" class="lt-field lt-phone-number" placeholder="675321739 or +237…" style="flex:1;min-width:160px;">
+            <input type="text" class="lt-field lt-phone-name" placeholder="Full name" style="flex:1;min-width:160px;">
+            <button type="button" class="lt-btn-outline lt-phone-save" data-target="cc">Save &amp; select</button>
+        </div>
+        <div class="small text-muted mt-1 lt-phone-status"></div>
     </div>
     <div class="lt-user-list lt-clist" style="max-height:140px;"></div>
     <div class="lt-cchips mt-2"></div>
@@ -66,7 +87,9 @@
 
 <script>
 window.LT_USERS = @json($directoryPeople ?? []);
+window.LT_GROUPS = @json($waGroups ?? []);
 window.LT_USERS_SEARCH = @json($directorySearchUrl ?? route('letter.people.search'));
+window.LT_QUICK = @json(route('letter.people.quick'));
 window.LT_PRESELECT = @json([
     'recipients' => $cloneDirectoryToIds ?? [],
     'cc' => $cloneDirectoryCcIds ?? [],
@@ -105,6 +128,31 @@ window.LT_PRESELECT = @json([
             return source === 'applicant' || role === 'applicant';
         }
         return true;
+    }
+
+    function groupsAsUsers(query) {
+        var q = (query || '').toLowerCase();
+        return (window.LT_GROUPS || []).filter(function (g) {
+            if (!q) return true;
+            return (g.name || '').toLowerCase().indexOf(q) !== -1 || (g.jid || '').toLowerCase().indexOf(q) !== -1;
+        }).map(function (g) {
+            var count = g.members ? (g.members + ' contacts') : '';
+            return { id: 'group:' + g.jid, name: g.name || 'WhatsApp group', source: 'WhatsApp group', phone: count, email: '' };
+        });
+    }
+
+    function lookupPerson(id) {
+        var found = null;
+        (window.LT_USERS || []).some(function (u) {
+            if (u.id === id) { found = u; return true; }
+            return false;
+        });
+        if (found) return found;
+        var groups = groupsAsUsers('');
+        for (var i = 0; i < groups.length; i++) {
+            if (groups[i].id === id) return groups[i];
+        }
+        return { name: id };
     }
 
     function filterUsersLocal(query, roleFilter) {
@@ -152,10 +200,8 @@ window.LT_PRESELECT = @json([
     }
 
     function renderChips(el, selected, onRemove, prefix) {
-        var map = {};
-        (window.LT_USERS || []).forEach(function (u) { map[u.id] = u; });
         el.innerHTML = selected.map(function (id) {
-            var u = map[id] || { name: id };
+            var u = lookupPerson(id);
             return '<span class="lt-chip" data-id="'+esc(id)+'">'+esc((prefix?prefix+' ':'')+(u.name||id))
                 + ' <button type="button">×</button></span>';
         }).join('');
@@ -175,8 +221,42 @@ window.LT_PRESELECT = @json([
         if (countEl) countEl.textContent = String(recipients.length + ccs.length);
     }
 
+    function visibleFor(role, query) {
+        if (role === 'group') return groupsAsUsers(query);
+        return null;
+    }
+
     function refreshRecipients() {
+        var phoneBox = document.querySelector('.lt-rphone');
+        var tools = document.querySelector('.lt-rtools');
+        if (rRole === 'phone') {
+            if (phoneBox) phoneBox.style.display = 'block';
+            if (tools) tools.style.display = 'none';
+            document.querySelector('.lt-rlist').innerHTML = '';
+            renderChips(document.querySelector('.lt-rchips'), recipients, function (id) {
+                recipients = recipients.filter(function (x) { return x !== id; });
+                refreshRecipients();
+            });
+            syncHiddens(document.querySelector('.lt-rhiddens'), recipients, 'recipient_ids');
+            return;
+        }
+        if (phoneBox) phoneBox.style.display = 'none';
+        if (tools) tools.style.display = 'flex';
         var q = document.querySelector('.lt-rsearch').value;
+        var grouped = visibleFor(rRole, q);
+        if (grouped) {
+            renderList(document.querySelector('.lt-rlist'), grouped, recipients, function (id) {
+                var i = recipients.indexOf(id);
+                if (i === -1) recipients.push(id); else recipients.splice(i, 1);
+                refreshRecipients();
+            });
+            renderChips(document.querySelector('.lt-rchips'), recipients, function (id) {
+                recipients = recipients.filter(function (x) { return x !== id; });
+                refreshRecipients();
+            });
+            syncHiddens(document.querySelector('.lt-rhiddens'), recipients, 'recipient_ids');
+            return;
+        }
         searchUsers(q, rRole, function (users) {
             renderList(document.querySelector('.lt-rlist'), users, recipients, function (id) {
                 var i = recipients.indexOf(id);
@@ -192,7 +272,36 @@ window.LT_PRESELECT = @json([
     }
 
     function refreshCc() {
+        var phoneBox = document.querySelector('.lt-cphone');
+        var tools = document.querySelector('.lt-ctools');
+        if (cRole === 'phone') {
+            if (phoneBox) phoneBox.style.display = 'block';
+            if (tools) tools.style.display = 'none';
+            document.querySelector('.lt-clist').innerHTML = '';
+            renderChips(document.querySelector('.lt-cchips'), ccs, function (id) {
+                ccs = ccs.filter(function (x) { return x !== id; });
+                refreshCc();
+            }, 'CC:');
+            syncHiddens(document.querySelector('.lt-chiddens'), ccs, 'cc_ids');
+            return;
+        }
+        if (phoneBox) phoneBox.style.display = 'none';
+        if (tools) tools.style.display = 'flex';
         var q = document.querySelector('.lt-csearch').value;
+        var grouped = visibleFor(cRole, q);
+        if (grouped) {
+            renderList(document.querySelector('.lt-clist'), grouped, ccs, function (id) {
+                var i = ccs.indexOf(id);
+                if (i === -1) ccs.push(id); else ccs.splice(i, 1);
+                refreshCc();
+            });
+            renderChips(document.querySelector('.lt-cchips'), ccs, function (id) {
+                ccs = ccs.filter(function (x) { return x !== id; });
+                refreshCc();
+            }, 'CC:');
+            syncHiddens(document.querySelector('.lt-chiddens'), ccs, 'cc_ids');
+            return;
+        }
         searchUsers(q, cRole, function (users) {
             renderList(document.querySelector('.lt-clist'), users, ccs, function (id) {
                 var i = ccs.indexOf(id);
@@ -232,7 +341,10 @@ window.LT_PRESELECT = @json([
         });
     });
     document.querySelector('.lt-rselect-all').addEventListener('click', function () {
-        filterUsersLocal(document.querySelector('.lt-rsearch').value, rRole).forEach(function (u) {
+        var rows = rRole === 'group'
+            ? groupsAsUsers(document.querySelector('.lt-rsearch').value)
+            : filterUsersLocal(document.querySelector('.lt-rsearch').value, rRole);
+        rows.forEach(function (u) {
             if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
         });
         refreshRecipients();
@@ -242,7 +354,10 @@ window.LT_PRESELECT = @json([
         refreshRecipients();
     });
     document.querySelector('.lt-cselect-all').addEventListener('click', function () {
-        filterUsersLocal(document.querySelector('.lt-csearch').value, cRole).forEach(function (u) {
+        var rows = cRole === 'group'
+            ? groupsAsUsers(document.querySelector('.lt-csearch').value)
+            : filterUsersLocal(document.querySelector('.lt-csearch').value, cRole);
+        rows.forEach(function (u) {
             if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
         });
         refreshCc();
@@ -279,6 +394,50 @@ window.LT_PRESELECT = @json([
             }
         });
     }
+
+    document.querySelectorAll('.lt-phone-save').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = btn.getAttribute('data-target') === 'cc' ? 'cc' : 'to';
+            var box = target === 'cc' ? document.querySelector('.lt-cphone') : document.querySelector('.lt-rphone');
+            var status = box.querySelector('.lt-phone-status');
+            var phone = box.querySelector('.lt-phone-number').value;
+            var name = box.querySelector('.lt-phone-name').value;
+            var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+            status.textContent = 'Saving…';
+            fetch(window.LT_QUICK, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ name: name, phone: phone })
+            }).then(function (res) {
+                return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+            }).then(function (result) {
+                if (!result.ok || !result.body.user) {
+                    status.textContent = (result.body && result.body.message) ? result.body.message : 'That phone number could not be saved.';
+                    return;
+                }
+                mergeUsers([result.body.user]);
+                var id = result.body.user.id;
+                if (target === 'cc') {
+                    if (ccs.indexOf(id) === -1) ccs.push(id);
+                    refreshCc();
+                } else {
+                    if (recipients.indexOf(id) === -1) recipients.push(id);
+                    refreshRecipients();
+                }
+                box.querySelector('.lt-phone-number').value = '';
+                box.querySelector('.lt-phone-name').value = '';
+                status.textContent = result.body.user.name + ' was selected.';
+            }).catch(function () {
+                status.textContent = 'That phone number could not be saved.';
+            });
+        });
+    });
 
     refreshRecipients();
     refreshCc();
