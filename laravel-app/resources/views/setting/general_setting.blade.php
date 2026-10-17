@@ -307,6 +307,106 @@
     </div>
 </section>
 
+<section class="forms">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header"><h4>Letters organizations</h4></div>
+            <div class="card-body">
+                <p>Add another organization's logo, header, and footer. On a new letter, choose that organization and its header, footer, and reference are used. Beyond Tech World stays the default and still uses the letterhead above.</p>
+                <form method="POST" action="{{ route('setting.letterOrganizationStore') }}" enctype="multipart/form-data" class="mb-4">
+                    @csrf
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Organization name *</label>
+                                <input type="text" name="name" class="form-control" value="{{ old('name') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Reference *</label>
+                                <input type="text" name="reference_prefix" class="form-control" value="{{ old('reference_prefix') }}" placeholder="ORG/L-" required>
+                                <small class="text-muted">Example: ORG/L- becomes ORG/L-/26/0000001</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Logo</label>
+                                <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Header</label>
+                                <input type="file" name="header" class="form-control" accept="image/png,image/jpeg,image/gif">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Footer</label>
+                                <input type="file" name="footer" class="form-control" accept="image/png,image/jpeg,image/gif">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Add organization</button>
+                </form>
+
+                @foreach($letterOrganizations as $organization)
+                    <form method="POST" action="{{ route('setting.letterOrganizationUpdate', $organization->id) }}" enctype="multipart/form-data" class="border rounded p-3 mb-3">
+                        @csrf
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Organization name</label>
+                                    <input type="text" name="name" class="form-control" value="{{ $organization->name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Reference</label>
+                                    <input type="text" name="reference_prefix" class="form-control" value="{{ $organization->reference_prefix }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Logo</label>
+                                    @if($organization->logo)
+                                        <div class="mb-2"><img src="{{ url('public/logo', $organization->logo) }}" alt="" style="max-height:60px;"></div>
+                                    @endif
+                                    <input type="file" name="logo" class="form-control" accept="image/png,image/jpeg,image/gif">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Header</label>
+                                    @if($organization->header)
+                                        <div class="mb-2"><img src="{{ url('public/logo', $organization->header) }}" alt="" style="max-height:70px;max-width:100%;"></div>
+                                    @endif
+                                    <input type="file" name="header" class="form-control" accept="image/png,image/jpeg,image/gif">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Footer</label>
+                                    @if($organization->footer)
+                                        <div class="mb-2"><img src="{{ url('public/logo', $organization->footer) }}" alt="" style="max-height:70px;max-width:100%;"></div>
+                                    @endif
+                                    <input type="file" name="footer" class="form-control" accept="image/png,image/jpeg,image/gif">
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </form>
+                    <form method="POST" action="{{ route('setting.letterOrganizationDestroy', $organization->id) }}" class="mb-4" onsubmit="return confirm('Remove this organization?');">
+                        @csrf
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Remove {{ $organization->name }}</button>
+                    </form>
+                @endforeach
+            </div>
+        </div>
+    </div>
+</section>
+
 <script type="text/javascript">
     $("ul#setting").siblings('a').attr('aria-expanded','true');
     $("ul#setting").addClass("show");

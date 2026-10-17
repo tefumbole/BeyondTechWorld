@@ -49,6 +49,18 @@
                                     </div>
                                     <div class="col-md-3">
                                         <div class="form-group">
+                                            <label>Organization</label>
+                                            <select class="form-control" name="organization_id">
+                                                <option value="">Beyond Tech World</option>
+                                                @foreach($organizations as $organization)
+                                                    <option value="{{ $organization->id }}" @if(!empty($clone) && (int) $clone->organization_id === (int) $organization->id) selected @endif>{{ $organization->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <small style="color:#6c757d;display:block;margin-top:6px;">The chosen organization's header, footer, and reference are used. Beyond Tech World uses the General Settings letterhead.</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
                                             <label>{{trans('file.Letter Category')}} </label>
                                             <select class="form-control" name="category_id">
                                                 <option value="">-- Default --</option>

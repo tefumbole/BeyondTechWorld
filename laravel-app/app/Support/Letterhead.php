@@ -192,9 +192,49 @@ class Letterhead
     }
 
     /**
-     * @param  object|null  $settings
-     * @return array
+     * Header, footer, and logo for one saved letters organization.
+     * Missing images stay blank. The default Beyond letterhead is not mixed in.
      */
+    public static function forOrganization($organization)
+    {
+        $empty = [
+            'has_header' => false,
+            'has_footer' => false,
+            'has_watermark' => false,
+            'header_file' => null,
+            'footer_file' => null,
+            'watermark_file' => null,
+            'header_path' => null,
+            'footer_path' => null,
+            'watermark_path' => null,
+            'header_url' => null,
+            'footer_url' => null,
+            'watermark_url' => null,
+        ];
+        if (! $organization) {
+            return $empty;
+        }
+
+        $headerPath = self::locate($organization->header ?? null);
+        $footerPath = self::locate($organization->footer ?? null);
+        $logoPath = self::locate($organization->logo ?? null);
+
+        return [
+            'has_header' => (bool) $headerPath,
+            'has_footer' => (bool) $footerPath,
+            'has_watermark' => (bool) $logoPath,
+            'header_file' => $headerPath ? basename($headerPath) : null,
+            'footer_file' => $footerPath ? basename($footerPath) : null,
+            'watermark_file' => $logoPath ? basename($logoPath) : null,
+            'header_path' => $headerPath,
+            'footer_path' => $footerPath,
+            'watermark_path' => $logoPath,
+            'header_url' => $headerPath ? self::publicUrl($headerPath) : null,
+            'footer_url' => $footerPath ? self::publicUrl($footerPath) : null,
+            'watermark_url' => $logoPath ? self::publicUrl($logoPath) : null,
+        ];
+    }
+
     public static function resolve($settings = null)
     {
         $settings = $settings ?: GeneralSetting::query()->orderByDesc('id')->first();

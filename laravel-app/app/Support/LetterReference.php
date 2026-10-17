@@ -34,10 +34,13 @@ class LetterReference
     /**
      * Allocate the next shared serial (letters + announcements + WhatsApp) for the current year.
      */
-    public static function next($source = 'document'): string
+    public static function next($source = 'document', $prefix = null): string
     {
-        return DB::transaction(function () use ($source) {
-            $prefix = self::prefix();
+        return DB::transaction(function () use ($source, $prefix) {
+            $prefix = trim((string) $prefix);
+            if ($prefix === '') {
+                $prefix = self::prefix();
+            }
             $year = self::yearToken();
             $pattern = rtrim($prefix, '/').'/'.$year.'/';
 

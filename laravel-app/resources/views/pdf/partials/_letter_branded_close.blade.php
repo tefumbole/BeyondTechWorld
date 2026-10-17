@@ -1,9 +1,14 @@
 @php
     $useSystemLetterhead = ! empty($use_system_letterhead);
     $letterheadFlow = ! empty($letterhead_flow);
-    $letterhead = $letterhead ?? \App\Support\Letterhead::resolve($general_setting ?? null);
+    $organizationLetterhead = isset($data) && is_object($data) && ! empty($data->organization_id);
+    $letterhead = $letterhead ?? (
+        $organizationLetterhead
+            ? \App\Support\Letterhead::forOrganization($data->organization ?? \App\LetterOrganization::find($data->organization_id))
+            : \App\Support\Letterhead::resolve($general_setting ?? null)
+    );
     $hasLetterFooter = ! empty($letterhead['has_footer']) && (
-        $useSystemLetterhead || (($general_setting->invoice_format ?? '') == 'beyond_a4')
+        $useSystemLetterhead || $organizationLetterhead || (($general_setting->invoice_format ?? '') == 'beyond_a4')
     );
 @endphp
 @php

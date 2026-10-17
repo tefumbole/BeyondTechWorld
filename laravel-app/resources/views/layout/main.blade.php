@@ -583,6 +583,31 @@
                                 ['role_id', $role->id]
                             ])->first() : null;
                         @endphp
+                        @php
+                            $gbhs_module_permission = \Spatie\Permission\Models\Permission::where('name', 'gbhs_module')->first();
+                            $gbhs_module_active = $role && $gbhs_module_permission ? \DB::table('role_has_permissions')->where([
+                                ['permission_id', $gbhs_module_permission->id],
+                                ['role_id', $role->id]
+                            ])->first() : null;
+                        @endphp
+                        @if($gbhs_module_active)
+                            <li><a href="#gbhs-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-graduation"></i><span>GBHS Kumbo</span></a>
+                                <ul id="gbhs-module" class="collapse list-unstyled ">
+                                    <li id="gbhs-dashboard-menu"><a href="{{ route('gbhs.dashboard') }}">Dashboard</a></li>
+                                    <li id="gbhs-website-menu"><a href="{{ route('gbhs.website') }}">Website Manager</a></li>
+                                    <li id="gbhs-applications-menu"><a href="{{ route('gbhs.applications') }}">Membership Applications</a></li>
+                                    <li id="gbhs-members-menu"><a href="{{ route('gbhs.members') }}">Alumni Members</a></li>
+                                    <li id="gbhs-batches-menu"><a href="{{ route('gbhs.batches') }}">Batches & Representatives</a></li>
+                                    <li id="gbhs-contributions-menu"><a href="{{ route('gbhs.contributions') }}">Contributions & Donations</a></li>
+                                    <li id="gbhs-projects-menu"><a href="{{ route('gbhs.projects') }}">Projects & Fundraising</a></li>
+                                    <li id="gbhs-letters-menu"><a href="{{ route('gbhs.letters') }}">Letters & Documents</a></li>
+                                    <li id="gbhs-whatsapp-menu"><a href="{{ route('gbhs.letters') }}">WhatsApp & Announcements</a></li>
+                                    <li id="gbhs-events-menu"><a href="{{ route('gbhs.events') }}">Events & Golden Jubilee</a></li>
+                                    <li id="gbhs-reports-menu"><a href="{{ route('gbhs.reports') }}">Reports & Analytics</a></li>
+                                    <li id="gbhs-settings-menu"><a href="{{ route('gbhs.settings') }}">Association Settings</a></li>
+                                </ul>
+                            </li>
+                        @endif
                         @if($mix_module_active)
                             <li><a href="#mix-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-media-shuffle"></i><span>Mix & Master</span></a>
                                 <ul id="mix-module" class="collapse list-unstyled ">

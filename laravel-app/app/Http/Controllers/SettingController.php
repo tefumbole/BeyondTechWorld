@@ -68,6 +68,8 @@ class SettingController extends Controller
             ? ($tenant->timezone ?: 'Africa/Douala')
             : (EnvFile::get('APP_TIMEZONE') ?: $appTimezone);
 
+        $letterOrganizations = \App\LetterOrganization::orderBy('name')->get();
+
         return view('setting.general_setting', compact(
             'lims_general_setting_data',
             'lims_account_list',
@@ -78,8 +80,71 @@ class SettingController extends Controller
             'lims_warehouse_list',
             'lims_biller_list',
             'currentTimezone',
-            'companyOwnedSettings'
+            'companyOwnedSettings',
+            'letterOrganizations'
         ));
+    }
+
+    public function letterOrganizationStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'reference_prefix' => 'required|string|max:40',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+            'header' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+            'footer' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+        ]);
+
+        $org = new \App\LetterOrganization();
+        $org->name = $data['name'];
+        $org->reference_prefix = trim($data['reference_prefix']);
+        $org->logo = $this->storeLetterOrganizationImage($request, 'logo', 'site_logo');
+        $org->header = $this->storeLetterOrganizationImage($request, 'header', 'email_header');
+        $org->footer = $this->storeLetterOrganizationImage($request, 'footer', 'email_footer');
+        $org->save();
+
+        return redirect()->route('setting.general')->with('message', $org->name.' can now be chosen on a letter.');
+    }
+
+    public function letterOrganizationUpdate(Request $request, $id)
+    {
+        $org = \App\LetterOrganization::findOrFail($id);
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'reference_prefix' => 'required|string|max:40',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+            'header' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+            'footer' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:8192',
+        ]);
+        $org->name = $data['name'];
+        $org->reference_prefix = trim($data['reference_prefix']);
+        foreach (['logo' => 'site_logo', 'header' => 'email_header', 'footer' => 'email_footer'] as $field => $slot) {
+            $stored = $this->storeLetterOrganizationImage($request, $field, $slot);
+            if ($stored) {
+                $org->{$field} = $stored;
+            }
+        }
+        $org->save();
+
+        return redirect()->route('setting.general')->with('message', $org->name.' was updated.');
+    }
+
+    public function letterOrganizationDestroy($id)
+    {
+        $org = \App\LetterOrganization::findOrFail($id);
+        $name = $org->name;
+        $org->delete();
+
+        return redirect()->route('setting.general')->with('message', $name.' was removed. Letters already written keep their reference.');
+    }
+
+    protected function storeLetterOrganizationImage(Request $request, $field, $slot)
+    {
+        if (! $request->hasFile($field)) {
+            return null;
+        }
+
+        return BrandingImage::storeFitted($request->file($field), public_path('logo'), $slot);
     }
 
     public function envSetting()

@@ -12,6 +12,11 @@ class Letter extends Model
         return $this->belongsTo('App\LetterCategory', 'category_id', 'id');
     }
 
+    public function organization()
+    {
+        return $this->belongsTo(LetterOrganization::class, 'organization_id');
+    }
+
     public function createdBy() {
         return $this->belongsTo('App\User', 'created_by', 'id');
     }

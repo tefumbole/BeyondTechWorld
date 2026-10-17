@@ -120,6 +120,23 @@ Route::post('/permissions/verify', 'PublicPermissionController@verify')->name('b
 Route::post('/permissions/resend-otp', 'PublicPermissionController@resendOtp')->name('beyond.permissions.resend');
 Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@confirmation')->name('beyond.permissions.confirmation');
 
+Route::get('/gbhs', 'GbhsPublicController@home')->name('gbhs.home');
+Route::get('/gbhs/membership', 'GbhsPublicController@membership')->name('gbhs.membership');
+Route::post('/gbhs/register/otp', 'GbhsPublicController@sendMembershipCode')->middleware('throttle:8,1')->name('gbhs.register.otp');
+Route::post('/gbhs/register/verify', 'GbhsPublicController@verifyOtp')->middleware('throttle:12,1')->name('gbhs.register.verify');
+Route::post('/gbhs/register/profile', 'GbhsPublicController@saveProfile')->name('gbhs.register.profile');
+Route::post('/gbhs/register/sign', 'GbhsPublicController@sign')->name('gbhs.register.sign');
+Route::get('/gbhs/bylaws/{id}', 'GbhsPublicController@bylaw')->name('gbhs.bylaw');
+Route::get('/gbhs/donate', 'GbhsPublicController@donateForm')->name('gbhs.donate');
+Route::post('/gbhs/donate', 'GbhsPublicController@donate')->middleware('throttle:20,1')->name('gbhs.donate.store');
+Route::get('/gbhs/pay/{token}', 'GbhsPublicController@payReturn')->name('gbhs.pay.return');
+Route::get('/gbhs/status', 'GbhsPublicController@statusForm')->name('gbhs.status');
+Route::post('/gbhs/status/otp', 'GbhsPublicController@statusSend')->middleware('throttle:8,1')->name('gbhs.status.send');
+Route::post('/gbhs/status/check', 'GbhsPublicController@statusCheck')->middleware('throttle:12,1')->name('gbhs.status.check');
+Route::get('/gbhs/member', 'GbhsPublicController@memberHome')->name('gbhs.member');
+Route::post('/gbhs/contact', 'GbhsPublicController@contact')->name('gbhs.contact');
+Route::get('/gbhs/{slug}', 'GbhsPublicController@page')->name('gbhs.page');
+
 Route::get('/mix', 'MixPublicController@home')->name('mix.home');
 Route::get('/mix/compare', 'MixPublicController@compare')->name('mix.public.compare');
 Route::get('/mix/presets/{slug}/pdf', 'MixPublicController@presetPdf')->name('mix.public.preset.pdf');
@@ -636,6 +653,37 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/jobs/{id}', 'JobBoardController@update')->name('jobs.update');
     Route::post('/admin/jobs/{id}/clone', 'JobBoardController@clone')->name('jobs.clone');
     Route::post('/admin/jobs/{id}/delete', 'JobBoardController@destroy')->name('jobs.destroy');
+
+    Route::get('/admin/gbhs', 'GbhsAdminController@index')->name('gbhs.dashboard');
+    Route::get('/admin/gbhs/website', 'GbhsAdminController@website')->name('gbhs.website');
+    Route::post('/admin/gbhs/sections/{id}', 'GbhsAdminController@saveSection')->name('gbhs.sections.update');
+    Route::post('/admin/gbhs/news', 'GbhsAdminController@storeNews')->name('gbhs.news.store');
+    Route::post('/admin/gbhs/leaders', 'GbhsAdminController@storeLeader')->name('gbhs.leaders.store');
+    Route::post('/admin/gbhs/documents', 'GbhsAdminController@storeDocument')->name('gbhs.documents.store');
+    Route::get('/admin/gbhs/applications', 'GbhsAdminController@applications')->name('gbhs.applications');
+    Route::get('/admin/gbhs/applications/{id}', 'GbhsAdminController@showApplication')->name('gbhs.applications.show');
+    Route::post('/admin/gbhs/applications/{id}', 'GbhsAdminController@review')->name('gbhs.applications.review');
+    Route::get('/admin/gbhs/members', 'GbhsAdminController@members')->name('gbhs.members');
+    Route::get('/admin/gbhs/batches', 'GbhsAdminController@batches')->name('gbhs.batches');
+    Route::post('/admin/gbhs/batches/{id}', 'GbhsAdminController@saveBatch')->name('gbhs.batches.update');
+    Route::get('/admin/gbhs/events', 'GbhsAdminController@events')->name('gbhs.events');
+    Route::post('/admin/gbhs/events', 'GbhsAdminController@storeEvent')->name('gbhs.events.store');
+    Route::get('/admin/gbhs/letters', 'GbhsAdminController@letters')->name('gbhs.letters');
+    Route::post('/admin/gbhs/groups/preview', 'GbhsAdminController@previewGroups')->name('gbhs.groups.preview');
+    Route::post('/admin/gbhs/groups/confirm', 'GbhsAdminController@confirmGroups')->name('gbhs.groups.confirm');
+    Route::get('/admin/gbhs/settings', 'GbhsAdminController@settings')->name('gbhs.settings');
+    Route::post('/admin/gbhs/settings', 'GbhsAdminController@saveSettings')->name('gbhs.settings.save');
+    Route::post('/admin/gbhs/bylaws', 'GbhsAdminController@storeBylaw')->name('gbhs.bylaws.store');
+    Route::get('/admin/gbhs/contributions', 'GbhsFinanceController@contributions')->name('gbhs.contributions');
+    Route::post('/admin/gbhs/contributions', 'GbhsFinanceController@storeContribution')->name('gbhs.contributions.store');
+    Route::post('/admin/gbhs/contributions/{id}', 'GbhsFinanceController@verifyContribution')->name('gbhs.contributions.verify');
+    Route::get('/admin/gbhs/reconcile', 'GbhsFinanceController@reconcile')->name('gbhs.reconcile');
+    Route::get('/admin/gbhs/export', 'GbhsFinanceController@export')->name('gbhs.export');
+    Route::get('/admin/gbhs/projects', 'GbhsFinanceController@projects')->name('gbhs.projects');
+    Route::post('/admin/gbhs/projects', 'GbhsFinanceController@storeProject')->name('gbhs.projects.store');
+    Route::get('/admin/gbhs/payments', 'GbhsFinanceController@payments')->name('gbhs.payments');
+    Route::post('/admin/gbhs/payments/{id}/bank', 'GbhsFinanceController@recordBank')->name('gbhs.payments.bank');
+    Route::get('/admin/gbhs/reports', 'GbhsFinanceController@reports')->name('gbhs.reports');
 
     Route::get('/admin/hotspot', 'HotspotAdminController@index')->name('hotspot.dashboard');
     Route::get('/admin/hotspot/locations', 'HotspotAdminController@locations')->name('hotspot.locations');
@@ -1273,6 +1321,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
 	Route::get('setting/general_setting', 'SettingController@generalSetting')->name('setting.general');
 	Route::post('setting/general_setting_store', 'SettingController@generalSettingStore')->name('setting.generalStore');
+	Route::post('setting/letter-organizations', 'SettingController@letterOrganizationStore')->name('setting.letterOrganizationStore');
+	Route::post('setting/letter-organizations/{id}', 'SettingController@letterOrganizationUpdate')->name('setting.letterOrganizationUpdate');
+	Route::post('setting/letter-organizations/{id}/delete', 'SettingController@letterOrganizationDestroy')->name('setting.letterOrganizationDestroy');
 	Route::get('setting/env_setting', 'SettingController@envSetting')->name('setting.env');
 	Route::post('setting/env_setting_store', 'SettingController@envSettingStore')->name('setting.envStore');
 

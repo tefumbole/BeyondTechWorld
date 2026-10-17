@@ -223,11 +223,13 @@ class LetterController extends Controller
         $cloneDirectoryCcIds = [];
         $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
         $directorySearchUrl = route('letter.people.search');
+        $organizations = \App\LetterOrganization::orderBy('name')->get();
 
         return view('letter.create', compact(
             'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
             'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
-            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl'
+            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl',
+            'organizations'
         ));
     }
 
@@ -248,11 +250,13 @@ class LetterController extends Controller
         $cloneDirectoryCcIds = $resolved['directoryCcIds'] ?? [];
         $directoryPeople = app(PeopleDirectoryService::class)->eligibleForTasks('all', '');
         $directorySearchUrl = route('letter.people.search');
+        $organizations = \App\LetterOrganization::orderBy('name')->get();
 
         return view('letter.create', compact(
             'category', 'template', 'user', 'customer', 'customerGroups', 'departments',
             'clone', 'cloneToIds', 'cloneCcIds', 'clonePeopleType',
-            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl'
+            'cloneDirectoryToIds', 'cloneDirectoryCcIds', 'directoryPeople', 'directorySearchUrl',
+            'organizations'
         ));
     }
 
@@ -366,7 +370,18 @@ class LetterController extends Controller
             $data['reject_by'] = null;
             $data['sent_by'] = null;
 
-            $data['reference'] = \App\Support\LetterReference::next();
+            $organizationPrefix = null;
+            $organizationId = (int) ($data['organization_id'] ?? 0);
+            unset($data['organization_id']);
+            if ($organizationId > 0) {
+                $organization = \App\LetterOrganization::find($organizationId);
+                if ($organization) {
+                    $data['organization_id'] = $organization->id;
+                    $organizationPrefix = $organization->reference_prefix;
+                }
+            }
+
+            $data['reference'] = \App\Support\LetterReference::next('letter', $organizationPrefix);
 
             if(isset($data['is_template'])) {
                 $is_template = true;
