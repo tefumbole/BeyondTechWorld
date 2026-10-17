@@ -5,56 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $setting->seo_title ?? 'GBHS Kumbo Ex-Students' }}</title>
     <meta name="description" content="{{ $setting->seo_description ?? 'GBHS Kumbo Ex-Students Association' }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&family=Source+Sans+3:wght@400;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&display=swap">
     <style>
-        :root { --ink:#1c2430; --gold:#b8860b; --paper:#f7f3ea; --card:#fffdf8; }
+        :root {
+            --forest: #0c3a22;
+            --forest-deep: #071f13;
+            --leaf: #1d6a3a;
+            --gold: #e8c15a;
+            --gold-deep: #c8962e;
+            --royal: #1b4e9b;
+            --cream: #f7f3e8;
+            --ink: #12261a;
+        }
         * { box-sizing: border-box; }
-        body { margin:0; font-family:"Source Sans 3", sans-serif; color:var(--ink); background:var(--paper); }
-        a { color:#6d4c0b; }
-        header { background:#1c2430; color:#f7f3ea; }
-        .bar { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 6vw; }
-        .brand { font-family:"Source Serif 4", serif; font-size:1.25rem; color:#f7f3ea; text-decoration:none; }
-        nav { display:flex; flex-wrap:wrap; gap:12px 16px; padding:0 6vw 14px; }
-        nav a { color:#f3e6c4; text-decoration:none; font-size:.92rem; }
-        main { padding:28px 6vw 64px; max-width:1100px; }
-        h1,h2,h3 { font-family:"Source Serif 4", serif; }
-        .hero { display:grid; grid-template-columns:1.4fr .8fr; gap:28px; align-items:center; }
-        .card { background:var(--card); border:1px solid #eadfca; border-radius:12px; padding:16px 18px; margin:12px 0; }
-        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
-        label { display:block; font-weight:600; margin-top:10px; }
-        input,select,textarea { width:100%; padding:8px 10px; border:1px solid #d9cbb0; border-radius:8px; }
-        button,.btn { background:#1c2430; color:#f7f3ea; border:0; border-radius:8px; padding:10px 14px; text-decoration:none; display:inline-block; margin-top:12px; }
-        .muted { color:#5c6570; }
-        .alert { padding:10px 12px; border-radius:8px; background:#fff4d6; }
-        img.fit { max-width:100%; height:auto; border-radius:12px; }
-        footer { padding:24px 6vw 40px; color:#5c6570; }
-        @media (max-width:800px) { .hero { grid-template-columns:1fr; } }
+        body { margin: 0; font-family: "Source Sans 3", sans-serif; font-size: 1.2rem; line-height: 1.6; color: var(--ink); background: var(--cream); }
+        a { color: var(--leaf); }
+        header { background: var(--forest-deep); color: var(--cream); }
+        .bar { display: flex; align-items: center; gap: 28px; padding: 18px 4vw; }
+        .brand { font-family: "Source Serif 4", serif; font-size: 1.55rem; color: var(--gold); text-decoration: none; white-space: nowrap; }
+        nav { display: flex; flex-wrap: wrap; gap: 8px 22px; flex: 1; }
+        nav a { color: var(--cream); text-decoration: none; font-size: 1.15rem; font-weight: 600; }
+        nav a:hover { color: var(--gold); }
+        .login {
+            margin-left: auto;
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            background: var(--forest-deep);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.05rem;
+            border-radius: 6px;
+            padding: 10px 18px;
+            white-space: nowrap;
+        }
+        .login:hover { background: var(--gold); color: var(--forest-deep); }
+        .banner-wrap { background: var(--forest-deep); line-height: 0; }
+        .banner { width: 100%; height: auto; display: block; }
+        main { padding: 0 0 72px; }
+        .page { max-width: 980px; margin: 0 auto; padding: 36px 5vw 0; }
+        h1, h2, h3 { font-family: "Source Serif 4", serif; color: var(--forest); line-height: 1.2; }
+        h1 { font-size: 2.6rem; margin: 0 0 12px; }
+        h2 { font-size: 1.8rem; }
+        p { font-size: 1.2rem; }
+        .card { background: #fffdf8; border: 1px solid #e4d3a2; border-radius: 12px; padding: 18px 20px; margin: 14px 0; font-size: 1.15rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+        label { display: block; font-weight: 700; margin-top: 12px; font-size: 1.05rem; }
+        input, select, textarea { width: 100%; padding: 12px 14px; border: 1px solid #d7c59a; border-radius: 8px; font-size: 1.1rem; font-family: inherit; }
+        button, .btn { background: var(--forest); color: var(--gold); border: 0; border-radius: 8px; padding: 12px 18px; text-decoration: none; display: inline-block; margin: 14px 10px 0 0; font-size: 1.1rem; font-weight: 700; }
+        .btn.gold { background: var(--gold); color: var(--forest-deep); }
+        .muted { color: #3d5346; font-size: 1.15rem; }
+        .alert { padding: 12px 14px; border-radius: 8px; background: #fff4d2; margin-bottom: 16px; }
+        img.fit { max-width: 100%; height: auto; border-radius: 12px; }
+        footer { background: var(--forest-deep); color: #d7e6db; padding: 22px 4vw 32px; border-top: 10px solid var(--royal); box-shadow: inset 0 3px 0 var(--gold); font-size: 1.05rem; }
+        footer a { color: var(--gold); }
+        @media (max-width: 800px) {
+            .bar { flex-wrap: wrap; }
+            nav { order: 3; width: 100%; }
+            h1 { font-size: 2.1rem; }
+        }
     </style>
 </head>
 <body>
 <header>
     <div class="bar">
         <a class="brand" href="{{ route('gbhs.home') }}">{{ $setting->hero_title ?? 'GBHS Kumbo' }}</a>
+        <nav>
+            <a href="{{ route('gbhs.home') }}">Home</a>
+            <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
+            <a href="{{ route('gbhs.membership') }}">Membership</a>
+            <a href="{{ route('gbhs.page', 'leaders') }}">Our Leaders</a>
+            <a href="{{ route('gbhs.donate') }}">Donate</a>
+        </nav>
+        <a class="login" href="{{ url('/login') }}">Login</a>
     </div>
-    <nav>
-        <a href="{{ route('gbhs.home') }}">Home</a>
-        <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
-        <a href="{{ route('gbhs.membership') }}">Membership</a>
-        <a href="{{ route('gbhs.page', 'leaders') }}">Our Leaders</a>
-        <a href="{{ route('gbhs.donate') }}">Donate</a>
-        <a href="{{ url('/login') }}">Admin Login</a>
-    </nav>
 </header>
+@yield('hero')
 <main>
-    @if(session('message'))<div class="alert">{{ session('message') }}</div>@endif
-    @if(session('not_permitted'))<div class="alert">{{ session('not_permitted') }}</div>@endif
-    @yield('content')
+    <div class="page">
+        @if(session('message'))<div class="alert">{{ session('message') }}</div>@endif
+        @if(session('not_permitted'))<div class="alert">{{ session('not_permitted') }}</div>@endif
+        @yield('content')
+    </div>
 </main>
 <footer>
-    {{ $setting->address ?? '' }}
+    {{ $setting->address ?? 'GBHS Kumbo Ex-Students Association' }}
     @if(!empty($setting->phone)) · {{ $setting->phone }} @endif
     @if(!empty($setting->email)) · {{ $setting->email }} @endif
-    <div><a href="{{ url('/login') }}">Admin Login</a></div>
 </footer>
 </body>
 </html>

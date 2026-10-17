@@ -1,18 +1,18 @@
 @extends('gbhs.public.layout')
+@section('hero')
+@if($slug === 'home')
+    <div class="banner-wrap">
+        <img class="banner" src="{{ url('public/gbhs/gbhs-kumbo-jubilee.jpg') }}" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
+    </div>
+@endif
+@endsection
 @section('content')
 @if($slug === 'home')
-    <div class="hero">
-        <div>
-            <p class="muted">{{ $setting->hero_subtitle }}</p>
-            <h1>{{ $section->title ?? 'GBHS Kumbo Ex-Students' }}</h1>
-            <p>{!! nl2br(e($section->body ?? '')) !!}</p>
-            <a class="btn" href="{{ route('gbhs.membership') }}">Apply for membership</a>
-            <a class="btn" href="{{ route('gbhs.donate') }}">Donate</a>
-        </div>
-        @if(!empty($setting->hero_image))
-            <img class="fit" loading="lazy" src="{{ url('public/'.$setting->hero_image) }}" alt="">
-        @endif
-    </div>
+    <p class="muted">{{ $setting->hero_subtitle }}</p>
+    <h1>{{ $section->title ?? 'GBHS Kumbo Ex-Students' }}</h1>
+    <p>{!! nl2br(e($section->body ?? '')) !!}</p>
+    <a class="btn gold" href="{{ route('gbhs.membership') }}">Apply for membership</a>
+    <a class="btn" href="{{ route('gbhs.donate') }}">Donate</a>
     <div class="grid" style="margin-top:22px">
         <div class="card"><div class="muted">Verified contributions</div><strong>{{ number_format($totals['verified']) }} XAF</strong></div>
         @if(!empty($setting->show_provisional))
