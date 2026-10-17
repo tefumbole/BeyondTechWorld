@@ -174,14 +174,27 @@ class MessageDeliveryController extends Controller
             ->whereIn('status', ['queued', 'sending'])
             ->count();
         if ($pending < 1) {
+            \Illuminate\Support\Facades\Cache::forget(\App\Jobs\ResumeLetterDelivery::lockKey($batch->id));
+            MessageDeliveryItem::where('batch_id', $batch->id)
+                ->where('status', 'failed')
+                ->update([
+                    'status' => 'queued',
+                    'error' => null,
+                    'sent_at' => null,
+                ]);
+            $pending = MessageDeliveryItem::where('batch_id', $batch->id)
+                ->whereIn('status', ['queued', 'sending'])
+                ->count();
+        }
+        if ($pending < 1) {
             return redirect()->back()->with('not_permitted', 'This batch has no remaining recipients to send.');
         }
 
         if (! \App\Jobs\ResumeLetterDelivery::start($batch->id)) {
-            return redirect()->back()->with('message', 'Sending is already continuing. Each message waits at least 5 seconds.');
+            return redirect()->back()->with('message', 'Sending is already continuing. Each message waits at least 6 seconds.');
         }
 
-        return redirect()->back()->with('message', 'Sending resumed for '.$pending.' remaining recipient(s). Each message waits at least 5 seconds.');
+        return redirect()->back()->with('message', 'Sending resumed for '.$pending.' remaining recipient(s). Each message waits at least 6 seconds.');
     }
 
     /**

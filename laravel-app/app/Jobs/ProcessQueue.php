@@ -47,7 +47,7 @@ class ProcessQueue implements ShouldQueue
             }
             static $last = null;
             if ($last !== null) {
-                $wait = 5 - (microtime(true) - $last);
+                $wait = 6 - (microtime(true) - $last);
                 if ($wait > 0) {
                     sleep((int) ceil($wait));
                 }

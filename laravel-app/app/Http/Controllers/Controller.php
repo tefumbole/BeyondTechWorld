@@ -253,7 +253,7 @@ class Controller extends BaseController
 
     private function throttleWhatsAppSend()
     {
-        $intervalMs = max(1000, (int) $this->whatsappConfig('min_send_interval_ms', 6000));
+        $intervalMs = max(6000, (int) $this->whatsappConfig('min_send_interval_ms', 6000));
         $interval = $intervalMs / 1000;
         $now = microtime(true);
 

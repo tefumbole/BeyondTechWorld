@@ -117,13 +117,13 @@
                             <td data-field="failed">{{ $batch->failed_count }}</td>
                             <td data-field="updated">{{ optional($batch->updated_at)->format('d M H:i:s') }}</td>
                             <td class="text-nowrap">
-                                <a class="btn btn-sm btn-info" href="{{ route('message.delivery.show', $batch->id) }}">Details</a>
-                                @if(($batch->type ?? '') === 'letter' && in_array($batch->status, ['queued', 'sending', 'partial'], true) && ((int) $batch->sent_count + (int) $batch->failed_count) < (int) $batch->total)
+                                @if(($batch->type ?? '') === 'letter' && ((int) $batch->failed_count > 0 || in_array($batch->status, ['queued', 'sending'], true) || (int) $batch->sent_count < (int) $batch->total))
                                     <form action="{{ route('message.delivery.resume', $batch->id) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-success">Resume</button>
+                                        <button type="submit" class="btn btn-sm btn-success">Resume sending</button>
                                     </form>
                                 @endif
+                                <a class="btn btn-sm btn-info" href="{{ route('message.delivery.show', $batch->id) }}">Details</a>
                                 @if(($batch->type ?? '') === 'online_invitation' && (int) $batch->failed_count > 0)
                                     <form action="{{ route('message.delivery.resend', $batch->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Resend all failed invitations in this batch?');">
                                         @csrf

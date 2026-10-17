@@ -6,14 +6,14 @@ use App\Support\WhatsAppPhone;
 
 class BeyondWasenderService
 {
-    /** Wasender account protection: one outbound message every 5s, measured after the previous send finishes. */
-    const SEND_INTERVAL_SECONDS = 5;
+    /** Wasender account protection: one outbound message every 6s, measured after the previous send finishes. */
+    const SEND_INTERVAL_SECONDS = 6;
 
     private static $lastSendAt = 0.0;
 
     protected function sendIntervalSeconds()
     {
-        $configured = ((int) config('services.whatsapp.min_send_interval_ms', 5500)) / 1000.0;
+        $configured = ((int) config('services.whatsapp.min_send_interval_ms', 6000)) / 1000.0;
 
         return max(self::SEND_INTERVAL_SECONDS, $configured > 0 ? $configured : self::SEND_INTERVAL_SECONDS);
     }

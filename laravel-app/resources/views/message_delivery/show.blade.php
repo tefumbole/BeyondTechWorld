@@ -30,10 +30,10 @@
                 </p>
             </div>
             <div class="d-flex align-items-center flex-wrap" style="gap:8px;">
-                @if(($batch->type ?? '') === 'letter' && in_array($batch->status, ['queued', 'sending', 'partial'], true) && ((int) $batch->sent_count + (int) $batch->failed_count) < (int) $batch->total)
+                @if(($batch->type ?? '') === 'letter' && ((int) $batch->failed_count > 0 || in_array($batch->status, ['queued', 'sending'], true) || (int) $batch->sent_count < (int) $batch->total))
                     <form action="{{ route('message.delivery.resume', $batch->id) }}" method="POST">
                         @csrf
-                        <button type="submit" class="btn btn-success btn-sm">Resume</button>
+                        <button type="submit" class="btn btn-success btn-sm">Resume sending</button>
                     </form>
                 @endif
                 @if(($batch->type ?? '') === 'online_invitation' && (int) $batch->failed_count > 0)

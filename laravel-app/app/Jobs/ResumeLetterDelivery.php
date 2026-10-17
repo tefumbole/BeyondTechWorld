@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Sends the next unsent letter recipient, then queues the following one
- * at least 5 seconds later so WhatsApp is not flooded.
+ * at least 6 seconds later so WhatsApp is not flooded.
  */
 class ResumeLetterDelivery implements ShouldQueue
 {
@@ -145,7 +145,7 @@ class ResumeLetterDelivery implements ShouldQueue
             ->whereIn('status', ['queued', 'sending'])
             ->exists();
         if ($more) {
-            self::dispatch($batchId)->delay(now()->addSeconds(5))->onQueue('whatsapp');
+            self::dispatch($batchId)->delay(now()->addSeconds(6))->onQueue('whatsapp');
 
             return;
         }
