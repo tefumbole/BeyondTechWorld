@@ -21,8 +21,9 @@
         body { margin: 0; font-family: "Source Sans 3", sans-serif; font-size: 1.2rem; line-height: 1.6; color: var(--ink); background: var(--cream); }
         a { color: var(--leaf); }
         header { background: var(--forest-deep); color: var(--cream); }
-        .bar { display: flex; align-items: center; gap: 28px; padding: 18px 4vw; }
-        .brand { font-family: "Source Serif 4", serif; font-size: 1.55rem; color: var(--gold); text-decoration: none; white-space: nowrap; }
+        .bar { display: flex; align-items: center; gap: 28px; padding: 10px 4vw; }
+        .brand { display: flex; align-items: center; text-decoration: none; }
+        .brand img { height: 96px; width: auto; display: block; background: transparent; }
         nav { display: flex; flex-wrap: wrap; gap: 8px 22px; flex: 1; }
         nav a { color: var(--cream); text-decoration: none; font-size: 1.15rem; font-weight: 600; }
         nav a:hover { color: var(--gold); }
@@ -58,6 +59,7 @@
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
         footer { background: var(--forest-deep); color: #d7e6db; padding: 22px 4vw 32px; border-top: 10px solid var(--royal); box-shadow: inset 0 3px 0 var(--gold); font-size: 1.05rem; }
         footer a { color: var(--gold); }
+        body.home main { display: none; }
         @media (max-width: 800px) {
             .bar { flex-wrap: wrap; }
             nav { order: 3; width: 100%; }
@@ -65,10 +67,12 @@
         }
     </style>
 </head>
-<body>
+<body class="@yield('body-class')">
 <header>
     <div class="bar">
-        <a class="brand" href="{{ route('gbhs.home') }}">{{ $setting->hero_title ?? 'GBHS Kumbo' }}</a>
+        <a class="brand" href="{{ route('gbhs.home') }}">
+            <img src="{{ url('public/gbhs/gbhs-kumbo-crest.png') }}" width="96" height="96" alt="{{ $setting->hero_title ?? 'GBHS Kumbo' }}">
+        </a>
         <nav>
             <a href="{{ route('gbhs.home') }}">Home</a>
             <a href="{{ route('gbhs.page', 'about') }}">About Us</a>

@@ -6,19 +6,9 @@
     </div>
 @endif
 @endsection
+@section('body-class'){{ $slug === 'home' ? 'home' : '' }}@endsection
 @section('content')
 @if($slug === 'home')
-    <p class="muted">{{ $setting->hero_subtitle }}</p>
-    <h1>{{ $section->title ?? 'GBHS Kumbo Ex-Students' }}</h1>
-    <p>{!! nl2br(e($section->body ?? '')) !!}</p>
-    <a class="btn gold" href="{{ route('gbhs.membership') }}">Apply for membership</a>
-    <a class="btn" href="{{ route('gbhs.donate') }}">Donate</a>
-    <div class="grid" style="margin-top:22px">
-        <div class="card"><div class="muted">Verified contributions</div><strong>{{ number_format($totals['verified']) }} XAF</strong></div>
-        @if(!empty($setting->show_provisional))
-            <div class="card"><div class="muted">Provisional, including unverified</div><strong>{{ number_format($totals['monetary']) }} XAF</strong></div>
-        @endif
-    </div>
 @elseif($slug === 'batches')
     <h1>{{ $section->title ?? 'Batches' }}</h1>
     <p>{!! nl2br(e($section->body ?? '')) !!}</p>
