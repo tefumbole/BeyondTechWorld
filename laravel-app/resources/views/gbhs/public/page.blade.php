@@ -72,16 +72,21 @@
         <div class="card"><strong>{{ $event->title }}</strong><div class="muted">{{ $event->starts_at }} {{ $event->place }}</div><p>{{ $event->body }}</p></div>
     @endforeach
 @elseif($slug === 'about')
-    <h1>{{ $section->title ?? 'About' }}</h1>
+    <h1>{{ $section->title ?? 'About Us' }}</h1>
+    <p>{!! nl2br(e($section->body ?? '')) !!}</p>
+@elseif($slug === 'leaders')
+    <h1>{{ $section->title ?? 'Our Leaders' }}</h1>
     <p>{!! nl2br(e($section->body ?? '')) !!}</p>
     <div class="grid">
-        @foreach($leaders as $leader)
+        @forelse($leaders as $leader)
             <div class="card">
                 @if($leader->photo)<img class="fit" loading="lazy" src="{{ url('public/'.$leader->photo) }}" alt="">@endif
                 <strong>{{ $leader->name }}</strong>
                 <div class="muted">{{ $leader->role }}</div>
             </div>
-        @endforeach
+        @empty
+            <p>Leaders will appear here when the association adds them.</p>
+        @endforelse
     </div>
 @elseif($slug === 'contact')
     <h1>{{ $section->title ?? 'Contact' }}</h1>

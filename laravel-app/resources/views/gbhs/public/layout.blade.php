@@ -35,21 +35,14 @@
 <header>
     <div class="bar">
         <a class="brand" href="{{ route('gbhs.home') }}">{{ $setting->hero_title ?? 'GBHS Kumbo' }}</a>
-        <a href="{{ url('/login') }}" style="color:#f3e6c4">Admin Login</a>
     </div>
     <nav>
-        <a href="{{ route('gbhs.page', 'about') }}">About</a>
-        <a href="{{ route('gbhs.page', 'jubilee') }}">Jubilee</a>
+        <a href="{{ route('gbhs.home') }}">Home</a>
+        <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
         <a href="{{ route('gbhs.membership') }}">Membership</a>
-        <a href="{{ route('gbhs.page', 'batches') }}">Batches</a>
-        <a href="{{ route('gbhs.page', 'contributions') }}">Contributions</a>
-        <a href="{{ route('gbhs.page', 'projects') }}">Projects</a>
-        <a href="{{ route('gbhs.page', 'news') }}">News</a>
-        <a href="{{ route('gbhs.page', 'documents') }}">Documents</a>
-        <a href="{{ route('gbhs.page', 'contact') }}">Contact</a>
+        <a href="{{ route('gbhs.page', 'leaders') }}">Our Leaders</a>
         <a href="{{ route('gbhs.donate') }}">Donate</a>
-        <a href="{{ route('gbhs.status') }}">Status</a>
-        <a href="{{ route('gbhs.member') }}">Member home</a>
+        <a href="{{ url('/login') }}">Admin Login</a>
     </nav>
 </header>
 <main>

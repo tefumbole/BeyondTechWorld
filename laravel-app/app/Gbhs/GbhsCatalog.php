@@ -72,7 +72,8 @@ class GbhsCatalog
     {
         $pages = [
             'home' => ['Welcome', 'Government Bilingual High School Kumbo opened in 1976. This association brings those batches together for the Golden Jubilee in 2026. The words, photographs, and leaders on these pages are edited by the association.'],
-            'about' => ['About the association', 'The GBHS Kumbo Ex-Students Association is the body of former students of Government Bilingual High School Kumbo. Add the association story here.'],
+            'about' => ['About Us', 'The GBHS Kumbo Ex-Students Association is the body of former students of Government Bilingual High School Kumbo. Add the association story here.'],
+            'leaders' => ['Our Leaders', 'The people who serve the association are listed here once they are added in Website Manager.'],
             'jubilee' => ['Golden Jubilee', 'The school year 1976 is the first batch. The jubilee marks fifty years, through 2026. Programme, venue, and dates are published here when the committee sets them.'],
             'membership' => ['Membership', 'Registration uses your phone, a WhatsApp code, the published bylaws, and your signature. An application is reviewed before a membership number is issued.'],
             'batches' => ['Batches', 'Each year from 1976 can have a representative and a contribution target. A year stays unconfirmed until the association records it.'],
@@ -94,6 +95,11 @@ class GbhsCatalog
                 'sort' => $sort,
                 'published' => true,
             ]);
+        }
+        $about = GbhsSection::where('slug', 'about')->where('title', 'About the association')->first();
+        if ($about) {
+            $about->title = 'About Us';
+            $about->save();
         }
     }
 
