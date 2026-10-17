@@ -275,10 +275,6 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
 
-            if ($copyToAdmin && ! self::isOtpNotice($message)) {
-                \App\Support\TwilioAdminCopy::copyText($phone, $message);
-            }
-
             return [
                 'success' => true,
                 'http' => $http,
@@ -358,7 +354,6 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
             $decoded = $posted['decoded'];
-            \App\Support\TwilioAdminCopy::copyText($phone, 'Document '.$fileName.' sent to '.$phone.'. '.trim((string) $caption));
 
             return [
                 'success' => true,
@@ -425,7 +420,6 @@ class BeyondWasenderService
                 return ['success' => false, 'error' => $posted['error'] ?? 'send failed'];
             }
             $decoded = $posted['decoded'];
-            \App\Support\TwilioAdminCopy::copyText($phone, 'Image sent to '.$phone.'. '.trim((string) $caption));
 
             return [
                 'success' => true,

@@ -94,6 +94,7 @@
         body.home .banner-crest img { height: 100%; width: auto; display: block; }
         body.home footer { flex: 0 0 auto; padding: 8px 4vw 12px; }
         body.home main { display: none; }
+        body.testimonials .page { max-width: 1100px; }
         @media (max-width: 800px) {
             .bar { flex-wrap: wrap; }
             nav { order: 3; width: 100%; }
@@ -111,7 +112,7 @@
             <a href="{{ route('gbhs.home') }}">Home</a>
             <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
             <a href="{{ route('gbhs.membership') }}">Membership</a>
-            <a href="{{ route('gbhs.page', 'leaders') }}">Our Leaders</a>
+            <a href="{{ route('gbhs.page', 'leaders') }}">Testimonials</a>
             <a href="{{ route('gbhs.donate') }}">Donate</a>
         </nav>
         <a class="login" href="{{ url('/login') }}">Login</a>

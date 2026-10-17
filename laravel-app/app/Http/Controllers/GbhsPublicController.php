@@ -18,6 +18,8 @@ use App\Gbhs\GbhsProject;
 use App\Gbhs\GbhsRules;
 use App\Gbhs\GbhsSection;
 use App\Gbhs\GbhsSetting;
+use App\Gbhs\GbhsTestimonial;
+use App\Gbhs\GbhsTestimonialWriter;
 use App\Gbhs\GbhsTenant;
 use App\Services\BeyondAuthService;
 use Illuminate\Http\Request;
@@ -40,6 +42,9 @@ class GbhsPublicController extends Controller
         $section = GbhsSection::where('slug', $slug)->where('published', 1)->first();
         $setting = GbhsSetting::query()->first();
         $leaders = GbhsLeader::where('published', 1)->orderBy('sort')->get();
+        $testimonials = Schema::hasTable('gbhs_testimonials')
+            ? GbhsTestimonial::orderBy('id')->get()
+            : collect();
         $batches = GbhsBatch::orderBy('year')->get();
         $news = GbhsSection::where('kind', 'news')->where('published', 1)->orderBy('id', 'desc')->get();
         $documents = Schema::hasTable('gbhs_documents')
@@ -64,7 +69,7 @@ class GbhsPublicController extends Controller
             ->get();
 
         return view('gbhs.public.page', compact(
-            'slug', 'section', 'setting', 'leaders', 'batches', 'news', 'documents',
+            'slug', 'section', 'setting', 'leaders', 'testimonials', 'batches', 'news', 'documents',
             'events', 'projects', 'raised', 'totals', 'donors'
         ));
     }
@@ -125,6 +130,42 @@ class GbhsPublicController extends Controller
         ]);
 
         return redirect()->route('gbhs.membership');
+    }
+
+    public function storeTestimonial(Request $request)
+    {
+        $this->boot();
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'country_code' => 'required|string|max:10',
+            'phone' => 'required|string|max:40',
+            'body' => 'required|string|min:20|max:20000',
+            'signature' => 'required|string|max:2500000',
+            'selfie' => 'nullable|file|max:5120',
+        ], [
+            'body.min' => 'Please write a little more for the testimony.',
+            'signature.required' => 'Please sign the testimony before submitting.',
+        ]);
+        try {
+            $phone = \App\Support\WhatsAppPhone::combine($data['country_code'], $data['phone']);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => 'Enter a valid phone number.'], 422);
+        }
+        try {
+            app(GbhsTestimonialWriter::class)->create([
+                'name' => trim($data['name']),
+                'phone' => $phone,
+                'body' => $data['body'],
+                'signature' => $data['signature'],
+                'selfie' => $request->file('selfie'),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => 'Could not save this testimony. Try again.'], 500);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function lookupPhone(Request $request)

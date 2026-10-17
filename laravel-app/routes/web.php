@@ -137,6 +137,7 @@ Route::post('/gbhs/status/otp', 'GbhsPublicController@statusSend')->middleware('
 Route::post('/gbhs/status/check', 'GbhsPublicController@statusCheck')->middleware('throttle:12,1')->name('gbhs.status.check');
 Route::get('/gbhs/member', 'GbhsPublicController@memberHome')->name('gbhs.member');
 Route::post('/gbhs/contact', 'GbhsPublicController@contact')->name('gbhs.contact');
+Route::post('/gbhs/testimonials', 'GbhsPublicController@storeTestimonial')->middleware('throttle:12,1')->name('gbhs.testimonials.store');
 Route::get('/gbhs/{slug}', 'GbhsPublicController@page')->name('gbhs.page');
 
 Route::get('/mix', 'MixPublicController@home')->name('mix.home');

@@ -11,7 +11,7 @@
     </div>
 @endif
 @endsection
-@section('body-class'){{ $slug === 'home' ? 'home' : '' }}@endsection
+@section('body-class'){{ $slug === 'home' ? 'home' : ($slug === 'leaders' ? 'testimonials' : '') }}@endsection
 @section('content')
 @if($slug === 'home')
 @elseif($slug === 'batches')
@@ -70,19 +70,7 @@
     <h1>{{ $section->title ?? 'About Us' }}</h1>
     <p>{!! nl2br(e($section->body ?? '')) !!}</p>
 @elseif($slug === 'leaders')
-    <h1>{{ $section->title ?? 'Our Leaders' }}</h1>
-    <p>{!! nl2br(e($section->body ?? '')) !!}</p>
-    <div class="grid">
-        @forelse($leaders as $leader)
-            <div class="card">
-                @if($leader->photo)<img class="fit" loading="lazy" src="{{ url('public/'.$leader->photo) }}" alt="">@endif
-                <strong>{{ $leader->name }}</strong>
-                <div class="muted">{{ $leader->role }}</div>
-            </div>
-        @empty
-            <p>Leaders will appear here when the association adds them.</p>
-        @endforelse
-    </div>
+    @include('gbhs.public.testimonials')
 @elseif($slug === 'contact')
     <h1>{{ $section->title ?? 'Contact' }}</h1>
     <p>{!! nl2br(e($section->body ?? '')) !!}</p>
