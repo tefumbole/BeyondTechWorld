@@ -1,25 +1,24 @@
 @extends('gbhs.public.layout')
 @section('content')
-<h1>Membership</h1>
-<p>{!! nl2br(e(optional($section)->body)) !!}</p>
-@if($step === 'phone')
-    <form class="card" method="post" action="{{ route('gbhs.register.otp') }}">
+@if($step === 'intro')
+    <div style="text-align:center;padding:48px 0 24px">
+        <h1>Become a Member</h1>
+        <a class="btn gold" href="{{ route('gbhs.membership', ['register' => 1]) }}">Register</a>
+    </div>
+@elseif($step === 'phone')
+    <div style="text-align:center">
+        <h1>Become a Member</h1>
+    </div>
+    <form class="card" method="post" action="{{ route('gbhs.register.phone') }}">
         @csrf
-        <label>Phone, with country code</label>
-        <input name="phone" value="{{ session('gbhs_phone') }}" required placeholder="2376XXXXXXXX">
-        <button type="submit">Send WhatsApp code</button>
+        <label>Phone number</label>
+        <input name="phone" required placeholder="6XXXXXXXX" inputmode="tel" autocomplete="tel">
+        <button type="submit">Continue</button>
     </form>
-    @if(session('gbhs_phone'))
-    <form class="card" method="post" action="{{ route('gbhs.register.verify') }}">
-        @csrf
-        <label>Code</label>
-        <input name="otp" required>
-        <button type="submit">Verify</button>
-    </form>
-    @endif
 @elseif($step === 'profile')
     <form class="card" method="post" action="{{ route('gbhs.register.profile') }}" enctype="multipart/form-data">
         @csrf
+        <p class="muted">{{ $application->full_name ? 'This name came from the phone number. You can edit it.' : 'No name was found for this number. Type your name.' }}</p>
         <label>Full name</label><input name="full_name" value="{{ $application->full_name }}" required>
         <label>Batch</label>
         <select name="batch_id" required>

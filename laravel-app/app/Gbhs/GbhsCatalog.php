@@ -28,6 +28,7 @@ class GbhsCatalog
         self::history();
         self::letterOrganization();
         self::customerGroup();
+        GbhsBylaws::publish();
     }
 
     public static function customerGroup()

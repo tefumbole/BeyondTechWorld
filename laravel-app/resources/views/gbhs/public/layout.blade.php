@@ -59,6 +59,40 @@
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
         footer { background: var(--forest-deep); color: #d7e6db; padding: 22px 4vw 32px; border-top: 10px solid var(--royal); box-shadow: inset 0 3px 0 var(--gold); font-size: 1.05rem; }
         footer a { color: var(--gold); }
+        body.home {
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        body.home header { flex: 0 0 auto; }
+        body.home header .brand { display: none; }
+        body.home .bar { padding: 8px 3vw; }
+        body.home .banner-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            container-type: size;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #063018;
+        }
+        body.home .banner-frame {
+            position: relative;
+            width: min(100cqw, calc(100cqh * 1024 / 576));
+            aspect-ratio: 1024 / 576;
+        }
+        body.home .banner { width: 100%; height: 100%; object-fit: contain; }
+        body.home .banner-crest {
+            position: absolute;
+            left: 2.4%;
+            top: 14%;
+            height: 48%;
+            display: block;
+        }
+        body.home .banner-crest img { height: 100%; width: auto; display: block; }
+        body.home footer { flex: 0 0 auto; padding: 8px 4vw 12px; }
         body.home main { display: none; }
         @media (max-width: 800px) {
             .bar { flex-wrap: wrap; }

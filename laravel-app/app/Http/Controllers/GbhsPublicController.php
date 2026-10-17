@@ -83,15 +83,64 @@ class GbhsPublicController extends Controller
         if (session('gbhs_application_id')) {
             $application = GbhsApplication::find(session('gbhs_application_id'));
         }
-        $step = 'phone';
+        if (request()->filled('register')) {
+            session(['gbhs_join' => 1]);
+
+            return redirect()->route('gbhs.membership');
+        }
+        $step = 'intro';
         if (session('gbhs_phone_verified') && $application) {
-            $step = $application->signature_path ? 'done' : ($application->full_name ? 'sign' : 'profile');
-            if ($application->status === 'submitted' || $application->status === 'approved') {
-                $step = 'done';
-            }
+            $step = $application->signature_path ? 'done' : ($application->status === 'submitted' || $application->status === 'approved' ? 'done' : ($application->full_name && $application->batch_id ? 'sign' : 'profile'));
+        } elseif (session('gbhs_join')) {
+            $step = 'phone';
         }
 
         return view('gbhs.public.membership', compact('setting', 'section', 'batches', 'bylaw', 'application', 'step'));
+    }
+
+    public function startMembership(Request $request)
+    {
+        $this->boot();
+        $request->validate(['phone' => 'required|string|min:8|max:20']);
+        $digits = preg_replace('/\D/', '', (string) $request->phone);
+        if (strlen($digits) === 9) {
+            $digits = '237'.$digits;
+        }
+        $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
+        $name = is_array($hit) && ! empty($hit['name']) ? $hit['name'] : '';
+        $application = GbhsMembership::openDraft($digits);
+        if (! $application) {
+            return back()->with('not_permitted', 'The phone number could not be saved.')->withInput();
+        }
+        if ($name !== '') {
+            $application->full_name = $name;
+        }
+        $application->phone_verified = 1;
+        $application->save();
+        session([
+            'gbhs_phone' => $digits,
+            'gbhs_phone_verified' => true,
+            'gbhs_application_id' => $application->id,
+            'gbhs_name_found' => $name !== '',
+        ]);
+
+        return redirect()->route('gbhs.membership');
+    }
+
+    public function lookupPhone(Request $request)
+    {
+        $this->boot();
+        $digits = preg_replace('/\D/', '', (string) $request->query('phone'));
+        if (strlen($digits) === 9) {
+            $digits = '237'.$digits;
+        }
+        if (strlen($digits) < 9) {
+            return response()->json(['ok' => true, 'found' => false, 'name' => '']);
+        }
+        $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
+        $name = is_array($hit) && ! empty($hit['name']) ? $hit['name'] : '';
+
+        return response()->json(['ok' => true, 'found' => $name !== '', 'name' => $name]);
     }
 
     public function sendMembershipCode(Request $request)
@@ -133,12 +182,12 @@ class GbhsPublicController extends Controller
     public function saveProfile(Request $request)
     {
         if (! GbhsRules::mayStorePersonal(session('gbhs_phone_verified'))) {
-            return back()->with('not_permitted', 'Verify your phone before entering personal details.');
+            return back()->with('not_permitted', 'Enter your phone number before the rest of the form.');
         }
         $this->boot();
         $application = GbhsApplication::find(session('gbhs_application_id'));
         if (! $application || ! $application->phone_verified) {
-            return back()->with('not_permitted', 'Verify your phone before entering personal details.');
+            return back()->with('not_permitted', 'Enter your phone number before the rest of the form.');
         }
         $request->validate([
             'full_name' => 'required|string|max:160',
@@ -245,16 +294,15 @@ class GbhsPublicController extends Controller
     public function donate(Request $request)
     {
         $this->boot();
-        $methods = array_keys(GbhsDonate::methods());
         $request->validate([
             'donor_name' => 'required|string|max:160',
             'amount' => 'required|integer|min:100',
-            'method' => 'required|in:'.implode(',', $methods),
+            'method' => 'required|in:momo,card,crypto',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email',
         ]);
-        if ($request->method === 'momo' && ! $request->filled('phone')) {
-            return back()->with('not_permitted', 'Enter the Mobile Money number.')->withInput();
+        if (! $request->filled('phone')) {
+            return back()->with('not_permitted', 'Enter your phone number.')->withInput();
         }
         $payment = GbhsPayment::create([
             'public_token' => Str::random(32),
@@ -291,8 +339,12 @@ class GbhsPublicController extends Controller
         $status = GbhsDonate::confirm($payment);
         $payment->refresh();
         $setting = GbhsSetting::query()->first();
+        $crypto = json_decode((string) $payment->provider_reference, true);
+        if (! is_array($crypto) || empty($crypto['address'])) {
+            $crypto = null;
+        }
 
-        return view('gbhs.public.pay', compact('payment', 'status', 'setting'));
+        return view('gbhs.public.pay', compact('payment', 'status', 'setting', 'crypto'));
     }
 
     public function statusForm()

@@ -2,7 +2,12 @@
 @section('hero')
 @if($slug === 'home')
     <div class="banner-wrap">
-        <img class="banner" src="{{ url('public/gbhs/gbhs-kumbo-jubilee.jpg') }}" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
+        <div class="banner-frame">
+            <img class="banner" src="{{ url('public/gbhs/gbhs-kumbo-jubilee.jpg') }}" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
+            <a class="banner-crest" href="{{ route('gbhs.home') }}">
+                <img src="{{ url('public/gbhs/gbhs-kumbo-crest.png') }}" alt="GBHS Kumbo 50 years">
+            </a>
+        </div>
     </div>
 @endif
 @endsection

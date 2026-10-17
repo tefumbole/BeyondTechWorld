@@ -251,13 +251,51 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $result = $this->wasender->sendTextRaw($phone, $message, false, false);
+        $result = $this->wasender->sendTextRaw($phone, $message, false, false, 12, false);
         $result['provider'] = 'wasender';
         if (! empty($result['success'])) {
             $this->rememberOtpForSameDevice($otp);
+
+            return $result;
+        }
+
+        $fallback = $this->sendOtpFallback($phone, $otp, $expiresMinutes);
+        if (! empty($fallback['success'])) {
+            $this->rememberOtpForSameDevice($otp);
+
+            return $fallback;
         }
 
         return $result;
+    }
+
+    /**
+     * Wasender is behind Cloudflare and can return HTTP 522. Login still needs a code,
+     * so the approved Twilio OTP template is used, then SMS.
+     *
+     * @return array{success:bool,provider?:string,error?:string}
+     */
+    protected function sendOtpFallback($phone, $otp, $expiresMinutes)
+    {
+        $sid = trim((string) config('services.whatsapp.content_sid_shared_otp', ''));
+        if ($sid !== '') {
+            $twilio = $this->twilioWhatsApp->sendContentTemplate($phone, $sid, ['1' => (string) $otp]);
+            if (! empty($twilio['success'])) {
+                $twilio['provider'] = 'twilio';
+
+                return $twilio;
+            }
+            \Log::warning('[messaging] Twilio OTP fallback failed', [
+                'error' => isset($twilio['error']) ? $twilio['error'] : 'unknown',
+            ]);
+        }
+
+        $sms = $this->sendSms($phone, 'Your Beyond Tech World code is '.$otp.'. It expires in '.(int) $expiresMinutes.' minutes.');
+        if (! empty($sms['success']) && empty($sms['skipped'])) {
+            return ['success' => true, 'provider' => 'sms'];
+        }
+
+        return ['success' => false, 'error' => 'The login code could not be sent.'];
     }
 
     /**

@@ -4,8 +4,12 @@
 <div class="card">
     <p>{{ number_format($payment->amount) }} XAF · {{ $payment->method }}</p>
     <p>Status: <strong>{{ $status }}</strong></p>
+    @if(!empty($crypto))
+        <p>Bitcoin on this site is paid as <strong>{{ $crypto['usdt'] }} {{ $crypto['coin'] }}</strong> on {{ $crypto['network'] }}.</p>
+        <p style="word-break:break-all">{{ $crypto['address'] }}</p>
+    @endif
     @if($status === 'pending' || $status === 'awaiting_transfer')
-        <p>This page does not mark the gift as received. Refresh after you approve the prompt, or wait for the association to record a bank transfer.</p>
+        <p>This page does not mark the gift as received. It is recorded after Momo, VISA, or Bitcoin confirms the payment.</p>
         <a class="btn" href="{{ route('gbhs.pay.return', $payment->public_token) }}">Check again</a>
     @endif
 </div>

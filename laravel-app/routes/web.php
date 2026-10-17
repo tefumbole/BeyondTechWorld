@@ -122,6 +122,8 @@ Route::get('/permissions/confirmation/{reference}', 'PublicPermissionController@
 
 Route::get('/gbhs', 'GbhsPublicController@home')->name('gbhs.home');
 Route::get('/gbhs/membership', 'GbhsPublicController@membership')->name('gbhs.membership');
+Route::post('/gbhs/register/phone', 'GbhsPublicController@startMembership')->middleware('throttle:20,1')->name('gbhs.register.phone');
+Route::get('/gbhs/donate/lookup', 'GbhsPublicController@lookupPhone')->middleware('throttle:30,1')->name('gbhs.donate.lookup');
 Route::post('/gbhs/register/otp', 'GbhsPublicController@sendMembershipCode')->middleware('throttle:8,1')->name('gbhs.register.otp');
 Route::post('/gbhs/register/verify', 'GbhsPublicController@verifyOtp')->middleware('throttle:12,1')->name('gbhs.register.verify');
 Route::post('/gbhs/register/profile', 'GbhsPublicController@saveProfile')->name('gbhs.register.profile');

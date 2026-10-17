@@ -73,18 +73,32 @@ class BeyondWasenderService
         );
     }
 
+    protected function isGatewayTimeout(array $result)
+    {
+        $http = (int) (isset($result['http']) ? $result['http'] : 0);
+        if (in_array($http, [0, 502, 503, 520, 522, 524], true)) {
+            return true;
+        }
+        $error = isset($result['error']) ? (string) $result['error'] : '';
+
+        return (bool) preg_match('/timed out|522|520|524/i', $error);
+    }
+
     /**
      * POST /send-message with a process-wide lock and one automatic retry on Wasender protection.
      *
      * @return array{success:bool,http?:int,decoded:?array,error?:string,body?:string}
      */
-    protected function postSendMessage(array $payload, $timeout = 30)
+    protected function postSendMessage(array $payload, $timeout = 30, $retryGateway = true)
     {
         $fp = $this->beginOutboundSend();
         try {
             $result = $this->curlSendMessage($payload, $timeout);
             if ($this->isProtectionError(isset($result['error']) ? $result['error'] : '')) {
                 usleep((int) round($this->sendIntervalSeconds() * 1000000));
+                $result = $this->curlSendMessage($payload, $timeout);
+            } elseif ($retryGateway && $this->isGatewayTimeout($result)) {
+                usleep(1500000);
                 $result = $this->curlSendMessage($payload, $timeout);
             }
 
@@ -107,7 +121,9 @@ class BeyondWasenderService
                 'Content-Type: application/json',
             ],
             CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_CONNECTTIMEOUT => 12,
             CURLOPT_TIMEOUT => (int) $timeout,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         ]);
         $body = curl_exec($ch);
         $err = curl_error($ch);
@@ -214,7 +230,7 @@ class BeyondWasenderService
         return (bool) preg_match('/verification code/i', (string) $message);
     }
 
-    public function sendTextRaw($phone, $message, $stampReference = true, $copyToAdmin = true)
+    public function sendTextRaw($phone, $message, $stampReference = true, $copyToAdmin = true, $timeout = 30, $retryGateway = true)
     {
         $blocked = $this->messagingBlocked();
         if ($blocked) {
@@ -245,7 +261,7 @@ class BeyondWasenderService
             if ($stampReference) {
                 $message = \App\Support\LetterReference::applyToMessage((string) $message, 'whatsapp');
             }
-            $posted = $this->postSendMessage(['to' => $to, 'text' => $message], 30);
+            $posted = $this->postSendMessage(['to' => $to, 'text' => $message], $timeout, $retryGateway);
             $decoded = $posted['decoded'];
             $http = (int) ($posted['http'] ?? 0);
             if (empty($posted['success'])) {
