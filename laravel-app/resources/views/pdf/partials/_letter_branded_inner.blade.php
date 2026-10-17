@@ -141,7 +141,7 @@
         @if($recipientAddress !== '')
             {{ $recipientAddress }}<br>
         @endif
-        @if($recipientPhone !== '')
+        @if($recipientPhone !== '' && $recipientPhone !== $recipientName)
             {{ $recipientPhone }}
         @endif
     </div>

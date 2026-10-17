@@ -299,9 +299,37 @@ class MessageDeliveryTracker
                 }
             } elseif ($letter->people_type === 'directory') {
                 LetterRecipients::eachDirectoryRecipient($letter->recipients_json, function ($recipient, $ref) use ($push) {
+                    try {
+                        $members = LetterRecipients::expandWhatsAppGroup($recipient);
+                    } catch (\Throwable $e) {
+                        $push($recipient, $ref, 'to');
+
+                        return;
+                    }
+                    if (is_array($members)) {
+                        foreach ($members as $member) {
+                            $push($member, $member->directory_id ?: $member->phone_number, 'to');
+                        }
+
+                        return;
+                    }
                     $push($recipient, $ref, 'to');
                 });
                 LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($recipient, $ref) use ($push) {
+                    try {
+                        $members = LetterRecipients::expandWhatsAppGroup($recipient);
+                    } catch (\Throwable $e) {
+                        $push($recipient, $ref, 'cc');
+
+                        return;
+                    }
+                    if (is_array($members)) {
+                        foreach ($members as $member) {
+                            $push($member, $member->directory_id ?: $member->phone_number, 'cc');
+                        }
+
+                        return;
+                    }
                     $push($recipient, $ref, 'cc');
                 });
             } else {

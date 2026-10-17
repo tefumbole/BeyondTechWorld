@@ -131,11 +131,30 @@ class ProcessQueue implements ShouldQueue
                 }
             } elseif ($letter->people_type === 'directory') {
                 $toRecipients = [];
-                LetterRecipients::eachDirectoryRecipient($letter->recipients_json, function ($recipient, $ref) use ($sendTo, $letter, &$toRecipients) {
+                LetterRecipients::eachDirectoryRecipient($letter->recipients_json, function ($recipient, $ref) use ($sendTo, $letter, $tracker, $batchId, &$toRecipients) {
                     try {
+                        $members = LetterRecipients::expandWhatsAppGroup($recipient);
+                        if (is_array($members)) {
+                            foreach ($members as $member) {
+                                try {
+                                    $sendTo($member, $member->directory_id ?: $member->phone_number);
+                                    $toRecipients[] = $member;
+                                } catch (\Throwable $e) {
+                                    \Log::warning('Letter directory To send failed: '.$e->getMessage(), [
+                                        'letter_id' => $letter->id ?? null,
+                                        'ref' => $member->directory_id ?? $ref,
+                                    ]);
+                                }
+                            }
+
+                            return;
+                        }
                         $sendTo($recipient, $ref ?: ($recipient->email ?: $recipient->phone_number));
                         $toRecipients[] = $recipient;
                     } catch (\Throwable $e) {
+                        if ($batchId) {
+                            $tracker->markItemFailed($batchId, $ref, null, $e->getMessage());
+                        }
                         \Log::warning('Letter directory To send failed: '.$e->getMessage(), [
                             'letter_id' => $letter->id ?? null,
                             'ref' => $ref,
@@ -143,12 +162,35 @@ class ProcessQueue implements ShouldQueue
                     }
                 });
 
-                LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($ccRecipient, $ref) use ($sendCc, $letter, $toRecipients) {
-                    $originals = ! empty($toRecipients) ? $toRecipients : [null];
-                    $jid = trim((string) ($ccRecipient->group_jid ?? ''));
-                    if (substr($jid, -5) === '@g.us') {
-                        $originals = [$originals[0]];
+                LetterRecipients::eachDirectoryRecipient($letter->cc_json, function ($ccRecipient, $ref) use ($sendTo, $sendCc, $letter, $tracker, $batchId, $toRecipients) {
+                    try {
+                        $members = LetterRecipients::expandWhatsAppGroup($ccRecipient);
+                    } catch (\Throwable $e) {
+                        if ($batchId) {
+                            $tracker->markItemFailed($batchId, $ref, null, $e->getMessage());
+                        }
+                        \Log::warning('Letter directory CC send failed: '.$e->getMessage(), [
+                            'letter_id' => $letter->id ?? null,
+                            'ref' => $ref,
+                        ]);
+
+                        return;
                     }
+                    if (is_array($members)) {
+                        foreach ($members as $member) {
+                            try {
+                                $sendTo($member, $member->directory_id ?: $member->phone_number);
+                            } catch (\Throwable $e) {
+                                \Log::warning('Letter directory CC send failed: '.$e->getMessage(), [
+                                    'letter_id' => $letter->id ?? null,
+                                    'ref' => $ref,
+                                ]);
+                            }
+                        }
+
+                        return;
+                    }
+                    $originals = ! empty($toRecipients) ? $toRecipients : [null];
                     foreach ($originals as $original) {
                         try {
                             $sendCc($ccRecipient, $ref, $original);

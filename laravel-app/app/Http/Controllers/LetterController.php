@@ -1227,6 +1227,15 @@ class LetterController extends Controller
     }
 
     public function sendPDF($letter, $lims_customer_data, $to) {
+        $groupMembers = \App\Support\LetterRecipients::expandWhatsAppGroup($lims_customer_data);
+        if (is_array($groupMembers)) {
+            $message = 'Letter notification sent successfully';
+            foreach ($groupMembers as $member) {
+                $message = $this->sendPDF($letter, $member, $member->directory_id ?: $member->phone_number);
+            }
+
+            return $message;
+        }
         $lims_customer_data = \App\Support\LetterPlaceholders::enrich($lims_customer_data);
 
         // Clone and render placeholders for PDF content

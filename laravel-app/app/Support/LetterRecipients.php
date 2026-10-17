@@ -109,6 +109,67 @@ class LetterRecipients
         return app(PeopleDirectoryService::class)->resolveDirectoryPeople($ids);
     }
 
+    /**
+     * A WhatsApp group is not one recipient. Each member gets their own letter.
+     * Returns null when this person is not a group. Throws when the group has no numbers.
+     *
+     * @param  object|array  $recipient
+     * @return array|null
+     */
+    public static function expandWhatsAppGroup($recipient)
+    {
+        $jid = '';
+        if (is_object($recipient)) {
+            $jid = trim((string) ($recipient->group_jid ?? ''));
+        } elseif (is_array($recipient)) {
+            $jid = trim((string) ($recipient['group_jid'] ?? ''));
+        }
+        if (substr($jid, -5) !== '@g.us') {
+            return null;
+        }
+
+        $export = app(\App\Services\WhatsApp\GroupContactExportService::class);
+        $fetched = $export->rowsForGroup($jid);
+        $rows = isset($fetched['rows']) && is_array($fetched['rows']) ? $fetched['rows'] : [];
+        $members = [];
+        $seen = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $phone = trim((string) ($row['phone'] ?? ''));
+            $digits = preg_replace('/\D+/', '', $phone);
+            if (strlen($digits) < 8 || isset($seen[$digits]) || ! $export->shouldNotify($jid, $digits)) {
+                continue;
+            }
+            $seen[$digits] = true;
+            $name = trim((string) ($row['name'] ?? ''));
+            $nameDigits = preg_replace('/\D+/', '', $name);
+            if ($name === '' || $nameDigits === $digits || preg_match('/^\+?\d[\d\s\-().]+$/', $name)) {
+                $name = $digits;
+            }
+            $members[] = self::toSendObject([
+                'id' => 'wa:'.$digits,
+                'name' => $name,
+                'phone' => $digits,
+                'email' => '',
+                'address' => '',
+                'kind' => 'contact',
+                'group_jid' => '',
+                'role' => 'WhatsApp',
+                'source' => 'WhatsApp group',
+            ]);
+        }
+        if (! $members) {
+            $reason = isset($fetched['error']) ? trim((string) $fetched['error']) : '';
+            throw new \RuntimeException($reason !== ''
+                ? $reason
+                : 'No phone numbers were found in this WhatsApp group, so each member could not receive their own letter.');
+        }
+
+        return $members;
+    }
+
     public static function toSendObject(array $person)
     {
         $r = (object) [];
