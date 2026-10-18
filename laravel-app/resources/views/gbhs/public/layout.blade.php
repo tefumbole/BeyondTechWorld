@@ -23,7 +23,8 @@
         body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.05rem; line-height: 1.55; color: var(--ink); background: var(--cream); overflow-x: hidden; }
         a { color: var(--leaf); }
         header { background: var(--forest-deep); color: var(--cream); position: sticky; top: 0; z-index: 40; }
-        .bar { display: flex; align-items: center; gap: 12px; padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); padding-top: max(8px, env(safe-area-inset-top)); width: 100%; }
+        .bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); padding-top: max(8px, env(safe-area-inset-top)); width: 100%; }
+        .menu-btn { display: none; }
         nav { display: flex; flex-wrap: nowrap; gap: 4px 16px; flex: 1; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         nav::-webkit-scrollbar { display: none; }
         nav a { color: var(--cream); text-decoration: none; font-size: 1rem; font-weight: 600; white-space: nowrap; padding: 8px 0; }
@@ -115,7 +116,36 @@
             object-position: center 18%;
             display: block;
         }
+        @media (max-width: 800px) {
+            body.home .hero-land img { object-position: 70% center; }
+        }
         body.testimonials .page { width: 100%; }
+        @media (max-width: 860px) {
+            .menu-btn {
+                display: inline-flex;
+                align-items: center;
+                min-height: 44px;
+                margin: 0;
+                padding: 8px 14px;
+                background: transparent;
+                color: var(--gold);
+                border: 1px solid var(--gold);
+            }
+            nav {
+                display: none;
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: 100%;
+                flex-direction: column;
+                gap: 0;
+                padding: 4px 12px 10px;
+                background: var(--forest-deep);
+                box-shadow: 0 16px 24px rgba(0, 0, 0, .28);
+            }
+            nav.is-open { display: flex; }
+            nav a { padding: 12px 4px; font-size: 1.05rem; border-bottom: 1px solid rgba(247, 243, 232, .12); }
+        }
         @media (max-width: 640px) {
             .page { padding-top: 16px; }
             .card { padding: 14px; }
@@ -239,7 +269,8 @@
 <body class="@yield('body-class')">
 <header>
     <div class="bar">
-        <nav>
+        <button type="button" class="menu-btn" id="gbhsMenuBtn" aria-expanded="false" aria-controls="gbhsNav">Menu</button>
+        <nav id="gbhsNav">
             <a href="{{ route('gbhs.home') }}">Home</a>
             <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
             <a href="{{ route('gbhs.membership', ['choose' => 1]) }}">Membership</a>
@@ -267,5 +298,17 @@
     </div>
 </footer>
 @stack('gbhs-dial')
+<script>
+    (function () {
+        var btn = document.getElementById('gbhsMenuBtn');
+        var nav = document.getElementById('gbhsNav');
+        if (!btn || !nav) return;
+        btn.addEventListener('click', function () {
+            var open = nav.classList.toggle('is-open');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.textContent = open ? 'Close' : 'Menu';
+        });
+    })();
+</script>
 </body>
 </html>
