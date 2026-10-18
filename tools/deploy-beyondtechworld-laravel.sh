@@ -113,6 +113,10 @@ echo "==> 6b. Restart queue workers so they load new code"
 # booted app in memory. Without this, deployed changes to queued jobs (AI
 # replies, etc.) are ignored until the worker is manually restarted.
 run_artisan queue:restart || true
+# A root-owned worker can recreate cache files after the chown above.
+sleep 1
+echo "==> 6c. Re-fix writable dirs AFTER queue restart"
+fix_writable_dirs
 
 echo "==> 7. Reload PHP-FPM"
 if systemctl is-active --quiet php7.4-fpm 2>/dev/null; then

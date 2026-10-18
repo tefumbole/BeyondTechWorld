@@ -96,7 +96,6 @@
         }
         body.home header, body.home footer { flex: 0 0 auto; }
         body.home main { display: none; }
-        body.home .foot-mosaic { display: none; }
         body.home .hero-land {
             flex: 1 1 auto;
             min-height: 0;
