@@ -56,7 +56,21 @@
     .handoff a { word-break: break-all; }
     .live-dots i { width: 10px; height: 10px; border-radius: 50%; background: #e4d3a2; display: block; }
     .live-dots i.on { background: #0c3a22; }
-    @media (max-width: 700px) { .fields, .stage-nav, .home-pick { grid-template-columns: 1fr; } .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 700px) {
+        .fields, .home-pick { grid-template-columns: 1fr; }
+        .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        .join-card { padding: 16px 14px 18px; border-radius: 14px; }
+        .actions a, .actions button, .photo-row button, .handoff button { display: block; width: 100%; margin-right: 0; text-align: center; }
+        .live { height: min(320px, 52vh); }
+        .handoff img { width: min(220px, 68vw); height: auto; }
+        #pad { height: 150px; }
+    }
+    @media (max-width: 360px) {
+        .stage { font-size: .75rem; }
+        .stage span { width: 30px; height: 30px; }
+        .home-card { padding: 18px 12px; }
+        .home-card strong { font-size: 1.2rem; }
+    }
 </style>
 @php
     $batchRows = [];

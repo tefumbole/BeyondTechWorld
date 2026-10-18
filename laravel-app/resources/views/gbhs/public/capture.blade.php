@@ -2,7 +2,8 @@
 @section('content')
 <style>
     .join { max-width: 760px; margin: 0 auto; }
-    .join-card { background: #fff; border: 1px solid #e4d3a2; border-radius: 18px; padding: 26px 24px 28px; }
+    .join-card { background: #fff; border: 1px solid #e4d3a2; border-radius: 18px; padding: 18px 14px 20px; }
+    .join button, .join .btn { display: block; width: 100%; margin-right: 0; text-align: center; }
     .live { position: relative; width: min(280px, 78vw); height: 340px; margin: 8px auto 4px; }
     .live video { width: 100%; height: 100%; object-fit: cover; border-radius: 46%; transform: scaleX(-1); background: #10281a; }
     .live-ring { position: absolute; inset: 8px; border: 4px solid #e8c15a; border-radius: 46%; pointer-events: none; box-shadow: inset 0 0 0 8px rgba(12, 58, 34, .18); }

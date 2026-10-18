@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#071f13">
     <title>{{ $setting->seo_title ?? 'GBHS Kumbo Ex-Students' }}</title>
     <meta name="description" content="{{ $setting->seo_description ?? 'GBHS Kumbo Ex-Students Association' }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&display=swap">
     <style>
         :root {
             --forest: #0c3a22;
@@ -19,12 +19,14 @@
             --logo-green: #1b432a;
         }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: "Source Sans 3", sans-serif; font-size: 1.2rem; line-height: 1.6; color: var(--ink); background: var(--cream); }
+        html { -webkit-text-size-adjust: 100%; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.05rem; line-height: 1.55; color: var(--ink); background: var(--cream); overflow-x: hidden; }
         a { color: var(--leaf); }
-        header { background: var(--forest-deep); color: var(--cream); }
-        .bar { display: flex; align-items: center; gap: 28px; padding: 10px 3vw; width: 100%; }
-        nav { display: flex; flex-wrap: wrap; gap: 8px 22px; flex: 1; }
-        nav a { color: var(--cream); text-decoration: none; font-size: 1.15rem; font-weight: 600; }
+        header { background: var(--forest-deep); color: var(--cream); position: sticky; top: 0; z-index: 40; }
+        .bar { display: flex; align-items: center; gap: 12px; padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); padding-top: max(8px, env(safe-area-inset-top)); width: 100%; }
+        nav { display: flex; flex-wrap: nowrap; gap: 4px 16px; flex: 1; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        nav::-webkit-scrollbar { display: none; }
+        nav a { color: var(--cream); text-decoration: none; font-size: 1rem; font-weight: 600; white-space: nowrap; padding: 8px 0; }
         nav a:hover { color: var(--gold); }
         .login {
             margin-left: auto;
@@ -33,25 +35,30 @@
             background: var(--forest-deep);
             text-decoration: none;
             font-weight: 700;
-            font-size: 1.05rem;
+            font-size: 1rem;
             border-radius: 6px;
-            padding: 10px 18px;
+            padding: 8px 14px;
             white-space: nowrap;
+            min-height: 44px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
         }
         .login:hover { background: var(--gold); color: var(--forest-deep); }
-        main { padding: 0 0 72px; width: 100%; }
-        .page { width: 100%; max-width: none; margin: 0; padding: 32px 3vw 0; }
-        h1, h2, h3 { font-family: "Source Serif 4", serif; color: var(--forest); line-height: 1.2; }
-        h1 { font-size: 2.6rem; margin: 0 0 12px; }
-        h2 { font-size: 1.8rem; }
-        p { font-size: 1.2rem; }
+        main { padding: 0 0 48px; width: 100%; }
+        .page { width: 100%; max-width: none; margin: 0; padding: 24px max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left)); }
+        h1, h2, h3 { font-family: Georgia, "Iowan Old Style", Palatino, "Palatino Linotype", serif; color: var(--forest); line-height: 1.2; }
+        h1 { font-size: clamp(1.7rem, 6vw, 2.6rem); margin: 0 0 12px; }
+        h2 { font-size: clamp(1.35rem, 4vw, 1.8rem); }
+        p { font-size: 1.05rem; }
+        img, video, canvas { max-width: 100%; }
         .card { background: #fffdf8; border: 1px solid #e4d3a2; border-radius: 12px; padding: 18px 20px; margin: 14px 0; font-size: 1.15rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
         label { display: block; font-weight: 700; margin-top: 12px; font-size: 1.05rem; }
-        input, select, textarea { width: 100%; padding: 12px 14px; border: 1px solid #d7c59a; border-radius: 8px; font-size: 1.1rem; font-family: inherit; }
-        button, .btn { background: var(--forest); color: var(--gold); border: 0; border-radius: 8px; padding: 12px 18px; text-decoration: none; display: inline-block; margin: 14px 10px 0 0; font-size: 1.1rem; font-weight: 700; cursor: pointer; }
+        input, select, textarea { width: 100%; padding: 12px 14px; border: 1px solid #d7c59a; border-radius: 8px; font-size: 16px; font-family: inherit; }
+        button, .btn { background: var(--forest); color: var(--gold); border: 0; border-radius: 8px; padding: 12px 18px; text-decoration: none; display: inline-block; margin: 10px 8px 0 0; font-size: 1.05rem; font-weight: 700; cursor: pointer; min-height: 44px; touch-action: manipulation; }
         .btn.gold { background: var(--gold); color: var(--forest-deep); }
-        .muted { color: #3d5346; font-size: 1.15rem; }
+        .muted { color: #3d5346; font-size: 1rem; }
         .alert { padding: 12px 14px; border-radius: 8px; background: #fff4d2; margin-bottom: 16px; }
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
         footer { color: #f4e7c3; font-size: 1.05rem; background: #071833; }
@@ -63,16 +70,16 @@
         .foot-copy {
             position: relative;
             z-index: 1;
-            padding: 10px 3vw;
+            padding: 8px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
             display: flex;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            gap: 6px 22px;
+            gap: 4px 16px;
             background: linear-gradient(90deg, rgba(6, 28, 92, .2), rgba(8, 36, 110, .55) 12%, rgba(8, 36, 110, .55) 88%, rgba(6, 28, 92, .2));
         }
-        .foot-copy p { margin: 0; font-size: 1.15rem; font-weight: 600; color: #fff; }
-        .contact-link { font-weight: 600; font-size: 1.15rem; color: #fff; }
+        .foot-copy p { margin: 0; font-size: .95rem; font-weight: 600; color: #fff; }
+        .contact-link { font-weight: 600; font-size: .95rem; color: #fff; }
         .cc { position: relative; flex: 0 0 auto; }
         .cc-btn { margin: 0; width: auto; min-width: 118px; display: flex; align-items: center; gap: 6px; background: #fff; color: var(--ink); border: 1px solid #d7c59a; }
         .cc-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 280px; background: #fff; border: 1px solid #e4d3a2; border-radius: 10px; box-shadow: 0 12px 30px rgba(7, 31, 19, .16); }
@@ -86,7 +93,7 @@
         .phone-row input[type="tel"] { flex: 1; }
         body.home {
             height: 100vh;
-            height: 100dvh;
+            height: 100svh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -109,11 +116,18 @@
             display: block;
         }
         body.testimonials .page { width: 100%; }
-        @media (max-width: 800px) {
-            .bar { flex-wrap: wrap; }
-            nav { order: 3; width: 100%; }
-            h1 { font-size: 2.1rem; }
-            .cc-menu { width: min(280px, 80vw); }
+        @media (max-width: 640px) {
+            .page { padding-top: 16px; }
+            .card { padding: 14px; }
+            .phone-row { flex-wrap: wrap; }
+            .cc, .cc-btn { width: 100%; }
+            .cc-menu { position: fixed; left: 12px; right: 12px; width: auto; max-height: 50vh; }
+            .grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 380px) {
+            nav { gap: 4px 12px; }
+            nav a { font-size: .92rem; }
+            .login { padding: 8px 10px; font-size: .92rem; }
         }
     </style>
     <script>
@@ -223,31 +237,6 @@
     </script>
 </head>
 <body class="@yield('body-class')">
-@php
-    $contactPhone = trim((string) ($setting->phone ?? ''));
-    $contactWho = trim((string) ($setting->president_name ?? ''));
-    if ($contactWho === '') {
-        $contactWho = 'the President';
-    }
-    if ($contactPhone === '') {
-        try {
-            $leader = \App\Gbhs\GbhsLeader::where('published', 1)
-                ->where('role', 'like', '%resident%')
-                ->where('phone', '!=', '')
-                ->orderBy('sort')
-                ->first();
-            if ($leader) {
-                $contactPhone = trim((string) $leader->phone);
-                if (trim((string) $leader->name) !== '') {
-                    $contactWho = $leader->name;
-                }
-            }
-        } catch (\Throwable $e) {
-            $leader = null;
-        }
-    }
-    $contactDigits = preg_replace('/\D/', '', $contactPhone);
-@endphp
 <header>
     <div class="bar">
         <nav>
@@ -277,58 +266,6 @@
         </div>
     </div>
 </footer>
-<script type="application/json" id="gbhs-countries">@json(\App\Support\CountryDialCodes::picker())</script>
-<script>
-(function () {
-    var countries = [];
-    try { countries = JSON.parse(document.getElementById('gbhs-countries').textContent || '[]'); } catch (e) {}
-    document.querySelectorAll('[data-cc]').forEach(function (root) {
-        var hidden = root.querySelector('[data-cc-value]');
-        var btn = root.querySelector('[data-cc-btn]');
-        var menu = root.querySelector('[data-cc-menu]');
-        var search = root.querySelector('[data-cc-search]');
-        var list = root.querySelector('[data-cc-list]');
-        var flag = root.querySelector('[data-cc-flag]');
-        var dial = root.querySelector('[data-cc-dial]');
-        function render() {
-            var q = (search.value || '').toLowerCase().trim();
-            var rows = !q ? countries : countries.filter(function (c) {
-                return (c.name + ' ' + c.code).toLowerCase().indexOf(q) !== -1;
-            });
-            list.innerHTML = '';
-            rows.forEach(function (c) {
-                var li = document.createElement('li');
-                if (c.code === hidden.value && c.name === (root.getAttribute('data-country') || 'Cameroon') && !q) {
-                    li.className = 'is-on';
-                }
-                li.innerHTML = '<span class="flag"></span><span class="name"></span><span class="dial"></span>';
-                li.querySelector('.flag').textContent = c.flag || '';
-                li.querySelector('.name').textContent = c.name;
-                li.querySelector('.dial').textContent = c.code;
-                li.addEventListener('click', function () {
-                    hidden.value = c.code;
-                    flag.textContent = c.flag || '';
-                    dial.textContent = c.code;
-                    root.setAttribute('data-country', c.name);
-                    menu.hidden = true;
-                    btn.setAttribute('aria-expanded', 'false');
-                    hidden.dispatchEvent(new Event('change', {bubbles: true}));
-                });
-                list.appendChild(li);
-            });
-        }
-        btn.addEventListener('click', function () {
-            menu.hidden = !menu.hidden;
-            btn.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
-            if (!menu.hidden) { render(); search.focus(); }
-        });
-        search.addEventListener('input', render);
-        document.addEventListener('click', function (e) {
-            if (!root.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
-        });
-        render();
-    });
-})();
-</script>
+@stack('gbhs-dial')
 </body>
 </html>

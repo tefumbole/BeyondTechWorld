@@ -2,7 +2,7 @@
 @section('hero')
 @if($slug === 'home')
     <div class="hero-land">
-        <img src="{{ url('public/gbhs/gbhs-kumbo-landing.jpg') }}" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
+        <img src="{{ url('public/gbhs/gbhs-kumbo-landing-m.jpg') }}" srcset="{{ url('public/gbhs/gbhs-kumbo-landing-m.jpg') }} 720w, {{ url('public/gbhs/gbhs-kumbo-landing.jpg') }} 1024w" sizes="100vw" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026" fetchpriority="high" decoding="async">
     </div>
 @endif
 @endsection

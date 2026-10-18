@@ -2,6 +2,9 @@
 @section('content')
 <style>
     .give { max-width: 720px; margin: 0 auto; }
+    @media (max-width: 640px) {
+        .give button, .give .btn { display: block; width: 100%; margin-right: 0; text-align: center; }
+    }
 </style>
 <div class="give">
 <h1>Donate</h1>

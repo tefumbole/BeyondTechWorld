@@ -45,34 +45,54 @@ class GbhsPublicController extends Controller
             return response('GBHS Kumbo is not installed yet.', 503);
         }
         GbhsCatalog::ensure();
-        $section = GbhsSection::where('slug', $slug)->where('published', 1)->first();
         $setting = GbhsSetting::query()->first();
-        $leaders = GbhsLeader::where('published', 1)->orderBy('sort')->get();
-        $testimonials = Schema::hasTable('gbhs_testimonials')
-            ? GbhsTestimonial::orderBy('id')->get()
-            : collect();
-        $batches = GbhsBatch::orderBy('year')->get();
-        $news = GbhsSection::where('kind', 'news')->where('published', 1)->orderBy('id', 'desc')->get();
-        $documents = Schema::hasTable('gbhs_documents')
-            ? \App\Gbhs\GbhsDocument::where('published', 1)->orderBy('sort')->get()
-            : collect();
-        $events = GbhsEvent::where('published', 1)->orderBy('starts_at')->get();
-        $projects = GbhsProject::where('published', 1)->orderBy('id', 'desc')->get();
+        $section = null;
+        $leaders = collect();
+        $testimonials = collect();
+        $batches = collect();
+        $news = collect();
+        $documents = collect();
+        $events = collect();
+        $projects = collect();
         $raised = [];
-        foreach ($projects as $project) {
-            $raised[$project->id] = (int) GbhsContribution::where('project_id', $project->id)
-                ->where('verified', 1)
-                ->whereNotNull('payment_id')
-                ->whereNotIn('classification', ['reversal', 'in_kind'])
-                ->sum('amount');
+        $totals = ['verified' => 0];
+        $donors = collect();
+        if (! in_array($slug, ['home', 'news', 'documents', 'leaders', 'contact'], true)) {
+            $section = GbhsSection::where('slug', $slug)->where('published', 1)->first();
         }
-        $totals = $this->publicTotals($setting);
-        $donors = GbhsContribution::where('verified', 1)
-            ->where('anonymous', 0)
-            ->whereNotIn('classification', ['reversal', 'in_kind'])
-            ->orderBy('id', 'desc')
-            ->limit(30)
-            ->get();
+        if ($slug === 'leaders' && Schema::hasTable('gbhs_testimonials')) {
+            $testimonials = GbhsTestimonial::orderBy('id')->get();
+        } elseif ($slug === 'batches') {
+            $batches = GbhsBatch::orderBy('year')->get();
+        } elseif ($slug === 'news') {
+            $news = GbhsSection::where('kind', 'news')->where('published', 1)->orderBy('id', 'desc')->get();
+        } elseif ($slug === 'documents' && Schema::hasTable('gbhs_documents')) {
+            $documents = \App\Gbhs\GbhsDocument::where('published', 1)->orderBy('sort')->get();
+        } elseif ($slug === 'jubilee') {
+            $events = GbhsEvent::where('published', 1)->orderBy('starts_at')->get();
+        } elseif ($slug === 'projects') {
+            $projects = GbhsProject::where('published', 1)->orderBy('id', 'desc')->get();
+            if ($projects->count()) {
+                $sums = GbhsContribution::whereIn('project_id', $projects->pluck('id'))
+                    ->where('verified', 1)
+                    ->whereNotNull('payment_id')
+                    ->whereNotIn('classification', ['reversal', 'in_kind'])
+                    ->selectRaw('project_id, SUM(amount) as total')
+                    ->groupBy('project_id')
+                    ->pluck('total', 'project_id');
+                foreach ($projects as $project) {
+                    $raised[$project->id] = (int) (isset($sums[$project->id]) ? $sums[$project->id] : 0);
+                }
+            }
+        } elseif ($slug === 'contributions') {
+            $totals = $this->publicTotals($setting);
+            $donors = GbhsContribution::where('verified', 1)
+                ->where('anonymous', 0)
+                ->whereNotIn('classification', ['reversal', 'in_kind'])
+                ->orderBy('id', 'desc')
+                ->limit(30)
+                ->get();
+        }
 
         return view('gbhs.public.page', compact(
             'slug', 'section', 'setting', 'leaders', 'testimonials', 'batches', 'news', 'documents',
