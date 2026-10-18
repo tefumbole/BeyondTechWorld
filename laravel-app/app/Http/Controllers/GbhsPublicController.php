@@ -92,29 +92,37 @@ class GbhsPublicController extends Controller
         if (session('gbhs_application_id')) {
             $application = GbhsApplication::find(session('gbhs_application_id'));
         }
-        if (request()->filled('register')) {
-            session(['gbhs_join' => 1]);
+        if (in_array(request('home'), ['cameroon', 'diaspora'], true)) {
+            session(['gbhs_join' => 1, 'gbhs_home' => request('home')]);
 
-            return redirect()->route('gbhs.membership');
+            return redirect()->route('gbhs.membership', ['step' => 'details']);
         }
         $step = $this->membershipStep($application);
+        $home = session('gbhs_home') === 'diaspora' ? 'diaspora' : 'cameroon';
         $countries = [];
         foreach (CountryDialCodes::picker() as $row) {
+            if ($home === 'diaspora' && $row['name'] === 'Cameroon') {
+                continue;
+            }
             $countries[] = $row['name'];
         }
         $regions = CountryRegions::map();
+        $divisionLabels = CountryRegions::labels();
         $articles = GbhsBylaws::articles();
         if (! $application) {
             $application = new GbhsApplication();
         }
 
         return view('gbhs.public.membership', compact(
-            'setting', 'section', 'batches', 'bylaw', 'application', 'step', 'countries', 'regions', 'articles'
+            'setting', 'section', 'batches', 'bylaw', 'application', 'step', 'countries', 'regions', 'articles', 'home', 'divisionLabels'
         ));
     }
 
     protected function membershipStep($application)
     {
+        if (request()->filled('choose')) {
+            return 'intro';
+        }
         if ($application && ($application->signature_path || $application->status === 'submitted' || $application->status === 'approved')) {
             return 'done';
         }

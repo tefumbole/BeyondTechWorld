@@ -11,9 +11,20 @@
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
     .fields .wide { grid-column: 1 / -1; }
     .batch-box { position: relative; }
-    .batch-box ul { list-style: none; margin: 4px 0 0; padding: 4px 0; max-height: 220px; overflow: auto; background: #fff; border: 1px solid #e4d3a2; border-radius: 10px; position: relative; z-index: 2; }
-    .batch-box li { padding: 8px 12px; cursor: pointer; }
-    .batch-box li:hover, .batch-box li.on { background: #f7f3e8; }
+    .batch-box ul:empty { display: none; }
+    .batch-box ul, .fill-menu { list-style: none; margin: 6px 0 0; padding: 6px; max-height: 240px; overflow: auto; background: #fff; border: 1px solid #e4d3a2; border-radius: 12px; position: absolute; z-index: 6; left: 0; right: 0; box-shadow: 0 14px 32px rgba(18, 53, 31, .14); }
+    .batch-box li, .fill-menu li { padding: 10px 12px; cursor: pointer; border-radius: 8px; color: #0c3a22; }
+    .batch-box li:hover, .batch-box li.on, .fill-menu li:hover, .fill-menu li.on { background: #0c3a22; color: #f4d27a; }
+    .fill-select { position: relative; }
+    .fill-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid #d7c59a; border-radius: 8px; background: linear-gradient(#fff, #fffdf6); color: #0c3a22; font: inherit; font-size: 1.1rem; text-align: left; cursor: pointer; }
+    .fill-btn.is-empty { color: #8d8474; }
+    .fill-caret { color: #b0893e; font-size: .9rem; }
+    .home-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+    .home-card { display: block; text-decoration: none; background: #fffdf8; border: 1px solid #e4d3a2; border-radius: 16px; padding: 26px 16px; color: #0c3a22; }
+    .home-card strong { display: block; font-size: 1.4rem; margin-bottom: 6px; }
+    .home-card span { color: #5c6b62; }
+    .home-card:hover { background: #0c3a22; border-color: #0c3a22; }
+    .home-card:hover strong, .home-card:hover span { color: #f4d27a; }
     .photo-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .photo-row button { margin: 8px 0 0; }
     .photo-preview { width: 120px; height: 80px; object-fit: cover; border-radius: 12px; border: 1px solid #e4d3a2; }
@@ -28,7 +39,7 @@
     .law h3 { margin: 0 0 4px; color: var(--gold); font-size: 1.05rem; }
     .law p { margin: 0; line-height: 1.45; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    @media (max-width: 700px) { .fields, .stage-nav { grid-template-columns: 1fr; } .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 700px) { .fields, .stage-nav, .home-pick { grid-template-columns: 1fr; } .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); } }
 </style>
 @php
     $batchRows = [];
@@ -39,8 +50,15 @@
     $stageIndex = array_search($step, array_keys($stageOrder), true);
     $marital = ['Married', 'Single', 'Divorced', 'Widower', 'Widow', 'Other'];
     $employment = ['Employed', 'Unemployed', 'Freelancer'];
-    $pickedCountry = $application && $application->country ? $application->country : 'Cameroon';
+    $home = isset($home) && $home === 'diaspora' ? 'diaspora' : 'cameroon';
+    $pickedCountry = $application && $application->country ? $application->country : '';
+    if ($home === 'cameroon') {
+        $pickedCountry = 'Cameroon';
+    } elseif ($pickedCountry === 'Cameroon') {
+        $pickedCountry = '';
+    }
     $pickedRegion = $application ? (string) $application->region : '';
+    $divisionLabels = isset($divisionLabels) ? $divisionLabels : [];
 @endphp
 <div class="join">
     <div class="stage-nav">
@@ -55,14 +73,17 @@
     <div class="join-card" style="text-align:center">
         <p class="muted" style="letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--gold-deep)">GBHS Kumbo</p>
         <h1>Become a Member</h1>
-        <p>Four short stages. Your details come first, then identification, a portrait, and your signature. Identification and the portrait can be added later.</p>
-        <a class="btn gold" href="{{ route('gbhs.membership', ['register' => 1]) }}">Start</a>
+        <p>Choose where you live. Cameroon uses regions. Diaspora uses a state, province, or region for the country you select.</p>
+        <div class="home-pick">
+            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'cameroon']) }}"><strong>Cameroon</strong><span>Pick your region</span></a>
+            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'diaspora']) }}"><strong>Diaspora</strong><span>State or region for your country</span></a>
+        </div>
     </div>
 @elseif($step === 'details')
     <form class="join-card" method="post" action="{{ route('gbhs.register.profile') }}">
         @csrf
         <h1>Your details</h1>
-        <p class="muted">Email and employer are optional. The region list follows the country you select.</p>
+        <p class="muted">{{ $home === 'diaspora' ? 'You are registering from the diaspora. The state or region list follows the country you select.' : 'You are registering from Cameroon. Choose your region.' }} Email and employer are optional.</p>
         <div class="fields">
             <div class="wide">
                 <label>Phone number</label>
@@ -89,50 +110,67 @@
             <div><label>Date of birth</label><input type="date" name="date_of_birth" value="{{ $application->date_of_birth ?? '' }}"></div>
             <div>
                 <label>Gender</label>
-                <select name="gender">
-                    <option value="">Select</option>
-                    @foreach(['Female', 'Male'] as $gender)
-                        <option value="{{ $gender }}" {{ ($application->gender ?? '') === $gender ? 'selected' : '' }}>{{ $gender }}</option>
-                    @endforeach
-                </select>
+                <div class="fill-select" data-fill>
+                    <button type="button" class="fill-btn {{ ($application->gender ?? '') === '' ? 'is-empty' : '' }}"><span data-fill-label>{{ ($application->gender ?? '') !== '' ? $application->gender : 'Select' }}</span><span class="fill-caret">▾</span></button>
+                    <input type="hidden" name="gender" value="{{ $application->gender ?? '' }}">
+                    <ul class="fill-menu" hidden>
+                        @foreach(['Female', 'Male'] as $gender)
+                            <li data-value="{{ $gender }}" class="{{ ($application->gender ?? '') === $gender ? 'on' : '' }}">{{ $gender }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
             <div>
                 <label>Marital status</label>
-                <select name="marital_status" required>
-                    <option value="">Select</option>
-                    @foreach($marital as $item)
-                        <option value="{{ $item }}" {{ ($application->marital_status ?? '') === $item ? 'selected' : '' }}>{{ $item }}</option>
-                    @endforeach
-                </select>
+                <div class="fill-select" data-fill data-required="1">
+                    <button type="button" class="fill-btn {{ ($application->marital_status ?? '') === '' ? 'is-empty' : '' }}"><span data-fill-label>{{ ($application->marital_status ?? '') !== '' ? $application->marital_status : 'Select' }}</span><span class="fill-caret">▾</span></button>
+                    <input type="hidden" name="marital_status" value="{{ $application->marital_status ?? '' }}">
+                    <ul class="fill-menu" hidden>
+                        @foreach($marital as $item)
+                            <li data-value="{{ $item }}" class="{{ ($application->marital_status ?? '') === $item ? 'on' : '' }}">{{ $item }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
             <div><label>Years attended</label><input name="years_attended" value="{{ $application->years_attended ?? '' }}" placeholder="Optional"></div>
             <div><label>Profession</label><input name="profession" value="{{ $application->profession ?? '' }}" placeholder="Optional"></div>
             <div>
                 <label>Employment status</label>
-                <select name="employment_status" required>
-                    <option value="">Select</option>
-                    @foreach($employment as $item)
-                        <option value="{{ $item }}" {{ ($application->employment_status ?? '') === $item ? 'selected' : '' }}>{{ $item }}</option>
-                    @endforeach
-                </select>
+                <div class="fill-select" data-fill data-required="1">
+                    <button type="button" class="fill-btn {{ ($application->employment_status ?? '') === '' ? 'is-empty' : '' }}"><span data-fill-label>{{ ($application->employment_status ?? '') !== '' ? $application->employment_status : 'Select' }}</span><span class="fill-caret">▾</span></button>
+                    <input type="hidden" name="employment_status" value="{{ $application->employment_status ?? '' }}">
+                    <ul class="fill-menu" hidden>
+                        @foreach($employment as $item)
+                            <li data-value="{{ $item }}" class="{{ ($application->employment_status ?? '') === $item ? 'on' : '' }}">{{ $item }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
             <div><label>Employer <span class="muted">optional</span></label><input name="employer" value="{{ $application->employer ?? '' }}"></div>
             <div class="wide"><label>Email <span class="muted">optional</span></label><input type="email" name="email" value="{{ $application->email ?? '' }}"></div>
+            @if($home === 'diaspora')
             <div class="batch-box">
                 <label>Country</label>
-                <input type="search" id="countrySearch" placeholder="Search country" autocomplete="off" required>
+                <input type="search" id="countrySearch" placeholder="Search country" autocomplete="off" required value="{{ $pickedCountry }}">
                 <input type="hidden" name="country" id="countryValue" value="{{ $pickedCountry }}">
                 <ul id="countryList"></ul>
             </div>
+            @else
+            <div>
+                <label>Country</label>
+                <input value="Cameroon" readonly>
+                <input type="hidden" name="country" id="countryValue" value="Cameroon">
+            </div>
+            @endif
             <div class="batch-box" id="regionBox">
-                <label>Region</label>
-                <input type="search" id="regionSearch" placeholder="Search region" autocomplete="off" required>
+                <label id="regionLabel">{{ $home === 'cameroon' ? 'Region' : ($pickedCountry ? \App\Support\CountryRegions::label($pickedCountry) : 'State or region') }}</label>
+                <input type="search" id="regionSearch" placeholder="Search {{ strtolower($home === 'cameroon' ? 'region' : ($pickedCountry ? \App\Support\CountryRegions::label($pickedCountry) : 'state or region')) }}" autocomplete="off" required value="{{ $pickedRegion }}">
                 <input type="hidden" name="region" id="regionValue" value="{{ $pickedRegion }}">
                 <ul id="regionList"></ul>
             </div>
             <div id="regionText" hidden>
-                <label>Region</label>
-                <input id="regionFree" placeholder="Type your region" value="{{ $pickedRegion }}">
+                <label id="regionFreeLabel">State or region</label>
+                <input id="regionFree" placeholder="Type your state or region" value="{{ $pickedRegion }}">
             </div>
             <div><label>City</label><input name="city" value="{{ $application->city ?? '' }}" placeholder="Optional"></div>
         </div>
@@ -143,6 +181,32 @@
             var rows = @json($batchRows);
             var countries = @json(array_values($countries));
             var regions = @json($regions);
+            var divisionLabels = @json($divisionLabels);
+            document.querySelectorAll('[data-fill]').forEach(function (box) {
+                var button = box.querySelector('.fill-btn');
+                var hidden = box.querySelector('input[type="hidden"]');
+                var menu = box.querySelector('.fill-menu');
+                var label = box.querySelector('[data-fill-label]');
+                button.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var open = menu.hidden;
+                    document.querySelectorAll('.fill-menu').forEach(function (other) { other.hidden = true; });
+                    menu.hidden = !open;
+                });
+                menu.querySelectorAll('li').forEach(function (item) {
+                    item.addEventListener('click', function () {
+                        hidden.value = item.getAttribute('data-value');
+                        label.textContent = item.textContent;
+                        button.classList.remove('is-empty');
+                        menu.querySelectorAll('li').forEach(function (other) { other.classList.remove('on'); });
+                        item.classList.add('on');
+                        menu.hidden = true;
+                    });
+                });
+            });
+            document.addEventListener('click', function () {
+                document.querySelectorAll('.fill-menu').forEach(function (menu) { menu.hidden = true; });
+            });
             function picker(search, hidden, list, choices, onPick) {
                 function paint() {
                     var q = (search.value || '').toLowerCase().trim();
@@ -198,8 +262,19 @@
             var regionText = document.getElementById('regionText');
             var regionFree = document.getElementById('regionFree');
             var regionChoices = (regions[countryValue.value] || []).slice();
-            countrySearch.value = countryValue.value || 'Cameroon';
-            function applyCountry(name) {
+            var regionLabel = document.getElementById('regionLabel');
+            var regionFreeLabel = document.getElementById('regionFreeLabel');
+            if (countrySearch && countryValue.value) countrySearch.value = countryValue.value;
+            function divisionWord(name) {
+                return divisionLabels[name] || (name ? 'State or region' : 'State or region');
+            }
+            function applyCountry(name, keep) {
+                var word = divisionWord(name);
+                var lower = word.toLowerCase();
+                regionLabel.textContent = word;
+                regionFreeLabel.textContent = word;
+                regionSearch.placeholder = 'Search ' + lower;
+                regionFree.placeholder = 'Type your ' + lower;
                 var list = regions[name] || [];
                 regionChoices.splice(0, regionChoices.length);
                 list.forEach(function (item) { regionChoices.push(item); });
@@ -218,23 +293,34 @@
                 regionFree.required = false;
                 regionFree.name = '';
                 regionValue.disabled = false;
-                if (list.indexOf(regionValue.value) === -1) {
+                if (keep && list.indexOf(regionValue.value) !== -1) {
+                    regionSearch.value = regionValue.value;
+                } else if (!keep) {
                     regionValue.value = '';
                     regionSearch.value = '';
                 } else {
-                    regionSearch.value = regionValue.value;
+                    regionValue.value = '';
+                    regionSearch.value = '';
                 }
             }
-            picker(countrySearch, countryValue, document.getElementById('countryList'), countries, applyCountry);
+            if (countrySearch) {
+                picker(countrySearch, countryValue, document.getElementById('countryList'), countries, function (name) { applyCountry(name, false); });
+            }
             picker(regionSearch, regionValue, document.getElementById('regionList'), regionChoices, null);
-            applyCountry(countryValue.value || 'Cameroon');
+            applyCountry(countryValue.value || 'Cameroon', true);
             var phone = document.getElementById('joinPhone');
             if (phone && window.gbhsLookupName) {
                 gbhsLookupName(phone, document.querySelector('form [data-cc-value]'), document.getElementById('joinName'), document.getElementById('joinHint'));
             }
             document.querySelector('form').addEventListener('submit', function (e) {
                 if (!batchId.value) { e.preventDefault(); batchSearch.focus(); paintBatch(); }
-                if (!countryValue.value) { e.preventDefault(); countrySearch.focus(); }
+                if (countrySearch && !countryValue.value) { e.preventDefault(); countrySearch.focus(); }
+                document.querySelectorAll('[data-fill][data-required]').forEach(function (box) {
+                    if (!box.querySelector('input').value) {
+                        e.preventDefault();
+                        box.querySelector('.fill-menu').hidden = false;
+                    }
+                });
                 if (!regionValue.disabled && !regionValue.value && regionChoices.indexOf(regionSearch.value) !== -1) {
                     regionValue.value = regionSearch.value;
                 }

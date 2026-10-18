@@ -253,7 +253,7 @@
         <nav>
             <a href="{{ route('gbhs.home') }}">Home</a>
             <a href="{{ route('gbhs.page', 'about') }}">About Us</a>
-            <a href="{{ route('gbhs.membership') }}">Membership</a>
+            <a href="{{ route('gbhs.membership', ['choose' => 1]) }}">Membership</a>
             <a href="{{ route('gbhs.page', 'leaders') }}">Testimonials</a>
             <a href="{{ route('gbhs.donate') }}">Donate</a>
             <a href="{{ route('gbhs.page', 'contact') }}">Contact us</a>

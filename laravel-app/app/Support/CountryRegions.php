@@ -24,4 +24,29 @@ class CountryRegions
 
         return isset($map[$country]) ? $map[$country] : [];
     }
+
+    public static function label($country)
+    {
+        $labels = self::labels();
+
+        return isset($labels[$country]) ? $labels[$country] : 'State or region';
+    }
+
+    public static function labels()
+    {
+        return [
+            'Cameroon' => 'Region',
+            'France' => 'Region',
+            'United States' => 'State',
+            'Nigeria' => 'State',
+            'Germany' => 'State',
+            'Australia' => 'State',
+            'India' => 'State',
+            'Brazil' => 'State',
+            'Mexico' => 'State',
+            'Canada' => 'Province',
+            'China' => 'Province',
+            'United Kingdom' => 'Country',
+        ];
+    }
 }
