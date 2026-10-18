@@ -121,7 +121,7 @@
             body.home .hero-land { background: var(--forest-deep); }
             body.home .hero-land img {
                 object-fit: contain;
-                object-position: center center;
+                object-position: center top;
                 background: var(--forest-deep);
             }
             body.home footer,
