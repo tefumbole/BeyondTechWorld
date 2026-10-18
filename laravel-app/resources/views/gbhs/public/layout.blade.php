@@ -22,7 +22,6 @@
         body { margin: 0; font-family: "Source Sans 3", sans-serif; font-size: 1.2rem; line-height: 1.6; color: var(--ink); background: var(--cream); }
         a { color: var(--leaf); }
         header { background: var(--forest-deep); color: var(--cream); }
-        .mast { width: 100%; height: auto; display: block; }
         .bar { display: flex; align-items: center; gap: 28px; padding: 10px 3vw; width: 100%; }
         nav { display: flex; flex-wrap: wrap; gap: 8px 22px; flex: 1; }
         nav a { color: var(--cream); text-decoration: none; font-size: 1.15rem; font-weight: 600; }
@@ -55,12 +54,27 @@
         .muted { color: #3d5346; font-size: 1.15rem; }
         .alert { padding: 12px 14px; border-radius: 8px; background: #fff4d2; margin-bottom: 16px; }
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
-        footer { background: var(--forest-deep); color: #d7e6db; font-size: 1.05rem; }
-        footer a { color: var(--gold); }
-        .foot-mosaic, .foot-band { width: 100%; height: auto; display: block; }
-        .foot-copy { padding: 16px 3vw 22px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; }
-        .foot-copy p { margin: 0; font-size: 1rem; }
-        .contact-link { font-weight: 700; font-size: 1.15rem; }
+        footer { color: #f4e7c3; font-size: 1.05rem; background: #071833; }
+        footer a { color: var(--gold); text-decoration: none; }
+        .foot-mosaic { width: 100%; height: auto; display: block; }
+        .foot-band {
+            position: relative;
+            min-height: 64px;
+            background: #071833 url("{{ url('public/gbhs/gbhs-footer-band.jpg') }}") center / 100% 100% no-repeat;
+        }
+        .foot-copy {
+            position: relative;
+            z-index: 1;
+            min-height: 64px;
+            padding: 10px 4vw;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px 24px;
+        }
+        .foot-copy p { margin: 0; font-size: .98rem; color: #f7f1df; }
+        .contact-link { font-weight: 700; font-size: 1.05rem; }
         .cc { position: relative; flex: 0 0 auto; }
         .cc-btn { margin: 0; width: auto; min-width: 118px; display: flex; align-items: center; gap: 6px; background: #fff; color: var(--ink); border: 1px solid #d7c59a; }
         .cc-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 280px; background: #fff; border: 1px solid #e4d3a2; border-radius: 10px; box-shadow: 0 12px 30px rgba(7, 31, 19, .16); }
@@ -72,44 +86,30 @@
         .cc-menu .dial { color: #6d7a70; }
         .phone-row { display: flex; gap: 8px; align-items: center; }
         .phone-row input[type="tel"] { flex: 1; }
-        body.home { background: var(--logo-green); }
+        body.home {
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #063018;
+        }
+        body.home header, body.home footer { flex: 0 0 auto; }
         body.home main { display: none; }
-        body.home .hero-logo {
+        body.home .foot-mosaic { display: none; }
+        body.home .hero-land {
+            flex: 1 1 auto;
+            min-height: 0;
             width: 100%;
-            position: relative;
             overflow: hidden;
-            background: var(--logo-green);
-            line-height: 0;
+            background: #063018;
         }
-        body.home .hero-logo img {
+        body.home .hero-land img {
             width: 100%;
-            height: auto;
+            height: 100%;
+            object-fit: cover;
+            object-position: center bottom;
             display: block;
-            animation: crest-float 5.2s ease-in-out infinite;
-            filter: drop-shadow(0 18px 28px rgba(0, 0, 0, .28));
-        }
-        body.home .hero-shine {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            overflow: hidden;
-        }
-        body.home .hero-shine:before {
-            content: "";
-            position: absolute;
-            top: -10%;
-            bottom: -10%;
-            width: 22%;
-            background: linear-gradient(90deg, transparent, rgba(255, 236, 180, .42), transparent);
-            animation: crest-shine 5.2s ease-in-out infinite;
-        }
-        @keyframes crest-float {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-12px) scale(1.015); }
-        }
-        @keyframes crest-shine {
-            0% { transform: translateX(-140%) skewX(-18deg); }
-            45%, 100% { transform: translateX(520%) skewX(-18deg); }
         }
         body.testimonials .page { width: 100%; }
         @media (max-width: 800px) {
@@ -117,9 +117,6 @@
             nav { order: 3; width: 100%; }
             h1 { font-size: 2.1rem; }
             .cc-menu { width: min(280px, 80vw); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            body.home .hero-logo img, body.home .hero-shine:before { animation: none; }
         }
     </style>
     <script>
@@ -255,7 +252,6 @@
     $contactDigits = preg_replace('/\D/', '', $contactPhone);
 @endphp
 <header>
-    <img class="mast" src="{{ url('public/gbhs/gbhs-header.jpg') }}" alt="GBHS Kumbo Ex-Students Association, 50 years, 1976 to 2026">
     <div class="bar">
         <nav>
             <a href="{{ route('gbhs.home') }}">Home</a>
@@ -278,16 +274,17 @@
 </main>
 <footer>
     <img class="foot-mosaic" src="{{ url('public/gbhs/gbhs-footer-mosaic.png') }}" alt="">
-    <img class="foot-band" src="{{ url('public/gbhs/gbhs-footer-band.jpg') }}" alt="">
-    <div class="foot-copy">
-        <div>
-            @if($contactDigits !== '')
-                <a class="contact-link" href="tel:+{{ $contactDigits }}">Contact us · {{ $contactWho }} · {{ $contactPhone }}</a>
-            @else
-                <a class="contact-link" href="{{ route('gbhs.page', 'contact') }}">Contact us · {{ $contactWho }}</a>
-            @endif
+    <div class="foot-band">
+        <div class="foot-copy">
+            <div>
+                @if($contactDigits !== '')
+                    <a class="contact-link" href="tel:+{{ $contactDigits }}">Contact the President · {{ $contactPhone }}</a>
+                @else
+                    <a class="contact-link" href="{{ route('gbhs.page', 'contact') }}">Contact the President</a>
+                @endif
+            </div>
+            <p>Developed By: Sr. Engr. Tefu R. Mbole | <a href="tel:+237675321739">+237 675-321-739</a></p>
         </div>
-        <p>Developed By: Sr. Engr. Tefu R. Mbole | <a href="tel:+237675321739">+237 675-321-739</a></p>
     </div>
 </footer>
 <script type="application/json" id="gbhs-countries">@json(\App\Support\CountryDialCodes::picker())</script>
