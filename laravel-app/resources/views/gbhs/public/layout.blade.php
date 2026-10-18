@@ -56,7 +56,6 @@
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
         footer { color: #f4e7c3; font-size: 1.05rem; background: #071833; }
         footer a { color: var(--gold); text-decoration: none; }
-        .foot-mosaic { width: 100%; height: auto; display: block; }
         .foot-band {
             position: relative;
             min-height: 64px;
@@ -272,7 +271,6 @@
     </div>
 </main>
 <footer>
-    <img class="foot-mosaic" src="{{ url('public/gbhs/gbhs-footer-mosaic.png') }}" alt="">
     <div class="foot-band">
         <div class="foot-copy">
             <div>
