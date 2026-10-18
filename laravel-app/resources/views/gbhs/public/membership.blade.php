@@ -269,6 +269,20 @@
                 return divisionLabels[name] || (name ? 'State or region' : 'State or region');
             }
             function applyCountry(name, keep) {
+                if (!name) {
+                    regionLabel.textContent = 'State or region';
+                    regionFreeLabel.textContent = 'State or region';
+                    regionSearch.placeholder = 'Search state or region';
+                    regionFree.placeholder = 'Type your state or region';
+                    regionChoices.splice(0, regionChoices.length);
+                    regionBox.hidden = false;
+                    regionSearch.required = true;
+                    regionText.hidden = true;
+                    regionFree.required = false;
+                    regionFree.name = '';
+                    regionValue.disabled = false;
+                    return;
+                }
                 var word = divisionWord(name);
                 var lower = word.toLowerCase();
                 regionLabel.textContent = word;
@@ -307,7 +321,7 @@
                 picker(countrySearch, countryValue, document.getElementById('countryList'), countries, function (name) { applyCountry(name, false); });
             }
             picker(regionSearch, regionValue, document.getElementById('regionList'), regionChoices, null);
-            applyCountry(countryValue.value || 'Cameroon', true);
+            applyCountry(countryValue.value, true);
             var phone = document.getElementById('joinPhone');
             if (phone && window.gbhsLookupName) {
                 gbhsLookupName(phone, document.querySelector('form [data-cc-value]'), document.getElementById('joinName'), document.getElementById('joinHint'));
