@@ -129,6 +129,10 @@ Route::post('/gbhs/register/verify', 'GbhsPublicController@verifyOtp')->middlewa
 Route::post('/gbhs/register/profile', 'GbhsPublicController@saveProfile')->name('gbhs.register.profile');
 Route::post('/gbhs/register/identification', 'GbhsPublicController@saveIdentification')->name('gbhs.register.identification');
 Route::post('/gbhs/register/portrait', 'GbhsPublicController@savePortrait')->name('gbhs.register.portrait');
+Route::post('/gbhs/register/handoff', 'GbhsPublicController@captureHandoff')->middleware('throttle:20,1')->name('gbhs.register.handoff');
+Route::get('/gbhs/register/handoff/{token}', 'GbhsPublicController@captureStatus')->middleware('throttle:60,1')->name('gbhs.register.handoff.status');
+Route::get('/gbhs/capture/{token}', 'GbhsPublicController@capturePhone')->name('gbhs.capture');
+Route::post('/gbhs/capture/{token}', 'GbhsPublicController@capturePhoneStore')->middleware('throttle:20,1')->name('gbhs.capture.store');
 Route::post('/gbhs/register/sign', 'GbhsPublicController@sign')->name('gbhs.register.sign');
 Route::get('/gbhs/bylaws/{id}', 'GbhsPublicController@bylaw')->name('gbhs.bylaw');
 Route::get('/gbhs/donate', 'GbhsPublicController@donateForm')->name('gbhs.donate');

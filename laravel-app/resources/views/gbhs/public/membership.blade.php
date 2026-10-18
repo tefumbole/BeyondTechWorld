@@ -48,7 +48,12 @@
     .live video { width: 100%; height: 100%; object-fit: cover; border-radius: 46%; transform: scaleX(-1); background: #10281a; }
     .live-ring { position: absolute; inset: 8px; border: 4px solid #e8c15a; border-radius: 46%; pointer-events: none; box-shadow: inset 0 0 0 8px rgba(12, 58, 34, .18); }
     .live-step { text-align: center; font-weight: 700; color: #0c3a22; min-height: 2.6em; margin: 8px 0; }
+    .live-meter { height: 8px; border-radius: 99px; background: #e4d3a2; overflow: hidden; margin: 0 auto 8px; width: min(280px, 78vw); }
+    .live-meter span { display: block; height: 100%; width: 0; background: #0c3a22; }
     .live-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
+    .handoff { margin: 12px 0; padding: 14px; border: 1px solid #e4d3a2; border-radius: 14px; background: #fffdf8; }
+    .handoff img { width: 220px; height: 220px; display: block; margin: 10px auto; background: #fff; }
+    .handoff a { word-break: break-all; }
     .live-dots i { width: 10px; height: 10px; border-radius: 50%; background: #e4d3a2; display: block; }
     .live-dots i.on { background: #0c3a22; }
     @media (max-width: 700px) { .fields, .stage-nav, .home-pick { grid-template-columns: 1fr; } .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); } }
@@ -450,6 +455,16 @@
             <button type="button" class="btn gold" id="idFile">Upload</button>
             <img class="photo-preview" id="idPreview" alt="" hidden>
         </div>
+        <div class="handoff" id="idHandoff" hidden>
+            <p>Use this computer, or continue on your phone.</p>
+            <button type="button" class="btn" id="idHere">Continue on this device</button>
+            <button type="button" class="btn gold" id="idMobile">Continue on mobile</button>
+            <div id="idQr" hidden>
+                <img id="idQrImg" alt="QR code to open the camera on your phone" hidden>
+                <p id="idQrNote" class="muted"></p>
+                <a id="idQrLink" href=""></a>
+            </div>
+        </div>
         <input type="file" name="document" id="idInput" accept="image/*" hidden>
         <div class="fields">
             <div class="wide"><label>Name on the document</label><input name="id_holder_name" value="{{ $application->id_holder_name }}"></div>
@@ -462,15 +477,27 @@
             <button type="submit" class="btn" onclick="document.getElementById('idAction').value='skip'">Skip for now</button>
         </div>
     </form>
+    @include('gbhs.public.partials.face_check')
     <script>
         (function () {
             var input = document.getElementById('idInput');
             var preview = document.getElementById('idPreview');
-            function arm(camera) {
-                gbhsPickPhoto(input, camera, preview);
-            }
-            document.getElementById('idCam').addEventListener('click', function () { arm(true); });
-            document.getElementById('idFile').addEventListener('click', function () { arm(false); });
+            document.getElementById('idCam').addEventListener('click', function () {
+                document.getElementById('idHandoff').hidden = false;
+            });
+            document.getElementById('idHere').addEventListener('click', function () { gbhsPickPhoto(input, true, preview); });
+            document.getElementById('idMobile').addEventListener('click', function () {
+                gbhsPhoneHandoff('id', {
+                    url: @json(route('gbhs.register.handoff')),
+                    status: @json(url('/gbhs/register/handoff')),
+                    back: window.location.href,
+                    wrap: document.getElementById('idQr'),
+                    img: document.getElementById('idQrImg'),
+                    note: document.getElementById('idQrNote'),
+                    link: document.getElementById('idQrLink')
+                });
+            });
+            document.getElementById('idFile').addEventListener('click', function () { gbhsPickPhoto(input, false, preview); });
             input.addEventListener('change', function () {
                 if (!input.files || !input.files[0]) return;
                 document.getElementById('idAction').value = 'read';
@@ -487,12 +514,22 @@
         <div id="liveBox" hidden>
             <div class="live"><video id="liveVideo" autoplay playsinline muted></video><div class="live-ring"></div></div>
             <p class="live-step" id="liveStep">Look straight at the camera</p>
+            <div class="live-meter" hidden><span id="liveMeter"></span></div>
             <div class="live-dots" id="liveDots"><i class="on"></i><i></i><i></i><i></i></div>
         </div>
         <div class="photo-row">
             <button type="button" class="btn" id="photoCam">Start face check</button>
-            <button type="button" class="btn gold" id="photoFile">Attach a photo</button>
-            <img class="photo-preview" id="photoPreview" alt="" hidden @if($application->photo) src="{{ url('public/'.$application->photo) }}" hidden="false" @endif>
+            <img class="photo-preview" id="photoPreview" alt="" hidden @if($application->photo) src="{{ url('public/'.$application->photo) }}" @endif>
+        </div>
+        <div class="handoff" id="photoHandoff" hidden>
+            <p>Use this computer, or continue on your phone.</p>
+            <button type="button" class="btn" id="photoHere">Continue on this device</button>
+            <button type="button" class="btn gold" id="photoMobile">Continue on mobile</button>
+            <div id="photoQr" hidden>
+                <img id="photoQrImg" alt="QR code to open the camera on your phone" hidden>
+                <p id="photoQrNote" class="muted"></p>
+                <a id="photoQrLink" href=""></a>
+            </div>
         </div>
         <input type="file" name="photo" id="photoInput" accept="image/*" hidden>
         <div class="actions">
@@ -501,122 +538,53 @@
             <button type="submit" class="btn" onclick="document.getElementById('photoAction').value='skip'">Skip for now</button>
         </div>
     </form>
+    @include('gbhs.public.partials.face_check')
     <script>
         (function () {
             var input = document.getElementById('photoInput');
             var preview = document.getElementById('photoPreview');
-            var liveBox = document.getElementById('liveBox');
-            var video = document.getElementById('liveVideo');
             var stepEl = document.getElementById('liveStep');
-            var dots = document.querySelectorAll('#liveDots i');
-            var stream = null;
-            var sampleCanvas = document.createElement('canvas');
-            sampleCanvas.width = 80;
-            sampleCanvas.height = 100;
-            var sampleCtx = sampleCanvas.getContext('2d');
-            var prev = null;
-            var step = 0;
-            var stepAt = 0;
-            var held = 0;
-            var last = 0;
-            var running = false;
-            var prompts = [
-                'Look straight at the camera',
-                'Slowly turn your head left',
-                'Slowly turn your head right',
-                'Look straight again'
-            ];
             if (preview.getAttribute('src')) preview.hidden = false;
-            function stopCamera() {
-                running = false;
-                if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
-                stream = null;
-                liveBox.hidden = true;
-            }
-            function measure() {
-                sampleCtx.save();
-                sampleCtx.translate(80, 0);
-                sampleCtx.scale(-1, 1);
-                sampleCtx.drawImage(video, 0, 0, 80, 100);
-                sampleCtx.restore();
-                var data = sampleCtx.getImageData(0, 0, 80, 100).data;
-                if (!prev) { prev = new Uint8ClampedArray(data); return { motion: 0, left: 0, right: 0 }; }
-                var left = 0, right = 0;
-                for (var i = 0; i < data.length; i += 16) {
-                    var delta = Math.abs(data[i] - prev[i]) + Math.abs(data[i + 1] - prev[i + 1]) + Math.abs(data[i + 2] - prev[i + 2]);
-                    if (delta > 40) {
-                        if (((i / 4) % 80) < 40) left++; else right++;
-                    }
-                }
-                prev = new Uint8ClampedArray(data);
-                return { motion: left + right, left: left, right: right };
-            }
-            function ready(sample, now) {
-                if (step === 1 || step === 2) {
-                    var turned = step === 1 ? sample.left > sample.right + 4 : sample.right > sample.left + 4;
-                    return (turned && sample.motion > 12) || (now - stepAt > 8000 && sample.motion > 8);
-                }
-                return true;
-            }
-            function capture() {
-                var shot = document.createElement('canvas');
-                shot.width = video.videoWidth || 640;
-                shot.height = video.videoHeight || 480;
-                shot.getContext('2d').drawImage(video, 0, 0);
-                shot.toBlob(function (blob) {
-                    if (!blob) return;
+            var check = gbhsFaceCheck({
+                box: document.getElementById('liveBox'),
+                video: document.getElementById('liveVideo'),
+                stepEl: stepEl,
+                meter: document.getElementById('liveMeter'),
+                dots: document.querySelectorAll('#liveDots i'),
+                onCapture: function (blob) {
                     var file = new File([blob], 'portrait.jpg', { type: 'image/jpeg' });
                     var transfer = new DataTransfer();
                     transfer.items.add(file);
                     input.files = transfer.files;
                     preview.src = URL.createObjectURL(blob);
                     preview.hidden = false;
-                    stopCamera();
+                    document.getElementById('liveBox').hidden = true;
                     stepEl.textContent = 'Photo ready. Continue when you are happy with it.';
-                }, 'image/jpeg', 0.9);
-            }
-            function tick(now) {
-                if (!running) return;
-                var elapsed = last ? now - last : 16;
-                last = now;
-                var sample = measure();
-                if (!stepAt) stepAt = now;
-                if (ready(sample, now)) held += elapsed; else held = Math.max(0, held - elapsed);
-                var need = step === 0 || step === 3 ? 900 : 500;
-                if (held > need) {
-                    held = 0;
-                    stepAt = now;
-                    prev = null;
-                    step += 1;
-                    dots.forEach(function (dot, index) { dot.className = index <= step ? 'on' : ''; });
-                    if (step >= prompts.length) { capture(); return; }
-                    stepEl.textContent = prompts[step];
                 }
-                requestAnimationFrame(tick);
-            }
+            });
             document.getElementById('photoCam').addEventListener('click', function () {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    gbhsPickPhoto(input, true, preview);
-                    return;
-                }
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }).then(function (media) {
-                    stream = media;
-                    video.srcObject = media;
-                    liveBox.hidden = false;
-                    step = 0;
-                    stepAt = 0;
-                    held = 0;
-                    last = 0;
-                    prev = null;
-                    running = true;
-                    stepEl.textContent = prompts[0];
-                    dots.forEach(function (dot, index) { dot.className = index === 0 ? 'on' : ''; });
-                    requestAnimationFrame(tick);
+                document.getElementById('photoHandoff').hidden = false;
+            });
+            document.getElementById('photoHere').addEventListener('click', function () {
+                check.start().then(function () {
+                    document.getElementById('photoHandoff').hidden = true;
                 }).catch(function () {
-                    gbhsPickPhoto(input, true, preview);
+                    stepEl.textContent = 'This camera could not be opened. Continue on your phone.';
+                    document.getElementById('liveBox').hidden = false;
                 });
             });
-            document.getElementById('photoFile').addEventListener('click', function () { stopCamera(); gbhsPickPhoto(input, false, preview); });
+            document.getElementById('photoMobile').addEventListener('click', function () {
+                check.stop();
+                gbhsPhoneHandoff('portrait', {
+                    url: @json(route('gbhs.register.handoff')),
+                    status: @json(url('/gbhs/register/handoff')),
+                    back: @json(route('gbhs.membership', ['step' => 'portrait'])),
+                    wrap: document.getElementById('photoQr'),
+                    img: document.getElementById('photoQrImg'),
+                    note: document.getElementById('photoQrNote'),
+                    link: document.getElementById('photoQrLink')
+                });
+            });
         })();
     </script>
 @elseif($step === 'sign')

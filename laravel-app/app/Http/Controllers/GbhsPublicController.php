@@ -28,6 +28,7 @@ use App\Support\CountryCities;
 use App\Support\CountryDialCodes;
 use App\Support\CountryRegions;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -385,21 +386,151 @@ class GbhsPublicController extends Controller
             $request->validate(['photo' => 'nullable|image|max:12288']);
         }
         if ($request->hasFile('photo')) {
-            $dir = public_path('gbhs/photos');
-            if (! is_dir($dir)) {
-                @mkdir($dir, 0775, true);
-            }
-            $file = $request->file('photo');
-            $stored = $application->id.'-'.time().'.jpg';
-            $file->move($dir, $stored);
-            $application->photo = 'gbhs/photos/'.$stored;
-            $application->photo_step = 'saved';
+            $this->storePortraitFile($application, $request->file('photo'));
+
+            return redirect()->route('gbhs.membership');
         } else {
             $application->photo_step = $application->photo ? 'saved' : 'skipped';
         }
         $application->save();
 
         return redirect()->route('gbhs.membership');
+    }
+
+    public function captureHandoff(Request $request)
+    {
+        $this->boot();
+        $application = $this->verifiedApplication();
+        if (! $application) {
+            return response()->json(['ok' => false], 403);
+        }
+        $kind = (string) $request->input('kind');
+        if (! in_array($kind, ['id', 'portrait'], true)) {
+            return response()->json(['ok' => false], 422);
+        }
+        $token = Str::random(40);
+        Cache::put($this->captureKey($token), [
+            'application_id' => $application->id,
+            'kind' => $kind,
+            'status' => 'waiting',
+        ], now()->addMinutes(20));
+        $url = route('gbhs.capture', ['token' => $token]);
+
+        return response()->json([
+            'ok' => true,
+            'token' => $token,
+            'url' => $url,
+            'qr' => \App\Support\OnlineInvitationQr::dataUri($url, 280, 1),
+        ]);
+    }
+
+    public function captureStatus($token)
+    {
+        $this->boot();
+        $application = $this->verifiedApplication();
+        $row = $this->captureRow($token);
+        if (! $application || ! $row || (int) $row['application_id'] !== (int) $application->id) {
+            return response()->json(['ok' => false], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'status' => $row['status'],
+            'message' => isset($row['message']) ? $row['message'] : '',
+        ]);
+    }
+
+    public function capturePhone($token)
+    {
+        $this->boot();
+        $row = $this->captureRow($token);
+        if (! $row) {
+            abort(404);
+        }
+
+        return view('gbhs.public.capture', [
+            'setting' => GbhsSetting::query()->first(),
+            'token' => $token,
+            'kind' => $row['kind'],
+            'done' => $row['status'] === 'done',
+            'label' => $row['kind'] === 'portrait' ? 'Portrait' : 'Identification',
+        ]);
+    }
+
+    public function capturePhoneStore(Request $request, $token)
+    {
+        $this->boot();
+        $row = $this->captureRow($token);
+        if (! $row || $row['status'] === 'done') {
+            return redirect()->route('gbhs.capture', ['token' => $token]);
+        }
+        $application = GbhsApplication::find($row['application_id']);
+        if (! $application) {
+            abort(404);
+        }
+        $message = '';
+        if ($row['kind'] === 'portrait') {
+            $request->validate(['photo' => 'required|image|max:12288']);
+            $this->storePortraitFile($application, $request->file('photo'));
+            $message = 'The portrait was received from your phone. Continue when you are happy with it.';
+        } else {
+            $request->validate(['document' => 'required|file|mimes:jpg,jpeg,png,webp|max:12288']);
+            $path = $request->file('document')->getRealPath();
+            try {
+                $extracted = (new GbhsIdReader())->read($path);
+            } finally {
+                if (is_string($path) && is_file($path)) {
+                    @unlink($path);
+                }
+            }
+            if (! empty($extracted['name'])) {
+                $application->id_holder_name = $extracted['name'];
+            }
+            if (! empty($extracted['number'])) {
+                $application->id_number = $extracted['number'];
+            }
+            if (! empty($extracted['issued_on'])) {
+                $application->id_issued_on = $extracted['issued_on'];
+            }
+            $application->save();
+            $message = ! empty($extracted['read'])
+                ? 'We read the document and deleted the image. Check the name, number, and date of issue, then continue.'
+                : 'The image was deleted and could not be read. Type the name, number, and date of issue, or try another photo.';
+        }
+        $row['status'] = 'done';
+        $row['message'] = $message;
+        Cache::put($this->captureKey($token), $row, now()->addMinutes(20));
+
+        return redirect()->route('gbhs.capture', ['token' => $token]);
+    }
+
+    protected function storePortraitFile(GbhsApplication $application, $file)
+    {
+        $dir = public_path('gbhs/photos');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $stored = $application->id.'-'.time().'.jpg';
+        $file->move($dir, $stored);
+        $application->photo = 'gbhs/photos/'.$stored;
+        $application->photo_step = 'saved';
+        $application->save();
+    }
+
+    protected function captureKey($token)
+    {
+        return 'gbhs.capture.'.preg_replace('/[^A-Za-z0-9]/', '', (string) $token);
+    }
+
+    protected function captureRow($token)
+    {
+        $token = (string) $token;
+        if (! preg_match('/^[A-Za-z0-9]{32,64}$/', $token)) {
+            return null;
+        }
+        $row = Cache::get($this->captureKey($token));
+
+        return is_array($row) ? $row : null;
     }
 
     protected function applicationFromPhone(Request $request)
