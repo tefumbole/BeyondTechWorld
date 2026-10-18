@@ -106,8 +106,8 @@
         body.home .hero-land img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            object-position: center top;
+            object-fit: cover;
+            object-position: center 18%;
             display: block;
         }
         body.testimonials .page { width: 100%; }
