@@ -117,7 +117,32 @@
             display: block;
         }
         @media (max-width: 800px) {
-            body.home .hero-land img { object-position: 70% center; }
+            body.home { background: var(--forest-deep); }
+            body.home .hero-land { background: var(--forest-deep); }
+            body.home .hero-land img {
+                object-fit: contain;
+                object-position: center center;
+                background: var(--forest-deep);
+            }
+            body.home footer,
+            body.home .foot-band { background: var(--forest-deep); }
+            body.home .foot-copy {
+                box-sizing: border-box;
+                min-height: 60px;
+                padding: 8px max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+                flex-wrap: nowrap;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: center;
+                gap: 2px;
+                background: transparent;
+            }
+            body.home .foot-copy p,
+            body.home .contact-link {
+                font-size: clamp(11px, 3.2vw, 15px);
+                line-height: 1.2;
+                white-space: nowrap;
+            }
         }
         body.testimonials .page { width: 100%; }
         @media (max-width: 860px) {
