@@ -55,25 +55,26 @@
         .alert { padding: 12px 14px; border-radius: 8px; background: #fff4d2; margin-bottom: 16px; }
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
         footer { color: #f4e7c3; font-size: 1.05rem; background: #071833; }
-        footer a { color: var(--gold); text-decoration: none; }
+        footer a { color: #fff; text-decoration: none; }
         .foot-band {
             position: relative;
-            min-height: 64px;
-            background: #071833 url("{{ url('public/gbhs/gbhs-footer-band.jpg') }}") center / 100% 100% no-repeat;
+            min-height: 92px;
+            background: #0b3a86 url("{{ url('public/gbhs/gbhs-footer-band.jpg') }}") center / cover no-repeat;
         }
         .foot-copy {
             position: relative;
             z-index: 1;
-            min-height: 64px;
-            padding: 10px 4vw;
+            min-height: 92px;
+            padding: 18px 5vw;
             display: flex;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            gap: 6px 24px;
+            gap: 8px 28px;
+            background: linear-gradient(90deg, rgba(6, 28, 92, .2), rgba(8, 36, 110, .55) 12%, rgba(8, 36, 110, .55) 88%, rgba(6, 28, 92, .2));
         }
-        .foot-copy p { margin: 0; font-size: .98rem; color: #f7f1df; }
-        .contact-link { font-weight: 700; font-size: 1.05rem; }
+        .foot-copy p { margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff; }
+        .contact-link { font-weight: 700; font-size: 1.2rem; color: #fff; }
         .cc { position: relative; flex: 0 0 auto; }
         .cc-btn { margin: 0; width: auto; min-width: 118px; display: flex; align-items: center; gap: 6px; background: #fff; color: var(--ink); border: 1px solid #d7c59a; }
         .cc-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 280px; background: #fff; border: 1px solid #e4d3a2; border-radius: 10px; box-shadow: 0 12px 30px rgba(7, 31, 19, .16); }
@@ -105,8 +106,8 @@
         body.home .hero-land img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            object-position: center bottom;
+            object-fit: contain;
+            object-position: center top;
             display: block;
         }
         body.testimonials .page { width: 100%; }
@@ -273,13 +274,7 @@
 <footer>
     <div class="foot-band">
         <div class="foot-copy">
-            <div>
-                @if($contactDigits !== '')
-                    <a class="contact-link" href="tel:+{{ $contactDigits }}">Contact the President · {{ $contactPhone }}</a>
-                @else
-                    <a class="contact-link" href="{{ route('gbhs.page', 'contact') }}">Contact the President</a>
-                @endif
-            </div>
+            <a class="contact-link" href="https://wa.me/237242631082" target="_blank" rel="noopener">Contact us: Cell: +237 242-631-082</a>
             <p>Developed By: Sr. Engr. Tefu R. Mbole | <a href="tel:+237675321739">+237 675-321-739</a></p>
         </div>
     </div>
