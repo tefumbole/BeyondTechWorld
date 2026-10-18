@@ -10,7 +10,7 @@
         <input class="form-control mt-2" name="seo_title" value="{{ $setting->seo_title }}" placeholder="SEO title">
         <textarea class="form-control mt-2" name="seo_description">{{ $setting->seo_description }}</textarea>
         <input class="form-control mt-2" name="address" value="{{ $setting->address }}" placeholder="Address">
-        <input class="form-control mt-2" name="phone" value="{{ $setting->phone }}" placeholder="Phone">
+        <input class="form-control mt-2" name="phone" value="{{ $setting->phone }}" placeholder="President phone — shown as Contact us">
         <input class="form-control mt-2" name="email" value="{{ $setting->email }}" placeholder="Email">
         <input class="form-control mt-2" name="president_name" value="{{ $setting->president_name }}" placeholder="President name">
         <input class="form-control mt-2" name="president_title" value="{{ $setting->president_title }}" placeholder="Title">

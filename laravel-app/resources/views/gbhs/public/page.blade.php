@@ -1,13 +1,9 @@
 @extends('gbhs.public.layout')
 @section('hero')
 @if($slug === 'home')
-    <div class="banner-wrap">
-        <div class="banner-frame">
-            <img class="banner" src="{{ url('public/gbhs/gbhs-kumbo-jubilee.jpg') }}" width="1024" height="576" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
-            <a class="banner-crest" href="{{ route('gbhs.home') }}">
-                <img src="{{ url('public/gbhs/gbhs-kumbo-crest.png') }}" alt="GBHS Kumbo 50 years">
-            </a>
-        </div>
+    <div class="hero-logo">
+        <img src="{{ url('public/gbhs/gbhs-jubilee-logo.png') }}" alt="GBHS Kumbo 50th Golden Jubilee, 1976 to 2026">
+        <span class="hero-shine" aria-hidden="true"></span>
     </div>
 @endif
 @endsection
@@ -72,8 +68,33 @@
 @elseif($slug === 'leaders')
     @include('gbhs.public.testimonials')
 @elseif($slug === 'contact')
-    <h1>{{ $section->title ?? 'Contact' }}</h1>
-    <p>{!! nl2br(e($section->body ?? '')) !!}</p>
+    @php
+        $contactPhone = trim((string) ($setting->phone ?? ''));
+        $contactWho = trim((string) ($setting->president_name ?? ''));
+        if ($contactWho === '') { $contactWho = 'the President'; }
+        if ($contactPhone === '') {
+            try {
+                $leader = \App\Gbhs\GbhsLeader::where('published', 1)->where('role', 'like', '%resident%')->where('phone', '!=', '')->orderBy('sort')->first();
+                if ($leader) {
+                    $contactPhone = trim((string) $leader->phone);
+                    if (trim((string) $leader->name) !== '') { $contactWho = $leader->name; }
+                }
+            } catch (\Throwable $e) {
+                $leader = null;
+            }
+        }
+        $contactDigits = preg_replace('/\D/', '', $contactPhone);
+    @endphp
+    <h1>Contact us</h1>
+    <div class="card">
+        <p>Reach {{ $contactWho }} of the GBHS Kumbo Ex-Students Association.</p>
+        @if(!empty($contactDigits))
+            <p><a class="btn" href="tel:+{{ $contactDigits }}">Call {{ $contactPhone }}</a>
+            <a class="btn gold" href="https://wa.me/{{ $contactDigits }}">WhatsApp</a></p>
+        @else
+            <p>The president's number is not on the site yet. It is saved under Association Settings as the contact phone.</p>
+        @endif
+    </div>
     <form class="card" method="post" action="{{ route('gbhs.contact') }}">
         @csrf
         <label>Name</label><input name="name" required>

@@ -141,6 +141,71 @@ class CountryDialCodes
     }
 
     /**
+     * Searchable dial list. Cameroon is first, then the countries people ask for most.
+     *
+     * @return array<int, array{code:string,name:string,flag:string}>
+     */
+    public static function picker()
+    {
+        $preferred = [
+            ['+237', 'Cameroon', 'CM'],
+            ['+1', 'United States', 'US'],
+            ['+1', 'Canada', 'CA'],
+            ['+44', 'United Kingdom', 'GB'],
+            ['+33', 'France', 'FR'],
+            ['+49', 'Germany', 'DE'],
+            ['+86', 'China', 'CN'],
+        ];
+        $skip = ['+237' => true, '+1' => true, '+44' => true, '+33' => true, '+49' => true, '+86' => true];
+        $rows = [];
+        foreach ($preferred as $row) {
+            $rows[] = ['code' => $row[0], 'name' => $row[1], 'flag' => self::flag($row[2])];
+        }
+        foreach (self::all() as $code => $label) {
+            if (isset($skip[$code])) {
+                continue;
+            }
+            $name = trim(preg_replace('/\s*\(\+[0-9]+\)\s*$/', '', $label));
+            $rows[] = ['code' => $code, 'name' => $name, 'flag' => self::flag(self::iso($code))];
+        }
+
+        return $rows;
+    }
+
+    public static function flag($iso)
+    {
+        $iso = strtoupper((string) $iso);
+        if (strlen($iso) !== 2 || ! function_exists('mb_chr')) {
+            return '';
+        }
+
+        return mb_chr(127397 + ord($iso[0]), 'UTF-8').mb_chr(127397 + ord($iso[1]), 'UTF-8');
+    }
+
+    protected static function iso($code)
+    {
+        $map = [
+            '+250' => 'RW', '+256' => 'UG', '+254' => 'KE', '+255' => 'TZ', '+243' => 'CD',
+            '+242' => 'CG', '+235' => 'TD', '+236' => 'CF', '+241' => 'GA', '+234' => 'NG',
+            '+233' => 'GH', '+225' => 'CI', '+221' => 'SN', '+212' => 'MA', '+213' => 'DZ',
+            '+216' => 'TN', '+20' => 'EG', '+27' => 'ZA', '+251' => 'ET', '+249' => 'SD',
+            '+211' => 'SS', '+32' => 'BE', '+31' => 'NL', '+41' => 'CH', '+39' => 'IT',
+            '+34' => 'ES', '+351' => 'PT', '+91' => 'IN', '+81' => 'JP', '+82' => 'KR',
+            '+61' => 'AU', '+64' => 'NZ', '+55' => 'BR', '+52' => 'MX', '+971' => 'AE',
+            '+966' => 'SA', '+974' => 'QA', '+965' => 'KW', '+973' => 'BH', '+968' => 'OM',
+            '+90' => 'TR', '+7' => 'RU', '+380' => 'UA', '+48' => 'PL', '+46' => 'SE',
+            '+47' => 'NO', '+45' => 'DK', '+358' => 'FI', '+353' => 'IE', '+43' => 'AT',
+            '+36' => 'HU', '+420' => 'CZ', '+40' => 'RO', '+30' => 'GR', '+972' => 'IL',
+            '+92' => 'PK', '+880' => 'BD', '+63' => 'PH', '+62' => 'ID', '+60' => 'MY',
+            '+65' => 'SG', '+66' => 'TH', '+84' => 'VN', '+852' => 'HK', '+886' => 'TW',
+            '+54' => 'AR', '+56' => 'CL', '+57' => 'CO', '+58' => 'VE', '+51' => 'PE',
+            '+593' => 'EC',
+        ];
+
+        return isset($map[$code]) ? $map[$code] : '';
+    }
+
+    /**
      * @return array<int, array{code:string,label:string}>
      */
     public static function list()

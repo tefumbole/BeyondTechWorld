@@ -106,18 +106,25 @@ class GbhsPublicController extends Controller
     public function startMembership(Request $request)
     {
         $this->boot();
-        $request->validate(['phone' => 'required|string|min:8|max:20']);
-        $digits = preg_replace('/\D/', '', (string) $request->phone);
-        if (strlen($digits) === 9) {
-            $digits = '237'.$digits;
-        }
+        $request->validate([
+            'phone' => 'required|string|min:8|max:24',
+            'country_code' => 'nullable|string|max:8',
+            'full_name' => 'nullable|string|max:160',
+        ]);
+        $digits = preg_replace('/\D/', '', \App\Support\CountryDialCodes::combine(
+            $request->input('country_code', '+237'),
+            $request->phone
+        ));
         $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
         $name = is_array($hit) && ! empty($hit['name']) ? $hit['name'] : '';
+        $typed = trim((string) $request->input('full_name'));
         $application = GbhsMembership::openDraft($digits);
         if (! $application) {
             return back()->with('not_permitted', 'The phone number could not be saved.')->withInput();
         }
-        if ($name !== '') {
+        if ($typed !== '') {
+            $application->full_name = $typed;
+        } elseif ($name !== '') {
             $application->full_name = $name;
         }
         $application->phone_verified = 1;
@@ -171,13 +178,14 @@ class GbhsPublicController extends Controller
     public function lookupPhone(Request $request)
     {
         $this->boot();
-        $digits = preg_replace('/\D/', '', (string) $request->query('phone'));
-        if (strlen($digits) === 9) {
-            $digits = '237'.$digits;
-        }
-        if (strlen($digits) < 9) {
+        $raw = preg_replace('/\D/', '', (string) $request->query('phone'));
+        if (strlen($raw) < 8) {
             return response()->json(['ok' => true, 'found' => false, 'name' => '']);
         }
+        $digits = preg_replace('/\D/', '', \App\Support\CountryDialCodes::combine(
+            $request->query('country_code', '+237'),
+            $raw
+        ));
         $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
         $name = is_array($hit) && ! empty($hit['name']) ? $hit['name'] : '';
 
@@ -236,7 +244,7 @@ class GbhsPublicController extends Controller
             'email' => 'nullable|email|max:160',
             'agree_bylaws' => 'accepted',
             'consent_processing' => 'accepted',
-            'photo' => 'nullable|image|max:4096',
+            'photo' => 'nullable|image|max:12288',
         ]);
         $bylaw = GbhsBylawVersion::where('status', 'published')->orderBy('id', 'desc')->first();
         if (! $bylaw || ! $bylaw->file) {
@@ -339,16 +347,21 @@ class GbhsPublicController extends Controller
             'donor_name' => 'required|string|max:160',
             'amount' => 'required|integer|min:100',
             'method' => 'required|in:momo,card,crypto',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:24',
+            'country_code' => 'nullable|string|max:8',
             'email' => 'nullable|email',
         ]);
         if (! $request->filled('phone')) {
             return back()->with('not_permitted', 'Enter your phone number.')->withInput();
         }
+        $phone = preg_replace('/\D/', '', \App\Support\CountryDialCodes::combine(
+            $request->input('country_code', '+237'),
+            $request->phone
+        ));
         $payment = GbhsPayment::create([
             'public_token' => Str::random(32),
             'donor_name' => $request->donor_name,
-            'phone' => $request->phone,
+            'phone' => $phone,
             'email' => $request->email,
             'amount' => (int) $request->amount,
             'method' => $request->method,

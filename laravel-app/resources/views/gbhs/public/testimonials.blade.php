@@ -1,6 +1,5 @@
 @php
     $rows = isset($testimonials) ? $testimonials : collect();
-    $countries = \App\Support\CountryDialCodes::list();
 @endphp
 <style>
     .tm-kicker { margin: 0 0 8px; color: var(--gold-deep); font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
@@ -10,8 +9,10 @@
     .tm-form { background: #fff; border: 1px solid #e4dcc4; border-radius: 12px; padding: 18px; margin-bottom: 28px; }
     .tm-form label { display: block; font-weight: 700; margin: 12px 0 4px; }
     .tm-form input, .tm-form textarea, .tm-form select { width: 100%; border: 1px solid #d7deea; border-radius: 8px; padding: 10px 12px; font: inherit; }
-    .tm-phone { display: flex; gap: 8px; }
-    .tm-phone select { width: 110px; }
+    .tm-phone { display: flex; gap: 8px; align-items: center; }
+    .tm-shot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .tm-shot button { margin: 0; }
+    .tm-preview { width: 96px; height: 96px; object-fit: cover; border-radius: 12px; border: 1px solid #e4dcc4; }
     .tm-pad { width: 100%; max-width: 520px; height: 140px; border: 2px dashed var(--forest); border-radius: 12px; background: #fff; touch-action: none; }
     .tm-err { color: #9b2c2c; font-weight: 700; }
     .tm-ok { background: #e7f6ec; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
@@ -52,16 +53,12 @@
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
     <label>Phone number *</label>
     <div class="tm-phone">
-        <select name="country_code" id="tmCountry">
-            @foreach($countries as $c)
-                <option value="{{ $c['code'] }}" {{ $c['code'] === '+237' ? 'selected' : '' }}>{{ $c['code'] }}</option>
-            @endforeach
-        </select>
+        @include('gbhs.public.partials.country_code')
         <input type="tel" name="phone" id="tmPhone" placeholder="675321739" required>
     </div>
     <label>Name *</label>
     <input type="text" name="name" id="tmName" required>
-    <p class="tm-hint" id="tmNameHint">We use the Mobile Money name when we find it. You can edit it.</p>
+    <p class="tm-hint" id="tmNameHint">Type your number. We use the Mobile Money name when we find it. You can edit it.</p>
     <label>Testimony about GBHS Kumbo *</label>
     <textarea name="body" id="tmBody" rows="7" required maxlength="20000" placeholder="What GBHS Kumbo means to you…"></textarea>
     <label>Signature *</label>
@@ -69,8 +66,13 @@
     <div style="margin-top:8px;"><button type="button" class="tm-btn ghost" id="tmClear">Clear signature</button></div>
     <input type="hidden" name="signature" id="tmSig">
     <label>Selfie</label>
-    <input type="file" name="selfie" id="tmSelfie" accept="image/*">
-    <p class="tm-hint">A photo from your camera or gallery. We keep it at 256 KB or less.</p>
+    <div class="tm-shot">
+        <button type="button" class="tm-btn" id="tmCam">Take a selfie</button>
+        <button type="button" class="tm-btn ghost" id="tmAttach">Attach a photo</button>
+        <img class="tm-preview" id="tmPreview" alt="" hidden>
+    </div>
+    <input type="file" name="selfie" id="tmSelfie" accept="image/*" hidden>
+    <p class="tm-hint">Take a selfie to open the camera, or attach a photo you already have. We keep it at 256 KB or less.</p>
     <p class="tm-err" id="tmErr"></p>
     <div style="margin-top:12px;">
         <button type="submit" class="tm-btn">Submit testimony</button>
@@ -154,18 +156,11 @@
     });
     var phone = document.getElementById('tmPhone');
     var hint = document.getElementById('tmNameHint');
-    phone.addEventListener('blur', function () {
-        var q = phone.value.replace(/\D/g, '');
-        if (q.length < 8) return;
-        fetch(@json(route('gbhs.donate.lookup')) + '?phone=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
-            .then(function (r) { return r.json(); })
-            .then(function (j) {
-                if (j && j.name) {
-                    document.getElementById('tmName').value = j.name;
-                    hint.textContent = 'Name found. You can edit it.';
-                }
-            }).catch(function () {});
-    });
+    gbhsLookupName(phone, form.querySelector('[data-cc-value]'), document.getElementById('tmName'), hint);
+    var selfie = document.getElementById('tmSelfie');
+    var preview = document.getElementById('tmPreview');
+    document.getElementById('tmCam').addEventListener('click', function () { gbhsPickPhoto(selfie, true, preview); });
+    document.getElementById('tmAttach').addEventListener('click', function () { gbhsPickPhoto(selfie, false, preview); });
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         var err = document.getElementById('tmErr');
