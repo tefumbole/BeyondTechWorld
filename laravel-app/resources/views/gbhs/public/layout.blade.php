@@ -256,7 +256,7 @@
             <a href="{{ route('gbhs.membership', ['choose' => 1]) }}">Membership</a>
             <a href="{{ route('gbhs.page', 'leaders') }}">Testimonials</a>
             <a href="{{ route('gbhs.donate') }}">Donate</a>
-            <a href="{{ route('gbhs.page', 'contact') }}">Contact us</a>
+            <a href="https://wa.me/237242631082" target="_blank" rel="noopener">Contact us</a>
         </nav>
         <a class="login" href="{{ url('/login') }}">Login</a>
     </div>
@@ -273,7 +273,7 @@
     <div class="foot-band">
         <div class="foot-copy">
             <a class="contact-link" href="https://wa.me/237242631082" target="_blank" rel="noopener">Contact us: Cell: +237 242-631-082</a>
-            <p>Developed By: Sr. Engr. Tefu R. Mbole | <a href="tel:+237675321739">+237 675-321-739</a></p>
+            <p><a href="https://wa.me/237675321739" target="_blank" rel="noopener">Developed By: Sr. Engr. Tefu R. Mbole | +237 675-321-739</a></p>
         </div>
     </div>
 </footer>

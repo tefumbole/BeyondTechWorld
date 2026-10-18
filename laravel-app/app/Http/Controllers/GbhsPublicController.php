@@ -24,6 +24,7 @@ use App\Gbhs\GbhsTestimonial;
 use App\Gbhs\GbhsTestimonialWriter;
 use App\Gbhs\GbhsTenant;
 use App\Services\BeyondAuthService;
+use App\Support\CountryCities;
 use App\Support\CountryDialCodes;
 use App\Support\CountryRegions;
 use Illuminate\Http\Request;
@@ -107,6 +108,7 @@ class GbhsPublicController extends Controller
             $countries[] = $row['name'];
         }
         $regions = CountryRegions::map();
+        $cities = CountryCities::map();
         $divisionLabels = CountryRegions::labels();
         $articles = GbhsBylaws::articles();
         if (! $application) {
@@ -114,7 +116,7 @@ class GbhsPublicController extends Controller
         }
 
         return view('gbhs.public.membership', compact(
-            'setting', 'section', 'batches', 'bylaw', 'application', 'step', 'countries', 'regions', 'articles', 'home', 'divisionLabels'
+            'setting', 'section', 'batches', 'bylaw', 'application', 'step', 'countries', 'regions', 'cities', 'articles', 'home', 'divisionLabels'
         ));
     }
 
@@ -294,11 +296,20 @@ class GbhsPublicController extends Controller
             'country' => 'required|string|max:80',
             'region' => 'required|string|max:80',
             'city' => 'nullable|string|max:80',
+            'city_other' => 'nullable|string|max:80',
         ]);
+        $city = trim((string) $request->input('city'));
+        if ($city === '' || strcasecmp($city, 'Other') === 0) {
+            $city = trim((string) $request->input('city_other'));
+        }
+        if ($city === '') {
+            return back()->with('not_permitted', 'Choose your city.')->withInput();
+        }
         $data = $request->only([
             'full_name', 'date_of_birth', 'gender', 'marital_status', 'years_attended',
-            'profession', 'employment_status', 'employer', 'email', 'country', 'region', 'city', 'batch_id',
+            'profession', 'employment_status', 'employer', 'email', 'country', 'region', 'batch_id',
         ]);
+        $data['city'] = $city;
         if (empty($data['date_of_birth'])) {
             $data['date_of_birth'] = null;
         }

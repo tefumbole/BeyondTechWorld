@@ -7,7 +7,12 @@
     .stage span { display: grid; place-items: center; width: 36px; height: 36px; margin: 0 auto 6px; border-radius: 50%; background: #fff; border: 1px solid #e4d3a2; color: #5c6b62; }
     .stage.on span, .stage.done span { background: var(--forest); color: var(--gold); border-color: var(--forest); }
     .stage.on { color: var(--forest); }
-    .join-card { background: #fff; border: 1px solid #e4d3a2; border-radius: 16px; padding: 22px 22px 26px; box-shadow: 0 10px 30px rgba(18, 53, 31, .06); }
+    .join-card { background: #fff; border: 1px solid #e4d3a2; border-radius: 18px; padding: 26px 24px 28px; box-shadow: 0 16px 40px rgba(18, 53, 31, .08); }
+    .join-card h1 { letter-spacing: -.02em; margin-bottom: 6px; }
+    .join label { display: block; margin: 14px 0 6px; font-weight: 700; color: #12351f; }
+    .join .req::after { content: " *"; color: #b42318; }
+    .join input, .join .fill-btn { background: #fff; border: 1px solid #e4d3a2; border-radius: 12px; }
+    .join input:focus, .join .fill-btn:focus { outline: 2px solid rgba(12, 58, 34, .25); border-color: #0c3a22; }
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
     .fields .wide { grid-column: 1 / -1; }
     .batch-box { position: relative; }
@@ -39,6 +44,13 @@
     .law h3 { margin: 0 0 4px; color: var(--gold); font-size: 1.05rem; }
     .law p { margin: 0; line-height: 1.45; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .live { position: relative; width: min(280px, 78vw); height: 340px; margin: 8px auto 4px; }
+    .live video { width: 100%; height: 100%; object-fit: cover; border-radius: 46%; transform: scaleX(-1); background: #10281a; }
+    .live-ring { position: absolute; inset: 8px; border: 4px solid #e8c15a; border-radius: 46%; pointer-events: none; box-shadow: inset 0 0 0 8px rgba(12, 58, 34, .18); }
+    .live-step { text-align: center; font-weight: 700; color: #0c3a22; min-height: 2.6em; margin: 8px 0; }
+    .live-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
+    .live-dots i { width: 10px; height: 10px; border-radius: 50%; background: #e4d3a2; display: block; }
+    .live-dots i.on { background: #0c3a22; }
     @media (max-width: 700px) { .fields, .stage-nav, .home-pick { grid-template-columns: 1fr; } .stage-nav { display: grid; grid-template-columns: repeat(4, 1fr); } }
 </style>
 @php
@@ -75,18 +87,18 @@
         <h1>Become a Member</h1>
         <p>Choose where you live. Cameroon uses regions. Diaspora uses a state, province, or region for the country you select.</p>
         <div class="home-pick">
-            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'cameroon']) }}"><strong>Cameroon</strong><span>Pick your region</span></a>
-            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'diaspora']) }}"><strong>Diaspora</strong><span>State or region for your country</span></a>
+            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'cameroon']) }}"><strong>Cameroon</strong></a>
+            <a class="home-card" href="{{ route('gbhs.membership', ['home' => 'diaspora']) }}"><strong>Diaspora</strong></a>
         </div>
     </div>
 @elseif($step === 'details')
     <form class="join-card" method="post" action="{{ route('gbhs.register.profile') }}">
         @csrf
         <h1>Your details</h1>
-        <p class="muted">{{ $home === 'diaspora' ? 'You are registering from the diaspora. The state or region list follows the country you select.' : 'You are registering from Cameroon. Choose your region.' }} Email and employer are optional.</p>
+        <p class="muted">Fields marked * are required. {{ $home === 'diaspora' ? 'The state or region list follows the country you select.' : 'Choose your region, then your city.' }}</p>
         <div class="fields">
             <div class="wide">
-                <label>Phone number</label>
+                <label class="req">Phone number</label>
                 @if($application && $application->phone)
                     <input value="{{ $application->phone }}" readonly>
                 @else
@@ -97,12 +109,11 @@
                 @endif
             </div>
             <div class="wide">
-                <label>Full name</label>
+                <label class="req">Full name</label>
                 <input name="full_name" id="joinName" value="{{ $application->full_name ?? '' }}" required>
-                <p class="muted" id="joinHint">Type the number. We fill the Mobile Money name when we find it. You can edit it.</p>
             </div>
             <div class="wide batch-box">
-                <label>Batch</label>
+                <label class="req">Batch</label>
                 <input type="search" id="batchSearch" placeholder="Search the year you finished or attended" autocomplete="off" required>
                 <input type="hidden" name="batch_id" id="batchId" value="{{ $application->batch_id ?? '' }}">
                 <ul id="batchList"></ul>
@@ -121,7 +132,7 @@
                 </div>
             </div>
             <div>
-                <label>Marital status</label>
+                <label class="req">Marital status</label>
                 <div class="fill-select" data-fill data-required="1">
                     <button type="button" class="fill-btn {{ ($application->marital_status ?? '') === '' ? 'is-empty' : '' }}"><span data-fill-label>{{ ($application->marital_status ?? '') !== '' ? $application->marital_status : 'Select' }}</span><span class="fill-caret">▾</span></button>
                     <input type="hidden" name="marital_status" value="{{ $application->marital_status ?? '' }}">
@@ -132,10 +143,10 @@
                     </ul>
                 </div>
             </div>
-            <div><label>Years attended</label><input name="years_attended" value="{{ $application->years_attended ?? '' }}" placeholder="Optional"></div>
-            <div><label>Profession</label><input name="profession" value="{{ $application->profession ?? '' }}" placeholder="Optional"></div>
+            <div><label>Years attended</label><input name="years_attended" value="{{ $application->years_attended ?? '' }}"></div>
+            <div><label>Profession</label><input name="profession" value="{{ $application->profession ?? '' }}"></div>
             <div>
-                <label>Employment status</label>
+                <label class="req">Employment status</label>
                 <div class="fill-select" data-fill data-required="1">
                     <button type="button" class="fill-btn {{ ($application->employment_status ?? '') === '' ? 'is-empty' : '' }}"><span data-fill-label>{{ ($application->employment_status ?? '') !== '' ? $application->employment_status : 'Select' }}</span><span class="fill-caret">▾</span></button>
                     <input type="hidden" name="employment_status" value="{{ $application->employment_status ?? '' }}">
@@ -146,33 +157,42 @@
                     </ul>
                 </div>
             </div>
-            <div><label>Employer <span class="muted">optional</span></label><input name="employer" value="{{ $application->employer ?? '' }}"></div>
-            <div class="wide"><label>Email <span class="muted">optional</span></label><input type="email" name="email" value="{{ $application->email ?? '' }}"></div>
+            <div><label>Employer</label><input name="employer" value="{{ $application->employer ?? '' }}"></div>
+            <div class="wide"><label>Email</label><input type="email" name="email" value="{{ $application->email ?? '' }}"></div>
             @if($home === 'diaspora')
             <div class="batch-box">
-                <label>Country</label>
+                <label class="req">Country</label>
                 <input type="search" id="countrySearch" placeholder="Search country" autocomplete="off" required value="{{ $pickedCountry }}">
                 <input type="hidden" name="country" id="countryValue" value="{{ $pickedCountry }}">
                 <ul id="countryList"></ul>
             </div>
             @else
             <div>
-                <label>Country</label>
+                <label class="req">Country</label>
                 <input value="Cameroon" readonly>
                 <input type="hidden" name="country" id="countryValue" value="Cameroon">
             </div>
             @endif
             <div class="batch-box" id="regionBox">
-                <label id="regionLabel">{{ $home === 'cameroon' ? 'Region' : ($pickedCountry ? \App\Support\CountryRegions::label($pickedCountry) : 'State or region') }}</label>
+                <label class="req" id="regionLabel">{{ $home === 'cameroon' ? 'Region' : ($pickedCountry ? \App\Support\CountryRegions::label($pickedCountry) : 'State or region') }}</label>
                 <input type="search" id="regionSearch" placeholder="Search {{ strtolower($home === 'cameroon' ? 'region' : ($pickedCountry ? \App\Support\CountryRegions::label($pickedCountry) : 'state or region')) }}" autocomplete="off" required value="{{ $pickedRegion }}">
                 <input type="hidden" name="region" id="regionValue" value="{{ $pickedRegion }}">
                 <ul id="regionList"></ul>
             </div>
             <div id="regionText" hidden>
-                <label id="regionFreeLabel">State or region</label>
+                <label class="req" id="regionFreeLabel">State or region</label>
                 <input id="regionFree" placeholder="Type your state or region" value="{{ $pickedRegion }}">
             </div>
-            <div><label>City</label><input name="city" value="{{ $application->city ?? '' }}" placeholder="Optional"></div>
+            <div class="batch-box" id="cityBox">
+                <label class="req" id="cityLabel">City</label>
+                <input type="search" id="citySearch" placeholder="Search city" autocomplete="off" required value="{{ $application->city ?? '' }}">
+                <input type="hidden" name="city" id="cityValue" value="{{ $application->city ?? '' }}">
+                <ul id="cityList"></ul>
+            </div>
+            <div id="cityOther" hidden>
+                <label class="req" id="cityOtherLabel">Your city</label>
+                <input id="cityOtherInput" value="{{ $application->city ?? '' }}" placeholder="Type your city">
+            </div>
         </div>
         <button type="submit">Continue</button>
     </form>
@@ -181,6 +201,7 @@
             var rows = @json($batchRows);
             var countries = @json(array_values($countries));
             var regions = @json($regions);
+            var cities = @json(isset($cities) ? $cities : []);
             var divisionLabels = @json($divisionLabels);
             document.querySelectorAll('[data-fill]').forEach(function (box) {
                 var button = box.querySelector('.fill-btn');
@@ -261,12 +282,73 @@
             var regionBox = document.getElementById('regionBox');
             var regionText = document.getElementById('regionText');
             var regionFree = document.getElementById('regionFree');
+            var citySearch = document.getElementById('citySearch');
+            var cityValue = document.getElementById('cityValue');
+            var cityList = document.getElementById('cityList');
+            var cityBox = document.getElementById('cityBox');
+            var cityOther = document.getElementById('cityOther');
+            var cityOtherInput = document.getElementById('cityOtherInput');
+            var cityChoices = [];
+            var savedCity = cityValue.value;
             var regionChoices = (regions[countryValue.value] || []).slice();
             var regionLabel = document.getElementById('regionLabel');
             var regionFreeLabel = document.getElementById('regionFreeLabel');
             if (countrySearch && countryValue.value) countrySearch.value = countryValue.value;
             function divisionWord(name) {
                 return divisionLabels[name] || (name ? 'State or region' : 'State or region');
+            }
+            function useTypedCity() {
+                cityBox.hidden = true;
+                citySearch.required = false;
+                cityValue.disabled = true;
+                cityOther.hidden = false;
+                cityOtherInput.required = true;
+                cityOtherInput.name = 'city';
+            }
+            function useListedCity() {
+                cityBox.hidden = false;
+                citySearch.required = true;
+                cityValue.disabled = false;
+                cityValue.name = 'city';
+                cityOther.hidden = true;
+                cityOtherInput.required = false;
+                cityOtherInput.name = '';
+            }
+            function showOtherCity() {
+                cityOther.hidden = false;
+                cityOtherInput.required = true;
+                cityOtherInput.name = 'city';
+                cityValue.disabled = true;
+                citySearch.required = false;
+                if (cityOtherInput.value === 'Other') cityOtherInput.value = '';
+            }
+            function applyCities(regionName, keep) {
+                var country = countryValue.value || '';
+                var list = (cities[country] && cities[country][regionName]) ? cities[country][regionName].slice() : [];
+                cityChoices.splice(0, cityChoices.length);
+                if (!list.length) {
+                    useTypedCity();
+                    if (!keep) cityOtherInput.value = '';
+                    return;
+                }
+                list.forEach(function (item) { cityChoices.push(item); });
+                cityChoices.push('Other');
+                useListedCity();
+                if (keep && savedCity && list.indexOf(savedCity) !== -1) {
+                    cityValue.value = savedCity;
+                    citySearch.value = savedCity;
+                } else if (keep && savedCity) {
+                    cityValue.value = 'Other';
+                    citySearch.value = 'Other';
+                    cityOtherInput.value = savedCity;
+                    showOtherCity();
+                } else {
+                    cityValue.value = '';
+                    citySearch.value = '';
+                    cityOther.hidden = true;
+                    cityOtherInput.required = false;
+                    cityOtherInput.name = '';
+                }
             }
             function applyCountry(name, keep) {
                 if (!name) {
@@ -281,6 +363,7 @@
                     regionFree.required = false;
                     regionFree.name = '';
                     regionValue.disabled = false;
+                    useTypedCity();
                     return;
                 }
                 var word = divisionWord(name);
@@ -299,6 +382,7 @@
                     regionFree.required = true;
                     regionFree.name = 'region';
                     regionValue.disabled = true;
+                    useTypedCity();
                     return;
                 }
                 regionBox.hidden = false;
@@ -309,22 +393,25 @@
                 regionValue.disabled = false;
                 if (keep && list.indexOf(regionValue.value) !== -1) {
                     regionSearch.value = regionValue.value;
-                } else if (!keep) {
-                    regionValue.value = '';
-                    regionSearch.value = '';
+                    applyCities(regionValue.value, true);
                 } else {
                     regionValue.value = '';
                     regionSearch.value = '';
+                    applyCities('', false);
                 }
             }
             if (countrySearch) {
                 picker(countrySearch, countryValue, document.getElementById('countryList'), countries, function (name) { applyCountry(name, false); });
             }
-            picker(regionSearch, regionValue, document.getElementById('regionList'), regionChoices, null);
+            picker(regionSearch, regionValue, document.getElementById('regionList'), regionChoices, function (name) { applyCities(name, false); });
+            picker(citySearch, cityValue, cityList, cityChoices, function (name) {
+                if (name === 'Other') showOtherCity();
+                else { cityOther.hidden = true; cityOtherInput.required = false; cityOtherInput.name = ''; cityValue.disabled = false; cityValue.name = 'city'; citySearch.required = true; }
+            });
             applyCountry(countryValue.value, true);
             var phone = document.getElementById('joinPhone');
             if (phone && window.gbhsLookupName) {
-                gbhsLookupName(phone, document.querySelector('form [data-cc-value]'), document.getElementById('joinName'), document.getElementById('joinHint'));
+                gbhsLookupName(phone, document.querySelector('form [data-cc-value]'), document.getElementById('joinName'), null);
             }
             document.querySelector('form').addEventListener('submit', function (e) {
                 if (!batchId.value) { e.preventDefault(); batchSearch.focus(); paintBatch(); }
@@ -337,6 +424,13 @@
                 });
                 if (!regionValue.disabled && !regionValue.value && regionChoices.indexOf(regionSearch.value) !== -1) {
                     regionValue.value = regionSearch.value;
+                }
+                if (!cityValue.disabled && !cityValue.value && cityChoices.indexOf(citySearch.value) !== -1) {
+                    cityValue.value = citySearch.value;
+                }
+                if (cityOtherInput.name === 'city' && !cityOtherInput.value.trim()) {
+                    e.preventDefault();
+                    cityOtherInput.focus();
                 }
             });
         })();
@@ -389,9 +483,14 @@
         @csrf
         <input type="hidden" name="action" id="photoAction" value="save">
         <h1>Portrait</h1>
-        <p class="muted">Take a selfie or attach a photo. This can be added later.</p>
+        <p class="muted">Face the camera, turn left, then turn right. We keep only the straight photo. You can add it later.</p>
+        <div id="liveBox" hidden>
+            <div class="live"><video id="liveVideo" autoplay playsinline muted></video><div class="live-ring"></div></div>
+            <p class="live-step" id="liveStep">Look straight at the camera</p>
+            <div class="live-dots" id="liveDots"><i class="on"></i><i></i><i></i><i></i></div>
+        </div>
         <div class="photo-row">
-            <button type="button" class="btn" id="photoCam">Take a selfie</button>
+            <button type="button" class="btn" id="photoCam">Start face check</button>
             <button type="button" class="btn gold" id="photoFile">Attach a photo</button>
             <img class="photo-preview" id="photoPreview" alt="" hidden @if($application->photo) src="{{ url('public/'.$application->photo) }}" hidden="false" @endif>
         </div>
@@ -406,9 +505,118 @@
         (function () {
             var input = document.getElementById('photoInput');
             var preview = document.getElementById('photoPreview');
+            var liveBox = document.getElementById('liveBox');
+            var video = document.getElementById('liveVideo');
+            var stepEl = document.getElementById('liveStep');
+            var dots = document.querySelectorAll('#liveDots i');
+            var stream = null;
+            var sampleCanvas = document.createElement('canvas');
+            sampleCanvas.width = 80;
+            sampleCanvas.height = 100;
+            var sampleCtx = sampleCanvas.getContext('2d');
+            var prev = null;
+            var step = 0;
+            var stepAt = 0;
+            var held = 0;
+            var last = 0;
+            var running = false;
+            var prompts = [
+                'Look straight at the camera',
+                'Slowly turn your head left',
+                'Slowly turn your head right',
+                'Look straight again'
+            ];
             if (preview.getAttribute('src')) preview.hidden = false;
-            document.getElementById('photoCam').addEventListener('click', function () { gbhsPickPhoto(input, true, preview); });
-            document.getElementById('photoFile').addEventListener('click', function () { gbhsPickPhoto(input, false, preview); });
+            function stopCamera() {
+                running = false;
+                if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+                stream = null;
+                liveBox.hidden = true;
+            }
+            function measure() {
+                sampleCtx.save();
+                sampleCtx.translate(80, 0);
+                sampleCtx.scale(-1, 1);
+                sampleCtx.drawImage(video, 0, 0, 80, 100);
+                sampleCtx.restore();
+                var data = sampleCtx.getImageData(0, 0, 80, 100).data;
+                if (!prev) { prev = new Uint8ClampedArray(data); return { motion: 0, left: 0, right: 0 }; }
+                var left = 0, right = 0;
+                for (var i = 0; i < data.length; i += 16) {
+                    var delta = Math.abs(data[i] - prev[i]) + Math.abs(data[i + 1] - prev[i + 1]) + Math.abs(data[i + 2] - prev[i + 2]);
+                    if (delta > 40) {
+                        if (((i / 4) % 80) < 40) left++; else right++;
+                    }
+                }
+                prev = new Uint8ClampedArray(data);
+                return { motion: left + right, left: left, right: right };
+            }
+            function ready(sample, now) {
+                if (step === 1 || step === 2) {
+                    var turned = step === 1 ? sample.left > sample.right + 4 : sample.right > sample.left + 4;
+                    return (turned && sample.motion > 12) || (now - stepAt > 8000 && sample.motion > 8);
+                }
+                return true;
+            }
+            function capture() {
+                var shot = document.createElement('canvas');
+                shot.width = video.videoWidth || 640;
+                shot.height = video.videoHeight || 480;
+                shot.getContext('2d').drawImage(video, 0, 0);
+                shot.toBlob(function (blob) {
+                    if (!blob) return;
+                    var file = new File([blob], 'portrait.jpg', { type: 'image/jpeg' });
+                    var transfer = new DataTransfer();
+                    transfer.items.add(file);
+                    input.files = transfer.files;
+                    preview.src = URL.createObjectURL(blob);
+                    preview.hidden = false;
+                    stopCamera();
+                    stepEl.textContent = 'Photo ready. Continue when you are happy with it.';
+                }, 'image/jpeg', 0.9);
+            }
+            function tick(now) {
+                if (!running) return;
+                var elapsed = last ? now - last : 16;
+                last = now;
+                var sample = measure();
+                if (!stepAt) stepAt = now;
+                if (ready(sample, now)) held += elapsed; else held = Math.max(0, held - elapsed);
+                var need = step === 0 || step === 3 ? 900 : 500;
+                if (held > need) {
+                    held = 0;
+                    stepAt = now;
+                    prev = null;
+                    step += 1;
+                    dots.forEach(function (dot, index) { dot.className = index <= step ? 'on' : ''; });
+                    if (step >= prompts.length) { capture(); return; }
+                    stepEl.textContent = prompts[step];
+                }
+                requestAnimationFrame(tick);
+            }
+            document.getElementById('photoCam').addEventListener('click', function () {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    gbhsPickPhoto(input, true, preview);
+                    return;
+                }
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }).then(function (media) {
+                    stream = media;
+                    video.srcObject = media;
+                    liveBox.hidden = false;
+                    step = 0;
+                    stepAt = 0;
+                    held = 0;
+                    last = 0;
+                    prev = null;
+                    running = true;
+                    stepEl.textContent = prompts[0];
+                    dots.forEach(function (dot, index) { dot.className = index === 0 ? 'on' : ''; });
+                    requestAnimationFrame(tick);
+                }).catch(function () {
+                    gbhsPickPhoto(input, true, preview);
+                });
+            });
+            document.getElementById('photoFile').addEventListener('click', function () { stopCamera(); gbhsPickPhoto(input, false, preview); });
         })();
     </script>
 @elseif($step === 'sign')
