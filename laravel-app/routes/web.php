@@ -127,6 +127,8 @@ Route::get('/gbhs/donate/lookup', 'GbhsPublicController@lookupPhone')->middlewar
 Route::post('/gbhs/register/otp', 'GbhsPublicController@sendMembershipCode')->middleware('throttle:8,1')->name('gbhs.register.otp');
 Route::post('/gbhs/register/verify', 'GbhsPublicController@verifyOtp')->middleware('throttle:12,1')->name('gbhs.register.verify');
 Route::post('/gbhs/register/profile', 'GbhsPublicController@saveProfile')->name('gbhs.register.profile');
+Route::post('/gbhs/register/identification', 'GbhsPublicController@saveIdentification')->name('gbhs.register.identification');
+Route::post('/gbhs/register/portrait', 'GbhsPublicController@savePortrait')->name('gbhs.register.portrait');
 Route::post('/gbhs/register/sign', 'GbhsPublicController@sign')->name('gbhs.register.sign');
 Route::get('/gbhs/bylaws/{id}', 'GbhsPublicController@bylaw')->name('gbhs.bylaw');
 Route::get('/gbhs/donate', 'GbhsPublicController@donateForm')->name('gbhs.donate');

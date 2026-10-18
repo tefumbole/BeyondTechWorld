@@ -45,6 +45,29 @@ class GbhsBylaws
         ];
     }
 
+    public static function articles()
+    {
+        $articles = [];
+        $current = null;
+        foreach (self::lines() as $line) {
+            if (preg_match('/^(\d+)\.\s+(.+)$/', $line, $match)) {
+                if ($current) {
+                    $articles[] = $current;
+                }
+                $current = ['n' => (int) $match[1], 'title' => $match[2], 'body' => ''];
+                continue;
+            }
+            if ($current && trim($line) !== '') {
+                $current['body'] = trim($current['body'].' '.$line);
+            }
+        }
+        if ($current) {
+            $articles[] = $current;
+        }
+
+        return $articles;
+    }
+
     public static function file()
     {
         return 'gbhs/bylaws/gbhs-bylaws-2026.pdf';

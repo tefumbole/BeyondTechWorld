@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Gbhs\GbhsApplication;
 use App\Gbhs\GbhsBatch;
 use App\Gbhs\GbhsBylawVersion;
+use App\Gbhs\GbhsBylaws;
+use App\Gbhs\GbhsIdReader;
 use App\Gbhs\GbhsCatalog;
 use App\Gbhs\GbhsContribution;
 use App\Gbhs\GbhsDonate;
@@ -22,6 +24,8 @@ use App\Gbhs\GbhsTestimonial;
 use App\Gbhs\GbhsTestimonialWriter;
 use App\Gbhs\GbhsTenant;
 use App\Services\BeyondAuthService;
+use App\Support\CountryDialCodes;
+use App\Support\CountryRegions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -93,14 +97,47 @@ class GbhsPublicController extends Controller
 
             return redirect()->route('gbhs.membership');
         }
-        $step = 'intro';
-        if (session('gbhs_phone_verified') && $application) {
-            $step = $application->signature_path ? 'done' : ($application->status === 'submitted' || $application->status === 'approved' ? 'done' : ($application->full_name && $application->batch_id ? 'sign' : 'profile'));
-        } elseif (session('gbhs_join')) {
-            $step = 'phone';
+        $step = $this->membershipStep($application);
+        $countries = [];
+        foreach (CountryDialCodes::picker() as $row) {
+            $countries[] = $row['name'];
+        }
+        $regions = CountryRegions::map();
+        $articles = GbhsBylaws::articles();
+        if (! $application) {
+            $application = new GbhsApplication();
         }
 
-        return view('gbhs.public.membership', compact('setting', 'section', 'batches', 'bylaw', 'application', 'step'));
+        return view('gbhs.public.membership', compact(
+            'setting', 'section', 'batches', 'bylaw', 'application', 'step', 'countries', 'regions', 'articles'
+        ));
+    }
+
+    protected function membershipStep($application)
+    {
+        if ($application && ($application->signature_path || $application->status === 'submitted' || $application->status === 'approved')) {
+            return 'done';
+        }
+        $ready = session('gbhs_phone_verified') && $application && $application->phone_verified;
+        $asked = request('step');
+        if ($asked === 'details' && ($ready || session('gbhs_join'))) {
+            return 'details';
+        }
+        if (! $ready) {
+            return session('gbhs_join') ? 'details' : 'intro';
+        }
+        $detailsDone = $application->full_name && $application->batch_id && $application->employment_status && $application->country;
+        if (! $detailsDone) {
+            return 'details';
+        }
+        if ($asked === 'id' || ! $application->id_step) {
+            return 'id';
+        }
+        if ($asked === 'portrait' || ! $application->photo_step) {
+            return 'portrait';
+        }
+
+        return 'sign';
     }
 
     public function startMembership(Request $request)
@@ -230,47 +267,38 @@ class GbhsPublicController extends Controller
 
     public function saveProfile(Request $request)
     {
-        if (! GbhsRules::mayStorePersonal(session('gbhs_phone_verified'))) {
+        $existing = session('gbhs_phone_verified') ? GbhsApplication::find(session('gbhs_application_id')) : null;
+        if ((! $existing || ! $existing->phone_verified) && ! $request->filled('phone')) {
             return back()->with('not_permitted', 'Enter your phone number before the rest of the form.');
         }
         $this->boot();
-        $application = GbhsApplication::find(session('gbhs_application_id'));
-        if (! $application || ! $application->phone_verified) {
-            return back()->with('not_permitted', 'Enter your phone number before the rest of the form.');
+        $application = $this->applicationFromPhone($request);
+        if (! $application) {
+            return back()->with('not_permitted', 'Enter your phone number before the rest of the form.')->withInput();
         }
         $request->validate([
             'full_name' => 'required|string|max:160',
             'batch_id' => 'required|integer',
             'email' => 'nullable|email|max:160',
-            'agree_bylaws' => 'accepted',
-            'consent_processing' => 'accepted',
-            'photo' => 'nullable|image|max:12288',
+            'marital_status' => 'required|in:Married,Single,Divorced,Widower,Widow,Other',
+            'employment_status' => 'required|in:Employed,Unemployed,Freelancer',
+            'employer' => 'nullable|string|max:160',
+            'country' => 'required|string|max:80',
+            'region' => 'required|string|max:80',
+            'city' => 'nullable|string|max:80',
         ]);
-        $bylaw = GbhsBylawVersion::where('status', 'published')->orderBy('id', 'desc')->first();
-        if (! $bylaw || ! $bylaw->file) {
-            return back()->with('not_permitted', 'The association has not published a bylaws PDF yet.');
-        }
         $data = $request->only([
             'full_name', 'date_of_birth', 'gender', 'marital_status', 'years_attended',
-            'profession', 'employer', 'email', 'country', 'region', 'city', 'address', 'batch_id',
+            'profession', 'employment_status', 'employer', 'email', 'country', 'region', 'city', 'batch_id',
         ]);
         if (empty($data['date_of_birth'])) {
             $data['date_of_birth'] = null;
         }
-        $data['bylaw_version_id'] = $bylaw->id;
-        $data['agree_bylaws'] = 1;
-        $data['consent_processing'] = 1;
-        $data['consent_announcements'] = $request->filled('consent_announcements') ? 1 : 0;
-        $data['declaration'] = 'I have read bylaws version '.$bylaw->version.' and I apply for membership.';
-        if ($request->hasFile('photo')) {
-            $dir = public_path('gbhs/photos');
-            if (! is_dir($dir)) {
-                @mkdir($dir, 0775, true);
-            }
-            $file = $request->file('photo');
-            $stored = $application->id.'-'.time().'.'.$file->getClientOriginalExtension();
-            $file->move($dir, $stored);
-            $data['photo'] = 'gbhs/photos/'.$stored;
+        if (empty($data['employer'])) {
+            $data['employer'] = null;
+        }
+        if (empty($data['email'])) {
+            $data['email'] = null;
         }
         $application->fill($data);
         $application->save();
@@ -278,14 +306,148 @@ class GbhsPublicController extends Controller
         return redirect()->route('gbhs.membership');
     }
 
+    public function saveIdentification(Request $request)
+    {
+        $this->boot();
+        $application = $this->verifiedApplication();
+        if (! $application) {
+            return back()->with('not_permitted', 'Enter your phone number before identification.');
+        }
+        if ($request->input('action') === 'skip') {
+            $application->id_step = 'skipped';
+            $application->save();
+
+            return redirect()->route('gbhs.membership');
+        }
+        $request->validate([
+            'id_type' => 'nullable|in:national_id,passport',
+            'id_holder_name' => 'nullable|string|max:160',
+            'id_number' => 'nullable|string|max:40',
+            'id_issued_on' => 'nullable|date',
+            'document' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:12288',
+        ]);
+        $extracted = ['name' => '', 'number' => '', 'issued_on' => '', 'read' => false];
+        if ($request->hasFile('document')) {
+            $path = $request->file('document')->getRealPath();
+            try {
+                $extracted = (new GbhsIdReader())->read($path);
+            } finally {
+                if (is_string($path) && is_file($path)) {
+                    @unlink($path);
+                }
+            }
+        }
+        $application->id_type = $request->input('id_type') ?: ($application->country === 'Cameroon' ? 'national_id' : 'passport');
+        $application->id_holder_name = $request->filled('id_holder_name') ? $request->id_holder_name : ($extracted['name'] ?: $application->id_holder_name);
+        $application->id_number = $request->filled('id_number') ? $request->id_number : ($extracted['number'] ?: $application->id_number);
+        $application->id_issued_on = $request->filled('id_issued_on') ? $request->id_issued_on : ($extracted['issued_on'] ?: $application->id_issued_on);
+        if ($request->input('action') === 'read') {
+            $application->save();
+            $message = $extracted['read']
+                ? 'We read the document and deleted the image. Check the name, number, and date of issue, then continue.'
+                : 'The image was deleted and could not be read. Type the name, number, and date of issue, or try another photo.';
+
+            return redirect()->route('gbhs.membership')->with($extracted['read'] ? 'message' : 'not_permitted', $message);
+        }
+        $application->id_step = 'saved';
+        $application->save();
+
+        return redirect()->route('gbhs.membership');
+    }
+
+    public function savePortrait(Request $request)
+    {
+        $this->boot();
+        $application = $this->verifiedApplication();
+        if (! $application || ! $application->id_step) {
+            return back()->with('not_permitted', 'Finish identification before the portrait.');
+        }
+        if ($request->input('action') !== 'skip') {
+            $request->validate(['photo' => 'nullable|image|max:12288']);
+        }
+        if ($request->hasFile('photo')) {
+            $dir = public_path('gbhs/photos');
+            if (! is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            $file = $request->file('photo');
+            $stored = $application->id.'-'.time().'.jpg';
+            $file->move($dir, $stored);
+            $application->photo = 'gbhs/photos/'.$stored;
+            $application->photo_step = 'saved';
+        } else {
+            $application->photo_step = $application->photo ? 'saved' : 'skipped';
+        }
+        $application->save();
+
+        return redirect()->route('gbhs.membership');
+    }
+
+    protected function applicationFromPhone(Request $request)
+    {
+        $application = session('gbhs_phone_verified') ? GbhsApplication::find(session('gbhs_application_id')) : null;
+        if ($application && $application->phone_verified) {
+            return $application;
+        }
+        if (! $request->filled('phone') || ! GbhsRules::mayStorePersonal(true)) {
+            return null;
+        }
+        $digits = preg_replace('/\D/', '', CountryDialCodes::combine(
+            $request->input('country_code', '+237'),
+            $request->phone
+        ));
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        $application = GbhsMembership::openDraft($digits);
+        if (! $application) {
+            return null;
+        }
+        $application->phone_verified = 1;
+        $application->save();
+        session([
+            'gbhs_phone' => $digits,
+            'gbhs_phone_verified' => true,
+            'gbhs_application_id' => $application->id,
+        ]);
+
+        return $application;
+    }
+
+    protected function verifiedApplication()
+    {
+        if (! session('gbhs_phone_verified')) {
+            return null;
+        }
+        $application = GbhsApplication::find(session('gbhs_application_id'));
+        if (! $application || ! $application->phone_verified) {
+            return null;
+        }
+
+        return $application;
+    }
+
     public function sign(Request $request)
     {
         $this->boot();
         $application = GbhsApplication::find(session('gbhs_application_id'));
-        if (! $application || ! $application->phone_verified || ! $application->full_name || ! $application->agree_bylaws) {
-            return back()->with('not_permitted', 'Complete the form and accept the published bylaws first.');
+        if (! $application || ! $application->phone_verified || ! $application->full_name || ! $application->id_step || ! $application->photo_step) {
+            return back()->with('not_permitted', 'Complete the details, identification, and portrait stages first.');
         }
-        $request->validate(['signature' => 'required|string']);
+        $bylaw = GbhsBylawVersion::where('status', 'published')->orderBy('id', 'desc')->first();
+        if (! $bylaw || ! $bylaw->file) {
+            return back()->with('not_permitted', 'The association has not published the bylaws yet.');
+        }
+        $request->validate([
+            'signature' => 'required|string',
+            'agree_bylaws' => 'accepted',
+            'consent_processing' => 'accepted',
+        ]);
+        $application->bylaw_version_id = $bylaw->id;
+        $application->agree_bylaws = 1;
+        $application->consent_processing = 1;
+        $application->consent_announcements = $request->filled('consent_announcements') ? 1 : 0;
+        $application->declaration = 'I have read bylaws version '.$bylaw->version.' and I apply for membership.';
         $raw = $request->signature;
         if (strpos($raw, 'base64,') !== false) {
             $raw = substr($raw, strpos($raw, 'base64,') + 7);
