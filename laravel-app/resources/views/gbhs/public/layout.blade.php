@@ -62,11 +62,11 @@
         .muted { color: #3d5346; font-size: 1rem; }
         .alert { padding: 12px 14px; border-radius: 8px; background: #fff4d2; margin-bottom: 16px; }
         img.fit { max-width: 100%; height: auto; border-radius: 12px; }
-        footer { color: #f4e7c3; font-size: 1.05rem; background: #071833; }
+        footer { color: #f4e7c3; font-size: 1.05rem; background: var(--forest-deep); }
         footer a { color: #fff; text-decoration: none; }
         .foot-band {
             position: relative;
-            background: #0b3a86 url("{{ url('public/gbhs/gbhs-footer-band.jpg') }}") center / cover no-repeat;
+            background: var(--forest-deep);
         }
         .foot-copy {
             position: relative;
@@ -77,7 +77,7 @@
             justify-content: space-between;
             align-items: center;
             gap: 4px 16px;
-            background: linear-gradient(90deg, rgba(6, 28, 92, .2), rgba(8, 36, 110, .55) 12%, rgba(8, 36, 110, .55) 88%, rgba(6, 28, 92, .2));
+            background: transparent;
         }
         .foot-copy p { margin: 0; font-size: .95rem; font-weight: 600; color: #fff; }
         .contact-link { font-weight: 600; font-size: .95rem; color: #fff; }
