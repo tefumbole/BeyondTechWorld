@@ -223,10 +223,11 @@ class GbhsDonate
                 $payment->phone
             );
             if (isset($outcome['state']) && $outcome['state'] === 'failed') {
+                $reason = isset($outcome['reason']) ? (string) $outcome['reason'] : '';
                 $payment->status = 'failed';
-                $payment->error = 'The payment was not approved.';
+                $payment->error = app(CampayPayoutService::class)->payerFailure($reason, $payment->amount);
                 $payment->save();
-                self::failDeposit($payment, 'Not approved');
+                self::failDeposit($payment, $reason !== '' ? $reason : 'Not approved');
 
                 return 'failed';
             }

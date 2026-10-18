@@ -129,8 +129,9 @@ class CampayPayoutService
     {
         $body = $this->transaction($reference);
         $http = is_array($body) ? (int) ($body['_http'] ?? 0) : 0;
+        $reason = is_array($body) && isset($body['reason']) ? (string) $body['reason'] : '';
         if (! is_array($body) || $http !== 200) {
-            return ['state' => 'pending', 'confirmed' => false];
+            return ['state' => 'pending', 'confirmed' => false, 'reason' => $reason];
         }
 
         $status = strtoupper(trim((string) (isset($body['status']) ? $body['status'] : '')));
@@ -142,17 +143,34 @@ class CampayPayoutService
                     'expected' => (int) $expectedAmount,
                 ]);
 
-                return ['state' => 'pending', 'confirmed' => false];
+                return ['state' => 'pending', 'confirmed' => false, 'reason' => $reason];
             }
 
-            return ['state' => 'paid', 'confirmed' => true];
+            return ['state' => 'paid', 'confirmed' => true, 'reason' => $reason];
         }
 
         if (in_array($status, ['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'], true)) {
-            return ['state' => 'failed', 'confirmed' => true];
+            return ['state' => 'failed', 'confirmed' => true, 'reason' => $reason];
         }
 
-        return ['state' => 'pending', 'confirmed' => true];
+        return ['state' => 'pending', 'confirmed' => true, 'reason' => $reason];
+    }
+
+    public function payerFailure($reason, $amount)
+    {
+        $reason = strtoupper(trim((string) $reason));
+        $money = number_format((int) $amount);
+        if (strpos($reason, 'LOW_BALANCE') !== false || strpos($reason, 'INSUFFICIENT') !== false) {
+            return 'Your Mobile Money payment of '.$money.' XAF failed because the number does not have enough money.';
+        }
+        if (strpos($reason, 'LIMIT') !== false || strpos($reason, 'NOT_ALLOWED') !== false) {
+            return 'Your Mobile Money payment of '.$money.' XAF failed because the operator blocked this number.';
+        }
+        if ($reason === '' || strpos($reason, 'CANCEL') !== false || strpos($reason, 'TIMEOUT') !== false || strpos($reason, 'EXPIRED') !== false || strpos($reason, 'NOT_APPROV') !== false || strpos($reason, 'DENIED') !== false || strpos($reason, 'REJECT') !== false) {
+            return 'Your Mobile Money payment of '.$money.' XAF failed because it was not approved.';
+        }
+
+        return 'Your Mobile Money payment of '.$money.' XAF failed.';
     }
 
     protected function collectionDebited(array $body, $expectedAmount, $expectedPhone = null, $externalPattern = null)

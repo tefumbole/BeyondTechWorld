@@ -4,6 +4,10 @@
 <div class="card">
     <p>{{ number_format($payment->amount) }} XAF · {{ $payment->method }}</p>
     <p>Status: <strong>{{ $status }}</strong></p>
+    @if($status === 'failed')
+        <p>{{ $payment->error ?: 'The payment was not completed.' }}</p>
+        <a class="btn" href="{{ route('gbhs.donate') }}">Try again</a>
+    @endif
     @if(!empty($crypto))
         <p>Bitcoin on this site is paid as <strong>{{ $crypto['usdt'] }} {{ $crypto['coin'] }}</strong> on {{ $crypto['network'] }}.</p>
         <p style="word-break:break-all">{{ $crypto['address'] }}</p>
