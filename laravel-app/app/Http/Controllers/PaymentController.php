@@ -268,6 +268,9 @@ class PaymentController extends Controller
         if (strpos((string) $deposit->campay_reference, 'cs_') === 0) {
             if (app(StripeCheckoutService::class)->isPaid($deposit->campay_reference)) {
                 $paid = app(AccountDepositService::class)->creditPending($deposit);
+                if ($paid) {
+                    \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
+                }
                 if ($paid && (int) $paid->paid_notice !== 1) {
                     $paid->paid_notice = 1;
                     $paid->save();
@@ -284,6 +287,9 @@ class PaymentController extends Controller
         $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
         if ($status === 'SUCCESSFUL') {
             $paid = app(AccountDepositService::class)->creditPending($deposit);
+            if ($paid) {
+                \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
+            }
             if ($paid && (int) $paid->paid_notice !== 1) {
                 $paid->paid_notice = 1;
                 $paid->save();

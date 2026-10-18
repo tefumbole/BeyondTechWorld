@@ -2,6 +2,10 @@
 
 namespace App\Gbhs;
 
+use App\Account;
+use App\Customer;
+use App\Deposit;
+use App\Services\AccountDepositService;
 use App\Services\BinancePayService;
 use App\Services\CampayPayoutService;
 use App\Services\StripeCheckoutService;
@@ -57,6 +61,7 @@ class GbhsDonate
             }
             $payment->provider_reference = (string) $body['reference'];
             $payment->save();
+            self::ledger($payment);
 
             return ['payment' => $payment, 'url' => null];
         }
@@ -80,6 +85,7 @@ class GbhsDonate
             }
             $payment->provider_reference = (string) $checkout['id'];
             $payment->save();
+            self::ledger($payment, $checkout['url']);
 
             return ['payment' => $payment, 'url' => $checkout['url']];
         }
@@ -100,10 +106,96 @@ class GbhsDonate
                 'coin' => $result['coin'],
             ]);
             $payment->save();
+            self::ledger($payment);
 
             return ['payment' => $payment, 'url' => null];
         }
         throw new \InvalidArgumentException('Choose a payment method.');
+    }
+
+    /**
+     * A public gift is the same deposit record used by Beyond payments.
+     */
+    public static function ledger(GbhsPayment $payment, $link = null)
+    {
+        if ($payment->deposit_id) {
+            return Deposit::find($payment->deposit_id);
+        }
+        $account = Account::where('is_active', 1)->orderBy('is_default', 'desc')->orderBy('id')->first();
+        if (! $account) {
+            throw new \RuntimeException('Add an active account in Beyond before taking donations.');
+        }
+        $method = 5;
+        if ($payment->method === 'momo') {
+            $method = 3;
+        } elseif ($payment->method === 'card') {
+            $method = 4;
+        }
+        $customer = self::customer($payment);
+        $userId = \App\User::query()->value('id');
+        $deposit = Deposit::create([
+            'amount' => (int) $payment->amount,
+            'customer_id' => $customer ? $customer->id : null,
+            'user_id' => $userId ? $userId : 1,
+            'account_id' => $account->id,
+            'note' => 'GBHS Kumbo donation'.($payment->donor_name ? ' — '.$payment->donor_name : ''),
+            'payment_method' => $method,
+            'payment_reference' => 'gbhs-'.$payment->id,
+            'mtn_number' => $payment->phone,
+            'campay_reference' => $payment->method === 'crypto' ? null : $payment->provider_reference,
+            'payment_link' => $link,
+            'status' => 0,
+            'paid_notice' => 0,
+        ]);
+        $payment->deposit_id = $deposit->id;
+        if ($customer && ! $payment->customer_id) {
+            $payment->customer_id = $customer->id;
+        }
+        $payment->save();
+
+        return $deposit;
+    }
+
+    public static function noteDepositPaid(Deposit $deposit)
+    {
+        $payment = GbhsPayment::withoutGlobalScope(\App\Services\Cloud\CloudTenantScope::class)
+            ->where('deposit_id', $deposit->id)
+            ->first();
+        if (! $payment || $payment->status === 'paid') {
+            return;
+        }
+        if ($payment->cloud_tenant_id) {
+            $tenant = \App\Cloud\CloudTenant::find($payment->cloud_tenant_id);
+            if ($tenant) {
+                app(\App\Services\Cloud\CloudTenantContext::class)->set($tenant);
+            }
+        }
+        self::markPaid($payment, null, false);
+    }
+
+    protected static function customer(GbhsPayment $payment)
+    {
+        $phone = preg_replace('/\D/', '', (string) $payment->phone);
+        if ($phone === '') {
+            return null;
+        }
+        $tail = substr($phone, -9);
+        $customer = Customer::where(function ($query) use ($phone, $tail) {
+            $query->where('phone_number', $phone)->orWhere('phone_number', 'like', '%'.$tail);
+        })->first();
+        if ($customer) {
+            return $customer;
+        }
+        $groupId = \App\CustomerGroup::query()->value('id');
+
+        return Customer::create([
+            'customer_group_id' => $groupId ? $groupId : 1,
+            'name' => $payment->donor_name ? $payment->donor_name : $phone,
+            'phone_number' => $phone,
+            'address' => 'N/A',
+            'city' => 'N/A',
+            'is_active' => 1,
+        ]);
     }
 
     /**
@@ -134,6 +226,7 @@ class GbhsDonate
                 $payment->status = 'failed';
                 $payment->error = 'The payment was not approved.';
                 $payment->save();
+                self::failDeposit($payment, 'Not approved');
 
                 return 'failed';
             }
@@ -162,6 +255,17 @@ class GbhsDonate
         return self::markPaid($payment);
     }
 
+    protected static function failDeposit(GbhsPayment $payment, $reason)
+    {
+        if (! $payment->deposit_id) {
+            return;
+        }
+        Deposit::where('id', $payment->deposit_id)->where('status', 0)->update([
+            'status' => 2,
+            'failure_reason' => substr((string) $reason, 0, 180),
+        ]);
+    }
+
     public static function recordBank(GbhsPayment $payment, $userId)
     {
         if ($payment->method !== 'bank') {
@@ -171,9 +275,9 @@ class GbhsDonate
         return self::markPaid($payment, $userId);
     }
 
-    protected static function markPaid(GbhsPayment $payment, $userId = null)
+    protected static function markPaid(GbhsPayment $payment, $userId = null, $creditDeposit = true)
     {
-        DB::transaction(function () use ($payment, $userId) {
+        DB::transaction(function () use ($payment, $userId, $creditDeposit) {
             $locked = GbhsPayment::where('id', $payment->id)->lockForUpdate()->first();
             if (! $locked || $locked->status === 'paid') {
                 return;
@@ -181,6 +285,12 @@ class GbhsDonate
             $locked->status = 'paid';
             $locked->error = null;
             $locked->save();
+            if ($creditDeposit && $locked->deposit_id) {
+                $deposit = Deposit::find($locked->deposit_id);
+                if ($deposit && (int) $deposit->status !== 1) {
+                    app(AccountDepositService::class)->creditPending($deposit);
+                }
+            }
             if (! GbhsContribution::where('payment_id', $locked->id)->exists()) {
                 $class = $locked->method === 'card' ? 'card' : ($locked->method === 'momo' ? 'momo' : ($locked->method === 'crypto' ? 'crypto' : 'cash'));
                 GbhsContribution::create([

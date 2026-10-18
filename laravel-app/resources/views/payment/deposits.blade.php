@@ -96,6 +96,7 @@
                             elseif ((int) $deposit->payment_method === 2) $methodLabel = 'JE Method';
                             elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Momo/Orange';
                             elseif ((int) $deposit->payment_method === 4) $methodLabel = 'VISA';
+                            elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
                             $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
                             $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
                         @endphp
