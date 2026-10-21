@@ -103,6 +103,9 @@ class BeyondAssistantService
 
         $context = $this->context->build($conversation);
         $mem = $this->memory->forConversation($conversation->id);
+        if (strtoupper((string) $message->type) === 'AUDIO') {
+            app(\App\Services\WhatsApp\WhatsAppVoiceTranscriber::class)->apply($message);
+        }
         $slots = $this->extractSlots((string) $message->body, $mem->parameters());
         $slots['text'] = (string) $message->body;
         $media = $message->media();
@@ -137,6 +140,16 @@ class BeyondAssistantService
         $turnDiag = null;
         $presentation = app(\App\Services\Event\EventOptionPresentation::class);
         $incoming = (string) $message->body;
+        if (strtoupper((string) $message->type) === 'AUDIO' && trim($incoming) === '' && ! isset($classified)) {
+            $directReply = "I received your voice note, but I couldn't make out the words. Please type that message and I will continue.";
+            $classified = [
+                'intent' => IntentCatalog::GENERAL_ENQUIRY,
+                'confidence' => 0.9,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
+        }
         $spoken = app(\App\Services\Assistant\AssistantLanguage::class)->follow(
             $incoming,
             isset($slots['reply_language']) ? $slots['reply_language'] : 'English',
@@ -294,6 +307,20 @@ class BeyondAssistantService
                     unset($slots['appointment_draft']);
                 }
             }
+        }
+
+        if (! isset($classified) && $this->dateFollowsEvent($incoming, $slots)) {
+            $ui = $presentation->soundUi();
+            $directReply = 'Noted, '.$slots['event_date'].".\n\n".$ui['prompt'];
+            $slots['pending_ui'] = $presentation->mediaFromUi($ui);
+            $slots['awaiting_option_group'] = 'SOUND_MODE';
+            $classified = [
+                'intent' => IntentCatalog::SERVICE_ENQUIRY,
+                'confidence' => 0.97,
+                'requires_erp' => false,
+                'needs_clarification' => false,
+                'slots' => [],
+            ];
         }
 
         // Primary path: OpenAI conversational engine (casual chat + ERP tools).
@@ -826,6 +853,21 @@ class BeyondAssistantService
         }
 
         return $slots;
+    }
+
+    protected function dateFollowsEvent($incoming, array $slots)
+    {
+        if (empty($slots['event_date']) || empty($slots['event_type']) || ! empty($slots['sound_mode']) || ! empty($slots['awaiting_option_group'])) {
+            return false;
+        }
+        $text = strtolower(trim(preg_replace('/\s+/', ' ', (string) $incoming)));
+        $date = strtolower(trim((string) $slots['event_date']));
+        if ($text === '' || $date === '') {
+            return false;
+        }
+        $bare = trim((string) preg_replace('/\b(\d{1,2})(st|nd|rd|th)\b/i', '$1', $text));
+
+        return $bare === $date || (strpos($bare, $date) !== false && strlen($bare) <= strlen($date) + 8);
     }
 
     protected function rentalTool(array $slots)

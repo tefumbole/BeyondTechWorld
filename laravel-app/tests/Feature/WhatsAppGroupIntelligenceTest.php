@@ -200,6 +200,93 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         $this->assertSame(1, $notices);
     }
 
+    public function test_a_date_sent_after_a_chat_update_continues_the_wedding()
+    {
+        config(['services.whatsapp.company_name' => 'Beyond']);
+        WhatsAppSetting::putValue('assistant_enabled', '1');
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $chat = $this->humanChat('237650200070', 'Bride');
+        $chat->mode = WhatsAppConversation::MODE_AI;
+        $chat->save();
+        \App\Assistant\AssistantMemory::create([
+            'conversation_id' => $chat->id,
+            'active_intent' => 'SERVICE_ENQUIRY',
+            'parameters_json' => json_encode(['event_type' => 'wedding']),
+            'clarification_count' => 0,
+        ]);
+
+        $this->postWebhook($this->chatUpdate('237650200070', '10th december', 'DATE1'))->assertStatus(200);
+        $this->postWebhook($this->text('237650200070', '10th december', 'DATE1'))->assertStatus(200);
+        $this->postWebhook([
+            'event' => 'messages.upsert',
+            'timestamp' => time(),
+            'data' => $this->text('237650200070', '10th december', 'DATE1')['data'],
+        ])->assertStatus(200);
+
+        $replies = WhatsAppMessage::where('conversation_id', $chat->id)
+            ->where('sender_type', 'ASSISTANT')
+            ->get();
+        $this->assertCount(1, $replies);
+        $this->assertStringContainsString('sound experience', strtolower($replies[0]->body));
+    }
+
+    public function test_phone_echo_of_an_assistant_reply_is_not_stored_twice()
+    {
+        $chat = $this->humanChat('237650200071', 'Echo');
+        WhatsAppMessage::create([
+            'conversation_id' => $chat->id,
+            'contact_id' => $chat->contact_id,
+            'direction' => WhatsAppMessage::DIR_OUT,
+            'type' => 'TEXT',
+            'body' => 'Congratulations on your upcoming wedding! Could you please provide the date of the event?',
+            'status' => WhatsAppMessage::STATUS_SENT,
+            'sender_type' => 'ASSISTANT',
+            'provider_message_id' => '90269021',
+        ]);
+
+        $this->postWebhook($this->sentEcho('237650200071', '3EB0DCBA1C7C84BD341FE3', 'Congratulations on your upcoming wedding! Could you please provide the date of the event?'))->assertStatus(200);
+
+        $copies = WhatsAppMessage::where('conversation_id', $chat->id)
+            ->where('body', 'like', 'Congratulations on your upcoming wedding%')
+            ->count();
+        $this->assertSame(1, $copies);
+        $kept = WhatsAppMessage::where('conversation_id', $chat->id)->where('sender_type', 'ASSISTANT')->first();
+        $this->assertSame('3EB0DCBA1C7C84BD341FE3', $kept->provider_message_id);
+    }
+
+    public function test_a_voice_note_is_transcribed_before_the_reply()
+    {
+        $this->app->bind(\App\Services\WhatsApp\WhatsAppVoiceTranscriber::class, function () {
+            return new class extends \App\Services\WhatsApp\WhatsAppVoiceTranscriber {
+                public function transcribe(\App\WhatsApp\WhatsAppMessage $message)
+                {
+                    return '10th december';
+                }
+            };
+        });
+        WhatsAppSetting::putValue('assistant_enabled', '1');
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $chat = $this->humanChat('237650200072', 'Voice');
+        $chat->mode = WhatsAppConversation::MODE_AI;
+        $chat->save();
+        \App\Assistant\AssistantMemory::create([
+            'conversation_id' => $chat->id,
+            'active_intent' => 'SERVICE_ENQUIRY',
+            'parameters_json' => json_encode(['event_type' => 'wedding']),
+            'clarification_count' => 0,
+        ]);
+
+        config(['services.whatsapp.company_name' => 'Beyond']);
+        $this->postWebhook($this->audio('237650200072', 'VOICE1'))->assertStatus(200);
+
+        $heard = WhatsAppMessage::where('conversation_id', $chat->id)->where('type', 'AUDIO')->first();
+        $this->assertNotNull($heard);
+        $this->assertSame('10th december', $heard->body);
+        $reply = WhatsAppMessage::where('conversation_id', $chat->id)->where('sender_type', 'ASSISTANT')->first();
+        $this->assertNotNull($reply);
+        $this->assertStringContainsString('sound experience', strtolower($reply->body));
+    }
+
     public function test_owner_can_turn_ai_first_on_without_rewriting_chats()
     {
         $this->owner('237650200001');
@@ -452,6 +539,52 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
                             'message' => ['conversation' => $body],
                         ],
                     ]],
+                ],
+            ],
+        ];
+    }
+
+    protected function sentEcho($phone, $id, $body)
+    {
+        return [
+            'event' => 'message.sent',
+            'timestamp' => time(),
+            'data' => [
+                'jid' => $phone.'@s.whatsapp.net',
+                'result' => [
+                    'key' => [
+                        'id' => $id,
+                        'fromMe' => true,
+                        'remoteJid' => $phone.'@s.whatsapp.net',
+                    ],
+                    'messageBody' => $body,
+                    'message' => ['conversation' => $body],
+                ],
+            ],
+        ];
+    }
+
+    protected function audio($phone, $id)
+    {
+        return [
+            'event' => 'messages.received',
+            'timestamp' => time(),
+            'data' => [
+                'messages' => [
+                    'key' => [
+                        'id' => $id,
+                        'fromMe' => false,
+                        'remoteJid' => $phone.'@s.whatsapp.net',
+                        'cleanedSenderPn' => $phone,
+                    ],
+                    'message' => [
+                        'audioMessage' => [
+                            'mimetype' => 'audio/ogg; codecs=opus',
+                            'url' => 'https://example.test/voice.enc',
+                            'mediaKey' => 'abc',
+                            'fileLength' => '1200',
+                        ],
+                    ],
                 ],
             ],
         ];

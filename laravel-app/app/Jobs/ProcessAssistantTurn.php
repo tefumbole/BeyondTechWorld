@@ -16,7 +16,7 @@ class ProcessAssistantTurn implements ShouldQueue
 
     public $tries = 2;
 
-    public $timeout = 45;
+    public $timeout = 90;
 
     protected $messageId;
 

@@ -127,9 +127,10 @@ class WhatsAppConversationService
         if (! empty($parsed['message_id'])) {
             $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
             if ($existing) {
-                // A chat-update can save "AI ON" before this message event arrives.
-                // That copy does not run the command, so run it from the real event.
-                $this->queueAssistantTurn($existing, true);
+                // A chat update often saves the row first, without the text, the
+                // voice-note file, or an assistant turn. Keep the fuller event.
+                $this->fillFromEvent($existing, $parsed);
+                $this->queueAssistantTurn($existing, false);
 
                 return $existing;
             }
@@ -171,8 +172,8 @@ class WhatsAppConversationService
     }
 
     /**
-     * Queue one assistant turn. Owner commands such as "AI ON" are queued once,
-     * even when a chat update and the message event both carry the same text.
+     * Queue one assistant turn. The same WhatsApp message can arrive as a chat
+     * update and again as messages.received; only the first copy is answered.
      */
     protected function queueAssistantTurn(WhatsAppMessage $message, $controlOnly)
     {
@@ -186,15 +187,36 @@ class WhatsAppConversationService
         if (! \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')) {
             return;
         }
-        if ($control && ! $this->claimControlCommand($message)) {
+        if (! $this->claimControlCommand($message)) {
             return;
         }
         try {
             \App\Jobs\ProcessAssistantTurn::dispatch($message->id)->onQueue('whatsapp');
         } catch (\Exception $e) {
-            if ($control) {
-                Cache::forget($this->controlCommandKey($message));
-            }
+            Cache::forget($this->controlCommandKey($message));
+        }
+    }
+
+    protected function fillFromEvent(WhatsAppMessage $message, array $parsed)
+    {
+        $changed = false;
+        $body = isset($parsed['body']) ? trim((string) $parsed['body']) : '';
+        if ($body !== '' && trim((string) $message->body) === '') {
+            $message->body = $body;
+            $changed = true;
+        }
+        $type = isset($parsed['message_type']) ? strtoupper((string) $parsed['message_type']) : '';
+        $current = strtoupper((string) $message->type);
+        if ($type !== '' && $type !== 'UNKNOWN' && ($current === '' || $current === 'UNKNOWN' || $current === 'TEXT' && $type === 'AUDIO')) {
+            $message->type = $type;
+            $changed = true;
+        }
+        if (! empty($parsed['media']) && is_array($parsed['media']) && empty($message->media()['url']) && empty($message->media()['stored'])) {
+            $message->media_json = json_encode($parsed['media']);
+            $changed = true;
+        }
+        if ($changed) {
+            $message->save();
         }
     }
 
@@ -210,6 +232,34 @@ class WhatsAppConversationService
     protected function controlCommandKey(WhatsAppMessage $message)
     {
         return 'whatsapp.control-command.'.$message->id;
+    }
+
+    /**
+     * The linked phone reports the assistant's own send back as a new outgoing
+     * message. Keep the original bubble instead of showing the reply twice.
+     */
+    protected function absorbPhoneEcho(WhatsAppConversation $conversation, array $parsed)
+    {
+        $body = isset($parsed['body']) ? trim((string) $parsed['body']) : '';
+        if ($body === '') {
+            return false;
+        }
+        $echo = WhatsAppMessage::where('conversation_id', $conversation->id)
+            ->where('direction', WhatsAppMessage::DIR_OUT)
+            ->whereIn('sender_type', ['ASSISTANT', 'STAFF'])
+            ->where('created_at', '>=', now()->subSeconds(45))
+            ->orderByDesc('id')
+            ->first();
+        if (! $echo || trim((string) $echo->body) !== $body) {
+            return false;
+        }
+        $incomingId = isset($parsed['message_id']) ? (string) $parsed['message_id'] : '';
+        if ($incomingId !== '' && (string) $echo->provider_message_id !== $incomingId && preg_match('/^\d+$/', (string) $echo->provider_message_id)) {
+            $echo->provider_message_id = $incomingId;
+            $echo->save();
+        }
+
+        return true;
     }
 
     /**
@@ -305,6 +355,9 @@ class WhatsAppConversationService
             }
         }
         $outgoing = ! empty($parsed['from_me']);
+        if ($outgoing && $this->absorbPhoneEcho($conversation, $parsed)) {
+            return false;
+        }
         $message = new WhatsAppMessage([
             'conversation_id' => $conversation->id,
             'contact_id' => $contact->id,
