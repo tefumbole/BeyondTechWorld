@@ -11,6 +11,7 @@ use App\WhatsApp\WhatsAppConversationEvent;
 use App\WhatsApp\WhatsAppMessage;
 use App\WhatsApp\WhatsAppNote;
 use App\WhatsApp\WhatsAppSetting;
+use Illuminate\Support\Facades\Cache;
 
 class WhatsAppConversationService
 {
@@ -126,6 +127,10 @@ class WhatsAppConversationService
         if (! empty($parsed['message_id'])) {
             $existing = WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first();
             if ($existing) {
+                // A chat-update can save "AI ON" before this message event arrives.
+                // That copy does not run the command, so run it from the real event.
+                $this->queueAssistantTurn($existing, true);
+
                 return $existing;
             }
         }
@@ -160,14 +165,51 @@ class WhatsAppConversationService
             app(WhatsAppLeadService::class)->considerIncoming($contact, $conversation, $message);
         } catch (\Exception $e) {
         }
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('assistant_activities')) {
-                \App\Jobs\ProcessAssistantTurn::dispatch($message->id)->onQueue('whatsapp');
-            }
-        } catch (\Exception $e) {
-        }
+        $this->queueAssistantTurn($message, false);
 
         return $message;
+    }
+
+    /**
+     * Queue one assistant turn. Owner commands such as "AI ON" are queued once,
+     * even when a chat update and the message event both carry the same text.
+     */
+    protected function queueAssistantTurn(WhatsAppMessage $message, $controlOnly)
+    {
+        $control = app(OwnerCommandService::class)->isControlCommand((string) $message->body);
+        if ($controlOnly && ! $control) {
+            return;
+        }
+        if ($message->direction !== WhatsAppMessage::DIR_IN) {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('assistant_activities')) {
+            return;
+        }
+        if ($control && ! $this->claimControlCommand($message)) {
+            return;
+        }
+        try {
+            \App\Jobs\ProcessAssistantTurn::dispatch($message->id)->onQueue('whatsapp');
+        } catch (\Exception $e) {
+            if ($control) {
+                Cache::forget($this->controlCommandKey($message));
+            }
+        }
+    }
+
+    protected function claimControlCommand(WhatsAppMessage $message)
+    {
+        try {
+            return Cache::add($this->controlCommandKey($message), 1, now()->addDay());
+        } catch (\Exception $e) {
+            return true;
+        }
+    }
+
+    protected function controlCommandKey(WhatsAppMessage $message)
+    {
+        return 'whatsapp.control-command.'.$message->id;
     }
 
     /**
@@ -197,6 +239,15 @@ class WhatsAppConversationService
         $created = false;
         if (! empty($parsed['message_id']) || ! empty($parsed['body'])) {
             $created = $this->storePhoneMessage($conversation, $contact, $parsed, $at);
+        }
+        if ($created && empty($parsed['from_me']) && ! empty($parsed['message_id'])) {
+            $fresh = ! $at || $at->greaterThan(now()->subMinutes(10));
+            $saved = $fresh
+                ? WhatsAppMessage::where('provider_message_id', $parsed['message_id'])->first()
+                : null;
+            if ($saved) {
+                $this->queueAssistantTurn($saved, true);
+            }
         }
 
         $markReadFromPhone = false;

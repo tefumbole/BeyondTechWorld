@@ -176,6 +176,30 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
         $this->assertStringContainsString('AI is on', $notice->body);
     }
 
+    public function test_ai_on_runs_when_the_chat_update_is_saved_first()
+    {
+        WhatsAppSetting::putValue('assistant_enabled', '0');
+        WhatsAppSetting::putValue('ai_first', '1');
+        WhatsAppSetting::putValue('default_conversation_mode', 'HUMAN');
+        $this->owner('250794006160');
+        $open = $this->humanChat('237650200056', 'Customer');
+
+        $this->postWebhook($this->chatUpdate('250794006160', 'AI ON', 'RACE1'))->assertStatus(200);
+        $this->postWebhook($this->text('250794006160', 'AI ON', 'RACE1'))->assertStatus(200);
+        $this->postWebhook([
+            'event' => 'messages.upsert',
+            'timestamp' => time(),
+            'data' => $this->text('250794006160', 'AI ON', 'RACE1')['data'],
+        ])->assertStatus(200);
+
+        $this->assertSame('1', WhatsAppSetting::getValue('assistant_enabled', '0'));
+        $this->assertSame(WhatsAppConversation::MODE_AI, $open->fresh()->mode);
+        $notices = WhatsAppMessage::where('sender_type', 'ASSISTANT')
+            ->where('body', 'like', '%WhatsApp AI is on%')
+            ->count();
+        $this->assertSame(1, $notices);
+    }
+
     public function test_owner_can_turn_ai_first_on_without_rewriting_chats()
     {
         $this->owner('237650200001');
@@ -404,6 +428,33 @@ class WhatsAppGroupIntelligenceTest extends WhatsAppHubTestCase
             'summary_retention_days' => 180,
             'action_retention_days' => 365,
         ]);
+    }
+
+    protected function chatUpdate($phone, $body, $id)
+    {
+        return [
+            'event' => 'chats.update',
+            'timestamp' => time(),
+            'data' => [
+                'chats' => [
+                    'id' => $phone.'@s.whatsapp.net',
+                    'unreadCount' => 1,
+                    'conversationTimestamp' => time(),
+                    'messages' => [[
+                        'message' => [
+                            'key' => [
+                                'id' => $id,
+                                'fromMe' => false,
+                                'remoteJid' => $phone.'@s.whatsapp.net',
+                                'cleanedSenderPn' => $phone,
+                            ],
+                            'messageBody' => $body,
+                            'message' => ['conversation' => $body],
+                        ],
+                    ]],
+                ],
+            ],
+        ];
     }
 
     protected function text($phone, $body, $id)
