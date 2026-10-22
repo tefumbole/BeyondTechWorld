@@ -40,6 +40,7 @@ class SettingController extends Controller
     }
     public function generalSetting()
     {
+        $this->ensureGeneralSettingPermission();
         $tenant = app(\App\Services\Cloud\CloudTenantContext::class)->tenant();
         $companyOwnedSettings = $tenant && $tenant->type === \App\Cloud\CloudTenantType::CUSTOMER;
         if (! $companyOwnedSettings) {
@@ -266,24 +267,9 @@ class SettingController extends Controller
             return redirect()->back()->with('message', 'Data updated successfully');
         }
 
+        $this->ensureGeneralSettingPermission();
         $data = $request->except('site_logo');
-
-        $timezone = trim((string) ($data['timezone'] ?? ''));
-        if ($timezone !== '' && in_array($timezone, timezone_identifiers_list(), true)) {
-            if (! EnvFile::upsert(['APP_TIMEZONE' => $timezone])) {
-                return redirect()->back()->with('not_permitted', 'Could not write APP_TIMEZONE to .env (check file permissions).');
-            }
-            putenv('APP_TIMEZONE='.$timezone);
-            $_ENV['APP_TIMEZONE'] = $timezone;
-            $_SERVER['APP_TIMEZONE'] = $timezone;
-            config(['app.timezone' => $timezone]);
-            date_default_timezone_set($timezone);
-            try {
-                Artisan::call('config:clear');
-            } catch (\Throwable $e) {
-                // Non-fatal: runtime config already updated for this process.
-            }
-        }
+        $timezoneNotice = \App\Support\AppTimezone::persist($data['timezone'] ?? '');
 
         $general_setting = GeneralSetting::latest()->first();
         $general_setting->id = 1;
@@ -337,7 +323,54 @@ class SettingController extends Controller
             );
         }
         $general_setting->save();
-        return redirect()->back()->with('message', 'Data updated successfully');
+        \Illuminate\Support\Facades\Cache::forget('general_setting_latest');
+        $message = 'Data updated successfully';
+        if ($timezoneNotice) {
+            $message .= ' '.$timezoneNotice;
+        }
+
+        return redirect()->back()->with('message', $message);
+    }
+
+    /**
+     * Admin and Owner can always change the system name.
+     */
+    protected function ensureGeneralSettingPermission()
+    {
+        $user = Auth::user();
+        if (! $user || ! in_array((int) $user->role_id, [1, 2], true)) {
+            return;
+        }
+        if (! \Schema::hasTable('permissions') || ! \Schema::hasTable('role_has_permissions')) {
+            return;
+        }
+
+        try {
+            $permission = DB::table('permissions')->where('name', 'general_setting')->where('guard_name', 'web')->first();
+            if (! $permission) {
+                $permissionId = DB::table('permissions')->insertGetId([
+                    'name' => 'general_setting',
+                    'guard_name' => 'web',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $permissionId = $permission->id;
+            }
+            $assigned = DB::table('role_has_permissions')->where([
+                ['permission_id', $permissionId],
+                ['role_id', $user->role_id],
+            ])->exists();
+            if (! $assigned) {
+                DB::table('role_has_permissions')->insert([
+                    'permission_id' => $permissionId,
+                    'role_id' => $user->role_id,
+                ]);
+                app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+            }
+        } catch (\Throwable $e) {
+            // The page still opens for Admin and Owner when the permission row cannot be written.
+        }
     }
 
     public function rewardPointSetting()

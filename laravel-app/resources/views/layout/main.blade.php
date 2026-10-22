@@ -1771,10 +1771,14 @@
                                 ])->first();
 
                                 $general_setting_permission = DB::table('permissions')->where('name', 'general_setting')->first();
-                                $general_setting_permission_active = DB::table('role_has_permissions')->where([
-                                    ['permission_id', $general_setting_permission->id],
-                                    ['role_id', $role->id]
-                                ])->first();
+                                $general_setting_permission_active = $general_setting_permission
+                                    ? DB::table('role_has_permissions')->where([
+                                        ['permission_id', $general_setting_permission->id],
+                                        ['role_id', $role->id]
+                                    ])->first()
+                                    : null;
+                                $can_general_setting = $general_setting_permission_active
+                                    || in_array((int) Auth::user()->role_id, [1, 2], true);
 
                                 $backup_database_permission = DB::table('permissions')->where('name', 'backup_database')->first();
                                 $backup_database_permission_active = DB::table('role_has_permissions')->where([
@@ -1844,15 +1848,12 @@
                                         <a onclick="return confirm('Are you sure want to delete? If you do this all of your data will be lost.')" href="{{route('setting.emptyDatabase')}}">{{trans('file.Empty Database')}}</a>
                                     </li>
                                 @endif
-                                @if($general_setting_permission_active)
+                                @if($can_general_setting)
                                     <li id="general-setting-menu"><a href="{{route('setting.general')}}">{{trans('file.General Setting')}}</a></li>
                                     @if(!isset($cloudTenant) || $cloudTenant->type !== \App\Cloud\CloudTenantType::CUSTOMER)
                                     <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
                                     <li id="env-setting-menu"><a href="{{route('setting.env')}}">.env Settings</a></li>
                                     @endif
-                                @endif
-                                @if(!$general_setting_permission_active && in_array((int) Auth::user()->role_id, [1, 2], true))
-                                    <li id="activity-logs-menu"><a href="{{route('activity-logs.index')}}">Activity Logs</a></li>
                                 @endif
                                 @if($mail_setting_permission_active)
                                     <li id="mail-setting-menu"><a href="{{route('setting.mail')}}">{{trans('file.Mail Setting')}}</a></li>
