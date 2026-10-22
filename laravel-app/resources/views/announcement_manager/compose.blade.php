@@ -250,7 +250,7 @@
                         </label>
                         <button type="button" class="an-pill mt-3" id="an-personalize-btn">Personalize each message</button>
                         <input type="checkbox" name="personalized" id="an-personalized" value="1" class="d-none">
-                        <div class="an-info" id="an-personalize-help">Turn this on to greet each person by name. Add a title in the preview, for example Pastor John or Dr. Bolla. A selected group then sends a separate message to each member.</div>
+                        <div class="an-info" id="an-personalize-help">Each person is greeted as Dear and their name. Turn this on to add a title in the preview, for example Pastor John or Dr. Bolla. A selected group then sends a separate message to each member.</div>
                         <div class="an-info">Messages go out one person every 5 seconds so WhatsApp does not block the account.</div>
                         <button type="button" class="an-btn-outline mt-2" id="an-preview-btn" style="display:none;">Preview messages</button>
                         <div class="mt-3">
@@ -732,7 +732,7 @@ window.AN_PRESELECT = @json([
         var body = esc(document.getElementById('an-preview-body').value || '');
         var shownName = name ? '<strong>'+esc(name)+'</strong>' : '';
         body = body.replace(/\{name\}/ig, shownName).replace(/\{phone\}/ig, esc(phone)).replace(/\{date\}/ig, new Date().toLocaleDateString());
-        body = body.replace(/^\s*Dear\s+[^,\n]*,\s*/i, '').trim();
+        body = body.replace(/^\s*Dear\b[^\n]*\n*/i, '').trim();
         var html = '';
         if (header) html += '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">📢 '+esc(header)+'</div>';
         html += '<div style="margin-bottom:12px;">'+(name ? 'Dear <strong>'+esc(name)+'</strong>,' : 'Hello,')+'</div>';

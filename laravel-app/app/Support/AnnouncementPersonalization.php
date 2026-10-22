@@ -40,8 +40,7 @@ class AnnouncementPersonalization
      */
     public static function buildMessage($announcement, array $person, $isCc = false)
     {
-        $personalized = ! empty($announcement->personalized);
-        if (! $personalized) {
+        if (isset($person['kind']) && $person['kind'] === 'group') {
             $person['name'] = '';
         }
         $person['name'] = self::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
@@ -57,15 +56,25 @@ class AnnouncementPersonalization
         $footer = trim(self::personalize($announcement->footer ?: '', $vars));
         $name = trim((string) ($person['name'] ?? ''));
 
-        $body = preg_replace('/^\s*Dear\s+[^,\n]*,\s*/iu', '', $body);
-        $body = trim($body);
+        $body = self::stripOpeningDear($body);
+        if ($footer === '') {
+            list($body, $lifted) = self::splitClosing($body);
+            if ($lifted !== '') {
+                $footer = $lifted;
+                $company = self::companyLine();
+                if ($company !== '' && stripos($footer, $company) === false) {
+                    $footer .= "\n".$company;
+                }
+            }
+        }
+        $body = self::tidyBody($body);
         $header = trim(self::personalize($announcement->header ?: '', $vars));
 
         $msg = '';
         if ($header !== '') {
             $msg .= '📢 *'.$header."*\n\n";
         }
-        if ($personalized && $name !== '') {
+        if ($name !== '') {
             $msg .= 'Dear *'.$name."*,\n\n";
         } else {
             $msg .= "Hello,\n\n";
@@ -78,7 +87,7 @@ class AnnouncementPersonalization
         }
         $signoff = $footer;
         if ($signoff === '') {
-            $signoff = trim(WhatsAppMessage::companyName());
+            $signoff = self::companyLine();
         }
         $signoff = self::italicSignoff($signoff);
         if ($signoff !== '') {
@@ -86,6 +95,75 @@ class AnnouncementPersonalization
         }
 
         return trim($msg)."\n";
+    }
+
+    /**
+     * A programmed reminder uses the same greeting, including the recipient's name.
+     */
+    public static function reminderMessage($announcement, array $person)
+    {
+        $body = ltrim(self::buildMessage($announcement, $person, false));
+
+        return "⏰ *Reminder*\n\n".$body;
+    }
+
+    /**
+     * Drop a leading "Dear …" line. The greeting is added with the recipient's name.
+     */
+    public static function stripOpeningDear($body)
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", trim((string) $body));
+        if (! preg_match('/^\s*Dear\b([^\n]*)/iu', $body, $match)) {
+            return $body;
+        }
+        $line = trim($match[1]);
+        $words = trim($line, " \t,.*_");
+        if (strlen($words) > 80) {
+            return $body;
+        }
+        $stripped = preg_replace('/^\s*Dear\b[^\n]*\n*/iu', '', $body, 1);
+
+        return trim((string) $stripped);
+    }
+
+    /**
+     * A closing such as "Sincerely." belongs with the footer, not in the paragraph.
+     *
+     * @return array{0:string,1:string}
+     */
+    public static function splitClosing($body)
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", trim((string) $body));
+        $pattern = '/(?:^|\n)([ \t]*(?:Sincerely|Yours faithfully|Yours sincerely|Kind regards|Best regards|Warm regards|Best wishes|Regards)\b[^\n]*(?:\n[ \t]*[^\n]+){0,4})\s*$/iu';
+        if (! preg_match($pattern, $body, $match, PREG_OFFSET_CAPTURE)) {
+            return [$body, ''];
+        }
+        $signoff = trim($match[1][0]);
+        $main = trim(substr($body, 0, $match[1][1]));
+
+        return [$main, $signoff];
+    }
+
+    public static function tidyBody($body)
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", trim((string) $body));
+        $body = preg_replace("/[ \t]+\n/", "\n", $body);
+        $body = preg_replace("/\n{3,}/", "\n\n", (string) $body);
+
+        return trim((string) $body);
+    }
+
+    protected static function companyLine()
+    {
+        try {
+            if (! function_exists('app')) {
+                return '';
+            }
+
+            return trim((string) WhatsAppMessage::companyName());
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     /**

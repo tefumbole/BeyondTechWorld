@@ -277,6 +277,7 @@ class AnnouncementNotificationService extends Controller
                 'name' => isset($group['name']) ? $group['name'] : 'everyone',
                 'phone' => '',
                 'email' => '',
+                'kind' => 'group',
             ];
             $msg = AnnouncementPersonalization::buildMessage($announcement, $person, false);
             $jid = isset($group['group_jid']) ? (string) $group['group_jid'] : '';
@@ -384,9 +385,7 @@ class AnnouncementNotificationService extends Controller
             if ($groupJid !== '' && ! app(GroupContactExportService::class)->shouldNotify($groupJid, $phone)) {
                 continue;
             }
-            if (! empty($announcement->personalized)) {
-                $person['name'] = $this->personalName($person);
-            }
+            $person['name'] = $this->greetingName($announcement, $person);
             $ok = $this->deliverPerson($announcement, $person, $phone, false);
             if ($ok) {
                 $sent++;
@@ -403,9 +402,7 @@ class AnnouncementNotificationService extends Controller
 
         foreach ($ccs as $person) {
             $phone = $person['phone'] ?? '';
-            if (! empty($announcement->personalized)) {
-                $person['name'] = $this->personalName($person);
-            }
+            $person['name'] = $this->greetingName($announcement, $person);
             $ok = $this->deliverPerson($announcement, $person, $phone, true);
             if ($ok) {
                 $ccSent++;
@@ -511,6 +508,19 @@ class AnnouncementNotificationService extends Controller
         return $results;
     }
 
+    protected function greetingName(WaAnnouncement $announcement, array $person)
+    {
+        if (! empty($announcement->personalized)) {
+            return $this->personalName($person);
+        }
+        $stored = AnnouncementPersonalization::usableName(isset($person['name']) ? $person['name'] : '', isset($person['phone']) ? $person['phone'] : '');
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        return $this->personalName($person);
+    }
+
     protected function personalName(array $person)
     {
         $phone = isset($person['phone']) ? (string) $person['phone'] : '';
@@ -613,11 +623,12 @@ class AnnouncementNotificationService extends Controller
                 }
                 usleep(5000000);
             }
-
-            return $sent;
         }
 
         $people = array_values($phones);
+        if ($people === []) {
+            return $sent;
+        }
         $broadcast = count($people) > 1;
         if ($broadcast) {
             TwilioAdminCopy::hold();
@@ -626,7 +637,7 @@ class AnnouncementNotificationService extends Controller
         try {
             foreach ($people as $person) {
                 $phone = $person['phone'] ?? '';
-                $person['name'] = $this->personalName($person);
+                $person['kind'] = 'contact';
                 $vars = $this->twilioVars($announcement, $person, false);
                 $vars['kind'] = 'a reminder';
                 $msg = $this->reminderText($announcement, $person);
@@ -670,6 +681,7 @@ class AnnouncementNotificationService extends Controller
 
     protected function postGroupReminder(WaAnnouncement $announcement, $jid, array $person = [])
     {
+        $person['kind'] = 'group';
         $person['name'] = '';
         $person['phone'] = '';
         $msg = $this->reminderText($announcement, $person);
@@ -688,15 +700,17 @@ class AnnouncementNotificationService extends Controller
                     $this->pauseBetweenRecipients($announcement);
                 }
                 $memberPerson = $person;
+                $memberPerson['kind'] = 'contact';
                 $memberPerson['name'] = $member['name'] ?? '';
                 $memberPerson['phone'] = $member['phone'] ?? '';
+                $memberMsg = $this->reminderText($announcement, $memberPerson);
                 $vars = $this->twilioVars($announcement, $memberPerson, false);
                 $vars['kind'] = 'a reminder';
                 $ok = false;
-                if ($announcement->send_whatsapp && $this->sendPhone($member['phone'], $msg, $vars)) {
+                if ($announcement->send_whatsapp && $this->sendPhone($member['phone'], $memberMsg, $vars)) {
                     $ok = true;
                 }
-                if ($announcement->send_sms && $this->sendSmsPhone($member['phone'], $msg)) {
+                if ($announcement->send_sms && $this->sendSmsPhone($member['phone'], $memberMsg)) {
                     $ok = true;
                 }
                 if ($ok) {
@@ -719,7 +733,13 @@ class AnnouncementNotificationService extends Controller
         if ($announcement->send_sms) {
             $smsSent = 0;
             foreach ($export->notifiableMembers($jid) as $member) {
-                if ($this->sendSmsPhone(isset($member['phone']) ? $member['phone'] : '', $msg)) {
+                $memberPerson = [
+                    'kind' => 'contact',
+                    'name' => isset($member['name']) ? $member['name'] : '',
+                    'phone' => isset($member['phone']) ? $member['phone'] : '',
+                ];
+                $memberMsg = $this->reminderText($announcement, $memberPerson);
+                if ($this->sendSmsPhone($memberPerson['phone'], $memberMsg)) {
                     $smsSent++;
                 }
                 usleep(200000);
@@ -734,8 +754,12 @@ class AnnouncementNotificationService extends Controller
 
     protected function reminderText(WaAnnouncement $announcement, array $person)
     {
-        $body = ltrim(AnnouncementPersonalization::buildMessage($announcement, $person, false));
+        if (isset($person['kind']) && $person['kind'] === 'group') {
+            $person['name'] = '';
+        } else {
+            $person['name'] = $this->greetingName($announcement, $person);
+        }
 
-        return "⏰ *Reminder*\n\n".$body;
+        return AnnouncementPersonalization::reminderMessage($announcement, $person);
     }
 }
