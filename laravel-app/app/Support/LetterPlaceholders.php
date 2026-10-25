@@ -48,6 +48,40 @@ class LetterPlaceholders
             $map['[column'.$i.']'] = $val;
         }
 
+        $school = SchoolMerge::values([
+            'name' => $get('name'),
+            'parent' => $get('parent'),
+            'student' => $get('student'),
+            'class' => $get('class'),
+            'company_name' => $get('company_name'),
+            'organization' => $get('organization'),
+            'city' => $get('city'),
+            'class_name' => $get('class_name'),
+            'column1' => $get('column1'),
+            'column2' => $get('column2'),
+            'phone' => $get('phone_number') !== '' ? $get('phone_number') : $get('phone'),
+            'customer_name' => $get('customer_name'),
+        ]);
+        foreach (['Parent' => 'parent', 'Student' => 'student', 'Class' => 'class'] as $label => $key) {
+            if ($school[$key] === '') {
+                continue;
+            }
+            $map['['.$label.']'] = $school[$key];
+            $map['['.strtolower($label).']'] = $school[$key];
+            $map['{'.$label.'}'] = $school[$key];
+            $map['{'.strtolower($label).'}'] = $school[$key];
+        }
+        if ($school['student'] !== '') {
+            $map['{child}'] = $school['student'];
+            $map['[child]'] = $school['student'];
+            $map['{student_name}'] = $school['student'];
+            $map['[student_name]'] = $school['student'];
+        }
+        if ($school['class'] !== '') {
+            $map['{class_name}'] = $school['class'];
+            $map['[class_name]'] = $school['class'];
+        }
+
         return $map;
     }
 

@@ -6,6 +6,7 @@ use App\Customer;
 use App\CustomerGroup;
 use App\Employee;
 use App\Services\PeopleDirectoryService;
+use App\Support\SchoolMerge;
 use App\User;
 use Illuminate\Support\Collection;
 
@@ -148,7 +149,7 @@ class LetterRecipients
             if ($name === '' || $nameDigits === $digits || preg_match('/^\+?\d[\d\s\-().]+$/', $name)) {
                 $name = $digits;
             }
-            $members[] = self::toSendObject([
+            $payload = [
                 'id' => 'wa:'.$digits,
                 'name' => $name,
                 'phone' => $digits,
@@ -158,7 +159,18 @@ class LetterRecipients
                 'group_jid' => '',
                 'role' => 'WhatsApp',
                 'source' => 'WhatsApp group',
-            ]);
+            ];
+            try {
+                $customer = app(PeopleDirectoryService::class)->findCustomerByLoosePhone($digits);
+            } catch (\Throwable $e) {
+                $customer = null;
+            }
+            if ($customer) {
+                $payload['customer_name'] = $customer->name;
+                $payload['company_name'] = $customer->company_name;
+                $payload['city'] = $customer->city;
+            }
+            $members[] = self::toSendObject(SchoolMerge::decorate($payload));
         }
         if (! $members) {
             $reason = isset($fetched['error']) ? trim((string) $fetched['error']) : '';
@@ -172,8 +184,12 @@ class LetterRecipients
 
     public static function toSendObject(array $person)
     {
+        $person = SchoolMerge::decorate($person);
         $r = (object) [];
         $r->name = $person['name'] ?? '';
+        $r->parent = $person['parent'] ?? '';
+        $r->student = $person['student'] ?? '';
+        $r->class = $person['class'] ?? '';
         $r->phone_number = $person['phone'] ?? ($person['phone_number'] ?? '');
         $r->email = $person['email'] ?? '';
         $r->address = $person['address'] ?? '';

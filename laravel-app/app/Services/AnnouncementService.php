@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SchoolMerge;
 use App\WaAnnouncement;
 use App\WaAnnouncementCategory;
 use App\WaAnnouncementReminder;
@@ -73,39 +74,67 @@ class AnnouncementService
 
     public function resolvePeople(array $ids)
     {
-        $map = [];
-        foreach ($this->eligibleUsers('all', '') as $u) {
-            $map[$u['id']] = $u;
-        }
-        $out = [];
-        foreach ($ids as $id) {
-            if (isset($map[$id])) {
-                $out[] = $map[$id];
+        return $this->people->resolveDirectoryPeople($ids);
+    }
+
+    /**
+     * Fill parent, student, and class for a school letter, then apply preview edits.
+     */
+    public function withSchoolRoster(array $people, array $overrides = [])
+    {
+        $byPhone = $this->schoolOverrideMap($overrides);
+        foreach ($people as $i => $person) {
+            if (! is_array($person)) {
                 continue;
             }
-            // Resolve directory ID to BeyondUser snapshot even if not in first page
-            try {
-                $beyondId = $this->people->resolveToBeyondUserId($id);
-                if ($beyondId) {
-                    $user = \App\BeyondUser::find($beyondId);
-                    if ($user) {
-                        $out[] = [
-                            'id' => $id,
-                            'name' => $user->name,
-                            'email' => $user->email,
-                            'phone' => $user->phone,
-                            'address' => $user->address ?? '',
-                            'role' => $user->role ?? '',
-                            'source' => 'Resolved',
-                        ];
+            $phone = isset($person['phone']) ? (string) $person['phone'] : '';
+            $digits = preg_replace('/\D+/', '', $phone);
+            if ($digits !== '') {
+                try {
+                    $customer = $this->people->findCustomerByLoosePhone($digits);
+                } catch (\Throwable $e) {
+                    $customer = null;
+                }
+                if ($customer) {
+                    if (empty($person['customer_name'])) {
+                        $person['customer_name'] = $customer->name;
+                    }
+                    if (SchoolMerge::clean(isset($person['student']) ? $person['student'] : '') === '') {
+                        $person['company_name'] = $customer->company_name;
+                    }
+                    if (SchoolMerge::clean(isset($person['class']) ? $person['class'] : '') === '') {
+                        $person['city'] = $customer->city;
                     }
                 }
-            } catch (\Exception $e) {
-                // skip
             }
+            $person = SchoolMerge::decorate($person);
+            $tail = $digits !== '' ? substr($digits, -9) : '';
+            $override = [];
+            if ($digits !== '' && isset($byPhone[$digits])) {
+                $override = $byPhone[$digits];
+            } elseif ($tail !== '' && isset($byPhone[$tail])) {
+                $override = $byPhone[$tail];
+            }
+            foreach (['parent', 'student', 'class'] as $key) {
+                if (! isset($override[$key])) {
+                    continue;
+                }
+                $value = SchoolMerge::clean($override[$key]);
+                if ($value === '') {
+                    continue;
+                }
+                $person[$key] = $value;
+            }
+            if (! empty($override['parent']) && empty($person['name_edited'])) {
+                $person['name'] = $person['parent'];
+            }
+            if ($override !== [] && $digits !== '') {
+                $this->rememberSchoolRoster($digits, $person);
+            }
+            $people[$i] = $person;
         }
 
-        return $out;
+        return $people;
     }
 
     public function categories()
@@ -149,6 +178,15 @@ class AnnouncementService
     {
         $settings = $this->settings();
         $audience = isset($data['audience']) ? (string) $data['audience'] : 'people';
+        $school = SchoolMerge::isSchool(
+            isset($data['template_name']) ? $data['template_name'] : '',
+            isset($data['subject']) ? $data['subject'] : '',
+            isset($data['body']) ? $data['body'] : '',
+            trim((isset($data['header']) ? $data['header'] : '').' '.(isset($data['footer']) ? $data['footer'] : ''))
+        );
+        if ($school && $audience === 'group') {
+            $data['personalized'] = true;
+        }
         if ($audience === 'group') {
             $jids = isset($data['group_jids']) ? (array) $data['group_jids'] : [];
             if (! empty($data['group_jid'])) {
@@ -173,6 +211,11 @@ class AnnouncementService
             $ccs = $this->applyNameOverrides($ccs, $overrides);
             $this->persistEditedGroupNames($recipients);
             $this->persistEditedGroupNames($ccs);
+        }
+        if ($school) {
+            $overrides = isset($data['school_overrides']) ? (array) $data['school_overrides'] : [];
+            $recipients = $this->withSchoolRoster($recipients, $overrides);
+            $ccs = $this->withSchoolRoster($ccs, $overrides);
         }
 
         $sendMode = $data['send_mode'] ?? 'now';
@@ -407,6 +450,52 @@ class AnnouncementService
         }
 
         return $people;
+    }
+
+    protected function schoolOverrideMap(array $overrides)
+    {
+        $byPhone = [];
+        foreach ($overrides as $phone => $fields) {
+            if (! is_array($fields)) {
+                continue;
+            }
+            $digits = preg_replace('/\D+/', '', (string) $phone);
+            if ($digits === '') {
+                continue;
+            }
+            $byPhone[$digits] = $fields;
+            if (strlen($digits) > 9) {
+                $byPhone[substr($digits, -9)] = $fields;
+            }
+        }
+
+        return $byPhone;
+    }
+
+    protected function rememberSchoolRoster($phone, array $person)
+    {
+        try {
+            $customer = $this->people->findCustomerByLoosePhone($phone);
+        } catch (\Throwable $e) {
+            return;
+        }
+        if (! $customer) {
+            return;
+        }
+        $dirty = false;
+        $student = SchoolMerge::clean(isset($person['student']) ? $person['student'] : '');
+        $className = SchoolMerge::clean(isset($person['class']) ? $person['class'] : '');
+        if ($student !== '' && $student !== (string) $customer->company_name) {
+            $customer->company_name = $student;
+            $dirty = true;
+        }
+        if ($className !== '' && $className !== (string) $customer->city) {
+            $customer->city = $className;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $customer->save();
+        }
     }
 
     protected function persistEditedGroupNames(array $people)

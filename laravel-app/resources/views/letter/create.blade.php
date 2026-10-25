@@ -170,7 +170,14 @@
                                         <div class="letter-compose-section letter-editor-wrap">
                                             <span class="section-label body">{{trans('file.Body')}}</span>
                                             <div class="mb-2" style="font-size:12px;color:#6c757d;">
-                                                Use placeholders to personalize your message: [name], [phone_number], [email], [column1] .. [column10] in csv.
+                                                Use placeholders to personalize your message: [name], [Parent], [Student], [Class], [phone_number], [email], [column1] .. [column10] in csv.
+                                                For a school letter, column 1 is the student and column 2 is the class. The name column is the parent.
+                                            </div>
+                                            <div id="school-letter-note" class="alert alert-info" style="display:none;">
+                                                This school letter fills Parent, Student, and Class for each recipient.
+                                                Parent is the customer name, Student is the company name, and Class is the city.
+                                                A name written as Parent | Student | Class is read the same way.
+                                                The letter sent on WhatsApp is this template with those names filled in, so you can send the message as it is.
                                             </div>
                                             <textarea name="body" class="form-control" id="body">@if(!empty($clone)){!! $clone->body !!}@endif</textarea>
                                         </div>
@@ -347,6 +354,10 @@
                     tinymce.get("header").setContent(data['header']);
                     tinymce.get("body").setContent(data['body']);
                     tinymce.get("footer").setContent(data['footer']);
+                    var blob = ((data['name'] || '') + ' ' + (data['subject'] || '') + ' ' + (data['header'] || '') + ' ' + (data['body'] || '') + ' ' + (data['footer'] || '')).toLowerCase();
+                    var school = blob.indexOf('fredrick') !== -1 || blob.indexOf('frederick') !== -1
+                        || /[\[{]\s*(parent|student|class|child)(_name)?\s*[\}\]]/i.test(blob);
+                    $('#school-letter-note').toggle(!!school);
                 });
             });
         })
