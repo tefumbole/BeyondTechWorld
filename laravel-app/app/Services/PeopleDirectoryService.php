@@ -119,11 +119,14 @@ class PeopleDirectoryService
                 })
                 ->orderByDesc('id')
                 ->limit($customerLimit)
-                ->get(['id', 'name', 'email', 'phone_number', 'address', 'company_name'])
+                ->get(['id', 'name', 'email', 'phone_number', 'address', 'company_name', 'city'])
                 ->each(function ($c) use ($out) {
                     $out->push([
                         'id' => 'customer:' . $c->id,
                         'name' => $c->name ?: ($c->company_name ?: 'Untitled'),
+                        'parent' => $c->name ?: '',
+                        'student' => $c->company_name ?: '',
+                        'class' => $c->city ?: '',
                         'email' => $c->email,
                         'phone' => $c->phone_number,
                         'address' => $c->address,

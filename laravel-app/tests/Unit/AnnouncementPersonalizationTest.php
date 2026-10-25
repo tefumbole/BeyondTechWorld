@@ -97,4 +97,28 @@ class AnnouncementPersonalizationTest extends TestCase
         $this->assertStringNotContainsString('Hello,', $message);
         $this->assertStringContainsString('Good Morning Sir and Happy New Week.', $message);
     }
+
+    public function test_a_school_letter_keeps_the_student_and_class_and_its_own_signoff()
+    {
+        $announcement = (object) [
+            'personalized' => false,
+            'header' => '',
+            'reference' => '',
+            'body' => "Dear {Parent},\n\nI am writing on behalf of your child {Student} who is in {Class} at St. Frederick College.\n\nI wish to inform you thats students who have not meet up with the first installment fee payment will be sent home.\n\nSincerely.\nSchool Administration.\nSt. Frederick's College, Bamenda",
+            'footer' => '',
+        ];
+
+        $message = AnnouncementPersonalization::buildMessage($announcement, [
+            'name' => 'MAIMOUNATOU NA',
+            'parent' => 'MAIMOUNATOU NA',
+            'student' => 'ABDUL RAZAK OUMAROU',
+            'class' => 'FORM ONE',
+            'phone' => '237670703582',
+        ]);
+
+        $this->assertStringStartsWith('Dear *MAIMOUNATOU NA*,', $message);
+        $this->assertStringContainsString('your child ABDUL RAZAK OUMAROU who is in FORM ONE', $message);
+        $this->assertStringContainsString("_Sincerely._\n_School Administration._\n_St. Frederick's College, Bamenda_", $message);
+        $this->assertStringNotContainsString('Beyond Enterprise', $message);
+    }
 }

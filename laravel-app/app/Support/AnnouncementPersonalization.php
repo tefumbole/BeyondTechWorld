@@ -19,9 +19,19 @@ class AnnouncementPersonalization
 
     public static function recipientVars(array $person, $reference = '', $institution = 'Beyond Enterprise')
     {
+        $parent = trim((string) ($person['parent'] ?? $person['Parent'] ?? $person['name'] ?? ''));
+        $student = trim((string) ($person['student'] ?? $person['Student'] ?? $person['organization'] ?? ''));
+        $className = trim((string) ($person['class'] ?? $person['Class'] ?? $person['class_name'] ?? ''));
+
         return [
             'Name' => $person['name'] ?? '',
             'name' => $person['name'] ?? '',
+            'Parent' => $parent,
+            'parent' => $parent,
+            'Student' => $student,
+            'student' => $student,
+            'Class' => $className,
+            'class' => $className,
             'Phone' => $person['phone'] ?? '',
             'phone' => $person['phone'] ?? '',
             'Email' => $person['email'] ?? '',
@@ -61,9 +71,15 @@ class AnnouncementPersonalization
             list($body, $lifted) = self::splitClosing($body);
             if ($lifted !== '') {
                 $footer = $lifted;
-                $company = self::companyLine();
-                if ($company !== '' && stripos($footer, $company) === false) {
-                    $footer .= "\n".$company;
+                $lines = preg_split('/\n+/', trim($lifted));
+                $lines = is_array($lines) ? array_filter($lines, function ($line) {
+                    return trim((string) $line) !== '';
+                }) : [];
+                if (count($lines) < 3) {
+                    $company = self::companyLine();
+                    if ($company !== '' && stripos($footer, $company) === false) {
+                        $footer .= "\n".$company;
+                    }
                 }
             }
         }

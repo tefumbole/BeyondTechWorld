@@ -117,7 +117,7 @@
                         <label class="an-label">Message Body</label>
                         <div class="mb-2" style="font-size:12px;color:#9ca3af;">
                             Insert:
-                            @foreach(['{name}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}'] as $tok)
+                            @foreach(['{name}','{Parent}','{Student}','{Class}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}'] as $tok)
                                 <span class="an-ph" data-token="{{ $tok }}">{{ $tok }}</span>
                             @endforeach
                         </div>
