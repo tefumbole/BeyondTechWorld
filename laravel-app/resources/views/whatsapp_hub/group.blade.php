@@ -58,6 +58,9 @@
                         <td><input type="checkbox" class="contact-select" name="phones[]" value="{{ $phone }}" form="delete-selected-form"></td>
                         <td>
                             <input class="form-control contact-name" value="{{ $name }}" placeholder="Name to show for this number" style="min-width:220px">
+                            @if((isset($contact['role']) ? $contact['role'] : '') === 'creator')
+                                <div style="color:#0b3f90;font-weight:700;font-size:12px;margin-top:4px;">Creator</div>
+                            @endif
                             <small class="contact-save text-muted"></small>
                             @if($excluded)<div class="text-muted">Excluded from announcements and reminders</div>@endif
                         </td>

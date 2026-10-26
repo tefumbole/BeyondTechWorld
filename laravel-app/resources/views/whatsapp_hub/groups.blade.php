@@ -24,7 +24,7 @@
                 </thead>
                 <tbody>
                 @forelse($groups as $group)
-                    <tr data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}">
+                    <tr data-jid="{{ $group['jid'] }}" data-known="{{ !empty($group['known']) ? '1' : '0' }}" data-pin="{{ !empty($group['pin']) ? '1' : '0' }}">
                         <td class="group-name"><a href="{{ route('whatsapp.groups.show', ['jid' => $group['jid']]) }}">{{ !empty($group['known']) ? $group['name'] : 'Loading name…' }}</a></td>
                         <td class="group-members"><a href="{{ route('whatsapp.groups.show', ['jid' => $group['jid']]) }}">{{ $group['members'] === null ? '…' : number_format($group['members']) }}</a></td>
                     </tr>
@@ -80,6 +80,7 @@
                     var placed = false;
                     Array.prototype.slice.call(body.querySelectorAll('tr[data-known="1"]')).forEach(function (other) {
                         if (other === row || placed) return;
+                        if (other.getAttribute('data-pin') === '1') return;
                         if (group.name.toLowerCase() < other.querySelector('.group-name').textContent.toLowerCase()) {
                             body.insertBefore(row, other);
                             placed = true;

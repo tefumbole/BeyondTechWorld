@@ -141,6 +141,7 @@ class GroupContactExportService
                 'known' => $named,
                 'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
                 'last_sent' => isset($known['last_sent_at']) ? (int) $known['last_sent_at'] : 0,
+                'pin' => isset($known['pin']) ? (int) $known['pin'] : 0,
             ];
         }
         foreach ($saved as $jid => $known) {
@@ -157,12 +158,26 @@ class GroupContactExportService
                 'known' => $named,
                 'uses' => isset($known['uses']) ? (int) $known['uses'] : 0,
                 'last_sent' => isset($known['last_sent_at']) ? (int) $known['last_sent_at'] : 0,
+                'pin' => isset($known['pin']) ? (int) $known['pin'] : 0,
             ];
         }
         if ($directoryChanged) {
             $this->writeDirectory($saved);
         }
         usort($rows, function ($a, $b) {
+            $pinA = isset($a['pin']) ? (int) $a['pin'] : 0;
+            $pinB = isset($b['pin']) ? (int) $b['pin'] : 0;
+            if ($pinA > 0 || $pinB > 0) {
+                if ($pinA === 0) {
+                    return 1;
+                }
+                if ($pinB === 0) {
+                    return -1;
+                }
+                if ($pinA !== $pinB) {
+                    return $pinA - $pinB;
+                }
+            }
             if ($a['uses'] !== $b['uses']) {
                 return $b['uses'] - $a['uses'];
             }
@@ -204,6 +219,19 @@ class GroupContactExportService
         $groups = isset($summary['groups']) ? $summary['groups'] : [];
         if ($groups) {
             usort($groups, function ($a, $b) {
+                $pinA = isset($a['pin']) ? (int) $a['pin'] : 0;
+                $pinB = isset($b['pin']) ? (int) $b['pin'] : 0;
+                if ($pinA > 0 || $pinB > 0) {
+                    if ($pinA === 0) {
+                        return 1;
+                    }
+                    if ($pinB === 0) {
+                        return -1;
+                    }
+                    if ($pinA !== $pinB) {
+                        return $pinA - $pinB;
+                    }
+                }
                 $left = isset($a['last_sent']) ? (int) $a['last_sent'] : 0;
                 $right = isset($b['last_sent']) ? (int) $b['last_sent'] : 0;
                 if ($left !== $right) {
@@ -1066,6 +1094,7 @@ class GroupContactExportService
             if ($this->namesChanged($cached, $named)) {
                 $this->writeMembers($jid, $named);
             }
+            $named = $this->creatorsFirst($named);
 
             return ['success' => true, 'rows' => $named, 'name' => $savedName];
         }
@@ -1679,6 +1708,21 @@ class GroupContactExportService
         return $digits;
     }
 
+    protected function creatorsFirst(array $rows)
+    {
+        $creators = [];
+        $rest = [];
+        foreach ($rows as $row) {
+            if (is_array($row) && isset($row['role']) && $row['role'] === 'creator') {
+                $creators[] = $row;
+            } else {
+                $rest[] = $row;
+            }
+        }
+
+        return array_merge($creators, $rest);
+    }
+
     protected function uniqueContacts(array $contacts)
     {
         $out = [];
@@ -1705,6 +1749,9 @@ class GroupContactExportService
             }
             if (! empty($person['excluded'])) {
                 $kept['excluded'] = 1;
+            }
+            if ((isset($person['role']) ? $person['role'] : '') === 'creator' || (isset($kept['role']) ? $kept['role'] : '') === 'creator') {
+                $kept['role'] = 'creator';
             }
             $keptDigits = preg_replace('/\D+/', '', (string) (isset($kept['phone']) ? $kept['phone'] : ''));
             $nextDigits = preg_replace('/\D+/', '', (string) (isset($person['phone']) ? $person['phone'] : ''));
