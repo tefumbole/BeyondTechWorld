@@ -11,7 +11,11 @@ class AnnouncementPersonalization
         }
         $result = $template;
         foreach ($vars as $key => $value) {
-            $result = preg_replace('/\{' . preg_quote($key, '/') . '\}/i', (string) ($value ?? ''), $result);
+            $value = trim((string) ($value ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            $result = preg_replace('/\{' . preg_quote($key, '/') . '\}/i', $value, $result);
         }
 
         return $result;
@@ -19,9 +23,10 @@ class AnnouncementPersonalization
 
     public static function recipientVars(array $person, $reference = '', $institution = 'Beyond Enterprise')
     {
-        $parent = trim((string) ($person['parent'] ?? $person['Parent'] ?? $person['name'] ?? ''));
-        $student = trim((string) ($person['student'] ?? $person['Student'] ?? $person['organization'] ?? ''));
-        $className = trim((string) ($person['class'] ?? $person['Class'] ?? $person['class_name'] ?? ''));
+        $school = SchoolMerge::values($person);
+        $parent = $school['parent'];
+        $student = $school['student'];
+        $className = $school['class'];
 
         return [
             'Name' => $person['name'] ?? '',

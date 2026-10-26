@@ -74,6 +74,8 @@ class AnnouncementManagerController extends Controller
             'phone' => 'required|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
+            'student' => 'nullable|string|max:255',
+            'class_name' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -147,6 +149,7 @@ class AnnouncementManagerController extends Controller
             $people = $audience === 'group'
                 ? $this->announcements->previewGroupPeople((array) $request->input('group_jids', []))
                 : $this->announcements->resolvePeople((array) $request->input('recipient_ids', []));
+            $people = $this->announcements->withSchoolRoster($people);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['people' => [], 'error' => $e->getMessage()], 422);
         }
@@ -163,6 +166,9 @@ class AnnouncementManagerController extends Controller
             $rows[] = [
                 'phone' => $phone,
                 'name' => $name,
+                'parent' => isset($person['parent']) ? $person['parent'] : $name,
+                'student' => isset($person['student']) ? $person['student'] : '',
+                'class' => isset($person['class']) ? $person['class'] : '',
                 'group' => isset($person['group']) ? $person['group'] : '',
             ];
         }
@@ -205,6 +211,7 @@ class AnnouncementManagerController extends Controller
             'audience' => $request->input('audience', 'people'),
             'group_jids' => $request->input('group_jids', []),
             'name_overrides' => $request->input('name_overrides', []),
+            'school_overrides' => $request->input('school', []),
             'send_whatsapp' => $request->has('send_whatsapp'),
             'send_sms' => $request->has('send_sms'),
             'personalized' => $request->has('personalized'),

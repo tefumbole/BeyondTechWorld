@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Messaging\NotificationRouter;
 use App\Services\WhatsApp\GroupContactExportService;
 use App\Support\AnnouncementPersonalization;
+use App\Support\SchoolMerge;
 use App\Support\TwilioAdminCopy;
 use App\WaAnnouncement;
 use Illuminate\Support\Facades\Log;
@@ -67,6 +68,10 @@ class AnnouncementNotificationService extends Controller
         if ($announcement->send_whatsapp) {
             $vars = $this->twilioVars($announcement, $person, $isCc);
             if ($this->sendPhone($phone, $msg, $vars)) {
+                if (SchoolMerge::matchesAnnouncement($announcement)) {
+                    $this->pauseBetweenRecipients($announcement);
+                    $this->sendSchoolLetter($phone, $announcement, $person);
+                }
                 if (! empty($announcement->attachment_path)) {
                     $this->pauseBetweenRecipients($announcement);
                     $this->sendAttachment($phone, $announcement);
@@ -160,6 +165,21 @@ class AnnouncementNotificationService extends Controller
             'reference' => $reference !== '' ? $reference : '-',
             'details' => $header,
         ];
+    }
+
+    protected function sendSchoolLetter($phone, WaAnnouncement $announcement, array $person)
+    {
+        if ($phone === '' || ! SchoolMerge::matchesAnnouncement($announcement)) {
+            return;
+        }
+        $path = SchoolMerge::writePdf($announcement, $person);
+        if (! $path) {
+            Log::warning('School letter PDF was not created for '.$phone);
+
+            return;
+        }
+        $caption = trim((string) ($announcement->subject ?: 'School letter'));
+        $this->sendAttachmentViaWasender($phone, $path, SchoolMerge::fileName($person), $caption);
     }
 
     protected function sendAttachment($phone, WaAnnouncement $announcement)
@@ -510,6 +530,12 @@ class AnnouncementNotificationService extends Controller
 
     protected function greetingName(WaAnnouncement $announcement, array $person)
     {
+        if (SchoolMerge::matchesAnnouncement($announcement) && empty($person['name_edited'])) {
+            $parent = trim((string) (isset($person['parent']) ? $person['parent'] : ''));
+            if ($parent !== '') {
+                return $parent;
+            }
+        }
         if (! empty($announcement->personalized)) {
             return $this->personalName($person);
         }
@@ -643,6 +669,10 @@ class AnnouncementNotificationService extends Controller
                 $msg = $this->reminderText($announcement, $person);
                 $ok = false;
                 if ($announcement->send_whatsapp && $this->sendPhone($phone, $msg, $vars)) {
+                    if (SchoolMerge::matchesAnnouncement($announcement)) {
+                        $this->pauseBetweenRecipients($announcement);
+                        $this->sendSchoolLetter($phone, $announcement, $person);
+                    }
                     $ok = true;
                 }
                 if ($announcement->send_sms && $this->sendSmsPhone($phone, $msg)) {

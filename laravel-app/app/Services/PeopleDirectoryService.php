@@ -6,6 +6,7 @@ use App\Application;
 use App\BeyondUser;
 use App\Customer;
 use App\CustomerGroup;
+use App\Support\SchoolMerge;
 use App\Support\WhatsAppPhone;
 use App\TaskAssignment;
 use App\TaskCc;
@@ -121,19 +122,7 @@ class PeopleDirectoryService
                 ->limit($customerLimit)
                 ->get(['id', 'name', 'email', 'phone_number', 'address', 'company_name', 'city'])
                 ->each(function ($c) use ($out) {
-                    $out->push([
-                        'id' => 'customer:' . $c->id,
-                        'name' => $c->name ?: ($c->company_name ?: 'Untitled'),
-                        'parent' => $c->name ?: '',
-                        'student' => $c->company_name ?: '',
-                        'class' => $c->city ?: '',
-                        'email' => $c->email,
-                        'phone' => $c->phone_number,
-                        'address' => $c->address,
-                        'organization' => $c->company_name,
-                        'role' => 'customer',
-                        'source' => 'Customer',
-                    ]);
+                    $out->push($this->personFromCustomer($c));
                 });
         }
 
@@ -349,8 +338,16 @@ class PeopleDirectoryService
 
         $out = [];
         foreach ($ids as $id) {
+            if (Str::startsWith($id, 'customer:')) {
+                $customerId = (int) substr($id, strlen('customer:'));
+                $customer = $customerId ? Customer::find($customerId) : null;
+                if ($customer) {
+                    $out[] = $this->personFromCustomer($customer);
+                    continue;
+                }
+            }
             if (isset($map[$id])) {
-                $out[] = $map[$id];
+                $out[] = SchoolMerge::decorate($map[$id]);
                 continue;
             }
             if (Str::startsWith($id, 'applicant:')) {
@@ -498,6 +495,29 @@ class PeopleDirectoryService
     }
 
     /**
+     * Directory row for a customer. Parent, student, and class match the school letter.
+     */
+    public function personFromCustomer(Customer $c)
+    {
+        return SchoolMerge::decorate([
+            'id' => 'customer:'.$c->id,
+            'name' => $c->name ?: ($c->company_name ?: 'Untitled'),
+            'parent' => $c->name ?: '',
+            'student' => $c->company_name ?: '',
+            'class' => $c->city ?: '',
+            'company_name' => $c->company_name ?: '',
+            'city' => $c->city ?: '',
+            'customer_name' => $c->name ?: '',
+            'email' => $c->email,
+            'phone' => $c->phone_number,
+            'address' => $c->address,
+            'organization' => $c->company_name,
+            'role' => 'customer',
+            'source' => 'Customer',
+        ]);
+    }
+
+    /**
      * Create or reuse a real POS Customer row (People → Customers) from a quick-add form.
      * Used by Announcements, Job Board supervisors, etc. so the contact is system-wide.
      *
@@ -509,6 +529,8 @@ class PeopleDirectoryService
         $phone = WhatsAppPhone::sanitizeForStorage($data['phone'] ?? '');
         $email = trim((string) ($data['email'] ?? ''));
         $address = trim((string) ($data['address'] ?? ''));
+        $student = SchoolMerge::clean($data['student'] ?? '');
+        $className = SchoolMerge::clean($data['class_name'] ?? ($data['class'] ?? ''));
 
         if ($name === '' || $phone === '') {
             throw new \InvalidArgumentException('Name and a valid phone / WhatsApp number are required.');
@@ -554,6 +576,14 @@ class PeopleDirectoryService
                 $customer->address = $address;
                 $dirty = true;
             }
+            if ($student !== '') {
+                $customer->company_name = $student;
+                $dirty = true;
+            }
+            if ($className !== '') {
+                $customer->city = $className;
+                $dirty = true;
+            }
             if ($dirty) {
                 $customer->save();
             }
@@ -562,12 +592,12 @@ class PeopleDirectoryService
                 'customer_group_id' => $groupId,
                 'user_id' => null,
                 'name' => $name,
-                'company_name' => null,
+                'company_name' => $student !== '' ? $student : null,
                 'email' => $email !== '' ? $email : null,
                 'phone_number' => $phone,
                 'tax_no' => null,
                 'address' => $address !== '' ? $address : 'N/A',
-                'city' => 'N/A',
+                'city' => $className !== '' ? $className : 'N/A',
                 'state' => null,
                 'postal_code' => null,
                 'country' => null,
@@ -589,15 +619,7 @@ class PeopleDirectoryService
         return [
             'customer' => $customer->fresh(),
             'created' => $created,
-            'person' => [
-                'id' => 'customer:'.$customer->id,
-                'name' => $customer->name,
-                'email' => $customer->email ?: '',
-                'phone' => $customer->phone_number ?: $phone,
-                'address' => $customer->address ?: '',
-                'role' => 'customer',
-                'source' => 'Customer',
-            ],
+            'person' => $this->personFromCustomer($customer->fresh() ?: $customer),
         ];
     }
 

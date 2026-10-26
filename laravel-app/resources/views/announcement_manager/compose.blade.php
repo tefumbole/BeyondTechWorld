@@ -69,6 +69,7 @@
         <form method="POST" action="{{ route('announcements.store') }}" enctype="multipart/form-data" id="an-form">
             @csrf
             <input type="hidden" name="cloned_from_id" value="{{ $clone['cloned_from_id'] ?? '' }}">
+            <input type="hidden" name="template_name" id="an-template-name" value="">
             <input type="hidden" name="send_mode" id="an-send-mode" value="now">
             <input type="hidden" name="send_whatsapp" value="1">
             <input type="hidden" name="audience" id="an-audience" value="people">
@@ -86,6 +87,8 @@
                                         data-subject="{{ e($tpl->subject) }}"
                                         data-header="{{ e($tpl->header) }}"
                                         data-body="{{ e($tpl->body) }}"
+                                        data-name="{{ e($tpl->name) }}"
+                                        data-school="{{ \App\Support\SchoolMerge::isSchool($tpl->name, $tpl->subject, $tpl->body, $tpl->header) ? '1' : '0' }}"
                                         data-category="{{ $tpl->category_id }}">{{ $tpl->name }}</option>
                                 @endforeach
                             </select>
@@ -120,6 +123,12 @@
                             @foreach(['{name}','{Parent}','{Student}','{Class}','{email}','{phone}','{address}','{date}','{institution_name}','{reference}'] as $tok)
                                 <span class="an-ph" data-token="{{ $tok }}">{{ $tok }}</span>
                             @endforeach
+                        </div>
+                        <div id="an-school-note" class="an-info" style="display:none;">
+                            This school letter fills {Parent}, {Student}, and {Class} for each person.
+                            Parent is the customer name, Student is the company name, and Class is the city.
+                            A name written as Parent | Student | Class is read the same way.
+                            The filled letter is attached, so you can send the message as it is. Open Preview to check each student.
                         </div>
                         <textarea name="body" id="an-body" class="an-field" rows="8" required placeholder="Dear {name},">{{ old('body', $clone['body'] ?? "Dear {name},\n\n") }}</textarea>
                     </div>
@@ -182,8 +191,16 @@
                                     <input type="tel" class="an-field js-phone-holder" id="an-new-phone" placeholder="675321739 or +237…">
                                 </div>
                                 <div class="col-md-6 mb-2">
-                                    <label class="small font-weight-bold">Name *</label>
+                                    <label class="small font-weight-bold" id="an-new-name-label">Name *</label>
                                     <input type="text" class="an-field" id="an-new-name" placeholder="Full name">
+                                </div>
+                                <div class="col-md-6 mb-2 an-school-field" style="display:none;">
+                                    <label class="small font-weight-bold">Student</label>
+                                    <input type="text" class="an-field" id="an-new-student" placeholder="Student name">
+                                </div>
+                                <div class="col-md-6 mb-2 an-school-field" style="display:none;">
+                                    <label class="small font-weight-bold">Class</label>
+                                    <input type="text" class="an-field" id="an-new-class" placeholder="Form / class">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <label class="small font-weight-bold">Email (optional)</label>
@@ -291,6 +308,7 @@
                     </div>
                 </div>
                 <div id="an-name-overrides"></div>
+                <div id="an-school-overrides"></div>
             </div>
         </form>
     </div>
@@ -365,12 +383,22 @@ window.AN_PRESELECT = @json([
         return filterUsersLocal(query, roleFilter);
     }
 
+    function schoolActive() {
+        return !!window.AN_SCHOOL;
+    }
     function renderList(el, users, selected, onToggle) {
         el.innerHTML = users.map(function (u) {
             var sel = selected.indexOf(u.id) !== -1 ? ' selected' : '';
+            var extra = '';
+            if (schoolActive() && (u.student || u.class || u.parent)) {
+                extra = '<div class="meta">Parent: '+esc(u.parent || u.name || '')
+                    +' · Student: '+esc(u.student || '—')
+                    +' · Class: '+esc(u.class || '—')+'</div>';
+            }
             return '<button type="button" class="an-user-item'+sel+'" data-id="'+esc(u.id)+'">'
                 + '<div class="font-weight-bold">'+esc(u.name||'Untitled')+'</div>'
                 + '<div class="meta">'+esc(u.email||'')+' · '+esc(u.phone||'')+'</div>'
+                + extra
                 + '</button>';
         }).join('') || '<div class="p-3 text-muted small text-center">No people found.</div>';
         el.querySelectorAll('.an-user-item').forEach(function (item) {
@@ -501,7 +529,14 @@ window.AN_PRESELECT = @json([
                     'X-CSRF-TOKEN': csrf || ''
                 },
                 credentials: 'same-origin',
-                body: JSON.stringify({ name: name, phone: phone, email: email, address: address })
+                body: JSON.stringify({
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    address: address,
+                    student: (document.getElementById('an-new-student') || {}).value || '',
+                    class_name: (document.getElementById('an-new-class') || {}).value || ''
+                })
             }).then(function (r) {
                 return r.json().then(function (body) {
                     if (!r.ok) {
@@ -529,6 +564,8 @@ window.AN_PRESELECT = @json([
                 document.getElementById('an-new-phone').value = '';
                 document.getElementById('an-new-email').value = '';
                 document.getElementById('an-new-address').value = '';
+                if (document.getElementById('an-new-student')) document.getElementById('an-new-student').value = '';
+                if (document.getElementById('an-new-class')) document.getElementById('an-new-class').value = '';
                 addPanel.style.display = 'none';
                 if (addStatus) {
                     addStatus.textContent = body.created ? 'Recipient added.' : 'Existing customer selected.';
@@ -605,14 +642,56 @@ window.AN_PRESELECT = @json([
         box.appendChild(row);
     });
 
+    function textIsSchool(name, subject, body, header) {
+        var hay = ((name || '') + ' ' + (subject || '') + ' ' + (header || '') + ' ' + (body || '')).toLowerCase();
+        if (hay.indexOf('fredrick') !== -1 || hay.indexOf('frederick') !== -1) return true;
+        return /[\[{]\s*(parent|student|class|child)(_name)?\s*[\}\]]/i.test((body || '') + ' ' + (subject || ''));
+    }
+    function syncSchoolMode(enablePersonalize) {
+        var pick = document.getElementById('an-template-pick');
+        var opt = pick && pick.selectedIndex >= 0 ? pick.options[pick.selectedIndex] : null;
+        var fromTemplate = opt && opt.getAttribute('data-school') === '1';
+        var body = document.getElementById('an-body');
+        var subject = document.querySelector('[name=subject]');
+        var header = document.querySelector('[name=header]');
+        var was = !!window.AN_SCHOOL;
+        window.AN_SCHOOL = fromTemplate || textIsSchool(
+            opt ? opt.getAttribute('data-name') : '',
+            subject ? subject.value : '',
+            body ? body.value : '',
+            header ? header.value : ''
+        );
+        var note = document.getElementById('an-school-note');
+        if (note) note.style.display = window.AN_SCHOOL ? '' : 'none';
+        document.querySelectorAll('.an-school-field').forEach(function (el) {
+            el.style.display = window.AN_SCHOOL ? '' : 'none';
+        });
+        var templateName = document.getElementById('an-template-name');
+        if (templateName) templateName.value = opt && opt.value ? (opt.getAttribute('data-name') || opt.text || '') : '';
+        var nameLabel = document.getElementById('an-new-name-label');
+        if (nameLabel) nameLabel.textContent = window.AN_SCHOOL ? 'Parent *' : 'Name *';
+        if (enablePersonalize && window.AN_SCHOOL && personalizeBox && !personalizeBox.checked) {
+            personalizeBox.checked = true;
+            if (typeof syncPersonalize === 'function') syncPersonalize();
+        }
+        if (was !== !!window.AN_SCHOOL && typeof refreshRecipients === 'function') refreshRecipients();
+        if (typeof paintSample === 'function') paintSample();
+    }
     document.getElementById('an-template-pick').addEventListener('change', function () {
         var opt = this.options[this.selectedIndex];
-        if (!opt || !opt.value) return;
+        if (!opt || !opt.value) {
+            syncSchoolMode();
+            return;
+        }
         document.querySelector('[name=subject]').value = opt.getAttribute('data-subject') || '';
         document.querySelector('[name=header]').value = opt.getAttribute('data-header') || '';
         document.getElementById('an-body').value = opt.getAttribute('data-body') || '';
         var cat = opt.getAttribute('data-category');
         if (cat) document.getElementById('an-category').value = cat;
+        syncSchoolMode(true);
+    });
+    document.getElementById('an-body').addEventListener('input', function () {
+        syncSchoolMode(false);
     });
 
     document.getElementById('an-form').addEventListener('submit', function (e) {
@@ -729,9 +808,13 @@ window.AN_PRESELECT = @json([
         if (!footer && footerInput) footer = (footerInput.getAttribute('data-system') || '').trim();
         var name = displayName(person);
         var phone = person && person.phone ? person.phone : '';
+        var parent = person && person.parent ? person.parent : name;
+        var student = person && person.student ? person.student : '';
+        var className = person && person.class ? person.class : '';
         var body = esc(document.getElementById('an-preview-body').value || '');
         var shownName = name ? '<strong>'+esc(name)+'</strong>' : '';
         body = body.replace(/\{name\}/ig, shownName).replace(/\{phone\}/ig, esc(phone)).replace(/\{date\}/ig, new Date().toLocaleDateString());
+        body = body.replace(/\{parent(_name)?\}/ig, esc(parent)).replace(/\{student(_name)?\}/ig, esc(student)).replace(/\{child(_name)?\}/ig, esc(student)).replace(/\{class(_name)?\}/ig, esc(className));
         body = body.replace(/^\s*Dear\b[^\n]*\n*/i, '').trim();
         var html = '';
         if (header) html += '<div style="font-size:17px;font-weight:700;margin-bottom:12px;">📢 '+esc(header)+'</div>';
@@ -754,6 +837,17 @@ window.AN_PRESELECT = @json([
         }).map(function (p) {
             return '<input type="hidden" name="name_overrides['+esc(p.phone)+']" value="'+esc(p.name)+'">';
         }).join('');
+        var school = document.getElementById('an-school-overrides');
+        if (!school) return;
+        if (!schoolActive()) {
+            school.innerHTML = '';
+            return;
+        }
+        school.innerHTML = previewPeople.map(function (p) {
+            return '<input type="hidden" name="school['+esc(p.phone)+'][parent]" value="'+esc(p.parent || '')+'">'
+                + '<input type="hidden" name="school['+esc(p.phone)+'][student]" value="'+esc(p.student || '')+'">'
+                + '<input type="hidden" name="school['+esc(p.phone)+'][class]" value="'+esc(p.class || '')+'">';
+        }).join('');
     }
     function renderPreviewList() {
         var list = document.getElementById('an-preview-list');
@@ -768,8 +862,17 @@ window.AN_PRESELECT = @json([
             return name.indexOf(q) !== -1 || phone.indexOf(q) !== -1 || (qDigits && phone.indexOf(qDigits) !== -1);
         });
         list.innerHTML = shown.map(function (p) {
+            var schoolFields = '';
+            if (schoolActive()) {
+                schoolFields = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;">'
+                    + '<input class="an-field an-school-parent" data-phone="'+esc(p.phone)+'" value="'+esc(p.parent || '')+'" placeholder="Parent">'
+                    + '<input class="an-field an-school-student" data-phone="'+esc(p.phone)+'" value="'+esc(p.student || '')+'" placeholder="Student">'
+                    + '<input class="an-field an-school-class" data-phone="'+esc(p.phone)+'" value="'+esc(p.class || '')+'" placeholder="Class">'
+                    + '</div>';
+            }
             return '<label class="an-user-item" style="display:block;">'
                 + '<input class="an-field an-name-edit" data-phone="'+esc(p.phone)+'" value="'+esc(p.name)+'" placeholder="Add a title, for example Pastor John">'
+                + schoolFields
                 + '<div class="meta">'+esc(p.phone)+(p.group ? ' · '+esc(p.group) : '')+'</div></label>';
         }).join('') || '<div class="p-3 text-muted small">No contacts match that search.</div>';
         list.querySelectorAll('.an-name-edit').forEach(function (input) {
@@ -781,6 +884,26 @@ window.AN_PRESELECT = @json([
                 var phone = input.getAttribute('data-phone');
                 previewPeople.forEach(function (p) {
                     if (p.phone === phone) p.name = input.value;
+                });
+                previewFocus = phone;
+                writeOverrides();
+                paintSample();
+            });
+        });
+        list.querySelectorAll('.an-school-parent, .an-school-student, .an-school-class').forEach(function (input) {
+            input.addEventListener('input', function () {
+                var phone = input.getAttribute('data-phone');
+                var field = input.classList.contains('an-school-student') ? 'student'
+                    : (input.classList.contains('an-school-class') ? 'class' : 'parent');
+                previewPeople.forEach(function (p) {
+                    if (p.phone !== phone) return;
+                    p[field] = input.value;
+                    if (field === 'parent' && String(p.name || '') === String(p.original || '')) {
+                        p.name = input.value;
+                        p.original = input.value;
+                        var nameBox = list.querySelector('.an-name-edit[data-phone="'+phone+'"]');
+                        if (nameBox && document.activeElement !== nameBox) nameBox.value = input.value;
+                    }
                 });
                 previewFocus = phone;
                 writeOverrides();
@@ -835,6 +958,7 @@ window.AN_PRESELECT = @json([
                 }
                 previewPeople = (payload.people || []).map(function (person) {
                     person.original = person.name || '';
+                    if (!person.parent) person.parent = person.name || '';
                     return person;
                 });
                 previewFocus = previewPeople.length ? previewPeople[0].phone : '';
@@ -931,6 +1055,7 @@ window.AN_PRESELECT = @json([
 
     refreshRecipients();
     refreshCc();
+    syncSchoolMode(true);
 })();
 </script>
 @if(request('group'))
