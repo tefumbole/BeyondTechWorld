@@ -18,8 +18,22 @@
         <div class="alert alert-danger">{{ $errors->first() }}</div>
     @endif
 
+    <div class="pay-balance">
+        <div>
+            <div class="pay-kicker">Mobile Money balance</div>
+            <div class="pay-total">{{ isset($campayBalance) && $campayBalance !== null ? $campayBalance.' XAF' : '— XAF' }}</div>
+            <div class="pay-sub">
+                @if(!isset($campayBalance) || $campayBalance === null)
+                    Campay did not answer. Try again in a moment.
+                @else
+                    Live balance from Campay.
+                @endif
+            </div>
+        </div>
+    </div>
+
     <div class="pay-toolbar">
-        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('deposit.index', ['new' => 1]) }}">+ Make Deposit</a>
+        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('deposit.index', ['new' => 1]) }}">+ Add Deposit</a>
     </div>
 
     @if(!empty($making))
@@ -75,52 +89,84 @@
 
     <div class="pay-card">
         <div class="pay-card-head"><h2>Deposits</h2></div>
-        <div class="table-responsive">
-            <table class="pay-table">
-                <thead>
-                    <tr>
-                        <th>When</th>
-                        <th>Client</th>
-                        <th>Account</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>Status</th>
-                        <th>Note</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($deposits as $deposit)
-                        @php
-                            $methodLabel = 'Unknown';
-                            if ((int) $deposit->payment_method === 1) $methodLabel = 'Cash';
-                            elseif ((int) $deposit->payment_method === 2) $methodLabel = 'JE Method';
-                            elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Momo/Orange';
-                            elseif ((int) $deposit->payment_method === 4) $methodLabel = 'VISA';
-                            elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
-                            $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
-                            $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
-                        @endphp
+        <form method="POST" action="{{ route('deposit.delete_selection') }}" id="depositsListForm">
+            @csrf
+            <div class="table-responsive">
+                <table class="pay-table">
+                    <thead>
                         <tr>
-                            <td>{{ $deposit->created_at ? $deposit->created_at->format('M j H:i') : '' }}</td>
-                            <td>{{ optional($deposit->customer)->name ?: '—' }}</td>
-                            <td>{{ $deposit->account ? $deposit->account->name : '—' }}</td>
-                            <td>{{ number_format((float) $deposit->amount, 0, '.', ' ') }} XAF</td>
-                            <td>{{ $methodLabel }}</td>
-                            <td>
-                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
-                                @if($deposit->failure_reason)
-                                    <div class="pay-note">{{ strpos(strtoupper($deposit->failure_reason), 'LOW_BALANCE') !== false ? 'Not enough money on the phone' : (strpos(strtoupper($deposit->failure_reason), 'CANCEL') !== false || strpos(strtoupper($deposit->failure_reason), 'APPROV') !== false ? 'Not approved' : 'Payment was not completed') }}</div>
-                                @endif
-                            </td>
-                            <td>{{ $deposit->note }}</td>
+                            <th style="width:36px"><input type="checkbox" id="depositsAll" title="Select all"></th>
+                            <th>When</th>
+                            <th>Client</th>
+                            <th>Account</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Note</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="7" class="pay-muted">No deposits yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @forelse($deposits as $deposit)
+                            @php
+                                $methodLabel = 'Unknown';
+                                if ((int) $deposit->payment_method === 1) $methodLabel = 'Cash';
+                                elseif ((int) $deposit->payment_method === 2) $methodLabel = 'JE Method';
+                                elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Momo/Orange';
+                                elseif ((int) $deposit->payment_method === 4) $methodLabel = 'VISA';
+                                elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
+                                $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
+                                $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
+                            @endphp
+                            <tr>
+                                <td><input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit->id }}"></td>
+                                <td>{{ $deposit->created_at ? $deposit->created_at->format('M j H:i') : '' }}</td>
+                                <td>{{ optional($deposit->customer)->name ?: '—' }}</td>
+                                <td>{{ $deposit->account ? $deposit->account->name : '—' }}</td>
+                                <td>{{ number_format((float) $deposit->amount, 0, '.', ' ') }} XAF</td>
+                                <td>{{ $methodLabel }}</td>
+                                <td>
+                                    <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                    @if($deposit->failure_reason)
+                                        <div class="pay-note">{{ strpos(strtoupper($deposit->failure_reason), 'LOW_BALANCE') !== false ? 'Not enough money on the phone' : (strpos(strtoupper($deposit->failure_reason), 'CANCEL') !== false || strpos(strtoupper($deposit->failure_reason), 'APPROV') !== false ? 'Not approved' : 'Payment was not completed') }}</div>
+                                    @endif
+                                </td>
+                                <td>{{ $deposit->note }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="8" class="pay-muted">No deposits yet.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if(count($deposits))
+                <div class="pay-actions">
+                    <button class="pay-go" type="submit" id="depositsDelete" style="background:#fdecec;color:#9b1c1c">Delete selected</button>
+                </div>
+            @endif
+        </form>
     </div>
+    <script>
+    (function () {
+        var form = document.getElementById('depositsListForm');
+        if (!form) return;
+        var all = document.getElementById('depositsAll');
+        var del = document.getElementById('depositsDelete');
+        function boxes() { return form.querySelectorAll('.deposits-line'); }
+        if (all) {
+            all.addEventListener('change', function () {
+                boxes().forEach(function (box) { box.checked = all.checked; });
+            });
+        }
+        if (del) {
+            del.addEventListener('click', function (event) {
+                var count = 0;
+                boxes().forEach(function (box) { if (box.checked) count++; });
+                if (!count) { event.preventDefault(); alert('Select the deposits you want to delete.'); return; }
+                if (!confirm('Delete ' + count + (count === 1 ? ' deposit?' : ' deposits?'))) { event.preventDefault(); }
+            });
+        }
+    })();
+    </script>
 </section>
 <script>
 (function () {

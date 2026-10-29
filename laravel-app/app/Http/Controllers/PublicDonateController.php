@@ -40,13 +40,29 @@ class PublicDonateController extends Controller
             }
         }
         $rows = PublicDonation::orderByDesc('id')->limit(100)->get();
+        $campayBalance = app(CampayPayoutService::class)->balance();
 
         return view('payment.donations', [
             'rows' => $rows,
             'tab' => 'donations',
             'paidTotal' => (int) PublicDonation::where('status', 'paid')->sum('amount'),
             'pendingTotal' => (int) PublicDonation::whereIn('status', ['pending', 'waiting'])->sum('amount'),
+            'campayBalance' => $campayBalance,
         ]);
+    }
+
+    public function adminDeleteSelection(Request $request)
+    {
+        if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
+            abort(403);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('donations.index')->with('not_permitted', 'Select the payments to delete.');
+        }
+        $deleted = PublicDonation::whereIn('id', $ids)->delete();
+
+        return redirect()->route('donations.index')->with('message', $deleted.' '.($deleted === 1 ? 'payment was' : 'payments were').' deleted.');
     }
 
     public function lookup(Request $request)

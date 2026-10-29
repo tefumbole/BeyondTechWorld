@@ -36,8 +36,23 @@ class PaymentController extends Controller
         $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';
+        $campayBalance = app(CampayPayoutService::class)->balance();
 
-        return view('payment.deposits', compact('deposits', 'accounts', 'making'));
+        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'campayBalance'));
+    }
+
+    public function depositDeleteSelection(Request $request)
+    {
+        if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
+            abort(403);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('deposit.index')->with('not_permitted', 'Select the deposits to delete.');
+        }
+        $deleted = Deposit::whereIn('id', $ids)->delete();
+
+        return redirect()->route('deposit.index')->with('message', $deleted.' '.($deleted === 1 ? 'deposit was' : 'deposits were').' deleted.');
     }
 
     public function searchCustomers(Request $request)

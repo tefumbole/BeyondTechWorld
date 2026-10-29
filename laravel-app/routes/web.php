@@ -788,6 +788,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');
     Route::get('/admin/donations', 'PublicDonateController@adminIndex')->name('donations.index');
+    Route::post('/admin/donations/delete-selection', 'PublicDonateController@adminDeleteSelection')->name('donations.delete_selection');
     Route::get('/admin/whatsapp', 'WhatsApp\WhatsAppHubController@index')->name('whatsapp.index');
     Route::get('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@linkStatus')->name('whatsapp.link.status');
     Route::post('/admin/whatsapp/link', 'WhatsApp\WhatsAppHubController@startLink')->name('whatsapp.link.start');
@@ -1689,6 +1690,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     Route::get('payment/index', 'PaymentController@index')->name('payment.index');
     Route::get('payment/desposits', 'PaymentController@Desposit')->name('deposit.index');
+    Route::post('payment/desposits/delete-selection', 'PaymentController@depositDeleteSelection')->name('deposit.delete_selection');
     Route::get('payment/desposits/search', 'PaymentController@searchCustomers')->name('deposit.search');
     Route::get('payment/desposits/client', 'PaymentController@clientCheck')->name('deposit.client');
     Route::get('payment/desposits/phone', 'PaymentController@phoneLookup')->name('deposit.phone');

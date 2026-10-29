@@ -221,7 +221,26 @@ class PayoutController extends Controller
             ->orderByDesc('id')
             ->limit(40)
             ->get();
-        $submitted = $this->requests($tenantId)->with('lines')->orderByDesc('id')->limit(40)->get();
+        // Only show submitted requests that still need action. Once every line is paid, the
+        // batch moves to the Payout page history.
+        $submitted = $this->requests($tenantId)
+            ->with('lines')
+            ->where(function ($query) {
+                $query->where('status', 'pending')
+                    ->orWhereIn('id', CampayPayout::query()->whereIn('status', ['pending', 'failed'])->distinct()->pluck('request_id')->filter()->all());
+            })
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get()
+            ->filter(function ($batch) {
+                // Hide batches where every line has been paid.
+                $lines = $batch->lines;
+                if ($lines->isEmpty()) {
+                    return true;
+                }
+                return $lines->whereIn('status', ['pending', 'failed'])->count() > 0;
+            })
+            ->values();
         $review = null;
         $reviewLines = collect();
         $reviewId = (int) $request->get('review');

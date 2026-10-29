@@ -804,7 +804,7 @@
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
                                         <li id="payout-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
                                         <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
-                                        <li id="donations-menu"><a href="{{ route('donations.index') }}">Payments</a></li>
+                                        <li id="donations-menu"><a href="{{ route('donations.index') }}">Mobile Payments</a></li>
                                     @endif
                                     <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
                                 </ul>
