@@ -126,7 +126,7 @@
                                         <button type="submit" class="btn btn-link" onclick="return confirm('Send a payment link to the client? They can pay with MTN, Orange, or VISA.')"><i class="fa fa-whatsapp"></i> Request payment</button>
                                         {{ Form::close() }}
                                     </li>
-                                    @if(in_array($st, \App\Quotation::saleReadyStatuses(), true))
+                                    @if(in_array("sales-add", $all_permission) && $st !== \App\Quotation::STATUS_REJECTED)
                                         <li>
                                             <a class="btn btn-link" href="{{ route('quotation.create_sale', ['id' => $quotation->id]) }}"><i class="fa fa-shopping-cart"></i> {{trans('file.Create Sale')}}</a>
                                         </li>

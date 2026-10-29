@@ -1689,9 +1689,13 @@ class QuotationController extends Controller
     public function createSale($id)
     {
         $lims_quotation_data = Quotation::find($id);
-        if (! $lims_quotation_data || ! $lims_quotation_data->isSaleReady()) {
-            return redirect()->route('quotations.index', ['tab' => 'approved'])
-                ->with('not_permitted', 'Create Sale is only available for approved or no-signature quotations.');
+        if (! $lims_quotation_data) {
+            return redirect()->route('quotations.index')
+                ->with('not_permitted', 'Quotation not found.');
+        }
+        if ((int) $lims_quotation_data->quotation_status === Quotation::STATUS_REJECTED) {
+            return redirect()->route('quotations.index', ['tab' => 'rejected'])
+                ->with('not_permitted', 'Rejected quotations cannot be converted into a sale.');
         }
         extract($this->activeMasters());
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
