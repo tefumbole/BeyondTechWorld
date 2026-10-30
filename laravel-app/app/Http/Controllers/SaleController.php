@@ -39,6 +39,8 @@ use App\ProductBatch;
 use App\Purchase;
 use App\RewardPointSetting;
 use DB;
+use App\Services\CampayPayoutService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
@@ -513,6 +515,20 @@ class SaleController extends Controller
             }
         }
 
+        $posMomoPhone = null;
+        $posMomoAmount = 0;
+        if (! empty($data['pos']) && isset($data['paid_by_id']) && (int) $data['paid_by_id'] === 8) {
+            $posMomoPhone = app(CampayPayoutService::class)->momoNumber($lims_customer_data ? $lims_customer_data->phone_number : '');
+            if (! $posMomoPhone) {
+                $who = $lims_customer_data ? $lims_customer_data->name : 'This customer';
+
+                return back()->with('not_permitted', $who.' does not have an MTN or Orange number. Update the phone, then pay with MOMO/OM.');
+            }
+            $posMomoAmount = (int) round((float) str_replace(',', '', (string) $data['grand_total']));
+            if ($posMomoAmount < 100) {
+                return back()->with('not_permitted', 'MOMO/OM needs a whole amount of at least 100 XAF.');
+            }
+        }
 
         $lims_sale_data = Sale::create($data);
 
@@ -762,25 +778,29 @@ class SaleController extends Controller
                 $paying_method = 'Pay Later';
             }
             elseif ($data['paid_by_id'] == 8) {
+                $phone = $posMomoPhone ?: app(CampayPayoutService::class)->momoNumber($lims_customer_data->phone_number);
+                $amount = $posMomoAmount ?: (int) round((float) $lims_sale_data->grand_total);
+                $external = 'pos-'.$lims_sale_data->id.'-'.substr(md5(uniqid('', true)), 0, 6);
+                $body = app(CampayPayoutService::class)->collect($phone, $amount, $external, substr('POS '.$lims_sale_data->reference_no, 0, 80));
+                $campayStatus = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+                if (! is_array($body) || empty($body['reference']) || $campayStatus === 'FAILED') {
+                    $this->eraseSale($lims_sale_data);
 
-                $biller = Biller::find($request->biller_id);
-                $this->sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, 'Momo/Orange', $net_unit_price);
-
-                $data['status'] = 0;
-
-                $token = getenv("MOMO_TOKEN");
-                $route = route('pos.payment_check');
-                $mtn_number = $lims_customer_data->phone_number;
-                $amount = $lims_sale_data->grand_total;
-                $link = $this->mobileMoneyRequestLink($token, $amount, $route, $lims_sale_data->id, $mtn_number);
-                if ($link == false) {
-                    $message = 'Phone Number is incorrect or There is any other issue in payment method';
-                    return back()->with('not_permitted', $message);
+                    return back()->with('not_permitted', $this->campayCollectError($body));
                 }
-                Session::put('data', $data);
+                Cache::put('pos_momo:'.$lims_sale_data->id, [
+                    'reference' => (string) $body['reference'],
+                    'phone' => $phone,
+                    'amount' => $amount,
+                    'external' => $external,
+                ], now()->addMinutes(30));
+                try {
+                    $biller = Biller::find($request->biller_id);
+                    $this->sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, 'MOMO/OM', $net_unit_price);
+                } catch (\Throwable $e) {
+                }
 
-                header("Location: $link");
-                die();
+                return redirect()->route('pos.momo.wait', ['id' => $lims_sale_data->id]);
             }
             elseif ($data['paid_by_id'] == 3) {
                 $paying_method = 'JE method';
@@ -1157,6 +1177,111 @@ class SaleController extends Controller
         }
 
         return redirect('sales/gen_invoice/' . $lims_sale_data->id)->with('message', $message);
+    }
+
+    public function posMomoWait($id)
+    {
+        $sale = Sale::with('customer')->findOrFail($id);
+        $pending = Cache::get('pos_momo:'.$sale->id);
+        if (! is_array($pending)) {
+            return redirect('pos')->with('not_permitted', 'This Mobile Money request has expired. Start the sale again.');
+        }
+
+        return view('sale.momo_wait', [
+            'sale' => $sale,
+            'phone' => $pending['phone'],
+            'amount' => $pending['amount'],
+            'statusUrl' => route('pos.momo.status', ['id' => $sale->id]),
+        ]);
+    }
+
+    public function posMomoStatus($id)
+    {
+        $sale = Sale::findOrFail($id);
+        if ((int) $sale->payment_status === 4) {
+            return response()->json([
+                'status' => 'paid',
+                'url' => url('sales/gen_invoice/'.$sale->id),
+            ]);
+        }
+        $pending = Cache::get('pos_momo:'.$sale->id);
+        if (! is_array($pending)) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'This Mobile Money request has expired. Start the sale again.',
+            ]);
+        }
+        $campay = app(CampayPayoutService::class);
+        $pattern = '/^'.preg_quote($pending['external'], '/').'$/';
+        $outcome = $campay->collectionOutcome($pending['reference'], $pending['amount'], $pending['phone'], $pattern);
+        if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
+            $this->recordPosMomoPayment($sale, $pending);
+            Cache::forget('pos_momo:'.$sale->id);
+
+            return response()->json([
+                'status' => 'paid',
+                'url' => url('sales/gen_invoice/'.$sale->id),
+            ]);
+        }
+        if ($outcome['state'] === 'failed') {
+            Cache::forget('pos_momo:'.$sale->id);
+            $this->eraseSale($sale->fresh());
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => $campay->payerFailure(isset($outcome['reason']) ? $outcome['reason'] : '', $pending['amount']),
+            ]);
+        }
+
+        return response()->json(['status' => 'pending']);
+    }
+
+    protected function recordPosMomoPayment(Sale $sale, array $pending)
+    {
+        $note = 'Campay '.$pending['reference'];
+        if (Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
+            return;
+        }
+        if (! Cache::add('pos_momo_lock:'.$sale->id, 1, now()->addSeconds(30))) {
+            return;
+        }
+        $amount = (int) $pending['amount'];
+        $sale->paid_amount = (float) $sale->paid_amount + $amount;
+        $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
+        $sale->payment_status = $this->paymentStatusForBalance($sale->paid_amount, $balance);
+        $cashRegister = CashRegister::where([
+            ['user_id', Auth::id()],
+            ['warehouse_id', $sale->warehouse_id],
+            ['status', true],
+        ])->first();
+        $account = Account::where('is_default', true)->first();
+        $payment = new Payment();
+        $payment->user_id = Auth::id();
+        $payment->sale_id = $sale->id;
+        if ($cashRegister) {
+            $payment->cash_register_id = $cashRegister->id;
+        }
+        $payment->account_id = $account ? $account->id : 1;
+        $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('his');
+        $payment->amount = $amount;
+        $payment->change = $balance < 0 ? abs($balance) : 0;
+        $payment->paying_method = 'MOMO/OM';
+        $payment->payment_note = $note;
+        $payment->save();
+        $sale->save();
+    }
+
+    protected function campayCollectError($body)
+    {
+        if (is_array($body)) {
+            foreach (['reason', 'message', 'detail', 'error'] as $key) {
+                if (! empty($body[$key]) && is_string($body[$key])) {
+                    return 'Campay could not send the payment: '.substr($body[$key], 0, 180);
+                }
+            }
+        }
+
+        return 'Campay could not send the payment to this number.';
     }
 
     public function sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, $paying_method, $net_unit_price){
@@ -3377,7 +3502,17 @@ class SaleController extends Controller
     public function destroy($id)
     {
         $url = url()->previous();
-        $lims_sale_data = Sale::find($id);
+        $message = $this->eraseSale(Sale::find($id));
+
+        return Redirect::to($url)->with('not_permitted', $message);
+    }
+
+    protected function eraseSale($lims_sale_data)
+    {
+        if (! $lims_sale_data) {
+            return 'Sale deleted successfully';
+        }
+        $id = $lims_sale_data->id;
         $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
         $lims_delivery_data = Delivery::where('sale_id',$id)->first();
         if($lims_sale_data->sale_status == 3)
@@ -3480,7 +3615,8 @@ class SaleController extends Controller
             $lims_coupon_data->save();
         }
         $lims_sale_data->delete();
-        return Redirect::to($url)->with('not_permitted', $message);
+
+        return $message;
     }
 
     public function stockDurationSave($id, $qty) {

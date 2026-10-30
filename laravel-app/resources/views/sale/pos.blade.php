@@ -1458,11 +1458,7 @@
                                                 <button style="background-color: #45cd27" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="group-credit-btn"><i class="fa fa-credit-card-alt"></i> Group Credit</button>
                                             </div>
                                             <div class="column-5">
-                                                {{--                                <button style="background-color: #e28d02" type="button" class="btn btn-custom" data-toggle="modal" data-target="#add-payment" id="><i class="dripicons-flag"></i> </button>--}}
-                                                <button style="background-color: #da7828" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="orange-btn"><i class="dripicons-flag"></i> Orange Money</button>
-                                            </div>
-                                            <div class="column-5">
-                                                <button style="background-color: #fd7272" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="momo-btn"><i class="fa fa-money"></i> MTN momo</button>
+                                                <button style="background-color: #da7828" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="momo-btn"><i class="fa fa-money"></i> MOMO/OM</button>
                                             </div>
                                             {{--                            <div class="column-5">--}}
                                             {{--                                <button style="background-color: #5f27cd" type="button" class="btn btn-custom payment-btn" data-toggle="modal" data-target="#add-payment" id="gift-card-btn"><i class="fa fa-credit-card-alt"></i> GiftCard</button>--}}
@@ -1513,7 +1509,7 @@
                                                             <label>{{trans('file.Paid By')}}</label>
                                                             <select name="paid_by_id_select" class="form-control selectpicker">
                                                                 <option value="1">Cash</option>
-                                                                <option value="8">Momo/Orange</option>
+                                                                <option value="8">MOMO/OM</option>
                                                                 <option value="9">Send to Payment</option>
                                                                 <option value="10">Credit</option>
                                                                 <option value="11">Group Credit</option>
@@ -3501,17 +3497,6 @@
             $('div.debit').show();
             $('div.credit').show();
             creditCard();
-        });
-
-        $("#orange-btn").on("click",function() {
-            $('select[name="paid_by_id_select"]').val(8);
-            $('input[name="paid_amount"]').prop('readonly', false);
-            $('input[name="paying_amount"]').prop('readonly', false);
-            $('.selectpicker').selectpicker('refresh');
-            $('div.qc').show();
-            $('div.debit').hide();
-            $('div.credit').show();
-            hide();
         });
 
         $("#momo-btn").on("click",function() {

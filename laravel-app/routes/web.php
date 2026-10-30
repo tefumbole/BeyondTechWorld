@@ -1173,6 +1173,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/customer/payments/{id}', 'PaymentController@AwaitingPayments')->name('customer.awaiting.payments');
     Route::get('sales/payment_check', 'SaleController@addPaymentMTN')->name('sale.payment_check');
     Route::get('/pos/payment_check', 'SaleController@addPaymentMTNPOS')->name('pos.payment_check');
+    Route::get('/pos/momo/{id}', 'SaleController@posMomoWait')->where('id', '[0-9]+')->name('pos.momo.wait');
+    Route::get('/pos/momo/{id}/status', 'SaleController@posMomoStatus')->where('id', '[0-9]+')->name('pos.momo.status');
 	Route::get('sales/category/associate', 'SaleController@addCategoryIdInSale');
 	Route::post('sales/sale-data', 'SaleController@saleData');
 	Route::post('sales/sendmail', 'SaleController@sendMail')->name('sale.sendmail');
