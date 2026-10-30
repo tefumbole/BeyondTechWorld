@@ -518,11 +518,11 @@ class SaleController extends Controller
         $posMomoPhone = null;
         $posMomoAmount = 0;
         if (! empty($data['pos']) && isset($data['paid_by_id']) && (int) $data['paid_by_id'] === 8) {
-            $posMomoPhone = app(CampayPayoutService::class)->momoNumber($lims_customer_data ? $lims_customer_data->phone_number : '');
+            $typedMomo = trim((string) (isset($data['momo_phone']) ? $data['momo_phone'] : ''));
+            $momoSource = $typedMomo !== '' ? $typedMomo : ($lims_customer_data ? $lims_customer_data->phone_number : '');
+            $posMomoPhone = app(CampayPayoutService::class)->momoNumber($momoSource);
             if (! $posMomoPhone) {
-                $who = $lims_customer_data ? $lims_customer_data->name : 'This customer';
-
-                return back()->with('not_permitted', $who.' does not have an MTN or Orange number. Update the phone, then pay with MOMO/OM.');
+                return back()->with('not_permitted', 'Enter an MTN or Orange number for MOMO/OM.');
             }
             $posMomoAmount = (int) round((float) str_replace(',', '', (string) $data['grand_total']));
             if ($posMomoAmount < 100) {

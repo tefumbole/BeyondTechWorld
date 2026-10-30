@@ -1287,7 +1287,7 @@
 
                                                       $points[$customer->id] = $customer->points;
                                                                 @endphp
-                                                                <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
+                                                                <option value="{{$customer->id}}" data-phone="{{ $customer->phone_number }}" data-name="{{ $customer->name }}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
                                                             @endforeach
                                                         </select>
                                                         <button type="button" class="btn btn-default btn-sm" data-toggle="modal" data-target="#addCustomer"><i class="dripicons-plus"></i></button>
@@ -1303,7 +1303,7 @@
 
                                                       $points[$customer->id] = $customer->points;
                                                                 @endphp
-                                                                <option value="{{$customer->id}}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
+                                                                <option value="{{$customer->id}}" data-phone="{{ $customer->phone_number }}" data-name="{{ $customer->name }}">{{$customer->name . ' (' . $customer->phone_number . ')'}}</option>
                                                             @endforeach
                                                         </select>
                                                     @endif
@@ -1552,6 +1552,11 @@
                                                         <div class="form-group col-md-12 cheque">
                                                             <label>{{trans('file.Cheque Number')}} *</label>
                                                             <input type="text" name="cheque_no" class="form-control">
+                                                        </div>
+                                                        <div class="form-group col-md-12 momo-payer" style="display:none">
+                                                            <label>MOMO/OM number</label>
+                                                            <input type="tel" name="momo_phone" id="momo_phone" class="form-control" autocomplete="off" placeholder="6xxxxxxxx">
+                                                            <p id="momo_holder" class="mt-2 mb-0" style="font-weight:600"></p>
                                                         </div>
                                                         <div class="form-group col-md-12">
                                                             <label>{{trans('file.Description')}}</label>
@@ -3499,6 +3504,44 @@
             creditCard();
         });
 
+        var momoLookupUrl = @json(route('deposit.phone'));
+        var momoLookupTimer = null;
+        function selectedCustomerPhone() {
+            var opt = $('#customer_id option:selected');
+            return String(opt.attr('data-phone') || '').trim();
+        }
+        function lookupMomoName(phone) {
+            var label = $('#momo_holder');
+            var digits = String(phone || '').replace(/\D/g, '');
+            if (digits.length < 9) {
+                label.text('Enter an MTN or Orange number.');
+                return;
+            }
+            label.text('Looking up the name…');
+            fetch(momoLookupUrl + '?phone=' + encodeURIComponent(phone), {headers: {Accept: 'application/json'}, credentials: 'same-origin'})
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (!data || !data.ok) {
+                        label.text(data && data.error ? data.error : 'Not an MTN or Orange number.');
+                        return;
+                    }
+                    var name = data.name ? data.name : 'Name not found on MoMo';
+                    label.text(data.operator ? name + ' · ' + data.operator : name);
+                })
+                .catch(function () { label.text('Could not look up that number.'); });
+        }
+        function showMomoPayer() {
+            $('.momo-payer').show();
+            var phone = selectedCustomerPhone();
+            $('#momo_phone').val(phone);
+            lookupMomoName(phone);
+        }
+        $('#momo_phone').on('input', function () {
+            clearTimeout(momoLookupTimer);
+            var value = this.value;
+            momoLookupTimer = setTimeout(function () { lookupMomoName(value); }, 400);
+        });
+
         $("#momo-btn").on("click",function() {
             $('select[name="paid_by_id_select"]').val(8);
             $('input[name="paid_amount"]').prop('readonly', false);
@@ -3508,6 +3551,7 @@
             $('div.debit').hide();
             $('div.credit').show();
             hide();
+            showMomoPayer();
         });
 
         $("#cash-btn").on("click",function() {
@@ -3608,7 +3652,9 @@
                 cheque();
             } else {
                 hide();
-                if(id == 1)
+                if(id == 8)
+                    showMomoPayer();
+                else if(id == 1)
                     $('div.qc').show();
                 else if(id == 6) {
                     $('div.qc').hide();
@@ -4221,6 +4267,7 @@
             $(".card-errors").hide();
             $(".cheque").hide();
             $(".gift-card").hide();
+            $(".momo-payer").hide();
             $('input[name="cheque_no"]').attr('required', false);
         }
 
