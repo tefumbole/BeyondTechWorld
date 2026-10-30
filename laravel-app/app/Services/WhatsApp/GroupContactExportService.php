@@ -755,6 +755,7 @@ class GroupContactExportService
         $named = 0;
         $still = 0;
         $dirty = false;
+        $asked = 0;
         foreach ($people as $i => $person) {
             if (! is_array($person)) {
                 continue;
@@ -769,6 +770,11 @@ class GroupContactExportService
             if ($source === 'campay' && $this->isPersonName($current, $digits)) {
                 continue;
             }
+            if ($asked >= 5) {
+                $still++;
+                continue;
+            }
+            $asked++;
             $name = $this->campayPersonName($digits);
             if (! $this->isPersonName($name, $digits)) {
                 $still++;
@@ -1206,7 +1212,7 @@ class GroupContactExportService
             ->onQueue('whatsapp');
     }
 
-    public function resolveContactNames($jid = null, $limit = 12)
+    public function resolveContactNames($jid = null, $limit = 5)
     {
         $jid = trim((string) $jid);
         $files = [];
@@ -1350,7 +1356,7 @@ class GroupContactExportService
         return $remaining;
     }
 
-    public function resolveUncheckedGroup($jid, $limit = 20)
+    public function resolveUncheckedGroup($jid, $limit = 5)
     {
         $jid = trim((string) $jid);
         $people = $this->readMembers($jid);

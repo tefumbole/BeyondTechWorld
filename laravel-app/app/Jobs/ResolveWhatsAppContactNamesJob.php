@@ -32,10 +32,10 @@ class ResolveWhatsAppContactNamesJob implements ShouldQueue
             if ($this->jid === null) {
                 Cache::put('wa_contact_names_global', 1, 120);
             }
-            $batch = $this->jid ? 5 : 2;
+            $batch = $this->jid ? 4 : 2;
             $remaining = $groups->resolveContactNames($this->jid, $batch);
             if ($remaining > 0) {
-                static::dispatch($this->jid)->delay(2)->onConnection('database')->onQueue('whatsapp');
+                static::dispatch($this->jid)->delay(45)->onConnection('database')->onQueue('whatsapp');
 
                 return;
             }

@@ -13,11 +13,17 @@ use Illuminate\Support\Str;
  */
 class MobileMoneyHolderService
 {
-    /** Short-circuit all Campay calls until this many minutes after a 403 lockout. */
-    const CAMPAY_LOCKOUT_MINUTES = 30;
+    /** Pause every Campay name lookup for a full day after a 403, matching Campay's own lockout. */
+    const CAMPAY_LOCKOUT_MINUTES = 1440;
 
-    /** Cache a "not found / unknown" Campay answer for this many minutes so repeat lookups do not count as failed attempts. */
+    /** Remember a number Campay could not name so it is not asked again. */
     const CAMPAY_NOT_FOUND_MINUTES = 360;
+
+    /** A missed number stays in the file cache for this many days. */
+    const CAMPAY_MISS_DAYS = 14;
+
+    /** New holder_info calls allowed per calendar day. Cached names do not count. */
+    const CAMPAY_DAILY_CALLS = 120;
 
     /**
      * @param  string|null  $phone
@@ -159,14 +165,30 @@ class MobileMoneyHolderService
             return null;
         }
 
-        // 1. If Campay recently returned 403 ("Too many failed attempts"), stop asking for a while
-        //    so a loop cannot burn more attempts and extend the lockout.
-        if (Cache::has('momo_holder:campay_blocked_until')) {
+        $key = $this->holderKey($digits);
+        $store = $this->readHolderStore();
+        $hit = isset($store['hits'][$key]) && is_array($store['hits'][$key]) ? $store['hits'][$key] : null;
+        if ($hit && ! empty($hit['name'])) {
+            return [
+                'name' => (string) $hit['name'],
+                'address' => ! empty($hit['address']) ? (string) $hit['address'] : null,
+                'source' => 'campay',
+            ];
+        }
+        $missedAt = isset($store['misses'][$key]) ? (int) $store['misses'][$key] : 0;
+        if ($missedAt > 0 && (time() - $missedAt) < self::CAMPAY_MISS_DAYS * 86400) {
+            return null;
+        }
+        if ((int) $store['blocked_until'] > time() || Cache::has('momo_holder:campay_blocked_until')) {
+            return null;
+        }
+        $today = date('Y-m-d');
+        if ((string) $store['calls_on'] === $today && (int) $store['calls'] >= self::CAMPAY_DAILY_CALLS) {
             return null;
         }
 
         // 2. Cached "not found" answer. Avoids re-counting the same bad number as a failed attempt.
-        $missKey = 'momo_holder:campay_miss:'.$digits;
+        $missKey = 'momo_holder:campay_miss:'.$key;
         if (Cache::has($missKey)) {
             return null;
         }
@@ -181,8 +203,16 @@ class MobileMoneyHolderService
         $code = $result['code'];
         $body = $result['body'];
 
+        $this->noteHolderCall();
+
         if ($code === 403 || $code === 429) {
-            Cache::put('momo_holder:campay_blocked_until', now()->timestamp, now()->addMinutes(self::CAMPAY_LOCKOUT_MINUTES));
+            $until = time() + (self::CAMPAY_LOCKOUT_MINUTES * 60);
+            Cache::put('momo_holder:campay_blocked_until', $until, now()->addMinutes(self::CAMPAY_LOCKOUT_MINUTES));
+            $this->mutateHolderStore(function ($store) use ($until) {
+                $store['blocked_until'] = $until;
+
+                return $store;
+            });
             Log::warning('Campay holder_info blocked ('.$code.'), pausing lookups', ['minutes' => self::CAMPAY_LOCKOUT_MINUTES]);
 
             return null;
@@ -192,15 +222,125 @@ class MobileMoneyHolderService
         $name = $this->extractName($decoded);
         $address = $this->extractAddress($decoded);
         if ($name || $address) {
+            $this->mutateHolderStore(function ($store) use ($key, $name, $address) {
+                $store['hits'][$key] = [
+                    'name' => (string) $name,
+                    'address' => $address ? (string) $address : '',
+                ];
+                unset($store['misses'][$key]);
+
+                return $store;
+            });
+
             return ['name' => $name, 'address' => $address, 'source' => 'campay'];
         }
 
         // 404 or 200-with-no-name: remember so repeat lookups do not re-contact Campay.
         if ($code === 404 || $code === 400 || ($code === 200 && ! $decoded)) {
             Cache::put($missKey, 1, now()->addMinutes(self::CAMPAY_NOT_FOUND_MINUTES));
+            $this->mutateHolderStore(function ($store) use ($key) {
+                $store['misses'][$key] = time();
+
+                return $store;
+            });
         }
 
         return null;
+    }
+
+    protected function holderKey($digits)
+    {
+        $local = $digits;
+        if (strpos($local, '237') === 0 && strlen($local) > 9) {
+            $local = substr($local, 3);
+        }
+
+        return '237'.$local;
+    }
+
+    protected function holderStorePath()
+    {
+        return storage_path('app/campay-holder-cache.json');
+    }
+
+    protected function emptyHolderStore()
+    {
+        return [
+            'hits' => [],
+            'misses' => [],
+            'blocked_until' => 0,
+            'calls_on' => '',
+            'calls' => 0,
+        ];
+    }
+
+    protected function readHolderStore()
+    {
+        $path = $this->holderStorePath();
+        if (! is_file($path)) {
+            return $this->emptyHolderStore();
+        }
+        $fp = @fopen($path, 'r');
+        if (! $fp) {
+            return $this->emptyHolderStore();
+        }
+        flock($fp, LOCK_SH);
+        $raw = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        $decoded = json_decode((string) $raw, true);
+        if (! is_array($decoded)) {
+            return $this->emptyHolderStore();
+        }
+
+        return array_merge($this->emptyHolderStore(), $decoded);
+    }
+
+    protected function noteHolderCall()
+    {
+        $this->mutateHolderStore(function ($store) {
+            $today = date('Y-m-d');
+            if ((string) $store['calls_on'] !== $today) {
+                $store['calls_on'] = $today;
+                $store['calls'] = 0;
+            }
+            $store['calls'] = (int) $store['calls'] + 1;
+
+            return $store;
+        });
+        usleep(800000);
+    }
+
+    protected function mutateHolderStore($fn)
+    {
+        $path = $this->holderStorePath();
+        $dir = dirname($path);
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $fp = @fopen($path, 'c+');
+        if (! $fp) {
+            return null;
+        }
+        flock($fp, LOCK_EX);
+        $raw = stream_get_contents($fp);
+        $store = json_decode((string) $raw, true);
+        if (! is_array($store)) {
+            $store = $this->emptyHolderStore();
+        } else {
+            $store = array_merge($this->emptyHolderStore(), $store);
+        }
+        $next = $fn($store);
+        if (is_array($next)) {
+            rewind($fp);
+            ftruncate($fp, 0);
+            fwrite($fp, json_encode($next));
+            fflush($fp);
+        }
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        return is_array($next) ? $next : $store;
     }
 
     protected function pawapay($digits)
