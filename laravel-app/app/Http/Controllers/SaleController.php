@@ -746,7 +746,7 @@ class SaleController extends Controller
             $message = 'Sale successfully added to draft';
         else
             $message = ' Sale created successfully';
-        if($mail_data['email'] && $data['sale_status'] == 1) {
+        if($mail_data['email'] && $data['sale_status'] == 1 && (int) $data['paid_by_id'] !== 8) {
             try {
                 Mail::send( 'mail.sale_details', $mail_data, function( $message ) use ($mail_data)
                 {
@@ -794,11 +794,6 @@ class SaleController extends Controller
                     'amount' => $amount,
                     'external' => $external,
                 ], now()->addMinutes(30));
-                try {
-                    $biller = Biller::find($request->biller_id);
-                    $this->sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, 'MOMO/OM', $net_unit_price);
-                } catch (\Throwable $e) {
-                }
 
                 return redirect()->route('pos.momo.wait', ['id' => $lims_sale_data->id]);
             }
@@ -1216,6 +1211,14 @@ class SaleController extends Controller
         $outcome = $campay->collectionOutcome($pending['reference'], $pending['amount'], $pending['phone'], $pattern);
         if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
             $this->recordPosMomoPayment($sale, $pending);
+            $sale = $sale->fresh();
+            $note = 'Campay '.$pending['reference'];
+            $paid = $sale
+                && (int) $sale->payment_status === 4
+                && Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists();
+            if (! $paid) {
+                return response()->json(['status' => 'pending']);
+            }
             Cache::forget('pos_momo:'.$sale->id);
 
             return response()->json([
@@ -1269,6 +1272,70 @@ class SaleController extends Controller
         $payment->payment_note = $note;
         $payment->save();
         $sale->save();
+        if ((int) $sale->payment_status === 4) {
+            $this->notifyPosMomoPaid($sale);
+        }
+    }
+
+    /**
+     * Receipt goes out only after Campay has confirmed the debit and the sale is fully paid.
+     */
+    protected function notifyPosMomoPaid(Sale $sale)
+    {
+        if (! Cache::add('pos_momo_notified:'.$sale->id, 1, now()->addDays(14))) {
+            return;
+        }
+        $customer = Customer::find($sale->customer_id);
+        if (! $customer) {
+            return;
+        }
+        $biller = Biller::find($sale->biller_id);
+        $rows = Product_Sale::where('sale_id', $sale->id)->get();
+        $products = [];
+        $qty = [];
+        $totals = [];
+        $prices = [];
+        $files = [];
+        $units = [];
+        foreach ($rows as $i => $line) {
+            $product = Product::find($line->product_id);
+            $products[$i] = $product ? $product->name : 'Item';
+            $qty[$i] = $line->qty;
+            $totals[$i] = $line->total;
+            $prices[$i] = $line->net_unit_price;
+            $files[$i] = '';
+            $unit = $line->sale_unit_id ? Unit::find($line->sale_unit_id) : null;
+            $units[$i] = $unit ? $unit->unit_code : '';
+        }
+        $mail = [
+            'email' => $customer->email,
+            'reference_no' => $sale->reference_no,
+            'sale_status' => $sale->sale_status,
+            'payment_status' => $sale->payment_status,
+            'total_qty' => $sale->total_qty,
+            'total_price' => $sale->total_price,
+            'order_tax' => $sale->order_tax,
+            'order_tax_rate' => $sale->order_tax_rate,
+            'order_discount' => $sale->order_discount,
+            'shipping_cost' => $sale->shipping_cost,
+            'grand_total' => $sale->grand_total,
+            'paid_amount' => $sale->paid_amount,
+            'products' => $products,
+            'qty' => $qty,
+            'total' => $totals,
+            'file' => $files,
+            'unit' => $units,
+        ];
+        $this->sendWhatsappMsg($customer, $sale, $mail, $biller, 'MOMO/OM', $prices);
+        if ($customer->email) {
+            try {
+                Mail::send('mail.sale_details', $mail, function ($message) use ($mail) {
+                    $message->to($mail['email'])->subject('Sale Details');
+                });
+            } catch (\Throwable $e) {
+                \Log::warning('Paid MOMO sale email failed: '.$e->getMessage());
+            }
+        }
     }
 
     protected function campayCollectError($body)
