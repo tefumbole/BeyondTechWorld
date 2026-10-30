@@ -178,9 +178,41 @@
             color: #D4AF37;
         }
         @media (max-width: 640px) {
-            .bey-foot-copy { flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.75rem 0.8rem; font-size: 0.9rem; /* +20% from 0.75rem */ }
+            .bey-foot-copy { flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.75rem calc(5.75rem + env(safe-area-inset-bottom)); font-size: 0.9rem; }
             .bey-foot-copy span { padding: 0; }
             .bey-foot-copy span + span { border-left: 0; animation: none; }
+        }
+        header.bg-brand-blue { padding-top: env(safe-area-inset-top); }
+        .mobile-menu-btn {
+            width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+            border: 0; border-radius: 10px; background: transparent; color: #fff; cursor: pointer;
+        }
+        .mobile-nav-sheet {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            top: calc(3.5rem + env(safe-area-inset-top));
+            z-index: 45; background: #072f6b; color: #fff;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .mobile-nav-links { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 12px; }
+        .mobile-nav-links a {
+            display: flex; align-items: center; min-height: 48px; padding: 0 12px;
+            border-bottom: 1px solid rgba(255,255,255,.08); font-size: 1.05rem; font-weight: 600;
+        }
+        .mobile-nav-actions {
+            flex-shrink: 0; display: grid; gap: 8px;
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid rgba(255,255,255,.14); background: #062656;
+        }
+        .mobile-nav-actions a, .mobile-nav-actions button {
+            min-height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; text-decoration: none;
+        }
+        html.nav-locked, html.nav-locked body { overflow: hidden; }
+        html.nav-locked #mbole-ai-root { visibility: hidden; }
+        @media (max-width: 767px) {
+            input, select, textarea { font-size: 16px !important; }
+            .table-wrap, table { max-width: 100%; }
+            .overflow-x-auto, .table-responsive { -webkit-overflow-scrolling: touch; }
         }
         body.home-lock { position: relative; }
         body.home-lock main { flex: 1 1 auto; min-height: 0; }
@@ -244,7 +276,7 @@
     $currentUrl = url()->current();
 @endphp
 
-<header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="userMenu = false">
+<header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="open = false; userMenu = false" x-effect="document.documentElement.classList.toggle('nav-locked', open)">
     <div class="w-full flex items-center justify-between h-14 sm:h-16 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
         <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
             <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
@@ -326,43 +358,35 @@
             @endif
         </div>
 
-        <button @click="open = !open" class="lg:hidden text-white hover:text-brand-gold transition-colors">
+        <button type="button" @click="open = !open" class="mobile-menu-btn lg:hidden" :aria-expanded="open ? 'true' : 'false'" aria-label="Menu">
             <i data-lucide="menu" class="w-6 h-6" x-show="!open"></i>
             <i data-lucide="x" class="w-6 h-6" x-show="open" x-cloak></i>
         </button>
     </div>
 
-    <div x-show="open" x-cloak class="lg:hidden pb-4 px-4 bg-brand-blue border-t border-white/10">
-        <nav class="flex flex-col space-y-3 pt-4">
+    <div x-show="open" x-cloak x-transition.opacity class="mobile-nav-sheet lg:hidden">
+        <nav class="mobile-nav-links">
             @foreach ($navLinks as $link)
-                <a href="{{ $link['url'] }}" class="text-lg font-medium {{ !empty($link['special']) ? 'text-brand-gold' : 'text-white hover:text-brand-gold' }}">{{ $link['label'] }}</a>
+                <a href="{{ $link['url'] }}" class="{{ !empty($link['special']) ? 'text-brand-gold' : 'text-white' }}">{{ $link['label'] }}</a>
             @endforeach
-            <div class="pt-3 border-t border-white/10 space-y-2">
-                @if ($headerUser)
-                    <div class="flex items-center gap-3 px-1 py-2">
-                        <span class="flex h-10 w-10 items-center justify-center rounded-full border-2 border-brand-gold bg-brand-gold text-brand-blue font-bold">{{ $headerInitial }}</span>
-                        <div>
-                            <div class="text-white font-semibold text-sm">{{ $headerName }}</div>
-                            <div class="text-brand-gold text-xs font-bold uppercase">{{ $headerRole }}</div>
-                        </div>
-                    </div>
-                    @if ($isAdminSession)
-                        <a href="{{ url('/admin') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">Admin Dashboard</a>
-                        <a href="{{ url('/') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-white/20 text-white">Home Page</a>
-                    @else
-                        <a href="{{ url('/user/profile') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded bg-brand-gold text-brand-blue font-bold">My Profile</a>
-                    @endif
-                    <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
-                        @csrf
-                        <button type="submit" class="w-full py-2 rounded border border-red-400/50 text-red-300">Logout</button>
-                    </form>
-                @else
-                    <a href="{{ url('/login') }}" class="flex items-center justify-center gap-2 w-full py-2 rounded border border-brand-gold text-brand-gold font-medium">
-                        <i data-lucide="log-in" class="w-5 h-5"></i> Login
-                    </a>
-                @endif
-            </div>
         </nav>
+        <div class="mobile-nav-actions">
+            <a href="tel:+237675321739" class="text-brand-blue bg-brand-gold">Call +237 675 321 739</a>
+            <a href="https://wa.me/237675321739" class="text-white border border-white/30">WhatsApp</a>
+            @if ($headerUser)
+                @if ($isAdminSession)
+                    <a href="{{ url('/admin') }}" class="text-brand-blue bg-white">Admin Dashboard</a>
+                @else
+                    <a href="{{ url('/user/profile') }}" class="text-brand-blue bg-white">My Profile</a>
+                @endif
+                <form method="POST" action="{{ $isAdminSession ? route('logout') : route('beyond.logout') }}">
+                    @csrf
+                    <button type="submit" class="w-full border border-red-300/60 text-red-200 bg-transparent">Logout</button>
+                </form>
+            @else
+                <a href="{{ url('/login') }}" class="text-brand-gold border border-brand-gold">Login</a>
+            @endif
+        </div>
     </div>
 </header>
 

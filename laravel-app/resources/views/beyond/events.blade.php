@@ -10,27 +10,27 @@
         <form method="GET" action="{{ url('/events') }}" class="mb-8 flex flex-col md:flex-row gap-4 items-stretch md:items-end">
             <div class="flex-1">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <input type="text" name="q" value="{{ request('q') }}" placeholder="Search events…"
-                       class="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search events…" enterkeyhint="search"
+                       class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
             </div>
-            <div>
+            <div class="w-full md:w-auto">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Filter</label>
-                <select name="filter" class="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-brand-blue">
+                <select name="filter" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-brand-blue">
                     @foreach(['upcoming' => 'Upcoming', 'featured' => 'Featured', 'ongoing' => 'Ongoing', 'past' => 'Past'] as $k => $label)
                         <option value="{{ $k }}" {{ $filter === $k ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="w-full md:w-auto">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select name="type" class="rounded-lg border border-gray-300 px-4 py-2">
+                <select name="type" class="w-full rounded-lg border border-gray-300 px-4 py-3">
                     <option value="">All types</option>
                     @foreach(\App\Event::TYPES as $k => $label)
                         <option value="{{ $k }}" {{ request('type') === $k ? 'selected' : '' }}>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="px-6 py-2 bg-brand-blue text-white font-semibold rounded-lg hover:bg-brand-dark transition">Search</button>
+            <button type="submit" class="w-full md:w-auto min-h-[48px] px-6 py-3 bg-brand-blue text-white font-semibold rounded-lg hover:bg-brand-dark transition">Search</button>
         </form>
 
         @if ($events->isEmpty())

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     @php
         $siteLogoUrl = \App\Support\SiteBrand::logoUrl($general_setting ?? null);
         $siteTitle = \App\Support\SiteBrand::siteTitle($general_setting ?? null);
@@ -26,11 +26,16 @@
         }
         .auth-page {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 28px 16px 20px;
+            padding: calc(20px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+        }
+        @media (max-width: 480px) {
+            .auth-card { padding: 24px 16px 20px; border-radius: 16px; }
+            .auth-input, .auth-btn { font-size: 16px; min-height: 48px; }
         }
         .auth-card {
             width: 100%;
@@ -127,7 +132,7 @@
             border: 0;
             border-radius: 999px;
             background: #f3f1e8;
-            font-size: 15px;
+            font-size: 16px;
             padding: 0 44px 0 44px;
             color: #1f2937;
         }

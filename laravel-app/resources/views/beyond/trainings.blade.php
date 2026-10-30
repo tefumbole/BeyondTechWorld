@@ -17,9 +17,9 @@
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3">
             Professional <span class="text-brand-gold">IT Training</span>
         </h1>
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="#programs" class="bg-brand-gold hover:bg-[#C19B2A] text-brand-blue px-6 py-2.5 text-sm font-bold shadow-lg hover:scale-105 transition-transform rounded-full">Explore Programs</a>
-            <a href="{{ url('/register-now') }}" class="border-2 border-white text-white hover:bg-white hover:text-brand-blue px-6 py-2.5 text-sm font-bold shadow-lg hover:scale-105 transition-all rounded-full">Register Now</a>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
+            <a href="#programs" class="w-full sm:w-auto bg-brand-gold hover:bg-[#C19B2A] text-brand-blue px-6 py-3 text-sm font-bold shadow-lg rounded-full">Explore Programs</a>
+            <a href="{{ url('/register-now') }}" class="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-brand-blue px-6 py-3 text-sm font-bold shadow-lg rounded-full">Register Now</a>
         </div>
     </div>
 </section>
