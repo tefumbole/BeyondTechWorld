@@ -1986,7 +1986,7 @@ class GroupContactExportService
     protected function campayPersonName($digits)
     {
         try {
-            $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits);
+            $hit = app(\App\Services\MobileMoneyHolderService::class)->lookup($digits, false, true);
         } catch (\Throwable $e) {
             return null;
         }

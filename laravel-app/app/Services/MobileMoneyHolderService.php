@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
  */
 class MobileMoneyHolderService
 {
-    /** Pause every Campay name lookup for a full day after a 403, matching Campay's own lockout. */
+    /** Pause WhatsApp group name lookups for a full day after a 403. Live sales, deposits, and payouts are not paused. */
     const CAMPAY_LOCKOUT_MINUTES = 1440;
 
     /** Remember a number Campay could not name so it is not asked again. */
@@ -22,7 +22,7 @@ class MobileMoneyHolderService
     /** A missed number stays in the file cache for this many days. */
     const CAMPAY_MISS_DAYS = 14;
 
-    /** New holder_info calls allowed per calendar day. Cached names do not count. */
+    /** New WhatsApp-group holder_info calls allowed per calendar day. Cached names do not count. */
     const CAMPAY_DAILY_CALLS = 120;
 
     /**
@@ -30,16 +30,19 @@ class MobileMoneyHolderService
      * @param  bool  $includeLocal  Pass true on admin / signed-in callers to fall back to the local
      *                              customers table when the MoMo APIs are silent. Leave false on
      *                              public endpoints so customer names are not leaked to strangers.
+     * @param  bool  $paced         True only for WhatsApp group sweeps. Those respect the daily cap,
+     *                              the 24-hour pause, and a short delay. Deposits, sales, withdrawals,
+     *                              and payouts pass false and resolve immediately.
      * @return array{name:?string,address:?string,source:?string}
      */
-    public function lookup($phone, $includeLocal = false)
+    public function lookup($phone, $includeLocal = false, $paced = false)
     {
         $digits = preg_replace('/\D/', '', (string) $phone);
         if (strlen($digits) < 8) {
             return ['name' => null, 'address' => null, 'source' => null];
         }
 
-        $hit = $this->campay($digits);
+        $hit = $this->campay($digits, (bool) $paced);
         if ($hit) {
             return $hit;
         }
@@ -150,7 +153,7 @@ class MobileMoneyHolderService
         return '';
     }
 
-    protected function campay($digits)
+    protected function campay($digits, $paced = false)
     {
         $token = config('services.campay.token');
         if (! $token) {
@@ -179,11 +182,11 @@ class MobileMoneyHolderService
         if ($missedAt > 0 && (time() - $missedAt) < self::CAMPAY_MISS_DAYS * 86400) {
             return null;
         }
-        if ((int) $store['blocked_until'] > time() || Cache::has('momo_holder:campay_blocked_until')) {
+        if ($paced && ((int) $store['blocked_until'] > time() || Cache::has('momo_holder:campay_blocked_until'))) {
             return null;
         }
         $today = date('Y-m-d');
-        if ((string) $store['calls_on'] === $today && (int) $store['calls'] >= self::CAMPAY_DAILY_CALLS) {
+        if ($paced && (string) $store['calls_on'] === $today && (int) $store['calls'] >= self::CAMPAY_DAILY_CALLS) {
             return null;
         }
 
@@ -203,7 +206,7 @@ class MobileMoneyHolderService
         $code = $result['code'];
         $body = $result['body'];
 
-        $this->noteHolderCall();
+        $this->noteHolderCall($paced);
 
         if ($code === 403 || $code === 429) {
             $until = time() + (self::CAMPAY_LOCKOUT_MINUTES * 60);
@@ -213,7 +216,7 @@ class MobileMoneyHolderService
 
                 return $store;
             });
-            Log::warning('Campay holder_info blocked ('.$code.'), pausing lookups', ['minutes' => self::CAMPAY_LOCKOUT_MINUTES]);
+            Log::warning('Campay holder_info blocked ('.$code.'), pausing WhatsApp group lookups', ['minutes' => self::CAMPAY_LOCKOUT_MINUTES]);
 
             return null;
         }
@@ -296,8 +299,11 @@ class MobileMoneyHolderService
         return array_merge($this->emptyHolderStore(), $decoded);
     }
 
-    protected function noteHolderCall()
+    protected function noteHolderCall($paced = false)
     {
+        if (! $paced) {
+            return;
+        }
         $this->mutateHolderStore(function ($store) {
             $today = date('Y-m-d');
             if ((string) $store['calls_on'] !== $today) {
