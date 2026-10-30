@@ -270,7 +270,7 @@ class WebsiteChatTest extends WhatsAppHubTestCase
                 $this->fixed = $name;
             }
 
-            public function lookup($phone)
+            public function lookup($phone, $includeLocal = false)
             {
                 if ($this->fixed) {
                     return ['name' => $this->fixed, 'address' => null, 'source' => 'campay'];

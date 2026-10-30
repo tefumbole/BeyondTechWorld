@@ -89,13 +89,14 @@ class PaymentController extends Controller
         if (! $phone) {
             return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
         }
-        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone, true);
 
         return response()->json([
             'ok' => true,
             'phone' => $phone,
             'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
             'operator' => $campay->operatorName($phone),
+            'source' => ($hit && ! empty($hit['source'])) ? $hit['source'] : null,
         ]);
     }
 
@@ -107,7 +108,7 @@ class PaymentController extends Controller
         }
         $campay = app(CampayPayoutService::class);
         $phone = $campay->momoNumber($customer->phone_number);
-        $lookup = $phone ? app(MobileMoneyHolderService::class)->lookup($phone) : null;
+        $lookup = $phone ? app(MobileMoneyHolderService::class)->lookup($phone, true) : null;
         $momoName = is_array($lookup) && ! empty($lookup['name']) ? (string) $lookup['name'] : '';
         $last = $phone
             ? Deposit::where('mtn_number', $phone)->where('status', 2)->orderByDesc('id')->first()

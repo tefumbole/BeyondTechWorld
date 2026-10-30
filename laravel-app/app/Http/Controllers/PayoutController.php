@@ -60,13 +60,14 @@ class PayoutController extends Controller
         if (! $phone) {
             return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
         }
-        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
+        $hit = app(MobileMoneyHolderService::class)->lookup($phone, true);
 
         return response()->json([
             'ok' => true,
             'phone' => $phone,
             'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
             'operator' => $service->operatorName($phone),
+            'source' => ($hit && ! empty($hit['source'])) ? $hit['source'] : null,
         ]);
     }
 
@@ -89,7 +90,7 @@ class PayoutController extends Controller
                 continue;
             }
             $checked++;
-            $hit = $lookup->lookup($line['phone']);
+            $hit = $lookup->lookup($line['phone'], true);
             if ($hit && ! empty($hit['name'])) {
                 $lines['lines'][$index]['momo_name'] = $hit['name'];
                 if ($line['person_name'] === $line['phone']) {
@@ -1330,7 +1331,7 @@ class PayoutController extends Controller
                 continue;
             }
             $checked++;
-            $hit = $lookup->lookup($line->phone);
+            $hit = $lookup->lookup($line->phone, true);
             $line->momo_name = ($hit && ! empty($hit['name'])) ? substr($hit['name'], 0, 180) : '';
             $line->momo_checked = 1;
             $line->save();

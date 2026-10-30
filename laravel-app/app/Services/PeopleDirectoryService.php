@@ -422,6 +422,7 @@ class PeopleDirectoryService
         $customer = $this->findCustomerByLoosePhone($phone);
         $momo = ['name' => null, 'address' => null, 'source' => null];
         try {
+            // Pass includeLocal=false (the default) so we don't double-fetch the customer we just loaded.
             $momo = app(MobileMoneyHolderService::class)->lookup($phone);
         } catch (\Throwable $e) {
             // Keep directory match even if MoMo is down.

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Customer;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -19,9 +20,13 @@ class MobileMoneyHolderService
     const CAMPAY_NOT_FOUND_MINUTES = 360;
 
     /**
+     * @param  string|null  $phone
+     * @param  bool  $includeLocal  Pass true on admin / signed-in callers to fall back to the local
+     *                              customers table when the MoMo APIs are silent. Leave false on
+     *                              public endpoints so customer names are not leaked to strangers.
      * @return array{name:?string,address:?string,source:?string}
      */
-    public function lookup($phone)
+    public function lookup($phone, $includeLocal = false)
     {
         $digits = preg_replace('/\D/', '', (string) $phone);
         if (strlen($digits) < 8) {
@@ -33,7 +38,77 @@ class MobileMoneyHolderService
             return $hit;
         }
 
-        return $this->pawapay($digits) ?: ['name' => null, 'address' => null, 'source' => null];
+        $pawa = $this->pawapay($digits);
+        if ($pawa) {
+            return $pawa;
+        }
+
+        // Final fallback: when the MoMo APIs do not answer (lockout, timeout, unknown number),
+        // show the name we already have in the local customers table so the form is still useful.
+        if ($includeLocal) {
+            $local = $this->localDirectory($digits);
+            if ($local) {
+                return $local;
+            }
+        }
+
+        return ['name' => null, 'address' => null, 'source' => null];
+    }
+
+    /**
+     * Look up a customer by phone with the same loose match rules as PeopleDirectoryService.
+     * Keeps the service self-contained (no cross-service call) and tolerates partial numbers.
+     */
+    protected function localDirectory($digits)
+    {
+        if (strlen($digits) < 8) {
+            return null;
+        }
+        try {
+            $plus = '+'.$digits;
+            $tail = substr($digits, -9);
+            $customer = Customer::query()
+                ->where(function ($q) use ($digits, $plus) {
+                    $q->where('phone_number', $digits)
+                      ->orWhere('phone_number', $plus);
+                })
+                ->first();
+            if (! $customer && strlen($tail) >= 8) {
+                try {
+                    $customer = Customer::query()
+                        ->whereRaw(
+                            "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone_number,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                            [$tail]
+                        )
+                        ->orderByDesc('is_active')
+                        ->orderByDesc('id')
+                        ->first();
+                } catch (\Throwable $e) {
+                    // Non-MySQL backend or missing column: fall through.
+                }
+            }
+            if (! $customer) {
+                return null;
+            }
+            $name = trim((string) $customer->name);
+            if ($name === '' || preg_match('/^\+?\d{8,}$/', $name)) {
+                return null;
+            }
+            $address = trim((string) $customer->address);
+            if ($address !== '' && (strtoupper($address) === 'N/A' || strtoupper($address) === 'NAN' || preg_match('/^\+?\d{8,}$/', $address))) {
+                $address = '';
+            }
+
+            return [
+                'name' => $name,
+                'address' => $address !== '' ? $address : null,
+                'source' => 'local',
+            ];
+        } catch (\Throwable $e) {
+            Log::info('MoMo local-directory fallback failed: '.$e->getMessage());
+
+            return null;
+        }
     }
 
     /**
