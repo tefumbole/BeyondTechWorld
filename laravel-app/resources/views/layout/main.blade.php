@@ -425,13 +425,13 @@
                         @if($events_module_active)
                             <li><a href="#events-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-calendar"></i><span>Events</span></a>
                                 <ul id="events-module" class="collapse list-unstyled ">
-                                    @if(in_array('events.view', $all_permission))
-                                        <li id="events-dashboard-menu"><a href="{{ route('events.dashboard') }}">Events Dashboard</a></li>
-                                        <li id="events-list-menu"><a href="{{ route('events.index') }}">All Events</a></li>
-                                        <li id="events-calendar-menu"><a href="{{ route('events.calendar') }}">Event Calendar</a></li>
-                                    @endif
                                     @if(in_array('events.create', $all_permission))
                                         <li id="events-create-menu"><a href="{{ route('events.create') }}">Create Event</a></li>
+                                    @endif
+                                    @if(in_array('events.view', $all_permission))
+                                        <li id="events-list-menu"><a href="{{ route('events.index') }}">All Events</a></li>
+                                        <li id="events-dashboard-menu"><a href="{{ route('events.dashboard') }}">Events Dashboard</a></li>
+                                        <li id="events-calendar-menu"><a href="{{ route('events.calendar') }}">Event Calendar</a></li>
                                     @endif
                                     @if(in_array('events.manage_workforce', $all_permission) || in_array('event_workers.view', $all_permission))
                                         <li id="events-workforce-menu"><a href="{{ route('events.workforce.profiles') }}">Event Workforce</a></li>

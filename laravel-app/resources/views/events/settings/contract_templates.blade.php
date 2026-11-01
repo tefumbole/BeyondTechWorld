@@ -12,7 +12,7 @@
                 <form method="POST" action="{{ route('events.settings.contract-templates.store') }}">@csrf
                     <div class="form-group"><label>Name</label><input name="name" class="form-control" required></div>
                     <div class="form-group"><label>Header</label><input name="header" class="form-control"></div>
-                    <div class="form-group"><label>Body (placeholders: {{worker_name}}, {{event_name}}, {{role}}, {{daily_rate}}, etc.)</label><textarea name="body" class="form-control" rows="8" required></textarea></div>
+                    <div class="form-group"><label>Body (placeholders: @{{worker_name}}, @{{event_name}}, @{{role}}, @{{daily_rate}}, etc.)</label><textarea name="body" class="form-control" rows="8" required></textarea></div>
                     <div class="form-group"><label>Footer</label><input name="footer" class="form-control"></div>
                     <button class="btn btn-primary btn-block">Save template</button>
                 </form>
