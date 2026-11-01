@@ -22,7 +22,7 @@ class PaymentController extends Controller
     public function momoPayments()
     {
         $rows = collect();
-        foreach (Deposit::with('customer')->orderByDesc('id')->get() as $deposit) {
+        foreach ($this->campayDeposits()->with('customer')->orderByDesc('id')->get() as $deposit) {
             $paid = (int) $deposit->status === 1;
             $waiting = (int) $deposit->status === 0;
             $rows->push([
@@ -125,7 +125,7 @@ class PaymentController extends Controller
 
     public function Desposit() {
         $this->settleConfirmedMoneySoon();
-        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
+        $deposits = $this->campayDeposits()->with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
         $paidAmounts = $this->paymentPaidAmounts($deposits);
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';
@@ -153,7 +153,7 @@ class PaymentController extends Controller
         }
         $rows = [];
         $pending = false;
-        foreach (Deposit::orderByDesc('id')->limit(80)->get(['id', 'status']) as $row) {
+        foreach ($this->campayDeposits()->orderByDesc('id')->limit(80)->get(['id', 'status']) as $row) {
             $state = (int) $row->status === 1 ? 'Paid' : ((int) $row->status === 2 ? 'Not paid' : 'Waiting');
             if ($state === 'Waiting') {
                 $pending = true;
@@ -176,13 +176,18 @@ class PaymentController extends Controller
         return response()->json($payload);
     }
 
+    protected function campayDeposits()
+    {
+        return Deposit::where('payment_method', 3);
+    }
+
     protected function settleConfirmedMoneySoon()
     {
-        if (Cache::has('btw.campay.settled')) {
-            return;
+        if (! Cache::has('btw.campay.settled')) {
+            $this->settleWaitingDeposits();
+            Cache::put('btw.campay.settled', 1, now()->addSeconds(30));
         }
-        $this->settleConfirmedMoney();
-        Cache::put('btw.campay.settled', 1, now()->addSeconds(30));
+        $this->importConfirmedCollections();
     }
 
     public function settleConfirmedMoney()
@@ -193,14 +198,18 @@ class PaymentController extends Controller
 
     public function importConfirmedCollections()
     {
+        if (Cache::has('btw.campay.imported')) {
+            return;
+        }
         if (! Schema::hasTable('deposits') || ! Schema::hasColumn('deposits', 'campay_reference')) {
             return;
         }
         try {
-            $items = app(CampayPayoutService::class)->confirmedCollections(date('Y-m-d', strtotime('-2 days')), date('Y-m-d'));
+            $items = app(CampayPayoutService::class)->confirmedCollections(date('Y-m-d', strtotime('-45 days')), date('Y-m-d'));
         } catch (\Throwable $e) {
             return;
         }
+        Cache::put('btw.campay.collects', $items, now()->addMinutes(15));
         $accountId = Account::where('is_active', true)->value('id');
         if (! $accountId) {
             return;
@@ -210,17 +219,15 @@ class PaymentController extends Controller
             if ($reference === '' || Deposit::where('campay_reference', $reference)->exists()) {
                 continue;
             }
+            if ($this->collectionAlreadyRecorded($reference)) {
+                continue;
+            }
             $credit = (int) round((float) $item['credit']);
             if ($credit < 1) {
                 continue;
             }
             $phone = isset($item['phone_number']) ? (string) $item['phone_number'] : '';
-            $customer = null;
-            try {
-                $customer = $this->customerFromPhone($phone);
-            } catch (\Throwable $e) {
-                $customer = null;
-            }
+            $customer = $this->customerMatchingPhone($phone);
             $when = date('Y-m-d H:i:s');
             if (! empty($item['datetime'])) {
                 $stamp = strtotime((string) $item['datetime']);
@@ -229,24 +236,49 @@ class PaymentController extends Controller
                 }
             }
             $note = trim((string) (isset($item['description']) ? $item['description'] : ''));
-            if ($note === '') {
+            if ($note === '' || strcasecmp($note, 'None') === 0) {
                 $note = 'Campay confirmed';
             }
-            $deposit = Deposit::create([
+            Deposit::create([
                 'amount' => $credit,
                 'customer_id' => $customer ? $customer->id : null,
                 'user_id' => Auth::id() ?: 1,
                 'account_id' => $accountId,
                 'mtn_number' => $customer ? $customer->phone_number : $phone,
                 'payment_method' => 3,
-                'status' => 0,
+                'status' => 1,
                 'note' => substr($note, 0, 180),
                 'campay_reference' => $reference,
                 'created_at' => $when,
                 'updated_at' => $when,
             ]);
-            app(AccountDepositService::class)->creditPending($deposit);
         }
+        Cache::put('btw.campay.imported', 1, now()->addMinutes(15));
+    }
+
+    protected function collectionAlreadyRecorded($reference)
+    {
+        if (Schema::hasTable('document_payment_links') && \App\DocumentPaymentLink::where('campay_reference', $reference)->exists()) {
+            return true;
+        }
+        if (Schema::hasTable('public_donations') && \App\PublicDonation::where('campay_reference', $reference)->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function customerMatchingPhone($raw)
+    {
+        $phone = app(CampayPayoutService::class)->momoNumber($raw);
+        if (! $phone) {
+            return null;
+        }
+        $tail = substr($phone, -9);
+
+        return Customer::where(function ($query) use ($phone, $tail) {
+            $query->where('phone_number', $phone)->orWhere('phone_number', 'like', '%'.$tail);
+        })->first();
     }
 
     protected function paymentPaidAmounts($deposits)
@@ -255,7 +287,7 @@ class PaymentController extends Controller
         try {
             $items = Cache::remember('btw.campay.collects', 90, function () {
                 return app(CampayPayoutService::class)->confirmedCollections(
-                    date('Y-m-d', strtotime('-14 days')),
+                    date('Y-m-d', strtotime('-45 days')),
                     date('Y-m-d')
                 );
             });

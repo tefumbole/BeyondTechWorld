@@ -98,7 +98,7 @@
                                 $methodLabel = 'Unknown';
                                 if ((int) $deposit->payment_method === 1) $methodLabel = 'Cash';
                                 elseif ((int) $deposit->payment_method === 2) $methodLabel = 'JE Method';
-                                elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Momo/Orange';
+                                elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Campay';
                                 elseif ((int) $deposit->payment_method === 4) $methodLabel = 'VISA';
                                 elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
                                 $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
@@ -125,7 +125,7 @@
                                 <td>{{ $deposit->note }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="9" class="pay-muted">No payments yet.</td></tr>
+                            <tr><td colspan="9" class="pay-muted">No Campay deposits yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

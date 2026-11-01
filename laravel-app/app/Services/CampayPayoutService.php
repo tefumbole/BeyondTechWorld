@@ -137,24 +137,47 @@ class CampayPayoutService
 
     public function confirmedCollections($startDate, $endDate)
     {
-        $body = $this->call('POST', 'history/', [
-            'start_date' => (string) $startDate,
-            'end_date' => (string) $endDate,
-        ]);
-        $items = is_array($body) && isset($body['data']) && is_array($body['data']) ? $body['data'] : [];
         $rows = [];
-        foreach ($items as $item) {
-            if (! is_array($item)) {
-                continue;
+        $seen = [];
+        $page = 1;
+        $guard = 0;
+        do {
+            $payload = [
+                'start_date' => (string) $startDate,
+                'end_date' => (string) $endDate,
+            ];
+            if ($page > 1) {
+                $payload['page'] = $page;
             }
-            $status = strtoupper(trim((string) (isset($item['status']) ? $item['status'] : '')));
-            $credit = isset($item['credit']) ? (float) $item['credit'] : 0;
-            $debit = isset($item['debit']) ? (float) $item['debit'] : 0;
-            if ($status !== 'SUCCESSFUL' || $credit <= 0 || $debit > 0) {
-                continue;
+            $body = $this->call('POST', 'history/', $payload);
+            $items = is_array($body) && isset($body['data']) && is_array($body['data']) ? $body['data'] : [];
+            $current = is_array($body) && isset($body['current_page']) ? (int) $body['current_page'] : $page;
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                $status = strtoupper(trim((string) (isset($item['status']) ? $item['status'] : '')));
+                $credit = isset($item['credit']) ? (float) $item['credit'] : 0;
+                $debit = isset($item['debit']) ? (float) $item['debit'] : 0;
+                if ($status !== 'SUCCESSFUL' || $credit <= 0 || $debit > 0) {
+                    continue;
+                }
+                $reference = trim((string) (isset($item['reference_uuid']) ? $item['reference_uuid'] : ''));
+                if ($reference !== '' && isset($seen[$reference])) {
+                    continue;
+                }
+                if ($reference !== '') {
+                    $seen[$reference] = true;
+                }
+                $rows[] = $item;
             }
-            $rows[] = $item;
-        }
+            $hasNext = is_array($body) && ! empty($body['has_next']);
+            $guard++;
+            if ($current < $page) {
+                break;
+            }
+            $page++;
+        } while ($hasNext && $guard < 15);
 
         return $rows;
     }
