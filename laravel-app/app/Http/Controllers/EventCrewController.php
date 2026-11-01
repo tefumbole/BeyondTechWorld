@@ -14,12 +14,7 @@ class EventCrewController extends Controller
     {
         $assignment = $this->assignment($token);
 
-        return view('events.crew.invite', [
-            'assignment' => $assignment,
-            'event' => $assignment->event,
-            'step' => 'accept',
-            'masked' => $this->mask($assignment),
-        ]);
+        return view('events.crew.invite', $this->inviteView($assignment, 'accept'));
     }
 
     public function accept(Request $request, $token, EventCrewInviteService $invites)
@@ -34,12 +29,8 @@ class EventCrewController extends Controller
             'until' => time() + 600,
         ]);
 
-        return view('events.crew.invite', [
-            'assignment' => $assignment,
-            'event' => $assignment->event,
-            'step' => 'otp',
-            'masked' => $this->mask($assignment),
-        ])->with('message', 'A code is on its way to your WhatsApp.');
+        return view('events.crew.invite', $this->inviteView($assignment, 'otp'))
+            ->with('message', 'A code is on its way to your WhatsApp.');
     }
 
     public function verify(Request $request, $token, EventCrewInviteService $invites)
@@ -51,12 +42,8 @@ class EventCrewController extends Controller
         $expected = is_array($stored) ? preg_replace('/\D+/', '', (string) $stored['code']) : '';
         $fresh = is_array($stored) && (int) $stored['until'] >= time();
         if (! $fresh || $expected === '' || ! hash_equals($expected, $given)) {
-            return view('events.crew.invite', [
-                'assignment' => $assignment,
-                'event' => $assignment->event,
-                'step' => 'otp',
-                'masked' => $this->mask($assignment),
-            ])->withErrors(['otp' => 'That code is not valid. Accept again to receive a new one.']);
+            return view('events.crew.invite', $this->inviteView($assignment, 'otp'))
+                ->withErrors(['otp' => 'That code is not valid. Accept again to receive a new one.']);
         }
         $invites->markAccepted($assignment);
         $request->session()->forget($this->otpKey($token));
@@ -74,6 +61,8 @@ class EventCrewController extends Controller
             'assignment' => $assignment,
             'event' => $assignment->event,
             'phone' => $invites->phoneFor($assignment),
+            'dailyRate' => $invites->dailyRate($assignment),
+            'foodAmount' => $invites->foodAmount($assignment),
             'dayAmount' => $invites->dayAmount($assignment),
             'entries' => $assignment->timesheets->flatMap(function ($sheet) {
                 return $sheet->entries;
@@ -118,6 +107,20 @@ class EventCrewController extends Controller
         }
 
         return redirect()->route('events.crew.home')->with('message', 'Submitted for '.$payment->amount.' XAF. It is with the payment requests.');
+    }
+
+    protected function inviteView(EventAssignment $assignment, $step)
+    {
+        $invites = app(EventCrewInviteService::class);
+
+        return [
+            'assignment' => $assignment,
+            'event' => $assignment->event,
+            'step' => $step,
+            'masked' => $this->mask($assignment),
+            'dailyRate' => $invites->dailyRate($assignment),
+            'foodAmount' => $invites->foodAmount($assignment),
+        ];
     }
 
     protected function assignment($token)

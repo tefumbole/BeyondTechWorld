@@ -28,6 +28,8 @@
         <div class="meta">
             <div><strong>Dates.</strong> {{ $event->event_start_at ? $event->event_start_at->format('d M Y') : '—' }} to {{ $event->event_end_at ? $event->event_end_at->format('d M Y') : '—' }}</div>
             <div><strong>Role.</strong> {{ $assignment->assignment_role ?: 'Crew' }}</div>
+            <div><strong>Daily pay.</strong> {{ number_format($dailyRate) }} XAF</div>
+            <div><strong>Food money.</strong> {{ number_format($foodAmount) }} XAF</div>
             <div><strong>Place.</strong> {{ $event->venue ?: 'As arranged' }}</div>
         </div>
         @if(session('message'))<div class="ok">{{ session('message') }}</div>@endif

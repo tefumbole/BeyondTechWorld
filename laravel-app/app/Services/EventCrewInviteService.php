@@ -43,14 +43,16 @@ class EventCrewInviteService
             $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
             $start = $event->event_start_at ? $event->event_start_at->format('d M Y') : '';
             $end = $event->event_end_at ? $event->event_end_at->format('d M Y') : $start;
-            $pay = number_format($this->dayAmount($assignment));
+            $pay = number_format($this->dailyRate($assignment));
+            $food = number_format($this->foodAmount($assignment));
             $url = url('/event-invite/'.$assignment->invite_token);
             $notes = trim((string) $event->internal_notes);
             $body = "Hello {$name},\n\n"
                 ."You have been selected for {$event->name}.\n"
                 ."Dates: {$start} to {$end}\n"
                 .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
-                ."Daily pay: {$pay} XAF\n";
+                ."Daily pay: {$pay} XAF\n"
+                ."Food money: {$food} XAF\n";
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
             }
@@ -103,14 +105,25 @@ class EventCrewInviteService
         return app(CampayPayoutService::class)->momoNumber($raw) ?: preg_replace('/\D+/', '', (string) $raw);
     }
 
-    public function dayAmount(EventAssignment $assignment)
+    public function dailyRate(EventAssignment $assignment)
     {
         $rate = (int) $assignment->event_daily_rate;
         if ($rate <= 0 && (int) $assignment->expected_days > 0) {
-            $rate = (int) round(((int) $assignment->expected_total) / (int) $assignment->expected_days);
+            $perDay = (int) round(((int) $assignment->expected_total) / (int) $assignment->expected_days);
+            $rate = max(0, $perDay - (int) $assignment->food_per_day);
         }
 
-        return $rate + (int) $assignment->food_per_day;
+        return $rate;
+    }
+
+    public function foodAmount(EventAssignment $assignment)
+    {
+        return (int) $assignment->food_per_day;
+    }
+
+    public function dayAmount(EventAssignment $assignment)
+    {
+        return $this->dailyRate($assignment) + $this->foodAmount($assignment);
     }
 
     public function sendLoginCode(EventAssignment $assignment)

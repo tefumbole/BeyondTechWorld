@@ -31,7 +31,9 @@
         <h1>{{ $event->name }}</h1>
         <p>{{ $event->event_start_at ? $event->event_start_at->format('d M Y') : '' }} to {{ $event->event_end_at ? $event->event_end_at->format('d M Y') : '' }}</p>
         <div>{{ $assignment->assignment_role ?: 'Crew' }}</div>
-        <div class="pay">{{ number_format($dayAmount) }} XAF <span style="font-size:14px;font-weight:600;color:#64748b;">for the day</span></div>
+        <div><strong>Daily pay.</strong> {{ number_format($dailyRate) }} XAF</div>
+        <div><strong>Food money.</strong> {{ number_format($foodAmount) }} XAF</div>
+        <div class="pay">{{ number_format($dayAmount) }} XAF <span style="font-size:14px;font-weight:600;color:#64748b;">total for the day</span></div>
     </div>
     <div class="card">
         <h2>Timesheet</h2>
