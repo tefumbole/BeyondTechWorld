@@ -94,35 +94,22 @@
                     </thead>
                     <tbody>
                         @forelse($deposits as $deposit)
-                            @php
-                                $methodLabel = 'Unknown';
-                                if ((int) $deposit->payment_method === 1) $methodLabel = 'Cash';
-                                elseif ((int) $deposit->payment_method === 2) $methodLabel = 'JE Method';
-                                elseif ((int) $deposit->payment_method === 3) $methodLabel = 'Campay';
-                                elseif ((int) $deposit->payment_method === 4) $methodLabel = 'VISA';
-                                elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
-                                $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
-                                $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
-                                $received = (float) $deposit->amount;
-                                $paid = isset($paidAmounts[$deposit->id]) ? (float) $paidAmounts[$deposit->id] : $received;
-                                if ($paid < $received) $paid = $received;
-                                $charges = max(0, $paid - $received);
-                            @endphp
-                            <tr data-deposit="{{ $deposit->id }}">
-                                <td><input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit->id }}"></td>
-                                <td>{{ $deposit->created_at ? $deposit->created_at->format('M j H:i') : '' }}</td>
-                                <td>{{ optional($deposit->customer)->name ?: '—' }}</td>
-                                <td>{{ number_format($paid, 0, '.', ' ') }} XAF</td>
-                                <td>{{ number_format($received, 0, '.', ' ') }} XAF</td>
+                            @php $charges = max(0, (float) $deposit['paid'] - (float) $deposit['received']); @endphp
+                            <tr @if($deposit['id']) data-deposit="{{ $deposit['id'] }}" @endif>
+                                <td>@if($deposit['id'])<input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit['id'] }}">@endif</td>
+                                <td>{{ $deposit['time'] }}</td>
+                                <td>{{ $deposit['client'] }}</td>
+                                <td>{{ number_format($deposit['paid'], 0, '.', ' ') }} XAF</td>
+                                <td>{{ number_format($deposit['received'], 0, '.', ' ') }} XAF</td>
                                 <td>{{ number_format($charges, 0, '.', ' ') }} XAF</td>
-                                <td>{{ $methodLabel }}</td>
+                                <td>Campay</td>
                                 <td>
-                                    <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
-                                    @if($deposit->failure_reason)
-                                        <div class="pay-note">{{ strpos(strtoupper($deposit->failure_reason), 'LOW_BALANCE') !== false ? 'Not enough money on the phone' : (strpos(strtoupper($deposit->failure_reason), 'CANCEL') !== false || strpos(strtoupper($deposit->failure_reason), 'APPROV') !== false ? 'Not approved' : 'Payment was not completed') }}</div>
+                                    <span class="pay-pill pay-pill-{{ $deposit['tone'] }}">{{ $deposit['status'] }}</span>
+                                    @if($deposit['reason'] !== '')
+                                        <div class="pay-note">{{ $deposit['reason'] }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $deposit->note }}</td>
+                                <td>{{ $deposit['note'] }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="9" class="pay-muted">No Campay deposits yet.</td></tr>
@@ -130,7 +117,13 @@
                     </tbody>
                 </table>
             </div>
-            @if(count($deposits))
+            @php
+                $canDeleteDeposits = false;
+                foreach ($deposits as $row) {
+                    if (! empty($row['id'])) { $canDeleteDeposits = true; break; }
+                }
+            @endphp
+            @if($canDeleteDeposits)
                 <div class="pay-actions">
                     <button class="pay-go" type="submit" id="depositsDelete" style="background:#fdecec;color:#9b1c1c">Delete selected</button>
                 </div>

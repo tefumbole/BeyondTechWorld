@@ -6,6 +6,7 @@ use App\Account;
 use App\CampayPayout;
 use App\Customer;
 use App\Deposit;
+use App\PublicDonation;
 use App\Sale;
 use App\Services\AccountDepositService;
 use App\Services\CampayPayoutService;
@@ -22,7 +23,12 @@ class PaymentController extends Controller
     public function momoPayments()
     {
         $rows = collect();
+        $seen = [];
         foreach ($this->campayDeposits()->with('customer')->orderByDesc('id')->get() as $deposit) {
+            $ref = trim((string) $deposit->campay_reference);
+            if ($ref !== '') {
+                $seen[$ref] = true;
+            }
             $paid = (int) $deposit->status === 1;
             $waiting = (int) $deposit->status === 0;
             $rows->push([
@@ -33,6 +39,21 @@ class PaymentController extends Controller
                 'status' => $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
                 'tone' => $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
                 'note' => (string) $deposit->note,
+            ]);
+        }
+        foreach ($this->paidCampayDonations() as $donation) {
+            $ref = trim((string) $donation->campay_reference);
+            if ($ref !== '' && isset($seen[$ref])) {
+                continue;
+            }
+            $rows->push([
+                'at' => $donation->created_at,
+                'kind' => 'Deposit',
+                'person' => trim((string) $donation->person_name) !== '' ? $donation->person_name : '—',
+                'amount' => (int) round((float) $donation->amount),
+                'status' => 'Paid',
+                'tone' => 'ok',
+                'note' => (string) $donation->note,
             ]);
         }
         foreach (CampayPayout::orderByDesc('id')->get() as $payout) {
@@ -125,12 +146,70 @@ class PaymentController extends Controller
 
     public function Desposit() {
         $this->settleConfirmedMoneySoon();
-        $deposits = $this->campayDeposits()->with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
-        $paidAmounts = $this->paymentPaidAmounts($deposits);
+        $models = $this->campayDeposits()->with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
+        $paidAmounts = $this->paymentPaidAmounts($models);
+        $credits = $this->campayCredits();
+        $deposits = [];
+        $seen = [];
+        foreach ($models as $deposit) {
+            $ref = trim((string) $deposit->campay_reference);
+            if ($ref !== '') {
+                $seen[$ref] = true;
+            }
+            $received = (float) $deposit->amount;
+            $paid = isset($paidAmounts[(int) $deposit->id]) ? (float) $paidAmounts[(int) $deposit->id] : $received;
+            if ($paid < $received) {
+                $paid = $received;
+            }
+            $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
+            $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
+            $deposits[] = [
+                'id' => (int) $deposit->id,
+                'sort' => $deposit->created_at ? $deposit->created_at->timestamp : 0,
+                'time' => $deposit->created_at ? $deposit->created_at->format('M j H:i') : '',
+                'client' => optional($deposit->customer)->name ?: '—',
+                'paid' => $paid,
+                'received' => $received,
+                'tone' => $tone,
+                'status' => $statusLabel,
+                'reason' => $this->depositReason($deposit->failure_reason),
+                'note' => (string) $deposit->note,
+            ];
+        }
+        foreach ($this->paidCampayDonations() as $donation) {
+            $ref = trim((string) $donation->campay_reference);
+            if ($ref !== '' && isset($seen[$ref])) {
+                continue;
+            }
+            $paid = (float) $donation->amount;
+            $received = ($ref !== '' && isset($credits[$ref])) ? (float) $credits[$ref] : $paid;
+            if ($received < 1 || $received > $paid) {
+                $received = $paid;
+            }
+            $deposits[] = [
+                'id' => 0,
+                'sort' => $donation->created_at ? $donation->created_at->timestamp : 0,
+                'time' => $donation->created_at ? $donation->created_at->format('M j H:i') : '',
+                'client' => trim((string) $donation->person_name) !== '' ? $donation->person_name : '—',
+                'paid' => $paid,
+                'received' => $received,
+                'tone' => 'ok',
+                'status' => 'Paid',
+                'reason' => '',
+                'note' => (string) $donation->note,
+            ];
+        }
+        usort($deposits, function ($a, $b) {
+            if ($a['sort'] === $b['sort']) {
+                return 0;
+            }
+
+            return $a['sort'] < $b['sort'] ? 1 : -1;
+        });
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';
 
-        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'paidAmounts'));
+        return view('payment.deposits', compact('deposits', 'accounts', 'making'));
     }
 
     public function depositLive()
@@ -179,6 +258,56 @@ class PaymentController extends Controller
     protected function campayDeposits()
     {
         return Deposit::where('payment_method', 3);
+    }
+
+    protected function paidCampayDonations()
+    {
+        if (! Schema::hasTable('public_donations')) {
+            return collect();
+        }
+
+        return PublicDonation::where('method', 'momo')->where('status', 'paid')->orderByDesc('id')->get();
+    }
+
+    protected function campayCredits()
+    {
+        $credits = [];
+        try {
+            $items = Cache::get('btw.campay.collects');
+            if (! is_array($items)) {
+                $items = app(CampayPayoutService::class)->confirmedCollections(date('Y-m-d', strtotime('-45 days')), date('Y-m-d'));
+            }
+        } catch (\Throwable $e) {
+            return $credits;
+        }
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $ref = trim((string) (isset($item['reference_uuid']) ? $item['reference_uuid'] : ''));
+            if ($ref === '') {
+                continue;
+            }
+            $credits[$ref] = (float) (isset($item['credit']) ? $item['credit'] : 0);
+        }
+
+        return $credits;
+    }
+
+    protected function depositReason($reason)
+    {
+        $reason = strtoupper((string) $reason);
+        if ($reason === '') {
+            return '';
+        }
+        if (strpos($reason, 'LOW_BALANCE') !== false || strpos($reason, 'INSUFFICIENT') !== false) {
+            return 'Not enough money on the phone';
+        }
+        if (strpos($reason, 'CANCEL') !== false || strpos($reason, 'APPROV') !== false || strpos($reason, 'DENIED') !== false || strpos($reason, 'REJECT') !== false) {
+            return 'Not approved';
+        }
+
+        return 'Payment was not completed';
     }
 
     protected function settleConfirmedMoneySoon()
