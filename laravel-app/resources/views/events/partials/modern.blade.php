@@ -104,15 +104,80 @@
     .events-shell .ev-combo-item small { color: var(--ev-muted); }
     .events-shell .ev-combo-item:hover,
     .events-shell .ev-combo-item.is-active { background: #eff6ff; }
-    .events-shell .ev-role-pill {
+    .events-shell .ev-role-pill,
+    .events-shell .ev-source-pill {
         font-size: 11px;
         font-weight: 700;
-        color: #1d4ed8;
-        background: #dbeafe;
         border-radius: 999px;
         padding: 3px 8px;
         white-space: nowrap;
     }
+    .events-shell .ev-role-pill { color: #1d4ed8; background: #dbeafe; }
+    .events-shell .ev-source-pill { color: #475569; background: #f1f5f9; }
+    .ev-duration-note {
+        background: #eff6ff;
+        color: #1e3a8a;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 700;
+        margin: 0 0 14px;
+    }
+    .ev-role { position: relative; }
+    .ev-role-btn {
+        width: 100%;
+        min-height: 36px;
+        text-align: left;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 6px 32px 6px 12px;
+        color: #0f172a;
+        font-weight: 600;
+        position: relative;
+    }
+    .ev-role-btn:after {
+        content: "";
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid #64748b;
+        border-bottom: 2px solid #64748b;
+        transform: translateY(-70%) rotate(45deg);
+    }
+    .ev-role-btn.is-empty { color: #94a3b8; font-weight: 500; }
+    .ev-role-btn.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 3px rgba(220, 53, 69, .12); }
+    .ev-role-menu {
+        position: fixed;
+        z-index: 80;
+        min-width: 240px;
+        max-height: 280px;
+        overflow: auto;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
+        padding: 6px;
+    }
+    .ev-role-option {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        border: 0;
+        background: transparent;
+        border-radius: 10px;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+        color: #0f172a;
+    }
+    .ev-role-option strong { font-size: 14px; }
+    .ev-role-option span { color: #1d4ed8; font-weight: 700; font-size: 13px; white-space: nowrap; }
+    .ev-role-option:hover,
+    .ev-role-option.is-current { background: #eff6ff; }
     .ev-cal { background: #fff; border-radius: 18px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(15, 23, 42, .05); overflow: hidden; }
     .ev-cal-toolbar {
         display: flex;

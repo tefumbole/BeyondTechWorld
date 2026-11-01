@@ -240,6 +240,125 @@ class EventWorkforceService
         ]);
     }
 
+    public function profileFromUser($userId, $categoryId = null)
+    {
+        $user = \App\User::findOrFail($userId);
+        $existing = EventWorkerProfile::where('user_id', $user->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+        $existing = $this->profileByPhone($user->phone);
+        if ($existing) {
+            if (! $existing->user_id) {
+                $existing->user_id = $user->id;
+                $existing->save();
+            }
+
+            return $existing;
+        }
+
+        return $this->createProfile($this->profileAttributes($categoryId, [
+            'user_id' => $user->id,
+            'telephone' => $user->phone,
+            'email' => $user->email,
+        ]));
+    }
+
+    public function profileFromEmployee($employeeId, $categoryId = null)
+    {
+        $employee = \App\Employee::findOrFail($employeeId);
+        if ($employee->user_id) {
+            $profile = $this->profileFromUser($employee->user_id, $categoryId);
+            if (! $profile->telephone && $employee->phone_number) {
+                $profile->telephone = $employee->phone_number;
+                $profile->save();
+            }
+
+            return $profile;
+        }
+        $existing = $this->profileByPhone($employee->phone_number);
+        if ($existing) {
+            return $existing;
+        }
+        $customer = $this->customerFromContact($employee->name, $employee->phone_number, $employee->email, $employee->city);
+
+        return $this->profileFromCustomer($customer->id, $categoryId);
+    }
+
+    public function profileFromPortal($portalId, $categoryId = null)
+    {
+        $portal = \App\BeyondUser::findOrFail($portalId);
+        $existing = EventWorkerProfile::where('be_user_id', $portal->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+        $existing = $this->profileByPhone($portal->phone);
+        if ($existing) {
+            if (! $existing->be_user_id) {
+                $existing->be_user_id = $portal->id;
+                $existing->save();
+            }
+
+            return $existing;
+        }
+
+        return $this->createProfile($this->profileAttributes($categoryId, [
+            'be_user_id' => $portal->id,
+            'telephone' => $portal->phone,
+            'email' => $portal->email,
+        ]));
+    }
+
+    protected function profileByPhone($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) < 6) {
+            return null;
+        }
+        $tail = substr($digits, -9);
+
+        return EventWorkerProfile::where('telephone', 'like', '%'.$tail)->first();
+    }
+
+    protected function profileAttributes($categoryId, array $extra)
+    {
+        $category = $categoryId ? EventWorkerCategory::find($categoryId) : null;
+
+        return array_merge([
+            'worker_category_id' => $category ? $category->id : null,
+            'standard_daily_rate' => $category ? $category->default_daily_rate : 0,
+            'specialization' => 'general_labour',
+            'is_active' => true,
+        ], $extra);
+    }
+
+    protected function customerFromContact($name, $phone, $email = null, $city = null)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        $tail = strlen($digits) >= 6 ? substr($digits, -9) : '';
+        $customer = null;
+        if ($tail !== '') {
+            $customer = \App\Customer::where('phone_number', 'like', '%'.$tail)->first();
+        }
+        if (! $customer && $email) {
+            $customer = \App\Customer::where('email', $email)->first();
+        }
+        if ($customer) {
+            return $customer;
+        }
+        $groupId = \App\CustomerGroup::query()->value('id');
+
+        return \App\Customer::create([
+            'customer_group_id' => $groupId ? $groupId : 1,
+            'name' => $name ?: 'Crew',
+            'phone_number' => $phone ?: 'N/A',
+            'email' => $email,
+            'address' => 'N/A',
+            'city' => $city ?: 'N/A',
+            'is_active' => true,
+        ]);
+    }
+
     public function rememberRole(EventWorkerProfile $profile, EventWorkerCategory $category)
     {
         $profile->worker_category_id = $category->id;

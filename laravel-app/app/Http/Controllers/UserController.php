@@ -37,7 +37,7 @@ class UserController extends Controller
             // Lean query + role map (avoids N+1 and loading unused columns).
             $lims_user_list = User::query()
                 ->select([
-                    'id', 'name', 'email', 'company_name', 'phone', 'additional_phone',
+                    'id', 'name', 'username', 'email', 'company_name', 'phone', 'additional_phone',
                     'role_id', 'is_active', 'sign', 'stemp', 'approve',
                     'sign_request_token', 'sign_request_type', 'sign_request_expires_at',
                 ])
@@ -50,8 +50,10 @@ class UserController extends Controller
             $rolesById = DB::table('roles')
                 ->whereIn('id', $lims_user_list->pluck('role_id')->filter()->unique()->values())
                 ->pluck('name', 'id');
+            $assignableRoles = Roles::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+            $canEditUsers = in_array('users-edit', $all_permission, true);
 
-            return view('user.index', compact('lims_user_list', 'all_permission', 'category', 'rolesById'));
+            return view('user.index', compact('lims_user_list', 'all_permission', 'category', 'rolesById', 'assignableRoles', 'canEditUsers'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -313,6 +315,60 @@ class UserController extends Controller
             ->with('message', $deleted === 1
                 ? '1 application deleted.'
                 : $deleted.' applications deleted.');
+    }
+
+    public function inlineUpdate(Request $request, $id)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        if (! $role || ! $role->hasPermissionTo('users-edit')) {
+            return response()->json(['ok' => false, 'message' => 'You cannot edit users.'], 403);
+        }
+
+        $user = User::query()
+            ->where(function ($query) {
+                $query->where('is_deleted', false)->orWhereNull('is_deleted');
+            })
+            ->find($id);
+        if (! $user) {
+            return response()->json(['ok' => false, 'message' => 'That user is no longer available.'], 404);
+        }
+
+        if (trim((string) $request->input('username')) === '') {
+            $request->merge(['username' => null]);
+        }
+
+        $data = $request->validate([
+            'username' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('users', 'username')->ignore($user->id),
+            ],
+            'phone' => 'nullable|string|max:50',
+            'additional_phone' => 'nullable|string|max:50',
+            'role_id' => 'nullable|integer|exists:roles,id',
+        ]);
+
+        $username = trim((string) (isset($data['username']) ? $data['username'] : ''));
+        $user->username = $username === '' ? null : $username;
+        $user->phone = trim((string) (isset($data['phone']) ? $data['phone'] : ''));
+        $user->additional_phone = trim((string) (isset($data['additional_phone']) ? $data['additional_phone'] : ''));
+        if (! empty($data['role_id'])) {
+            $assignable = Roles::where('is_active', true)->find($data['role_id']);
+            if (! $assignable) {
+                return response()->json(['ok' => false, 'message' => 'That role is not active.'], 422);
+            }
+            $user->role_id = $assignable->id;
+        }
+        $user->save();
+
+        return response()->json([
+            'ok' => true,
+            'username' => $user->username,
+            'phone' => $user->phone,
+            'additional_phone' => $user->additional_phone,
+            'role_id' => (int) $user->role_id,
+        ]);
     }
 
     public function create()

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\BeyondUser;
 use App\Booking;
 use App\Customer;
 use App\CustomerGroup;
+use App\Employee;
 use App\Event;
 use App\EventWorkerCategory;
 use App\EventWorkerProfile;
@@ -14,9 +16,11 @@ use App\Services\EventPublicationService;
 use App\Services\EventService;
 use App\Services\EventWorkforceService;
 use App\Services\MobileMoneyHolderService;
+use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
@@ -81,26 +85,7 @@ class EventController extends Controller
         $customers = Customer::where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
         $roles = EventWorkerCategory::active()->orderBy('name')->get();
-        $workerProfiles = EventWorkerProfile::active()->with('customer', 'category')->orderBy('created_at', 'desc')->get();
-        $linkedCustomers = $workerProfiles->pluck('customer_id')->filter()->all();
-        $people = [];
-        foreach ($workerProfiles as $profile) {
-            $people[] = $this->personFromProfile($profile);
-        }
-        foreach ($customers as $customer) {
-            if (in_array($customer->id, $linkedCustomers)) {
-                continue;
-            }
-            $people[] = [
-                'kind' => 'customer',
-                'ref' => (string) $customer->id,
-                'name' => $customer->name,
-                'phone' => $customer->phone_number,
-                'rate' => 0,
-                'category_id' => null,
-                'role' => '',
-            ];
-        }
+        $people = $this->engineerDirectory();
         $customerOptions = [];
         $selectedCustomer = '';
         $selectedId = (string) old('customer_id');
@@ -159,7 +144,7 @@ class EventController extends Controller
         $this->can('events.create');
 
         $data = $request->validate([
-            'kind' => 'required|in:profile,customer',
+            'kind' => 'required|in:profile,customer,user,employee,portal',
             'ref' => 'required|string|max:80',
             'category_id' => 'required|integer',
         ]);
@@ -167,13 +152,9 @@ class EventController extends Controller
         if (! $category) {
             return response()->json(['ok' => false, 'message' => 'Choose a role from Event Settings.'], 422);
         }
-        if ($data['kind'] === 'profile') {
-            $profile = EventWorkerProfile::find($data['ref']);
-            if (! $profile) {
-                return response()->json(['ok' => false, 'message' => 'That person is no longer available.'], 422);
-            }
-        } else {
-            $profile = $workforce->profileFromCustomer($data['ref'], $category->id);
+        $profile = $this->profileForDirectory($data['kind'], $data['ref'], $category->id, $workforce);
+        if (! $profile) {
+            return response()->json(['ok' => false, 'message' => 'That person is no longer available.'], 422);
         }
         $workforce->rememberRole($profile, $category);
 
@@ -194,10 +175,11 @@ class EventController extends Controller
             'customer_id' => 'required|integer|exists:customers,id',
             'event_start_at' => 'required|date',
             'event_end_at' => 'required|date|after_or_equal:event_start_at',
+            'internal_notes' => 'nullable|string|max:5000',
             'flyer' => 'nullable|image|max:8192',
             'publish_on_website' => 'nullable|boolean',
             'crew' => 'nullable|array',
-            'crew.*.kind' => 'required|in:profile,customer,phone',
+            'crew.*.kind' => 'required|in:profile,customer,phone,user,employee,portal',
             'crew.*.ref' => 'nullable|string|max:80',
             'crew.*.phone' => 'nullable|string|max:32',
             'crew.*.name' => 'nullable|string|max:255',
@@ -227,6 +209,7 @@ class EventController extends Controller
                 'timezone' => 'Africa/Douala',
                 'event_start_at' => $start.' 00:00:00',
                 'event_end_at' => $end.' 23:59:00',
+                'internal_notes' => isset($data['internal_notes']) ? trim($data['internal_notes']) : null,
                 'expected_workdays' => $days,
                 'rental_link_mode' => 'none',
                 'internal_status' => 'draft',
@@ -472,7 +455,7 @@ class EventController extends Controller
                 $memberName = $hit['name'];
                 $ref = $phone;
                 $key = 'phone:'.$phone;
-            } elseif ($kind === 'profile' || $kind === 'customer') {
+            } elseif (in_array($kind, ['profile', 'customer', 'user', 'employee', 'portal'], true)) {
                 $ref = isset($row['ref']) ? (string) $row['ref'] : '';
                 if ($ref === '') {
                     throw ValidationException::withMessages(['crew' => 'Choose a person from the list.']);
@@ -518,6 +501,10 @@ class EventController extends Controller
         if ($member['kind'] === 'customer') {
             return $workforce->profileFromCustomer($member['ref'], ! empty($member['category_id']) ? $member['category_id'] : null);
         }
+        $directory = $this->profileForDirectory($member['kind'], $member['ref'], ! empty($member['category_id']) ? $member['category_id'] : null, $workforce);
+        if ($directory) {
+            return $directory;
+        }
 
         $phone = $member['ref'];
         $tail = substr($phone, -9);
@@ -552,10 +539,222 @@ class EventController extends Controller
             'kind' => 'profile',
             'ref' => (string) $profile->id,
             'name' => $profile->displayName(),
-            'phone' => $profile->telephone ?: optional($profile->customer)->phone_number,
+            'phone' => $profile->telephone ?: optional($profile->customer)->phone_number ?: optional($profile->user)->phone,
+            'email' => $profile->email ?: optional($profile->customer)->email ?: optional($profile->user)->email,
             'rate' => $category ? (int) $category->default_daily_rate : (int) $profile->standard_daily_rate,
             'category_id' => $category ? (int) $category->id : null,
             'role' => $category ? $category->name : '',
+            'source' => '',
         ];
+    }
+
+    protected function profileForDirectory($kind, $ref, $categoryId, EventWorkforceService $workforce)
+    {
+        if ($kind === 'user') {
+            return $workforce->profileFromUser($ref, $categoryId);
+        }
+        if ($kind === 'employee') {
+            return $workforce->profileFromEmployee($ref, $categoryId);
+        }
+        if ($kind === 'portal') {
+            return $workforce->profileFromPortal($ref, $categoryId);
+        }
+
+        return null;
+    }
+
+    protected function engineerDirectory()
+    {
+        $people = [];
+        $seen = [];
+        $internIds = [];
+        if (Schema::hasTable('internship_enrolments')) {
+            foreach (DB::table('internship_enrolments')->pluck('student_user_id') as $id) {
+                $internIds[(int) $id] = true;
+            }
+        }
+        $employeeUserIds = [];
+        $employees = collect();
+        if (Schema::hasTable('employees')) {
+            $employees = Employee::orderBy('name')->get(['id', 'name', 'email', 'phone_number', 'user_id', 'city', 'is_active']);
+            foreach ($employees as $employee) {
+                if ($employee->user_id) {
+                    $employeeUserIds[(int) $employee->user_id] = true;
+                }
+            }
+        }
+        $roleNames = DB::table('roles')->pluck('name', 'id')->all();
+
+        $profiles = EventWorkerProfile::with('customer', 'user', 'category')->orderBy('created_at', 'desc')->get();
+        foreach ($profiles as $profile) {
+            $person = $this->personFromProfile($profile);
+            $person['source'] = $this->accountLabel(
+                $profile->user_id,
+                $profile->user ? $profile->user->role_id : null,
+                $internIds,
+                $employeeUserIds,
+                $roleNames,
+                $profile->customer_id ? 'Customer' : 'Account'
+            );
+            $people[] = $person;
+            $this->rememberPerson($seen, $person['phone'], $person['email'], $profile->customer_id, $profile->user_id, $profile->be_user_id);
+        }
+
+        $users = User::query()
+            ->where(function ($query) {
+                $query->where('is_deleted', 0)->orWhereNull('is_deleted');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'phone', 'role_id']);
+        foreach ($users as $user) {
+            if ($this->personSeen($seen, $user->phone, $user->email, null, $user->id, null)) {
+                continue;
+            }
+            $people[] = [
+                'kind' => 'user',
+                'ref' => (string) $user->id,
+                'name' => $user->name ?: 'User',
+                'phone' => $user->phone,
+                'email' => $user->email,
+                'rate' => 0,
+                'category_id' => null,
+                'role' => '',
+                'source' => $this->accountLabel($user->id, $user->role_id, $internIds, $employeeUserIds, $roleNames, 'User'),
+            ];
+            $this->rememberPerson($seen, $user->phone, $user->email, null, $user->id, null);
+        }
+
+        foreach ($employees as $employee) {
+            if ($this->personSeen($seen, $employee->phone_number, $employee->email, null, $employee->user_id, null)) {
+                continue;
+            }
+            $people[] = [
+                'kind' => 'employee',
+                'ref' => (string) $employee->id,
+                'name' => $employee->name ?: 'Staff',
+                'phone' => $employee->phone_number,
+                'email' => $employee->email,
+                'rate' => 0,
+                'category_id' => null,
+                'role' => '',
+                'source' => 'Staff',
+            ];
+            $this->rememberPerson($seen, $employee->phone_number, $employee->email, null, $employee->user_id, null);
+        }
+
+        foreach (Customer::orderBy('name')->get(['id', 'name', 'phone_number', 'email']) as $customer) {
+            if ($this->personSeen($seen, $customer->phone_number, $customer->email, $customer->id, null, null)) {
+                continue;
+            }
+            $people[] = [
+                'kind' => 'customer',
+                'ref' => (string) $customer->id,
+                'name' => $customer->name ?: 'Customer',
+                'phone' => $customer->phone_number,
+                'email' => $customer->email,
+                'rate' => 0,
+                'category_id' => null,
+                'role' => '',
+                'source' => 'Customer',
+            ];
+            $this->rememberPerson($seen, $customer->phone_number, $customer->email, $customer->id, null, null);
+        }
+
+        if (Schema::hasTable('be_users')) {
+            foreach (BeyondUser::orderBy('name')->get(['id', 'name', 'email', 'phone', 'role']) as $portal) {
+                if ($this->personSeen($seen, $portal->phone, $portal->email, null, null, $portal->id)) {
+                    continue;
+                }
+                $label = $portal->role ? ucfirst(str_replace('_', ' ', (string) $portal->role)) : 'Portal';
+                $people[] = [
+                    'kind' => 'portal',
+                    'ref' => (string) $portal->id,
+                    'name' => $portal->name ?: 'Portal user',
+                    'phone' => $portal->phone,
+                    'email' => $portal->email,
+                    'rate' => 0,
+                    'category_id' => null,
+                    'role' => '',
+                    'source' => $label,
+                ];
+                $this->rememberPerson($seen, $portal->phone, $portal->email, null, null, $portal->id);
+            }
+        }
+
+        return $people;
+    }
+
+    protected function accountLabel($userId, $roleId, array $internIds, array $employeeUserIds, array $roleNames, $fallback)
+    {
+        if ($userId && isset($internIds[(int) $userId])) {
+            return 'Intern';
+        }
+        if ($userId && isset($employeeUserIds[(int) $userId])) {
+            return 'Staff';
+        }
+        if ($roleId && isset($roleNames[$roleId])) {
+            $name = (string) $roleNames[$roleId];
+            if (stripos($name, 'intern') !== false) {
+                return 'Intern';
+            }
+
+            return $name;
+        }
+
+        return $fallback;
+    }
+
+    protected function personSeen(array $seen, $phone, $email, $customerId, $userId, $portalId)
+    {
+        $phoneKey = $this->phoneKey($phone);
+        $emailKey = strtolower(trim((string) $email));
+        if ($phoneKey !== '' && isset($seen['p:'.$phoneKey])) {
+            return true;
+        }
+        if ($emailKey !== '' && isset($seen['e:'.$emailKey])) {
+            return true;
+        }
+        if ($customerId && isset($seen['c:'.$customerId])) {
+            return true;
+        }
+        if ($userId && isset($seen['u:'.$userId])) {
+            return true;
+        }
+        if ($portalId && isset($seen['b:'.$portalId])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    protected function rememberPerson(array &$seen, $phone, $email, $customerId, $userId, $portalId)
+    {
+        $phoneKey = $this->phoneKey($phone);
+        $emailKey = strtolower(trim((string) $email));
+        if ($phoneKey !== '') {
+            $seen['p:'.$phoneKey] = true;
+        }
+        if ($emailKey !== '') {
+            $seen['e:'.$emailKey] = true;
+        }
+        if ($customerId) {
+            $seen['c:'.$customerId] = true;
+        }
+        if ($userId) {
+            $seen['u:'.$userId] = true;
+        }
+        if ($portalId) {
+            $seen['b:'.$portalId] = true;
+        }
+    }
+
+    protected function phoneKey($phone)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) < 6) {
+            return '';
+        }
+
+        return substr($digits, -9);
     }
 }

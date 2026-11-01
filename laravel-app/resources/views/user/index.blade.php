@@ -12,13 +12,36 @@
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
 
-<section>
-    <div class="table-responsive">
+<style>
+    .users-shell { --u-navy: #0b3f90; --u-ink: #0f172a; --u-line: #e2e8f0; }
+    .users-shell .users-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .users-shell .users-hero h3 { margin: 0; font-weight: 800; letter-spacing: -.03em; color: var(--u-ink); }
+    .users-shell .users-hero p { margin: 4px 0 0; color: #64748b; }
+    .users-shell .users-card { background: #fff; border: 1px solid var(--u-line); border-radius: 18px; box-shadow: 0 10px 30px rgba(15, 23, 42, .05); padding: 8px 8px 4px; }
+    .users-shell #user-table thead th { background: var(--u-navy); color: #fff; border: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+    .users-shell #user-table td { vertical-align: middle; border-color: #eef2f7; }
+    .users-shell .user-name { font-weight: 700; color: var(--u-ink); }
+    .users-shell .user-field { width: 100%; min-width: 120px; min-height: 36px; border: 1px solid var(--u-line); border-radius: 10px; padding: 6px 10px; background: #fff; color: var(--u-ink); }
+    .users-shell .user-field:focus { outline: none; border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(11, 63, 144, .12); }
+    .users-shell .user-field.is-saved { border-color: #86efac; }
+    .users-shell .user-field.is-error { border-color: #dc3545; }
+    .users-shell .dataTables_filter input,
+    .users-shell .dataTables_length select { border: 1px solid var(--u-line); border-radius: 10px; min-height: 36px; padding: 4px 10px; }
+</style>
+<section class="users-shell">
+    <div class="users-hero">
+        <div>
+            <h3>Users</h3>
+            <p>Usernames, phone numbers, and roles save as you leave the field.</p>
+        </div>
+    </div>
+    <div class="users-card table-responsive">
         <table id="user-table" class="table">
             <thead>
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{trans('file.name')}}</th>
+                    <th>Username</th>
                     <th>{{trans('file.Phone Number')}}</th>
                     <th>{{trans('file.Email')}}</th>
                     <th>{{trans('file.Company Name')}}</th>
@@ -30,14 +53,46 @@
             </thead>
             <tbody>
                 @foreach($lims_user_list as $key=>$user)
-                <tr data-id="{{$user->id}}" @if(in_array("users-edit", $all_permission)) data-edit-url="{{ route('user.edit', $user->id) }}" style="cursor:pointer;" @endif>
+                <tr data-id="{{$user->id}}" @if($canEditUsers) data-edit-url="{{ route('user.edit', $user->id) }}" style="cursor:pointer;" @endif>
                     <td>{{$key}}</td>
-                    <td>{{ $user->name }}</td>
-                    <td>{{ $user->phone}}</td>
+                    <td><span class="user-name">{{ $user->name }}</span></td>
+                    <td>
+                        @if($canEditUsers)
+                            <input type="text" class="user-field" data-field="username" value="{{ $user->username }}" placeholder="Username" autocomplete="off">
+                        @else
+                            {{ $user->username ?: '—' }}
+                        @endif
+                    </td>
+                    <td>
+                        @if($canEditUsers)
+                            <input type="text" class="user-field" data-field="phone" value="{{ $user->phone }}" placeholder="Phone" autocomplete="off">
+                        @else
+                            {{ $user->phone }}
+                        @endif
+                    </td>
                     <td>{{ $user->email}}</td>
                     <td>{{ $user->company_name}}</td>
-                    <td>{{ $user->additional_phone}}</td>
-                    <td>{{ $rolesById[$user->role_id] ?? '—' }}</td>
+                    <td>
+                        @if($canEditUsers)
+                            <input type="text" class="user-field" data-field="additional_phone" value="{{ $user->additional_phone }}" placeholder="Additional phone" autocomplete="off">
+                        @else
+                            {{ $user->additional_phone }}
+                        @endif
+                    </td>
+                    <td>
+                        @if($canEditUsers)
+                            <select class="user-field" data-field="role_id">
+                                @foreach($assignableRoles as $roleOption)
+                                    <option value="{{ $roleOption->id }}" {{ (int) $user->role_id === (int) $roleOption->id ? 'selected' : '' }}>{{ $roleOption->name }}</option>
+                                @endforeach
+                                @if($user->role_id && ! $assignableRoles->contains('id', $user->role_id))
+                                    <option value="{{ $user->role_id }}" selected>{{ $rolesById[$user->role_id] ?? 'Role' }}</option>
+                                @endif
+                            </select>
+                        @else
+                            {{ $rolesById[$user->role_id] ?? '—' }}
+                        @endif
+                    </td>
                     @if($user->is_active)
                     <td><div class="badge badge-success">Active</div></td>
                     @else
@@ -135,7 +190,7 @@
         'columnDefs': [
             {
                 "orderable": false,
-                'targets': [0, 7, 8]
+                'targets': [0, 8, 9]
             },
             {
                 'render': function(data, type, row, meta){
@@ -223,12 +278,53 @@
         $('.buttons-delete').addClass('d-none');
 
     $('#user-table tbody').on('click', 'tr', function (e) {
-        if ($(e.target).closest('td:first-child, .btn-group, a, button, input, label, .dropdown-menu, .checkbox').length) {
+        if ($(e.target).closest('td:first-child, .btn-group, a, button, input, select, label, .dropdown-menu, .checkbox, .user-field').length) {
             return;
         }
         var url = $(this).data('edit-url');
         if (url) {
             window.location = url;
+        }
+    });
+
+    var inlineUrl = @json(url('user'));
+    function saveUserRow($field) {
+        var $row = $field.closest('tr');
+        var id = $row.data('id');
+        var payload = {
+            username: $row.find('[data-field="username"]').val() || '',
+            phone: $row.find('[data-field="phone"]').val() || '',
+            additional_phone: $row.find('[data-field="additional_phone"]').val() || '',
+            role_id: $row.find('[data-field="role_id"]').val() || ''
+        };
+        var signature = JSON.stringify(payload);
+        if ($row.data('saved') === signature) return;
+        $row.find('.user-field').removeClass('is-saved is-error');
+        $.ajax({
+            type: 'POST',
+            url: inlineUrl + '/' + id + '/inline',
+            data: payload,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).done(function () {
+            $row.data('saved', signature);
+            $field.addClass('is-saved');
+        }).fail(function (xhr) {
+            $field.addClass('is-error');
+            var res = xhr.responseJSON || {};
+            var msg = res.message;
+            if (!msg && res.errors) {
+                msg = Object.keys(res.errors).map(function (key) { return res.errors[key][0]; }).join(' ');
+            }
+            alert(msg || 'That change was not saved.');
+        });
+    }
+    $(document).on('change', '#user-table .user-field', function () {
+        saveUserRow($(this));
+    });
+    $(document).on('keydown', '#user-table .user-field', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            $(this).blur();
         }
     });
 

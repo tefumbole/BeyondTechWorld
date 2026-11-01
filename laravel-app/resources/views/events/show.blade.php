@@ -86,6 +86,8 @@
                                 <dd class="col-sm-8">{{ $event->venue }} @if($event->city)— {{ $event->city }}@endif</dd>
                                 <dt class="col-sm-4">Description</dt>
                                 <dd class="col-sm-8">{{ $event->internal_description ?: '—' }}</dd>
+                                <dt class="col-sm-4">Notes</dt>
+                                <dd class="col-sm-8">{{ $event->internal_notes ?: '—' }}</dd>
                             </dl>
                         </div>
                     </div>

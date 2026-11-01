@@ -47,6 +47,11 @@ class EventWorkerProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function portalUser()
+    {
+        return $this->belongsTo(BeyondUser::class, 'be_user_id');
+    }
+
     public function category()
     {
         return $this->belongsTo(EventWorkerCategory::class, 'worker_category_id');
@@ -64,6 +69,9 @@ class EventWorkerProfile extends Model
         }
         if ($this->user) {
             return $this->user->name;
+        }
+        if ($this->portalUser && $this->portalUser->name) {
+            return $this->portalUser->name;
         }
 
         return $this->telephone ?: $this->email ?: 'Worker';

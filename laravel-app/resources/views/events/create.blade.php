@@ -52,7 +52,11 @@
                         <input type="date" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at') }}">
                     </div>
                 </div>
-                <p class="ev-lead mb-0" id="span-note">Choose the first and last day. Each person's days start from that span.</p>
+                <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's days start from that span.</div>
+                <div class="form-group mb-0">
+                    <label>Notes</label>
+                    <textarea name="internal_notes" class="form-control" rows="3" placeholder="Schedule notes, call times, or anything to remember about these dates">{{ old('internal_notes') }}</textarea>
+                </div>
             </div>
 
             <div class="ev-section">
@@ -61,7 +65,7 @@
                     <div class="col-md-8 form-group mb-md-0">
                         <label>Search a person</label>
                         <div class="ev-combo" id="engineer-combo">
-                            <input type="search" class="form-control ev-combo-input" id="engineer-search" placeholder="Type a name or phone" autocomplete="off">
+                            <input type="search" class="form-control ev-combo-input" id="engineer-search" placeholder="Search customers, staff, interns, or any account" autocomplete="off">
                             <div class="ev-combo-menu" id="engineer-menu" hidden></div>
                         </div>
                     </div>
@@ -69,7 +73,7 @@
                         <button type="button" class="btn btn-outline-primary btn-block" id="show-new-person">New number</button>
                     </div>
                 </div>
-                <p class="ev-lead mt-2">Choosing a name adds them at once. Their role stays on the profile for the next event, and the settings price fills the daily rate.</p>
+                <p class="ev-lead mt-2">Search covers customers, users, staff, interns, and every other account. Choosing a name adds them at once. Their role stays for the next event, and the settings price fills the daily rate.</p>
                 <div id="new-person" class="ev-new-person" style="display:none;">
                     <label>Mobile Money number</label>
                     <div class="form-row">
@@ -139,17 +143,30 @@
     var rowIndex = 0;
     var activeIndex = -1;
 
+    var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var roleMenu = document.createElement('div');
+    roleMenu.className = 'ev-role-menu';
+    roleMenu.hidden = true;
+    document.body.appendChild(roleMenu);
+
+    function prettyDate(iso) {
+        var parts = String(iso || '').split('-');
+        if (parts.length !== 3) return iso;
+        var month = months[parseInt(parts[1], 10) - 1] || parts[1];
+        return parseInt(parts[2], 10) + ' ' + month + ' ' + parts[0];
+    }
+
     function spanDays() {
         var from = document.getElementById('event-from').value;
         var to = document.getElementById('event-to').value;
         var note = document.getElementById('span-note');
         if (!from || !to) {
-            note.textContent = 'Choose the first and last day. Each person\'s days start from that span.';
+            note.textContent = 'Choose the first and last date. Each person\'s days start from that span.';
             return 1;
         }
         var ms = Date.parse(to) - Date.parse(from);
         var days = ms < 0 || isNaN(ms) ? 1 : Math.floor(ms / 86400000) + 1;
-        note.textContent = days + (days === 1 ? ' day' : ' days') + ' from ' + from + ' to ' + to + '.';
+        note.textContent = days + (days === 1 ? ' day' : ' days') + ', from ' + prettyDate(from) + ' to ' + prettyDate(to) + '.';
         return days;
     }
 
@@ -185,13 +202,54 @@
         document.getElementById('crew-empty').style.display = rows.length ? 'none' : '';
     }
 
-    function roleOptions(selected) {
-        var html = '<option value="">Choose role</option>';
+    function roleLabel(role) {
+        return role ? role.name + ' — ' + money(role.rate) + ' XAF' : 'Choose role';
+    }
+
+    function closeRoleMenu() {
+        roleMenu.hidden = true;
+        roleMenu._row = null;
+    }
+
+    function openRoleMenu(button) {
+        var row = button.closest('tr');
+        var current = row.querySelector('.crew-role').value;
+        roleMenu.innerHTML = '';
         roles.forEach(function (role) {
-            html += '<option value="' + role.id + '"' + (String(selected) === String(role.id) ? ' selected' : '') + '>' +
-                escapeHtml(role.name) + ' — ' + money(role.rate) + ' XAF</option>';
+            var option = document.createElement('button');
+            option.type = 'button';
+            option.className = 'ev-role-option' + (String(current) === String(role.id) ? ' is-current' : '');
+            option.setAttribute('data-id', role.id);
+            option.innerHTML = '<strong>' + escapeHtml(role.name) + '</strong><span>' + money(role.rate) + ' XAF</span>';
+            roleMenu.appendChild(option);
         });
-        return html;
+        var rect = button.getBoundingClientRect();
+        var width = Math.max(rect.width, 260);
+        var left = Math.min(rect.left, window.innerWidth - width - 12);
+        roleMenu.style.left = Math.max(8, left) + 'px';
+        roleMenu.style.top = (rect.bottom + 6) + 'px';
+        roleMenu.style.width = width + 'px';
+        roleMenu._row = row;
+        roleMenu.hidden = false;
+    }
+
+    function applyRole(row, role) {
+        var input = row.querySelector('.crew-role');
+        var button = row.querySelector('.ev-role-btn');
+        var rate = row.querySelector('.crew-rate');
+        var note = row.querySelector('.ev-rate-note');
+        input.value = role ? role.id : '';
+        button.textContent = roleLabel(role);
+        button.classList.toggle('is-empty', !role);
+        button.classList.remove('is-invalid');
+        if (role) {
+            rate.value = role.rate;
+            note.textContent = 'Settings price';
+            rememberRole(row, role.id);
+        } else {
+            note.textContent = 'Choose a role';
+        }
+        refresh();
     }
 
     function addRow(person) {
@@ -212,7 +270,10 @@
                 '<input type="hidden" name="crew[' + i + '][ref]" value="' + escapeHtml(person.ref || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][phone]" value="' + escapeHtml(person.phone || '') + '">' +
             '</td>' +
-            '<td><select class="form-control form-control-sm crew-role" name="crew[' + i + '][category_id]">' + roleOptions(person.category_id) + '</select></td>' +
+            '<td><div class="ev-role">' +
+                '<input type="hidden" class="crew-role" name="crew[' + i + '][category_id]" value="' + escapeHtml(person.category_id || '') + '">' +
+                '<button type="button" class="ev-role-btn' + (role ? '' : ' is-empty') + '">' + escapeHtml(roleLabel(role)) + '</button>' +
+            '</div></td>' +
             '<td><input type="number" class="form-control form-control-sm crew-days" name="crew[' + i + '][days]" min="1" max="365" value="' + days + '" data-auto="' + (person.days ? '0' : '1') + '"></td>' +
             '<td><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + rate + '" readonly required>' +
                 '<span class="ev-rate-note">' + (role ? 'Settings price' : 'Choose a role') + '</span></td>' +
@@ -225,7 +286,7 @@
 
     function rememberRole(row, categoryId) {
         var kind = row.getAttribute('data-kind');
-        if (kind !== 'profile' && kind !== 'customer') return;
+        if (kind !== 'profile' && kind !== 'customer' && kind !== 'user' && kind !== 'employee' && kind !== 'portal') return;
         var body = new FormData();
         body.append('_token', token);
         body.append('kind', kind);
@@ -253,7 +314,7 @@
             menu.hidden = false;
             return;
         }
-        items.slice(0, 8).forEach(function (item, index) {
+        items.slice(0, 20).forEach(function (item, index) {
             var button = document.createElement('button');
             button.type = 'button';
             button.className = 'ev-combo-item';
@@ -266,9 +327,9 @@
 
     function filterList(list, query) {
         var q = query.trim().toLowerCase();
-        if (!q) return list.slice(0, 8);
+        if (!q) return list.slice(0, 20);
         return list.filter(function (item) {
-            return ((item.name || '') + ' ' + (item.phone || '') + ' ' + (item.role || '')).toLowerCase().indexOf(q) !== -1;
+            return ((item.name || '') + ' ' + (item.phone || '') + ' ' + (item.email || '') + ' ' + (item.role || '') + ' ' + (item.source || '')).toLowerCase().indexOf(q) !== -1;
         });
     }
 
@@ -278,17 +339,21 @@
         paintMenu(menu, items, function (item) {
             return '<span><strong>' + escapeHtml(item.name) + '</strong><small>' + escapeHtml(item.phone || '') + '</small></span>';
         }, 'No customer matches that search.');
-        menu._items = items.slice(0, 8);
+        menu._items = items.slice(0, 20);
     }
 
     function engineerMenu() {
         var menu = document.getElementById('engineer-menu');
         var items = filterList(people, document.getElementById('engineer-search').value);
         paintMenu(menu, items, function (item) {
-            var role = item.role ? '<span class="ev-role-pill">' + escapeHtml(item.role) + '</span>' : '';
-            return '<span><strong>' + escapeHtml(item.name) + '</strong><small>' + escapeHtml(item.phone || 'No phone') + '</small></span>' + role;
-        }, 'No engineer matches that search.');
-        menu._items = items.slice(0, 8);
+            var detail = item.phone || item.email || 'No phone';
+            if (item.source) detail += ' · ' + item.source;
+            var badge = item.role
+                ? '<span class="ev-role-pill">' + escapeHtml(item.role) + '</span>'
+                : (item.source ? '<span class="ev-source-pill">' + escapeHtml(item.source) + '</span>' : '');
+            return '<span><strong>' + escapeHtml(item.name) + '</strong><small>' + escapeHtml(detail) + '</small></span>' + badge;
+        }, 'No account matches that search.');
+        menu._items = items.slice(0, 20);
     }
 
     function chooseCustomer(item) {
@@ -387,22 +452,31 @@
         if (event.target.classList.contains('crew-days')) event.target.setAttribute('data-auto', '0');
         refresh();
     });
-    tbody.addEventListener('change', function (event) {
-        if (event.target.classList.contains('crew-role')) {
-            var role = roleById(event.target.value);
-            var row = event.target.closest('tr');
-            var rate = row.querySelector('.crew-rate');
-            var note = row.querySelector('.ev-rate-note');
-            if (role) {
-                rate.value = role.rate;
-                note.textContent = 'Settings price';
-                rememberRole(row, role.id);
-            } else {
-                note.textContent = 'Choose a role';
-            }
+    tbody.addEventListener('click', function (event) {
+        var button = event.target.closest('.ev-role-btn');
+        if (!button) return;
+        event.preventDefault();
+        if (!roleMenu.hidden && roleMenu._row === button.closest('tr')) {
+            closeRoleMenu();
+            return;
         }
-        refresh();
+        openRoleMenu(button);
     });
+    roleMenu.addEventListener('click', function (event) {
+        var option = event.target.closest('.ev-role-option');
+        if (!option || !roleMenu._row) return;
+        applyRole(roleMenu._row, roleById(option.getAttribute('data-id')));
+        closeRoleMenu();
+    });
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('.ev-role-btn') || event.target.closest('.ev-role-menu')) return;
+        closeRoleMenu();
+    });
+    window.addEventListener('scroll', function (event) {
+        if (event.target && event.target.closest && event.target.closest('.ev-role-menu')) return;
+        closeRoleMenu();
+    }, true);
+    window.addEventListener('resize', closeRoleMenu);
     tbody.addEventListener('click', function (event) {
         if (!event.target.classList.contains('crew-remove')) return;
         event.target.closest('tr').remove();
@@ -428,10 +502,11 @@
         }
         if (!roles.length) return;
         var missing = false;
-        tbody.querySelectorAll('.crew-role').forEach(function (select) {
-            if (!select.value) {
+        tbody.querySelectorAll('.crew-role').forEach(function (input) {
+            var button = input.parentNode.querySelector('.ev-role-btn');
+            if (!input.value) {
                 missing = true;
-                select.classList.add('is-invalid');
+                if (button) button.classList.add('is-invalid');
             }
         });
         if (missing) event.preventDefault();
