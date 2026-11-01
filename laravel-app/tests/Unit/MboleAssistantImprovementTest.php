@@ -105,6 +105,14 @@ class MboleAssistantImprovementTest extends TestCase
         $attempts->claim('pos-checkout-key-2', hash('sha256', 'cart-b'), 2000, ['phone' => '237600000000']);
     }
 
+    public function test_event_pay_includes_food_money_per_day()
+    {
+        $pay = new \App\Services\EventWorkforceService();
+
+        $this->assertSame(15000, $pay->calculateExpectedTotal('daily', 5000, 3, []));
+        $this->assertSame(18000, $pay->calculateExpectedTotal('daily', 5000, 3, [], 1000));
+    }
+
     public function test_checkout_keys_are_validated()
     {
         $orders = app(OrderSubmissionService::class);

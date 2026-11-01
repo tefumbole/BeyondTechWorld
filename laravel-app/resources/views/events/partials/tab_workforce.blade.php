@@ -84,7 +84,7 @@
                                 <td>{{ optional($a->workerProfile)->displayName() }}</td>
                                 <td>{{ $a->assignment_role }}</td>
                                 <td>{{ optional(optional($a->workerProfile)->category)->name }}</td>
-                                <td>{{ number_format($a->event_daily_rate) }} × {{ $a->expected_days }}</td>
+                                <td>{{ number_format($a->event_daily_rate) }} × {{ $a->expected_days }}@if($a->food_per_day) + food {{ number_format($a->food_per_day) }}/day @endif</td>
                                 <td><strong>{{ number_format($a->expected_total) }} XAF</strong></td>
                                 <td><span class="badge badge-secondary">{{ $a->contract_status }}</span></td>
                                 <td>

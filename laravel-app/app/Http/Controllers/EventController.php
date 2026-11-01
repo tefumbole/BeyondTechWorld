@@ -4,15 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Booking;
 use App\Customer;
+use App\CustomerGroup;
 use App\Event;
 use App\EventWorkerCategory;
 use App\EventWorkerProfile;
+use App\Services\CampayPayoutService;
 use App\Services\EventPublicationService;
 use App\Services\EventService;
 use App\Services\EventWorkforceService;
+use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class EventController extends Controller
@@ -74,43 +79,131 @@ class EventController extends Controller
 
         $customers = Customer::where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
-        $bookings = Booking::orderBy('id', 'desc')->limit(100)->get(['id', 'reference_no', 'customer_id', 'grand_total', 'paid_amount']);
-        $workerProfiles = EventWorkerProfile::active()->with('customer', 'category')->orderBy('created_at', 'desc')->get();
+        $workerProfiles = EventWorkerProfile::active()->with('customer')->orderBy('created_at', 'desc')->get();
+        $linkedCustomers = $workerProfiles->pluck('customer_id')->filter()->all();
+        $people = [];
+        foreach ($workerProfiles as $profile) {
+            $people[] = [
+                'kind' => 'profile',
+                'ref' => (string) $profile->id,
+                'name' => $profile->displayName(),
+                'phone' => $profile->telephone ?: optional($profile->customer)->phone_number,
+                'rate' => (int) $profile->standard_daily_rate,
+            ];
+        }
+        foreach ($customers as $customer) {
+            if (in_array($customer->id, $linkedCustomers)) {
+                continue;
+            }
+            $people[] = [
+                'kind' => 'customer',
+                'ref' => (string) $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone_number,
+                'rate' => 0,
+            ];
+        }
         $event = new Event([
             'internal_status' => 'draft',
-            'timezone' => 'Africa/Kigali',
+            'timezone' => 'Africa/Douala',
             'rental_link_mode' => 'none',
             'labour_mode' => 'individual',
+            'event_type' => 'other',
         ]);
 
-        return view('events.create', compact('event', 'customers', 'bookings', 'workerProfiles'));
+        return view('events.create', compact('event', 'customers', 'people'));
+    }
+
+    public function resolveLabourName(Request $request, CampayPayoutService $campay, MobileMoneyHolderService $holders)
+    {
+        $this->can('events.create');
+
+        $phone = $campay->momoNumber($request->input('phone'));
+        if (! $phone) {
+            return response()->json(['ok' => false, 'message' => 'Enter an MTN or Orange Cameroon number.'], 422);
+        }
+        $hit = $holders->lookup($phone, false, false);
+        $source = isset($hit['source']) ? $hit['source'] : '';
+        if (empty($hit['name']) || ! in_array($source, ['campay', 'pawapay'], true)) {
+            return response()->json(['ok' => false, 'message' => 'Campay has no registered name for this number.'], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'name' => $hit['name'],
+            'phone' => $phone,
+        ]);
     }
 
     public function store(Request $request, EventService $eventService, EventWorkforceService $workforce)
     {
         $this->can('events.create');
 
-        $data = $this->validatedEvent($request);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'customer_id' => 'required|integer|exists:customers,id',
+            'event_start_at' => 'required|date',
+            'event_end_at' => 'required|date|after_or_equal:event_start_at',
+            'flyer' => 'nullable|image|max:8192',
+            'publish_on_website' => 'nullable|boolean',
+            'crew' => 'nullable|array',
+            'crew.*.kind' => 'required|in:profile,customer,phone',
+            'crew.*.ref' => 'nullable|string|max:80',
+            'crew.*.phone' => 'nullable|string|max:32',
+            'crew.*.name' => 'nullable|string|max:255',
+            'crew.*.days' => 'required|integer|min:1|max:365',
+            'crew.*.rate' => 'required|integer|min:0',
+            'crew.*.food' => 'nullable|in:0,1',
+        ]);
 
-        if ($request->hasFile('flyer') && $request->file('flyer')->isValid()) {
-            $data['flyer_path'] = $eventService->storeFlyer($request->file('flyer'));
-        }
+        $customer = Customer::findOrFail($data['customer_id']);
+        $prepared = $this->prepareCrew($request->input('crew', []));
+        $start = $data['event_start_at'];
+        $end = $data['event_end_at'];
+        $days = max(1, (int) ((strtotime($end) - strtotime($start)) / 86400) + 1);
+        $publish = $request->boolean('publish_on_website');
 
-        $publish = $request->boolean('publish_on_website', true);
-        $event = $eventService->create($data, $publish);
+        $event = DB::transaction(function () use ($request, $eventService, $workforce, $data, $customer, $prepared, $start, $end, $days, $publish) {
+            $payload = [
+                'name' => $data['name'],
+                'event_type' => 'other',
+                'customer_id' => $customer->id,
+                'client_contact_person' => $customer->name,
+                'client_telephone' => $customer->phone_number,
+                'client_email' => $customer->email,
+                'city' => $customer->city,
+                'timezone' => 'Africa/Douala',
+                'event_start_at' => $start.' 00:00:00',
+                'event_end_at' => $end.' 23:59:00',
+                'expected_workdays' => $days,
+                'rental_link_mode' => 'none',
+                'internal_status' => 'draft',
+                'labour_mode' => 'individual',
+                'slug' => Event::uniqueSlug($data['name']),
+            ];
+            if ($request->hasFile('flyer') && $request->file('flyer')->isValid()) {
+                $payload['flyer_path'] = $eventService->storeFlyer($request->file('flyer'));
+            }
+            $event = $eventService->create($payload, $publish);
+            foreach ($prepared as $member) {
+                $profile = $this->profileForCrewMember($member, $workforce);
+                $workforce->assignWorker($event, $profile, [
+                    'assignment_role' => 'Crew',
+                    'event_daily_rate' => $member['rate'],
+                    'expected_days' => $member['days'],
+                    'work_start_date' => $start,
+                    'work_end_date' => $end,
+                    'compensation_method' => 'daily',
+                    'food_per_day' => $member['food'] ? EventWorkforceService::FOOD_PER_DAY : 0,
+                ]);
+            }
 
-        if ($request->input('labour_mode') === 'individual') {
-            $this->assignStaffFromRequest($request, $event, $workforce);
-        } elseif ($request->input('labour_mode') === 'budget' && $request->filled('labour_budget_total')) {
-            $workforce->saveLabourBudget($event, [
-                'total_budget' => (int) $request->input('labour_budget_total'),
-                'distribution_mode' => 'manual',
-            ]);
-        }
+            return $event;
+        });
 
         $msg = 'Event created successfully.';
         if ($publish) {
-            $msg .= ' It is published on the website Events page and home page.';
+            $msg .= ' It is on the website Events page.';
         }
 
         return redirect()->route('events.show', $event->id)->with('message', $msg);
@@ -264,32 +357,103 @@ class EventController extends Controller
         return $validated;
     }
 
-    protected function assignStaffFromRequest(Request $request, Event $event, EventWorkforceService $workforce)
+    protected function prepareCrew(array $crew)
     {
-        $staffIds = array_unique((array) $request->input('staff', []));
-        $roles = (array) $request->input('staff_role', []);
-        $rates = (array) $request->input('staff_rate', []);
-        $days = (array) $request->input('staff_days', []);
-        $workStart = $request->input('event_start_at');
-        $workEnd = $request->input('event_end_at');
-
-        foreach ($staffIds as $profileId) {
-            $profile = EventWorkerProfile::find($profileId);
-            if (! $profile) {
+        $prepared = [];
+        $seen = [];
+        foreach ($crew as $row) {
+            if (! is_array($row)) {
                 continue;
             }
-            try {
-                $workforce->assignWorker($event, $profile, [
-                    'assignment_role' => $roles[$profileId] ?? (optional($profile->category)->name ?: 'Crew'),
-                    'event_daily_rate' => (int) ($rates[$profileId] ?? $profile->standard_daily_rate),
-                    'expected_days' => max(1, (int) ($days[$profileId] ?? $request->input('expected_workdays', 1))),
-                    'work_start_date' => $workStart ? substr($workStart, 0, 10) : null,
-                    'work_end_date' => $workEnd ? substr($workEnd, 0, 10) : null,
-                    'compensation_method' => 'daily',
-                ]);
-            } catch (\InvalidArgumentException $e) {
-                // skip duplicate / invalid
+            $kind = isset($row['kind']) ? (string) $row['kind'] : '';
+            $days = max(1, (int) (isset($row['days']) ? $row['days'] : 1));
+            $rate = max(0, (int) (isset($row['rate']) ? $row['rate'] : 0));
+            $food = ! empty($row['food']) && (string) $row['food'] !== '0';
+            $phone = '';
+            $name = isset($row['name']) ? (string) $row['name'] : '';
+            if ($kind === 'phone') {
+                $phone = app(CampayPayoutService::class)->momoNumber(isset($row['phone']) ? $row['phone'] : '');
+                if (! $phone) {
+                    throw ValidationException::withMessages([
+                        'crew' => 'Enter an MTN or Orange Cameroon number for each new person.',
+                    ]);
+                }
+                $hit = app(MobileMoneyHolderService::class)->lookup($phone, false, false);
+                $source = isset($hit['source']) ? $hit['source'] : '';
+                if (empty($hit['name']) || ! in_array($source, ['campay', 'pawapay'], true)) {
+                    throw ValidationException::withMessages([
+                        'crew' => 'Campay has no registered name for '.$phone.'.',
+                    ]);
+                }
+                $name = $hit['name'];
+                $ref = $phone;
+                $key = 'phone:'.$phone;
+            } elseif ($kind === 'profile' || $kind === 'customer') {
+                $ref = isset($row['ref']) ? (string) $row['ref'] : '';
+                if ($ref === '') {
+                    throw ValidationException::withMessages(['crew' => 'Choose a person from the list.']);
+                }
+                $phone = isset($row['phone']) ? (string) $row['phone'] : '';
+                $key = $kind.':'.$ref;
+            } else {
+                continue;
             }
+            if (isset($seen[$key])) {
+                throw ValidationException::withMessages([
+                    'crew' => trim($name.' is already on this event.'),
+                ]);
+            }
+            $seen[$key] = true;
+            $prepared[] = [
+                'kind' => $kind,
+                'ref' => $ref,
+                'name' => $name,
+                'phone' => $phone,
+                'days' => $days,
+                'rate' => $rate,
+                'food' => $food,
+            ];
         }
+
+        return $prepared;
+    }
+
+    protected function profileForCrewMember(array $member, EventWorkforceService $workforce)
+    {
+        if ($member['kind'] === 'profile') {
+            $profile = EventWorkerProfile::find($member['ref']);
+            if (! $profile) {
+                throw ValidationException::withMessages(['crew' => 'One of the selected people is no longer available.']);
+            }
+
+            return $profile;
+        }
+        if ($member['kind'] === 'customer') {
+            return $workforce->profileFromCustomer($member['ref']);
+        }
+
+        $phone = $member['ref'];
+        $tail = substr($phone, -9);
+        $customer = Customer::where(function ($query) use ($phone, $tail) {
+            $query->where('phone_number', $phone)->orWhere('phone_number', 'like', '%'.$tail);
+        })->first();
+        if (! $customer) {
+            $groupId = CustomerGroup::query()->value('id');
+            $customer = Customer::create([
+                'customer_group_id' => $groupId ? $groupId : 1,
+                'name' => $member['name'],
+                'phone_number' => $phone,
+                'address' => 'N/A',
+                'city' => 'N/A',
+                'is_active' => true,
+            ]);
+        }
+        $profile = $workforce->profileFromCustomer($customer->id);
+        if (! $profile->telephone) {
+            $profile->telephone = $phone;
+            $profile->save();
+        }
+
+        return $profile;
     }
 }

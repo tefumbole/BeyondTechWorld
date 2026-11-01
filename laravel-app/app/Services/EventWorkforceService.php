@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class EventWorkforceService
 {
+    const FOOD_PER_DAY = 1000;
+
     const SPECIALIZATIONS = [
         'live_sound' => 'Live Sound Engineering',
         'lighting' => 'Lighting Engineering',
@@ -45,8 +47,9 @@ class EventWorkforceService
             $dailyRate = (int) ($data['event_daily_rate'] ?? $profile->standard_daily_rate ?? ($category ? $category->default_daily_rate : 0));
             $expectedDays = (int) ($data['expected_days'] ?? 1);
             $method = $data['compensation_method'] ?? 'daily';
+            $foodPerDay = ! empty($data['food_per_day']) ? self::FOOD_PER_DAY : 0;
 
-            $expectedTotal = $this->calculateExpectedTotal($method, $dailyRate, $expectedDays, $data);
+            $expectedTotal = $this->calculateExpectedTotal($method, $dailyRate, $expectedDays, $data, $foodPerDay);
 
             $assignment = EventAssignment::create([
                 'event_id' => $event->id,
@@ -63,7 +66,8 @@ class EventWorkforceService
                 'fixed_amount' => $data['fixed_amount'] ?? null,
                 'compensation_method' => $method,
                 'expected_total' => $expectedTotal,
-                'notes' => $data['notes'] ?? null,
+                'food_per_day' => $foodPerDay,
+                'notes' => $foodPerDay > 0 ? 'Food money '.number_format($foodPerDay).' XAF per day' : ($data['notes'] ?? null),
             ]);
 
             $this->refreshLabourBudgetAllocation($event);
@@ -72,7 +76,7 @@ class EventWorkforceService
         });
     }
 
-    public function calculateExpectedTotal($method, $dailyRate, $expectedDays, array $data)
+    public function calculateExpectedTotal($method, $dailyRate, $expectedDays, array $data, $foodPerDay = 0)
     {
         switch ($method) {
             case 'hourly':
@@ -85,7 +89,7 @@ class EventWorkforceService
                 return (int) ($data['fixed_amount'] ?? 0);
             case 'daily':
             default:
-                return (int) ($dailyRate * $expectedDays);
+                return (int) (($dailyRate + (int) $foodPerDay) * $expectedDays);
         }
     }
 

@@ -30,6 +30,7 @@ class EventService
                 'public_contact_name' => $event->client_contact_person,
                 'public_contact_phone' => $event->client_telephone,
                 'public_contact_email' => $event->client_email,
+                'public_flyer_path' => $event->flyer_path,
                 'show_event_time' => true,
                 'show_countdown' => true,
                 'countdown_target_type' => 'event_start_at',

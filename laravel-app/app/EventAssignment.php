@@ -15,7 +15,7 @@ class EventAssignment extends Model
         'event_id', 'worker_profile_id', 'assignment_role', 'is_supervisor',
         'reporting_time', 'work_start_date', 'work_end_date', 'expected_days',
         'default_daily_rate', 'event_daily_rate', 'hourly_rate', 'fixed_amount',
-        'compensation_method', 'expected_total',
+        'compensation_method', 'expected_total', 'food_per_day',
         'contract_status', 'attendance_status', 'timesheet_status', 'payment_status',
         'notes',
     ];
@@ -26,6 +26,7 @@ class EventAssignment extends Model
         'is_supervisor' => 'boolean',
         'expected_days' => 'integer',
         'expected_total' => 'integer',
+        'food_per_day' => 'integer',
     ];
 
     protected static function boot()

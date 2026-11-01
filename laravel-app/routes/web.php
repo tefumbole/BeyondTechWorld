@@ -1033,6 +1033,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/events/list', 'EventController@index')->name('events.index');
     Route::get('/admin/events/create', 'EventController@create')->name('events.create');
     Route::post('/admin/events', 'EventController@store')->name('events.store');
+    Route::post('/admin/events/labour-name', 'EventController@resolveLabourName')->name('events.labour-name');
     Route::get('/admin/events/calendar', 'EventController@calendar')->name('events.calendar');
     Route::get('/admin/events/settings/categories', 'EventWorkerCategoryController@index')->name('events.settings.categories');
     Route::post('/admin/events/settings/categories', 'EventWorkerCategoryController@store')->name('events.settings.categories.store');
