@@ -42,6 +42,33 @@ class DocumentPayController extends Controller
         return $this->sendRequest('sale', $document, $amount, 'Invoice');
     }
 
+    public function requestMany(array $ids)
+    {
+        $this->guard();
+        $sent = 0;
+        $skipped = 0;
+        foreach ($ids as $id) {
+            $document = Sale::with('customer')->find((int) $id);
+            if (! $document || (int) $document->payment_status === 4) {
+                $skipped++;
+                continue;
+            }
+            $due = (float) $document->grand_total - (float) $document->paid_amount;
+            $amount = (int) round($due);
+            if (abs($due - $amount) > 0.001 || $amount < 100) {
+                $skipped++;
+                continue;
+            }
+            if ($this->queueRequest('sale', $document, $amount, 'Invoice') !== null) {
+                $skipped++;
+                continue;
+            }
+            $sent++;
+        }
+
+        return ['sent' => $sent, 'skipped' => $skipped];
+    }
+
     public function show($token)
     {
         $link = $this->find($token);
@@ -126,9 +153,19 @@ class DocumentPayController extends Controller
 
     protected function sendRequest($kind, $document, $amount, $label)
     {
+        $error = $this->queueRequest($kind, $document, $amount, $label);
+        if ($error) {
+            return back()->with('not_permitted', $error);
+        }
+
+        return back()->with('message', 'Payment link sent to '.$document->customer->name.'.');
+    }
+
+    protected function queueRequest($kind, $document, $amount, $label)
+    {
         $customer = $document->customer;
         if (! $customer || trim((string) $customer->phone_number) === '') {
-            return back()->with('not_permitted', 'This client does not have a phone number.');
+            return 'This client does not have a phone number.';
         }
         $link = DocumentPaymentLink::where('kind', $kind)->where('document_id', $document->id)->where('status', '!=', 'paid')->orderByDesc('id')->first();
         if (! $link) {
@@ -145,10 +182,9 @@ class DocumentPayController extends Controller
         $link->amount = $amount;
         $link->status = $link->status === 'pending' ? 'pending' : 'waiting';
         $link->save();
-        $url = route('document.pay', ['token' => $link->token]);
-        $this->tell($link, $url);
+        $this->tell($link, route('document.pay', ['token' => $link->token]));
 
-        return back()->with('message', 'Payment link sent to '.$customer->name.'.');
+        return null;
     }
 
     protected function tell(DocumentPaymentLink $link, $url)

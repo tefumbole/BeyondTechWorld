@@ -2,22 +2,8 @@
 @section('content')
 @include('payout.partials.style')
 <section class="container-fluid pay-app">
-    @include('payout.tabs', ['tab' => 'donations'])
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
-    <div class="pay-balance">
-        <div>
-            <div class="pay-kicker">Mobile Money balance</div>
-            <div class="pay-total">{{ $campayBalance !== null ? $campayBalance.' XAF' : '— XAF' }}</div>
-            <div class="pay-sub">
-                @if($campayBalance === null)
-                    Campay did not answer. Try again in a moment.
-                @else
-                    Live balance from Campay. Received here {{ number_format($paidTotal, 0, '.', ' ') }} XAF · Pending {{ number_format($pendingTotal, 0, '.', ' ') }} XAF
-                @endif
-            </div>
-        </div>
-    </div>
 
     <div class="pay-card">
         <div class="pay-card-head"><h2>Mobile Payments</h2></div>
@@ -95,9 +81,4 @@
     }
 })();
 </script>
-@if($pendingTotal > 0)
-<script>
-setTimeout(function () { window.location.reload(); }, 15000);
-</script>
-@endif
 @endsection

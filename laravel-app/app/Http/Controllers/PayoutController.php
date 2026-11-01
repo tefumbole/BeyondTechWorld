@@ -12,13 +12,17 @@ use App\Services\Cloud\CloudTenantContext;
 use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class PayoutController extends Controller
 {
     public function index(Request $request)
     {
         $this->guard();
-        $this->settleRecorded();
+        if (! Cache::has('btw.payout.settled')) {
+            $this->settleRecorded();
+            Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
+        }
         $tenantId = $this->tenantId();
         $pending = $this->requests($tenantId)->where('status', 'pending')->orderByDesc('id')->limit(40)->get();
         $totals = $this->totals($pending->pluck('id')->all());
@@ -33,12 +37,11 @@ class PayoutController extends Controller
             }
         }
         $history = $this->history($tenantId)->orderByDesc('id')->limit(30)->get();
-        $balance = app(CampayPayoutService::class)->balance();
         $making = $request->get('new') === '1';
         $q = '';
         $people = collect();
 
-        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'balance', 'making', 'q', 'people'));
+        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'making', 'q', 'people'));
     }
 
     public function search(Request $request)
@@ -197,7 +200,10 @@ class PayoutController extends Controller
     public function requestLink(Request $request)
     {
         $this->guard();
-        $this->settleRecorded();
+        if (! Cache::has('btw.payout.settled')) {
+            $this->settleRecorded();
+            Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
+        }
         $tenantId = $this->tenantId();
         $query = CampayPayoutLink::query();
         if ($tenantId) {

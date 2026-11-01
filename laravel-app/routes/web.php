@@ -1700,6 +1700,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/shops/orders/{id}', 'OrderController@shopOrders')->name('shop.orders');
 
     Route::get('payment/index', 'PaymentController@index')->name('payment.index');
+    Route::post('payment/delete-selection', 'PaymentController@deleteSelection')->name('payment.delete_selection');
+    Route::post('payment/request-selection', 'PaymentController@requestSelection')->name('payment.request_selection');
     Route::get('payment/desposits', 'PaymentController@Desposit')->name('deposit.index');
     Route::get('payment/desposits/live', 'PaymentController@depositLive')->name('deposit.live');
     Route::post('payment/desposits/delete-selection', 'PaymentController@depositDeleteSelection')->name('deposit.delete_selection');

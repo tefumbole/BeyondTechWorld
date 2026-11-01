@@ -13,6 +13,7 @@ use App\Support\TwilioAdminCopy;
 use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class PublicDonateController extends Controller
 {
@@ -31,23 +32,22 @@ class PublicDonateController extends Controller
         if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
             abort(403);
         }
-        $pending = PublicDonation::whereIn('status', ['pending', 'waiting'])->orderByDesc('id')->limit(30)->get();
-        foreach ($pending as $donation) {
-            try {
-                $this->refresh($donation);
-            } catch (\Throwable $e) {
-                \Log::warning('Donation status check failed', ['id' => $donation->id, 'error' => $e->getMessage()]);
+        if (! Cache::has('btw.donations.refreshed')) {
+            $pending = PublicDonation::whereIn('status', ['pending', 'waiting'])->orderByDesc('id')->limit(8)->get();
+            foreach ($pending as $donation) {
+                try {
+                    $this->refresh($donation);
+                } catch (\Throwable $e) {
+                    \Log::warning('Donation status check failed', ['id' => $donation->id, 'error' => $e->getMessage()]);
+                }
             }
+            Cache::put('btw.donations.refreshed', 1, now()->addSeconds(90));
         }
         $rows = PublicDonation::orderByDesc('id')->limit(100)->get();
-        $campayBalance = app(CampayPayoutService::class)->balance();
 
         return view('payment.donations', [
             'rows' => $rows,
             'tab' => 'donations',
-            'paidTotal' => (int) PublicDonation::where('status', 'paid')->sum('amount'),
-            'pendingTotal' => (int) PublicDonation::whereIn('status', ['pending', 'waiting'])->sum('amount'),
-            'campayBalance' => $campayBalance,
         ]);
     }
 

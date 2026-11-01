@@ -11,15 +11,18 @@
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
 
-<section>
+<section class="container-fluid pay-app">
+    @include('payout.partials.style')
+    <div class="pay-card">
+        <div class="pay-card-head"><h2>Payment list</h2></div>
     <div class="table-responsive">
-        <table id="role-table" class="table">
+        <table id="role-table" class="pay-table">
             <thead>
             <tr>
                 <th>Select</th>
-                <th>Vendor Nane</th>
-                <th>Vendor Phone</th>
-                <th>Order Id</th>
+                <th>Vendor</th>
+                <th>Phone</th>
+                <th>Order</th>
                 <th>Amount</th>
                 <th>Status</th>
                 <th>{{trans('file.Date')}}</th>
@@ -35,15 +38,15 @@
                     <td>{{ @$item->vendor->name }}</td>
                     <td>{{ @$item->vendor->phone }}</td>
                     <td>{{ @$item->order_id }}</td>
-                    <td>{{ number_format($item->amount, 2)  }}</td>
+                    <td>{{ number_format($item->amount, 0, '.', ' ') }} XAF</td>
                     @if($item->status == 0)
-                        <td><span class="badge badge-warning">Pendng</span></td>
+                        <td><span class="pay-pill pay-pill-wait">Pending</span></td>
                     @elseif($item->status == 1)
-                        <td><span class="badge badge-success">Complete</span></td>
+                        <td><span class="pay-pill pay-pill-ok">Complete</span></td>
                     @elseif($item->status == 2)
-                        <td><span class="badge badge-danger">Rejected</span></td>
+                        <td><span class="pay-pill pay-pill-no">Rejected</span></td>
                     @endif
-                    <td>{{ $item->created_at->format('d-M, Y')}}</td>
+                    <td>{{ $item->created_at->format('d M Y')}}</td>
 
                     @if(auth()->user()->role_id == 1)
                         <td>
@@ -73,6 +76,7 @@
             @endforeach
             </tbody>
         </table>
+    </div>
     </div>
 </section>
 

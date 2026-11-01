@@ -2487,20 +2487,13 @@
                               <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
                           </div>
                           @php
-                              $momoWalletText = null;
                               $momoWalletRoutes = ['payment.index', 'payout.index', 'payout.request', 'deposit.index', 'donations.index'];
-                              if (in_array(optional(request()->route())->getName(), $momoWalletRoutes, true)) {
-                                  try {
-                                      app(\App\Http\Controllers\PaymentController::class)->settleConfirmedMoney();
-                                      $momoWalletText = app(\App\Services\CampayPayoutService::class)->appBalance();
-                                  } catch (\Throwable $e) {
-                                      $momoWalletText = null;
-                                  }
-                              }
+                              $showMomoWallet = in_array(optional(request()->route())->getName(), $momoWalletRoutes, true);
+                              $momoWalletText = $showMomoWallet ? \Illuminate\Support\Facades\Cache::get('btw.campay.wallet_label') : null;
                           @endphp
-                          @if($momoWalletText !== null)
+                          @if($showMomoWallet)
                               <div class="momo-wallet-corner">
-                                  <strong id="momo-wallet-total">{{ $momoWalletText }}</strong>
+                                  <strong id="momo-wallet-total">{{ $momoWalletText ?: '…' }}</strong>
                               </div>
                               <script>
                                   (function () {
@@ -2518,11 +2511,11 @@
                                                       line.className = 'pay-pill pay-pill-' + row.tone;
                                                       line.textContent = row.status;
                                                   });
-                                                  setTimeout(tick, data.pending ? 4000 : 8000);
+                                                  setTimeout(tick, data.pending ? 15000 : 30000);
                                               })
-                                              .catch(function () { setTimeout(tick, 10000); });
+                                              .catch(function () { setTimeout(tick, 20000); });
                                       }
-                                      setTimeout(tick, 4000);
+                                      setTimeout(tick, 800);
                                   })();
                               </script>
                           @endif

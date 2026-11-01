@@ -1,18 +1,6 @@
 @extends('layout.main')
 @section('content')
 @include('payout.partials.style')
-@php
-    $balanceParts = [];
-    foreach (explode(' · ', (string) $balance) as $piece) {
-        $piece = trim($piece);
-        $space = strpos($piece, ' ');
-        if ($piece === '' || $space === false) {
-            continue;
-        }
-        $balanceParts[substr($piece, 0, $space)] = trim(substr($piece, $space + 1));
-    }
-    $totalBalance = isset($balanceParts['Total']) ? $balanceParts['Total'] : null;
-@endphp
 <section class="container-fluid pay-app">
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
@@ -62,21 +50,6 @@
             </div>
         </div>
     @endif
-
-    <div class="pay-balance">
-        <div>
-            <div class="pay-kicker">Campay balance</div>
-            <div class="pay-total">{{ $totalBalance !== null ? $totalBalance.' XAF' : ($balance ?: 'Balance could not be read') }}</div>
-            <div class="pay-sub">Client deposits are added here. Payouts are sent from this balance.</div>
-        </div>
-        <div class="pay-chips">
-            @foreach($balanceParts as $label => $value)
-                @if($label !== 'Total')
-                    <span class="pay-chip">{{ $label }} <strong>{{ $value }}</strong></span>
-                @endif
-            @endforeach
-        </div>
-    </div>
 
     @if($open)
         <div class="pay-card">

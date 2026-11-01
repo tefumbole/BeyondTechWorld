@@ -20,43 +20,99 @@ class PaymentController extends Controller
 {
     public function index()
     {
-        $sales = Sale::with('customer')->where('payment_status', "!=", 4)->orderByDesc('id')->get();
-        $lims_account_list = Account::orderByDesc('id')->get();
+        $sales = $this->unpaidSales()->limit(250)->get();
+        $lims_account_list = Account::with('departments')->orderByDesc('id')->get();
+
         return view('payment.customer-data', compact('sales', 'lims_account_list'));
     }
-
 
     public function AwaitingPayments($id)
     {
-        $sales = Sale::with('customer')->where('customer_id', $id)->where('payment_status', "!=", 4)->orderByDesc('id')->get();
-        $lims_account_list = Account::orderByDesc('id')->get();
+        $sales = $this->unpaidSales()->where('customer_id', $id)->limit(250)->get();
+        $lims_account_list = Account::with('departments')->orderByDesc('id')->get();
+
         return view('payment.customer-data', compact('sales', 'lims_account_list'));
     }
 
+    public function deleteSelection(Request $request)
+    {
+        if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
+            abort(403);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('payment.index')->with('not_permitted', 'Select the payments to delete.');
+        }
+        $allowed = Sale::whereIn('id', $ids)->where('payment_status', '!=', 4)->pluck('id')->all();
+        if (count($allowed) < 1) {
+            return redirect()->route('payment.index')->with('not_permitted', 'Paid sales stay on the sales list.');
+        }
+        $request->merge(['saleIdArray' => $allowed]);
+        app(SaleController::class)->deleteBySelection($request);
+
+        return redirect()->route('payment.index')->with('message', count($allowed).' '.(count($allowed) === 1 ? 'payment was' : 'payments were').' deleted.');
+    }
+
+    public function requestSelection(Request $request)
+    {
+        if (! Auth::check() || ! in_array((int) Auth::user()->role_id, [1, 2], true)) {
+            abort(403);
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('payment.index')->with('not_permitted', 'Select the payments to request.');
+        }
+        if (count($ids) > 30) {
+            return redirect()->route('payment.index')->with('not_permitted', 'Select up to 30 payments at a time.');
+        }
+        $result = app(DocumentPayController::class)->requestMany($ids);
+        $sent = (int) $result['sent'];
+        $skipped = (int) $result['skipped'];
+        if ($sent < 1) {
+            return redirect()->route('payment.index')->with('not_permitted', 'Nothing was sent. Each sale needs a phone number and at least 100 XAF still due.');
+        }
+        $message = $sent.' payment '.( $sent === 1 ? 'request was' : 'requests were').' sent.';
+        if ($skipped > 0) {
+            $message .= ' '.$skipped.' skipped.';
+        }
+
+        return redirect()->route('payment.index')->with('message', $message);
+    }
+
+    protected function unpaidSales()
+    {
+        return Sale::with('customer')->select('id', 'reference_no', 'customer_id', 'grand_total', 'paid_amount', 'payment_status', 'created_at')
+            ->where('payment_status', '!=', 4)
+            ->orderByDesc('id');
+    }
+
     public function Desposit() {
-        $this->settleConfirmedMoney();
-        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('created_at')->orderByDesc('id')->get();
+        $this->settleConfirmedMoneySoon();
+        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->limit(200)->get();
         $paidAmounts = $this->paymentPaidAmounts($deposits);
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';
-        $campayBalance = null;
-        try {
-            $campayBalance = app(CampayPayoutService::class)->balance();
-        } catch (\Throwable $e) {
-            $campayBalance = null;
-        }
 
-        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'campayBalance', 'paidAmounts'));
+        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'paidAmounts'));
     }
 
     public function depositLive()
     {
-        $this->settleConfirmedMoney();
-        $total = '';
-        try {
-            $total = (string) app(CampayPayoutService::class)->appBalance();
-        } catch (\Throwable $e) {
-            $total = '';
+        $cached = Cache::get('btw.deposit.live');
+        if (is_array($cached)) {
+            return response()->json($cached);
+        }
+        $this->settleConfirmedMoneySoon();
+        $total = (string) Cache::get('btw.campay.wallet_label', '');
+        if ($total === '') {
+            try {
+                $total = (string) app(CampayPayoutService::class)->appBalance();
+            } catch (\Throwable $e) {
+                $total = '';
+            }
+            if ($total !== '') {
+                Cache::put('btw.campay.wallet_label', $total, now()->addSeconds(90));
+            }
         }
         $rows = [];
         $pending = false;
@@ -72,12 +128,24 @@ class PaymentController extends Controller
             ];
         }
 
-        return response()->json([
+        $payload = [
             'total' => $total,
             'balance' => $total,
             'pending' => $pending,
             'rows' => $rows,
-        ]);
+        ];
+        Cache::put('btw.deposit.live', $payload, now()->addSeconds(20));
+
+        return response()->json($payload);
+    }
+
+    protected function settleConfirmedMoneySoon()
+    {
+        if (Cache::has('btw.campay.settled')) {
+            return;
+        }
+        $this->settleConfirmedMoney();
+        Cache::put('btw.campay.settled', 1, now()->addSeconds(30));
     }
 
     public function settleConfirmedMoney()
@@ -148,7 +216,7 @@ class PaymentController extends Controller
     {
         $byRef = [];
         try {
-            $items = Cache::remember('btw.campay.collects', 30, function () {
+            $items = Cache::remember('btw.campay.collects', 90, function () {
                 return app(CampayPayoutService::class)->confirmedCollections(
                     date('Y-m-d', strtotime('-14 days')),
                     date('Y-m-d')

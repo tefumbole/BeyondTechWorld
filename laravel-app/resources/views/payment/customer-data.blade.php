@@ -14,9 +14,26 @@
         <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
     @endif
 
-    <section>
+    <section class="container-fluid pay-app">
         @include('payout.partials.style')
+        <style>
+            .pay-app .dataTables_wrapper { padding: 8px 12px 16px; }
+            .pay-app table.dataTable thead th { background: #f8fafc; color: #6f7b91; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+            .pay-app .pay-toolbar { justify-content: flex-start; }
+            .await-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        </style>
 
+        <div class="pay-toolbar">
+            <div class="await-actions">
+                <button class="pay-go" type="button" id="awaiting-request">Request for payment</button>
+                <button class="pay-danger" type="button" id="awaiting-delete">Delete selected</button>
+            </div>
+        </div>
+        <form id="awaiting-request-form" method="POST" action="{{ route('payment.request_selection') }}" style="display:none">@csrf</form>
+        <form id="awaiting-delete-form" method="POST" action="{{ route('payment.delete_selection') }}" style="display:none">@csrf</form>
+
+        <div class="pay-card">
+        <div class="pay-card-head"><h2>Awaiting Payment</h2></div>
         <div class="table-responsive">
             <table id="biller-table" class="table sale-list">
                 <thead>
@@ -38,14 +55,14 @@
                 @foreach($sales as $key=>$sale)
                     <tr data-id="{{$sale->id}}">
                         <td>{{$key}}</td>
-                        <td>{{ $sale->customer->name }}</td>
-                        <td>{{ $sale->customer->unique_id }}</td>
+                        <td>{{ optional($sale->customer)->name }}</td>
+                        <td>{{ optional($sale->customer)->unique_id }}</td>
                         <td>{{ $sale->reference_no }}</td>
-                        <td>{{ $sale->customer->phone_number }}</td>
+                        <td>{{ optional($sale->customer)->phone_number }}</td>
                         <td>{{ number_format($sale->grand_total, 2) }}</td>
                         <td>{{ number_format($sale->paid_amount, 2) ?? 0 }}</td>
                         <td>{{ number_format($sale->grand_total - $sale->paid_amount, 2) }}</td>
-                        <td><span class="badge badge-warning">{{ $sale->payment_status == 1 ? 'Pending' : 'Due' }}</span></td>
+                        <td><span class="pay-pill pay-pill-wait">{{ $sale->payment_status == 1 ? 'Pending' : 'Due' }}</span></td>
                         <td>{{ $sale->created_at }}</td>
                         <td>
                             <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
@@ -56,6 +73,7 @@
                 @endforeach
                 </tbody>
             </table>
+        </div>
         </div>
     </section>
 
@@ -278,8 +296,10 @@
             });
         });
 
-        $('#biller-table').DataTable( {
+        var awaitingTable = $('#biller-table').DataTable( {
             "order": [],
+            "deferRender": true,
+            "pageLength": 10,
             'language': {
                 'lengthMenu': '_MENU_ {{trans("file.records per page")}}',
                 "info":      '<small>{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)</small>',
@@ -369,43 +389,44 @@
                     },
                 },
                 {
-                    text: '<i title="delete" class="dripicons-cross"></i>',
-                    className: 'buttons-delete',
-                    action: function ( e, dt, node, config ) {
-                        if(user_verified == '1') {
-                            brand_id.length = 0;
-                            $(':checkbox:checked').each(function(i){
-                                if(i){
-                                    brand_id[i-1] = $(this).closest('tr').data('id');
-                                }
-                            });
-                            if(brand_id.length && confirm("Are you sure want to delete?")) {
-                                $.ajax({
-                                    type:'POST',
-                                    url:'brand/deletebyselection',
-                                    data:{
-                                        brandIdArray: brand_id
-                                    },
-                                    success:function(data){
-                                        alert(data);
-                                    }
-                                });
-                                dt.rows({ page: 'current', selected: true }).remove().draw(false);
-                            }
-                            else if(!brand_id.length)
-                                alert('No brand is selected!');
-                        }
-                        else
-                            alert('This feature is disable for demo!');
-                    }
-                },
-                {
                     extend: 'colvis',
                     text: '<i title="column visibility" class="fa fa-eye"></i>',
                     columns: ':gt(0)'
                 },
             ],
         } );
+
+        function awaitingIds() {
+            var ids = [];
+            $('#biller-table tbody input.dt-checkboxes:checked').each(function () {
+                var id = $(this).closest('tr').data('id');
+                if (id) ids.push(id);
+            });
+            return ids;
+        }
+        function postAwaiting(formId, ids) {
+            var form = document.getElementById(formId);
+            ids.forEach(function (id) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = id;
+                form.appendChild(input);
+            });
+            form.submit();
+        }
+        $('#awaiting-delete').on('click', function () {
+            var ids = awaitingIds();
+            if (!ids.length) { alert('Select the payments you want to delete.'); return; }
+            if (!confirm('Delete ' + ids.length + (ids.length === 1 ? ' payment?' : ' payments?'))) return;
+            postAwaiting('awaiting-delete-form', ids);
+        });
+        $('#awaiting-request').on('click', function () {
+            var ids = awaitingIds();
+            if (!ids.length) { alert('Select the payments you want to request.'); return; }
+            if (!confirm('Send a payment request for ' + ids.length + (ids.length === 1 ? ' sale?' : ' sales?'))) return;
+            postAwaiting('awaiting-request-form', ids);
+        });
 
     </script>
 @endsection
