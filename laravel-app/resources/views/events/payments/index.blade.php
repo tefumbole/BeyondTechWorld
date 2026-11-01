@@ -4,6 +4,27 @@
 <section class="forms events-shell"><div class="container-fluid">
     <div class="ev-page-head"><div><div class="ev-kicker">Events</div><h4>Labour Payments</h4></div></div>
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
+    <div class="card mb-3">
+        <div class="card-header font-weight-bold">Staff and labour on events</div>
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead style="background:#0b3f90;color:#fff"><tr><th>Event</th><th>Staff</th><th>Role</th><th>Labour</th><th>Status</th></tr></thead>
+                <tbody>
+                    @forelse($assignments as $assignment)
+                        <tr>
+                            <td><a href="{{ route('events.show', ['id' => $assignment->event_id, 'tab' => 'payments']) }}">{{ optional($assignment->event)->name }}</a></td>
+                            <td>{{ optional($assignment->workerProfile)->displayName() }}</td>
+                            <td>{{ $assignment->assignment_role ?: '—' }}</td>
+                            <td>{{ number_format($assignment->expected_total) }} XAF</td>
+                            <td>{{ $assignment->payment_status ?: 'pending' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="text-center text-muted py-4">No staff have been added to an event yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
     <div class="table-responsive card"><table class="table mb-0">
         <thead style="background:#0b3f90;color:#fff"><tr><th>Ref</th><th>Event</th><th>Worker</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>

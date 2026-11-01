@@ -41,16 +41,17 @@ class EventDashboardController extends Controller
         $this->authorizeEvents();
 
         $stats = $eventService->dashboardStats();
-        $recentEvents = Event::with(['customer', 'publication'])
-            ->orderBy('updated_at', 'desc')
-            ->limit(10)
+        $withCrew = ['customer', 'publication', 'assignments.workerProfile.customer', 'assignments.workerProfile.user'];
+        $recentEvents = Event::with($withCrew)
+            ->orderBy('created_at', 'desc')
+            ->limit(12)
             ->get();
-        $upcoming = Event::with(['customer', 'publication'])
+        $upcoming = Event::with($withCrew)
             ->whereNotNull('event_start_at')
-            ->where('event_start_at', '>=', now())
+            ->whereDate('event_start_at', '>=', now()->toDateString())
             ->whereNotIn('internal_status', ['cancelled', 'completed'])
-            ->orderBy('event_start_at')
-            ->limit(8)
+            ->orderBy('created_at', 'desc')
+            ->limit(12)
             ->get();
 
         return view('events.dashboard', compact('stats', 'recentEvents', 'upcoming'));

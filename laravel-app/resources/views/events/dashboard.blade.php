@@ -100,7 +100,8 @@
                             <thead>
                                 <tr>
                                     <th>Event</th>
-                                    <th>Setup</th>
+                                    <th>Staff</th>
+                                    <th>Labour</th>
                                     <th>Event Date</th>
                                     <th>Status</th>
                                     <th></th>
@@ -113,8 +114,9 @@
                                             <strong>{{ $ev->name }}</strong><br>
                                             <small class="text-muted">{{ $ev->reference_no }}</small>
                                         </td>
-                                        <td>{{ $ev->setup_start_at ? $ev->setup_start_at->format('d M Y H:i') : '—' }}</td>
-                                        <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y H:i') : '—' }}</td>
+                                        <td>{{ $ev->staffNames() ?: '—' }}</td>
+                                        <td>{{ number_format($ev->labourTotal()) }} XAF</td>
+                                        <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y') : '—' }}</td>
                                         <td>
                                             <span class="event-status-badge event-status-{{ $ev->internal_status }}">{{ $ev->statusLabel() }}</span>
                                         </td>
@@ -123,7 +125,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5" class="text-center text-muted py-4">No upcoming events yet.</td></tr>
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No upcoming events yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -138,7 +140,8 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
                                     <a href="{{ route('events.show', $ev->id) }}"><strong>{{ $ev->name }}</strong></a>
-                                    <div class="small text-muted">{{ $ev->updated_at->diffForHumans() }}</div>
+                                    <div class="small text-muted">{{ $ev->staffNames() ?: 'No staff yet' }} · {{ number_format($ev->labourTotal()) }} XAF</div>
+                                    <div class="small text-muted">{{ $ev->created_at->diffForHumans() }}</div>
                                 </div>
                                 <span class="event-status-badge event-status-{{ $ev->internal_status }}">{{ $ev->statusLabel() }}</span>
                             </li>

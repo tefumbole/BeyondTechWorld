@@ -138,6 +138,23 @@ class Event extends Model
         return $this->hasMany(EventAssignment::class, 'event_id');
     }
 
+    public function staffNames()
+    {
+        $names = [];
+        foreach ($this->assignments as $assignment) {
+            if ($assignment->workerProfile) {
+                $names[] = $assignment->workerProfile->displayName();
+            }
+        }
+
+        return implode(', ', $names);
+    }
+
+    public function labourTotal()
+    {
+        return (int) $this->assignments->sum('expected_total');
+    }
+
     public function labourBudget()
     {
         return $this->hasOne(EventLabourBudget::class, 'event_id');

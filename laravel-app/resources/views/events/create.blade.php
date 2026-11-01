@@ -14,8 +14,16 @@
         </div>
 
         @if($errors->any())
-            <div class="alert alert-danger">{{ $errors->first() }}</div>
+            <div class="alert alert-danger">
+                <strong>The event was not saved.</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
         @endif
+        <div class="alert alert-danger" id="form-error" style="display:none;"></div>
         @if($roles->isEmpty())
             <div class="alert alert-warning">Add at least one role and daily rate under <a href="{{ route('events.settings.categories') }}">Event Settings</a> before assigning engineers.</div>
         @endif
@@ -495,8 +503,12 @@
     spanDays();
 
     document.getElementById('event-form').addEventListener('submit', function (event) {
+        var formError = document.getElementById('form-error');
+        formError.style.display = 'none';
         if (!document.getElementById('customer-id').value) {
             event.preventDefault();
+            formError.textContent = 'Choose a customer before creating the event.';
+            formError.style.display = '';
             document.getElementById('customer-search').focus();
             return;
         }
@@ -509,7 +521,10 @@
                 if (button) button.classList.add('is-invalid');
             }
         });
-        if (missing) event.preventDefault();
+        if (missing) {
+            formError.textContent = 'A person has no role yet. The event will still be created, and the settings price applies once a role is chosen.';
+            formError.style.display = '';
+        }
     });
 
     (oldCrew || []).forEach(function (row) {

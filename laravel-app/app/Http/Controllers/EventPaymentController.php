@@ -48,8 +48,13 @@ class EventPaymentController extends Controller
         }
 
         $payments = $query->paginate(25);
+        $assignments = EventAssignment::with(['event', 'workerProfile.customer', 'workerProfile.user'])
+            ->where('expected_total', '>', 0)
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
 
-        return view('events.payments.index', compact('payments'));
+        return view('events.payments.index', compact('payments', 'assignments'));
     }
 
     public function createForAssignment(Request $request, $eventId, EventPaymentService $payments)

@@ -107,9 +107,10 @@ class EventService
         $base = Event::query();
 
         return [
-            'total_upcoming' => (clone $base)->whereIn('internal_status', [
-                'planning', 'approved', 'team_confirmed', 'ready_for_event',
-            ])->where('event_start_at', '>=', $today)->count(),
+            'total_upcoming' => (clone $base)
+                ->whereDate('event_start_at', '>=', $today->toDateString())
+                ->whereNotIn('internal_status', ['cancelled', 'completed'])
+                ->count(),
             'today' => (clone $base)->whereDate('event_start_at', $today)->count(),
             'in_progress' => (clone $base)->where('internal_status', 'event_in_progress')->count(),
             'completed' => (clone $base)->where('internal_status', 'completed')->count(),

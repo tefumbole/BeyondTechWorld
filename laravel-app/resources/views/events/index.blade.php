@@ -48,6 +48,8 @@
                             <th>Event</th>
                             <th>Type</th>
                             <th>Client</th>
+                            <th>Staff</th>
+                            <th>Labour</th>
                             <th>Event date</th>
                             <th>Status</th>
                             <th>Public</th>
@@ -61,6 +63,8 @@
                                 <td><strong>{{ $ev->name }}</strong><br><small class="text-muted">{{ $ev->venue }}</small></td>
                                 <td>{{ \App\Event::TYPES[$ev->event_type] ?? $ev->event_type }}</td>
                                 <td>{{ optional($ev->customer)->name ?? '—' }}</td>
+                                <td>{{ $ev->staffNames() ?: '—' }}</td>
+                                <td>{{ number_format($ev->labourTotal()) }} XAF</td>
                                 <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y H:i') : '—' }}</td>
                                 <td><span class="badge badge-secondary">{{ $ev->statusLabel() }}</span></td>
                                 <td>{{ optional($ev->publication)->publication_status ?? '—' }}</td>
@@ -69,7 +73,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">No events found.</td></tr>
+                            <tr><td colspan="10" class="text-center text-muted py-4">No events found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

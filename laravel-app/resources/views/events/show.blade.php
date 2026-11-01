@@ -110,7 +110,11 @@
                         <div class="card-header font-weight-bold">Quick stats</div>
                         <div class="card-body">
                             <p class="mb-1">Workers assigned: <strong>{{ $event->assignments->count() }}</strong></p>
-                            <p class="mb-1">Labour allocated: <strong>{{ number_format($event->assignments->sum('expected_total')) }} XAF</strong></p>
+                            <p class="mb-1">Labour allocated: <strong>{{ number_format($event->labourTotal()) }} XAF</strong></p>
+                            @if($event->staffNames())
+                                <p class="mb-2"><strong>Staff:</strong> {{ $event->staffNames() }}</p>
+                            @endif
+                            <a href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}" class="btn btn-sm btn-outline-primary">Payments</a>
                             @if($rentalWarning)<p class="text-warning small mb-0">{{ $rentalWarning }}</p>@endif
                         </div>
                     </div>
