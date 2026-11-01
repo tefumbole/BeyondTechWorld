@@ -19,6 +19,7 @@ class PayoutController extends Controller
     public function index(Request $request)
     {
         $this->guard();
+        $this->collapseDuplicatePending($this->tenantId());
         if (! Cache::has('btw.payout.settled')) {
             $this->settleRecorded();
             Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
@@ -200,6 +201,7 @@ class PayoutController extends Controller
     public function requestLink(Request $request)
     {
         $this->guard();
+        $this->collapseDuplicatePending($this->tenantId());
         if (! Cache::has('btw.payout.settled')) {
             $this->settleRecorded();
             Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
@@ -968,6 +970,13 @@ class PayoutController extends Controller
         if (count($lines) < 1 || count($lines) > 40) {
             return back()->withInput()->with('not_permitted', 'Choose between 1 and 40 people.');
         }
+        $parts = [];
+        foreach ($lines as $line) {
+            $parts[] = $line['phone'].'|'.(int) $line['amount'];
+        }
+        if ($this->recentDuplicate($link->cloud_tenant_id, $requester, $note, $parts)) {
+            return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'This request is already waiting for approval.');
+        }
 
         $batch = new CampayPayoutRequest();
         $batch->cloud_tenant_id = $link->cloud_tenant_id;
@@ -1566,6 +1575,82 @@ class PayoutController extends Controller
         }
 
         return $row;
+    }
+
+    protected function collapseDuplicatePending($tenantId)
+    {
+        $batches = $this->requests($tenantId)->where('status', 'pending')->orderByDesc('id')->get();
+        if ($batches->count() < 2) {
+            return;
+        }
+        $grouped = CampayPayout::whereIn('request_id', $batches->pluck('id')->all())->get()->groupBy('request_id');
+        $kept = [];
+        foreach ($batches as $batch) {
+            $rows = $grouped->get($batch->id, collect());
+            $parts = [];
+            foreach ($rows as $row) {
+                $parts[] = $row->phone.'|'.(int) $row->amount;
+            }
+            $key = $this->requestKey($batch->requester_name, $batch->note, $parts);
+            if (! isset($kept[$key])) {
+                $kept[$key] = $batch;
+                continue;
+            }
+            $newer = $kept[$key];
+            $minutes = ($batch->created_at && $newer->created_at) ? $newer->created_at->diffInMinutes($batch->created_at) : 99;
+            if ($minutes > 10) {
+                continue;
+            }
+            $sent = 0;
+            foreach ($rows as $row) {
+                if ($row->status === 'paid' || trim((string) $row->campay_reference) !== '') {
+                    $sent++;
+                }
+            }
+            if ($sent > 0) {
+                continue;
+            }
+            CampayPayout::where('request_id', $batch->id)->delete();
+            $batch->delete();
+        }
+    }
+
+    protected function recentDuplicate($tenantId, $name, $note, array $parts)
+    {
+        $key = $this->requestKey($name, $note, $parts);
+        $batches = CampayPayoutRequest::query()->where('status', 'pending')->orderByDesc('id')->limit(20);
+        if ($tenantId) {
+            $batches->where('cloud_tenant_id', $tenantId);
+        } else {
+            $batches->whereNull('cloud_tenant_id');
+        }
+        $batches = $batches->get();
+        if ($batches->count() < 1) {
+            return false;
+        }
+        $grouped = CampayPayout::whereIn('request_id', $batches->pluck('id')->all())->get()->groupBy('request_id');
+        foreach ($batches as $batch) {
+            $rows = $grouped->get($batch->id, collect());
+            $existing = [];
+            foreach ($rows as $row) {
+                $existing[] = $row->phone.'|'.(int) $row->amount;
+            }
+            if ($this->requestKey($batch->requester_name, $batch->note, $existing) !== $key) {
+                continue;
+            }
+            if ($batch->created_at && $batch->created_at->gt(now()->subMinutes(10))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function requestKey($name, $note, array $parts)
+    {
+        sort($parts);
+
+        return strtolower(trim((string) $name)).'|'.strtolower(trim((string) $note)).'|'.implode(',', $parts);
     }
 
     protected function requests($tenantId)

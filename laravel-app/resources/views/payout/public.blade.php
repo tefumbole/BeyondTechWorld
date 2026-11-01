@@ -457,7 +457,16 @@
             if (extra) phone = extra.value.trim();
             if (phone !== '') ready = true;
         });
-        if (!ready) event.preventDefault();
+        if (!ready || form.getAttribute('data-sent') === '1') {
+            event.preventDefault();
+            return;
+        }
+        form.setAttribute('data-sent', '1');
+        var button = document.querySelector('button[form="requestForm"]');
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Sending…';
+        }
     });
     refresh();
 })();
