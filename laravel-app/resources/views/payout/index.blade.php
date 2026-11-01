@@ -6,7 +6,7 @@
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
     <div class="pay-toolbar">
-        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Payout</a>
+        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Withdrawal</a>
     </div>
 
     @php
@@ -94,7 +94,7 @@
 
     @if(!empty($making))
         <div class="pay-card">
-            <div class="pay-card-head"><h2>New Payout</h2></div>
+            <div class="pay-card-head"><h2>New Withdrawal</h2></div>
             <div class="pay-card-body">
                 <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. One person or many, the payout is sent the same way. A number already paid is left out.</p>
                 <div class="pay-search">

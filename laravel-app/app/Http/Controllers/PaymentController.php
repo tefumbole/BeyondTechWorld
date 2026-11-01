@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Account;
+use App\CampayPayout;
 use App\Customer;
 use App\Deposit;
 use App\Sale;
@@ -18,6 +19,42 @@ use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
+    public function momoPayments()
+    {
+        $rows = collect();
+        foreach (Deposit::with('customer')->orderByDesc('id')->limit(200)->get() as $deposit) {
+            $paid = (int) $deposit->status === 1;
+            $waiting = (int) $deposit->status === 0;
+            $rows->push([
+                'at' => $deposit->created_at,
+                'kind' => 'Deposit',
+                'person' => optional($deposit->customer)->name ?: '—',
+                'amount' => (int) round((float) $deposit->amount),
+                'status' => $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
+                'tone' => $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
+                'note' => (string) $deposit->note,
+            ]);
+        }
+        foreach (CampayPayout::orderByDesc('id')->limit(200)->get() as $payout) {
+            $paid = $payout->status === 'paid';
+            $waiting = $payout->status === 'pending';
+            $rows->push([
+                'at' => $payout->created_at,
+                'kind' => 'Withdrawal',
+                'person' => $payout->person_name ?: '—',
+                'amount' => (int) $payout->amount,
+                'status' => $paid ? 'Paid' : ($waiting ? 'Pending' : 'Not paid'),
+                'tone' => $paid ? 'ok' : ($waiting ? 'wait' : 'no'),
+                'note' => (string) $payout->note,
+            ]);
+        }
+        $rows = $rows->sortByDesc(function ($row) {
+            return $row['at'] ? $row['at']->timestamp : 0;
+        })->values();
+
+        return view('payment.momo', compact('rows'));
+    }
+
     public function index()
     {
         $sales = $this->unpaidSales()->limit(250)->get();

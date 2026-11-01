@@ -793,12 +793,12 @@
                             <li>
                                 <a href="#payments" data-nav-key="payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
                                 <ul id="payments" class="collapse list-unstyled ">
-                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Payments</a></li>
                                     <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
+                                    <li id="momo-payments-menu"><a href="{{ route('momo.payments') }}">Momo Payments</a></li>
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
-                                        <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
-                                        <li id="donations-menu"><a href="{{ route('donations.index') }}">Mobile Payments</a></li>
+                                        <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Withdrawals</a></li>
                                     @endif
+                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
                                 </ul>
                             </li>
                         @endif
@@ -2486,7 +2486,7 @@
                               <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
                           </div>
                           @php
-                              $momoWalletRoutes = ['payment.index', 'payout.index', 'payout.request', 'deposit.index', 'donations.index'];
+                              $momoWalletRoutes = ['payment.index', 'momo.payments', 'payout.index', 'payout.request', 'deposit.index', 'donations.index'];
                               $showMomoWallet = in_array(optional(request()->route())->getName(), $momoWalletRoutes, true);
                               $momoWalletText = $showMomoWallet ? \Illuminate\Support\Facades\Cache::get('btw.campay.wallet_label') : null;
                           @endphp
@@ -2789,10 +2789,10 @@
                   'events-payments-menu': 'dripicons-wallet',
                   'events-reminders-menu': 'dripicons-bell',
                   'events-settings-menu': 'dripicons-gear',
-                  'desposit-index-menu': 'fa fa-university',
                   'payment-index-menu': 'fa fa-clock-o',
+                  'momo-payments-menu': 'fa fa-list',
                   'payout-index-menu': 'fa fa-paper-plane',
-                  'donations-menu': 'fa fa-money',
+                  'desposit-index-menu': 'fa fa-university',
                   'role-menu': 'dripicons-lock',
                   'warehouse-menu': 'dripicons-home',
                   'biller-list-menu': 'dripicons-user-id',
