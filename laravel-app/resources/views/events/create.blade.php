@@ -8,9 +8,9 @@
             <div>
                 <div class="ev-kicker">Events</div>
                 <h2>Create event</h2>
-                <p class="ev-lead">Pick the customer, the dates, and the engineers. A role from settings sets the daily price.</p>
+                <p class="ev-lead">Set the dates and the engineers. Notes go to the staff. The client is not notified.</p>
             </div>
-            <a href="{{ route('events.index') }}" class="btn btn-light">All events</a>
+            <a href="{{ route('events.dashboard') }}" class="btn btn-light">Dashboard</a>
         </div>
 
         @if($errors->any())
@@ -38,10 +38,10 @@
                         <input type="text" name="name" class="form-control" required value="{{ old('name', $event->name) }}" placeholder="Name shown with the flyer">
                     </div>
                     <div class="col-md-6 form-group">
-                        <label>Customer <span class="text-danger">*</span></label>
+                        <label>Customer</label>
                         <div class="ev-combo" id="customer-combo">
                             <input type="hidden" name="customer_id" id="customer-id" value="{{ old('customer_id', $event->customer_id) }}">
-                            <input type="search" class="form-control ev-combo-input" id="customer-search" placeholder="Search customer name or phone" autocomplete="off" value="{{ $selectedCustomer }}">
+                            <input type="search" name="customer_query" class="form-control ev-combo-input" id="customer-search" placeholder="Optional. Search customer name or phone" autocomplete="off" value="{{ old('customer_query', $selectedCustomer) }}">
                             <div class="ev-combo-menu" id="customer-menu" hidden></div>
                         </div>
                     </div>
@@ -391,8 +391,20 @@
         var menu = document.getElementById(menuId);
         input.addEventListener('focus', open);
         input.addEventListener('input', function () {
-            if (inputId === 'customer-search') document.getElementById('customer-id').value = '';
             open();
+        });
+        input.addEventListener('blur', function () {
+            if (inputId !== 'customer-search') return;
+            var typed = input.value.trim().toLowerCase();
+            if (!typed) {
+                document.getElementById('customer-id').value = '';
+                return;
+            }
+            var exact = customers.filter(function (item) {
+                var label = (item.name + (item.phone ? ' — ' + item.phone : '')).toLowerCase();
+                return label === typed || (item.name || '').toLowerCase() === typed;
+            });
+            if (exact.length === 1) chooseCustomer(exact[0]);
         });
         input.addEventListener('keydown', function (event) {
             if (event.key === 'ArrowDown') { event.preventDefault(); moveActive(menu, 1); }
@@ -505,13 +517,6 @@
     document.getElementById('event-form').addEventListener('submit', function (event) {
         var formError = document.getElementById('form-error');
         formError.style.display = 'none';
-        if (!document.getElementById('customer-id').value) {
-            event.preventDefault();
-            formError.textContent = 'Choose a customer before creating the event.';
-            formError.style.display = '';
-            document.getElementById('customer-search').focus();
-            return;
-        }
         if (!roles.length) return;
         var missing = false;
         tbody.querySelectorAll('.crew-role').forEach(function (input) {

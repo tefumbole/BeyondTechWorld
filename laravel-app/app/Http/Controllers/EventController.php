@@ -197,7 +197,8 @@ class EventController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'customer_id' => 'required|integer|exists:customers,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'customer_query' => 'nullable|string|max:255',
             'event_start_at' => 'required|date',
             'event_end_at' => 'required|date|after_or_equal:event_start_at',
             'internal_notes' => 'nullable|string|max:5000',
@@ -213,7 +214,7 @@ class EventController extends Controller
             'crew.*.category_id' => 'nullable',
         ]);
 
-        $customer = Customer::findOrFail($data['customer_id']);
+        $customer = $this->optionalCustomer($request, $data);
         $start = $data['event_start_at'];
         $end = $data['event_end_at'];
         $days = max(1, (int) ((strtotime($end) - strtotime($start)) / 86400) + 1);
@@ -223,11 +224,11 @@ class EventController extends Controller
         $payload = [
             'name' => $data['name'],
             'event_type' => 'other',
-            'customer_id' => $customer->id,
-            'client_contact_person' => $customer->name,
-            'client_telephone' => $customer->phone_number,
-            'client_email' => $customer->email,
-            'city' => $customer->city,
+            'customer_id' => $customer ? $customer->id : null,
+            'client_contact_person' => $customer ? $customer->name : null,
+            'client_telephone' => $customer ? $customer->phone_number : null,
+            'client_email' => $customer ? $customer->email : null,
+            'city' => $customer ? $customer->city : null,
             'timezone' => 'Africa/Douala',
             'event_start_at' => $start.' 00:00:00',
             'event_end_at' => $end.' 23:59:00',
@@ -293,6 +294,32 @@ class EventController extends Controller
         }
 
         return redirect()->route('events.dashboard')->with('message', $msg);
+    }
+
+    protected function optionalCustomer(Request $request, array $data)
+    {
+        if (! empty($data['customer_id'])) {
+            return Customer::find($data['customer_id']);
+        }
+        $typed = trim((string) $request->input('customer_query'));
+        if ($typed === '') {
+            return null;
+        }
+        $name = trim(preg_replace('/\s+—\s+.*$/u', '', $typed));
+        if ($name !== '') {
+            $match = Customer::where('is_active', true)->where('name', $name)->first();
+            if ($match) {
+                return $match;
+            }
+        }
+        $digits = preg_replace('/\D+/', '', $typed);
+        if (strlen($digits) >= 9) {
+            return Customer::where('is_active', true)
+                ->where('phone_number', 'like', '%'.substr($digits, -9))
+                ->first();
+        }
+
+        return null;
     }
 
     public function show($id, Request $request, EventWorkforceService $workforce)

@@ -11,6 +11,7 @@ use App\Services\EventPaymentService;
 use App\Services\Messaging\NotificationRouter;
 use App\Support\MemorableOtp;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class EventCrewInviteService
 {
@@ -22,6 +23,9 @@ class EventCrewInviteService
         $attempted = false;
         foreach ($event->assignments as $assignment) {
             if ($assignment->invited_at) {
+                continue;
+            }
+            if ($this->isClient($event, $assignment)) {
                 continue;
             }
             $phone = $this->phoneFor($assignment);
@@ -41,12 +45,16 @@ class EventCrewInviteService
             $end = $event->event_end_at ? $event->event_end_at->format('d M Y') : $start;
             $pay = number_format($this->dayAmount($assignment));
             $url = url('/event-invite/'.$assignment->invite_token);
+            $notes = trim((string) $event->internal_notes);
             $body = "Hello {$name},\n\n"
                 ."You have been selected for {$event->name}.\n"
                 ."Dates: {$start} to {$end}\n"
                 .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
-                ."Daily pay: {$pay} XAF\n\n"
-                ."Accept your place:\n{$url}\n\n"
+                ."Daily pay: {$pay} XAF\n";
+            if ($notes !== '') {
+                $body .= "\nNotes:\n{$notes}\n";
+            }
+            $body .= "\nAccept your place:\n{$url}\n\n"
                 .'After you accept, a code is sent to this phone so you can open the event and your timesheet.';
             if ($attempted) {
                 usleep(5000000);
@@ -67,6 +75,21 @@ class EventCrewInviteService
         }
 
         return ['sent' => $sent, 'warnings' => $warnings];
+    }
+
+    public function isClient(Event $event, EventAssignment $assignment)
+    {
+        $profile = $assignment->workerProfile;
+        if (! $profile) {
+            return false;
+        }
+        if ($event->customer_id && (int) $profile->customer_id === (int) $event->customer_id) {
+            return true;
+        }
+        $client = substr(preg_replace('/\D+/', '', (string) $event->client_telephone), -9);
+        $phone = substr(preg_replace('/\D+/', '', $this->phoneFor($assignment)), -9);
+
+        return $client !== '' && $phone !== '' && $client === $phone;
     }
 
     public function phoneFor(EventAssignment $assignment)
