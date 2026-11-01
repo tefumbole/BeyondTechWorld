@@ -433,16 +433,10 @@
                                         <li id="events-dashboard-menu"><a href="{{ route('events.dashboard') }}">Events Dashboard</a></li>
                                         <li id="events-calendar-menu"><a href="{{ route('events.calendar') }}">Event Calendar</a></li>
                                     @endif
-                                    @if(in_array('events.manage_workforce', $all_permission) || in_array('event_workers.view', $all_permission))
-                                        <li id="events-workforce-menu"><a href="{{ route('events.workforce.profiles') }}">Event Workforce</a></li>
-                                    @endif
                                     @if(in_array('events.view', $all_permission))
                                         <li id="events-timesheets-menu"><a href="{{ route('events.timesheets.index') }}">Event Timesheets</a></li>
                                         <li id="events-payments-menu"><a href="{{ route('events.payments.index') }}">Labour Payments</a></li>
                                         <li id="events-reminders-menu"><a href="{{ route('events.reminders.index') }}">Event Reminders</a></li>
-                                    @endif
-                                    @if(in_array('event_contracts.view', $all_permission))
-                                        <li id="events-contract-templates-menu"><a href="{{ route('events.settings.contract-templates') }}">Contract Templates</a></li>
                                     @endif
                                     @if(in_array('events.settings', $all_permission))
                                         <li id="events-settings-menu"><a href="{{ route('events.settings.categories') }}">Event Settings</a></li>
