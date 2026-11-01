@@ -797,7 +797,6 @@
                                     <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
                                         <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
-                                        <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
                                         <li id="donations-menu"><a href="{{ route('donations.index') }}">Mobile Payments</a></li>
                                     @endif
                                 </ul>
@@ -2793,7 +2792,6 @@
                   'desposit-index-menu': 'fa fa-university',
                   'payment-index-menu': 'fa fa-clock-o',
                   'payout-index-menu': 'fa fa-paper-plane',
-                  'payout-request-menu': 'fa fa-mobile',
                   'donations-menu': 'fa fa-money',
                   'role-menu': 'dripicons-lock',
                   'warehouse-menu': 'dripicons-home',

@@ -7,7 +7,86 @@
 
     <div class="pay-toolbar">
         <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Payout</a>
-        <a class="pay-new" href="{{ route('payout.request') }}">Request for payment</a>
+    </div>
+
+    @php
+        $watchPayouts = false;
+        foreach ($requests as $watchRow) {
+            if (! empty($watchRow->list_state['waiting'])) {
+                $watchPayouts = true;
+                break;
+            }
+        }
+    @endphp
+    <div class="pay-card" @if($watchPayouts) data-payout-wait="1" @endif>
+        <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
+        <div class="pay-card-head">
+            <h2>Payouts</h2>
+            @if($pending->count())
+                <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
+            @endif
+        </div>
+        <div class="table-responsive">
+            <table class="pay-table">
+                <thead>
+                    <tr>
+                        <th style="width:36px">@if($pending->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
+                        <th>When</th>
+                        <th>People</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($requests as $row)
+                        @php
+                            $state = $row->list_state;
+                            $linePending = $row->lines->where('status', 'pending')->count();
+                        @endphp
+                        <tr>
+                            <td>
+                                @if($row->status === 'pending' && $row->lines->where('status', 'paid')->count() < 1)
+                                    <input type="checkbox" class="pending-row" form="pendingDeleteForm" name="ids[]" value="{{ $row->id }}">
+                                @endif
+                            </td>
+                            <td>{{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}</td>
+                            <td>
+                                @forelse($row->lines as $line)
+                                    <div>{{ $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
+                                @empty
+                                    <span class="pay-muted">No one on this request.</span>
+                                @endforelse
+                                @if($row->requester_name)
+                                    <div class="pay-muted">From {{ $row->requester_name }}</div>
+                                @endif
+                            </td>
+                            <td>{{ $row->note }}</td>
+                            <td><span class="pay-pill pay-pill-{{ $state['tone'] }}" data-payout-batch="{{ $row->id }}">{{ $state['label'] }}</span></td>
+                            <td>
+                                <div class="pay-row-actions">
+                                    @if($linePending > 0)
+                                        <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
+                                        <form method="POST" action="{{ route('payout.request.revise') }}">
+                                            @csrf
+                                            <input type="hidden" name="id" value="{{ $row->id }}">
+                                            <button class="pay-open" type="submit" name="action" value="approve" style="border:0;cursor:pointer" onclick="return confirm('Approve and pay everyone still waiting on this request?')">Approve and Pay</button>
+                                        </form>
+                                    @elseif($row->lines->where('status', 'failed')->count() > 0)
+                                        <form method="POST" action="{{ route('payout.mass', $row->id) }}">
+                                            @csrf
+                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Pay everyone still waiting? People already paid are left out.')">Pay</button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="pay-muted">No payout requests yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 
     @if(!empty($making))
@@ -96,7 +175,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                            <span class="pay-pill pay-pill-{{ $tone }}" data-payout-line="{{ $line->id }}">{{ $statusLabel }}</span>
                                             @if($line->error)<div class="pay-note">{{ $line->error }}</div>@endif
                                         </td>
                                     </tr>
@@ -114,51 +193,6 @@
             </div>
         </div>
     @endif
-
-    <div class="pay-card">
-        <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
-        <div class="pay-card-head">
-            <h2>Pending</h2>
-            @if($pending->count())
-                <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
-            @endif
-        </div>
-        <div class="table-responsive">
-            <table class="pay-table">
-                <thead>
-                    <tr>
-                        <th style="width:36px">@if($pending->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
-                        <th>When</th><th>From</th><th>Note</th><th>People</th><th>Total</th><th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($pending as $row)
-                        @php $sum = $totals->get($row->id); @endphp
-                        <tr>
-                            <td><input type="checkbox" class="pending-row" form="pendingDeleteForm" name="ids[]" value="{{ $row->id }}"></td>
-                            <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
-                            <td>{{ $row->requester_name }}</td>
-                            <td>{{ $row->note }}</td>
-                            <td>{{ $sum ? $sum->people : 0 }}</td>
-                            <td>{{ number_format($sum ? $sum->total : 0, 0, '.', ' ') }} XAF</td>
-                            <td>
-                                <div class="pay-row-actions">
-                                    <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
-                                    <form method="POST" action="{{ route('payout.pending.delete') }}">
-                                        @csrf
-                                        <input type="hidden" name="ids[]" value="{{ $row->id }}">
-                                        <button class="pay-danger" type="submit" onclick="return confirm('Delete this pending payout?')">Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="7" class="pay-muted">No payment requests are waiting.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
 
     <div class="pay-card">
         <div class="pay-card-head"><h2>Recent payouts</h2></div>
@@ -180,7 +214,7 @@
                             <td>{{ $row->momo_name }}</td>
                             <td>{{ number_format($row->amount, 0, '.', ' ') }} XAF</td>
                             <td>
-                                <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
+                                <span class="pay-pill pay-pill-{{ $tone }}" data-payout-line="{{ $row->id }}">{{ $statusLabel }}</span>
                                 @if($row->error)<div class="pay-note">{{ $row->error }}</div>@endif
                                 @if($row->status === 'failed')
                                     <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
@@ -207,6 +241,32 @@
     </div>
 </section>
 <script>
+(function () {
+    var card = document.querySelector('[data-payout-wait]');
+    if (!card) return;
+    var url = @json(route('payout.live'));
+    function paint(selector, row) {
+        var pill = document.querySelector(selector);
+        if (!pill) return;
+        pill.className = 'pay-pill pay-pill-' + row.tone;
+        pill.textContent = row.status;
+        if (row.status === 'Paid') {
+            var actions = pill.closest('tr') ? pill.closest('tr').querySelector('.pay-row-actions') : null;
+            if (actions) actions.innerHTML = '';
+        }
+    }
+    function tick() {
+        fetch(url, {headers: {Accept: 'application/json'}, credentials: 'same-origin'})
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                (data.batches || []).forEach(function (row) { paint('[data-payout-batch="' + row.id + '"]', row); });
+                (data.lines || []).forEach(function (row) { paint('[data-payout-line="' + row.id + '"]', row); });
+                if (data.pending) setTimeout(tick, 3000);
+            })
+            .catch(function () { setTimeout(tick, 5000); });
+    }
+    setTimeout(tick, 700);
+})();
 (function () {
     var form = document.getElementById('pendingDeleteForm');
     if (!form) return;

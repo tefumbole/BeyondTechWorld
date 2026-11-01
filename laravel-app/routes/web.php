@@ -781,6 +781,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/announcements/settings', 'AnnouncementManagerController@updateSettings')->name('announcements.settings.update');
 
     Route::get('/admin/payout', 'PayoutController@index')->name('payout.index');
+    Route::get('/admin/payout/live', 'PayoutController@live')->name('payout.live');
     Route::get('/admin/payout/lookup', 'PayoutController@lookup')->name('payout.lookup');
     Route::get('/admin/payout/search', 'PayoutController@search')->name('payout.search');
     Route::get('/admin/payout/request', 'PayoutController@requestLink')->name('payout.request');

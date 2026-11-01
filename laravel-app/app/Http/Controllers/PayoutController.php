@@ -12,7 +12,6 @@ use App\Services\Cloud\CloudTenantContext;
 use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 
 class PayoutController extends Controller
 {
@@ -20,10 +19,7 @@ class PayoutController extends Controller
     {
         $this->guard();
         $this->collapseDuplicatePending($this->tenantId());
-        if (! Cache::has('btw.payout.settled')) {
-            $this->settleRecorded();
-            Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
-        }
+        $this->refreshDisbursed();
         $tenantId = $this->tenantId();
         $pending = $this->requests($tenantId)->where('status', 'pending')->orderByDesc('id')->limit(40)->get();
         $totals = $this->totals($pending->pluck('id')->all());
@@ -41,8 +37,9 @@ class PayoutController extends Controller
         $making = $request->get('new') === '1';
         $q = '';
         $people = collect();
+        $requests = $this->listedRequests($tenantId);
 
-        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'making', 'q', 'people'));
+        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'making', 'q', 'people', 'requests'));
     }
 
     public function search(Request $request)
@@ -201,66 +198,46 @@ class PayoutController extends Controller
     public function requestLink(Request $request)
     {
         $this->guard();
-        $this->collapseDuplicatePending($this->tenantId());
-        if (! Cache::has('btw.payout.settled')) {
-            $this->settleRecorded();
-            Cache::put('btw.payout.settled', 1, now()->addSeconds(90));
-        }
-        $tenantId = $this->tenantId();
-        $query = CampayPayoutLink::query();
-        if ($tenantId) {
-            $query->where('cloud_tenant_id', $tenantId);
-        } else {
-            $query->whereNull('cloud_tenant_id');
-        }
-        $link = $query->first();
-        if (! $link) {
-            $link = new CampayPayoutLink();
-            $link->token = bin2hex(random_bytes(20));
-            $link->cloud_tenant_id = $tenantId;
-            $link->save();
-        }
-        $url = route('payout.request.form', ['token' => $link->token]);
-        $invites = CampayPaymentInvite::query()
-            ->when($tenantId, function ($query) use ($tenantId) {
-                $query->where('cloud_tenant_id', $tenantId);
-            }, function ($query) {
-                $query->whereNull('cloud_tenant_id');
-            })
-            ->orderByDesc('id')
-            ->limit(40)
-            ->get();
-        // Only show submitted requests that still need action. Once every line is paid, the
-        // batch moves to the Payout page history.
-        $submitted = $this->requests($tenantId)
-            ->with('lines')
-            ->where(function ($query) {
-                $query->where('status', 'pending')
-                    ->orWhereIn('id', CampayPayout::query()->whereIn('status', ['pending', 'failed'])->distinct()->pluck('request_id')->filter()->all());
-            })
-            ->orderByDesc('id')
-            ->limit(40)
-            ->get()
-            ->filter(function ($batch) {
-                // Hide batches where every line has been paid.
-                $lines = $batch->lines;
-                if ($lines->isEmpty()) {
-                    return true;
-                }
-                return $lines->whereIn('status', ['pending', 'failed'])->count() > 0;
-            })
-            ->values();
-        $review = null;
-        $reviewLines = collect();
         $reviewId = (int) $request->get('review');
         if ($reviewId) {
-            $review = $this->requests($tenantId)->where('id', $reviewId)->first();
-            if ($review) {
-                $reviewLines = CampayPayout::where('request_id', $review->id)->orderBy('id')->get();
-            }
+            return redirect()->route('payout.index', ['request' => $reviewId]);
         }
 
-        return view('payout.request', compact('url', 'invites', 'submitted', 'review', 'reviewLines'));
+        return redirect()->route('payout.index');
+    }
+
+    public function live()
+    {
+        $this->guard();
+        $this->refreshDisbursed();
+        $requests = $this->listedRequests($this->tenantId());
+        $batches = [];
+        $pending = false;
+        foreach ($requests as $batch) {
+            $state = $this->requestState($batch);
+            if ($state['waiting']) {
+                $pending = true;
+            }
+            $batches[] = [
+                'id' => (int) $batch->id,
+                'status' => $state['label'],
+                'tone' => $state['tone'],
+            ];
+        }
+        $lines = [];
+        foreach (CampayPayout::orderByDesc('id')->limit(30)->get(['id', 'status']) as $row) {
+            $lines[] = [
+                'id' => (int) $row->id,
+                'status' => $row->status === 'paid' ? 'Paid' : ($row->status === 'pending' ? 'Pending' : ($row->status === 'rejected' ? 'Rejected' : 'Not paid')),
+                'tone' => $row->status === 'paid' ? 'ok' : ($row->status === 'pending' ? 'wait' : 'no'),
+            ];
+        }
+
+        return response()->json([
+            'pending' => $pending,
+            'batches' => $batches,
+            'lines' => $lines,
+        ]);
     }
 
     public function revise(Request $request)
@@ -271,9 +248,9 @@ class PayoutController extends Controller
             abort(404);
         }
         if ($batch->status !== 'pending') {
-            return redirect()->route('payout.request', ['review' => $batch->id])->with('not_permitted', 'This request can no longer be changed.');
+            return redirect()->route('payout.index', ['request' => $batch->id])->with('not_permitted', 'This request can no longer be changed.');
         }
-        $back = redirect()->route('payout.request', ['review' => $batch->id]);
+        $back = redirect()->route('payout.index', ['request' => $batch->id]);
         if ($request->input('action') === 'reject') {
             $reason = trim((string) $request->input('reason', ''));
             if ($reason === '') {
@@ -296,15 +273,15 @@ class PayoutController extends Controller
                 $message .= ' No WhatsApp number was found, so the message was not sent.';
             }
 
-            return redirect()->route('payout.request')->with('message', $message);
+            return redirect()->route('payout.index')->with('message', $message);
         }
         if ($request->input('action') === 'approve') {
             $rows = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->orderBy('id')->get();
             if ($rows->count() < 1) {
-                return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
+                return redirect()->route('payout.index')->with('not_permitted', 'There is no one left to pay.');
             }
 
-            return $this->sendRows($batch, $rows, route('payout.request'));
+            return $this->sendRows($batch, $rows, route('payout.index'));
         }
         $amounts = (array) $request->input('amounts', []);
         if ($request->input('action') === 'delete') {
@@ -333,7 +310,7 @@ class PayoutController extends Controller
             return $back->with('not_permitted', 'There is no one left to pay.');
         }
 
-        return $this->sendRows($batch, $rows, route('payout.request', ['review' => $batch->id]));
+        return $this->sendRows($batch, $rows, route('payout.index', ['request' => $batch->id]));
     }
 
     public function massPayout($id)
@@ -348,10 +325,10 @@ class PayoutController extends Controller
             ->orderBy('id')
             ->get();
         if ($lines->count() < 1) {
-            return redirect()->route('payout.request')->with('not_permitted', 'There is no one left to pay.');
+            return redirect()->route('payout.index')->with('not_permitted', 'There is no one left to pay.');
         }
 
-        return $this->sendRows($batch, $lines, route('payout.request', ['review' => $batch->id]));
+        return $this->sendRows($batch, $lines, route('payout.index', ['request' => $batch->id]));
     }
 
     public function resend(Request $request)
@@ -373,7 +350,7 @@ class PayoutController extends Controller
             $row->sent_at = now();
             $row->save();
 
-            return redirect()->route('payout.request')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
+            return redirect()->route('payout.index')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
         }
         if ($kind === 'submitted') {
             $batch = $this->requests($this->tenantId())->where('id', $id)->first();
@@ -386,10 +363,10 @@ class PayoutController extends Controller
                 $count++;
             }
 
-            return redirect()->route('payout.request')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
+            return redirect()->route('payout.index')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
         }
 
-        return redirect()->route('payout.request')->with('not_permitted', 'That request could not be sent again.');
+        return redirect()->route('payout.index')->with('not_permitted', 'That request could not be sent again.');
     }
 
     public function invite(Request $request)
@@ -413,7 +390,7 @@ class PayoutController extends Controller
             $sent++;
         }
 
-        return redirect()->route('payout.request')->with('message', 'Sent to '.$sent.' '.($sent === 1 ? 'person' : 'people').'.');
+        return redirect()->route('payout.index')->with('message', 'Sent to '.$sent.' '.($sent === 1 ? 'person' : 'people').'.');
     }
 
     public function pay(Request $request)
@@ -1254,7 +1231,7 @@ class PayoutController extends Controller
 
     protected function reviewUrl($id)
     {
-        return route('payout.request', ['review' => (int) $id]);
+        return route('payout.index', ['request' => (int) $id]);
     }
 
     protected function copyName()
@@ -1307,6 +1284,86 @@ class PayoutController extends Controller
         $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Date', date('d M Y'));
 
         return $msg;
+    }
+
+    public function refreshDisbursed()
+    {
+        $rows = CampayPayout::whereNotNull('campay_reference')
+            ->where('campay_reference', '!=', '')
+            ->whereIn('status', ['pending', 'failed'])
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        if ($rows->count() < 1) {
+            return;
+        }
+        $service = app(CampayPayoutService::class);
+        $batches = [];
+        foreach ($rows as $row) {
+            $state = $this->confirmExisting($service, $row);
+            if (($state === 'paid' || $state === 'failed') && $row->request_id) {
+                $batches[$row->request_id] = true;
+            }
+        }
+        foreach (array_keys($batches) as $id) {
+            $batch = CampayPayoutRequest::find($id);
+            if ($batch) {
+                $this->closeBatch($batch);
+            }
+        }
+    }
+
+    protected function listedRequests($tenantId)
+    {
+        $rows = $this->requests($tenantId)->with('lines')->orderByDesc('id')->limit(40)->get();
+
+        $sorted = $rows->sort(function ($a, $b) {
+            $ar = $this->requestRank($a);
+            $br = $this->requestRank($b);
+            if ($ar !== $br) {
+                return $ar < $br ? -1 : 1;
+            }
+
+            return (int) $b->id - (int) $a->id;
+        })->values();
+        foreach ($sorted as $batch) {
+            $batch->list_state = $this->requestState($batch);
+        }
+
+        return $sorted;
+    }
+
+    protected function requestRank($batch)
+    {
+        $lines = $batch->lines;
+        if ($lines->count() < 1 || $lines->where('status', 'pending')->count() > 0) {
+            return 0;
+        }
+        if ($lines->where('status', 'paid')->count() === $lines->count()) {
+            return 2;
+        }
+
+        return 1;
+    }
+
+    protected function requestState($batch)
+    {
+        $lines = $batch->lines;
+        $paid = $lines->where('status', 'paid')->count();
+        $waiting = $lines->filter(function ($line) {
+            return $line->status !== 'paid' && trim((string) $line->campay_reference) !== '';
+        })->count();
+        if ($lines->count() > 0 && $paid === $lines->count()) {
+            return ['label' => 'Paid', 'tone' => 'ok', 'waiting' => false];
+        }
+        if ($lines->where('status', 'pending')->count() > 0) {
+            return ['label' => 'Pending', 'tone' => 'wait', 'waiting' => $waiting > 0];
+        }
+        if ($paid > 0) {
+            return ['label' => 'Partly paid', 'tone' => 'wait', 'waiting' => $waiting > 0];
+        }
+
+        return ['label' => 'Not paid', 'tone' => 'no', 'waiting' => $waiting > 0];
     }
 
     public function settleRecorded()
