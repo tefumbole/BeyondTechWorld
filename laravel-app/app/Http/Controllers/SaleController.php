@@ -530,7 +530,18 @@ class SaleController extends Controller
             }
         }
 
+        $checkoutClaim = ['response' => null, 'submission' => null, 'key' => null];
+        if (! empty($data['pos'])) {
+            $checkoutClaim = app(\App\Services\Sales\OrderSubmissionService::class)->claimBeforeCreate($request, $data);
+            if (! empty($checkoutClaim['response'])) {
+                return $checkoutClaim['response'];
+            }
+        }
+
         $lims_sale_data = Sale::create($data);
+        if (! empty($checkoutClaim['submission'])) {
+            app(\App\Services\Sales\OrderSubmissionService::class)->link($checkoutClaim['submission'], $lims_sale_data);
+        }
 
         $lims_reward_point_setting_data = RewardPointSetting::latest()->first();
         //checking if customer gets some points or not
@@ -780,19 +791,61 @@ class SaleController extends Controller
             elseif ($data['paid_by_id'] == 8) {
                 $phone = $posMomoPhone ?: app(CampayPayoutService::class)->momoNumber($lims_customer_data->phone_number);
                 $amount = $posMomoAmount ?: (int) round((float) $lims_sale_data->grand_total);
-                $external = 'pos-'.$lims_sale_data->id.'-'.substr(md5(uniqid('', true)), 0, 6);
-                $body = app(CampayPayoutService::class)->collect($phone, $amount, $external, substr('POS '.$lims_sale_data->reference_no, 0, 80));
+                $orders = app(\App\Services\Sales\OrderSubmissionService::class);
+                $checkoutKey = ! empty($checkoutClaim['key']) ? $checkoutClaim['key'] : $orders->keyFrom($request);
+                $attempt = null;
+                $claimed = ['reuse' => false];
+                try {
+                    $claimed = app(\App\Services\Sales\PaymentAttemptService::class)->claim(
+                        $checkoutKey,
+                        $orders->hashPos($data),
+                        $amount,
+                        ['phone' => $phone, 'amount' => $amount, 'sale_id' => $lims_sale_data->id],
+                        $lims_sale_data->id
+                    );
+                    $attempt = $claimed['attempt'];
+                } catch (\App\Services\Sales\CheckoutConflictException $e) {
+                    return back()->with('not_permitted', $e->getMessage());
+                }
+                if ($attempt && ! empty($claimed['reuse'])) {
+                    if ($attempt->status === 'paid') {
+                        return redirect('sales/gen_invoice/'.$lims_sale_data->id)->with('message', 'This order was already placed.');
+                    }
+                    if (Cache::get('pos_momo:'.$lims_sale_data->id)) {
+                        return redirect()->route('pos.momo.wait', ['id' => $lims_sale_data->id]);
+                    }
+
+                    return back()->with('not_permitted', 'A Mobile Money attempt is already open for this checkout. It will not send another prompt until that attempt is reconciled.');
+                }
+                $external = $attempt ? (string) $attempt->external_reference : ('pos-'.$lims_sale_data->id.'-'.substr(md5(uniqid('', true)), 0, 6));
+                try {
+                    $body = app(CampayPayoutService::class)->collect($phone, $amount, $external, substr('POS '.$lims_sale_data->reference_no, 0, 80));
+                } catch (\Throwable $e) {
+                    if ($attempt) {
+                        app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'unknown', null, 'timeout');
+                    }
+                    \Log::warning('POS Mobile Money collect did not answer: '.$e->getMessage());
+
+                    return back()->with('not_permitted', 'Mobile Money did not answer. This checkout will not send another prompt until that attempt is reconciled.');
+                }
                 $campayStatus = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
                 if (! is_array($body) || empty($body['reference']) || $campayStatus === 'FAILED') {
+                    if ($attempt) {
+                        app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'failed', ! empty($body['reference']) ? (string) $body['reference'] : null, 'declined');
+                    }
                     $this->eraseSale($lims_sale_data);
 
                     return back()->with('not_permitted', $this->campayCollectError($body));
+                }
+                if ($attempt) {
+                    app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'pending', (string) $body['reference']);
                 }
                 Cache::put('pos_momo:'.$lims_sale_data->id, [
                     'reference' => (string) $body['reference'],
                     'phone' => $phone,
                     'amount' => $amount,
                     'external' => $external,
+                    'checkout_key' => $checkoutKey,
                 ], now()->addMinutes(30));
 
                 return redirect()->route('pos.momo.wait', ['id' => $lims_sale_data->id]);
@@ -945,6 +998,8 @@ class SaleController extends Controller
                 $paypal_data['total'] = $total;
                 $response = $provider->setExpressCheckout($paypal_data);
                 // This will redirect user to PayPal
+                app(\App\Services\Sales\OrderSubmissionService::class)->finish($lims_sale_data);
+
                 return redirect($response['paypal_link']);
             }
             elseif($paying_method == 'Deposit'){
@@ -983,6 +1038,7 @@ class SaleController extends Controller
             $paying_method = 'Group Credit';
 
         $message = $this->sendWhatsappMsg($lims_customer_data, $lims_sale_data, $mail_data, $biller, $paying_method, $net_unit_price);
+        app(\App\Services\Sales\OrderSubmissionService::class)->finish($lims_sale_data);
 
         $role = Role::find(Auth::user()->role_id);
         $role->revokePermissionTo('search_all_products');
@@ -1248,32 +1304,64 @@ class SaleController extends Controller
         if (! Cache::add('pos_momo_lock:'.$sale->id, 1, now()->addSeconds(30))) {
             return;
         }
-        $amount = (int) $pending['amount'];
-        $sale->paid_amount = (float) $sale->paid_amount + $amount;
-        $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
-        $sale->payment_status = $this->paymentStatusForBalance($sale->paid_amount, $balance);
-        $cashRegister = CashRegister::where([
-            ['user_id', Auth::id()],
-            ['warehouse_id', $sale->warehouse_id],
-            ['status', true],
-        ])->first();
-        $account = Account::where('is_default', true)->first();
-        $payment = new Payment();
-        $payment->user_id = Auth::id();
-        $payment->sale_id = $sale->id;
-        if ($cashRegister) {
-            $payment->cash_register_id = $cashRegister->id;
+        $recorded = false;
+        try {
+            $recorded = \Illuminate\Support\Facades\DB::transaction(function () use ($sale, $pending, $note) {
+                $locked = Sale::where('id', $sale->id)->lockForUpdate()->first();
+                if (! $locked) {
+                    return false;
+                }
+                if (Payment::where('sale_id', $locked->id)->where('payment_note', $note)->lockForUpdate()->exists()) {
+                    return false;
+                }
+                $amount = (int) $pending['amount'];
+                $locked->paid_amount = (float) $locked->paid_amount + $amount;
+                $balance = (float) $locked->grand_total - (float) $locked->paid_amount;
+                $locked->payment_status = $this->paymentStatusForBalance($locked->paid_amount, $balance);
+                $cashRegister = CashRegister::where([
+                    ['user_id', Auth::id()],
+                    ['warehouse_id', $locked->warehouse_id],
+                    ['status', true],
+                ])->first();
+                $account = Account::where('is_default', true)->first();
+                $payment = new Payment();
+                $payment->user_id = Auth::id();
+                $payment->sale_id = $locked->id;
+                if ($cashRegister) {
+                    $payment->cash_register_id = $cashRegister->id;
+                }
+                $payment->account_id = $account ? $account->id : 1;
+                $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('his');
+                $payment->amount = $amount;
+                $payment->change = $balance < 0 ? abs($balance) : 0;
+                $payment->paying_method = 'MOMO/OM';
+                $payment->payment_note = $note;
+                if (\Illuminate\Support\Facades\Schema::hasColumn('payments', 'provider')) {
+                    $payment->provider = 'campay';
+                    $payment->provider_reference = (string) $pending['reference'];
+                }
+                $payment->save();
+                $locked->save();
+                $sale->setRawAttributes($locked->getAttributes(), true);
+
+                return (int) $locked->payment_status === 4;
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::warning('POS Mobile Money payment was not recorded twice: '.$e->getMessage());
+
+            return;
         }
-        $payment->account_id = $account ? $account->id : 1;
-        $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('his');
-        $payment->amount = $amount;
-        $payment->change = $balance < 0 ? abs($balance) : 0;
-        $payment->paying_method = 'MOMO/OM';
-        $payment->payment_note = $note;
-        $payment->save();
-        $sale->save();
-        if ((int) $sale->payment_status === 4) {
-            $this->notifyPosMomoPaid($sale);
+        if (! empty($pending['checkout_key']) && \Illuminate\Support\Facades\Schema::hasTable('payment_attempts')) {
+            $attempt = \App\PaymentAttempt::where('cloud_tenant_id', app(\App\Services\Sales\OrderSubmissionService::class)->tenantId())
+                ->where('checkout_key', $pending['checkout_key'])
+                ->first();
+            if ($attempt && $attempt->status !== 'paid') {
+                app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'paid', (string) $pending['reference']);
+            }
+        }
+        app(\App\Services\Sales\OrderSubmissionService::class)->finish($sale);
+        if ($recorded) {
+            $this->notifyPosMomoPaid($sale->fresh() ?: $sale);
         }
     }
 
@@ -1327,14 +1415,17 @@ class SaleController extends Controller
             'unit' => $units,
         ];
         $this->sendWhatsappMsg($customer, $sale, $mail, $biller, 'MOMO/OM', $prices);
-        if ($customer->email) {
-            try {
-                Mail::send('mail.sale_details', $mail, function ($message) use ($mail) {
-                    $message->to($mail['email'])->subject('Sale Details');
-                });
-            } catch (\Throwable $e) {
-                \Log::warning('Paid MOMO sale email failed: '.$e->getMessage());
-            }
+        $email = $customer->email;
+        if ($email) {
+            app()->terminating(function () use ($mail, $email) {
+                try {
+                    Mail::send('mail.sale_details', $mail, function ($message) use ($mail, $email) {
+                        $message->to($email)->subject('Sale Details');
+                    });
+                } catch (\Throwable $e) {
+                    \Log::warning('Paid MOMO sale email failed: '.$e->getMessage());
+                }
+            });
         }
     }
 
@@ -1380,40 +1471,37 @@ class SaleController extends Controller
             ''
         );
 
-        $message = 'Sale created successfully';
-        \App\Support\TwilioAdminCopy::rememberUser(isset($lims_sale_data->user_id) ? $lims_sale_data->user_id : null);
-        try{
-            $sent = app(\App\Services\Messaging\NotificationRouter::class)->sendWasenderText(
-                $lims_customer_data->phone_number,
-                $msg
-            );
-            if (empty($sent['success']) && empty($sent['skipped'])) {
-                throw new \RuntimeException($sent['error'] ?? 'WhatsApp message sending failed.');
+        $phone = $lims_customer_data->phone_number;
+        $reference = $lims_sale_data->reference_no;
+        $userId = isset($lims_sale_data->user_id) ? $lims_sale_data->user_id : null;
+        app()->terminating(function () use ($phone, $msg, $reference, $userId) {
+            \App\Support\TwilioAdminCopy::rememberUser($userId);
+            try {
+                $sent = app(\App\Services\Messaging\NotificationRouter::class)->sendWasenderText($phone, $msg);
+                if (empty($sent['success']) && empty($sent['skipped'])) {
+                    throw new \RuntimeException(isset($sent['error']) ? $sent['error'] : 'WhatsApp message sending failed.');
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Sale WhatsApp notice failed: '.$e->getMessage());
             }
-        }
-        catch(\Throwable $e){
-            \Log::warning('Sale WhatsApp notice failed: '.$e->getMessage());
-            $message = 'Sale created successfully. Please setup your whatsapp setting.';
-        }
+            try {
+                $path = public_path('images/sales/qr');
+                if (! File::exists($path)) {
+                    File::makeDirectory($path, 0775, true);
+                }
+                $filename = 'qr_code_'.$reference.'.png';
+                $url = url('sale/scan/'.$reference);
+                QrCode::format('png')->size(300)->generate($url, $path.DIRECTORY_SEPARATOR.$filename);
+                $this->wpAttachMessage($path.DIRECTORY_SEPARATOR.$filename, $phone, $filename, null, true);
+                if (file_exists($path.DIRECTORY_SEPARATOR.$filename)) {
+                    @unlink($path.DIRECTORY_SEPARATOR.$filename);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Sale QR WhatsApp attach failed: '.$e->getMessage());
+            }
+        });
 
-        // send QR code (must not break the sale if the filesystem / WhatsApp fails)
-        try {
-            $path = public_path('images/sales/qr');
-            if (! File::exists($path)) {
-                File::makeDirectory($path, 0775, true);
-            }
-            $filename = 'qr_code_' . $lims_sale_data->reference_no . '.png';
-            $url = url("sale/scan/$lims_sale_data->reference_no");
-            QrCode::format('png')->size(300)->generate($url, $path . DIRECTORY_SEPARATOR . $filename);
-            $this->wpAttachMessage($path . DIRECTORY_SEPARATOR . $filename, $lims_customer_data->phone_number, $filename, null, true);
-            if (file_exists($path . DIRECTORY_SEPARATOR . $filename)) {
-                @unlink($path . DIRECTORY_SEPARATOR . $filename);
-            }
-        } catch (\Throwable $e) {
-            \Log::warning('Sale QR WhatsApp attach failed: '.$e->getMessage());
-        }
-
-        return $message;
+        return 'Sale created successfully';
     }
 
     public function sendMail(Request $request)
@@ -3579,6 +3667,7 @@ class SaleController extends Controller
         if (! $lims_sale_data) {
             return 'Sale deleted successfully';
         }
+        app(\App\Services\Sales\OrderSubmissionService::class)->releaseSale($lims_sale_data->id);
         $id = $lims_sale_data->id;
         $lims_product_sale_data = Product_Sale::where('sale_id', $id)->get();
         $lims_delivery_data = Delivery::where('sale_id',$id)->first();

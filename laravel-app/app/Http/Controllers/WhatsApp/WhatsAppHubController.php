@@ -930,6 +930,7 @@ class WhatsAppHubController extends Controller
         $collectName = \App\Services\Assistant\AssistantRuntimeSettings::collectUnknownName();
         $greetByName = \App\Services\Assistant\AssistantRuntimeSettings::greetByName();
         $handoverUserId = \App\Services\Assistant\AssistantRuntimeSettings::handoverUserId();
+        $escalationNumber = app(\App\Services\Assistant\AssistantHandoverService::class)->escalationNumber();
         $historyLimit = \App\Services\Assistant\AssistantRuntimeSettings::historyLimit();
         $clarificationLimit = \App\Services\Assistant\AssistantRuntimeSettings::maxClarifications();
         $switchPreview = app(\App\Services\WhatsApp\ConversationAiSwitchService::class)->preview();
@@ -954,7 +955,7 @@ class WhatsAppHubController extends Controller
         return view('whatsapp_hub.settings', compact(
             'businessLine',
             'session', 'mode', 'webhookUrl', 'sla', 'assistantEnabled', 'assistantEnv', 'assistantConfigured',
-            'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'historyLimit',
+            'aiFirst', 'manualTakeover', 'collectName', 'greetByName', 'handoverUserId', 'escalationNumber', 'historyLimit',
             'clarificationLimit', 'switchPreview', 'staff',
             'websiteAiEnabled', 'websiteAutoGreeting', 'websiteHandover', 'websiteContinueWa',
             'websiteAiName', 'websiteGreetingDelay', 'websiteMetrics'
@@ -979,6 +980,8 @@ class WhatsAppHubController extends Controller
         }
         if ($this->canAny(['whatsapp.ai.manage', 'whatsapp.manage'])) {
             WhatsAppSetting::putValue('assistant_enabled', $request->input('assistant_enabled') ? '1' : '0');
+            $escalation = preg_replace('/[^\d+]/', '', (string) $request->input('ai_escalation_whatsapp_number', ''));
+            WhatsAppSetting::putValue('AI_ESCALATION_WHATSAPP_NUMBER', $escalation);
             WhatsAppSetting::putValue('ai_first', $request->input('ai_first') ? '1' : '0');
             WhatsAppSetting::putValue('manual_reply_takes_over', $request->has('manual_reply_takes_over') ? ($request->input('manual_reply_takes_over') ? '1' : '0') : '1');
             WhatsAppSetting::putValue('assistant_collect_name', $request->input('assistant_collect_name') ? '1' : '0');

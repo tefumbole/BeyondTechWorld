@@ -38,6 +38,9 @@
                 <hr>
                 <h5>Beyond Assistant</h5>
                 <p class="small text-muted">Environment: {{ !empty($assistantEnv) ? 'Allowed' : 'Blocked' }}. OpenAI: {{ !empty($assistantConfigured) ? 'Configured' : 'Not Configured' }}. Secrets are never shown here.</p>
+                <label>Escalation WhatsApp number</label>
+                <input type="text" name="ai_escalation_whatsapp_number" class="form-control mb-2" style="max-width:280px" value="{{ $escalationNumber }}" placeholder="Staff number for human handover">
+                <p class="small text-muted">When a customer asks for a person, AI pauses and this number receives one alert. Leave it blank to keep the existing staff copy.</p>
                 <label class="d-block mb-3">
                     <input type="hidden" name="assistant_enabled" value="0">
                     <input type="checkbox" name="assistant_enabled" value="1" {{ !empty($assistantEnabled) ? 'checked' : '' }}>

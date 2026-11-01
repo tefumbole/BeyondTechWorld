@@ -1506,6 +1506,7 @@
                                                         </div>
                                                         <div class="col-md-6 mt-1">
                                                             <input type="hidden" name="paid_by_id">
+                                                            <input type="hidden" name="checkout_key" value="">
                                                             <label>{{trans('file.Paid By')}}</label>
                                                             <select name="paid_by_id_select" class="form-control selectpicker">
                                                                 <option value="1">Cash</option>
@@ -4371,6 +4372,10 @@
                 e.preventDefault();
             }
             $('input[name="paid_by_id"]').val($('select[name="paid_by_id_select"]').val());
+            var checkoutKey = $('input[name="checkout_key"]');
+            if (checkoutKey.length && !checkoutKey.val()) {
+                checkoutKey.val('pos-' + Date.now().toString(16) + Math.random().toString(16).slice(2));
+            }
             $('input[name="debit"]').val($('select[name="debit_select"]').val());
             $('input[name="credit"]').val($('select[name="credit_select"]').val());
             $('input[name="order_tax_rate"]').val($('#order-tax-rate-value').val());
