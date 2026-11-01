@@ -102,7 +102,7 @@
                             </table>
                         </div>
                         <p class="mb-0"><strong>Labour total: <span id="labour-total">0</span> XAF</strong></p>
-                        <p class="text-muted small mb-0">Food money is 1,000 XAF per person per day when you include it. Pay is (daily rate + food) × days.</p>
+                        <p class="text-muted small mb-0">Each person keeps their own name, daily rate, and food amount. Pay is (daily rate + food) × days.</p>
                     </div>
 
                     <div class="booking-section">
@@ -136,7 +136,6 @@
     var oldCrew = @json(old('crew', []));
     var lookupUrl = @json(route('events.labour-name'));
     var token = document.querySelector('#event-form input[name="_token"]').value;
-    var foodPerDay = 1000;
     var tbody = document.querySelector('#crew-table tbody');
     var rowIndex = 0;
 
@@ -163,7 +162,7 @@
         tbody.querySelectorAll('tr').forEach(function (row) {
             var days = parseInt(row.querySelector('.crew-days').value, 10) || 0;
             var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
-            var food = row.querySelector('.crew-food').checked ? foodPerDay : 0;
+            var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
             var line = (rate + food) * days;
             row.querySelector('.crew-line').textContent = money(line);
             total += line;
@@ -181,17 +180,15 @@
         var tr = document.createElement('tr');
         tr.setAttribute('data-key', key);
         tr.innerHTML =
-            '<td>' + escapeHtml(person.name || '') +
+            '<td><input type="text" class="form-control form-control-sm crew-name" name="crew[' + i + '][name]" value="' + escapeHtml(person.name || '') + '" required>' +
                 '<div class="small text-muted">' + escapeHtml(person.phone || '') + '</div>' +
                 '<input type="hidden" name="crew[' + i + '][kind]" value="' + escapeHtml(person.kind) + '">' +
                 '<input type="hidden" name="crew[' + i + '][ref]" value="' + escapeHtml(person.ref || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][phone]" value="' + escapeHtml(person.phone || '') + '">' +
-                '<input type="hidden" name="crew[' + i + '][name]" value="' + escapeHtml(person.name || '') + '">' +
             '</td>' +
-            '<td><input type="number" class="form-control form-control-sm crew-days" name="crew[' + i + '][days]" min="1" max="365" value="' + days + '"></td>' +
+            '<td><input type="number" class="form-control form-control-sm crew-days" name="crew[' + i + '][days]" min="1" max="365" value="' + days + '" data-auto="' + (person.days ? '0' : '1') + '"></td>' +
             '<td><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + (parseInt(person.rate, 10) || 0) + '" required></td>' +
-            '<td><input type="hidden" name="crew[' + i + '][food]" value="0">' +
-                '<label class="mb-0 small"><input type="checkbox" class="crew-food" name="crew[' + i + '][food]" value="1"' + (person.food ? ' checked' : '') + '> 1,000 / day</label></td>' +
+            '<td><input type="number" class="form-control form-control-sm crew-food" name="crew[' + i + '][food]" min="0" value="' + (parseInt(person.food, 10) || 0) + '" placeholder="0"></td>' +
             '<td class="crew-line font-weight-bold">0</td>' +
             '<td><button type="button" class="btn btn-sm btn-outline-danger crew-remove">Remove</button></td>';
         tbody.appendChild(tr);
@@ -206,7 +203,8 @@
 
     document.getElementById('add-person').addEventListener('click', function () {
         var sel = document.getElementById('labour-pick');
-        var person = people[sel.value];
+        var picked = window.jQuery ? window.jQuery(sel).val() : sel.value;
+        var person = people[picked];
         if (!person) {
             return;
         }
@@ -246,7 +244,12 @@
             });
     });
 
-    tbody.addEventListener('input', refresh);
+    tbody.addEventListener('input', function (event) {
+        if (event.target.classList.contains('crew-days')) {
+            event.target.setAttribute('data-auto', '0');
+        }
+        refresh();
+    });
     tbody.addEventListener('change', refresh);
     tbody.addEventListener('click', function (event) {
         if (!event.target.classList.contains('crew-remove')) {
@@ -256,8 +259,17 @@
         refresh();
     });
 
-    document.getElementById('event-from').addEventListener('change', spanDays);
-    document.getElementById('event-to').addEventListener('change', spanDays);
+    function applySpan() {
+        var days = spanDays();
+        tbody.querySelectorAll('.crew-days').forEach(function (input) {
+            if (input.getAttribute('data-auto') === '1') {
+                input.value = days;
+            }
+        });
+        refresh();
+    }
+    document.getElementById('event-from').addEventListener('change', applySpan);
+    document.getElementById('event-to').addEventListener('change', applySpan);
     spanDays();
 
     (oldCrew || []).forEach(function (row) {
@@ -271,7 +283,7 @@
             phone: row.phone || '',
             rate: row.rate || 0,
             days: row.days || spanDays(),
-            food: String(row.food) === '1'
+            food: parseInt(row.food, 10) || 0
         });
     });
 })();

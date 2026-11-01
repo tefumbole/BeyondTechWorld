@@ -153,7 +153,7 @@ class EventController extends Controller
             'crew.*.name' => 'nullable|string|max:255',
             'crew.*.days' => 'required|integer|min:1|max:365',
             'crew.*.rate' => 'required|integer|min:0',
-            'crew.*.food' => 'nullable|in:0,1',
+            'crew.*.food' => 'nullable|integer|min:0',
         ]);
 
         $customer = Customer::findOrFail($data['customer_id']);
@@ -188,13 +188,13 @@ class EventController extends Controller
             foreach ($prepared as $member) {
                 $profile = $this->profileForCrewMember($member, $workforce);
                 $workforce->assignWorker($event, $profile, [
-                    'assignment_role' => 'Crew',
+                    'assignment_role' => $member['name'] !== '' ? $member['name'] : 'Crew',
                     'event_daily_rate' => $member['rate'],
                     'expected_days' => $member['days'],
                     'work_start_date' => $start,
                     'work_end_date' => $end,
                     'compensation_method' => 'daily',
-                    'food_per_day' => $member['food'] ? EventWorkforceService::FOOD_PER_DAY : 0,
+                    'food_per_day' => $member['food'],
                 ]);
             }
 
@@ -368,7 +368,7 @@ class EventController extends Controller
             $kind = isset($row['kind']) ? (string) $row['kind'] : '';
             $days = max(1, (int) (isset($row['days']) ? $row['days'] : 1));
             $rate = max(0, (int) (isset($row['rate']) ? $row['rate'] : 0));
-            $food = ! empty($row['food']) && (string) $row['food'] !== '0';
+            $food = max(0, (int) (isset($row['food']) ? $row['food'] : 0));
             $phone = '';
             $name = isset($row['name']) ? (string) $row['name'] : '';
             if ($kind === 'phone') {
@@ -385,7 +385,9 @@ class EventController extends Controller
                         'crew' => 'Campay has no registered name for '.$phone.'.',
                     ]);
                 }
-                $name = $hit['name'];
+                $typed = trim($name);
+                $name = $typed !== '' ? $typed : $hit['name'];
+                $memberName = $hit['name'];
                 $ref = $phone;
                 $key = 'phone:'.$phone;
             } elseif ($kind === 'profile' || $kind === 'customer') {
@@ -408,11 +410,13 @@ class EventController extends Controller
                 'kind' => $kind,
                 'ref' => $ref,
                 'name' => $name,
+                'registered_name' => isset($memberName) ? $memberName : $name,
                 'phone' => $phone,
                 'days' => $days,
                 'rate' => $rate,
                 'food' => $food,
             ];
+            unset($memberName);
         }
 
         return $prepared;
@@ -441,7 +445,7 @@ class EventController extends Controller
             $groupId = CustomerGroup::query()->value('id');
             $customer = Customer::create([
                 'customer_group_id' => $groupId ? $groupId : 1,
-                'name' => $member['name'],
+                'name' => ! empty($member['registered_name']) ? $member['registered_name'] : $member['name'],
                 'phone_number' => $phone,
                 'address' => 'N/A',
                 'city' => 'N/A',

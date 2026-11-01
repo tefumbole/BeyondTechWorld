@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class EventWorkforceService
 {
-    const FOOD_PER_DAY = 1000;
-
     const SPECIALIZATIONS = [
         'live_sound' => 'Live Sound Engineering',
         'lighting' => 'Lighting Engineering',
@@ -47,7 +45,7 @@ class EventWorkforceService
             $dailyRate = (int) ($data['event_daily_rate'] ?? $profile->standard_daily_rate ?? ($category ? $category->default_daily_rate : 0));
             $expectedDays = (int) ($data['expected_days'] ?? 1);
             $method = $data['compensation_method'] ?? 'daily';
-            $foodPerDay = ! empty($data['food_per_day']) ? self::FOOD_PER_DAY : 0;
+            $foodPerDay = max(0, (int) (isset($data['food_per_day']) ? $data['food_per_day'] : 0));
 
             $expectedTotal = $this->calculateExpectedTotal($method, $dailyRate, $expectedDays, $data, $foodPerDay);
 

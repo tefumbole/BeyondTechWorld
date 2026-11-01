@@ -111,6 +111,7 @@ class MboleAssistantImprovementTest extends TestCase
 
         $this->assertSame(15000, $pay->calculateExpectedTotal('daily', 5000, 3, []));
         $this->assertSame(18000, $pay->calculateExpectedTotal('daily', 5000, 3, [], 1000));
+        $this->assertSame(14000, $pay->calculateExpectedTotal('daily', 4000, 2, [], 3000));
     }
 
     public function test_checkout_keys_are_validated()
