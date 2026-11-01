@@ -33,13 +33,12 @@ class PayoutController extends Controller
                 $this->fillMomoNames($lines);
             }
         }
-        $history = $this->history($tenantId)->orderByDesc('id')->limit(30)->get();
         $making = $request->get('new') === '1';
         $q = '';
         $people = collect();
         $requests = $this->listedRequests($tenantId);
 
-        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'history', 'making', 'q', 'people', 'requests'));
+        return view('payout.index', compact('pending', 'totals', 'open', 'lines', 'making', 'q', 'people', 'requests'));
     }
 
     public function search(Request $request)
@@ -1315,7 +1314,11 @@ class PayoutController extends Controller
 
     protected function listedRequests($tenantId)
     {
-        $rows = $this->requests($tenantId)->with('lines')->orderByDesc('id')->limit(40)->get();
+        $ids = CampayPayout::where('status', 'pending')->whereNotNull('request_id')->distinct()->pluck('request_id');
+        if ($ids->count() < 1) {
+            return collect();
+        }
+        $rows = $this->requests($tenantId)->with('lines')->whereIn('id', $ids->all())->orderByDesc('id')->limit(40)->get();
 
         $sorted = $rows->sort(function ($a, $b) {
             $ar = $this->requestRank($a);

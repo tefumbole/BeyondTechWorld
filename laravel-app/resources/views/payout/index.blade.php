@@ -21,7 +21,7 @@
     <div class="pay-card" @if($watchPayouts) data-payout-wait="1" @endif>
         <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
         <div class="pay-card-head">
-            <h2>Payouts</h2>
+            <h2>Pending</h2>
             @if($pending->count())
                 <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
             @endif
@@ -85,7 +85,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="pay-muted">No payout requests yet.</td></tr>
+                        <tr><td colspan="6" class="pay-muted">No payment requests are waiting.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -197,51 +197,6 @@
         </div>
     @endif
 
-    <div class="pay-card">
-        <div class="pay-card-head"><h2>Recent payouts</h2></div>
-        <div class="table-responsive">
-            <table class="pay-table">
-                <thead>
-                    <tr><th>When</th><th>Person</th><th>Number</th><th>Name on MoMo</th><th>Amount</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                    @forelse($history as $row)
-                        @php
-                            $tone = $row->status === 'paid' ? 'ok' : ($row->status === 'pending' ? 'wait' : 'no');
-                            $statusLabel = $row->status === 'paid' ? 'Paid' : ($row->status === 'pending' ? 'Waiting' : ($row->status === 'rejected' ? 'Rejected' : 'Not paid'));
-                        @endphp
-                        <tr>
-                            <td>{{ $row->created_at ? $row->created_at->format('M j H:i') : '' }}</td>
-                            <td>{{ $row->person_name }}</td>
-                            <td>{{ $row->phone }}</td>
-                            <td>{{ $row->momo_name }}</td>
-                            <td>{{ number_format($row->amount, 0, '.', ' ') }} XAF</td>
-                            <td>
-                                <span class="pay-pill pay-pill-{{ $tone }}" data-payout-line="{{ $row->id }}">{{ $statusLabel }}</span>
-                                @if($row->error)<div class="pay-note">{{ $row->error }}</div>@endif
-                                @if($row->status === 'failed')
-                                    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
-                                        <form method="POST" action="{{ route('payout.retry') }}">
-                                            @csrf
-                                            <input type="hidden" name="id" value="{{ $row->id }}">
-                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer" onclick="return confirm('Pay this person?')">Pay</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('payout.drop') }}">
-                                            @csrf
-                                            <input type="hidden" name="id" value="{{ $row->id }}">
-                                            <button class="pay-open" type="submit" style="border:0;cursor:pointer;background:#fdecec;color:#9b1c1c" onclick="return confirm('Delete this failed payment? A retry will not send it.')">Delete</button>
-                                        </form>
-                                    </div>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="pay-muted">No payouts yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
 </section>
 <script>
 (function () {
