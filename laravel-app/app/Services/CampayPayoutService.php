@@ -41,6 +41,33 @@ class CampayPayoutService
         return $mtn ? 'MTN' : 'Orange';
     }
 
+    public function appBalance()
+    {
+        $total = $this->totalBalance($this->call('GET', 'balance/', []));
+        if ($total === null) {
+            return null;
+        }
+
+        return number_format($total, 0, '.', ' ').' XAF';
+    }
+
+    protected function totalBalance($body)
+    {
+        if (! is_array($body)) {
+            return null;
+        }
+        if (isset($body['total_balance']) && is_numeric($body['total_balance'])) {
+            return (float) $body['total_balance'];
+        }
+        foreach ($body as $value) {
+            if (is_array($value) && isset($value['total_balance']) && is_numeric($value['total_balance'])) {
+                return (float) $value['total_balance'];
+            }
+        }
+
+        return null;
+    }
+
     public function balance()
     {
         $body = $this->call('GET', 'balance/', []);
@@ -106,6 +133,30 @@ class CampayPayoutService
             'last_name' => $last,
             'payment_options' => 'CARD',
         ]);
+    }
+
+    public function confirmedCollections($startDate, $endDate)
+    {
+        $body = $this->call('POST', 'history/', [
+            'start_date' => (string) $startDate,
+            'end_date' => (string) $endDate,
+        ]);
+        $items = is_array($body) && isset($body['data']) && is_array($body['data']) ? $body['data'] : [];
+        $rows = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $status = strtoupper(trim((string) (isset($item['status']) ? $item['status'] : '')));
+            $credit = isset($item['credit']) ? (float) $item['credit'] : 0;
+            $debit = isset($item['debit']) ? (float) $item['debit'] : 0;
+            if ($status !== 'SUCCESSFUL' || $credit <= 0 || $debit > 0) {
+                continue;
+            }
+            $rows[] = $item;
+        }
+
+        return $rows;
     }
 
     public function transaction($reference)
@@ -244,35 +295,110 @@ class CampayPayoutService
             return;
         }
         $row->phone = $phone;
+        $row->operator = $this->operatorName($phone);
+        $wallet = $this->spendableBalance($row->operator);
+        if ($wallet !== null && $wallet + 0.001 < (int) $row->amount) {
+            $row->status = 'failed';
+            $row->error = 'Neither the Campay balance nor the '.$row->operator.' wallet has '.number_format((int) $row->amount, 0, '.', ' ').' XAF. Available: '.number_format($wallet, 0, '.', ' ').' XAF.';
+            $row->save();
+
+            return;
+        }
         $description = trim((string) ($row->note ?: 'Payout'));
         if ($description === '') {
             $description = 'Payout';
         }
         $body = $this->call('POST', 'withdraw/', [
             'amount' => (string) (int) $row->amount,
+            'currency' => 'XAF',
             'to' => $phone,
             'description' => substr($description, 0, 120),
             'external_reference' => (string) $row->external_reference,
         ]);
-        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-        $reference = $this->massReference(is_array($body) ? $body : []);
+        $this->applyWithdrawBody($row, is_array($body) ? $body : [], $phone);
+        if ($row->status === 'pending' && $row->campay_reference) {
+            $this->awaitWithdraw($row, 12);
+        }
+    }
+
+    public function spendableBalance($operator = null)
+    {
+        $body = $this->call('GET', 'balance/', []);
+        if (! is_array($body)) {
+            return null;
+        }
+        $amounts = [];
+        if (isset($body['total_balance']) && is_numeric($body['total_balance'])) {
+            $amounts[] = (float) $body['total_balance'];
+        }
+        $operator = strtoupper((string) $operator);
+        $keys = $operator === 'MTN' ? ['mtn_balance'] : ($operator === 'ORANGE' ? ['orange_balance'] : ['mtn_balance', 'orange_balance']);
+        foreach ($keys as $key) {
+            if (isset($body[$key]) && is_numeric($body[$key])) {
+                $amounts[] = (float) $body[$key];
+            }
+        }
+        if (! $amounts) {
+            return null;
+        }
+
+        return max($amounts);
+    }
+
+    public function awaitWithdraw(CampayPayout $row, $seconds = 12)
+    {
+        $deadline = time() + max(1, (int) $seconds);
+        do {
+            $body = $this->transaction($row->campay_reference);
+            $http = is_array($body) ? (int) (isset($body['_http']) ? $body['_http'] : 0) : 0;
+            if (is_array($body) && $http === 200) {
+                $this->applyWithdrawBody($row, $body, $row->phone);
+            }
+            if ($row->status !== 'pending' || time() >= $deadline) {
+                return;
+            }
+            sleep(3);
+        } while (time() < $deadline);
+    }
+
+    public function payoutDelivered(array $body, $amount)
+    {
+        $reference = trim((string) (isset($body['operator_reference']) ? $body['operator_reference'] : ''));
+        if ($reference === '') {
+            return false;
+        }
+        if (isset($body['amount']) && is_numeric($body['amount']) && (int) round((float) $body['amount']) !== (int) $amount) {
+            return false;
+        }
+        $currency = strtoupper(trim((string) (isset($body['currency']) ? $body['currency'] : 'XAF')));
+
+        return $currency === '' || $currency === 'XAF';
+    }
+
+    protected function applyWithdrawBody(CampayPayout $row, array $body, $phone)
+    {
+        $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
+        $reference = $this->massReference($body);
         if ($reference) {
             $row->campay_reference = $reference;
         }
-        if (is_array($body) && ! empty($body['operator'])) {
+        if (! empty($body['operator'])) {
             $row->operator = (string) $body['operator'];
         } elseif (! $row->operator) {
             $row->operator = $this->operatorName($phone);
         }
-        if ($status === 'SUCCESSFUL') {
+        if ($status === 'SUCCESSFUL' && $this->payoutDelivered($body, (int) $row->amount)) {
             $row->status = 'paid';
             $row->error = null;
-        } elseif ($status === 'PENDING') {
+        } elseif ($status === 'SUCCESSFUL' || $status === 'PENDING' || $status === '') {
             $row->status = 'pending';
-            $row->error = null;
+            $row->error = $status === 'SUCCESSFUL' ? 'Campay has not confirmed this number received the money.' : null;
+        } elseif (in_array($status, ['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'], true)) {
+            $row->status = 'failed';
+            $row->error = $this->errorText($body, $status);
         } else {
             $row->status = 'failed';
-            $row->error = is_array($body) ? $this->errorText($body, $status) : 'Campay did not accept this payment.';
+            $row->error = $this->errorText($body, $status);
         }
         $row->save();
     }
@@ -345,12 +471,12 @@ class CampayPayoutService
             }
             $row->campay_reference = $this->massReference($source) ?: $this->massReference(is_array($body) ? $body : []);
             $row->operator = isset($source['operator']) ? (string) $source['operator'] : $row->operator;
-            if ($status === 'SUCCESSFUL') {
+            if ($status === 'SUCCESSFUL' && $this->payoutDelivered($source !== [] ? $source : (is_array($body) ? $body : []), (int) $row->amount)) {
                 $row->status = 'paid';
                 $row->error = null;
-            } elseif ($status === 'PENDING') {
+            } elseif ($status === 'SUCCESSFUL' || $status === 'PENDING') {
                 $row->status = 'pending';
-                $row->error = 'Campay status: PENDING';
+                $row->error = 'Campay has not confirmed this number received the money.';
             } else {
                 $row->status = 'failed';
                 $row->error = is_array($body) ? $this->errorText($source !== [] ? $source : $body, $status) : 'Campay Mass Payout did not accept this payment.';

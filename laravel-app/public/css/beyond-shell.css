@@ -270,6 +270,56 @@
                 display: block;
             }
 
+            .beyond-module-tabs-row {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .beyond-module-tabs-main { flex: 1; min-width: 0; }
+
+            .momo-wallet-corner {
+                flex: 0 0 auto;
+                margin: 14px 16px 10px auto;
+                padding: 8px 14px;
+                border: 1px solid #C5A059;
+                border-radius: 12px;
+                background: #1a1208;
+                color: #fff6df;
+                text-align: right;
+            }
+
+            .momo-wallet-corner strong {
+                display: block;
+                font-size: 18px;
+                font-weight: 700;
+                line-height: 1.2;
+                white-space: nowrap;
+            }
+
+            .beyond-module-tabs.is-payments {
+                background: #0e1a33;
+                border-bottom: 0;
+                border-radius: 0 0 18px 18px;
+            }
+
+            .beyond-module-tabs.is-payments .beyond-module-tabs-label { color: rgba(255, 246, 223, .72); }
+
+            .beyond-module-tabs.is-payments .beyond-module-tab {
+                border-color: #C5A059;
+                border-radius: 999px;
+                background: transparent;
+                color: #fff6df;
+            }
+
+            .beyond-module-tabs.is-payments .beyond-module-tab.is-active,
+            .beyond-module-tabs.is-payments .beyond-module-tab:hover {
+                background: #C5A059;
+                color: #1a1208;
+            }
+
             .beyond-module-tabs-label {
                 font-size: 11px;
                 font-weight: 700;

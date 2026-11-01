@@ -479,6 +479,14 @@ class PayoutController extends Controller
                 $waiting++;
                 continue;
             }
+            if ($existing === 'failed') {
+                $failed++;
+                continue;
+            }
+            if ($existing === false && $line->campay_reference) {
+                $waiting++;
+                continue;
+            }
             $line->phone = $phone;
             $line->external_reference = 'po-'.date('YmdHis').'-'.$line->id.'-'.substr(md5(uniqid('', true)), 0, 8);
             $line->status = 'pending';
@@ -580,6 +588,16 @@ class PayoutController extends Controller
             $rows = collect([$row]);
             $batch = $row->request_id ? CampayPayoutRequest::find($row->request_id) : null;
         }
+        $service = app(CampayPayoutService::class);
+        foreach ($rows as $row) {
+            $state = $this->confirmExisting($service, $row);
+            if ($state === 'paid' || $state === 'pending') {
+                continue;
+            }
+            $row->campay_reference = null;
+            $row->status = 'failed';
+            $row->save();
+        }
         $result = $this->payLines($rows);
         if ($batch) {
             $this->closeBatch($batch);
@@ -627,21 +645,42 @@ class PayoutController extends Controller
             return false;
         }
         $body = $service->transaction($row->campay_reference);
-        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-        if ($status === 'SUCCESSFUL') {
+        $http = is_array($body) ? (int) (isset($body['_http']) ? $body['_http'] : 0) : 0;
+        if (! is_array($body) || $http !== 200) {
+            return false;
+        }
+        $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
+        if ($status === 'SUCCESSFUL' && $service->payoutDelivered($body, (int) $row->amount)) {
+            $alreadyPaid = $row->status === 'paid';
             $row->status = 'paid';
             $row->error = null;
             $row->save();
-            $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row));
+            if (! $alreadyPaid) {
+                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row));
+            }
 
             return 'paid';
         }
-        if ($status === 'PENDING') {
+        if ($status === 'SUCCESSFUL' || $status === 'PENDING') {
             $row->status = 'pending';
-            $row->error = 'Campay status: PENDING';
+            $row->error = 'Campay has not confirmed this number received the money.';
             $row->save();
 
             return 'pending';
+        }
+        if (in_array($status, ['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'], true)) {
+            $row->status = 'failed';
+            $row->error = $service->payerFailure(isset($body['reason']) ? $body['reason'] : $status, $row->amount);
+            $row->save();
+            if ($row->request_id) {
+                $batch = CampayPayoutRequest::find($row->request_id);
+                if ($batch && $batch->status === 'done') {
+                    $batch->status = 'pending';
+                    $batch->save();
+                }
+            }
+
+            return 'failed';
         }
 
         return false;
@@ -1259,9 +1298,14 @@ class PayoutController extends Controller
     {
         $rows = CampayPayout::whereNotNull('campay_reference')
             ->where('campay_reference', '!=', '')
-            ->whereIn('status', ['pending', 'failed'])
-            ->orderBy('id')
-            ->limit(20)
+            ->where(function ($query) {
+                $query->whereIn('status', ['pending', 'failed'])
+                    ->orWhere(function ($paid) {
+                        $paid->where('status', 'paid')->where('created_at', '>=', now()->subDays(14));
+                    });
+            })
+            ->orderByDesc('id')
+            ->limit(30)
             ->get();
         if ($rows->count() < 1) {
             return;

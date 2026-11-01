@@ -3,8 +3,8 @@
 @include('payout.partials.style')
 <style>
     .pay-methods { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-    .pay-method { min-height: 40px; padding: 0 16px; border: 1px solid #d5deee; border-radius: 999px; background: #fff; color: #1f2a44; font-weight: 700; }
-    .pay-method.is-on { background: #0b3f90; border-color: #0b3f90; color: #fff; }
+    .pay-method { min-height: 40px; padding: 0 16px; border: 1px solid #C5A059; border-radius: 999px; background: #fffaf3; color: #3f2a12; font-weight: 700; }
+    .pay-method.is-on { background: #C5A059; border-color: #8a6230; color: #1a1208; }
     .pay-chosen { margin-top: 8px; font-weight: 700; }
 </style>
 <section class="container-fluid pay-app">
@@ -17,20 +17,6 @@
     @if($errors->any())
         <div class="alert alert-danger">{{ $errors->first() }}</div>
     @endif
-
-    <div class="pay-balance">
-        <div>
-            <div class="pay-kicker">Mobile Money balance</div>
-            <div class="pay-total">{{ isset($campayBalance) && $campayBalance !== null ? $campayBalance.' XAF' : '— XAF' }}</div>
-            <div class="pay-sub">
-                @if(!isset($campayBalance) || $campayBalance === null)
-                    Campay did not answer. Try again in a moment.
-                @else
-                    Live balance from Campay.
-                @endif
-            </div>
-        </div>
-    </div>
 
     <div class="pay-toolbar">
         <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('deposit.index', ['new' => 1]) }}">+ Add Deposit</a>
@@ -88,7 +74,7 @@
     @endif
 
     <div class="pay-card">
-        <div class="pay-card-head"><h2>Deposits</h2></div>
+        <div class="pay-card-head"><h2>Payments</h2></div>
         <form method="POST" action="{{ route('deposit.delete_selection') }}" id="depositsListForm">
             @csrf
             <div class="table-responsive">
@@ -96,10 +82,11 @@
                     <thead>
                         <tr>
                             <th style="width:36px"><input type="checkbox" id="depositsAll" title="Select all"></th>
-                            <th>When</th>
+                            <th>Time</th>
                             <th>Client</th>
-                            <th>Account</th>
-                            <th>Amount</th>
+                            <th>Amount paid</th>
+                            <th>Amount received</th>
+                            <th>Charges</th>
                             <th>Method</th>
                             <th>Status</th>
                             <th>Note</th>
@@ -116,13 +103,18 @@
                                 elseif ((int) $deposit->payment_method === 5) $methodLabel = 'Bitcoin';
                                 $tone = (int) $deposit->status === 1 ? 'ok' : ((int) $deposit->status === 0 ? 'wait' : 'no');
                                 $statusLabel = (int) $deposit->status === 1 ? 'Paid' : ((int) $deposit->status === 0 ? 'Waiting' : 'Not paid');
+                                $received = (float) $deposit->amount;
+                                $paid = isset($paidAmounts[$deposit->id]) ? (float) $paidAmounts[$deposit->id] : $received;
+                                if ($paid < $received) $paid = $received;
+                                $charges = max(0, $paid - $received);
                             @endphp
-                            <tr>
+                            <tr data-deposit="{{ $deposit->id }}">
                                 <td><input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit->id }}"></td>
                                 <td>{{ $deposit->created_at ? $deposit->created_at->format('M j H:i') : '' }}</td>
                                 <td>{{ optional($deposit->customer)->name ?: '—' }}</td>
-                                <td>{{ $deposit->account ? $deposit->account->name : '—' }}</td>
-                                <td>{{ number_format((float) $deposit->amount, 0, '.', ' ') }} XAF</td>
+                                <td>{{ number_format($paid, 0, '.', ' ') }} XAF</td>
+                                <td>{{ number_format($received, 0, '.', ' ') }} XAF</td>
+                                <td>{{ number_format($charges, 0, '.', ' ') }} XAF</td>
                                 <td>{{ $methodLabel }}</td>
                                 <td>
                                     <span class="pay-pill pay-pill-{{ $tone }}">{{ $statusLabel }}</span>
@@ -133,7 +125,7 @@
                                 <td>{{ $deposit->note }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="8" class="pay-muted">No deposits yet.</td></tr>
+                            <tr><td colspan="9" class="pay-muted">No payments yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

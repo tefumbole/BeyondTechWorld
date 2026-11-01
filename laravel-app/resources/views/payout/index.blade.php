@@ -67,7 +67,7 @@
         <div>
             <div class="pay-kicker">Campay balance</div>
             <div class="pay-total">{{ $totalBalance !== null ? $totalBalance.' XAF' : ($balance ?: 'Balance could not be read') }}</div>
-            <div class="pay-sub">MTN and Orange are separate balances.</div>
+            <div class="pay-sub">Client deposits are added here. Payouts are sent from this balance.</div>
         </div>
         <div class="pay-chips">
             @foreach($balanceParts as $label => $value)

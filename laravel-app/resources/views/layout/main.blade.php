@@ -794,13 +794,13 @@
                             <li>
                                 <a href="#payments" data-nav-key="payments" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-dollar"></i><span>Payments</span></a>
                                 <ul id="payments" class="collapse list-unstyled ">
-                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Payment</a></li>
+                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Payments</a></li>
+                                    <li id="payment-index-menu"><a href="{{route('payment.index')}}">Awaiting Payment</a></li>
                                     @if(Auth::check() && in_array((int) Auth::user()->role_id, [1, 2], true))
-                                        <li id="payout-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
+                                        <li id="payout-index-menu"><a href="{{ route('payout.index') }}">Payout</a></li>
                                         <li id="payout-request-menu"><a href="{{ route('payout.request') }}">Request for Payment</a></li>
                                         <li id="donations-menu"><a href="{{ route('donations.index') }}">Mobile Payments</a></li>
                                     @endif
-                                    <li id="desposit-index-menu"><a href="{{route('deposit.index')}}">Deposits</a></li>
                                 </ul>
                             </li>
                         @endif
@@ -2482,8 +2482,52 @@
           <div id="content" class="animate-bottom">
               <div class="container-fluid">
                   <div id="beyond-module-tabs" class="beyond-module-tabs">
-                      <div id="beyond-module-tabs-label" class="beyond-module-tabs-label"></div>
-                      <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
+                      <div class="beyond-module-tabs-row">
+                          <div class="beyond-module-tabs-main">
+                              <div id="beyond-module-tabs-label" class="beyond-module-tabs-label"></div>
+                              <div id="beyond-module-tabs-nav" class="beyond-module-tabs-nav"></div>
+                          </div>
+                          @php
+                              $momoWalletText = null;
+                              $momoWalletRoutes = ['payment.index', 'payout.index', 'payout.request', 'deposit.index', 'donations.index'];
+                              if (in_array(optional(request()->route())->getName(), $momoWalletRoutes, true)) {
+                                  try {
+                                      app(\App\Http\Controllers\PaymentController::class)->settleConfirmedMoney();
+                                      $momoWalletText = app(\App\Services\CampayPayoutService::class)->appBalance();
+                                  } catch (\Throwable $e) {
+                                      $momoWalletText = null;
+                                  }
+                              }
+                          @endphp
+                          @if($momoWalletText !== null)
+                              <div class="momo-wallet-corner">
+                                  <strong id="momo-wallet-total">{{ $momoWalletText }}</strong>
+                              </div>
+                              <script>
+                                  (function () {
+                                      var strong = document.getElementById('momo-wallet-total');
+                                      if (!strong) return;
+                                      var url = @json(route('deposit.live'));
+                                      function tick() {
+                                          fetch(url, {headers: {Accept: 'application/json'}, credentials: 'same-origin'})
+                                              .then(function (response) { return response.json(); })
+                                              .then(function (data) {
+                                                  if (data.total) strong.textContent = data.total;
+                                                  (data.rows || []).forEach(function (row) {
+                                                      var line = document.querySelector('[data-deposit="' + row.id + '"] .pay-pill');
+                                                      if (!line) return;
+                                                      line.className = 'pay-pill pay-pill-' + row.tone;
+                                                      line.textContent = row.status;
+                                                  });
+                                                  setTimeout(tick, data.pending ? 4000 : 8000);
+                                              })
+                                              .catch(function () { setTimeout(tick, 10000); });
+                                      }
+                                      setTimeout(tick, 4000);
+                                  })();
+                              </script>
+                          @endif
+                      </div>
                       <div id="beyond-module-tabs-sub" class="beyond-module-tabs-sub"></div>
                   </div>
               </div>
@@ -2755,6 +2799,11 @@
                   'events-payments-menu': 'dripicons-wallet',
                   'events-reminders-menu': 'dripicons-bell',
                   'events-settings-menu': 'dripicons-gear',
+                  'desposit-index-menu': 'fa fa-university',
+                  'payment-index-menu': 'fa fa-clock-o',
+                  'payout-index-menu': 'fa fa-paper-plane',
+                  'payout-request-menu': 'fa fa-mobile',
+                  'donations-menu': 'fa fa-money',
                   'role-menu': 'dripicons-lock',
                   'warehouse-menu': 'dripicons-home',
                   'biller-list-menu': 'dripicons-user-id',
@@ -2910,6 +2959,11 @@
                       }
                   }
 
+                  if ($submenu.attr('id') === 'payments') {
+                      $tabsWrap.addClass('is-payments');
+                  } else {
+                      $tabsWrap.removeClass('is-payments');
+                  }
                   if ($nav.children().length) {
                       $tabsWrap.addClass('is-visible');
                   } else {

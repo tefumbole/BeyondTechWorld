@@ -1694,6 +1694,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
     Route::get('payment/index', 'PaymentController@index')->name('payment.index');
     Route::get('payment/desposits', 'PaymentController@Desposit')->name('deposit.index');
+    Route::get('payment/desposits/live', 'PaymentController@depositLive')->name('deposit.live');
     Route::post('payment/desposits/delete-selection', 'PaymentController@depositDeleteSelection')->name('deposit.delete_selection');
     Route::get('payment/desposits/search', 'PaymentController@searchCustomers')->name('deposit.search');
     Route::get('payment/desposits/client', 'PaymentController@clientCheck')->name('deposit.client');

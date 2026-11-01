@@ -13,6 +13,8 @@ use App\Services\StripeCheckoutService;
 use App\Services\MobileMoneyHolderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
@@ -32,13 +34,155 @@ class PaymentController extends Controller
     }
 
     public function Desposit() {
-        $this->settleWaitingDeposits();
-        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
+        $this->settleConfirmedMoney();
+        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('created_at')->orderByDesc('id')->get();
+        $paidAmounts = $this->paymentPaidAmounts($deposits);
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';
-        $campayBalance = app(CampayPayoutService::class)->balance();
+        $campayBalance = null;
+        try {
+            $campayBalance = app(CampayPayoutService::class)->balance();
+        } catch (\Throwable $e) {
+            $campayBalance = null;
+        }
 
-        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'campayBalance'));
+        return view('payment.deposits', compact('deposits', 'accounts', 'making', 'campayBalance', 'paidAmounts'));
+    }
+
+    public function depositLive()
+    {
+        $this->settleConfirmedMoney();
+        $total = '';
+        try {
+            $total = (string) app(CampayPayoutService::class)->appBalance();
+        } catch (\Throwable $e) {
+            $total = '';
+        }
+        $rows = [];
+        $pending = false;
+        foreach (Deposit::orderByDesc('id')->limit(80)->get(['id', 'status']) as $row) {
+            $state = (int) $row->status === 1 ? 'Paid' : ((int) $row->status === 2 ? 'Not paid' : 'Waiting');
+            if ($state === 'Waiting') {
+                $pending = true;
+            }
+            $rows[] = [
+                'id' => (int) $row->id,
+                'status' => $state,
+                'tone' => $state === 'Paid' ? 'ok' : ($state === 'Not paid' ? 'no' : 'wait'),
+            ];
+        }
+
+        return response()->json([
+            'total' => $total,
+            'balance' => $total,
+            'pending' => $pending,
+            'rows' => $rows,
+        ]);
+    }
+
+    public function settleConfirmedMoney()
+    {
+        $this->settleWaitingDeposits();
+        $this->importConfirmedCollections();
+    }
+
+    public function importConfirmedCollections()
+    {
+        if (! Schema::hasTable('deposits') || ! Schema::hasColumn('deposits', 'campay_reference')) {
+            return;
+        }
+        try {
+            $items = app(CampayPayoutService::class)->confirmedCollections(date('Y-m-d', strtotime('-2 days')), date('Y-m-d'));
+        } catch (\Throwable $e) {
+            return;
+        }
+        $accountId = Account::where('is_active', true)->value('id');
+        if (! $accountId) {
+            return;
+        }
+        foreach ($items as $item) {
+            $reference = trim((string) (isset($item['reference_uuid']) ? $item['reference_uuid'] : ''));
+            if ($reference === '' || Deposit::where('campay_reference', $reference)->exists()) {
+                continue;
+            }
+            $credit = (int) round((float) $item['credit']);
+            if ($credit < 1) {
+                continue;
+            }
+            $phone = isset($item['phone_number']) ? (string) $item['phone_number'] : '';
+            $customer = null;
+            try {
+                $customer = $this->customerFromPhone($phone);
+            } catch (\Throwable $e) {
+                $customer = null;
+            }
+            $when = date('Y-m-d H:i:s');
+            if (! empty($item['datetime'])) {
+                $stamp = strtotime((string) $item['datetime']);
+                if ($stamp) {
+                    $when = date('Y-m-d H:i:s', $stamp);
+                }
+            }
+            $note = trim((string) (isset($item['description']) ? $item['description'] : ''));
+            if ($note === '') {
+                $note = 'Campay confirmed';
+            }
+            $deposit = Deposit::create([
+                'amount' => $credit,
+                'customer_id' => $customer ? $customer->id : null,
+                'user_id' => Auth::id() ?: 1,
+                'account_id' => $accountId,
+                'mtn_number' => $customer ? $customer->phone_number : $phone,
+                'payment_method' => 3,
+                'status' => 0,
+                'note' => substr($note, 0, 180),
+                'campay_reference' => $reference,
+                'created_at' => $when,
+                'updated_at' => $when,
+            ]);
+            app(AccountDepositService::class)->creditPending($deposit);
+        }
+    }
+
+    protected function paymentPaidAmounts($deposits)
+    {
+        $byRef = [];
+        try {
+            $items = Cache::remember('btw.campay.collects', 30, function () {
+                return app(CampayPayoutService::class)->confirmedCollections(
+                    date('Y-m-d', strtotime('-14 days')),
+                    date('Y-m-d')
+                );
+            });
+            foreach ($items as $item) {
+                $ref = trim((string) (isset($item['reference_uuid']) ? $item['reference_uuid'] : ''));
+                if ($ref === '') {
+                    continue;
+                }
+                $credit = (float) (isset($item['credit']) ? $item['credit'] : 0);
+                $charge = (float) (isset($item['charge']) ? $item['charge'] : 0);
+                $amount = (float) (isset($item['amount']) ? $item['amount'] : 0);
+                $gross = $credit + max(0, $charge);
+                if ($amount > $gross) {
+                    $gross = $amount;
+                }
+                $byRef[$ref] = $gross;
+            }
+        } catch (\Throwable $e) {
+            $byRef = [];
+        }
+        $paid = [];
+        foreach ($deposits as $deposit) {
+            $received = (float) $deposit->amount;
+            $ref = trim((string) $deposit->campay_reference);
+            $gross = ($ref !== '' && isset($byRef[$ref])) ? (float) $byRef[$ref] : $received;
+            if ($gross < $received) {
+                $gross = $received;
+            }
+            $paid[(int) $deposit->id] = $gross;
+        }
+
+        return $paid;
     }
 
     public function depositDeleteSelection(Request $request)
@@ -296,12 +440,12 @@ class PaymentController extends Controller
 
             return;
         }
-        $body = app(CampayPayoutService::class)->transaction($deposit->campay_reference);
-        if (! is_array($body)) {
-            return;
-        }
-        $status = strtoupper((string) (isset($body['status']) ? $body['status'] : ''));
-        if ($status === 'SUCCESSFUL') {
+        $outcome = app(CampayPayoutService::class)->collectionOutcome(
+            $deposit->campay_reference,
+            $deposit->amount,
+            $deposit->mtn_number
+        );
+        if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
             $paid = app(AccountDepositService::class)->creditPending($deposit);
             if ($paid) {
                 \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
@@ -311,11 +455,11 @@ class PaymentController extends Controller
                 $paid->save();
                 $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
             }
-        } elseif ($status === 'FAILED') {
-            $reason = isset($body['reason']) ? substr((string) $body['reason'], 0, 180) : 'FAILED';
+        } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
+            $reason = isset($outcome['reason']) ? substr((string) $outcome['reason'], 0, 180) : 'FAILED';
             $updated = Deposit::where('id', $deposit->id)->where('status', 0)->update([
                 'status' => 2,
-                'failure_reason' => $reason,
+                'failure_reason' => $reason !== '' ? $reason : 'FAILED',
             ]);
             if ($updated) {
                 $this->tellClient($deposit->mtn_number, $this->failureText($reason, $deposit->amount));
