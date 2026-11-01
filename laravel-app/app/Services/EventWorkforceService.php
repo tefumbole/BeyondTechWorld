@@ -239,4 +239,13 @@ class EventWorkforceService
             'is_active' => true,
         ]);
     }
+
+    public function rememberRole(EventWorkerProfile $profile, EventWorkerCategory $category)
+    {
+        $profile->worker_category_id = $category->id;
+        $profile->standard_daily_rate = (int) $category->default_daily_rate;
+        $profile->save();
+
+        return $profile;
+    }
 }

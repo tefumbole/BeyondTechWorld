@@ -9,6 +9,7 @@ use App\Event;
 use App\EventWorkerCategory;
 use App\EventWorkerProfile;
 use App\Services\CampayPayoutService;
+use App\Services\EventCalendarBuilder;
 use App\Services\EventPublicationService;
 use App\Services\EventService;
 use App\Services\EventWorkforceService;
@@ -79,17 +80,12 @@ class EventController extends Controller
 
         $customers = Customer::where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
-        $workerProfiles = EventWorkerProfile::active()->with('customer')->orderBy('created_at', 'desc')->get();
+        $roles = EventWorkerCategory::active()->orderBy('name')->get();
+        $workerProfiles = EventWorkerProfile::active()->with('customer', 'category')->orderBy('created_at', 'desc')->get();
         $linkedCustomers = $workerProfiles->pluck('customer_id')->filter()->all();
         $people = [];
         foreach ($workerProfiles as $profile) {
-            $people[] = [
-                'kind' => 'profile',
-                'ref' => (string) $profile->id,
-                'name' => $profile->displayName(),
-                'phone' => $profile->telephone ?: optional($profile->customer)->phone_number,
-                'rate' => (int) $profile->standard_daily_rate,
-            ];
+            $people[] = $this->personFromProfile($profile);
         }
         foreach ($customers as $customer) {
             if (in_array($customer->id, $linkedCustomers)) {
@@ -101,6 +97,29 @@ class EventController extends Controller
                 'name' => $customer->name,
                 'phone' => $customer->phone_number,
                 'rate' => 0,
+                'category_id' => null,
+                'role' => '',
+            ];
+        }
+        $customerOptions = [];
+        $selectedCustomer = '';
+        $selectedId = (string) old('customer_id');
+        foreach ($customers as $customer) {
+            $customerOptions[] = [
+                'id' => (string) $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone_number,
+            ];
+            if ($selectedId !== '' && $selectedId === (string) $customer->id) {
+                $selectedCustomer = $customer->name.($customer->phone_number ? ' — '.$customer->phone_number : '');
+            }
+        }
+        $roleOptions = [];
+        foreach ($roles as $role) {
+            $roleOptions[] = [
+                'id' => (int) $role->id,
+                'name' => $role->name,
+                'rate' => (int) $role->default_daily_rate,
             ];
         }
         $event = new Event([
@@ -111,7 +130,7 @@ class EventController extends Controller
             'event_type' => 'other',
         ]);
 
-        return view('events.create', compact('event', 'customers', 'people'));
+        return view('events.create', compact('event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions', 'selectedCustomer'));
     }
 
     public function resolveLabourName(Request $request, CampayPayoutService $campay, MobileMoneyHolderService $holders)
@@ -135,6 +154,37 @@ class EventController extends Controller
         ]);
     }
 
+    public function rememberLabourRole(Request $request, EventWorkforceService $workforce)
+    {
+        $this->can('events.create');
+
+        $data = $request->validate([
+            'kind' => 'required|in:profile,customer',
+            'ref' => 'required|string|max:80',
+            'category_id' => 'required|integer',
+        ]);
+        $category = EventWorkerCategory::active()->find($data['category_id']);
+        if (! $category) {
+            return response()->json(['ok' => false, 'message' => 'Choose a role from Event Settings.'], 422);
+        }
+        if ($data['kind'] === 'profile') {
+            $profile = EventWorkerProfile::find($data['ref']);
+            if (! $profile) {
+                return response()->json(['ok' => false, 'message' => 'That person is no longer available.'], 422);
+            }
+        } else {
+            $profile = $workforce->profileFromCustomer($data['ref'], $category->id);
+        }
+        $workforce->rememberRole($profile, $category);
+
+        return response()->json([
+            'ok' => true,
+            'category_id' => (int) $category->id,
+            'role' => $category->name,
+            'rate' => (int) $category->default_daily_rate,
+        ]);
+    }
+
     public function store(Request $request, EventService $eventService, EventWorkforceService $workforce)
     {
         $this->can('events.create');
@@ -154,6 +204,7 @@ class EventController extends Controller
             'crew.*.days' => 'required|integer|min:1|max:365',
             'crew.*.rate' => 'required|integer|min:0',
             'crew.*.food' => 'nullable|integer|min:0',
+            'crew.*.category_id' => 'nullable|integer',
         ]);
 
         $customer = Customer::findOrFail($data['customer_id']);
@@ -163,7 +214,8 @@ class EventController extends Controller
         $days = max(1, (int) ((strtotime($end) - strtotime($start)) / 86400) + 1);
         $publish = $request->boolean('publish_on_website');
 
-        $event = DB::transaction(function () use ($request, $eventService, $workforce, $data, $customer, $prepared, $start, $end, $days, $publish) {
+        $rolesRequired = EventWorkerCategory::active()->exists();
+        $event = DB::transaction(function () use ($request, $eventService, $workforce, $data, $customer, $prepared, $start, $end, $days, $publish, $rolesRequired) {
             $payload = [
                 'name' => $data['name'],
                 'event_type' => 'other',
@@ -186,10 +238,25 @@ class EventController extends Controller
             }
             $event = $eventService->create($payload, $publish);
             foreach ($prepared as $member) {
+                $category = ! empty($member['category_id'])
+                    ? EventWorkerCategory::active()->find($member['category_id'])
+                    : null;
+                if ($rolesRequired && ! $category) {
+                    throw ValidationException::withMessages([
+                        'crew' => 'Choose a role from Event Settings for each person.',
+                    ]);
+                }
                 $profile = $this->profileForCrewMember($member, $workforce);
+                $rate = $member['rate'];
+                $roleName = $member['name'] !== '' ? $member['name'] : 'Crew';
+                if ($category) {
+                    $workforce->rememberRole($profile, $category);
+                    $roleName = $category->name;
+                    $rate = (int) $category->default_daily_rate;
+                }
                 $workforce->assignWorker($event, $profile, [
-                    'assignment_role' => $member['name'] !== '' ? $member['name'] : 'Crew',
-                    'event_daily_rate' => $member['rate'],
+                    'assignment_role' => $roleName,
+                    'event_daily_rate' => $rate,
                     'expected_days' => $member['days'],
                     'work_start_date' => $start,
                     'work_end_date' => $end,
@@ -281,15 +348,29 @@ class EventController extends Controller
         return redirect()->route('events.index')->with('message', 'Event deleted.');
     }
 
-    public function calendar()
+    public function calendar(Request $request, EventCalendarBuilder $builder)
     {
         $this->can('events.view');
 
+        $monthStart = $builder->monthStart($request->get('month'));
+        $gridStart = $monthStart->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
+        $gridEnd = $monthStart->copy()->endOfMonth()->endOfWeek(\Carbon\Carbon::MONDAY)->endOfDay();
         $events = Event::whereNotNull('event_start_at')
+            ->where('event_start_at', '<=', $gridEnd)
+            ->where(function ($query) use ($gridStart) {
+                $query->where('event_end_at', '>=', $gridStart)
+                    ->orWhereNull('event_end_at');
+            })
             ->orderBy('event_start_at')
             ->get(['id', 'name', 'event_start_at', 'event_end_at', 'internal_status', 'venue']);
+        $weeks = $builder->weeks($events, $monthStart);
+        $monthLabel = $monthStart->format('F Y');
+        $monthKey = $monthStart->format('Y-m');
+        $prevMonth = $monthStart->copy()->subMonth()->format('Y-m');
+        $nextMonth = $monthStart->copy()->addMonth()->format('Y-m');
+        $today = \Carbon\Carbon::now('Africa/Douala')->toDateString();
 
-        return view('events.calendar', compact('events'));
+        return view('events.calendar', compact('weeks', 'monthLabel', 'monthKey', 'prevMonth', 'nextMonth', 'today'));
     }
 
     private function validatedEvent(Request $request, Event $existing = null)
@@ -369,6 +450,7 @@ class EventController extends Controller
             $days = max(1, (int) (isset($row['days']) ? $row['days'] : 1));
             $rate = max(0, (int) (isset($row['rate']) ? $row['rate'] : 0));
             $food = max(0, (int) (isset($row['food']) ? $row['food'] : 0));
+            $categoryId = isset($row['category_id']) ? (int) $row['category_id'] : 0;
             $phone = '';
             $name = isset($row['name']) ? (string) $row['name'] : '';
             if ($kind === 'phone') {
@@ -415,6 +497,7 @@ class EventController extends Controller
                 'days' => $days,
                 'rate' => $rate,
                 'food' => $food,
+                'category_id' => $categoryId,
             ];
             unset($memberName);
         }
@@ -433,7 +516,7 @@ class EventController extends Controller
             return $profile;
         }
         if ($member['kind'] === 'customer') {
-            return $workforce->profileFromCustomer($member['ref']);
+            return $workforce->profileFromCustomer($member['ref'], ! empty($member['category_id']) ? $member['category_id'] : null);
         }
 
         $phone = $member['ref'];
@@ -452,12 +535,27 @@ class EventController extends Controller
                 'is_active' => true,
             ]);
         }
-        $profile = $workforce->profileFromCustomer($customer->id);
+        $profile = $workforce->profileFromCustomer($customer->id, ! empty($member['category_id']) ? $member['category_id'] : null);
         if (! $profile->telephone) {
             $profile->telephone = $phone;
             $profile->save();
         }
 
         return $profile;
+    }
+
+    protected function personFromProfile(EventWorkerProfile $profile)
+    {
+        $category = ($profile->category && $profile->category->is_active) ? $profile->category : null;
+
+        return [
+            'kind' => 'profile',
+            'ref' => (string) $profile->id,
+            'name' => $profile->displayName(),
+            'phone' => $profile->telephone ?: optional($profile->customer)->phone_number,
+            'rate' => $category ? (int) $category->default_daily_rate : (int) $profile->standard_daily_rate,
+            'category_id' => $category ? (int) $category->id : null,
+            'role' => $category ? $category->name : '',
+        ];
     }
 }

@@ -1,7 +1,8 @@
 @extends('layout.main')
 @section('content')
-<section class="forms"><div class="container-fluid">
-    <h4>Event Timesheets</h4>
+@include('events.partials.modern')
+<section class="forms events-shell"><div class="container-fluid">
+    <div class="ev-page-head"><div><div class="ev-kicker">Events</div><h4>Event Timesheets</h4></div></div>
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
     <form method="GET" class="mb-3"><select name="status" class="form-control d-inline-block w-auto" onchange="this.form.submit()">
         <option value="">All statuses</option>

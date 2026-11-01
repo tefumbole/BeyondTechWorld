@@ -1,10 +1,14 @@
 @extends('layout.main')
 
 @section('content')
-<section class="forms">
+@include('events.partials.modern')
+<section class="forms events-shell">
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
-            <h4 class="mb-0"><i class="dripicons-view-list"></i> All Events</h4>
+        <div class="ev-page-head">
+            <div>
+                <div class="ev-kicker">Events</div>
+                <h4>All Events</h4>
+            </div>
             @if(in_array('events.create', $all_permission))
                 <a href="{{ route('events.create') }}" class="btn btn-primary"><i class="dripicons-plus"></i> Create Event</a>
             @endif

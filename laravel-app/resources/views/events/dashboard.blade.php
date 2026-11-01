@@ -52,7 +52,8 @@
     .event-status-postponed { background: #ffedd5; color: #c2410c; }
 </style>
 
-<section class="forms events-page">
+@include('events.partials.modern')
+<section class="forms events-page events-shell">
     <div class="container-fluid">
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
@@ -145,9 +146,6 @@
                             <li class="list-group-item text-muted">No events created yet.</li>
                         @endforelse
                     </ul>
-                </div>
-                <div class="alert alert-info mt-3 mb-0">
-                    <strong>Phase 1 complete.</strong> Workforce, contracts, timesheets, payments and reminders arrive in later phases.
                 </div>
             </div>
         </div>
