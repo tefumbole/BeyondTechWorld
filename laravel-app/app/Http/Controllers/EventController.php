@@ -8,10 +8,12 @@ use App\Customer;
 use App\CustomerGroup;
 use App\Employee;
 use App\Event;
+use App\EventTimesheetEntry;
 use App\EventWorkerCategory;
 use App\EventWorkerProfile;
 use App\Services\CampayPayoutService;
 use App\Services\EventCalendarBuilder;
+use App\Services\EventCrewInviteService;
 use App\Services\EventPublicationService;
 use App\Services\EventService;
 use App\Services\EventWorkforceService;
@@ -56,8 +58,28 @@ class EventController extends Controller
     {
         $this->can('events.view');
 
-        $query = Event::with(['customer', 'publication', 'assignments.workerProfile.customer', 'assignments.workerProfile.user'])
-            ->orderBy('created_at', 'desc');
+        $view = $request->get('view', 'upcoming');
+        if (! in_array($view, ['upcoming', 'completed', 'published', 'progress'], true)) {
+            $view = 'upcoming';
+        }
+        $headings = [
+            'upcoming' => 'Upcoming events',
+            'completed' => 'Completed events',
+            'published' => 'Published events',
+            'progress' => 'In progress',
+        ];
+        $heading = $headings[$view];
+        $query = Event::with(['customer', 'publication', 'assignments.workerProfile.customer', 'assignments.workerProfile.user']);
+        if ($view === 'completed') {
+            $query->finished();
+        } elseif ($view === 'published') {
+            $query->onWebsite();
+        } elseif ($view === 'progress') {
+            $query->inProgressWindow();
+        } else {
+            $query->upcoming();
+        }
+        $query->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('internal_status', $request->status);
@@ -74,9 +96,11 @@ class EventController extends Controller
             });
         }
 
-        $events = $query->paginate(20);
+        $events = $query->paginate(20)->appends($request->only(['view', 'q', 'status', 'type']));
+        $canDelete = in_array('events.delete', $this->all_permission, true)
+            || in_array('events.update', $this->all_permission, true);
 
-        return view('events.index', compact('events'));
+        return view('events.index', compact('events', 'heading', 'view', 'canDelete'));
     }
 
     public function create()
@@ -254,7 +278,13 @@ class EventController extends Controller
             }
         }
 
+        $invite = app(EventCrewInviteService::class)->inviteAssigned($event);
+        $warnings = array_merge($warnings, $invite['warnings']);
+
         $msg = $event->name.' is on the Events dashboard.';
+        if ($invite['sent'] > 0) {
+            $msg .= ' '.$invite['sent'].' people received the selection message.';
+        }
         if ($publish) {
             $msg .= ' It is also on the website Events page.';
         }
@@ -323,18 +353,28 @@ class EventController extends Controller
 
     public function destroy($id)
     {
-        $this->can('events.delete');
-
-        $event = Event::findOrFail($id);
-        if (! in_array($event->internal_status, ['draft', 'cancelled'], true)) {
-            return back()->withErrors(['delete' => 'Only draft or cancelled events can be deleted. Postpone or cancel first.']);
+        if (! in_array('events.delete', $this->all_permission, true)
+            && ! in_array('events.update', $this->all_permission, true)) {
+            abort(403, 'Permission denied: events.delete');
         }
 
+        $event = Event::findOrFail($id);
+        $name = $event->name;
+        $sheetIds = $event->timesheets()->pluck('id');
+        if ($sheetIds->count() > 0) {
+            EventTimesheetEntry::whereIn('timesheet_id', $sheetIds)->delete();
+        }
+        $event->timesheets()->delete();
+        $event->payments()->delete();
+        $event->contracts()->delete();
+        $event->reminders()->delete();
+        $event->assignments()->delete();
+        $event->labourBudget()->delete();
         $event->publication()->delete();
         $event->statusHistories()->delete();
         $event->delete();
 
-        return redirect()->route('events.index')->with('message', 'Event deleted.');
+        return redirect()->route('events.dashboard')->with('message', $name.' deleted.');
     }
 
     public function calendar(Request $request, EventCalendarBuilder $builder)

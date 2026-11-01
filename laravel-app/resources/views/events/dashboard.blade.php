@@ -1,156 +1,86 @@
 @extends('layout.main')
 
 @section('content')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+@include('events.partials.modern')
 <style>
-    .events-page .stat-card {
-        border-radius: 14px;
-        border: 1px solid #e3e9f4;
-        background: #fff;
-        padding: 18px 20px;
-        box-shadow: 0 8px 20px rgba(11, 63, 144, 0.06);
-        height: 100%;
+    .ev-board {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
     }
-    .events-page .stat-card .value {
-        font-size: 28px;
+    .ev-board a {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: #fff;
+        border: 1px solid #e4eaf4;
+        border-radius: 18px;
+        padding: 22px 22px 18px;
+        box-shadow: 0 10px 28px rgba(11, 63, 144, 0.06);
+        min-height: 168px;
+        transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .ev-board a:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 34px rgba(11, 63, 144, 0.12);
+        color: inherit;
+    }
+    .ev-board .count {
+        font-size: 42px;
         font-weight: 800;
         color: #0b3f90;
-        line-height: 1.1;
+        line-height: 1;
+        letter-spacing: -0.03em;
     }
-    .events-page .stat-card .label {
+    .ev-board .name {
+        margin-top: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .ev-board .note {
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 13px;
+    }
+    .ev-board .open {
+        margin-top: 16px;
         font-size: 12px;
         font-weight: 700;
+        letter-spacing: .04em;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #64748b;
-        margin-top: 6px;
+        color: #1456b8;
     }
-    .events-page .panel-card {
-        border-radius: 14px;
-        border: 1px solid #e3e9f4;
-        background: #fff;
-        overflow: hidden;
+    @media (max-width: 991px) {
+        .ev-board { grid-template-columns: 1fr 1fr; }
     }
-    .events-page .panel-card .panel-head {
-        background: linear-gradient(135deg, #0b3f90, #1456b8);
-        color: #fff;
-        padding: 14px 18px;
-        font-weight: 700;
+    @media (max-width: 575px) {
+        .ev-board { grid-template-columns: 1fr; }
     }
-    .event-status-badge {
-        font-size: 11px;
-        font-weight: 700;
-        padding: 3px 10px;
-        border-radius: 999px;
-        text-transform: uppercase;
-    }
-    .event-status-draft { background: #e2e8f0; color: #475569; }
-    .event-status-planning, .event-status-approved { background: #dbeafe; color: #1d4ed8; }
-    .event-status-event_in_progress { background: #fef3c7; color: #b45309; }
-    .event-status-completed { background: #d1fae5; color: #047857; }
-    .event-status-cancelled { background: #fee2e2; color: #b91c1c; }
-    .event-status-postponed { background: #ffedd5; color: #c2410c; }
 </style>
-
-@include('events.partials.modern')
-<section class="forms events-page events-shell">
+<section class="forms events-shell">
     <div class="container-fluid">
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
-
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div class="ev-page-head">
             <div>
-                <h4 class="mb-1"><i class="dripicons-calendar"></i> Events Dashboard</h4>
-                <p class="text-muted mb-0">Overview of operational events, publication and upcoming work.</p>
+                <div class="ev-kicker">Events</div>
+                <h4>Events Dashboard</h4>
             </div>
             @if(in_array('events.create', $all_permission))
                 <a href="{{ route('events.create') }}" class="btn btn-primary"><i class="dripicons-plus"></i> Create Event</a>
             @endif
         </div>
-
-        <div class="row mb-4">
-            @foreach([
-                ['total_upcoming', 'Upcoming Events'],
-                ['today', 'Happening Today'],
-                ['in_progress', 'In Progress'],
-                ['starting_soon', 'Starting in 7 Days'],
-                ['completed', 'Completed'],
-                ['cancelled', 'Cancelled'],
-                ['postponed', 'Postponed'],
-                ['published_public', 'Published Public'],
-                ['draft_public', 'Draft Public'],
-                ['draft', 'Draft Internal'],
-            ] as [$key, $label])
-                <div class="col-6 col-md-4 col-lg-3 mb-3">
-                    <div class="stat-card">
-                        <div class="value">{{ $stats[$key] ?? 0 }}</div>
-                        <div class="label">{{ $label }}</div>
-                    </div>
-                </div>
+        <div class="ev-board">
+            @foreach($cards as $card)
+                <a href="{{ route('events.index', ['view' => $card['view']]) }}">
+                    <div class="count">{{ $card['count'] }}</div>
+                    <div class="name">{{ $card['label'] }}</div>
+                    <div class="note">{{ $card['note'] }}</div>
+                    <div class="open">Open events</div>
+                </a>
             @endforeach
-        </div>
-
-        <div class="row">
-            <div class="col-lg-7 mb-4">
-                <div class="panel-card">
-                    <div class="panel-head">Upcoming Events &amp; Reminder Actions</div>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Event</th>
-                                    <th>Staff</th>
-                                    <th>Labour</th>
-                                    <th>Event Date</th>
-                                    <th>Status</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($upcoming as $ev)
-                                    <tr>
-                                        <td>
-                                            <strong>{{ $ev->name }}</strong><br>
-                                            <small class="text-muted">{{ $ev->reference_no }}</small>
-                                        </td>
-                                        <td>{{ $ev->staffNames() ?: '—' }}</td>
-                                        <td>{{ number_format($ev->labourTotal()) }} XAF</td>
-                                        <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y') : '—' }}</td>
-                                        <td>
-                                            <span class="event-status-badge event-status-{{ $ev->internal_status }}">{{ $ev->statusLabel() }}</span>
-                                        </td>
-                                        <td>
-                                            <a href="{{ route('events.show', $ev->id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="6" class="text-center text-muted py-4">No upcoming events yet.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-5 mb-4">
-                <div class="panel-card">
-                    <div class="panel-head">Recent Events</div>
-                    <ul class="list-group list-group-flush">
-                        @forelse($recentEvents as $ev)
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <a href="{{ route('events.show', $ev->id) }}"><strong>{{ $ev->name }}</strong></a>
-                                    <div class="small text-muted">{{ $ev->staffNames() ?: 'No staff yet' }} · {{ number_format($ev->labourTotal()) }} XAF</div>
-                                    <div class="small text-muted">{{ $ev->created_at->diffForHumans() }}</div>
-                                </div>
-                                <span class="event-status-badge event-status-{{ $ev->internal_status }}">{{ $ev->statusLabel() }}</span>
-                            </li>
-                        @empty
-                            <li class="list-group-item text-muted">No events created yet.</li>
-                        @endforelse
-                    </ul>
-                </div>
-            </div>
         </div>
     </div>
 </section>

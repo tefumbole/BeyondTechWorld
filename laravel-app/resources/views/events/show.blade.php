@@ -34,7 +34,14 @@
                         @if(in_array('events.update', $all_permission))
                             <a href="{{ route('events.edit', $event->id) }}" class="btn btn-primary">Edit Event</a>
                         @endif
-                        <a href="{{ route('events.index') }}" class="btn btn-light">All Events</a>
+                        <a href="{{ route('events.dashboard') }}" class="btn btn-light">Dashboard</a>
+                        @if(in_array('events.delete', $all_permission) || in_array('events.update', $all_permission))
+                            <form method="POST" action="{{ route('events.destroy', $event->id) }}" class="d-inline" onsubmit="return confirm('Delete this event?');">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-danger">Delete</button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             </div>

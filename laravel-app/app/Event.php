@@ -155,6 +155,48 @@ class Event extends Model
         return (int) $this->assignments->sum('expected_total');
     }
 
+    public function scopeUpcoming($query)
+    {
+        $today = now()->toDateString();
+
+        return $query->whereNotNull('event_start_at')
+            ->whereDate('event_start_at', '>', $today)
+            ->whereNotIn('internal_status', ['cancelled', 'completed']);
+    }
+
+    public function scopeInProgressWindow($query)
+    {
+        $today = now()->toDateString();
+
+        return $query->whereNotNull('event_start_at')
+            ->whereDate('event_start_at', '<=', $today)
+            ->where(function ($inner) use ($today) {
+                $inner->whereNull('event_end_at')->orWhereDate('event_end_at', '>=', $today);
+            })
+            ->whereNotIn('internal_status', ['cancelled', 'completed']);
+    }
+
+    public function scopeFinished($query)
+    {
+        $today = now()->toDateString();
+
+        return $query->where(function ($inner) use ($today) {
+            $inner->where('internal_status', 'completed')
+                ->orWhere(function ($past) use ($today) {
+                    $past->whereNotNull('event_end_at')
+                        ->whereDate('event_end_at', '<', $today)
+                        ->where('internal_status', '!=', 'cancelled');
+                });
+        });
+    }
+
+    public function scopeOnWebsite($query)
+    {
+        return $query->whereHas('publication', function ($inner) {
+            $inner->where('publish_on_website', 1)->where('publication_status', 'published');
+        });
+    }
+
     public function labourBudget()
     {
         return $this->hasOne(EventLabourBudget::class, 'event_id');

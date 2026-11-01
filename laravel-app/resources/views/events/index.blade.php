@@ -7,7 +7,7 @@
         <div class="ev-page-head">
             <div>
                 <div class="ev-kicker">Events</div>
-                <h4>All Events</h4>
+                <h4>{{ $heading }}</h4>
             </div>
             @if(in_array('events.create', $all_permission))
                 <a href="{{ route('events.create') }}" class="btn btn-primary"><i class="dripicons-plus"></i> Create Event</a>
@@ -21,6 +21,7 @@
         <div class="card mb-3">
             <div class="card-body">
                 <form method="GET" class="form-inline flex-wrap">
+                    <input type="hidden" name="view" value="{{ $view }}">
                     <input type="text" name="q" class="form-control mr-2 mb-2" placeholder="Search name, ref, venue..." value="{{ request('q') }}">
                     <select name="status" class="form-control mr-2 mb-2">
                         <option value="">All statuses</option>
@@ -68,8 +69,15 @@
                                 <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y H:i') : '—' }}</td>
                                 <td><span class="badge badge-secondary">{{ $ev->statusLabel() }}</span></td>
                                 <td>{{ optional($ev->publication)->publication_status ?? '—' }}</td>
-                                <td>
+                                <td class="text-nowrap">
                                     <a href="{{ route('events.show', $ev->id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                    @if(!empty($canDelete))
+                                        <form method="POST" action="{{ route('events.destroy', $ev->id) }}" class="d-inline" onsubmit="return confirm('Delete this event?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn btn-sm {{ $ev->event_end_at && $ev->event_end_at->lt(now()->startOfDay()) ? 'btn-danger' : 'btn-outline-danger' }}">Delete</button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

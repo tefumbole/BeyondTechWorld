@@ -17,10 +17,10 @@ class EventAssignment extends Model
         'default_daily_rate', 'event_daily_rate', 'hourly_rate', 'fixed_amount',
         'compensation_method', 'expected_total', 'food_per_day',
         'contract_status', 'attendance_status', 'timesheet_status', 'payment_status',
-        'notes',
+        'notes', 'invite_token', 'acceptance_status', 'accepted_at', 'invited_at',
     ];
 
-    protected $dates = ['reporting_time', 'work_start_date', 'work_end_date'];
+    protected $dates = ['reporting_time', 'work_start_date', 'work_end_date', 'accepted_at', 'invited_at'];
 
     protected $casts = [
         'is_supervisor' => 'boolean',

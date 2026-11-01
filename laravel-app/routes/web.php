@@ -24,6 +24,12 @@ Route::get('/order/payment/check/display', 'CartController@placeOrderAfterPaymen
 Route::get('/booking/payment/check', 'CartController@placeBookingAfterPayment')->name('booking.payment.check');
 Route::get('/booking/payment/check/display', 'CartController@placeBookingAfterPaymentDisplay')->name('booking.payment.check.display');
 
+Route::get('/event-invite/{token}', 'EventCrewController@show')->name('events.crew.invite');
+Route::post('/event-invite/{token}/accept', 'EventCrewController@accept')->name('events.crew.accept');
+Route::post('/event-invite/{token}/verify', 'EventCrewController@verify')->name('events.crew.verify');
+Route::get('/my-event', 'EventCrewController@home')->name('events.crew.home');
+Route::post('/my-event/timesheet', 'EventCrewController@submitDay')->name('events.crew.timesheet');
+
 Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->name('quotation.client.show');
 Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
 Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');

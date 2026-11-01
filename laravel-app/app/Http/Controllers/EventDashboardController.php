@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Event;
-use App\Services\EventService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Spatie\Permission\Models\Role;
@@ -36,24 +35,17 @@ class EventDashboardController extends Controller
         }
     }
 
-    public function index(EventService $eventService)
+    public function index()
     {
         $this->authorizeEvents();
 
-        $stats = $eventService->dashboardStats();
-        $withCrew = ['customer', 'publication', 'assignments.workerProfile.customer', 'assignments.workerProfile.user'];
-        $recentEvents = Event::with($withCrew)
-            ->orderBy('created_at', 'desc')
-            ->limit(12)
-            ->get();
-        $upcoming = Event::with($withCrew)
-            ->whereNotNull('event_start_at')
-            ->whereDate('event_start_at', '>=', now()->toDateString())
-            ->whereNotIn('internal_status', ['cancelled', 'completed'])
-            ->orderBy('created_at', 'desc')
-            ->limit(12)
-            ->get();
+        $cards = [
+            ['view' => 'upcoming', 'label' => 'Upcoming events', 'count' => Event::upcoming()->count(), 'note' => 'Starts after today'],
+            ['view' => 'progress', 'label' => 'In progress', 'count' => Event::inProgressWindow()->count(), 'note' => 'Happening now'],
+            ['view' => 'completed', 'label' => 'Completed events', 'count' => Event::finished()->count(), 'note' => 'Finished and past events'],
+            ['view' => 'published', 'label' => 'Published events', 'count' => Event::onWebsite()->count(), 'note' => 'Live on the website'],
+        ];
 
-        return view('events.dashboard', compact('stats', 'recentEvents', 'upcoming'));
+        return view('events.dashboard', compact('cards'));
     }
 }
