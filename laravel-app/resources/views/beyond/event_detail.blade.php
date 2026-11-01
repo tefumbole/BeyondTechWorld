@@ -19,15 +19,8 @@
     $title = $pub->public_title ?: $event->name;
 @endphp
 
-{{-- Hero with flyer --}}
-<section class="relative bg-brand-navy text-white overflow-hidden">
-    @if($flyer)
-        <div class="absolute inset-0">
-            <img src="{{ $flyer }}" alt="" class="w-full h-full object-cover opacity-30">
-            <div class="absolute inset-0 bg-gradient-to-t from-brand-navy via-brand-navy/80 to-brand-navy/40"></div>
-        </div>
-    @endif
-    <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 text-center">
+<section class="bg-brand-navy text-white">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 text-center">
         <p class="text-brand-gold font-semibold tracking-wide uppercase text-sm mb-3">{{ \App\Event::TYPES[$event->event_type] ?? $event->event_type }}</p>
         <h1 class="text-3xl md:text-5xl font-bold mb-4">{{ $title }}</h1>
         @if($publicStatus)
@@ -40,6 +33,12 @@
         @endif
     </div>
 </section>
+
+@if($flyer)
+<section class="bg-gray-100">
+    <img src="{{ $flyer }}" alt="{{ $title }}" class="mx-auto block w-full max-w-3xl h-auto">
+</section>
+@endif
 
 @if ($countdownAt && $pub->show_countdown)
     @include('beyond.partials.event_countdown', [
@@ -110,17 +109,6 @@
                                 </div>
                             </li>
                         @endif
-                        @if($pub->public_contact_name || $pub->public_contact_phone)
-                            <li class="flex gap-3">
-                                <i data-lucide="phone" class="w-5 h-5 text-brand-blue shrink-0"></i>
-                                <div>
-                                    <p class="font-medium text-gray-900">Contact</p>
-                                    @if($pub->public_contact_name)<p class="text-gray-600">{{ $pub->public_contact_name }}</p>@endif
-                                    @if($pub->public_contact_phone)<p class="text-gray-600">{{ $pub->public_contact_phone }}</p>@endif
-                                    @if($pub->public_contact_email)<p class="text-gray-600">{{ $pub->public_contact_email }}</p>@endif
-                                </div>
-                            </li>
-                        @endif
                     </ul>
                 </div>
 
@@ -158,7 +146,7 @@
                 @php $rp = $rel->publication; @endphp
                 <a href="{{ url('/events/' . $rel->slug) }}" class="block bg-white rounded-xl border hover:border-brand-blue overflow-hidden hover:shadow-lg transition">
                     @if($pubService->publicFlyerUrl($rel, $rp))
-                        <img src="{{ $pubService->publicFlyerUrl($rel, $rp) }}" alt="" class="w-full h-36 object-cover">
+                        <img src="{{ $pubService->publicFlyerUrl($rel, $rp) }}" alt="" class="w-full h-auto block">
                     @endif
                     <div class="p-4">
                         <h3 class="font-bold text-gray-900">{{ $rp->public_title ?: $rel->name }}</h3>

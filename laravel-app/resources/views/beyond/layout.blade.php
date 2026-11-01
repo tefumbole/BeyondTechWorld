@@ -116,7 +116,7 @@
         }
         .bey-foot-copy {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             justify-content: center;
             align-items: center;
             gap: 0.35rem 0;
