@@ -116,7 +116,7 @@
         }
         .bey-foot-copy {
             display: flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
             gap: 0.35rem 0;
@@ -177,6 +177,23 @@
         body.home-lock .bey-foot-copy .bey-foot-ver {
             color: #D4AF37;
         }
+        @media (min-width: 1100px) {
+            .bey-foot-copy { flex-wrap: nowrap; }
+            .home-lead { white-space: nowrap; }
+            .home-actions { flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; }
+            .home-actions a, .home-actions button { width: auto; }
+        }
+        .home-lead { max-width: 100%; }
+        .home-actions {
+            display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: 100%; max-width: 420px;
+        }
+        .home-actions a, .home-actions button {
+            width: 100%; min-height: 48px; justify-content: center;
+        }
+        @media (min-width: 700px) and (max-width: 1099px) {
+            .home-actions { max-width: none; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .home-actions a, .home-actions button { width: auto; }
+        }
         @media (max-width: 640px) {
             .bey-foot-copy { flex-direction: column; gap: 0.2rem; padding: 0.55rem 0.75rem calc(5.75rem + env(safe-area-inset-bottom)); font-size: 0.9rem; }
             .bey-foot-copy span { padding: 0; }
@@ -209,11 +226,19 @@
         }
         html.nav-locked, html.nav-locked body { overflow: hidden; }
         html.nav-locked #mbole-ai-root { visibility: hidden; }
+        html, body { overflow-x: hidden; }
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
-            .table-wrap, table { max-width: 100%; }
-            .overflow-x-auto, .table-responsive { -webkit-overflow-scrolling: touch; }
+            .table-wrap, .overflow-x-auto, .table-responsive { max-width: 100%; -webkit-overflow-scrolling: touch; }
+            main a, main button { touch-action: manipulation; }
+            .event-filters { flex-direction: column !important; align-items: stretch !important; }
+            .event-filters > * { width: 100% !important; flex: none !important; }
+            h1 { font-size: clamp(1.55rem, 7vw, 2.1rem) !important; line-height: 1.15; }
+            section { padding-left: 0; padding-right: 0; }
         }
+        .event-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .event-filters > * { flex: 1 1 180px; min-width: 0; }
+        .event-filters button { flex: 0 0 auto; min-height: 48px; }
         body.home-lock { position: relative; }
         body.home-lock main { flex: 1 1 auto; min-height: 0; }
         body.home-lock .bey-foot {

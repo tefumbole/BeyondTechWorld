@@ -6,7 +6,9 @@
     <title>{{ $event->name }}</title>
     <style>
         body { margin: 0; font-family: "Segoe UI", sans-serif; background: #f4f7fb; color: #0f172a; }
-        .wrap { max-width: 720px; margin: 28px auto; padding: 0 16px 48px; }
+        .wrap { max-width: 720px; margin: 16px auto; padding: 0 16px calc(32px + env(safe-area-inset-bottom)); }
+        input, textarea, button { font-size: 16px; }
+        button { width: 100%; min-height: 48px; }
         .card { background: #fff; border-radius: 18px; padding: 22px; box-shadow: 0 12px 32px rgba(11,63,144,.08); margin-bottom: 16px; }
         .kicker { color: #0b3f90; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
         h1 { font-size: 28px; margin: 6px 0; }

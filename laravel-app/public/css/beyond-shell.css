@@ -1402,3 +1402,69 @@
                     overflow-y: auto;
                 }
             }
+
+            @media (max-width: 1199.98px) {
+                .beyond-module-tabs-nav,
+                .beyond-module-tabs-sub {
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scroll-snap-type: x proximity;
+                }
+                .beyond-module-tab {
+                    flex: 0 0 auto;
+                    scroll-snap-align: start;
+                    min-height: 40px;
+                }
+            }
+
+            @media (max-width: 767.98px) {
+                .page, .content-inner, .container-fluid {
+                    max-width: 100%;
+                }
+                .form-inline {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .form-inline .form-control,
+                .form-inline select,
+                .form-inline .btn {
+                    width: 100% !important;
+                    margin: 0 0 8px !important;
+                    min-height: 44px;
+                    font-size: 16px;
+                }
+                .btn, .btn-sm, button.btn {
+                    min-height: 40px;
+                }
+                .d-flex.justify-content-between {
+                    gap: 8px;
+                }
+                .card .table th,
+                .card .table td {
+                    white-space: nowrap;
+                }
+                .nav-tabs {
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .nav-tabs .nav-item {
+                    flex: 0 0 auto;
+                }
+                .alert {
+                    word-break: break-word;
+                }
+            }
+
+            @media (max-width: 380px) {
+                .page .container-fluid {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                }
+                .beyond-module-tabs-label {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                }
+            }

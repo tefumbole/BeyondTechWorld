@@ -240,7 +240,23 @@
     .ev-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .ev-new-person { background: #f8fafc; border-radius: 16px; padding: 14px; margin-bottom: 14px; }
     @media (max-width: 767px) {
+        .events-shell { padding-bottom: 24px; }
         .ev-section { padding: 16px; }
+        .ev-page-head { align-items: stretch; }
+        .ev-page-head .btn { width: 100%; }
+        .events-shell .form-inline { display: flex; flex-direction: column; align-items: stretch; }
+        .events-shell .form-inline .form-control,
+        .events-shell .form-inline select,
+        .events-shell .form-inline .btn { width: 100%; margin-right: 0 !important; min-height: 44px; font-size: 16px; }
+        .events-shell .table-responsive { margin: 0 -4px; }
+        .crew-table { min-width: 680px; }
+        .ev-cal-toolbar { flex-direction: column; align-items: stretch; }
         .ev-cal-toolbar h3 { font-size: 18px; }
+        .ev-actions .btn { width: 100%; }
+        .ev-board { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 380px) {
+        .ev-section { padding: 12px; }
+        .events-shell .ev-page-head h4 { font-size: 1.15rem; }
     }
 </style>

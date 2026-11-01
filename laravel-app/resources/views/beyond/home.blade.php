@@ -26,10 +26,10 @@
             <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 drop-shadow-2xl tracking-tight">
                 {!! \App\Support\SiteContent::html('home.hero_title', 'Your Technology Bridge to <span class="text-brand-gold">Africa</span>') !!}
             </h1>
-            <p class="text-sm sm:text-base md:text-lg text-white/90 font-light mx-auto drop-shadow-md mb-3 sm:mb-4 whitespace-nowrap">
+            <p class="home-lead text-sm sm:text-base md:text-lg text-white/90 font-light mx-auto drop-shadow-md mb-3 sm:mb-4">
                 {{ \App\Support\SiteContent::text('home.hero_subtitle', 'Professional IT Consultancy, Enterprise Networking, and Audio-Visual Production, Cloud, AI and Cyber') }}
             </p>
-            <div class="w-full flex flex-row items-center justify-center gap-2 md:gap-3 flex-nowrap mx-auto">
+            <div class="home-actions w-full mx-auto">
                 <a href="{{ url('/trainings') }}"
                    class="bg-brand-gold hover:bg-[#b5952f] text-brand-blue h-11 md:h-12 px-3 md:px-6 text-xs md:text-base font-bold shadow-[0_0_15px_rgba(212,175,55,0.4)] rounded-full sm:hover:scale-105 transition-transform inline-flex items-center justify-center whitespace-nowrap">
                     {{ \App\Support\SiteContent::text('home.cta_primary', 'Get a Free Quotation') }} <i data-lucide="arrow-right" class="ml-2 w-4 h-4 md:w-5 md:h-5"></i>

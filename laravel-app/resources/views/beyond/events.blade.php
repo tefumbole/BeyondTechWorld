@@ -7,13 +7,13 @@
 
 <section class="py-10 bg-gray-50 min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <form method="GET" action="{{ url('/events') }}" class="mb-8 flex flex-row flex-nowrap gap-3 items-end">
-            <div class="flex-1 min-w-0">
+        <form method="GET" action="{{ url('/events') }}" class="event-filters mb-8">
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
                 <input type="search" name="q" value="{{ request('q') }}" placeholder="Search events…" enterkeyhint="search"
                        class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
             </div>
-            <div class="w-36 sm:w-44 shrink-0">
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Filter</label>
                 <select name="filter" class="w-full rounded-lg border border-gray-300 px-3 py-3 focus:ring-2 focus:ring-brand-blue">
                     @foreach(['upcoming' => 'Upcoming', 'featured' => 'Featured', 'ongoing' => 'Ongoing', 'past' => 'Past'] as $k => $label)
@@ -21,7 +21,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="w-36 sm:w-44 shrink-0">
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
                 <select name="type" class="w-full rounded-lg border border-gray-300 px-3 py-3">
                     <option value="">All types</option>
@@ -30,7 +30,7 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="shrink-0 min-h-[48px] px-5 py-3 bg-brand-blue text-white font-semibold rounded-lg hover:bg-brand-dark transition whitespace-nowrap">Search</button>
+            <button type="submit" class="px-5 py-3 bg-brand-blue text-white font-semibold rounded-lg hover:bg-brand-dark transition">Search</button>
         </form>
 
         @if ($events->isEmpty())
