@@ -367,12 +367,28 @@ class CampayPayoutService
         if ($reference === '') {
             return false;
         }
-        if (isset($body['amount']) && is_numeric($body['amount']) && (int) round((float) $body['amount']) !== (int) $amount) {
+        if (isset($body['amount']) && is_numeric($body['amount']) && ! $this->amountDisbursed((int) $amount, (int) round((float) $body['amount']))) {
             return false;
         }
         $currency = strtoupper(trim((string) (isset($body['currency']) ? $body['currency'] : 'XAF')));
 
         return $currency === '' || $currency === 'XAF';
+    }
+
+    protected function amountDisbursed($expected, $received)
+    {
+        if ($expected < 1 || $received < 1) {
+            return false;
+        }
+        if ($received === $expected) {
+            return true;
+        }
+        if ($received > $expected) {
+            return false;
+        }
+        $fee = $expected - $received;
+
+        return $fee <= (int) ceil($expected * 0.03);
     }
 
     protected function applyWithdrawBody(CampayPayout $row, array $body, $phone)

@@ -43,6 +43,9 @@
                         @php
                             $state = $row->list_state;
                             $linePending = $row->lines->where('status', 'pending')->count();
+                            $unsent = $row->lines->filter(function ($line) {
+                                return $line->status === 'pending' && trim((string) $line->campay_reference) === '';
+                            })->count();
                         @endphp
                         <tr>
                             <td>
@@ -65,7 +68,7 @@
                             <td><span class="pay-pill pay-pill-{{ $state['tone'] }}" data-payout-batch="{{ $row->id }}">{{ $state['label'] }}</span></td>
                             <td>
                                 <div class="pay-row-actions">
-                                    @if($linePending > 0)
+                                    @if($unsent > 0)
                                         <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
                                         <form method="POST" action="{{ route('payout.request.revise') }}">
                                             @csrf

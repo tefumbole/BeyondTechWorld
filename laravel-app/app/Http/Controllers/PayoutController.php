@@ -624,7 +624,7 @@ class PayoutController extends Controller
             ->exists();
     }
 
-    protected function confirmExisting(CampayPayoutService $service, CampayPayout $row)
+    protected function confirmExisting(CampayPayoutService $service, CampayPayout $row, $notify = false)
     {
         if (! $row->campay_reference) {
             return false;
@@ -640,7 +640,7 @@ class PayoutController extends Controller
             $row->status = 'paid';
             $row->error = null;
             $row->save();
-            if (! $alreadyPaid) {
+            if (! $alreadyPaid && $notify && $row->created_at && $row->created_at->gt(now()->subMinutes(20))) {
                 $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row));
             }
 
