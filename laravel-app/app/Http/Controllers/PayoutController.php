@@ -1314,11 +1314,9 @@ class PayoutController extends Controller
 
     protected function listedRequests($tenantId)
     {
-        $ids = CampayPayout::where('status', 'pending')->whereNotNull('request_id')->distinct()->pluck('request_id');
-        if ($ids->count() < 1) {
-            return collect();
-        }
-        $rows = $this->requests($tenantId)->with('lines')->whereIn('id', $ids->all())->orderByDesc('id')->limit(40)->get();
+        $rows = $this->requests($tenantId)->with('lines')->orderByDesc('id')->get()->filter(function ($batch) {
+            return $batch->lines->count() > 0;
+        })->values();
 
         $sorted = $rows->sort(function ($a, $b) {
             $ar = $this->requestRank($a);
@@ -1339,14 +1337,17 @@ class PayoutController extends Controller
     protected function requestRank($batch)
     {
         $lines = $batch->lines;
-        if ($lines->count() < 1 || $lines->where('status', 'pending')->count() > 0) {
+        $awaiting = $lines->filter(function ($line) {
+            return $line->status === 'pending' && trim((string) $line->campay_reference) === '';
+        })->count();
+        if ($awaiting > 0) {
             return 0;
         }
-        if ($lines->where('status', 'paid')->count() === $lines->count()) {
-            return 2;
+        if ($lines->where('status', 'pending')->count() > 0) {
+            return 1;
         }
 
-        return 1;
+        return 2;
     }
 
     protected function requestState($batch)

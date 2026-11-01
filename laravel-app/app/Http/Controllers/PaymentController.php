@@ -22,7 +22,7 @@ class PaymentController extends Controller
     public function momoPayments()
     {
         $rows = collect();
-        foreach (Deposit::with('customer')->orderByDesc('id')->limit(200)->get() as $deposit) {
+        foreach (Deposit::with('customer')->orderByDesc('id')->get() as $deposit) {
             $paid = (int) $deposit->status === 1;
             $waiting = (int) $deposit->status === 0;
             $rows->push([
@@ -35,7 +35,7 @@ class PaymentController extends Controller
                 'note' => (string) $deposit->note,
             ]);
         }
-        foreach (CampayPayout::orderByDesc('id')->limit(200)->get() as $payout) {
+        foreach (CampayPayout::orderByDesc('id')->get() as $payout) {
             $paid = $payout->status === 'paid';
             $waiting = $payout->status === 'pending';
             $rows->push([
@@ -125,7 +125,7 @@ class PaymentController extends Controller
 
     public function Desposit() {
         $this->settleConfirmedMoneySoon();
-        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->limit(200)->get();
+        $deposits = Deposit::with(['customer', 'customerGroup', 'user', 'depositor', 'account'])->orderByDesc('id')->get();
         $paidAmounts = $this->paymentPaidAmounts($deposits);
         $accounts = Account::where('is_active', true)->orderBy('name')->get();
         $making = request()->get('new') === '1';

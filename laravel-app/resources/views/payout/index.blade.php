@@ -21,7 +21,7 @@
     <div class="pay-card" @if($watchPayouts) data-payout-wait="1" @endif>
         <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
         <div class="pay-card-head">
-            <h2>Pending</h2>
+            <h2>Withdrawals</h2>
             @if($pending->count())
                 <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
             @endif
@@ -85,7 +85,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="pay-muted">No payment requests are waiting.</td></tr>
+                        <tr><td colspan="6" class="pay-muted">No withdrawals yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
