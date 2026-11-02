@@ -1346,8 +1346,11 @@ class PayoutController extends Controller
         if ($lines->where('status', 'pending')->count() > 0) {
             return 1;
         }
+        if ($lines->where('status', 'paid')->count() < $lines->count()) {
+            return 2;
+        }
 
-        return 2;
+        return 3;
     }
 
     protected function requestState($batch)

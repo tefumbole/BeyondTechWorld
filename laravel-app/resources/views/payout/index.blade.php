@@ -6,7 +6,7 @@
     @if(session('not_permitted'))<div class="alert alert-danger">{{ session('not_permitted') }}</div>@endif
 
     <div class="pay-toolbar">
-        <a class="pay-new {{ !empty($making) ? 'is-on' : '' }}" href="{{ route('payout.index', ['new' => 1]) }}">+ New Withdrawal</a>
+        <button class="pay-new {{ !empty($making) ? 'is-on' : '' }}" type="button" id="openNewWithdrawal">+ New Withdrawal</button>
     </div>
 
     @php
@@ -92,9 +92,12 @@
         </div>
     </div>
 
-    @if(!empty($making))
-        <div class="pay-card">
-            <div class="pay-card-head"><h2>New Withdrawal</h2></div>
+    <div class="pay-modal" id="newWithdrawal" @if(empty($making)) hidden @endif>
+        <div class="pay-card pay-modal-card">
+            <div class="pay-card-head">
+                <h2>New Withdrawal</h2>
+                <button class="pay-modal-close" type="button" id="closeNewWithdrawal">Close</button>
+            </div>
             <div class="pay-card-body">
                 <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. One person or many, the payout is sent the same way. A number already paid is left out.</p>
                 <div class="pay-search">
@@ -131,7 +134,7 @@
                 </form>
             </div>
         </div>
-    @endif
+    </div>
 
     @if($open)
         <div class="pay-card">
@@ -290,6 +293,27 @@
         if (!ok) event.preventDefault();
     });
     refresh();
+})();
+</script>
+<script>
+(function () {
+    var modal = document.getElementById('newWithdrawal');
+    var open = document.getElementById('openNewWithdrawal');
+    var close = document.getElementById('closeNewWithdrawal');
+    if (modal && open) {
+        open.addEventListener('click', function () {
+            modal.hidden = false;
+            open.classList.add('is-on');
+            var search = document.getElementById('payoutSearch');
+            if (search) search.focus();
+        });
+    }
+    if (modal && close) {
+        close.addEventListener('click', function () {
+            modal.hidden = true;
+            if (open) open.classList.remove('is-on');
+        });
+    }
 })();
 </script>
 <script>

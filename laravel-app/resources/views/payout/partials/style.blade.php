@@ -66,6 +66,10 @@
     .pay-linkbox { display: flex; gap: 8px; max-width: 760px; }
     .pay-linkbox input { flex: 1; }
     .pay-muted { color: #8a7560; }
+    .pay-modal { position: fixed; z-index: 4000; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow: auto; background: rgba(26, 18, 8, .45); }
+    .pay-modal[hidden] { display: none; }
+    .pay-modal-card { width: min(920px, 100%); margin-top: 8px; border-radius: 16px; }
+    .pay-modal-close { border: 0; background: transparent; color: #8a6230; font-weight: 700; cursor: pointer; }
     @media (max-width: 700px) {
         .pay-total { font-size: 26px; }
         .pay-card-body, .pay-card-head { padding-left: 12px; padding-right: 12px; }
