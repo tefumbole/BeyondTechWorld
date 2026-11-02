@@ -47,9 +47,11 @@ class EventCrewInviteService
             $food = number_format($this->foodAmount($assignment));
             $url = url('/event-invite/'.$assignment->invite_token);
             $notes = trim((string) $event->internal_notes);
+            $workLine = $this->workDatesLine($assignment);
             $body = "Hello {$name},\n\n"
                 ."You have been selected for {$event->name}.\n"
                 ."Dates: {$start} to {$end}\n"
+                .($workLine !== '' ? "Your working days: {$workLine}\n" : '')
                 .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
                 ."Daily pay: {$pay} XAF\n"
                 ."Food money: {$food} XAF\n";
@@ -121,6 +123,34 @@ class EventCrewInviteService
         return (int) $assignment->food_per_day;
     }
 
+    public function workDates(EventAssignment $assignment)
+    {
+        $dates = json_decode((string) $assignment->work_dates, true);
+        if (! is_array($dates)) {
+            return array();
+        }
+        $clean = array();
+        foreach ($dates as $date) {
+            $date = substr(trim((string) $date), 0, 10);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $clean[] = $date;
+            }
+        }
+        sort($clean);
+
+        return $clean;
+    }
+
+    protected function workDatesLine(EventAssignment $assignment)
+    {
+        $labels = array();
+        foreach ($this->workDates($assignment) as $date) {
+            $labels[] = date('d M', strtotime($date));
+        }
+
+        return implode(', ', $labels);
+    }
+
     public function dayAmount(EventAssignment $assignment)
     {
         return $this->dailyRate($assignment) + $this->foodAmount($assignment);
@@ -155,10 +185,17 @@ class EventCrewInviteService
         if ($amount <= 0) {
             throw new \InvalidArgumentException('This place has no daily amount to request.');
         }
-        $start = $event->event_start_at ? $event->event_start_at->toDateString() : null;
-        $end = $event->event_end_at ? $event->event_end_at->toDateString() : $start;
-        if ($start && ($date < $start || ($end && $date > $end))) {
-            throw new \InvalidArgumentException('That date is outside this event.');
+        $allowed = json_decode((string) $assignment->work_dates, true);
+        if (is_array($allowed) && count($allowed)) {
+            if (! in_array($date, $allowed, true)) {
+                throw new \InvalidArgumentException('That date is not one of your working days.');
+            }
+        } else {
+            $start = $event->event_start_at ? $event->event_start_at->toDateString() : null;
+            $end = $event->event_end_at ? $event->event_end_at->toDateString() : $start;
+            if ($start && ($date < $start || ($end && $date > $end))) {
+                throw new \InvalidArgumentException('That date is outside this event.');
+            }
         }
         $marker = $date.' | ';
         $already = EventWorkerPayment::where('assignment_id', $assignment->id)

@@ -70,6 +70,9 @@
                                 <td><span class="badge badge-secondary">{{ $ev->statusLabel() }}</span></td>
                                 <td>{{ optional($ev->publication)->publication_status ?? '—' }}</td>
                                 <td class="text-nowrap">
+                                    @if(in_array('events.update', $all_permission))
+                                        <a href="{{ route('events.edit', $ev->id) }}" class="btn btn-sm btn-primary">Edit</a>
+                                    @endif
                                     <a href="{{ route('events.show', $ev->id) }}" class="btn btn-sm btn-outline-primary">View</a>
                                     @if(!empty($canDelete))
                                         <form method="POST" action="{{ route('events.destroy', $ev->id) }}" class="d-inline" onsubmit="return confirm('Delete this event?');">

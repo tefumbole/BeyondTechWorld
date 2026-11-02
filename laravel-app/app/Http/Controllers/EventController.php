@@ -8,6 +8,7 @@ use App\Customer;
 use App\CustomerGroup;
 use App\Employee;
 use App\Event;
+use App\EventAssignment;
 use App\EventTimesheetEntry;
 use App\EventWorkerCategory;
 use App\EventWorkerProfile;
@@ -52,6 +53,115 @@ class EventController extends Controller
         if (! in_array($perm, $this->all_permission, true)) {
             abort(403, 'Permission denied: ' . $perm);
         }
+    }
+
+    protected function canManageEvents()
+    {
+        if (in_array('events.create', $this->all_permission, true) || in_array('events.update', $this->all_permission, true)) {
+            return;
+        }
+        abort(403, 'Permission denied: events.update');
+    }
+
+    protected function dateList($value)
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : array();
+        }
+        if (! is_array($value)) {
+            return array();
+        }
+        $out = array();
+        foreach ($value as $date) {
+            $date = substr(trim((string) $date), 0, 10);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $out[$date] = $date;
+            }
+        }
+        $out = array_values($out);
+        sort($out);
+
+        return array_slice($out, 0, 62);
+    }
+
+    protected function datesBetween($start, $end)
+    {
+        $start = substr((string) $start, 0, 10);
+        $end = substr((string) $end, 0, 10);
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)) {
+            return array();
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $end) || $end < $start) {
+            $end = $start;
+        }
+        $out = array();
+        $cursor = strtotime($start);
+        $last = strtotime($end);
+        $guard = 0;
+        while ($cursor && $cursor <= $last && $guard < 62) {
+            $out[] = date('Y-m-d', $cursor);
+            $cursor = strtotime('+1 day', $cursor);
+            $guard++;
+        }
+
+        return $out;
+    }
+
+    protected function dateTimeValue($date, $time)
+    {
+        $date = substr(trim((string) $date), 0, 10);
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        return $date.' '.$time;
+    }
+
+    protected function setupDatesFor(Event $event)
+    {
+        $dates = $this->dateList($event->setup_dates);
+        if (! count($dates) && $event->setup_start_at) {
+            $dates = $this->datesBetween(
+                $event->setup_start_at->toDateString(),
+                $event->setup_end_at ? $event->setup_end_at->toDateString() : $event->setup_start_at->toDateString()
+            );
+        }
+
+        return $dates;
+    }
+
+    protected function crewFromEvent(Event $event)
+    {
+        $rows = array();
+        foreach ($event->assignments as $assignment) {
+            $profile = $assignment->workerProfile;
+            if (! $profile) {
+                continue;
+            }
+            $dates = $this->dateList($assignment->work_dates);
+            if (! count($dates) && $assignment->work_start_date) {
+                $dates = $this->datesBetween(
+                    $assignment->work_start_date->toDateString(),
+                    $assignment->work_end_date ? $assignment->work_end_date->toDateString() : $assignment->work_start_date->toDateString()
+                );
+            }
+            $category = ($profile->category && $profile->category->is_active) ? $profile->category : null;
+            $rows[] = array(
+                'assignment_id' => (string) $assignment->id,
+                'kind' => 'profile',
+                'ref' => (string) $profile->id,
+                'name' => $profile->displayName(),
+                'phone' => $profile->telephone ?: optional($profile->customer)->phone_number ?: optional($profile->user)->phone,
+                'rate' => (int) $assignment->event_daily_rate,
+                'food' => (int) $assignment->food_per_day,
+                'days' => count($dates) ? count($dates) : (int) $assignment->expected_days,
+                'category_id' => $category ? (int) $category->id : '',
+                'work_dates' => $dates,
+            );
+        }
+
+        return $rows;
     }
 
     public function index(Request $request)
@@ -145,7 +255,7 @@ class EventController extends Controller
 
     public function resolveLabourName(Request $request, CampayPayoutService $campay, MobileMoneyHolderService $holders)
     {
-        $this->can('events.create');
+        $this->canManageEvents();
 
         $phone = $campay->momoNumber($request->input('phone'));
         if (! $phone) {
@@ -166,7 +276,7 @@ class EventController extends Controller
 
     public function rememberLabourRole(Request $request, EventWorkforceService $workforce)
     {
-        $this->can('events.create');
+        $this->canManageEvents();
 
         $data = $request->validate([
             'kind' => 'required|in:profile,customer,user,employee,portal',
@@ -195,6 +305,11 @@ class EventController extends Controller
     {
         $this->can('events.create');
 
+        return $this->saveModern($request, null, $eventService, $workforce);
+    }
+
+    public function saveModern(Request $request, Event $existing = null, EventService $eventService = null, EventWorkforceService $workforce = null)
+    {
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'customer_id' => 'nullable|integer|exists:customers,id',
@@ -203,7 +318,9 @@ class EventController extends Controller
             'event_end_at' => 'required|date|after_or_equal:event_start_at',
             'internal_notes' => 'nullable|string|max:5000',
             'publish_on_website' => 'nullable',
+            'setup_dates' => 'nullable|string|max:4000',
             'crew' => 'nullable|array',
+            'crew.*.assignment_id' => 'nullable|string|max:64',
             'crew.*.kind' => 'nullable|string|max:32',
             'crew.*.ref' => 'nullable|string|max:80',
             'crew.*.phone' => 'nullable|string|max:32',
@@ -212,6 +329,7 @@ class EventController extends Controller
             'crew.*.rate' => 'nullable|integer|min:0',
             'crew.*.food' => 'nullable|integer|min:0',
             'crew.*.category_id' => 'nullable',
+            'crew.*.work_dates' => 'nullable|string|max:4000',
         ]);
 
         $customer = $this->optionalCustomer($request, $data);
@@ -221,35 +339,62 @@ class EventController extends Controller
         $publish = $request->boolean('publish_on_website');
         $warnings = [];
 
+        $setup = $this->dateList(isset($data['setup_dates']) ? $data['setup_dates'] : '');
         $payload = [
             'name' => $data['name'],
-            'event_type' => 'other',
             'customer_id' => $customer ? $customer->id : null,
             'client_contact_person' => $customer ? $customer->name : null,
             'client_telephone' => $customer ? $customer->phone_number : null,
             'client_email' => $customer ? $customer->email : null,
             'city' => $customer ? $customer->city : null,
-            'timezone' => 'Africa/Douala',
-            'event_start_at' => $start.' 00:00:00',
-            'event_end_at' => $end.' 23:59:00',
+            'event_start_at' => $this->dateTimeValue($start, '00:00:00'),
+            'event_end_at' => $this->dateTimeValue($end, '23:59:00'),
             'internal_notes' => isset($data['internal_notes']) ? trim((string) $data['internal_notes']) : null,
             'expected_workdays' => $days,
-            'rental_link_mode' => 'none',
-            'internal_status' => 'draft',
-            'labour_mode' => 'individual',
-            'slug' => Event::uniqueSlug($data['name']),
         ];
+        if (! $existing || $request->input('crew_form') === '1') {
+            $payload['setup_dates'] = count($setup) ? json_encode($setup) : null;
+            $payload['setup_start_at'] = count($setup) ? $setup[0].' 00:00:00' : null;
+            $payload['setup_end_at'] = count($setup) ? $setup[count($setup) - 1].' 23:59:00' : null;
+        }
         if ($request->hasFile('flyer')) {
             $flyer = $request->file('flyer');
             if ($flyer->isValid() && strpos((string) $flyer->getMimeType(), 'image/') === 0 && $flyer->getSize() <= 8192 * 1024) {
                 $payload['flyer_path'] = $eventService->storeFlyer($flyer);
             } else {
-                $warnings[] = 'The flyer was skipped. The event was still created.';
+                $warnings[] = 'The flyer was skipped.';
             }
         }
 
-        $event = $eventService->create($payload, $publish);
+        if ($existing) {
+            if ($existing->name !== $data['name']) {
+                $payload['slug'] = Event::uniqueSlug($data['name'], $existing->id);
+            }
+            $existing->fill($payload);
+            $existing->updated_by = \Illuminate\Support\Facades\Auth::id();
+            $existing->save();
+            $event = $existing;
+            if ($event->publication) {
+                $event->publication->publish_on_website = $publish ? 1 : 0;
+                $event->publication->publication_status = $publish ? 'published' : 'draft';
+                $event->publication->public_title = $event->name;
+                if ($publish && ! $event->publication->visibility_at) {
+                    $event->publication->visibility_at = now();
+                }
+                $event->publication->save();
+            }
+        } else {
+            $payload['event_type'] = 'other';
+            $payload['timezone'] = 'Africa/Douala';
+            $payload['rental_link_mode'] = 'none';
+            $payload['internal_status'] = 'draft';
+            $payload['labour_mode'] = 'individual';
+            $payload['slug'] = Event::uniqueSlug($data['name']);
+            $event = $eventService->create($payload, $publish);
+        }
+
         $prepared = $this->prepareCrew($request->input('crew', []), $warnings);
+        $kept = [];
         foreach ($prepared as $member) {
             try {
                 $category = ! empty($member['category_id'])
@@ -261,28 +406,46 @@ class EventController extends Controller
                 if ($category) {
                     $workforce->rememberRole($profile, $category);
                     $roleName = $category->name;
-                    $rate = (int) $category->default_daily_rate;
-                } else {
-                    $warnings[] = trim($member['name'].' was added without a settings role.');
+                    if ($rate < 1) {
+                        $rate = (int) $category->default_daily_rate;
+                    }
+                } elseif ($member['name'] !== '') {
+                    $warnings[] = trim($member['name'].' was saved without a settings role.');
                 }
-                $workforce->assignWorker($event, $profile, [
+                $dates = count($member['work_dates']) ? $member['work_dates'] : $this->datesBetween($start, $end);
+                $assignment = $workforce->writeAssignment($event, $profile, [
                     'assignment_role' => $roleName,
                     'event_daily_rate' => $rate,
-                    'expected_days' => $member['days'],
+                    'expected_days' => count($dates) ? count($dates) : $member['days'],
+                    'work_dates' => $dates,
                     'work_start_date' => $start,
                     'work_end_date' => $end,
-                    'compensation_method' => 'daily',
                     'food_per_day' => $member['food'],
-                ]);
+                ], $member['assignment_id']);
+                $kept[] = $assignment->id;
             } catch (\Exception $e) {
-                $warnings[] = trim($member['name'].' was not added. '.$e->getMessage());
+                $warnings[] = trim($member['name'].' was not saved. '.$e->getMessage());
             }
+        }
+        if ($existing && $request->input('crew_form') === '1') {
+            $extras = EventAssignment::where('event_id', $event->id);
+            if (count($kept)) {
+                $extras->whereNotIn('id', $kept);
+            }
+            foreach ($extras->get() as $extra) {
+                $extra->load('workerProfile');
+                $label = $extra->workerProfile ? $extra->workerProfile->displayName() : 'A person';
+                if (! $workforce->dropAssignment($extra)) {
+                    $warnings[] = $label.' stayed on the event because a payment is already recorded.';
+                }
+            }
+            $workforce->refreshLabourBudgetAllocation($event);
         }
 
         $invite = app(EventCrewInviteService::class)->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
 
-        $msg = $event->name.' is on the Events dashboard.';
+        $msg = $existing ? $event->name.' saved.' : $event->name.' is on the Events dashboard.';
         if ($invite['sent'] > 0) {
             $msg .= ' '.$invite['sent'].' people received the selection message.';
         }
@@ -293,7 +456,8 @@ class EventController extends Controller
             $msg .= ' '.implode(' ', array_unique($warnings));
         }
 
-        return redirect()->route('events.dashboard')->with('message', $msg);
+        return redirect()->route($existing ? 'events.show' : 'events.dashboard', $existing ? $event->id : [])
+            ->with('message', $msg);
     }
 
     protected function optionalCustomer(Request $request, array $data)
@@ -352,30 +516,54 @@ class EventController extends Controller
     {
         $this->can('events.update');
 
-        $event = Event::with('publication')->findOrFail($id);
+        $event = Event::with([
+            'publication',
+            'customer',
+            'assignments.workerProfile.customer',
+            'assignments.workerProfile.user',
+            'assignments.workerProfile.category',
+        ])->findOrFail($id);
         $customers = Customer::where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
-        $bookings = Booking::orderBy('id', 'desc')->limit(100)->get(['id', 'reference_no', 'customer_id', 'grand_total', 'paid_amount']);
-        $workerProfiles = EventWorkerProfile::active()->with('customer', 'category')->orderBy('created_at', 'desc')->get();
+        $roles = EventWorkerCategory::active()->orderBy('name')->get();
+        $people = $this->engineerDirectory();
+        $customerOptions = [];
+        $selectedCustomer = '';
+        if ($event->customer) {
+            $selectedCustomer = $event->customer->name.($event->customer->phone_number ? ' — '.$event->customer->phone_number : '');
+        }
+        foreach ($customers as $customer) {
+            $customerOptions[] = [
+                'id' => (string) $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone_number,
+            ];
+        }
+        $roleOptions = [];
+        foreach ($roles as $role) {
+            $roleOptions[] = [
+                'id' => (int) $role->id,
+                'name' => $role->name,
+                'rate' => (int) $role->default_daily_rate,
+            ];
+        }
+        $editing = true;
+        $existingCrew = $this->crewFromEvent($event);
+        $setupDates = $this->setupDatesFor($event);
 
-        return view('events.edit', compact('event', 'customers', 'bookings', 'workerProfiles'));
+        return view('events.create', compact(
+            'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
+            'selectedCustomer', 'editing', 'existingCrew', 'setupDates'
+        ));
     }
 
-    public function update(Request $request, $id, EventService $eventService)
+    public function update(Request $request, $id, EventService $eventService, EventWorkforceService $workforce)
     {
         $this->can('events.update');
 
-        $event = Event::findOrFail($id);
-        $data = $this->validatedEvent($request, $event);
+        $event = Event::with('publication')->findOrFail($id);
 
-        if ($request->hasFile('flyer') && $request->file('flyer')->isValid()) {
-            $data['flyer_path'] = $eventService->storeFlyer($request->file('flyer'));
-        }
-
-        $eventService->update($event, $data, $request->input('status_note'));
-
-        return redirect()->route('events.show', $event->id)
-            ->with('message', 'Event updated successfully.');
+        return $this->saveModern($request, $event, $eventService, $workforce);
     }
 
     public function destroy($id)
@@ -507,6 +695,8 @@ class EventController extends Controller
             $rate = max(0, (int) (isset($row['rate']) ? $row['rate'] : 0));
             $food = max(0, (int) (isset($row['food']) ? $row['food'] : 0));
             $categoryId = isset($row['category_id']) ? (int) $row['category_id'] : 0;
+            $workDates = $this->dateList(isset($row['work_dates']) ? $row['work_dates'] : []);
+            $assignmentId = isset($row['assignment_id']) ? trim((string) $row['assignment_id']) : '';
             $phone = '';
             $name = isset($row['name']) ? (string) $row['name'] : '';
             if ($kind === 'phone') {
@@ -552,10 +742,12 @@ class EventController extends Controller
                 'name' => $name,
                 'registered_name' => isset($memberName) ? $memberName : $name,
                 'phone' => $phone,
-                'days' => $days,
+                'days' => count($workDates) ? count($workDates) : $days,
                 'rate' => $rate,
                 'food' => $food,
                 'category_id' => $categoryId,
+                'work_dates' => $workDates,
+                'assignment_id' => $assignmentId,
             ];
             unset($memberName);
         }

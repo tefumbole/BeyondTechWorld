@@ -42,10 +42,18 @@
         <form method="POST" action="{{ route('events.crew.timesheet') }}">
             @csrf
             <label for="work_date">Day</label>
-            <input id="work_date" type="date" name="work_date" required
-                value="{{ old('work_date', now()->toDateString()) }}"
-                @if($event->event_start_at) min="{{ $event->event_start_at->toDateString() }}" @endif
-                @if($event->event_end_at) max="{{ $event->event_end_at->toDateString() }}" @endif>
+            @if(!empty($workDates))
+                <select id="work_date" name="work_date" required>
+                    @foreach($workDates as $day)
+                        <option value="{{ $day }}" {{ old('work_date') === $day ? 'selected' : '' }}>{{ \Carbon\Carbon::parse($day)->format('d M Y') }}</option>
+                    @endforeach
+                </select>
+            @else
+                <input id="work_date" type="date" name="work_date" required
+                    value="{{ old('work_date', now()->toDateString()) }}"
+                    @if($event->event_start_at) min="{{ $event->event_start_at->toDateString() }}" @endif
+                    @if($event->event_end_at) max="{{ $event->event_end_at->toDateString() }}" @endif>
+            @endif
             <label for="activity">What you did</label>
             <textarea id="activity" name="activity" rows="4" required placeholder="Describe the work for this day">{{ old('activity') }}</textarea>
             <label for="hours">Hours</label>

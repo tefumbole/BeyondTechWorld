@@ -57,6 +57,7 @@ class EventWorkforceService
                 'reporting_time' => $data['reporting_time'] ?? null,
                 'work_start_date' => $data['work_start_date'] ?? null,
                 'work_end_date' => $data['work_end_date'] ?? null,
+                'work_dates' => isset($data['work_dates']) ? $data['work_dates'] : null,
                 'expected_days' => $expectedDays,
                 'default_daily_rate' => $profile->standard_daily_rate,
                 'event_daily_rate' => $dailyRate,
@@ -72,6 +73,79 @@ class EventWorkforceService
 
             return $assignment;
         });
+    }
+
+    public function writeAssignment(Event $event, EventWorkerProfile $profile, array $data, $assignmentId = null)
+    {
+        return DB::transaction(function () use ($event, $profile, $data, $assignmentId) {
+            $assignment = null;
+            if ($assignmentId) {
+                $assignment = EventAssignment::where('event_id', $event->id)->where('id', $assignmentId)->first();
+            }
+            if (! $assignment) {
+                $assignment = EventAssignment::where('event_id', $event->id)
+                    ->where('worker_profile_id', $profile->id)
+                    ->first();
+            }
+
+            $dates = isset($data['work_dates']) && is_array($data['work_dates']) ? array_values($data['work_dates']) : [];
+            sort($dates);
+            $expectedDays = count($dates) > 0 ? count($dates) : max(1, (int) (isset($data['expected_days']) ? $data['expected_days'] : 1));
+            $dailyRate = (int) (isset($data['event_daily_rate']) ? $data['event_daily_rate'] : 0);
+            $foodPerDay = max(0, (int) (isset($data['food_per_day']) ? $data['food_per_day'] : 0));
+            $start = count($dates) ? $dates[0] : (isset($data['work_start_date']) ? $data['work_start_date'] : null);
+            $end = count($dates) ? $dates[count($dates) - 1] : (isset($data['work_end_date']) ? $data['work_end_date'] : $start);
+            $fields = [
+                'assignment_role' => isset($data['assignment_role']) ? $data['assignment_role'] : null,
+                'work_start_date' => $start,
+                'work_end_date' => $end,
+                'work_dates' => count($dates) ? json_encode($dates) : null,
+                'expected_days' => $expectedDays,
+                'event_daily_rate' => $dailyRate,
+                'default_daily_rate' => $profile->standard_daily_rate,
+                'compensation_method' => 'daily',
+                'expected_total' => $this->calculateExpectedTotal('daily', $dailyRate, $expectedDays, [], $foodPerDay),
+                'food_per_day' => $foodPerDay,
+                'notes' => $foodPerDay > 0 ? 'Food money '.number_format($foodPerDay).' XAF per day' : null,
+            ];
+
+            if ($assignment) {
+                $assignment->fill($fields);
+                $assignment->save();
+            } else {
+                $this->assertNoDuplicateAssignment($event, $profile, [
+                    'assignment_role' => $fields['assignment_role'],
+                    'work_start_date' => $start,
+                    'work_end_date' => $end,
+                ]);
+                $fields['event_id'] = $event->id;
+                $fields['worker_profile_id'] = $profile->id;
+                $assignment = EventAssignment::create($fields);
+            }
+
+            $this->refreshLabourBudgetAllocation($event);
+
+            return $assignment;
+        });
+    }
+
+    public function dropAssignment(EventAssignment $assignment)
+    {
+        if ($assignment->payments()->where('status', 'paid')->exists()) {
+            return false;
+        }
+        foreach ($assignment->timesheets as $sheet) {
+            $sheet->entries()->delete();
+            $sheet->delete();
+        }
+        $assignment->payments()->delete();
+        $contract = $assignment->contract;
+        if ($contract) {
+            $contract->delete();
+        }
+        $assignment->delete();
+
+        return true;
     }
 
     public function calculateExpectedTotal($method, $dailyRate, $expectedDays, array $data, $foodPerDay = 0)

@@ -19,7 +19,7 @@ class Event extends Model
         'venue', 'venue_address', 'city', 'timezone',
         'internal_description', 'internal_notes',
         'packing_at', 'loading_at', 'departure_at',
-        'setup_start_at', 'setup_end_at', 'rehearsal_at',
+        'setup_start_at', 'setup_end_at', 'setup_dates', 'rehearsal_at',
         'event_start_at', 'event_end_at',
         'dismantling_start_at', 'dismantling_end_at', 'return_at',
         'expected_workdays', 'timesheet_deadline_at',

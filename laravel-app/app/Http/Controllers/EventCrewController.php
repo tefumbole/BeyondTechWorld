@@ -64,6 +64,7 @@ class EventCrewController extends Controller
             'dailyRate' => $invites->dailyRate($assignment),
             'foodAmount' => $invites->foodAmount($assignment),
             'dayAmount' => $invites->dayAmount($assignment),
+            'workDates' => $invites->workDates($assignment),
             'entries' => $assignment->timesheets->flatMap(function ($sheet) {
                 return $sheet->entries;
             }),

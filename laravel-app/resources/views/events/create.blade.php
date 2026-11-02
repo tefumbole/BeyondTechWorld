@@ -2,13 +2,26 @@
 
 @section('content')
 @include('events.partials.modern')
+@php
+    $editing = ! empty($editing);
+    $existingCrew = isset($existingCrew) ? $existingCrew : [];
+    $setupDates = isset($setupDates) ? $setupDates : [];
+    $published = $event->exists && optional($event->publication)->publish_on_website;
+    $setupOld = old('setup_dates');
+    if (is_string($setupOld) && $setupOld !== '') {
+        $decodedSetup = json_decode($setupOld, true);
+        if (is_array($decodedSetup)) {
+            $setupDates = $decodedSetup;
+        }
+    }
+@endphp
 <section class="forms events-shell">
     <div class="container-fluid">
         <div class="ev-create-hero">
             <div>
                 <div class="ev-kicker">Events</div>
-                <h2>Create event</h2>
-                <p class="ev-lead">Set the dates and the engineers. Notes go to the staff. The client is not notified.</p>
+                <h2>{{ $editing ? 'Edit event' : 'Create event' }}</h2>
+                <p class="ev-lead">{{ $editing ? 'Add or remove engineers, change a rate, and choose the days each person works.' : 'Set the dates and the engineers. Notes go to the staff. The client is not notified.' }}</p>
             </div>
             <a href="{{ route('events.dashboard') }}" class="btn btn-light">Dashboard</a>
         </div>
@@ -28,8 +41,10 @@
             <div class="alert alert-warning">Add at least one role and daily rate under <a href="{{ route('events.settings.categories') }}">Event Settings</a> before assigning engineers.</div>
         @endif
 
-        <form method="POST" action="{{ route('events.store') }}" enctype="multipart/form-data" id="event-form">
+        <form method="POST" action="{{ $editing ? route('events.update', $event->id) : route('events.store') }}" enctype="multipart/form-data" id="event-form">
             @csrf
+            @if($editing) @method('PUT') @endif
+            <input type="hidden" name="crew_form" value="1">
             <div class="ev-section">
                 <h3>Event</h3>
                 <div class="row">
@@ -53,17 +68,26 @@
                 <div class="row">
                     <div class="col-md-6 form-group">
                         <label>From <span class="text-danger">*</span></label>
-                        <input type="date" name="event_start_at" id="event-from" class="form-control" required value="{{ old('event_start_at') }}">
+                        <input type="date" name="event_start_at" id="event-from" class="form-control" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d')) }}">
                     </div>
                     <div class="col-md-6 form-group">
                         <label>To <span class="text-danger">*</span></label>
-                        <input type="date" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at') }}">
+                        <input type="date" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d')) }}">
                     </div>
                 </div>
-                <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's days start from that span.</div>
+                <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's working days start from that span.</div>
+                <div class="form-group">
+                    <label>Setup dates</label>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary" id="setup-open">Choose setup dates</button>
+                        <div class="ev-chips" id="setup-chips"></div>
+                        <input type="hidden" name="setup_dates" id="setup-dates" value="{{ json_encode(array_values($setupDates)) }}">
+                    </div>
+                    <div class="small text-muted mt-1">Click every setup day. You can select more than one date, including a day before the event.</div>
+                </div>
                 <div class="form-group mb-0">
                     <label>Notes</label>
-                    <textarea name="internal_notes" class="form-control" rows="3" placeholder="Schedule notes, call times, or anything to remember about these dates">{{ old('internal_notes') }}</textarea>
+                    <textarea name="internal_notes" class="form-control" rows="3" placeholder="Schedule notes, call times, or anything to remember about these dates">{{ old('internal_notes', $event->internal_notes) }}</textarea>
                 </div>
             </div>
 
@@ -81,7 +105,7 @@
                         <button type="button" class="btn btn-outline-primary btn-block" id="show-new-person">New number</button>
                     </div>
                 </div>
-                <p class="ev-lead mt-2">Search covers customers, users, staff, interns, and every other account. Choosing a name adds them at once. Their role stays for the next event, and the settings price fills the daily rate.</p>
+                <p class="ev-lead mt-2">Add people here, change the daily rate, and open Working days to pick the exact dates. A person can work a day before or after the event, and not everyone has to work every day. Click a date chip to remove that day.</p>
                 <div id="new-person" class="ev-new-person" style="display:none;">
                     <label>Mobile Money number</label>
                     <div class="form-row">
@@ -100,7 +124,7 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Role</th>
-                                <th>Days</th>
+                                <th>Working days</th>
                                 <th>Daily rate</th>
                                 <th>Food money</th>
                                 <th>Total</th>
@@ -123,14 +147,14 @@
                 </div>
                 <label class="ev-toggle">
                     <input type="hidden" name="publish_on_website" value="0">
-                    <input type="checkbox" name="publish_on_website" value="1" {{ old('publish_on_website') ? 'checked' : '' }}>
+                    <input type="checkbox" name="publish_on_website" value="1" {{ old('publish_on_website', $published ? '1' : '0') == '1' ? 'checked' : '' }}>
                     Publish on the website
                 </label>
             </div>
 
             <div class="ev-actions">
-                <button type="submit" class="btn btn-primary btn-lg">Create event</button>
-                <a href="{{ route('events.index') }}" class="btn btn-light btn-lg">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-lg">{{ $editing ? 'Save changes' : 'Create event' }}</button>
+                <a href="{{ $editing ? route('events.show', $event->id) : route('events.index') }}" class="btn btn-light btn-lg">Cancel</a>
             </div>
         </form>
     </div>
@@ -143,7 +167,8 @@
     var people = @json($people);
     var customers = @json($customerOptions);
     var roles = @json($roleOptions);
-    var oldCrew = @json(old('crew', []));
+    var oldCrew = @json(old('crew', $existingCrew));
+    var initialSetup = @json(array_values($setupDates));
     var lookupUrl = @json(route('events.labour-name'));
     var roleUrl = @json(route('events.labour-role'));
     var token = document.querySelector('#event-form input[name="_token"]').value;
@@ -169,7 +194,7 @@
         var to = document.getElementById('event-to').value;
         var note = document.getElementById('span-note');
         if (!from || !to) {
-            note.textContent = 'Choose the first and last date. Each person\'s days start from that span.';
+            note.textContent = 'Choose the first and last date. Each person\'s working days start from that span.';
             return 1;
         }
         var ms = Date.parse(to) - Date.parse(from);
@@ -195,19 +220,70 @@
         return null;
     }
 
+    function isoDate(date) {
+        var month = date.getMonth() + 1;
+        var day = date.getDate();
+        return date.getFullYear() + '-' + (month < 10 ? '0' : '') + month + '-' + (day < 10 ? '0' : '') + day;
+    }
+
+    function spanDateList() {
+        var from = document.getElementById('event-from').value;
+        var to = document.getElementById('event-to').value;
+        if (!from) return [];
+        if (!to || to < from) to = from;
+        var out = [];
+        var cursor = new Date(from + 'T00:00:00');
+        var end = new Date(to + 'T00:00:00');
+        var guard = 0;
+        while (cursor <= end && guard < 62) {
+            out.push(isoDate(cursor));
+            cursor.setDate(cursor.getDate() + 1);
+            guard++;
+        }
+        return out;
+    }
+
+    function readDates(value) {
+        if (Array.isArray(value)) return value.slice();
+        if (!value) return [];
+        try {
+            var parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
     function refresh() {
         var total = 0;
         var rows = tbody.querySelectorAll('tr');
         rows.forEach(function (row) {
-            var days = parseInt(row.querySelector('.crew-days').value, 10) || 0;
+            var dates = readDates(row.querySelector('.crew-dates').value);
+            var days = dates.length || parseInt(row.querySelector('.crew-days').value, 10) || 0;
+            row.querySelector('.crew-days').value = dates.length || days;
+            var button = row.querySelector('.crew-days-btn');
+            if (button) button.textContent = (dates.length || days) + (dates.length === 1 || days === 1 ? ' working day' : ' working days');
+            var chips = row.querySelector('.crew-date-chips');
+            if (chips) {
+                chips.innerHTML = '';
+                dates.forEach(function (date) {
+                    var chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'ev-chip';
+                    chip.setAttribute('data-date', date);
+                    chip.textContent = prettyDate(date);
+                    chips.appendChild(chip);
+                });
+            }
             var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
             var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
-            var line = (rate + food) * days;
+            var line = (rate + food) * (dates.length || days);
             row.querySelector('.crew-line').textContent = money(line);
             total += line;
         });
         document.getElementById('labour-total').textContent = money(total);
         document.getElementById('crew-empty').style.display = rows.length ? 'none' : '';
+        paintSetup();
     }
 
     function roleLabel(role) {
@@ -252,10 +328,10 @@
         button.classList.remove('is-invalid');
         if (role) {
             rate.value = role.rate;
-            note.textContent = 'Settings price';
+            note.textContent = 'You can change this rate';
             rememberRole(row, role.id);
         } else {
-            note.textContent = 'Choose a role';
+            note.textContent = 'Choose a role, then set the rate';
         }
         refresh();
     }
@@ -264,9 +340,12 @@
         var key = person.kind + ':' + person.ref;
         if (tbody.querySelector('tr[data-key="' + key + '"]')) return;
         var i = rowIndex++;
-        var days = person.days || spanDays();
+        var dates = readDates(person.work_dates);
+        var auto = dates.length ? '0' : '1';
+        if (!dates.length) dates = spanDateList();
         var role = roleById(person.category_id);
-        var rate = role ? role.rate : (parseInt(person.rate, 10) || 0);
+        var rate = (person.rate || person.rate === 0) && person.work_dates ? (parseInt(person.rate, 10) || 0) : (role ? role.rate : (parseInt(person.rate, 10) || 0));
+        if (person.assignment_id) rate = parseInt(person.rate, 10) || 0;
         var tr = document.createElement('tr');
         tr.setAttribute('data-key', key);
         tr.setAttribute('data-kind', person.kind);
@@ -274,6 +353,7 @@
         tr.innerHTML =
             '<td><input type="text" class="form-control form-control-sm crew-name" name="crew[' + i + '][name]" value="' + escapeHtml(person.name || '') + '" required>' +
                 '<div class="small text-muted">' + escapeHtml(person.phone || '') + '</div>' +
+                '<input type="hidden" name="crew[' + i + '][assignment_id]" value="' + escapeHtml(person.assignment_id || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][kind]" value="' + escapeHtml(person.kind) + '">' +
                 '<input type="hidden" name="crew[' + i + '][ref]" value="' + escapeHtml(person.ref || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][phone]" value="' + escapeHtml(person.phone || '') + '">' +
@@ -282,9 +362,13 @@
                 '<input type="hidden" class="crew-role" name="crew[' + i + '][category_id]" value="' + escapeHtml(person.category_id || '') + '">' +
                 '<button type="button" class="ev-role-btn' + (role ? '' : ' is-empty') + '">' + escapeHtml(roleLabel(role)) + '</button>' +
             '</div></td>' +
-            '<td><input type="number" class="form-control form-control-sm crew-days" name="crew[' + i + '][days]" min="1" max="365" value="' + days + '" data-auto="' + (person.days ? '0' : '1') + '"></td>' +
-            '<td><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + rate + '" readonly required>' +
-                '<span class="ev-rate-note">' + (role ? 'Settings price' : 'Choose a role') + '</span></td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-primary crew-days-btn">Working days</button>' +
+                '<div class="ev-chips crew-date-chips"></div>' +
+                '<input type="hidden" class="crew-dates" name="crew[' + i + '][work_dates]" data-auto="' + auto + '" value="' + escapeHtml(JSON.stringify(dates)) + '">' +
+                '<input type="hidden" class="crew-days" name="crew[' + i + '][days]" value="' + dates.length + '">' +
+            '</td>' +
+            '<td><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + rate + '" required>' +
+                '<span class="ev-rate-note">' + (role ? 'You can change this rate' : 'Set the daily rate') + '</span></td>' +
             '<td><input type="number" class="form-control form-control-sm crew-food" name="crew[' + i + '][food]" min="0" value="' + (parseInt(person.food, 10) || 0) + '" placeholder="0"></td>' +
             '<td class="crew-line font-weight-bold">0</td>' +
             '<td><button type="button" class="btn btn-sm btn-light crew-remove" aria-label="Remove">×</button></td>';
@@ -504,15 +588,134 @@
     });
 
     function applySpan() {
-        var days = spanDays();
-        tbody.querySelectorAll('.crew-days').forEach(function (input) {
-            if (input.getAttribute('data-auto') === '1') input.value = days;
+        var dates = spanDateList();
+        spanDays();
+        tbody.querySelectorAll('.crew-dates').forEach(function (input) {
+            if (input.getAttribute('data-auto') === '1') input.value = JSON.stringify(dates);
         });
         refresh();
     }
     document.getElementById('event-from').addEventListener('change', applySpan);
     document.getElementById('event-to').addEventListener('change', applySpan);
     spanDays();
+
+    var pop = document.createElement('div');
+    pop.className = 'ev-popcal';
+    pop.hidden = true;
+    document.body.appendChild(pop);
+    var popState = {input: null, year: 2026, month: 0};
+
+    function paintSetup() {
+        var box = document.getElementById('setup-chips');
+        var input = document.getElementById('setup-dates');
+        if (!box || !input) return;
+        var dates = readDates(input.value);
+        box.innerHTML = '';
+        dates.forEach(function (date) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'ev-chip';
+            chip.setAttribute('data-date', date);
+            chip.textContent = prettyDate(date);
+            box.appendChild(chip);
+        });
+        var opener = document.getElementById('setup-open');
+        if (opener) opener.textContent = dates.length ? dates.length + (dates.length === 1 ? ' setup date' : ' setup dates') : 'Choose setup dates';
+    }
+
+    function renderPop() {
+        var input = popState.input;
+        if (!input) return;
+        var selected = readDates(input.value);
+        var from = document.getElementById('event-from').value;
+        var to = document.getElementById('event-to').value;
+        var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        var first = new Date(popState.year, popState.month, 1);
+        var startPad = first.getDay();
+        var daysInMonth = new Date(popState.year, popState.month + 1, 0).getDate();
+        var html = '<div class="ev-popcal-head"><button type="button" data-nav="-1">‹</button><strong>' + months[popState.month] + ' ' + popState.year + '</strong><button type="button" data-nav="1">›</button></div><div class="ev-popcal-grid">';
+        names.forEach(function (name) { html += '<span>' + name + '</span>'; });
+        var cell = 0;
+        for (var pad = 0; pad < startPad; pad++) { html += '<span></span>'; cell++; }
+        for (var day = 1; day <= daysInMonth; day++) {
+            var date = isoDate(new Date(popState.year, popState.month, day));
+            var classes = '';
+            if (selected.indexOf(date) !== -1) classes += ' is-on';
+            if (from && to && date >= from && date <= to) classes += ' is-event';
+            html += '<button type="button" data-date="' + date + '" class="' + classes + '">' + day + '</button>';
+        }
+        html += '</div><div class="small text-muted mt-2">Click a day to select it. Click it again to clear it.</div>';
+        pop.innerHTML = html;
+    }
+
+    function openPop(button, input) {
+        var dates = readDates(input.value);
+        var seed = dates[0] || document.getElementById('event-from').value || isoDate(new Date());
+        var parts = seed.split('-');
+        popState.input = input;
+        popState.year = parseInt(parts[0], 10);
+        popState.month = parseInt(parts[1], 10) - 1;
+        renderPop();
+        var rect = button.getBoundingClientRect();
+        var left = Math.min(rect.left, window.innerWidth - 316);
+        pop.style.left = Math.max(8, left) + 'px';
+        pop.style.top = Math.min(rect.bottom + 8, window.innerHeight - 360) + 'px';
+        pop.hidden = false;
+    }
+
+    function toggleDate(date) {
+        if (!popState.input) return;
+        var dates = readDates(popState.input.value);
+        var index = dates.indexOf(date);
+        if (index === -1) dates.push(date); else dates.splice(index, 1);
+        dates.sort();
+        popState.input.value = JSON.stringify(dates);
+        popState.input.setAttribute('data-auto', '0');
+        renderPop();
+        refresh();
+    }
+
+    document.getElementById('setup-dates').value = JSON.stringify(initialSetup || []);
+    document.getElementById('setup-open').addEventListener('click', function () {
+        openPop(this, document.getElementById('setup-dates'));
+    });
+    document.getElementById('setup-chips').addEventListener('click', function (event) {
+        var chip = event.target.closest('.ev-chip');
+        if (!chip) return;
+        popState.input = document.getElementById('setup-dates');
+        toggleDate(chip.getAttribute('data-date'));
+        if (pop.hidden) refresh();
+    });
+    tbody.addEventListener('click', function (event) {
+        var opener = event.target.closest('.crew-days-btn');
+        if (opener) {
+            event.preventDefault();
+            openPop(opener, opener.parentNode.querySelector('.crew-dates'));
+            return;
+        }
+        var chip = event.target.closest('.crew-date-chips .ev-chip');
+        if (!chip) return;
+        var row = chip.closest('tr');
+        popState.input = row.querySelector('.crew-dates');
+        toggleDate(chip.getAttribute('data-date'));
+    });
+    pop.addEventListener('click', function (event) {
+        var nav = event.target.closest('[data-nav]');
+        if (nav) {
+            var next = popState.month + parseInt(nav.getAttribute('data-nav'), 10);
+            var moved = new Date(popState.year, next, 1);
+            popState.year = moved.getFullYear();
+            popState.month = moved.getMonth();
+            renderPop();
+            return;
+        }
+        var day = event.target.closest('[data-date]');
+        if (day) toggleDate(day.getAttribute('data-date'));
+    });
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('.ev-chip')) return;
+        pop.hidden = true;
+    });
 
     document.getElementById('event-form').addEventListener('submit', function (event) {
         var formError = document.getElementById('form-error');
@@ -542,9 +745,12 @@
             rate: row.rate || 0,
             days: row.days || spanDays(),
             food: parseInt(row.food, 10) || 0,
-            category_id: row.category_id || ''
+            category_id: row.category_id || '',
+            assignment_id: row.assignment_id || '',
+            work_dates: row.work_dates || ''
         });
     });
+    paintSetup();
 })();
 </script>
 @endsection

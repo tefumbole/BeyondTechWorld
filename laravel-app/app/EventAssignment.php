@@ -13,7 +13,7 @@ class EventAssignment extends Model
 
     protected $fillable = [
         'event_id', 'worker_profile_id', 'assignment_role', 'is_supervisor',
-        'reporting_time', 'work_start_date', 'work_end_date', 'expected_days',
+        'reporting_time', 'work_start_date', 'work_end_date', 'work_dates', 'expected_days',
         'default_daily_rate', 'event_daily_rate', 'hourly_rate', 'fixed_amount',
         'compensation_method', 'expected_total', 'food_per_day',
         'contract_status', 'attendance_status', 'timesheet_status', 'payment_status',
