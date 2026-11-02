@@ -96,7 +96,7 @@ class TaskInviteController extends Controller
             $this->auth->syncProfile($assignee);
         }
 
-        $otp = $this->auth->createOtp($formatted, 'task_invite');
+        $otp = $this->auth->createOtp($formatted, 'task_accept');
         $send = $this->whatsapp->sendOtp($formatted, $otp['code'], 'login');
         if (empty($send['success'])) {
             return back()->withErrors(['setup' => $send['error'] ?? 'Failed to send the WhatsApp code.']);
@@ -202,16 +202,46 @@ class TaskInviteController extends Controller
 
     public function accept(Request $request, $token)
     {
-        $request->validate(['signature' => 'required|string']);
-
-        $assignment = $this->guardOwnership($token);
-        if ($assignment instanceof \Illuminate\Http\RedirectResponse) {
-            return $assignment;
+        $assignment = $this->tasks->findByInviteToken($token);
+        if (! $assignment || ! $assignment->task) {
+            return redirect()->route('task.invite', $token);
+        }
+        if ($assignment->status !== 'Pending') {
+            return redirect()->route('task.invite', $token)
+                ->with('status', 'This task is already '.$assignment->status.'.');
         }
 
-        $this->tasks->accept($assignment, $request->input('signature'));
+        $assignee = BeyondUser::find($assignment->user_id);
+        if (! $assignee) {
+            return back()->withErrors(['otp' => 'The invited account could not be found.']);
+        }
 
-        return redirect()->route('user.tasks')->with('status', 'Task accepted — your signature was recorded.');
+        $phone = $request->session()->get('task_invite_otp_'.$token);
+        if (! $phone) {
+            return back()->withErrors(['otp' => 'Tap Accept so we can send the WhatsApp code.']);
+        }
+
+        $otp = preg_replace('/\D+/', '', (string) $request->input('otp'));
+        if (strlen($otp) !== 6) {
+            return back()->withErrors(['otp' => 'Enter the 6-digit WhatsApp code.']);
+        }
+
+        $result = $this->auth->verifyOtp($phone, $otp, 'task_accept');
+        if (empty($result['success'])) {
+            return back()->withInput()->withErrors(['otp' => isset($result['error']) ? $result['error'] : 'Invalid or expired verification code.']);
+        }
+
+        if (Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
+        Auth::guard('beyond')->login($assignee);
+        $request->session()->put('beyond_otp_verified', true);
+        $request->session()->put('beyond_masked_phone', $this->whatsapp->maskPhone($phone));
+        $request->session()->forget('task_invite_otp_'.$token);
+
+        $this->tasks->accept($assignment, null);
+
+        return redirect()->route('user.tasks')->with('status', 'Task accepted.');
     }
 
     public function decline(Request $request, $token)

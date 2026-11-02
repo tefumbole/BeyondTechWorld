@@ -19,7 +19,7 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-brand-blue">Pending Acceptances</h1>
-                <p class="text-gray-500">Review and sign to accept tasks assigned to you.</p>
+                <p class="text-gray-500">Tap Accept, then enter the WhatsApp code. That accepts the task.</p>
             </div>
             <a href="{{ route('user.tasks') }}" class="inline-flex items-center gap-2 border border-brand-blue text-brand-blue px-4 py-2 rounded-md font-medium hover:bg-blue-50">
                 <i data-lucide="list-checks" class="w-4 h-4"></i> All My Tasks
@@ -42,7 +42,7 @@
                 <p class="text-gray-500">You have no tasks awaiting acceptance.</p>
             </div>
         @else
-            <div class="space-y-4" x-data="{ signFor: null }">
+            <div class="space-y-4">
                 @foreach ($assignments as $a)
                     @php $task = $a->task; @endphp
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -60,21 +60,18 @@
                         <h3 class="font-bold text-lg text-gray-900">{{ $task->title }}</h3>
                         <p class="text-sm text-gray-500 mt-1 mb-4">{{ $task->description }}</p>
                         @include('beyond.tasks.partials.attachments', ['task' => $task])
-                        <div class="flex gap-2 justify-end">
-                            <button type="button" @click="signFor = '{{ $a->id }}'" class="bg-brand-blue text-white hover:bg-brand-dark text-sm font-semibold px-5 py-2 rounded-md inline-flex items-center gap-2">
-                                <i data-lucide="check-circle" class="w-4 h-4"></i> Accept &amp; Sign
-                            </button>
+                        <div class="flex gap-2 justify-end items-end">
+                            @include('beyond.tasks.partials.otp-accept', [
+                                'assignmentId' => $a->id,
+                                'sendAction' => route('user.tasks.accept.code', $a->id),
+                                'acceptAction' => route('user.tasks.accept', $a->id),
+                            ])
                             <form method="POST" action="{{ route('user.tasks.decline', $a->id) }}">
                                 @csrf
                                 <button type="submit" class="text-sm border border-red-200 text-red-600 px-4 py-2 rounded-md hover:bg-red-50">Decline</button>
                             </form>
                         </div>
                     </div>
-
-                    @include('beyond.tasks.partials.sign-modal', [
-                        'assignmentId' => $a->id,
-                        'action' => route('user.tasks.accept', $a->id),
-                    ])
                 @endforeach
             </div>
         @endif

@@ -83,8 +83,7 @@
                 <p class="text-gray-500">You don't have any tasks matching the selected filters.</p>
             </div>
         @else
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                 x-data="{ signFor: null }">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 @foreach ($assignments as $a)
                     @php
                         $task = $a->task;
@@ -152,10 +151,11 @@
                         </div>
                         <div class="bg-gray-50/50 border-t p-3 flex gap-2 justify-end">
                             @if ($isPending)
-                                <button type="button" @click="signFor = '{{ $a->id }}'"
-                                        class="flex-1 bg-brand-blue text-white hover:bg-brand-dark text-sm font-semibold py-2 rounded-md">
-                                    Accept Task
-                                </button>
+                                @include('beyond.tasks.partials.otp-accept', [
+                                    'assignmentId' => $a->id,
+                                    'sendAction' => route('user.tasks.accept.code', $a->id),
+                                    'acceptAction' => route('user.tasks.accept', $a->id),
+                                ])
                                 <form method="POST" action="{{ route('user.tasks.decline', $a->id) }}">
                                     @csrf
                                     <button type="submit" class="text-sm border border-red-200 text-red-600 px-3 py-2 rounded-md hover:bg-red-50">Decline</button>
@@ -171,12 +171,6 @@
                         </div>
                     </div>
 
-                    @if ($isPending)
-                        @include('beyond.tasks.partials.sign-modal', [
-                            'assignmentId' => $a->id,
-                            'action' => route('user.tasks.accept', $a->id),
-                        ])
-                    @endif
                 @endforeach
             </div>
         @endif

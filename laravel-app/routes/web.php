@@ -301,6 +301,7 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
     Route::get('/user/tasks', 'UserTaskController@index')->name('user.tasks');
     Route::get('/user/tasks/my-tasks', 'UserTaskController@index');
     Route::get('/user/tasks/pending-acceptances', 'UserTaskController@pending')->name('user.tasks.pending');
+    Route::post('/user/tasks/{assignment}/accept-code', 'UserTaskController@sendAcceptCode')->name('user.tasks.accept.code');
     Route::post('/user/tasks/{assignment}/accept', 'UserTaskController@accept')->name('user.tasks.accept');
     Route::post('/user/tasks/{assignment}/decline', 'UserTaskController@decline')->name('user.tasks.decline');
     Route::post('/user/tasks/{assignment}/update', 'UserTaskController@update')->name('user.tasks.update');

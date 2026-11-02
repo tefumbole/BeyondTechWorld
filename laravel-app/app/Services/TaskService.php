@@ -416,15 +416,17 @@ class TaskService
         return TaskAssignment::with(['task.attachments'])->where('invite_token', $token)->first();
     }
 
-    public function accept(TaskAssignment $assignment, $signature)
+    public function accept(TaskAssignment $assignment, $signature = null)
     {
-        if ($assignment->status !== 'Pending' && $assignment->acceptance_signature) {
+        if ($assignment->status !== 'Pending') {
             return $assignment;
         }
 
         $assignment->status = 'Accepted';
-        $assignment->acceptance_signature = $signature;
-        $assignment->signature_at = now();
+        if ($signature) {
+            $assignment->acceptance_signature = $signature;
+            $assignment->signature_at = now();
+        }
         $assignment->accepted_at = now();
         $assignment->last_update_at = now();
         $assignment->save();
