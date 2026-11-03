@@ -56,7 +56,6 @@
                                                     <option value="{{ $organization->id }}" @if(!empty($clone) && (int) $clone->organization_id === (int) $organization->id) selected @endif>{{ $organization->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <small style="color:#6c757d;display:block;margin-top:6px;">The chosen organization's header, footer, and reference are used. Beyond Tech World uses the General Settings letterhead.</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -402,7 +401,7 @@
             };
 
             var letterEditorCompact = {
-                height: 64,
+                height: 45,
                 statusbar: false,
                 toolbar: 'bold italic underline | alignleft aligncenter alignright | link removeformat',
                 resize: true

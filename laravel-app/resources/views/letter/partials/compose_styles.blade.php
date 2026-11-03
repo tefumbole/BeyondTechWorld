@@ -2,26 +2,50 @@
     .letter-compose {
         --letter-ink: #1f2a44;
         --letter-blue: #0b3f90;
-        --letter-line: #e3e9f4;
+        --letter-gold: #c6ab47;
+        --letter-line: #e6ebf5;
+    }
+    .letter-compose > .container-fluid > .row > .col-md-12 > .btn,
+    .letter-compose > .container-fluid > .row > .col-md-12 > a.btn {
+        border: 0;
+        border-radius: 999px;
+        font-weight: 700;
+        margin: 0 8px 14px 0;
+        padding: 8px 16px;
+    }
+    .letter-compose > .container-fluid > .row > .col-md-12 > a.btn-info {
+        background: var(--letter-blue);
     }
     .letter-compose .card {
         border: 0;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(15, 35, 80, 0.06);
+        border-radius: 18px;
+        box-shadow: 0 16px 40px rgba(15, 35, 80, 0.08);
         overflow: hidden;
     }
     .letter-compose .card-header {
-        background: #fff;
-        border-bottom: 1px solid var(--letter-line);
-        padding: 14px 20px;
+        background: linear-gradient(100deg, #072f6b 0%, #0b3f90 58%, #1456b8 100%);
+        border: 0;
+        padding: 16px 22px;
     }
     .letter-compose .card-header h4 {
         margin: 0;
-        color: var(--letter-blue);
+        color: #fff;
         font-weight: 800;
-        font-size: 1.15rem;
+        font-size: 1.2rem;
+        letter-spacing: -0.01em;
     }
-    .letter-compose .card-body { padding: 18px 20px 24px; }
+    .letter-compose .card-header h4::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 10px;
+        border-radius: 50%;
+        background: var(--letter-gold);
+        vertical-align: middle;
+    }
+    .letter-compose .card-body { padding: 20px 22px 28px; background: #f7f9fc; }
+    .letter-compose .italic { display: none; }
     .letter-compose label {
         font-size: 12px;
         font-weight: 700;
@@ -86,7 +110,19 @@
         border-color: #d7e4fb !important;
     }
     .letter-editor-compact .tox-tinymce {
+        height: 45px !important;
+        min-height: 45px !important;
         border-radius: 8px !important;
+    }
+    .letter-editor-compact .tox .tox-editor-header,
+    .letter-editor-compact .tox .tox-toolbar-overlord,
+    .letter-editor-compact .tox .tox-toolbar__primary {
+        background: #f8fafc;
+    }
+    .letter-editor-compact .tox .tox-tbtn {
+        height: 22px;
+        width: 22px;
+        margin: 0;
     }
     .letter-compose #imageUpload.dropzone {
         min-height: 56px;
@@ -115,11 +151,29 @@
         width: 72px;
         height: 72px;
     }
-    .letter-recipient-panel {
-        background: #f8fbff;
-        border: 1px dashed #0b3f90;
+    .letter-compose .letter-recipient-panel {
+        background: #fff;
+        border: 1px solid var(--letter-line);
+        border-radius: 14px;
+        padding: 14px 14px 8px;
+        box-shadow: 0 1px 0 rgba(15, 35, 80, 0.03);
+    }
+    .letter-compose .letter-recipient-panel h5 {
+        font-size: 15px;
+    }
+    .letter-compose .card-body .form-group {
+        background: #fff;
+        border: 1px solid var(--letter-line);
         border-radius: 12px;
-        padding: 14px;
+        padding: 10px 12px 12px;
+        margin-bottom: 12px;
+    }
+    .letter-compose .modal .form-group {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+        margin-bottom: 1rem;
     }
     #product-form .is-invalid,
     #product-form .form-control.is-invalid,
