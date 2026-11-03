@@ -52,7 +52,7 @@
         </div>
         <div class="small text-muted mt-1 lt-phone-status"></div>
     </div>
-    <div class="lt-user-list lt-rlist"></div>
+    <div class="lt-user-list lt-rlist" style="display:none;"></div>
     <div class="lt-rchips mt-2"></div>
     <div class="lt-rhiddens"></div>
 
@@ -80,7 +80,7 @@
         </div>
         <div class="small text-muted mt-1 lt-phone-status"></div>
     </div>
-    <div class="lt-user-list lt-clist" style="max-height:140px;"></div>
+    <div class="lt-user-list lt-clist" style="display:none;max-height:140px;"></div>
     <div class="lt-cchips mt-2"></div>
     <div class="lt-chiddens"></div>
 </div>
@@ -226,6 +226,10 @@ window.LT_PRESELECT = @json([
         return null;
     }
 
+    function searching(q) {
+        return (q || '').trim().length >= 1;
+    }
+
     function refreshRecipients() {
         var phoneBox = document.querySelector('.lt-rphone');
         var tools = document.querySelector('.lt-rtools');
@@ -233,6 +237,7 @@ window.LT_PRESELECT = @json([
             if (phoneBox) phoneBox.style.display = 'block';
             if (tools) tools.style.display = 'none';
             document.querySelector('.lt-rlist').innerHTML = '';
+            document.querySelector('.lt-rlist').style.display = 'none';
             renderChips(document.querySelector('.lt-rchips'), recipients, function (id) {
                 recipients = recipients.filter(function (x) { return x !== id; });
                 refreshRecipients();
@@ -243,31 +248,40 @@ window.LT_PRESELECT = @json([
         if (phoneBox) phoneBox.style.display = 'none';
         if (tools) tools.style.display = 'flex';
         var q = document.querySelector('.lt-rsearch').value;
-        var grouped = visibleFor(rRole, q);
-        if (grouped) {
-            renderList(document.querySelector('.lt-rlist'), grouped, recipients, function (id) {
-                var i = recipients.indexOf(id);
-                if (i === -1) recipients.push(id); else recipients.splice(i, 1);
-                refreshRecipients();
-            });
+        var list = document.querySelector('.lt-rlist');
+        function paintSelected() {
             renderChips(document.querySelector('.lt-rchips'), recipients, function (id) {
                 recipients = recipients.filter(function (x) { return x !== id; });
                 refreshRecipients();
             });
             syncHiddens(document.querySelector('.lt-rhiddens'), recipients, 'recipient_ids');
+        }
+        function paintResults(users) {
+            if (!searching(document.querySelector('.lt-rsearch').value)) {
+                list.innerHTML = '';
+                list.style.display = 'none';
+            } else {
+                list.style.display = '';
+                renderList(list, users, recipients, function (id) {
+                    if (recipients.indexOf(id) === -1) recipients.push(id);
+                    refreshRecipients();
+                });
+            }
+            paintSelected();
+        }
+        var grouped = visibleFor(rRole, q);
+        if (grouped) {
+            paintResults(grouped);
+            return;
+        }
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            paintSelected();
             return;
         }
         searchUsers(q, rRole, function (users) {
-            renderList(document.querySelector('.lt-rlist'), users, recipients, function (id) {
-                var i = recipients.indexOf(id);
-                if (i === -1) recipients.push(id); else recipients.splice(i, 1);
-                refreshRecipients();
-            });
-            renderChips(document.querySelector('.lt-rchips'), recipients, function (id) {
-                recipients = recipients.filter(function (x) { return x !== id; });
-                refreshRecipients();
-            });
-            syncHiddens(document.querySelector('.lt-rhiddens'), recipients, 'recipient_ids');
+            paintResults(users);
         });
     }
 
@@ -278,6 +292,7 @@ window.LT_PRESELECT = @json([
             if (phoneBox) phoneBox.style.display = 'block';
             if (tools) tools.style.display = 'none';
             document.querySelector('.lt-clist').innerHTML = '';
+            document.querySelector('.lt-clist').style.display = 'none';
             renderChips(document.querySelector('.lt-cchips'), ccs, function (id) {
                 ccs = ccs.filter(function (x) { return x !== id; });
                 refreshCc();
@@ -288,31 +303,40 @@ window.LT_PRESELECT = @json([
         if (phoneBox) phoneBox.style.display = 'none';
         if (tools) tools.style.display = 'flex';
         var q = document.querySelector('.lt-csearch').value;
-        var grouped = visibleFor(cRole, q);
-        if (grouped) {
-            renderList(document.querySelector('.lt-clist'), grouped, ccs, function (id) {
-                var i = ccs.indexOf(id);
-                if (i === -1) ccs.push(id); else ccs.splice(i, 1);
-                refreshCc();
-            });
+        var list = document.querySelector('.lt-clist');
+        function paintSelected() {
             renderChips(document.querySelector('.lt-cchips'), ccs, function (id) {
                 ccs = ccs.filter(function (x) { return x !== id; });
                 refreshCc();
             }, 'CC:');
             syncHiddens(document.querySelector('.lt-chiddens'), ccs, 'cc_ids');
+        }
+        function paintResults(users) {
+            if (!searching(document.querySelector('.lt-csearch').value)) {
+                list.innerHTML = '';
+                list.style.display = 'none';
+            } else {
+                list.style.display = '';
+                renderList(list, users, ccs, function (id) {
+                    if (ccs.indexOf(id) === -1) ccs.push(id);
+                    refreshCc();
+                });
+            }
+            paintSelected();
+        }
+        var grouped = visibleFor(cRole, q);
+        if (grouped) {
+            paintResults(grouped);
+            return;
+        }
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            paintSelected();
             return;
         }
         searchUsers(q, cRole, function (users) {
-            renderList(document.querySelector('.lt-clist'), users, ccs, function (id) {
-                var i = ccs.indexOf(id);
-                if (i === -1) ccs.push(id); else ccs.splice(i, 1);
-                refreshCc();
-            });
-            renderChips(document.querySelector('.lt-cchips'), ccs, function (id) {
-                ccs = ccs.filter(function (x) { return x !== id; });
-                refreshCc();
-            }, 'CC:');
-            syncHiddens(document.querySelector('.lt-chiddens'), ccs, 'cc_ids');
+            paintResults(users);
         });
     }
 
@@ -341,26 +365,44 @@ window.LT_PRESELECT = @json([
         });
     });
     document.querySelector('.lt-rselect-all').addEventListener('click', function () {
-        var rows = rRole === 'group'
-            ? groupsAsUsers(document.querySelector('.lt-rsearch').value)
-            : filterUsersLocal(document.querySelector('.lt-rsearch').value, rRole);
-        rows.forEach(function (u) {
-            if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+        var q = document.querySelector('.lt-rsearch').value;
+        if (!searching(q)) return;
+        var rows = rRole === 'group' ? groupsAsUsers(q) : null;
+        if (rows) {
+            rows.forEach(function (u) {
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+            });
+            refreshRecipients();
+            return;
+        }
+        searchUsers(q, rRole, function (users) {
+            users.forEach(function (u) {
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+            });
+            refreshRecipients();
         });
-        refreshRecipients();
     });
     document.querySelector('.lt-rdeselect-all').addEventListener('click', function () {
         recipients = [];
         refreshRecipients();
     });
     document.querySelector('.lt-cselect-all').addEventListener('click', function () {
-        var rows = cRole === 'group'
-            ? groupsAsUsers(document.querySelector('.lt-csearch').value)
-            : filterUsersLocal(document.querySelector('.lt-csearch').value, cRole);
-        rows.forEach(function (u) {
-            if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+        var q = document.querySelector('.lt-csearch').value;
+        if (!searching(q)) return;
+        var rows = cRole === 'group' ? groupsAsUsers(q) : null;
+        if (rows) {
+            rows.forEach(function (u) {
+                if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+            });
+            refreshCc();
+            return;
+        }
+        searchUsers(q, cRole, function (users) {
+            users.forEach(function (u) {
+                if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+            });
+            refreshCc();
         });
-        refreshCc();
     });
     document.querySelector('.lt-cdeselect-all').addEventListener('click', function () {
         ccs = [];

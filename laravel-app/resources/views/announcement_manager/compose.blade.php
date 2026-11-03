@@ -223,11 +223,12 @@
                             <button type="button" class="an-pill an-rf" data-role="applicants">Applicants</button>
                             <button type="button" class="an-pill an-rf" data-role="all">All</button>
                         </div>
-                        <div class="d-flex mb-2" style="gap:8px;">
-                            <input type="search" class="an-field an-rsearch" placeholder="Search name, email, phone…">
+                        <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+                            <input type="search" class="an-field an-rsearch" placeholder="Search name, email, phone…" style="flex:1;min-width:180px;">
                             <button type="button" class="an-btn-outline an-rselect-all" style="white-space:nowrap;">Select all</button>
+                            <button type="button" class="an-btn-outline an-rdeselect-all" style="white-space:nowrap;">Deselect all</button>
                         </div>
-                        <div class="an-user-list an-rlist"></div>
+                        <div class="an-user-list an-rlist" style="display:none;"></div>
                         <div class="an-rchips mt-2"></div>
                         <div class="an-rhiddens"></div>
 
@@ -240,8 +241,12 @@
                             <button type="button" class="an-pill an-cf" data-role="customers">Customers</button>
                             <button type="button" class="an-pill an-cf" data-role="applicants">Applicants</button>
                         </div>
-                        <input type="search" class="an-field an-csearch mb-2" placeholder="Search CC…">
-                        <div class="an-user-list an-clist" style="max-height:140px;"></div>
+                        <div class="d-flex mb-2 flex-wrap" style="gap:8px;">
+                            <input type="search" class="an-field an-csearch" placeholder="Search CC…" style="flex:1;min-width:180px;">
+                            <button type="button" class="an-btn-outline an-cselect-all" style="white-space:nowrap;">Select all</button>
+                            <button type="button" class="an-btn-outline an-cdeselect-all" style="white-space:nowrap;">Deselect all</button>
+                        </div>
+                        <div class="an-user-list an-clist" style="display:none;max-height:140px;"></div>
                         <div class="an-cchips mt-2"></div>
                         <div class="an-chiddens"></div>
                         </div>
@@ -429,12 +434,28 @@ window.AN_PRESELECT = @json([
         document.getElementById('an-count').textContent = String(recipients.length + ccs.length);
     }
 
+    function searching(q) {
+        return (q || '').trim().length >= 1;
+    }
+
     function refreshRecipients() {
         var q = document.querySelector('.an-rsearch').value;
+        var list = document.querySelector('.an-rlist');
+        renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
+            recipients = recipients.filter(function (x) { return x !== id; });
+            refreshRecipients();
+        });
+        syncHiddens(document.querySelector('.an-rhiddens'), recipients, 'recipient_ids');
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         searchUsers(q, rRole, function (users) {
-            renderList(document.querySelector('.an-rlist'), users, recipients, function (id) {
-                var i = recipients.indexOf(id);
-                if (i === -1) recipients.push(id); else recipients.splice(i, 1);
+            if (!searching(document.querySelector('.an-rsearch').value)) return;
+            list.style.display = '';
+            renderList(list, users, recipients, function (id) {
+                if (recipients.indexOf(id) === -1) recipients.push(id);
                 refreshRecipients();
             });
             renderChips(document.querySelector('.an-rchips'), recipients, function (id) {
@@ -447,10 +468,22 @@ window.AN_PRESELECT = @json([
 
     function refreshCc() {
         var q = document.querySelector('.an-csearch').value;
+        var list = document.querySelector('.an-clist');
+        renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
+            ccs = ccs.filter(function (x) { return x !== id; });
+            refreshCc();
+        }, 'CC:');
+        syncHiddens(document.querySelector('.an-chiddens'), ccs, 'cc_ids');
+        if (!searching(q)) {
+            list.innerHTML = '';
+            list.style.display = 'none';
+            return;
+        }
         searchUsers(q, cRole, function (users) {
-            renderList(document.querySelector('.an-clist'), users, ccs, function (id) {
-                var i = ccs.indexOf(id);
-                if (i === -1) ccs.push(id); else ccs.splice(i, 1);
+            if (!searching(document.querySelector('.an-csearch').value)) return;
+            list.style.display = '';
+            renderList(list, users, ccs, function (id) {
+                if (ccs.indexOf(id) === -1) ccs.push(id);
                 refreshCc();
             });
             renderChips(document.querySelector('.an-cchips'), ccs, function (id) {
@@ -486,10 +519,32 @@ window.AN_PRESELECT = @json([
         });
     });
     document.querySelector('.an-rselect-all').addEventListener('click', function () {
-        filterUsers(document.querySelector('.an-rsearch').value, rRole).forEach(function (u) {
-            if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+        var q = document.querySelector('.an-rsearch').value;
+        if (!searching(q)) return;
+        searchUsers(q, rRole, function (users) {
+            users.forEach(function (u) {
+                if (recipients.indexOf(u.id) === -1) recipients.push(u.id);
+            });
+            refreshRecipients();
         });
+    });
+    document.querySelector('.an-rdeselect-all').addEventListener('click', function () {
+        recipients = [];
         refreshRecipients();
+    });
+    document.querySelector('.an-cselect-all').addEventListener('click', function () {
+        var q = document.querySelector('.an-csearch').value;
+        if (!searching(q)) return;
+        searchUsers(q, cRole, function (users) {
+            users.forEach(function (u) {
+                if (ccs.indexOf(u.id) === -1) ccs.push(u.id);
+            });
+            refreshCc();
+        });
+    });
+    document.querySelector('.an-cdeselect-all').addEventListener('click', function () {
+        ccs = [];
+        refreshCc();
     });
 
     var addPanel = document.getElementById('an-add-recipient-panel');
