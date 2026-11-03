@@ -1468,3 +1468,63 @@
                     padding-right: 10px;
                 }
             }
+
+            @media (max-width: 767.98px) {
+                html, body {
+                    overflow-x: hidden;
+                }
+                .page, .content-inner, .container-fluid, .card, .modal-content {
+                    max-width: 100%;
+                }
+                img, video, canvas, svg, iframe {
+                    max-width: 100%;
+                }
+                .bootstrap-select,
+                .bootstrap-select > .dropdown-toggle {
+                    width: 100% !important;
+                    max-width: 100%;
+                }
+                .bootstrap-select .dropdown-menu,
+                .bs-container .dropdown-menu {
+                    max-width: calc(100vw - 16px);
+                }
+                .bootstrap-select .bs-searchbox input,
+                .bs-container .bs-searchbox input {
+                    font-size: 16px !important;
+                    min-height: 42px;
+                }
+                .dropdown-menu {
+                    font-size: 15px;
+                }
+                .form-group, .input-group {
+                    max-width: 100%;
+                }
+                .input-group > .form-control {
+                    min-width: 0;
+                }
+                textarea.form-control {
+                    min-height: 88px;
+                }
+                .tox-tinymce {
+                    max-width: 100% !important;
+                }
+                .tox .tox-toolbar__primary {
+                    overflow-x: auto;
+                }
+                .tox .tox-dialog {
+                    max-width: calc(100vw - 16px) !important;
+                }
+                .dropzone {
+                    padding: 8px !important;
+                }
+                .page .container-fluid {
+                    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+                }
+                .footer, footer {
+                    padding-bottom: env(safe-area-inset-bottom);
+                }
+                pre, code {
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                }
+            }

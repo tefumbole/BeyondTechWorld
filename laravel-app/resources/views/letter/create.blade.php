@@ -41,7 +41,7 @@
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label>Recipient Mode</label>
-                                            <select class="form-control" name="people_type" required>
+                                            <select class="form-control letter-select" name="people_type" required>
                                                 <option value="directory" @if($clonePeopleType !== 'csv') selected @endif>People directory (Users / Customers / Applicants)</option>
                                                 <option value="csv" @if($clonePeopleType === 'csv') selected @endif>CSV upload</option>
                                             </select>
@@ -50,7 +50,7 @@
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label>Organization</label>
-                                            <select class="form-control" name="organization_id">
+                                            <select class="form-control letter-select" name="organization_id">
                                                 <option value="">Beyond Tech World</option>
                                                 @foreach($organizations as $organization)
                                                     <option value="{{ $organization->id }}" @if(!empty($clone) && (int) $clone->organization_id === (int) $organization->id) selected @endif>{{ $organization->name }}</option>
@@ -61,7 +61,7 @@
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label>{{trans('file.Letter Category')}} </label>
-                                            <select class="form-control" name="category_id">
+                                            <select class="form-control letter-select" name="category_id">
                                                 <option value="">-- Default --</option>
                                                 @foreach($category as $cat)
                                                     <option value="{{$cat->id}}" @if(!empty($clone) && $clone->category_id == $cat->id) selected @endif>{{$cat->name}}</option>
@@ -72,11 +72,7 @@
                                     <div class="col-md-3">
                                         <div class="form-group">
                                             <label>{{trans('file.Letter Template')}} </label>
-                                            <select class="form-control selectpicker" name="template_id"
-                                                    data-live-search="true"
-                                                    data-size="10"
-                                                    title="Search templates…"
-                                                    data-none-results-text="No template match">
+                                            <select class="form-control letter-select" name="template_id" title="Search templates…">
                                                 <option value="">-- Blank --</option>
                                                 @foreach($template as $tem)
                                                     <option value="{{$tem->id}}"
@@ -132,7 +128,7 @@
                                         <div class="col-md-4">
                                             <div class="form-group">
                                                 <label>Forward Letter To Any </label>
-                                                <select name="forward_letter" class="form-control" data-live-search="true" required>
+                                                <select name="forward_letter" class="form-control letter-select" required>
                                                     <option value="editor">Editor</option>
                                                     <option value="approver">Approver</option>
                                                     <option value="signer">Signer</option>
@@ -150,7 +146,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label>Attachments</label>
-                                            <div id="imageUpload" class="dropzone" tabindex="0" title="Drop files here, or click and paste an image"></div>
+                                            <div id="imageUpload" class="dropzone" tabindex="0"></div>
                                             @if($errors->has('attachments'))
                                                 <span>
                                        <strong>{{ $errors->first('attachments') }}</strong>
@@ -335,13 +331,24 @@
 
         $(document).ready(function() {
             var $templateSelect = $('select[name="template_id"]');
-            if ($templateSelect.length && $.fn.selectpicker) {
-                $templateSelect.selectpicker({
+            if ($.fn.selectpicker) {
+                $('.letter-compose select.letter-select').selectpicker({
                     liveSearch: true,
-                    size: 10,
-                    noneResultsText: 'No template match {0}'
+                    liveSearchPlaceholder: 'Search…',
+                    liveSearchNormalize: true,
+                    size: 8,
+                    container: 'body',
+                    width: '100%',
+                    style: 'letter-select-btn',
+                    styleBase: 'btn',
+                    noneResultsText: 'No match for {0}',
+                    dropupAuto: true
                 });
             }
+            $(document).on('shown.bs.select', '.letter-select', function () {
+                var $menu = $('.bs-container.bootstrap-select').last().addClass('letter-select-menu');
+                $menu.find('.bs-searchbox input').attr('placeholder', 'Search…').trigger('focus');
+            });
             $templateSelect.on('changed.bs.select change', function() {
                 var url = "/letters/template/info/"
                 var id = $(this).val();
@@ -395,16 +402,56 @@
                 toolbar: 'undo redo | formatselect | bold italic underline | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image | removeformat',
                 branding: false,
                 menubar: false,
-                statusbar: true,
-                resize: true,
-                content_style: 'body { font-family: Nunito, sans-serif; font-size: 15px; color: #1f2a44; }'
+                statusbar: false,
+                resize: false,
+                content_style: 'html,body{margin:0!important;padding:6px 8px!important;background:#fff;font-family:Nunito,sans-serif;font-size:15px;color:#1f2a44;line-height:1.45;} p,div{margin:0 0 0.35em!important;} p:last-child,div:last-child{margin-bottom:0!important;} img{max-width:100%;height:auto;}',
+                setup: function (editor) {
+                    editor.on('init', function () {
+                        if (editor.iframeElement) {
+                            editor.iframeElement.removeAttribute('title');
+                        }
+                        var host = editor.getContainer();
+                        if (!host || !host.parentNode || host.parentNode.querySelector('.letter-img-remove')) {
+                            return;
+                        }
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'letter-img-remove';
+                        btn.textContent = 'Remove image';
+                        btn.style.display = 'none';
+                        host.parentNode.insertBefore(btn, host);
+                        var current = null;
+                        editor.on('click', function (e) {
+                            if (e.target && e.target.nodeName === 'IMG') {
+                                current = e.target;
+                                btn.style.display = 'inline-flex';
+                            } else {
+                                current = null;
+                                btn.style.display = 'none';
+                            }
+                        });
+                        btn.addEventListener('mousedown', function (ev) {
+                            ev.preventDefault();
+                            if (current && current.parentNode) {
+                                current.parentNode.removeChild(current);
+                                editor.undoManager.add();
+                                editor.fire('change');
+                                editor.save();
+                            }
+                            current = null;
+                            btn.style.display = 'none';
+                        });
+                    });
+                }
             };
 
             var letterEditorCompact = {
-                height: 45,
+                height: 42,
                 statusbar: false,
                 toolbar: 'bold italic underline | alignleft aligncenter alignright | link removeformat',
-                resize: true
+                resize: false,
+                forced_root_block: false,
+                content_style: 'html,body{margin:0!important;padding:4px 8px!important;background:#fff;font-family:Nunito,sans-serif;font-size:14px;color:#1f2a44;line-height:1.35;} p,div{margin:0!important;} img{max-width:100%;height:auto;}'
             };
 
             tinymce.init(Object.assign({}, letterEditorDefaults, letterEditorCompact, {
@@ -509,6 +556,7 @@
 
         myDropzone = new Dropzone('div#imageUpload', {
             addRemoveLinks: true,
+            dictRemoveFile: 'Remove',
             autoProcessQueue: false,
             uploadMultiple: true,
             parallelUploads: 100,

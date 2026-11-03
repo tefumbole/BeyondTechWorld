@@ -20,11 +20,12 @@
         border: 0;
         border-radius: 18px;
         box-shadow: 0 16px 40px rgba(15, 35, 80, 0.08);
-        overflow: hidden;
+        overflow: visible;
     }
     .letter-compose .card-header {
         background: linear-gradient(100deg, #072f6b 0%, #0b3f90 58%, #1456b8 100%);
         border: 0;
+        border-radius: 18px 18px 0 0;
         padding: 16px 22px;
     }
     .letter-compose .card-header h4 {
@@ -54,10 +55,59 @@
         margin-bottom: 6px;
     }
     .letter-compose .form-control,
-    .letter-compose .bootstrap-select > .dropdown-toggle {
+    .letter-compose .bootstrap-select > .dropdown-toggle,
+    .letter-compose .letter-select-btn {
         border-radius: 10px;
-        border-color: #d7deea;
-        min-height: 42px;
+        border: 1px solid #d7deea !important;
+        background: #fff !important;
+        color: #1f2a44 !important;
+        min-height: 44px;
+        box-shadow: none !important;
+        font-weight: 600;
+        text-align: left;
+    }
+    .letter-compose .bootstrap-select > .dropdown-toggle .filter-option {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 8px;
+    }
+    .letter-compose .bootstrap-select > .dropdown-toggle::after {
+        margin-left: 8px;
+    }
+    .letter-select-menu .dropdown-menu {
+        border: 1px solid #e6ebf5;
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(15, 35, 80, 0.14);
+        padding: 6px;
+        min-width: 240px;
+        max-width: min(420px, calc(100vw - 16px));
+    }
+    .letter-select-menu .bs-searchbox {
+        padding: 4px 4px 8px;
+    }
+    .letter-select-menu .bs-searchbox input {
+        border: 1px solid #d7deea;
+        border-radius: 8px;
+        min-height: 40px;
+        padding: 8px 10px;
+        font-size: 16px;
+        box-shadow: none;
+    }
+    .letter-select-menu .dropdown-menu li a {
+        border-radius: 8px;
+        padding: 8px 10px;
+        white-space: normal;
+    }
+    .letter-select-menu .dropdown-menu li.selected a,
+    .letter-select-menu .dropdown-menu li a:hover,
+    .letter-select-menu .dropdown-menu li a:focus {
+        background: #f4f8ff;
+        color: #0b3f90;
+    }
+    .letter-select-menu .no-results {
+        padding: 8px 10px;
+        color: #6c757d;
+        background: transparent;
     }
     .letter-compose .form-control:focus {
         border-color: var(--letter-blue);
@@ -110,8 +160,6 @@
         border-color: #d7e4fb !important;
     }
     .letter-editor-compact .tox-tinymce {
-        height: 45px !important;
-        min-height: 45px !important;
         border-radius: 8px !important;
     }
     .letter-editor-compact .tox .tox-editor-header,
@@ -119,10 +167,27 @@
     .letter-editor-compact .tox .tox-toolbar__primary {
         background: #f8fafc;
     }
+    .letter-editor-compact .tox .tox-toolbar__primary {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+    }
     .letter-editor-compact .tox .tox-tbtn {
         height: 22px;
         width: 22px;
         margin: 0;
+    }
+    .letter-img-remove {
+        display: none;
+        align-items: center;
+        margin: 0 0 6px auto;
+        border: 0;
+        border-radius: 999px;
+        background: #fff1f1;
+        color: #9b1c1c;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        cursor: pointer;
     }
     .letter-compose #imageUpload.dropzone {
         min-height: 56px;
@@ -141,15 +206,54 @@
     }
     .letter-compose #imageUpload.dropzone.dz-started {
         min-height: 0;
-        display: block;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 8px;
         padding: 8px;
     }
     .letter-compose #imageUpload .dz-preview {
-        margin: 6px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 104px;
+        min-height: 0;
+        margin: 0;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid #e6ebf5;
+        border-radius: 10px;
     }
     .letter-compose #imageUpload .dz-preview .dz-image {
-        width: 72px;
-        height: 72px;
+        width: 92px;
+        height: 68px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .letter-compose #imageUpload .dz-preview .dz-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .letter-compose #imageUpload .dz-preview .dz-details,
+    .letter-compose #imageUpload .dz-preview .dz-progress,
+    .letter-compose #imageUpload .dz-preview .dz-success-mark,
+    .letter-compose #imageUpload .dz-preview .dz-error-mark {
+        display: none;
+    }
+    .letter-compose #imageUpload .dz-preview .dz-remove {
+        display: block;
+        margin-top: 6px;
+        padding: 4px 6px;
+        border-radius: 999px;
+        background: #fff1f1;
+        color: #9b1c1c;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
     }
     .letter-compose .letter-recipient-panel {
         background: #fff;
@@ -196,5 +300,45 @@
     #product-form label.letter-label-invalid,
     #product-form .section-label.letter-label-invalid {
         color: #dc3545 !important;
+    }
+    @media (max-width: 767.98px) {
+        .letter-compose > .container-fluid > .row > .col-md-12 > .btn,
+        .letter-compose > .container-fluid > .row > .col-md-12 > a.btn {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            margin-bottom: 8px;
+        }
+        .letter-compose .card-header,
+        .letter-compose .card-body {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        .letter-compose .card-body .form-group,
+        .letter-compose-section,
+        .letter-compose .letter-recipient-panel {
+            padding: 10px;
+        }
+        .letter-compose .lt-field,
+        .letter-compose .form-control,
+        .letter-compose .letter-select-btn,
+        .letter-select-menu .bs-searchbox input {
+            font-size: 16px !important;
+        }
+        .letter-compose .lt-pill,
+        .letter-compose .lt-btn-outline {
+            min-height: 40px;
+        }
+        .letter-compose #submit-btn {
+            width: 100%;
+            min-height: 48px;
+        }
+        .letter-compose .tox .tox-toolbar__primary {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+        }
+        .letter-compose .tox .tox-dialog {
+            max-width: calc(100vw - 16px) !important;
+        }
     }
 </style>
