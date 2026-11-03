@@ -9,7 +9,7 @@
     @if(session()->has('not_permitted'))
         <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
     @endif
-    <section class="forms">
+    <section class="forms letter-compose">
         @include('letter.partials.compose_styles')
         <div class="container-fluid">
             <div class="row">
@@ -150,8 +150,8 @@
                                     {{--                            </div>--}}
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <label>Attachments </label> <i class="dripicons-question" data-toggle="tooltip" title="{{trans('file.You can upload multiple attachments. Only .jpeg, .jpg, .png, .gif file can be uploaded.')}}"></i>
-                                            <div id="imageUpload" class="dropzone"></div>
+                                            <label>Attachments</label>
+                                            <div id="imageUpload" class="dropzone" tabindex="0" title="Drop files here, or click and paste an image"></div>
                                             @if($errors->has('attachments'))
                                                 <span>
                                        <strong>{{ $errors->first('attachments') }}</strong>
@@ -161,7 +161,7 @@
                                     </div>
 
                                     <div class="col-md-12">
-                                        <div class="letter-compose-section letter-editor-wrap">
+                                        <div class="letter-compose-section letter-editor-wrap letter-editor-compact">
                                             <span class="section-label">{{trans('file.Header')}}</span>
                                             <textarea name="header" class="form-control" id="header">@if(!empty($clone)){!! $clone->header !!}@endif</textarea>
                                         </div>
@@ -183,7 +183,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-12">
-                                        <div class="letter-compose-section letter-editor-wrap">
+                                        <div class="letter-compose-section letter-editor-wrap letter-editor-compact">
                                             <span class="section-label footer">{{trans('file.Footer')}}</span>
                                             <textarea name="footer" class="form-control" id="footer">@if(!empty($clone)){!! $clone->footer !!}@endif</textarea>
                                         </div>
@@ -401,9 +401,15 @@
                 content_style: 'body { font-family: Nunito, sans-serif; font-size: 15px; color: #1f2a44; }'
             };
 
-            tinymce.init(Object.assign({}, letterEditorDefaults, {
-                selector: '#header',
-                height: 160
+            var letterEditorCompact = {
+                height: 64,
+                statusbar: false,
+                toolbar: 'bold italic underline | alignleft aligncenter alignright | link removeformat',
+                resize: true
+            };
+
+            tinymce.init(Object.assign({}, letterEditorDefaults, letterEditorCompact, {
+                selector: '#header'
             }));
 
             tinymce.init(Object.assign({}, letterEditorDefaults, {
@@ -436,9 +442,8 @@
                 }
             }));
 
-            tinymce.init(Object.assign({}, letterEditorDefaults, {
-                selector: '#footer',
-                height: 160
+            tinymce.init(Object.assign({}, letterEditorDefaults, letterEditorCompact, {
+                selector: '#footer'
             }));
         }
 
@@ -475,19 +480,32 @@
             }
         });
 
-        // Intercept paste events on the document
-        $(document).on('paste', function(e) {
-            var items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (var index in items) {
-                var item = items[index];
-                if (item.kind === 'file') {
-                    var blob = item.getAsFile();
-                    if (blob.type.indexOf('image') !== -1) {
-                        var pasteFile = new File([blob], 'pasted-image.png', { type: blob.type });
-                        myDropzone.addFile(pasteFile);
-                    }
-                }
+        function addPastedImages(e) {
+            var cd = (e.originalEvent && e.originalEvent.clipboardData) || e.clipboardData;
+            if (!cd || !cd.items || typeof myDropzone === 'undefined' || !myDropzone) return false;
+            var added = false;
+            for (var i = 0; i < cd.items.length; i++) {
+                var item = cd.items[i];
+                if (!item || item.kind !== 'file' || item.type.indexOf('image') !== 0) continue;
+                var blob = item.getAsFile();
+                if (!blob) continue;
+                var ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+                myDropzone.addFile(new File([blob], 'pasted-' + Date.now() + '-' + i + '.' + ext, { type: blob.type || 'image/png' }));
+                added = true;
             }
+            return added;
+        }
+
+        $('#imageUpload').on('paste', function (e) {
+            if (addPastedImages(e)) e.preventDefault();
+        });
+
+        $(document).on('paste', function (e) {
+            var target = e.target;
+            if (target && target.closest && (target.closest('.tox-edit-area') || target.closest('.tox-tinymce') || target.isContentEditable)) {
+                return;
+            }
+            if (addPastedImages(e)) e.preventDefault();
         });
 
         myDropzone = new Dropzone('div#imageUpload', {
@@ -512,6 +530,7 @@
                 return time + file.name;
             },
             acceptedFiles: ".jpeg,.jpg,.png,.gif,.pdf",
+            dictDefaultMessage: "Drop a file, or click here and paste an image",
             init: function () {
                 var myDropzone = this;
                 var letterSubmitting = false;
