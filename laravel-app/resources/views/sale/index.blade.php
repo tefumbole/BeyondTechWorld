@@ -61,14 +61,11 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{trans('file.Date')}}</th>
-                    <th>{{trans('file.reference')}}</th>
-                    <th>{{trans('file.Biller')}}</th>
                     <th>{{trans('file.customer')}}</th>
-                    <th>{{trans('file.Sale Status')}}</th>
-                    <th>{{trans('file.Payment Status')}}</th>
                     <th>{{trans('file.grand total')}}</th>
                     <th>{{trans('file.Paid')}}</th>
                     <th>{{trans('file.Due')}}</th>
+                    <th>{{trans('file.Payment Status')}}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
                 </thead>
@@ -76,9 +73,6 @@
                 <tfoot class="tfoot active">
                 <th></th>
                 <th>{{trans('file.Total')}}</th>
-                <th></th>
-                <th></th>
-                <th></th>
                 <th></th>
                 <th></th>
                 <th></th>
@@ -534,7 +528,7 @@
             rowindex = $(this).closest('tr').index();
             deposit = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.deposit').val();
             var sale_id = $(this).data('id').toString();
-            var balance = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(10)').text();
+            var balance = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(6)').text();
             balance = parseFloat(balance.replace(/,/g, ''));
             $('input[name="paying_amount"]').val(balance);
             $('#add-payment input[name="balance"]').val(balance);
@@ -847,14 +841,11 @@
             "columns": [
                 {"data": "key"},
                 {"data": "date"},
-                {"data": "reference_no"},
-                {"data": "biller"},
                 {"data": "customer"},
-                {"data": "sale_status"},
-                {"data": "payment_status"},
                 {"data": "grand_total"},
                 {"data": "paid_amount"},
                 {"data": "due"},
+                {"data": "payment_status"},
                 {"data": "options"},
             ],
             'language': {
@@ -871,7 +862,7 @@
             'columnDefs': [
                 {
                     "orderable": false,
-                    'targets': [0, 3, 4, 5, 6, 9, 10]
+                    'targets': [0, 2, 5, 6, 7]
                 },
                 {
                     'render': function(data, type, row, meta){
@@ -980,18 +971,12 @@
         } );
 
         function datatable_sum(dt_selector, is_calling_first) {
-            if (dt_selector.rows( '.selected' ).any() && is_calling_first) {
-                var rows = dt_selector.rows( '.selected' ).indexes();
-
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(2));
-            }
-            else {
-                $( dt_selector.column( 7 ).footer() ).html(dt_selector.cells( rows, 7, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 8 ).footer() ).html(dt_selector.cells( rows, 8, { page: 'current' } ).data().sum().toFixed(2));
-                $( dt_selector.column( 9 ).footer() ).html(dt_selector.cells( rows, 9, { page: 'current' } ).data().sum().toFixed(2));
-            }
+            var rows = (dt_selector.rows('.selected').any() && is_calling_first)
+                ? dt_selector.rows('.selected').indexes()
+                : dt_selector.rows({ page: 'current' }).indexes();
+            [3, 4, 5].forEach(function (col) {
+                $(dt_selector.column(col).footer()).html(dt_selector.cells(rows, col, { page: 'current' }).data().sum().toFixed(2));
+            });
         }
 
         function parseSaleAmt(v){

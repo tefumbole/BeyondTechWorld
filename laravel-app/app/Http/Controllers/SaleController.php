@@ -145,9 +145,8 @@ class SaleController extends Controller
     {
         $columns = array(
             1 => 'created_at',
-            2 => 'reference_no',
-            7 => 'grand_total',
-            8 => 'paid_amount',
+            3 => 'grand_total',
+            4 => 'paid_amount',
         );
 
         $warehouse_id = $request->input('warehouse_id');
@@ -168,8 +167,9 @@ class SaleController extends Controller
         else
             $limit = $totalData;
         $start = $request->input('start');
-        $order = 'sales.'.$columns[$request->input('order.0.column')];
-        $dir = $request->input('order.0.dir');
+        $orderColumn = (int) $request->input('order.0.column');
+        $order = 'sales.'.(isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'created_at');
+        $dir = $request->input('order.0.dir') === 'asc' ? 'asc' : 'desc';
         if(empty($request->input('search.value'))) {
             if(Auth::user()->role_id > 2 && config('staff_access') == 'own')
                 $sales = Sale::with('biller', 'customer', 'warehouse', 'user')
