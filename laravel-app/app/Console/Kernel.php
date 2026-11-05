@@ -33,6 +33,7 @@ class Kernel extends ConsoleKernel
         Commands\SendOnlineInvitationReminders::class,
         Commands\FixFuneralEulogies::class,
         Commands\ProvisionSystemTestAccount::class,
+        Commands\TravelCompany::class,
     ];
 
     /**

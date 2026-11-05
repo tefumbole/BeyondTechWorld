@@ -70,6 +70,7 @@ class Kernel extends HttpKernel
         'beyond.otp' => \App\Http\Middleware\BeyondOtpVerified::class,
         'cloud.member' => \App\Http\Middleware\EnsureCloudMembership::class,
         'nbc.member' => \App\Http\Middleware\EnsureNbcMember::class,
+        'travel.enabled' => \App\Http\Middleware\EnsureTravelEnabled::class,
     ];
 
     /**

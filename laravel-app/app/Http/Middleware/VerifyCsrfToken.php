@@ -38,5 +38,6 @@ class VerifyCsrfToken extends Middleware
         // unreliable across cache/CDN and caused silent "Network error" sends.
         'api/website-chat/*',
         'cloud/billing/webhook/*',
+        'travel/payments/callback',
     ];
 }

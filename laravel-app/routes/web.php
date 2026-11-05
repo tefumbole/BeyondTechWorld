@@ -1759,3 +1759,5 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
 });
 
+require base_path('routes/travel.php');
+
