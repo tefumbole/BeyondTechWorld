@@ -101,7 +101,7 @@ class TravelModuleTest extends TestCase
         $other = $this->departure(8, 'Bamenda', 'Douala', 'morning', 'vip', 'EP-B', 'Driver B');
 
         $this->get('/travel')->assertOk()->assertSee('Where are you headed?')->assertSee('Station operations');
-        $this->get('/travel/book')->assertOk()->assertSee('8,000')->assertSee('South West');
+        $this->get('/travel/book')->assertOk()->assertSee('8,000')->assertSee('South West')->assertSee('Search a station');
         $trips = TravelCatalog::search(7, 'Bamenda', 'Douala', TravelClock::today());
         $ids = array_map(function ($trip) {
             return (int) $trip->id;

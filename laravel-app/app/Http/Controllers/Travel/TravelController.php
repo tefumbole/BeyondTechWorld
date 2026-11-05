@@ -34,8 +34,16 @@ class TravelController extends Controller
         $date = $request->query('date', TravelClock::today());
         $trips = ($from !== $to && $date) ? TravelCatalog::search($tenant, $from, $to, $date) : [];
 
+        $stations = TravelCatalog::stations($tenant);
+
         return view('travel.book', [
-            'stations' => TravelCatalog::stations($tenant),
+            'stations' => $stations,
+            'stationChoices' => $stations->map(function ($station) {
+                return [
+                    'name' => $station->name,
+                    'region' => $station->region,
+                ];
+            })->values(),
             'from' => $from,
             'to' => $to,
             'date' => $date,

@@ -53,6 +53,18 @@
         .tag{display:inline-block;background:#e6f4ce;border-radius:20px;padding:5px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
         .muted{color:#52675f}
         .price{font-size:22px;font-weight:750}
+        .combo{position:relative}
+        .combo-list{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 6px);background:#fff;color:var(--ink);border:1px solid #dce4d8;border-radius:14px;box-shadow:0 14px 32px #18372b24;max-height:260px;overflow:auto;padding:6px}
+        .combo-group{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#52675f;font-weight:800;padding:8px 10px 4px}
+        .combo-option{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:10px 12px;color:inherit}
+        .combo-option:hover,.combo-option:focus{background:#edf6df}
+        .combo-empty{padding:10px 12px;color:#52675f}
+        .search-card{display:grid;grid-template-columns:1.2fr 1.2fr .9fr auto;gap:12px;align-items:end}
+        .trip{display:flex;justify-content:space-between;gap:16px;align-items:center;background:#fff;border:1px solid #e0e7de;border-radius:18px;padding:18px 20px;margin-top:12px}
+        .trip h3{margin:6px 0 4px;font-size:28px;letter-spacing:-.04em}
+        .trip .route{font-weight:750}
+        .trip .side{text-align:right;min-width:140px}
+        .trip .side a{display:inline-block;margin-top:8px}
         .seats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:450px;margin:16px 0}
         .seats button{padding:8px 3px}
         .seats .active{background:#16533f;color:#fff}
@@ -68,6 +80,9 @@
             .landing{padding:26px 21px}
             .tiles,.staff-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
             .tile.feature{grid-column:span 2}
+            .search-card{grid-template-columns:1fr}
+            .trip{flex-direction:column;align-items:flex-start}
+            .trip .side{text-align:left}
             .lines{opacity:.45}
             .section-heading span{display:none}
         }
