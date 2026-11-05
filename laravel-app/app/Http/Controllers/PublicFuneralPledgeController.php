@@ -133,7 +133,7 @@ class PublicFuneralPledgeController extends Controller
         ]);
     }
 
-    public function eulogies()
+    public function eulogies(Request $request)
     {
         $this->guardEnabled();
         $data = $this->pledges->pageData();
