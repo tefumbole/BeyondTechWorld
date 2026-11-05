@@ -216,7 +216,6 @@ class PublicFuneralPledgeController extends Controller
     {
         $this->guardEnabled();
 
-        return response()->json(['ok' => false, 'message' => 'Eulogies are no longer being accepted.'], 403);
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'country_code' => 'required|string|max:10',
