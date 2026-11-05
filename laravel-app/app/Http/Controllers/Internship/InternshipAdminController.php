@@ -800,6 +800,8 @@ class InternshipAdminController extends Controller
      */
     public function requestWorkingWeek(Request $request, $id)
     {
+        return back()->with('message', 'Timesheet requests are turned off. No WhatsApp was sent.');
+
         if (Auth::user()->role_id > 2
             && ! in_array('internship.enrolments.update', $this->all_permission, true)
             && ! in_array('internship.notifications.retry', $this->all_permission, true)) {

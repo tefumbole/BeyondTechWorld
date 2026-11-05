@@ -57,7 +57,7 @@ class Kernel extends ConsoleKernel
         // Stagger internship WhatsApp so the three hourly jobs do not start together.
         $schedule->command('internship:reconcile-releases')->hourlyAt(5);
         $schedule->command('internship:review-sla')->hourlyAt(20)->withoutOverlapping();
-        $schedule->command('internship:timesheet-reminders')->dailyAt('21:35')->withoutOverlapping();
+        // Timesheet reminders are off for every intern.
         $schedule->command('online-invitations:send-reminders')->everyMinute();
         $schedule->command('wealth:sync-income')->hourlyAt(40)->withoutOverlapping();
         $schedule->command('cloud:process-subscriptions')->everyFiveMinutes()->withoutOverlapping();

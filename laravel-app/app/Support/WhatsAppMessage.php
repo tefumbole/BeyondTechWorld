@@ -1076,9 +1076,7 @@ class WhatsAppMessage
         }
 
         $msg .= self::actionLink('Open internship dashboard', $url);
-        $msg .= $availableNow
-            ? 'Complete each checklist item, then submit evidence from your dashboard. Log hours on the timesheet date above (working days only).'
-            : 'Complete each checklist item, then submit evidence from your dashboard. Timesheets are due on your working days.';
+        $msg .= 'Complete each checklist item, then submit evidence from your dashboard.';
         $msg .= self::footer();
 
         return $msg;
@@ -1233,8 +1231,7 @@ class WhatsAppMessage
         $msg .= "_Sign in with your email, WhatsApp number, or username. If you forget either, use Forgot username / password on the login page._\n";
         $msg .= self::actionLink('Sign in', $loginUrl);
         $msg .= self::actionLink('Recover account (OTP)', url('/forgot-password'));
-        $msg .= self::actionLink('Go to Timesheets → Working Week', $timesheetUrl);
-        $msg .= "\nAfter login, change your password (or recover via WhatsApp OTP), then open *Timesheets* and configure your working week so daily tasks continue.";
+        $msg .= "\nAfter login, change your password (or recover via WhatsApp OTP).";
         $msg .= self::footer();
 
         return $msg;

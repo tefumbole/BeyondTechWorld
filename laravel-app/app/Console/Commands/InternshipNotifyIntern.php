@@ -21,7 +21,8 @@ class InternshipNotifyIntern extends Command
         {--phone= : Replacement WhatsApp number}
         {--accept-placement : Send the internship acceptance letter}
         {--require-signature : Clear prior acceptance and hold Day 1 until they sign}
-        {--resend-tasks : Resend every open released task (only after they have signed)}';
+        {--resend-tasks : Resend every open released task (only after they have signed)}
+        {--release-day-one : Release and send Day 1 even when the acceptance letter is not signed yet}';
 
     protected $description = 'Update an intern WhatsApp number and send placement / task messages to that number only';
 
@@ -72,6 +73,18 @@ class InternshipNotifyIntern extends Command
             if (! empty($result['errors'])) {
                 $this->warn(implode(' ', $result['errors']));
             }
+        }
+
+        if ($this->option('release-day-one')) {
+            if (! $enrolment) {
+                $this->error('No internship enrolment for '.$email);
+
+                return 1;
+            }
+            $ok = $program->tryReleaseNext($enrolment->fresh(['student', 'program']), now(), true, true, true, true);
+            $this->info($ok ? 'Day 1 released and sent.' : 'Could not release Day 1.');
+
+            return $ok ? 0 : 1;
         }
 
         if ($this->option('resend-tasks')) {

@@ -491,6 +491,8 @@ class InternshipProgramService
      */
     public function remindMissingTimesheets()
     {
+        return 0;
+
         $sent = 0;
         $seenUsers = [];
         $today = Carbon::today()->toDateString();
@@ -548,7 +550,7 @@ class InternshipProgramService
         return $sent;
     }
 
-    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false, $immediate = false, $notify = true)
+    public function tryReleaseNext(InternshipEnrolment $enrolment, Carbon $today = null, $forceSameDay = false, $immediate = false, $notify = true, $allowUnsignedFirst = false)
     {
         $today = ($today ?: Carbon::today())->copy()->startOfDay();
         $forceSameDay = $forceSameDay || $immediate;
@@ -562,7 +564,7 @@ class InternshipProgramService
             ->count();
         $isFirstTask = $releasedCount === 0;
 
-        if ($isFirstTask && ! $this->internHasSignedAcceptance($enrolment)) {
+        if ($isFirstTask && ! $allowUnsignedFirst && ! $this->internHasSignedAcceptance($enrolment)) {
             return false;
         }
 
@@ -1131,6 +1133,8 @@ class InternshipProgramService
      */
     protected function nudgeWorkingWeekIfBlocking(InternshipEnrolment $enrolment)
     {
+        return;
+
         $student = $enrolment->student ?: optional($enrolment->fresh(['student']))->student;
         if (! $student || $enrolment->next_release_date || InternCompliance::workingWeekConfigured($student)) {
             return;
@@ -2343,12 +2347,7 @@ class InternshipProgramService
         $msg .= WhatsAppMessage::bullet('Progress', $enrolment->completed_count.'/'.$enrolment->plannedDurationDays());
         if ($enrolment->completed_count < $enrolment->plannedDurationDays()) {
             $msg .= WhatsAppMessage::bullet('Next task', 'Available now');
-            if ($timesheetDateLabel) {
-                $msg .= WhatsAppMessage::bullet('Timesheet', $timesheetDateLabel);
-                $msg .= "\nYour next task is ready now. Log hours on that working day, at your start time.";
-            } else {
-                $msg .= "\nYour next task is ready now. Timesheets are only due on your working days.";
-            }
+            $msg .= "\nYour next task is ready now.";
         }
         if ($grade->feedback) {
             $msg .= "\n*Feedback:*\n".$grade->feedback."\n";

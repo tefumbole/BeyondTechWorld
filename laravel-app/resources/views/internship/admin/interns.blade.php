@@ -123,13 +123,6 @@
                                 @endif
                                 <div class="mt-1 d-flex flex-wrap" style="gap:6px;">
                                     <a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ route('internship.interns.working_week', $app->id) }}">View week</a>
-                                    @if($enrolment)
-                                        <form method="POST" action="{{ route('internship.interns.request_week', $app->id) }}" class="d-inline"
-                                              onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
-                                            @csrf
-                                            <button type="submit" class="ip-btn ip-btn-sm">Request week</button>
-                                        </form>
-                                    @endif
                                 </div>
                             </td>
                             <td>
@@ -158,12 +151,7 @@
                                     </div>
                                 @elseif(! $wwConfigured && ! $wwOnApp)
                                     <span class="ip-badge warn">No WW</span>
-                                    <div class="ip-meta">Ask them to save Working Week</div>
-                                    <form method="POST" action="{{ route('internship.interns.request_week', $app->id) }}" class="mt-1"
-                                          onsubmit="return confirm('Send this intern a WhatsApp with the Working Week link?');">
-                                        @csrf
-                                        <button type="submit" class="ip-btn ip-btn-sm">Request week</button>
-                                    </form>
+                                    <div class="ip-meta">Working week is not saved</div>
                                 @elseif(! $isWorkingToday)
                                     <span class="ip-meta">Not a working day</span>
                                     <div><a class="ip-btn ip-btn-sm ip-btn-outline" href="{{ route('internship.tasks', ['status' => 'today']) }}">Task board</a></div>
