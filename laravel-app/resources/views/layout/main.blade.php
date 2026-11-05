@@ -1875,7 +1875,7 @@
                                     <li id="travel-counter-menu"><a href="{{ route('travel.counter') }}">Counter</a></li>
                                     <li id="travel-dispatch-menu"><a href="{{ route('travel.dispatch') }}">Dispatch</a></li>
                                     <li id="travel-reconcile-menu"><a href="{{ route('travel.reconcile') }}">Reconciliation</a></li>
-                                    <li id="travel-book-menu"><a href="{{ route('travel.home') }}">Book a bus</a></li>
+                                    <li id="travel-book-menu"><a href="{{ route('travel.book') }}">Book a bus</a></li>
                                     <li id="travel-track-menu"><a href="{{ route('travel.track') }}">Track a parcel</a></li>
                                 </ul>
                             </li>

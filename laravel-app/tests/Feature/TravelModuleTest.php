@@ -96,7 +96,8 @@ class TravelModuleTest extends TestCase
         $this->route(8, 'Bamenda', 'Douala');
         $other = $this->departure(8, 'Bamenda', 'Douala', 'morning', 'vip', 'EP-B', 'Driver B');
 
-        $this->get('/travel')->assertOk()->assertSee('8,000')->assertSee('EPIC TRAVELS');
+        $this->get('/travel')->assertOk()->assertSee('Where are you headed?')->assertSee('Station operations');
+        $this->get('/travel/book')->assertOk()->assertSee('8,000')->assertSee('South West');
         $trips = TravelCatalog::search(7, 'Bamenda', 'Douala', TravelClock::today());
         $ids = array_map(function ($trip) {
             return (int) $trip->id;
@@ -303,7 +304,7 @@ class TravelModuleTest extends TestCase
             'is_active' => 1,
         ]);
         $user->save();
-        $this->actingAs($user)->get('/travel/staff')->assertOk()->assertSee('Staff')->assertSee('Parcels')->assertSee('Counter')->assertSee('Dispatch');
+        $this->actingAs($user)->get('/travel/staff')->assertOk()->assertSee('Station workspace')->assertSee('Parcels')->assertSee('Counter')->assertSee('Dispatch');
         $this->actingAs($user)->get('/travel/staff/dispatch')->assertOk()->assertSee('Dispatch desk')->assertSee('South West');
     }
 

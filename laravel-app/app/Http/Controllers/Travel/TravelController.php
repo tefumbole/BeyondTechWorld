@@ -17,7 +17,15 @@ use Illuminate\Support\Facades\DB;
 
 class TravelController extends Controller
 {
-    public function home(Request $request)
+    public function home()
+    {
+        $tenant = $this->tenant();
+        TravelCatalog::publishAgencyRoutes($tenant);
+
+        return view('travel.home');
+    }
+
+    public function book(Request $request)
     {
         $tenant = $this->tenant();
         TravelCatalog::publishAgencyRoutes($tenant);
@@ -26,7 +34,7 @@ class TravelController extends Controller
         $date = $request->query('date', TravelClock::today());
         $trips = ($from !== $to && $date) ? TravelCatalog::search($tenant, $from, $to, $date) : [];
 
-        return view('travel.home', [
+        return view('travel.book', [
             'stations' => TravelCatalog::stations($tenant),
             'from' => $from,
             'to' => $to,

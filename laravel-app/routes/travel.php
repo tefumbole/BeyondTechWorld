@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('travel.enabled')->prefix('travel')->group(function () {
     Route::get('/', 'Travel\TravelController@home')->name('travel.home');
+    Route::get('/book', 'Travel\TravelController@book')->name('travel.book');
     Route::get('/lang/{locale}', 'Travel\TravelController@lang')->name('travel.lang');
     Route::get('/departures/{id}', 'Travel\TravelController@departure')->name('travel.departure');
     Route::post('/otp', 'Travel\TravelController@otp')->middleware('throttle:8,1')->name('travel.otp');
