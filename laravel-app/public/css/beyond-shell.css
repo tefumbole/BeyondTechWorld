@@ -1368,6 +1368,7 @@
                     max-width: calc(100vw - 16px) !important;
                     margin: 8px auto;
                 }
+                .modal-header { flex: 0 0 auto; }
                 .modal-content {
                     max-height: calc(100dvh - 16px);
                     overflow: hidden;
@@ -1376,6 +1377,7 @@
                 }
                 .modal-body {
                     overflow-y: auto;
+                    min-height: 0;
                     -webkit-overflow-scrolling: touch;
                 }
                 input.form-control,

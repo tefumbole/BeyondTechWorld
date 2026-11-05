@@ -536,12 +536,16 @@
             $(".gift-card").hide();
             $(".card-element").hide();
             $('select[name="paid_by_id"]').val(1);
-            $('.selectpicker').selectpicker('refresh');
-            rowindex = $(this).closest('tr').index();
-            deposit = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.deposit').val();
+            var paidBy = $('select[name="paid_by_id"]');
+            if (paidBy.parent().hasClass('bootstrap-select')) {
+                paidBy.selectpicker('refresh');
+            }
+            var row = $(this).closest('tr');
+            deposit = row.find('.deposit').val();
             var sale_id = $(this).data('id').toString();
-            var balance = $('table.sale-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(6)').text();
-            balance = parseFloat(balance.replace(/,/g, ''));
+            var balance = row.find('td').eq(5).text();
+            balance = parseFloat(String(balance).replace(/,/g, ''));
+            if (isNaN(balance)) balance = 0;
             $('input[name="paying_amount"]').val(balance);
             $('#add-payment input[name="balance"]').val(balance);
             $('input[name="amount"]').val(balance);

@@ -4,11 +4,13 @@
     <link rel="stylesheet" href="<?php echo asset('public/vendor/keyboard/css/keyboard.css') ?>" type="text/css">
     <style>
         .pos-page .totals { display: none !important; }
-        #add-payment .modal-dialog { max-width: 520px; }
-        #add-payment .modal-content { border-radius: 22px; overflow: hidden; }
-        #add-payment .modal-header { background: #12203a; color: #fff; border: 0; }
+        #add-payment .modal-dialog { max-width: 520px; margin: 16px auto; }
+        #add-payment .modal-content { border-radius: 22px; overflow: hidden; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; }
+        #add-payment .modal-header { background: #12203a; color: #fff; border: 0; flex: 0 0 auto; }
         #add-payment .modal-header .modal-title { color: #f3e3b0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
         #add-payment .modal-header .close { color: #fff; opacity: 1; }
+        #add-payment .modal-body { overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+        #add-payment .modal-footer { border: 0; padding: 12px 16px 16px; flex: 0 0 auto; background: #fff; }
         #add-payment .pay-sheet-due { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
         #add-payment .pay-sheet-due span { display: block; color: #8a6230; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
         #add-payment .pay-sheet-due strong { display: block; font-size: 32px; line-height: 1.1; color: #12203a; }
@@ -1607,9 +1609,6 @@
                                                             <textarea rows="3" class="form-control" name="staff_note"></textarea>
                                                         </div>
                                                     </div>
-                                                    <div class="mt-3">
-                                                        <button id="submit-btn" class="btn btn-primary text-white">{{trans('file.submit')}}</button>
-                                                    </div>
                                                 </div>
                                                 <div class="col-md-2 qc" data-initial="1">
                                                     <h4><strong>{{trans('file.Quick Cash')}}</strong></h4>
@@ -1622,6 +1621,9 @@
                                                     <button class="btn btn-block btn-danger qc-btn sound-btn" data-amount="0" type="button">{{trans('file.Clear')}}</button>
                                                 </div>
                                             </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" id="submit-btn" class="btn btn-primary text-white">{{trans('file.submit')}}</button>
                                         </div>
                                     </div>
                                 </div>
@@ -3492,10 +3494,13 @@
 
         $(".payment-btn").on("click", function() {
             var audio = $("#mysoundclip2")[0];
-            audio.play();
+            if (audio) {
+                try { audio.play(); } catch (e) {}
+            }
             $('input[name="paid_amount"]').val($("#grand-total").text());
             $('input[name="paying_amount"]').val($("#grand-total").text());
             $('.qc').data('initial', 1);
+            paintPosDue();
         });
 
         $("#draft-btn").on("click",function(){
@@ -3520,9 +3525,12 @@
         $(document).on('click', '#add-payment .pay-choice', function () {
             var by = $(this).attr('data-paid-by');
             if (by) {
-                $('select[name="paid_by_id_select"]').prop('disabled', false).val(by);
-                $('.selectpicker').selectpicker('refresh');
-                $('select[name="paid_by_id_select"]').trigger('change');
+                var picker = $('select[name="paid_by_id_select"]');
+                picker.prop('disabled', false).val(by);
+                if (picker.parent().hasClass('bootstrap-select')) {
+                    picker.selectpicker('refresh');
+                }
+                picker.trigger('change');
                 $('#add-payment .pay-choice[data-paid-by]').removeClass('is-on');
                 $(this).addClass('is-on');
             }
@@ -3539,8 +3547,14 @@
             }
         });
 
-        $("#submit-btn").on("click", function() {
-            $("#submit-btn").prop('disabled', true);  // Use 'disabled' instead of 'readonly'
+        $("#submit-btn").on("click", function(e) {
+            e.preventDefault();
+            var form = $('.payment-form')[0];
+            if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
+                if (form.reportValidity) form.reportValidity();
+                return;
+            }
+            $(this).prop('disabled', true);
             $('.payment-form').submit();
         });
 
