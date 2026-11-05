@@ -14,7 +14,8 @@
 </section>
 <section class="panel confirm">
     @if($parcel->payment_status === 'paid')
-        <p class="notice">This payment is already confirmed. The invoice has been sent.</p>
+        <p class="notice">This payment is already confirmed. The messages have been sent.</p>
+        <p><a class="primary" style="display:inline-block;text-decoration:none;border-radius:10px;padding:11px 16px" href="{{ route('travel.parcels.receipt', $parcel->id) }}">Print receipt</a></p>
     @else
         <p>Check the number that will approve the payment. The name must match the Mobile Money account before you continue.</p>
         <form method="post" action="{{ route('travel.parcels.charge', $parcel->id) }}" id="momo-form">
@@ -38,6 +39,7 @@
                 <button class="primary">Send MoMo prompt</button>
             @endif
         </form>
+        <p><a href="{{ route('travel.parcels.receipt', $parcel->id) }}">Open receipt</a></p>
     @endif
 </section>
 <script>

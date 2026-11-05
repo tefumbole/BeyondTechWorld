@@ -234,18 +234,34 @@ class TravelParcels
             ? Carbon::parse($parcel->expected_on)->format('j M Y')
             : 'the date the station confirms';
         $channel = DB::table('travel_payments')->where('parcel_id', $parcel->id)->value('channel');
-        $paidBy = $channel === 'cash' ? 'cash' : 'Mobile Money';
+        $paidBy = $channel === 'cash' ? 'Cash' : 'Mobile Money';
         $notifier = app(TravelNotifier::class);
         $notifier->queue(
             $parcel->cloud_tenant_id,
             $parcel->sender_phone,
-            "Epic Travels invoice\nParcel {$parcel->tracking_ref}\n{$origin} to {$destination}\nSender: {$parcel->sender_name}\nReceiver: {$parcel->receiver_name}\nFee: ".TravelCatalog::money($parcel->fee_xaf)." paid by {$paidBy}\nExpected at {$destination} on {$when}.\nKeep this reference to track the parcel.",
+            \App\Support\WhatsAppMessage::statusBlock('📦', 'EPIC TRAVELS')
+                .\App\Support\WhatsAppMessage::greeting($parcel->sender_name)
+                ."Your parcel receipt is ready.\n\n"
+                .\App\Support\WhatsAppMessage::bullet('Parcel', $parcel->tracking_ref)
+                .\App\Support\WhatsAppMessage::bullet('From', $origin)
+                .\App\Support\WhatsAppMessage::bullet('To', $destination)
+                .\App\Support\WhatsAppMessage::bullet('Receiver', $parcel->receiver_name)
+                .\App\Support\WhatsAppMessage::bullet('Fee', TravelCatalog::money($parcel->fee_xaf))
+                .\App\Support\WhatsAppMessage::bullet('Paid by', $paidBy)
+                .\App\Support\WhatsAppMessage::bullet('Expected', $when.' at '.$destination)
+                ."\nKeep this reference to track the parcel.",
             'parcel-accept:'.$parcel->id
         );
         $notifier->queue(
             $parcel->cloud_tenant_id,
             $parcel->receiver_phone,
-            $parcel->sender_name.' has sent you a parcel via Epic Travels. Expected delivery date will be '.$when.'. Reference '.$parcel->tracking_ref.'.',
+            \App\Support\WhatsAppMessage::statusBlock('📦', 'EPIC TRAVELS')
+                .\App\Support\WhatsAppMessage::greeting($parcel->receiver_name)
+                .$parcel->sender_name." has sent you a parcel via Epic Travels.\n\n"
+                .\App\Support\WhatsAppMessage::bullet('Parcel', $parcel->tracking_ref)
+                .\App\Support\WhatsAppMessage::bullet('From', $origin)
+                .\App\Support\WhatsAppMessage::bullet('To', $destination)
+                .\App\Support\WhatsAppMessage::bullet('Expected delivery', $when),
             'parcel-receiver:'.$parcel->id
         );
     }

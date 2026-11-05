@@ -29,6 +29,12 @@
     .choices{display:flex;gap:8px;margin:8px 0 14px}
     .choices label{display:flex;gap:8px;align-items:center;background:#f7f8f2;border-radius:12px;padding:10px 12px;font-weight:700}
     canvas{border-radius:12px}
+    .combo{position:relative}
+    .combo-list{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #dce4d8;border-radius:14px;box-shadow:0 14px 32px #18372b24;max-height:260px;overflow:auto;padding:6px}
+    .combo-group{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#52675f;font-weight:800;padding:8px 10px 4px}
+    .combo-option{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:10px 12px}
+    .combo-option:hover,.combo-option:focus{background:#edf6df}
+    .combo-empty{padding:10px 12px;color:#52675f}
     [hidden]{display:none !important}
     @media(max-width:700px){.fields,.pay-row{grid-template-columns:1fr}.fields .wide{grid-column:auto}}
 </style>
@@ -95,11 +101,19 @@
     <section data-pane="3" hidden>
         <h2>Where is it going?</h2>
         <div class="fields">
-            <label>Sending station
-                <select name="origin_station_id" required>@include('travel.station-options', ['by' => 'id'])</select>
+            <label class="wide">Sending station
+                <div class="combo" data-name="origin_station_id">
+                    <input class="combo-input" type="text" placeholder="Search a station" autocomplete="off" role="combobox">
+                    <input type="hidden" name="origin_station_id" value="{{ old('origin_station_id') }}">
+                    <div class="combo-list" hidden></div>
+                </div>
             </label>
-            <label>Receiving station
-                <select name="destination_station_id" required>@include('travel.station-options', ['by' => 'id'])</select>
+            <label class="wide">Receiving station
+                <div class="combo" data-name="destination_station_id">
+                    <input class="combo-input" type="text" placeholder="Search a station" autocomplete="off" role="combobox">
+                    <input type="hidden" name="destination_station_id" value="{{ old('destination_station_id') }}">
+                    <div class="combo-list" hidden></div>
+                </div>
             </label>
             <label>Expected receiving date
                 <input type="date" name="expected_on" required min="{{ $today }}" value="{{ old('expected_on', $expectedDefault) }}">
@@ -139,10 +153,11 @@
     <input type="hidden" name="desk" value="collection">
     <input type="hidden" name="tab" value="{{ $tab }}">
     <label>Station
-        <select name="station" required onchange="this.form.submit()">
-            <option value="">Choose the station</option>
-            @include('travel.station-options', ['by' => 'id', 'selected' => $stationId])
-        </select>
+        <div class="combo" data-submit="1">
+            <input class="combo-input" type="text" placeholder="Search a station" autocomplete="off" role="combobox">
+            <input type="hidden" name="station" value="{{ $stationId ?: '' }}">
+            <div class="combo-list" hidden></div>
+        </div>
     </label>
 </form>
 @if($stationId)
@@ -168,6 +183,7 @@
             <span class="tag">{{ str_replace('_', ' ', $open->status) }}</span>
             <h2>{{ $open->tracking_ref }}</h2>
             <p>{{ $open->sender_name }} sent {{ $open->description }} to {{ $open->receiver_name }}.</p>
+            <p><a href="{{ route('travel.parcels.receipt', $open->id) }}">Print receipt</a></p>
             <p class="muted">Receiver {{ $open->receiver_phone }}@if($open->expected_on) · expected {{ \Carbon\Carbon::parse($open->expected_on)->format('j M Y') }}@endif</p>
             @php $next = ['accepted'=>'assigned','assigned'=>'loaded','loaded'=>'in_transit','in_transit'=>'received','received'=>'ready']; @endphp
             @if(isset($next[$open->status]))
@@ -209,6 +225,62 @@
     @endif
 @endif
 @endif
+<script type="application/json" id="station-data">@json($stationChoices)</script>
+<script>
+(function () {
+    var stations = [];
+    try { stations = JSON.parse(document.getElementById('station-data').textContent); } catch (e) { stations = []; }
+    document.querySelectorAll('.combo').forEach(function (root) {
+        var hidden = root.querySelector('input[type=hidden]');
+        var box = root.querySelector('.combo-input');
+        var list = root.querySelector('.combo-list');
+        stations.forEach(function (station) {
+            if (String(station.id) === String(hidden.value)) {
+                box.value = station.name;
+                root.setAttribute('data-picked', station.name);
+            }
+        });
+        function paint(query) {
+            var q = query.trim().toLowerCase();
+            var groups = [
+                {label: '', items: stations.filter(function (station) { return station.region !== 'South West'; })},
+                {label: 'South West', items: stations.filter(function (station) { return station.region === 'South West'; })}
+            ];
+            var html = '';
+            groups.forEach(function (group) {
+                var items = group.items.filter(function (station) {
+                    return q === '' || station.name.toLowerCase().indexOf(q) !== -1 || group.label.toLowerCase().indexOf(q) !== -1;
+                });
+                if (!items.length) return;
+                if (group.label) html += '<div class="combo-group">' + group.label + '</div>';
+                items.forEach(function (station) {
+                    html += '<button type="button" class="combo-option" data-id="' + station.id + '">' + station.name + '</button>';
+                });
+            });
+            list.innerHTML = html || '<div class="combo-empty">No station matches.</div>';
+            list.hidden = false;
+        }
+        box.addEventListener('focus', function () { paint(box.value === root.getAttribute('data-picked') ? '' : box.value); });
+        box.addEventListener('input', function () {
+            hidden.value = '';
+            root.removeAttribute('data-picked');
+            paint(box.value);
+        });
+        list.addEventListener('click', function (event) {
+            var choice = event.target.closest('.combo-option');
+            if (!choice) return;
+            hidden.value = choice.getAttribute('data-id');
+            box.value = choice.textContent;
+            root.setAttribute('data-picked', choice.textContent);
+            list.hidden = true;
+            if (root.getAttribute('data-submit') === '1') root.closest('form').submit();
+        });
+        document.addEventListener('click', function (event) {
+            if (!root.contains(event.target)) list.hidden = true;
+        });
+    });
+})();
+</script>
 <script>
 (function () {
     var form = document.getElementById('send-form');
@@ -223,12 +295,12 @@
         form.querySelectorAll('[data-dot]').forEach(function (dot) {
             dot.classList.toggle('on', Number(dot.getAttribute('data-dot')) <= step);
         });
-        if (step === 4) {
-            var summary = document.getElementById('pay-summary');
-            var origin = form.origin_station_id.options[form.origin_station_id.selectedIndex].text;
-            var destination = form.destination_station_id.options[form.destination_station_id.selectedIndex].text;
-            summary.innerHTML = '<b>' + form.sender_name.value + '</b> to <b>' + form.receiver_name.value + '</b><span>' + origin + ' → ' + destination + ' · ' + form.expected_on.value + '</span><span>' + form.description.value + ' · ' + Number(form.fee_xaf.value).toLocaleString() + ' XAF</span>';
-        }
+            if (step === 4) {
+                var summary = document.getElementById('pay-summary');
+                var origin = form.querySelector('[data-name=origin_station_id]').getAttribute('data-picked') || 'Station';
+                var destination = form.querySelector('[data-name=destination_station_id]').getAttribute('data-picked') || 'Station';
+                summary.innerHTML = '<b>' + form.sender_name.value + '</b> to <b>' + form.receiver_name.value + '</b><span>' + origin + ' → ' + destination + ' · ' + form.expected_on.value + '</span><span>' + form.description.value + ' · ' + Number(form.fee_xaf.value).toLocaleString() + ' XAF</span>';
+            }
     }
     form.querySelectorAll('[data-next]').forEach(function (button) {
         button.addEventListener('click', function () {

@@ -210,6 +210,13 @@ class TravelStaffController extends Controller
         $data['tab'] = $request->query('tab') === 'collected' ? 'collected' : 'awaiting';
         $data['stationId'] = (int) $request->query('station');
         $data['names'] = DB::table('travel_stations')->where('cloud_tenant_id', $tenant)->pluck('name', 'id');
+        $data['stationChoices'] = $data['stations']->map(function ($station) {
+            return [
+                'id' => $station->id,
+                'name' => $station->name,
+                'region' => $station->region,
+            ];
+        })->values();
         $data['expectedDefault'] = Carbon::parse(TravelClock::today())->addDay()->toDateString();
         $data['rows'] = collect();
         $data['open'] = null;
@@ -282,9 +289,8 @@ class TravelStaffController extends Controller
         if ($channel === 'momo') {
             return redirect()->route('travel.parcels.pay', $id);
         }
-        $reference = DB::table('travel_parcels')->where('id', $id)->value('tracking_ref');
 
-        return redirect()->route('travel.parcels')->with('status', 'Parcel '.$reference.' registered. The invoice is on the sender’s phone, and the receiver has the delivery notice.');
+        return redirect()->route('travel.parcels.receipt', $id);
     }
 
     public function parcelPay($id)
@@ -308,7 +314,7 @@ class TravelStaffController extends Controller
         $parcel = $this->parcelRow($id);
         $payment = DB::table('travel_payments')->where('parcel_id', $parcel->id)->where('status', 'pending')->first();
         if (! $payment) {
-            return redirect()->route('travel.parcels')->with('status', 'This parcel is already paid.');
+            return redirect()->route('travel.parcels.receipt', $parcel->id)->with('status', 'This parcel is already paid.');
         }
         try {
             $phone = TravelPhone::normalize($request->input('payer_phone'));
@@ -338,7 +344,28 @@ class TravelStaffController extends Controller
             'account_name' => $account,
         ]);
 
-        return redirect()->route('travel.parcels')->with('status', 'Payment confirmed for '.$parcel->tracking_ref.'. The sender has the invoice, and the receiver has the delivery notice.');
+        return redirect()->route('travel.parcels.receipt', $parcel->id);
+    }
+
+    public function receipt($id)
+    {
+        $this->guard('parcels');
+        $parcel = $this->parcelRow($id);
+        $payment = DB::table('travel_payments')->where('parcel_id', $parcel->id)->orderByDesc('id')->first();
+        $words = '';
+        try {
+            $words = (new \NumberToWords\NumberToWords())->getNumberTransformer('en')->toWords((int) $parcel->fee_xaf);
+        } catch (\Throwable $e) {
+            $words = '';
+        }
+
+        return view('travel.receipt', [
+            'parcel' => $parcel,
+            'payment' => $payment,
+            'origin' => DB::table('travel_stations')->where('id', $parcel->origin_station_id)->value('name'),
+            'destination' => DB::table('travel_stations')->where('id', $parcel->destination_station_id)->value('name'),
+            'words' => $words,
+        ]);
     }
 
     public function scan(Request $request, $id)

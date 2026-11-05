@@ -300,9 +300,9 @@ class TravelModuleTest extends TestCase
         $this->assertSame($tomorrow, DB::table('travel_parcels')->where('id', $cash)->value('expected_on'));
         $invoice = DB::table('travel_outbox')->where('dedupe_key', 'parcel-accept:'.$cash)->value('body');
         $notice = DB::table('travel_outbox')->where('dedupe_key', 'parcel-receiver:'.$cash)->value('body');
-        $this->assertStringContainsString('invoice', $invoice);
+        $this->assertStringContainsString('EPIC TRAVELS', $invoice);
         $this->assertStringContainsString('Ada Sender', $notice);
-        $this->assertStringContainsString('Expected delivery date', $notice);
+        $this->assertStringContainsString('Expected delivery', $notice);
 
         $pending = app(TravelParcels::class)->accept([
             'cloud_tenant_id' => 7,
@@ -373,7 +373,7 @@ class TravelModuleTest extends TestCase
         ]);
         $user->save();
         $this->actingAs($user)->get('/travel/staff')->assertOk()->assertSee('Station workspace')->assertSee('Parcels')->assertSee('Counter')->assertSee('Dispatch');
-        $this->actingAs($user)->get('/travel/staff/parcels')->assertOk()->assertSee('Sender phone')->assertSee('Collection');
+        $this->actingAs($user)->get('/travel/staff/parcels')->assertOk()->assertSee('Sender phone')->assertSee('Search a station')->assertSee('Collection');
         $this->actingAs($user)->get('/travel/staff/dispatch')->assertOk()->assertSee('Dispatch desk')->assertSee('South West');
     }
 
