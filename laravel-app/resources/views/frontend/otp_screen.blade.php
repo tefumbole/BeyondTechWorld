@@ -165,7 +165,7 @@
                     <input name="user" type="hidden" value="">
                 @endif
 
-                <input id="otp-code" class="otp-code-input" name="otp" type="text" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
+                <input id="otp-code" class="otp-code-input" name="otp" type="text" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" data-autosubmit="1" required>
 
                 <div class="otp-meta">
                     <span>Expires in: <strong id="otp-timer">5:00</strong></span>

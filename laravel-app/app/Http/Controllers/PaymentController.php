@@ -141,6 +141,10 @@ class PaymentController extends Controller
     {
         return Sale::with('customer')->select('id', 'reference_no', 'customer_id', 'grand_total', 'paid_amount', 'payment_status', 'created_at')
             ->where('payment_status', '!=', 4)
+            ->where(function ($query) {
+                $query->whereNull('paid_amount')->orWhere('paid_amount', '<=', 0);
+            })
+            ->whereRaw('(COALESCE(grand_total, 0) - COALESCE(paid_amount, 0)) > 0.5')
             ->orderByDesc('id');
     }
 

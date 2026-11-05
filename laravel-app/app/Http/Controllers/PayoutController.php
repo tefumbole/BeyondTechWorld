@@ -166,12 +166,17 @@ class PayoutController extends Controller
         if (count($ids) < 1) {
             return redirect()->route('payout.index')->with('not_permitted', 'Select the pending payouts to delete.');
         }
-        $batches = $this->requests($this->tenantId())->whereIn('id', $ids)->where('status', 'pending')->get();
+        $batches = $this->requests($this->tenantId())->whereIn('id', $ids)->get();
         $deleted = 0;
         $skipped = 0;
         foreach ($batches as $batch) {
             $paid = CampayPayout::where('request_id', $batch->id)->where('status', 'paid')->count();
-            if ($paid > 0) {
+            $inflight = CampayPayout::where('request_id', $batch->id)
+                ->where('status', 'pending')
+                ->whereNotNull('campay_reference')
+                ->where('campay_reference', '!=', '')
+                ->count();
+            if ($paid > 0 || $inflight > 0) {
                 $skipped++;
                 continue;
             }
@@ -181,12 +186,12 @@ class PayoutController extends Controller
         }
         if ($deleted < 1) {
             $reason = $skipped > 0
-                ? 'A payout that already paid someone was left in place.'
-                : 'Those payouts are no longer pending.';
+                ? 'A payout that already paid someone, or is still with Campay, was left in place.'
+                : 'Those payouts could not be deleted.';
 
             return redirect()->route('payout.index')->with('not_permitted', $reason);
         }
-        $message = $deleted.' pending '.($deleted === 1 ? 'payout' : 'payouts').' deleted.';
+        $message = $deleted.' '.($deleted === 1 ? 'payout' : 'payouts').' deleted.';
         if ($skipped > 0) {
             $message .= ' '.$skipped.' already paid '.($skipped === 1 ? 'was' : 'were').' left in place.';
         }
@@ -246,10 +251,16 @@ class PayoutController extends Controller
         if (! $batch) {
             abort(404);
         }
-        if ($batch->status !== 'pending') {
-            return redirect()->route('payout.index', ['request' => $batch->id])->with('not_permitted', 'This request can no longer be changed.');
-        }
+        $action = (string) $request->input('action');
         $back = redirect()->route('payout.index', ['request' => $batch->id]);
+        $editable = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->exists();
+        if ($action === 'reject') {
+            if ($batch->status !== 'pending') {
+                return $back->with('not_permitted', 'This request can no longer be changed.');
+            }
+        } elseif (! $editable) {
+            return $back->with('not_permitted', 'This request can no longer be changed.');
+        }
         if ($request->input('action') === 'reject') {
             $reason = trim((string) $request->input('reason', ''));
             if ($reason === '') {
@@ -280,9 +291,17 @@ class PayoutController extends Controller
                 return redirect()->route('payout.index')->with('not_permitted', 'There is no one left to pay.');
             }
 
-            return $this->sendRows($batch, $rows, route('payout.index'));
+            return $this->sendRows($batch, $this->prepareUnpaid($rows), route('payout.index'));
         }
         $amounts = (array) $request->input('amounts', []);
+        if ($request->input('action') === 'save') {
+            $saved = $this->savePendingAmounts($batch, $amounts);
+            if ($saved !== true) {
+                return $back->with('not_permitted', $saved);
+            }
+
+            return $back->with('message', 'Amounts saved.');
+        }
         if ($request->input('action') === 'delete') {
             $removeIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('remove_ids', [])))));
             if (count($removeIds) < 1) {
@@ -309,7 +328,7 @@ class PayoutController extends Controller
             return $back->with('not_permitted', 'There is no one left to pay.');
         }
 
-        return $this->sendRows($batch, $rows, route('payout.index', ['request' => $batch->id]));
+        return $this->sendRows($batch, $this->prepareUnpaid($rows), route('payout.index', ['request' => $batch->id]));
     }
 
     public function massPayout($id)
@@ -327,7 +346,7 @@ class PayoutController extends Controller
             return redirect()->route('payout.index')->with('not_permitted', 'There is no one left to pay.');
         }
 
-        return $this->sendRows($batch, $lines, route('payout.index', ['request' => $batch->id]));
+        return $this->sendRows($batch, $this->prepareUnpaid($lines), route('payout.index', ['request' => $batch->id]));
     }
 
     public function resend(Request $request)
@@ -403,7 +422,7 @@ class PayoutController extends Controller
         if (count($ids) < 1 || count($ids) > 40) {
             return redirect()->route('payout.index', ['request' => $open->id])->with('not_permitted', 'Select the people to pay.');
         }
-        $rows = CampayPayout::where('request_id', $open->id)->whereIn('id', $ids)->where('status', 'pending')->get();
+        $rows = CampayPayout::where('request_id', $open->id)->whereIn('id', $ids)->whereIn('status', ['pending', 'failed'])->get();
         if ($rows->count() !== count($ids)) {
             return redirect()->route('payout.index', ['request' => $open->id])->with('not_permitted', 'One of those payments is no longer waiting.');
         }
@@ -421,7 +440,26 @@ class PayoutController extends Controller
             $row->save();
         }
 
-        return $this->sendRows($open, $rows);
+        return $this->sendRows($open, $this->prepareUnpaid($rows));
+    }
+
+    protected function prepareUnpaid($rows)
+    {
+        $service = app(CampayPayoutService::class);
+        $ready = [];
+        foreach ($rows as $row) {
+            $state = $this->confirmExisting($service, $row);
+            if ($state === 'paid' || $state === 'pending') {
+                continue;
+            }
+            $row->campay_reference = null;
+            $row->status = 'pending';
+            $row->error = null;
+            $row->save();
+            $ready[] = $row;
+        }
+
+        return collect($ready);
     }
 
     protected function sendRows(CampayPayoutRequest $open, $rows, $returnTo = null)
@@ -518,7 +556,7 @@ class PayoutController extends Controller
 
     protected function savePendingAmounts(CampayPayoutRequest $batch, array $amounts)
     {
-        $pending = CampayPayout::where('request_id', $batch->id)->where('status', 'pending')->get();
+        $pending = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->get();
         foreach ($pending as $line) {
             if (! array_key_exists($line->id, $amounts)) {
                 continue;

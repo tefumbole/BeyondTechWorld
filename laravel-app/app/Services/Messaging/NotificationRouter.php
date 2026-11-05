@@ -237,8 +237,8 @@ class NotificationRouter
     }
 
     /**
-     * OTP on Wasender. The code is one line so WhatsApp can copy it in one tap.
-     * No admin copy and no extra purpose notice.
+     * OTP on Wasender. The code is on its own line and a serial is stamped at the bottom.
+     * No admin copy. The Twilio template fallback still sends only the code.
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
@@ -251,7 +251,7 @@ class NotificationRouter
         }
 
         $message = WhatsAppMessage::otpMessage($otp, $purpose, $expiresMinutes);
-        $result = $this->wasender->sendTextRaw($phone, $message, false, false, 12, false);
+        $result = $this->wasender->sendTextRaw($phone, $message, true, false, 12, false);
         $result['provider'] = 'wasender';
         if (! empty($result['success'])) {
             $this->rememberOtpForSameDevice($otp);

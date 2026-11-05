@@ -149,7 +149,7 @@
     @if(Auth::user()->is_active)
         <form action="{{ route('check.otp.store') }}" method="post">
             @csrf
-            <input id="otp-code" class="otp-input" type="text" name="otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
+            <input id="otp-code" class="otp-input" type="text" name="otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" data-autosubmit="1" required>
             @if ($errors->has('otp'))
                 <div class="alert alert-danger">{{ $errors->first('otp') }}</div>
             @endif

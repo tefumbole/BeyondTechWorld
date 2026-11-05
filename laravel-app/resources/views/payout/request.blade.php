@@ -89,8 +89,8 @@
                                             <td>{{ $line->person_name }}</td>
                                             <td>{{ $line->phone }}</td>
                                             <td>
-                                                @if($line->status === 'pending')
-                                                    <input type="number" class="form-control form-control-sm" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ $line->amount }}" style="max-width:140px">
+                                                @if(in_array($line->status, ['pending', 'failed'], true))
+                                                    <input type="number" class="form-control form-control-sm" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ (int) $line->amount }}" inputmode="numeric" style="max-width:140px">
                                                 @else
                                                     {{ number_format($line->amount, 0, '.', ' ') }}
                                                 @endif

@@ -70,13 +70,43 @@
     .pay-modal[hidden] { display: none; }
     .pay-modal-card { width: min(920px, 100%); margin-top: 8px; border-radius: 16px; }
     .pay-modal-close { border: 0; background: transparent; color: #8a6230; font-weight: 700; cursor: pointer; }
+    .pay-amount { max-width: 140px; }
     @media (max-width: 700px) {
         .pay-total { font-size: 26px; }
+        .pay-balance { padding: 16px; }
         .pay-card-body, .pay-card-head { padding-left: 12px; padding-right: 12px; }
+        .pay-card-head { flex-direction: column; align-items: stretch; }
+        .pay-toolbar { justify-content: stretch; }
+        .pay-toolbar .pay-new, .pay-card-head .pay-danger, .await-actions { width: 100%; }
+        .await-actions .pay-go, .await-actions .pay-danger { flex: 1 1 140px; justify-content: center; }
         .pay-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
         .pay-tabs .btn { flex: 0 0 auto; min-height: 44px; }
-        .pay-open, .pay-danger, .pay-go, .pay-new { min-height: 44px; }
+        .pay-open, .pay-danger, .pay-go, .pay-new { min-height: 44px; justify-content: center; }
+        .pay-row-actions { justify-content: stretch; }
+        .pay-row-actions .pay-open, .pay-row-actions form, .pay-row-actions form .pay-open { width: 100%; }
+        .pay-actions { flex-wrap: wrap; }
+        .pay-actions .pay-go, .pay-actions .pay-open, .pay-actions .pay-danger { flex: 1 1 140px; justify-content: center; }
         .pay-app .form-control, .pay-app input, .pay-app select, .pay-app textarea { font-size: 16px; min-height: 44px; }
-        .pay-table { font-size: 13px; }
+        .pay-app .dataTables_wrapper .dataTables_length,
+        .pay-app .dataTables_wrapper .dataTables_filter { float: none; width: 100%; text-align: left; }
+        .pay-app .dataTables_filter input { width: 100% !important; margin: 6px 0 0 !important; }
+        .pay-app .add-payment, .pay-app .get-payment { display: flex; width: 100%; margin: 4px 0; justify-content: center; min-height: 40px; align-items: center; }
+        .pay-table { font-size: 14px; }
+        .pay-stack thead { display: none; }
+        .pay-stack, .pay-stack tbody, .pay-stack tr, .pay-stack td { display: block; width: 100%; }
+        .pay-stack tr { padding: 8px 0; border-bottom: 8px solid #f6efe4; }
+        .pay-stack td { border: 0; padding: 4px 12px; }
+        .pay-stack td[data-label]:not([data-label=""]) { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+        .pay-stack td[data-label]:not([data-label=""]):before {
+            content: attr(data-label);
+            flex: 0 0 72px;
+            color: #8a6230;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .pay-stack .pay-people { display: block; }
+        .pay-amount, .payout-amount { max-width: none; width: 100%; }
     }
 </style>

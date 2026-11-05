@@ -18,19 +18,29 @@
             }
         }
     @endphp
+    @php
+        $deletablePayouts = $requests->filter(function ($row) {
+            if ($row->lines->where('status', 'paid')->count() > 0) {
+                return false;
+            }
+            return $row->lines->filter(function ($line) {
+                return $line->status === 'pending' && trim((string) $line->campay_reference) !== '';
+            })->count() < 1;
+        });
+    @endphp
     <div class="pay-card" @if($watchPayouts) data-payout-wait="1" @endif>
         <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
         <div class="pay-card-head">
             <h2>Withdrawals</h2>
-            @if($pending->count())
+            @if($deletablePayouts->count())
                 <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
             @endif
         </div>
         <div class="table-responsive">
-            <table class="pay-table">
+            <table class="pay-table pay-stack">
                 <thead>
                     <tr>
-                        <th style="width:36px">@if($pending->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
+                        <th style="width:36px">@if($deletablePayouts->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
                         <th>When</th>
                         <th>People</th>
                         <th>Reason</th>
@@ -42,19 +52,20 @@
                     @forelse($requests as $row)
                         @php
                             $state = $row->list_state;
-                            $linePending = $row->lines->where('status', 'pending')->count();
+                            $unpaid = $row->lines->whereIn('status', ['pending', 'failed'])->count();
+                            $canDelete = $deletablePayouts->contains('id', $row->id);
                             $unsent = $row->lines->filter(function ($line) {
                                 return $line->status === 'pending' && trim((string) $line->campay_reference) === '';
                             })->count();
                         @endphp
                         <tr>
-                            <td>
-                                @if($row->status === 'pending' && $row->lines->where('status', 'paid')->count() < 1)
+                            <td data-label="">
+                                @if($canDelete)
                                     <input type="checkbox" class="pending-row" form="pendingDeleteForm" name="ids[]" value="{{ $row->id }}">
                                 @endif
                             </td>
-                            <td>{{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}</td>
-                            <td>
+                            <td data-label="When">{{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}</td>
+                            <td class="pay-people" data-label="People">
                                 @forelse($row->lines as $line)
                                     <div>{{ $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
                                 @empty
@@ -64,12 +75,14 @@
                                     <div class="pay-muted">From {{ $row->requester_name }}</div>
                                 @endif
                             </td>
-                            <td>{{ $row->note }}</td>
-                            <td><span class="pay-pill pay-pill-{{ $state['tone'] }}" data-payout-batch="{{ $row->id }}">{{ $state['label'] }}</span></td>
-                            <td>
+                            <td data-label="Reason">{{ $row->note }}</td>
+                            <td data-label="Status"><span class="pay-pill pay-pill-{{ $state['tone'] }}" data-payout-batch="{{ $row->id }}">{{ $state['label'] }}</span></td>
+                            <td data-label="">
                                 <div class="pay-row-actions">
-                                    @if($unsent > 0)
+                                    @if($unpaid > 0)
                                         <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
+                                    @endif
+                                    @if($unsent > 0)
                                         <form method="POST" action="{{ route('payout.request.revise') }}">
                                             @csrf
                                             <input type="hidden" name="id" value="{{ $row->id }}">
@@ -143,14 +156,17 @@
                 <a href="{{ route('payout.index') }}">All pending</a>
             </div>
             <div class="pay-card-body">
+                <p class="pay-help">This is everyone on the request. Change an amount when someone did not work the whole day, or remove a name that did not work. Save keeps the change without paying.</p>
                 <form method="POST" action="{{ route('payout.pay') }}" id="payoutForm">
                     @csrf
                     <input type="hidden" name="request_id" value="{{ $open->id }}">
+                    <input type="hidden" name="id" value="{{ $open->id }}">
                     <div class="table-responsive">
-                        <table class="pay-table">
+                        <table class="pay-table pay-stack">
                             <thead>
                                 <tr>
-                                    <th style="width:36px"><input type="checkbox" id="payoutAll"></th>
+                                    <th style="width:36px" title="Pay"><input type="checkbox" id="payoutAll"></th>
+                                    <th style="width:36px" title="Remove"><input type="checkbox" id="payoutRemoveAll"></th>
                                     <th>Name</th>
                                     <th>Number</th>
                                     <th>Name on MoMo</th>
@@ -163,24 +179,30 @@
                                     @php
                                         $tone = $line->status === 'paid' ? 'ok' : ($line->status === 'pending' ? 'wait' : 'no');
                                         $statusLabel = $line->status === 'paid' ? 'Paid' : ($line->status === 'pending' ? 'Waiting' : ($line->status === 'rejected' ? 'Rejected' : 'Not paid'));
+                                        $canEdit = in_array($line->status, ['pending', 'failed'], true);
                                     @endphp
                                     <tr>
-                                        <td>
-                                            @if($line->status === 'pending')
+                                        <td data-label="Pay">
+                                            @if($canEdit)
                                                 <input type="checkbox" class="payout-line" name="lines[]" value="{{ $line->id }}" checked>
                                             @endif
                                         </td>
-                                        <td>{{ $line->person_name }}</td>
-                                        <td>{{ $line->phone }} @if($line->network)<span class="pay-net">{{ $line->network }}</span>@endif</td>
-                                        <td>{{ $line->momo_name !== '' && $line->momo_name !== null ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : 'Looking up…') }}</td>
-                                        <td>
-                                            @if($line->status === 'pending')
-                                                <input type="number" class="form-control form-control-sm payout-amount" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ $line->amount }}" style="max-width:140px">
+                                        <td data-label="Remove">
+                                            @if($canEdit)
+                                                <input type="checkbox" class="payout-remove" name="remove_ids[]" value="{{ $line->id }}">
+                                            @endif
+                                        </td>
+                                        <td data-label="Name">{{ $line->person_name }}</td>
+                                        <td data-label="Number">{{ $line->phone }} @if($line->network)<span class="pay-net">{{ $line->network }}</span>@endif</td>
+                                        <td data-label="MoMo">{{ $line->momo_name !== '' && $line->momo_name !== null ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : 'Looking up…') }}</td>
+                                        <td data-label="Amount">
+                                            @if($canEdit)
+                                                <input type="number" class="form-control form-control-sm payout-amount" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ (int) $line->amount }}" inputmode="numeric">
                                             @else
                                                 {{ number_format($line->amount, 0, '.', ' ') }}
                                             @endif
                                         </td>
-                                        <td>
+                                        <td data-label="Status">
                                             <span class="pay-pill pay-pill-{{ $tone }}" data-payout-line="{{ $line->id }}">{{ $statusLabel }}</span>
                                             @if($line->error)<div class="pay-note">{{ $line->error }}</div>@endif
                                         </td>
@@ -189,9 +211,11 @@
                             </tbody>
                         </table>
                     </div>
-                    @if($open->status === 'pending')
+                    @if($lines->whereIn('status', ['pending', 'failed'])->count() > 0)
                         <div class="pay-actions">
-                            <button class="pay-go" type="submit" id="payoutButton">Pay</button>
+                            <button class="pay-open" type="submit" formaction="{{ route('payout.request.revise') }}" name="action" value="save" style="border:0;cursor:pointer">Save changes</button>
+                            <button class="pay-danger" type="submit" formaction="{{ route('payout.request.revise') }}" name="action" value="delete" id="payoutRemove">Remove selected</button>
+                            <button class="pay-go" type="submit" id="payoutButton" data-pay="1">Pay</button>
                             <span class="pay-muted" id="payoutTotal"></span>
                         </div>
                     @endif
@@ -241,10 +265,10 @@
         boxes().forEach(function (box) { if (box.checked) count += 1; });
         if (count < 1) {
             event.preventDefault();
-            window.alert('Select the pending payouts to delete.');
+            window.alert('Select the payouts to delete.');
             return;
         }
-        if (!window.confirm('Delete ' + count + ' pending ' + (count === 1 ? 'payout' : 'payouts') + '?')) {
+        if (!window.confirm('Delete ' + count + ' ' + (count === 1 ? 'payout' : 'payouts') + '? People already paid are left in place.')) {
             event.preventDefault();
         }
     });
@@ -275,9 +299,29 @@
         rows().forEach(function (box) { box.checked = all.checked; });
         refresh();
     });
+    var removeAll = document.getElementById('payoutRemoveAll');
+    function removeBoxes() { return form.querySelectorAll('.payout-remove'); }
+    if (removeAll) removeAll.addEventListener('change', function () {
+        removeBoxes().forEach(function (box) { box.checked = removeAll.checked; });
+    });
+    var removeBtn = document.getElementById('payoutRemove');
+    if (removeBtn) removeBtn.addEventListener('click', function (event) {
+        var count = 0;
+        removeBoxes().forEach(function (box) { if (box.checked) count += 1; });
+        if (count < 1) {
+            event.preventDefault();
+            window.alert('Select the names to remove.');
+            return;
+        }
+        if (!window.confirm('Remove ' + count + ' ' + (count === 1 ? 'name' : 'names') + ' from this request?')) {
+            event.preventDefault();
+        }
+    });
     rows().forEach(function (box) { box.addEventListener('change', refresh); });
     form.querySelectorAll('.payout-amount').forEach(function (input) { input.addEventListener('input', refresh); });
     form.addEventListener('submit', function (event) {
+        var submitter = event.submitter || document.activeElement;
+        if (!submitter || submitter.getAttribute('data-pay') !== '1') return;
         var count = 0;
         var sum = 0;
         rows().forEach(function (box) {

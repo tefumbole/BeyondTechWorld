@@ -21,6 +21,9 @@
             .pay-app table.dataTable thead th { background: #f8fafc; color: #6f7b91; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
             .pay-app .pay-toolbar { justify-content: flex-start; }
             .await-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+            @media (max-width: 700px) {
+                .pay-app .sale-list { min-width: 680px; }
+            }
         </style>
 
         <div class="pay-toolbar">

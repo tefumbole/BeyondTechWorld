@@ -14,7 +14,7 @@
         @csrf
         <div>
             <label class="text-sm font-semibold text-gray-700">Verification code</label>
-            <input id="otp-code" type="text" name="otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required autofocus
+            <input id="otp-code" type="text" name="otp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" data-autosubmit="1" required autofocus
                    class="w-full mt-1 rounded-md border border-gray-200 px-3 py-2 tracking-widest text-center text-lg">
             @error('otp')
                 <p class="text-red-600 text-sm mt-1">{{ $message }}</p>

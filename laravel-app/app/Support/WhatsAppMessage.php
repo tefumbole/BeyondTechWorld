@@ -641,8 +641,7 @@ class WhatsAppMessage
     }
 
     /**
-     * Opens with Authentication. The code stays in the same sentence as
-     * "verification code" so WhatsApp shows its Copy code button.
+     * The code is alone on its line. The serial is added underneath by the sender.
      */
     public static function otpMessage($otp, $purpose = 'login', $expiresMinutes = 10)
     {
@@ -653,7 +652,8 @@ class WhatsAppMessage
         }
 
         return self::statusBlock('🔐', 'Authentication')
-            ."*{$digits}* is your verification code.\n\n"
+            ."*{$digits}*\n\n"
+            ."This is your verification code.\n"
             ."It expires in {$minutes} minutes. Do not share this code.";
     }
 

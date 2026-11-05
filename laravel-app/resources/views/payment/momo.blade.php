@@ -5,7 +5,7 @@
     <div class="pay-card">
         <div class="pay-card-head"><h2>Momo Payments</h2></div>
         <div class="table-responsive">
-            <table class="pay-table">
+            <table class="pay-table pay-stack">
                 <thead>
                     <tr>
                         <th>When</th>
@@ -19,12 +19,12 @@
                 <tbody>
                     @forelse($rows as $row)
                         <tr>
-                            <td>{{ $row['at'] ? $row['at']->format('M j, Y H:i') : '' }}</td>
-                            <td>{{ $row['person'] }}</td>
-                            <td>{{ $row['kind'] }}</td>
-                            <td>{{ number_format($row['amount'], 0, '.', ' ') }} XAF</td>
-                            <td><span class="pay-pill pay-pill-{{ $row['tone'] }}">{{ $row['status'] }}</span></td>
-                            <td>{{ $row['note'] }}</td>
+                            <td data-label="When">{{ $row['at'] ? $row['at']->format('M j, Y H:i') : '' }}</td>
+                            <td data-label="Person">{{ $row['person'] }}</td>
+                            <td data-label="Type">{{ $row['kind'] }}</td>
+                            <td data-label="Amount">{{ number_format($row['amount'], 0, '.', ' ') }} XAF</td>
+                            <td data-label="Status"><span class="pay-pill pay-pill-{{ $row['tone'] }}">{{ $row['status'] }}</span></td>
+                            <td data-label="Note">{{ $row['note'] }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="6" class="pay-muted">No payments yet.</td></tr>

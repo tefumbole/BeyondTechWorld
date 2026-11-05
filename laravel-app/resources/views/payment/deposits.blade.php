@@ -78,7 +78,7 @@
         <form method="POST" action="{{ route('deposit.delete_selection') }}" id="depositsListForm">
             @csrf
             <div class="table-responsive">
-                <table class="pay-table">
+                <table class="pay-table pay-stack">
                     <thead>
                         <tr>
                             <th style="width:36px"><input type="checkbox" id="depositsAll" title="Select all"></th>
@@ -96,20 +96,20 @@
                         @forelse($deposits as $deposit)
                             @php $charges = max(0, (float) $deposit['paid'] - (float) $deposit['received']); @endphp
                             <tr @if($deposit['id']) data-deposit="{{ $deposit['id'] }}" @endif>
-                                <td>@if($deposit['id'])<input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit['id'] }}">@endif</td>
-                                <td>{{ $deposit['time'] }}</td>
-                                <td>{{ $deposit['client'] }}</td>
-                                <td>{{ number_format($deposit['paid'], 0, '.', ' ') }} XAF</td>
-                                <td>{{ number_format($deposit['received'], 0, '.', ' ') }} XAF</td>
-                                <td>{{ number_format($charges, 0, '.', ' ') }} XAF</td>
-                                <td>Campay</td>
-                                <td>
+                                <td data-label="">@if($deposit['id'])<input type="checkbox" class="deposits-line" name="ids[]" value="{{ $deposit['id'] }}">@endif</td>
+                                <td data-label="Time">{{ $deposit['time'] }}</td>
+                                <td data-label="Client">{{ $deposit['client'] }}</td>
+                                <td data-label="Paid">{{ number_format($deposit['paid'], 0, '.', ' ') }} XAF</td>
+                                <td data-label="Received">{{ number_format($deposit['received'], 0, '.', ' ') }} XAF</td>
+                                <td data-label="Charges">{{ number_format($charges, 0, '.', ' ') }} XAF</td>
+                                <td data-label="Method">Campay</td>
+                                <td data-label="Status">
                                     <span class="pay-pill pay-pill-{{ $deposit['tone'] }}">{{ $deposit['status'] }}</span>
                                     @if($deposit['reason'] !== '')
                                         <div class="pay-note">{{ $deposit['reason'] }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $deposit['note'] }}</td>
+                                <td data-label="Note">{{ $deposit['note'] }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="9" class="pay-muted">No Campay deposits yet.</td></tr>
