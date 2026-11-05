@@ -145,6 +145,10 @@ class PublicFuneralPledgeController extends Controller
             'navActive' => 'eulogies',
             'photos' => [],
             'eulogies' => $data['eulogies'],
+            'countries' => CountryDialCodes::list(),
+            'lookupUrl' => route('funeral.pangwayu.lookup'),
+            'eulogyUrl' => route('funeral.pangwayu.eulogy'),
+            'flashEulogy' => $request->get('eulogy'),
         ]);
     }
 

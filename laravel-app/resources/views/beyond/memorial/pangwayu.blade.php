@@ -397,6 +397,7 @@
             <p class="kicker">Words of remembrance</p>
             <h2 class="eulogies-title">Eulogies</h2>
             <p class="eulogies-lead">Share a few words for Pa Ngwayu Francis. Enter your phone and your name will appear, or type it yourself. You may add a signature before you submit.</p>
+            <button type="button" class="btn btn-gold" id="openEulogy" style="margin:0 0 14px;">Leave a eulogy</button>
             <span class="eulogies-count">{{ count($eulogies) }} {{ count($eulogies) === 1 ? 'eulogy' : 'eulogies' }} written</span>
         </div>
         @forelse($eulogies as $eu)

@@ -229,6 +229,30 @@
             color: #667066;
             font-size: 17px;
         }
+        .eu-leave {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 22px 0 0;
+            padding: 14px 26px;
+            border: 0;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #f0d57a, #d4af37);
+            color: #1a1408;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(184, 143, 75, .28);
+        }
+        .name-choices[hidden] { display: none !important; }
+        .eu-flash {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 16px 36px 0;
+            color: #3c5141;
+            font-weight: 700;
+        }
         @media (max-width: 900px) {
             .eu-featured { grid-template-columns: 1fr; gap: 10px; padding: 30px; }
             .eu-aside { border-right: 0; border-bottom: 1px solid #e6e0d1; padding: 0 0 12px; }
@@ -261,9 +285,14 @@
         }
     @endphp
 
+    @if(($flashEulogy ?? '') === 'ok')
+        <p class="eu-flash">Your eulogy was received. Thank you.</p>
+    @endif
+
     <section class="eu-hero">
         <div class="eu-hero-inner">
             <p class="eu-eyebrow">Words that remain with us</p>
+            <button type="button" class="eu-leave" id="openEulogy">Leave a eulogy</button>
         </div>
     </section>
 
@@ -306,6 +335,213 @@
         @else
             <p class="eu-empty">The eulogies written for Pa Ngwayu Francis are kept here.</p>
         @endif
+        <p class="eu-more">
+            <button type="button" class="eu-leave" id="openEulogyBottom">Leave a eulogy</button>
+        </p>
         <p class="eu-more"><a href="{{ route('funeral.pangwayu.biography') }}">Read his biography</a></p>
     </div>
+@endsection
+
+@section('modals')
+<div class="modal" id="eulogyModal">
+    <div class="sheet">
+        <button type="button" class="close" id="closeEulogy">&times;</button>
+        <p class="kicker">In loving memory</p>
+        <h2>Leave a eulogy</h2>
+        <form id="eulogyForm">
+            <label>Phone number *</label>
+            <div class="phone-row">
+                <select name="country_code" id="euCountry">
+                    @foreach($countries as $c)
+                        <option value="{{ $c['code'] }}" {{ $c['code'] === '+237' ? 'selected' : '' }}>{{ $c['code'] }}</option>
+                    @endforeach
+                </select>
+                <input type="tel" name="phone" id="euPhone" placeholder="677318405" required>
+            </div>
+            <label>Name *</label>
+            <div id="euNameChoices" class="name-choices" hidden></div>
+            <input type="text" name="name" id="euName" required>
+            <p class="hint">We use the Mobile Money name when we find it. You can tap the other name or edit this field.</p>
+            <label>Eulogy *</label>
+            <textarea name="body" id="euBody" rows="7" required maxlength="20000" placeholder="A few words for Pa Ngwayu Francis…"></textarea>
+            <p class="hint">A few sentences or a full tribute — up to 20,000 characters.</p>
+            <label>Signature (optional)</label>
+            <canvas id="sigPad" class="sig-pad"></canvas>
+            <button type="button" class="btn btn-ghost" id="sigClear" style="margin-top:8px;">Clear signature</button>
+            <input type="hidden" name="signature" id="euSig">
+            <div class="err" id="euErr"></div>
+            <div class="actions" style="margin-top:12px;">
+                <button type="button" class="btn btn-ghost" id="euCancel">Cancel</button>
+                <button type="submit" class="btn btn-gold">Submit eulogy</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+(function () {
+    var LOOKUP = @json($lookupUrl);
+    var EULOGY = @json($eulogyUrl);
+    var euModal = document.getElementById('eulogyModal');
+    var canvas = document.getElementById('sigPad');
+    var ctx = canvas.getContext('2d');
+    var drawing = false;
+    function stylePen() {
+        ctx.strokeStyle = '#1a1408';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+    }
+    function sizeCanvas() {
+        var cssW = Math.max(280, Math.floor(canvas.clientWidth || canvas.offsetWidth || 320));
+        var cssH = Math.max(140, Math.floor(canvas.clientHeight || canvas.offsetHeight || 150));
+        if (canvas.width === cssW && canvas.height === cssH) { stylePen(); return; }
+        canvas.width = cssW;
+        canvas.height = cssH;
+        stylePen();
+    }
+    function pos(ev) {
+        var r = canvas.getBoundingClientRect();
+        var t = ev.touches && ev.touches[0] ? ev.touches[0]
+            : (ev.changedTouches && ev.changedTouches[0] ? ev.changedTouches[0] : ev);
+        return {
+            x: (t.clientX - r.left) * (canvas.width / Math.max(r.width, 1)),
+            y: (t.clientY - r.top) * (canvas.height / Math.max(r.height, 1))
+        };
+    }
+    function onPadDown(ev) {
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        drawing = true;
+        if (canvas.setPointerCapture && ev.pointerId != null) {
+            try { canvas.setPointerCapture(ev.pointerId); } catch (err) {}
+        }
+        if (ev.cancelable) ev.preventDefault();
+        var p = pos(ev);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+    }
+    function onPadMove(ev) {
+        if (!drawing) return;
+        if (ev.cancelable) ev.preventDefault();
+        var p = pos(ev);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+    }
+    function onPadUp() { drawing = false; }
+    if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', onPadDown);
+        canvas.addEventListener('pointermove', onPadMove);
+        canvas.addEventListener('pointerup', onPadUp);
+        canvas.addEventListener('pointercancel', onPadUp);
+    }
+    document.getElementById('sigClear').onclick = function () { ctx.clearRect(0, 0, canvas.width, canvas.height); stylePen(); };
+    function openModal() {
+        euModal.classList.add('on');
+        requestAnimationFrame(function () { requestAnimationFrame(sizeCanvas); });
+        document.getElementById('euPhone').focus();
+    }
+    document.getElementById('openEulogy').onclick = openModal;
+    document.getElementById('openEulogyBottom').onclick = openModal;
+    document.getElementById('closeEulogy').onclick = function () { euModal.classList.remove('on'); };
+    document.getElementById('euCancel').onclick = function () { euModal.classList.remove('on'); };
+    euModal.addEventListener('click', function (e) { if (e.target === euModal) euModal.classList.remove('on'); });
+
+    function applyNameLookup(data) {
+        var nameEl = document.getElementById('euName');
+        var choicesEl = document.getElementById('euNameChoices');
+        if (!data || !nameEl) return;
+        var momo = (data.original_name || '').trim();
+        var system = (data.system_name || '').trim();
+        var chosen = momo || data.name || system;
+        if (chosen) nameEl.value = chosen;
+        choicesEl.innerHTML = '';
+        if (!momo && !system) { choicesEl.hidden = true; return; }
+        function addChoice(label, value, on) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'name-choice' + (on ? ' on' : '');
+            btn.innerHTML = '<span></span><strong></strong>';
+            btn.querySelector('span').textContent = label;
+            btn.querySelector('strong').textContent = value;
+            btn.addEventListener('click', function () { nameEl.value = value; });
+            choicesEl.appendChild(btn);
+        }
+        if (momo) addChoice('Mobile Money', momo, true);
+        if (system && system.toLowerCase() !== momo.toLowerCase()) addChoice('Our records', system, !momo);
+        choicesEl.hidden = false;
+    }
+    var euTimer = null;
+    function lookupEu() {
+        var phone = document.getElementById('euPhone').value;
+        var code = document.getElementById('euCountry').value;
+        if (String(phone).replace(/\D/g, '').length < 8) return;
+        fetch(LOOKUP + '?country_code=' + encodeURIComponent(code) + '&phone=' + encodeURIComponent(phone), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json(); }).then(applyNameLookup).catch(function () {});
+    }
+    document.getElementById('euPhone').addEventListener('input', function () {
+        clearTimeout(euTimer);
+        euTimer = setTimeout(lookupEu, 450);
+    });
+    document.getElementById('euPhone').addEventListener('blur', lookupEu);
+
+    function firstApiMessage(j, fallback) {
+        if (!j) return fallback;
+        if (j.errors) {
+            var keys = Object.keys(j.errors);
+            for (var i = 0; i < keys.length; i++) {
+                if (j.errors[keys[i]] && j.errors[keys[i]][0]) return j.errors[keys[i]][0];
+            }
+        }
+        return j.message || fallback;
+    }
+    document.getElementById('eulogyForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var err = document.getElementById('euErr');
+        var btn = e.target.querySelector('button[type="submit"]');
+        err.textContent = '';
+        var blank = document.createElement('canvas');
+        blank.width = canvas.width; blank.height = canvas.height;
+        var signed = canvas.toDataURL() !== blank.toDataURL();
+        var out = document.createElement('canvas');
+        out.width = Math.max(1, canvas.width);
+        out.height = Math.max(1, canvas.height);
+        var octx = out.getContext('2d');
+        octx.fillStyle = '#ffffff';
+        octx.fillRect(0, 0, out.width, out.height);
+        octx.drawImage(canvas, 0, 0);
+        document.getElementById('euSig').value = signed ? out.toDataURL('image/jpeg', 0.82) : '';
+        var body = new FormData(e.target);
+        var csrf = document.querySelector('meta[name="csrf-token"]');
+        if (csrf && csrf.content) body.append('_token', csrf.content);
+        if (btn) btn.disabled = true;
+        fetch(EULOGY, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrf ? csrf.content : ''
+            },
+            body: body
+        }).then(function (r) { return r.text().then(function (t) {
+            var j = {};
+            try { j = t ? JSON.parse(t) : {}; } catch (ex) { j = {}; }
+            return { ok: r.ok, j: j };
+        }); }).then(function (res) {
+            if (!res.ok || !res.j.ok) {
+                err.textContent = firstApiMessage(res.j, 'Could not save the eulogy. Try again.');
+                if (btn) btn.disabled = false;
+                return;
+            }
+            window.location = window.location.pathname + '?eulogy=ok';
+        }).catch(function () {
+            err.textContent = 'Network error. Check your connection and try again.';
+            if (btn) btn.disabled = false;
+        });
+    });
+})();
+</script>
 @endsection
