@@ -57,7 +57,11 @@
     .pay-app #payoutHits .list-group-item, .pay-app #depositHits .list-group-item { border-color: #f3eadc; }
     .pay-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
     .pay-plus { width: 44px; height: 44px; border: 1px solid #C5A059; border-radius: 22px; background: #fffaf3; color: #8a6230; font-size: 24px; line-height: 1; }
-    .pay-go { min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: #C5A059; color: #1a1208; font-weight: 700; }
+    .pay-go { min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: #C5A059; color: #1a1208; font-weight: 800; }
+    .pay-app .pay-card { border-radius: 18px; }
+    .pay-app .table thead th, .pay-app table.dataTable thead th { background: #fffaf3; color: #8a6230; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; border-bottom: 1px solid #eadcc4; }
+    .pay-app .btn-success, .pay-app .add-payment { border: 0; border-radius: 999px; background: #146c43; }
+    .pay-app .btn-info, .pay-app .btn-warning { border: 0; border-radius: 999px; }
     .pay-go:hover { background: #8a6230; color: #fff6df; }
     .pay-open { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; background: #C5A059; color: #1a1208 !important; font-size: 13px; font-weight: 700; text-decoration: none !important; }
     .pay-danger { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: #fdecec; color: #9b1c1c; font-size: 13px; font-weight: 700; cursor: pointer; }

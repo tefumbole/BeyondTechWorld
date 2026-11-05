@@ -55,7 +55,19 @@
                 <a href="{{url('sales/sale_by_csv')}}" class="btn btn-primary"><i class="dripicons-copy"></i> {{trans('file.Import Sale')}}</a>
             @endif
         </div>
-        <div class="table-responsive">
+        <style>
+            .sale-board { margin: 8px 12px 24px; background: #fff; border: 1px solid #eadcc4; border-radius: 18px; overflow: hidden; box-shadow: 0 1px 2px rgba(63,42,18,.04); }
+            .sale-board .dataTables_wrapper { padding: 8px 12px 16px; }
+            #sale-table thead th { background: #fffaf3; color: #8a6230; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+            #sale-table td { vertical-align: middle; }
+            #sale-table .badge { border-radius: 999px; padding: 4px 10px; font-weight: 700; }
+            .sale-board .btn { border-radius: 999px; }
+            @media (max-width: 700px) {
+                .sale-board { margin: 8px; }
+                .sale-board .dataTables_filter input, .sale-board .dataTables_length select { min-height: 44px; font-size: 16px; }
+            }
+        </style>
+        <div class="table-responsive sale-board">
             <table id="sale-table" class="table sale-list" style="width: 100%">
                 <thead>
                 <tr>

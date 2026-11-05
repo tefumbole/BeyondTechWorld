@@ -2,9 +2,11 @@
 @section('content')
 @include('payout.partials.style')
 <style>
-    .pay-methods { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-    .pay-method { min-height: 40px; padding: 0 16px; border: 1px solid #C5A059; border-radius: 999px; background: #fffaf3; color: #3f2a12; font-weight: 700; }
-    .pay-method.is-on { background: #C5A059; border-color: #8a6230; color: #1a1208; }
+    .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .pay-method { min-height: 72px; padding: 10px 12px; border: 1px solid #eadcc4; border-radius: 16px; background: #fff; color: #12203a; font-weight: 800; }
+    .pay-method.is-on { background: #12203a; border-color: #12203a; color: #fff; }
+    .pay-method small { display: block; font-weight: 600; color: #8a7560; }
+    .pay-method.is-on small { color: #f3e3b0; }
     .pay-chosen { margin-top: 8px; font-weight: 700; }
 </style>
 <section class="container-fluid pay-app">
@@ -58,9 +60,9 @@
                     </div>
                     <label>Payment method</label>
                     <div class="pay-methods">
-                        <button class="pay-method" type="button" data-method="1">Cash</button>
-                        <button class="pay-method" type="button" data-method="3">Momo/Orange</button>
-                        <button class="pay-method" type="button" data-method="4">VISA</button>
+                        <button class="pay-method" type="button" data-method="1">Cash<small>Record it now</small></button>
+                        <button class="pay-method" type="button" data-method="3">MoMo / OM<small>Ask the client to confirm</small></button>
+                        <button class="pay-method" type="button" data-method="4">Card<small>Send a payment link</small></button>
                     </div>
                     <p class="pay-help" id="depositHint">Cash is saved now. Choose a client if they should get a WhatsApp or SMS.</p>
                     <div class="form-group" style="max-width:460px">
