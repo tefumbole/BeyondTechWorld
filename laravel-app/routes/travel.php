@@ -16,6 +16,7 @@ Route::middleware('travel.enabled')->prefix('travel')->group(function () {
     Route::get('/track', 'Travel\TravelController@track')->name('travel.track');
 
     Route::middleware('auth')->prefix('staff')->group(function () {
+        Route::get('/', 'Travel\TravelStaffController@hub')->name('travel.staff');
         Route::get('/dispatch', 'Travel\TravelStaffController@dispatchForm')->name('travel.dispatch');
         Route::post('/fixture', 'Travel\TravelStaffController@fixture')->name('travel.fixture');
         Route::post('/routes', 'Travel\TravelStaffController@route')->name('travel.routes');

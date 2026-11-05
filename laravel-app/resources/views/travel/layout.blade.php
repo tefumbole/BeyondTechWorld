@@ -23,6 +23,7 @@
         h1{font-size:clamp(36px,7vw,76px);line-height:1;margin:16px 0;letter-spacing:-.055em}
         h2,h3{margin-top:0}
         .panel,.card{background:#fff;border:1px solid #e0e7de;border-radius:18px;padding:22px;margin-top:16px}
+        a.card{display:block;text-decoration:none;color:inherit}
         .form{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
         label{display:grid;gap:5px;font-weight:600;flex:1;min-width:145px}
         input,select,textarea{min-width:0;width:100%}
@@ -45,11 +46,14 @@
 <header>
     <strong class="brand">◈ Epic Travels</strong>
     <nav aria-label="Main navigation">
-        <a class="nav {{ request()->routeIs('travel.home') || request()->routeIs('travel.departure') ? 'active' : '' }}" href="{{ route('travel.home') }}">{{ \App\Travel\TravelCopy::line('book') }}</a>
+        <a class="nav {{ request()->routeIs('travel.staff') ? 'active' : '' }}" href="{{ route('travel.staff') }}">Staff</a>
+        <a class="nav {{ request()->routeIs('travel.parcels') ? 'active' : '' }}" href="{{ route('travel.parcels') }}">Parcels</a>
+        <a class="nav {{ request()->routeIs('travel.counter') ? 'active' : '' }}" href="{{ route('travel.counter') }}">Counter</a>
+        <a class="nav {{ request()->routeIs('travel.dispatch') || request()->routeIs('travel.manifest') ? 'active' : '' }}" href="{{ route('travel.dispatch') }}">Dispatch</a>
+        <a class="nav {{ request()->routeIs('travel.reconcile') ? 'active' : '' }}" href="{{ route('travel.reconcile') }}">Reconciliation</a>
+        <a class="nav {{ request()->routeIs('travel.home') || request()->routeIs('travel.departure') || request()->routeIs('travel.pay') ? 'active' : '' }}" href="{{ route('travel.home') }}">{{ \App\Travel\TravelCopy::line('book') }}</a>
         <a class="nav {{ request()->routeIs('travel.trips') ? 'active' : '' }}" href="{{ route('travel.trips') }}">{{ \App\Travel\TravelCopy::line('trips') }}</a>
         <a class="nav {{ request()->routeIs('travel.track') ? 'active' : '' }}" href="{{ route('travel.track') }}">{{ \App\Travel\TravelCopy::line('track') }}</a>
-        <a class="nav {{ request()->routeIs('travel.counter') ? 'active' : '' }}" href="{{ route('travel.counter') }}">{{ \App\Travel\TravelCopy::line('desk') }}</a>
-        <a class="nav {{ request()->routeIs('travel.dispatch') ? 'active' : '' }}" href="{{ route('travel.dispatch') }}">{{ \App\Travel\TravelCopy::line('dispatch') }}</a>
     </nav>
     <span class="langs">
         <a href="{{ route('travel.lang', 'en') }}">EN</a>

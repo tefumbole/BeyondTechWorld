@@ -15,6 +15,16 @@ use Illuminate\Support\Facades\DB;
 
 class TravelStaffController extends Controller
 {
+    public function hub()
+    {
+        $user = auth()->user();
+        if (! $user || (! $this->allows($user, 'dispatch') && ! $this->allows($user, 'counter') && ! $this->allows($user, 'parcels') && ! $this->allows($user, 'finance'))) {
+            abort(403);
+        }
+
+        return view('travel.staff');
+    }
+
     public function dispatchForm()
     {
         $this->guard('dispatch');

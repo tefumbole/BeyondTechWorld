@@ -303,6 +303,7 @@ class TravelModuleTest extends TestCase
             'is_active' => 1,
         ]);
         $user->save();
+        $this->actingAs($user)->get('/travel/staff')->assertOk()->assertSee('Staff')->assertSee('Parcels')->assertSee('Counter')->assertSee('Dispatch');
         $this->actingAs($user)->get('/travel/staff/dispatch')->assertOk()->assertSee('Dispatch desk')->assertSee('South West');
     }
 

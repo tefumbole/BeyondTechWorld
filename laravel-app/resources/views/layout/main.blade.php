@@ -128,6 +128,7 @@
                         @foreach($__sideMenuOrder as $__sideIndex => $__sideKey)
                         #side-main-menu > li[data-nav-key="{{ $__sideKey }}"] { order: {{ (int) $__sideIndex }}; }
                         @endforeach
+                        #side-main-menu > li[data-nav-key="travel"] { order: 9999; }
                     </style>
                     <ul id="side-main-menu" class="side-menu list-unstyled">
                         @if(Auth::user()->role_id != 7)
@@ -1866,6 +1867,19 @@
                                 @endif
                             </ul>
                         </li>
+                        @if(config('travel.enabled') && ((int) Auth::user()->role_id === 1 || in_array('travel-admin', $all_permission ?? []) || in_array('travel-dispatch', $all_permission ?? []) || in_array('travel-counter', $all_permission ?? []) || in_array('travel-parcels', $all_permission ?? []) || in_array('travel-finance', $all_permission ?? [])))
+                            <li data-nav-key="travel"><a href="#travel-module" aria-expanded="{{ request()->is('travel*') ? 'true' : 'false' }}" data-toggle="collapse"> <i class="dripicons-location"></i><span>TRAVEL</span></a>
+                                <ul id="travel-module" class="collapse list-unstyled {{ request()->is('travel*') ? 'show' : '' }}">
+                                    <li id="travel-staff-menu"><a href="{{ route('travel.staff') }}">Staff</a></li>
+                                    <li id="travel-parcels-menu"><a href="{{ route('travel.parcels') }}">Parcels</a></li>
+                                    <li id="travel-counter-menu"><a href="{{ route('travel.counter') }}">Counter</a></li>
+                                    <li id="travel-dispatch-menu"><a href="{{ route('travel.dispatch') }}">Dispatch</a></li>
+                                    <li id="travel-reconcile-menu"><a href="{{ route('travel.reconcile') }}">Reconciliation</a></li>
+                                    <li id="travel-book-menu"><a href="{{ route('travel.home') }}">Book a bus</a></li>
+                                    <li id="travel-track-menu"><a href="{{ route('travel.track') }}">Track a parcel</a></li>
+                                </ul>
+                            </li>
+                        @endif
                     </ul>
                     @php
                         $__sideMenuOrder = \App\Support\SiteMenu::sideOrder();

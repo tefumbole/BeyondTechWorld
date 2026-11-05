@@ -73,6 +73,7 @@ class SiteMenu
             'people'       => 'People',
             'report'       => 'Reports',
             'setting'      => 'Settings',
+            'travel'       => 'TRAVEL',
         ];
     }
 
