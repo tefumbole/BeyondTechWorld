@@ -27,6 +27,10 @@ class TravelModuleTest extends TestCase
             '--path' => 'database/migrations/2026_11_05_143000_create_travel_module.php',
             '--force' => true,
         ]);
+        $this->artisan('migrate', [
+            '--path' => 'database/migrations/2026_11_05_171500_add_expected_on_to_travel_parcels.php',
+            '--force' => true,
+        ]);
         config([
             'travel.enabled' => true,
             'travel.sandbox' => true,
@@ -273,6 +277,70 @@ class TravelModuleTest extends TestCase
             ->assertDontSee('237670000007');
     }
 
+    public function test_station_parcel_sends_the_invoice_only_after_payment()
+    {
+        TravelCatalog::publishAgencyRoutes(7);
+        $from = TravelCatalog::stationByName(7, 'Bamenda');
+        $to = TravelCatalog::stationByName(7, 'Douala');
+        $tomorrow = Carbon::parse(TravelClock::today())->addDay()->toDateString();
+        $cash = app(TravelParcels::class)->accept([
+            'cloud_tenant_id' => 7,
+            'origin_station_id' => $from->id,
+            'destination_station_id' => $to->id,
+            'expected_on' => $tomorrow,
+            'sender_name' => 'Ada Sender',
+            'sender_phone' => '237670000011',
+            'receiver_name' => 'Bo Receiver',
+            'receiver_phone' => '237670000012',
+            'description' => 'Envelope',
+            'fee_xaf' => 1500,
+            'channel' => 'cash',
+            'user_id' => 1,
+        ]);
+        $this->assertSame($tomorrow, DB::table('travel_parcels')->where('id', $cash)->value('expected_on'));
+        $invoice = DB::table('travel_outbox')->where('dedupe_key', 'parcel-accept:'.$cash)->value('body');
+        $notice = DB::table('travel_outbox')->where('dedupe_key', 'parcel-receiver:'.$cash)->value('body');
+        $this->assertStringContainsString('invoice', $invoice);
+        $this->assertStringContainsString('Ada Sender', $notice);
+        $this->assertStringContainsString('Expected delivery date', $notice);
+
+        $pending = app(TravelParcels::class)->accept([
+            'cloud_tenant_id' => 7,
+            'origin_station_id' => $from->id,
+            'destination_station_id' => $to->id,
+            'expected_on' => $tomorrow,
+            'sender_name' => 'Cashless Sender',
+            'sender_phone' => '237670000013',
+            'receiver_name' => 'Bo Receiver',
+            'receiver_phone' => '237670000014',
+            'description' => 'Envelope',
+            'fee_xaf' => 1500,
+            'channel' => 'momo',
+            'user_id' => 1,
+        ]);
+        $this->assertSame(0, DB::table('travel_outbox')->where('dedupe_key', 'parcel-accept:'.$pending)->count());
+        $payment = DB::table('travel_payments')->where('parcel_id', $pending)->first();
+        app(TravelPayments::class)->finalize([
+            'reference' => $payment->reference,
+            'amount' => 1500,
+            'currency' => 'XAF',
+            'status' => 'SUCCESSFUL',
+            'account_name' => 'WALLET PERSON',
+        ]);
+        $this->assertSame('Cashless Sender', DB::table('travel_parcels')->where('id', $pending)->value('sender_name'));
+        $this->assertSame('WALLET PERSON', DB::table('travel_payments')->where('id', $payment->id)->value('account_name'));
+        $this->assertSame(1, DB::table('travel_outbox')->where('dedupe_key', 'parcel-receiver:'.$pending)->count());
+
+        foreach (['assigned', 'loaded', 'in_transit'] as $event) {
+            app(TravelParcels::class)->scan(7, $cash, $event, $from->id, 1);
+        }
+        app(TravelParcels::class)->scan(7, $cash, 'received', $to->id, 1);
+        app(TravelParcels::class)->scan(7, $cash, 'ready', $to->id, 1);
+        app(TravelParcels::class)->collect(7, $cash, 'signature', null, 'data:image/png;base64,'.str_repeat('b', 40), $to->id, 1);
+        $this->assertSame('collected', DB::table('travel_parcels')->where('id', $cash)->value('status'));
+        $this->assertSame('signature', DB::table('travel_handovers')->where('parcel_id', $cash)->value('method'));
+    }
+
     public function test_callback_rejects_a_bad_signature()
     {
         $response = $this->call('POST', '/travel/payments/callback', [], [], [], [
@@ -305,6 +373,7 @@ class TravelModuleTest extends TestCase
         ]);
         $user->save();
         $this->actingAs($user)->get('/travel/staff')->assertOk()->assertSee('Station workspace')->assertSee('Parcels')->assertSee('Counter')->assertSee('Dispatch');
+        $this->actingAs($user)->get('/travel/staff/parcels')->assertOk()->assertSee('Sender phone')->assertSee('Collection');
         $this->actingAs($user)->get('/travel/staff/dispatch')->assertOk()->assertSee('Dispatch desk')->assertSee('South West');
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Travel;
 
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -20,37 +21,56 @@ class TravelParcels
         $tenantId = (int) $input['cloud_tenant_id'];
         $senderPhone = TravelPhone::normalize($input['sender_phone']);
         $receiverPhone = TravelPhone::normalize($input['receiver_phone']);
-        $departure = DB::table('travel_departures')
-            ->where('cloud_tenant_id', $tenantId)
-            ->where('id', $input['departure_id'])
-            ->first();
-        if (! $departure || ! in_array($departure->status, ['scheduled', 'loading', 'boarding', 'delayed'], true)) {
-            throw new TravelException('parcel', 'Choose a departure that is still at the station.');
-        }
-        if ((int) $departure->origin_station_id !== (int) $input['station_id']) {
-            throw new TravelException('station', 'Accept the parcel at the origin station.');
-        }
-        $input['origin_station_id'] = $departure->origin_station_id;
-        $input['destination_station_id'] = $departure->destination_station_id;
-        $fee = $this->fee($tenantId, $input);
-
-        return DB::transaction(function () use ($input, $tenantId, $senderPhone, $receiverPhone, $fee) {
+        $departureId = ! empty($input['departure_id']) ? (int) $input['departure_id'] : null;
+        if ($departureId) {
             $departure = DB::table('travel_departures')
                 ->where('cloud_tenant_id', $tenantId)
-                ->where('id', $input['departure_id'])
-                ->lockForUpdate()
+                ->where('id', $departureId)
                 ->first();
             if (! $departure || ! in_array($departure->status, ['scheduled', 'loading', 'boarding', 'delayed'], true)) {
                 throw new TravelException('parcel', 'Choose a departure that is still at the station.');
+            }
+            if ((int) $departure->origin_station_id !== (int) $input['station_id']) {
+                throw new TravelException('station', 'Accept the parcel at the origin station.');
+            }
+            $input['origin_station_id'] = $departure->origin_station_id;
+            $input['destination_station_id'] = $departure->destination_station_id;
+        } else {
+            $this->terminal($tenantId, (int) $input['origin_station_id']);
+            $this->terminal($tenantId, (int) $input['destination_station_id']);
+            if ((int) $input['origin_station_id'] === (int) $input['destination_station_id']) {
+                throw new TravelException('station', 'Choose a sending station and a different receiving station.');
+            }
+        }
+        $expectedOn = $this->expectedOn(isset($input['expected_on']) ? $input['expected_on'] : null);
+        $fee = $this->fee($tenantId, $input);
+
+        return DB::transaction(function () use ($input, $tenantId, $senderPhone, $receiverPhone, $fee, $departureId, $expectedOn) {
+            if ($departureId) {
+                $departure = DB::table('travel_departures')
+                    ->where('cloud_tenant_id', $tenantId)
+                    ->where('id', $departureId)
+                    ->lockForUpdate()
+                    ->first();
+                if (! $departure || ! in_array($departure->status, ['scheduled', 'loading', 'boarding', 'delayed'], true)) {
+                    throw new TravelException('parcel', 'Choose a departure that is still at the station.');
+                }
+            }
+            if (trim((string) $input['sender_name']) === '' || trim((string) $input['receiver_name']) === '') {
+                throw new TravelException('name', 'Confirm both names before registering the parcel.');
+            }
+            if (trim((string) $input['description']) === '') {
+                throw new TravelException('parcel', 'Describe the parcel.');
             }
             $paidNow = $input['channel'] === 'cash';
             $reference = $this->reference();
             $parcelId = DB::table('travel_parcels')->insertGetId([
                 'cloud_tenant_id' => $tenantId,
                 'tracking_ref' => $reference,
-                'origin_station_id' => $departure->origin_station_id,
-                'destination_station_id' => $departure->destination_station_id,
-                'departure_id' => $departure->id,
+                'origin_station_id' => (int) $input['origin_station_id'],
+                'destination_station_id' => (int) $input['destination_station_id'],
+                'expected_on' => $expectedOn,
+                'departure_id' => $departureId,
                 'sender_name' => trim($input['sender_name']),
                 'sender_phone' => $senderPhone,
                 'receiver_name' => trim($input['receiver_name']),
@@ -79,9 +99,9 @@ class TravelParcels
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-            $this->custody($tenantId, $parcelId, $input['station_id'], $input['user_id'], $paidNow ? 'accepted' : 'pending_payment', null);
+            $this->custody($tenantId, $parcelId, (int) $input['origin_station_id'], $input['user_id'], $paidNow ? 'accepted' : 'pending_payment', null);
             if ($paidNow) {
-                $this->addParcelCash($tenantId, $input['user_id'], $input['station_id'], $fee['amount']);
+                $this->addParcelCash($tenantId, $input['user_id'], (int) $input['origin_station_id'], $fee['amount']);
                 $parcel = DB::table('travel_parcels')->where('id', $parcelId)->first();
                 $this->acceptanceNotice($parcel);
             }
@@ -133,7 +153,16 @@ class TravelParcels
     public function collect($tenantId, $parcelId, $method, $proof, $signature, $stationId, $userId)
     {
         $signature = trim((string) $signature);
-        if (strlen($signature) < 20 || strlen($signature) > 200000) {
+        if ($method !== 'otp' && $method !== 'id' && $method !== 'signature') {
+            throw new TravelException('handover', 'Collect with a signature or a one-time code.');
+        }
+        if ($method === 'signature' && (strlen($signature) < 20 || strlen($signature) > 200000)) {
+            throw new TravelException('signature', 'Add the receiver signature.');
+        }
+        if ($method === 'otp' && (strlen($signature) < 20 || strlen($signature) > 200000)) {
+            $signature = 'Collected with a one-time code.';
+        }
+        if ($method === 'id' && (strlen($signature) < 20 || strlen($signature) > 200000)) {
             throw new TravelException('signature', 'Add the receiver signature.');
         }
 
@@ -154,6 +183,8 @@ class TravelParcels
                 if (! $ok) {
                     throw new TravelException('otp', 'That pickup code is wrong, expired, or already used.');
                 }
+                $hint = null;
+            } elseif ($method === 'signature') {
                 $hint = null;
             } elseif ($method === 'id') {
                 $proof = trim((string) $proof);
@@ -193,11 +224,29 @@ class TravelParcels
 
     public function acceptanceNotice($parcel)
     {
-        app(TravelNotifier::class)->queue(
+        $parcel = DB::table('travel_parcels')->where('id', $parcel->id)->first();
+        if (! $parcel) {
+            return;
+        }
+        $origin = DB::table('travel_stations')->where('id', $parcel->origin_station_id)->value('name');
+        $destination = DB::table('travel_stations')->where('id', $parcel->destination_station_id)->value('name');
+        $when = $parcel->expected_on
+            ? Carbon::parse($parcel->expected_on)->format('j M Y')
+            : 'the date the station confirms';
+        $channel = DB::table('travel_payments')->where('parcel_id', $parcel->id)->value('channel');
+        $paidBy = $channel === 'cash' ? 'cash' : 'Mobile Money';
+        $notifier = app(TravelNotifier::class);
+        $notifier->queue(
             $parcel->cloud_tenant_id,
             $parcel->sender_phone,
-            'Epic Travels accepted parcel '.$parcel->tracking_ref.'. Keep this reference to track it.',
+            "Epic Travels invoice\nParcel {$parcel->tracking_ref}\n{$origin} to {$destination}\nSender: {$parcel->sender_name}\nReceiver: {$parcel->receiver_name}\nFee: ".TravelCatalog::money($parcel->fee_xaf)." paid by {$paidBy}\nExpected at {$destination} on {$when}.\nKeep this reference to track the parcel.",
             'parcel-accept:'.$parcel->id
+        );
+        $notifier->queue(
+            $parcel->cloud_tenant_id,
+            $parcel->receiver_phone,
+            $parcel->sender_name.' has sent you a parcel via Epic Travels. Expected delivery date will be '.$when.'. Reference '.$parcel->tracking_ref.'.',
+            'parcel-receiver:'.$parcel->id
         );
     }
 
@@ -234,6 +283,36 @@ class TravelParcels
             'via' => $via,
             'status' => isset($labels[$parcel->status]) ? $labels[$parcel->status] : $parcel->status,
         ];
+    }
+
+    protected function terminal($tenantId, $stationId)
+    {
+        $station = DB::table('travel_stations')
+            ->where('cloud_tenant_id', $tenantId)
+            ->where('id', (int) $stationId)
+            ->first();
+        if (! $station || (isset($station->kind) && $station->kind === 'stop')) {
+            throw new TravelException('station', 'Choose a station, not a stop on the road.');
+        }
+
+        return $station;
+    }
+
+    protected function expectedOn($value)
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+        $date = Carbon::createFromFormat('Y-m-d', $value, TravelClock::zone());
+        if (! $date || $date->format('Y-m-d') !== $value) {
+            throw new TravelException('date', 'Enter the expected receiving date.');
+        }
+        if ($date->toDateString() < TravelClock::today()) {
+            throw new TravelException('date', 'The expected receiving date has already passed.');
+        }
+
+        return $date->toDateString();
     }
 
     protected function fee($tenantId, array $input)

@@ -30,7 +30,10 @@ Route::middleware('travel.enabled')->prefix('travel')->group(function () {
         Route::post('/counter', 'Travel\TravelStaffController@sell')->name('travel.sell');
         Route::post('/bookings/{id}/void', 'Travel\TravelStaffController@void')->name('travel.void');
         Route::get('/parcels', 'Travel\TravelStaffController@parcels')->name('travel.parcels');
+        Route::post('/parcels/lookup', 'Travel\TravelStaffController@lookupPhone')->name('travel.parcels.lookup');
         Route::post('/parcels', 'Travel\TravelStaffController@storeParcel')->name('travel.parcels.store');
+        Route::get('/parcels/pay/{id}', 'Travel\TravelStaffController@parcelPay')->name('travel.parcels.pay');
+        Route::post('/parcels/pay/{id}', 'Travel\TravelStaffController@parcelCharge')->name('travel.parcels.charge');
         Route::post('/parcels/{id}/scan', 'Travel\TravelStaffController@scan')->name('travel.parcels.scan');
         Route::post('/parcels/{id}/collect', 'Travel\TravelStaffController@collect')->name('travel.parcels.collect');
         Route::get('/reconciliation', 'Travel\TravelStaffController@reconcile')->name('travel.reconcile');

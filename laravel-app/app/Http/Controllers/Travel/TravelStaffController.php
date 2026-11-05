@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Travel;
 use App\Travel\TravelCatalog;
 use App\Travel\TravelCheckout;
 use App\Travel\TravelClock;
+use App\Travel\TravelPhone;
 use App\Travel\TravelContext;
 use App\Travel\TravelDispatch;
 use App\Travel\TravelException;
 use App\Travel\TravelParcels;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
@@ -199,24 +201,70 @@ class TravelStaffController extends Controller
         return back()->with('status', 'Cash ticket voided.');
     }
 
-    public function parcels()
+    public function parcels(Request $request)
     {
         $this->guard('parcels');
         $tenant = $this->tenant();
         $data = $this->desk($tenant);
-        $data['parcels'] = DB::table('travel_parcels')->where('cloud_tenant_id', $tenant)->orderByDesc('id')->limit(30)->get();
+        $data['desk'] = $request->query('desk') === 'collection' ? 'collection' : 'send';
+        $data['tab'] = $request->query('tab') === 'collected' ? 'collected' : 'awaiting';
+        $data['stationId'] = (int) $request->query('station');
+        $data['names'] = DB::table('travel_stations')->where('cloud_tenant_id', $tenant)->pluck('name', 'id');
+        $data['expectedDefault'] = Carbon::parse(TravelClock::today())->addDay()->toDateString();
+        $data['rows'] = collect();
+        $data['open'] = null;
+        if ($data['desk'] === 'collection' && $data['stationId'] > 0) {
+            $query = DB::table('travel_parcels')
+                ->where('cloud_tenant_id', $tenant)
+                ->where('destination_station_id', $data['stationId'])
+                ->orderByDesc('id');
+            if ($data['tab'] === 'collected') {
+                $query->where('status', 'collected');
+            } else {
+                $query->whereIn('status', ['accepted', 'assigned', 'loaded', 'in_transit', 'received', 'ready']);
+            }
+            $data['rows'] = $query->limit(80)->get();
+            $openId = (int) $request->query('open');
+            if ($openId) {
+                $data['open'] = $data['rows']->firstWhere('id', $openId);
+            }
+        }
 
         return view('travel.parcels', $data);
+    }
+
+    public function lookupPhone(Request $request)
+    {
+        $this->guard('parcels');
+        try {
+            $phone = TravelPhone::normalize($request->input('phone'));
+        } catch (TravelException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+        $holder = app(\App\Services\MobileMoneyHolderService::class)->lookup($phone, false, false);
+        $name = isset($holder['name']) ? trim((string) $holder['name']) : '';
+
+        return response()->json([
+            'ok' => true,
+            'phone' => $phone,
+            'name' => $name !== '' ? $name : null,
+            'source' => isset($holder['source']) ? $holder['source'] : null,
+            'message' => $name !== ''
+                ? 'Name on this Mobile Money number.'
+                : 'No MoMo name on this number. Type the name the client confirms.',
+        ]);
     }
 
     public function storeParcel(Request $request)
     {
         $this->guard('parcels');
+        $channel = $request->input('channel') === 'momo' ? 'momo' : 'cash';
         try {
             $id = app(TravelParcels::class)->accept([
                 'cloud_tenant_id' => $this->tenant(),
-                'departure_id' => (int) $request->input('departure_id'),
-                'station_id' => (int) $request->input('station_id'),
+                'origin_station_id' => (int) $request->input('origin_station_id'),
+                'destination_station_id' => (int) $request->input('destination_station_id'),
+                'expected_on' => $request->input('expected_on'),
                 'sender_name' => $request->input('sender_name'),
                 'sender_phone' => $request->input('sender_phone'),
                 'receiver_name' => $request->input('receiver_name'),
@@ -225,15 +273,72 @@ class TravelStaffController extends Controller
                 'weight_grams' => $request->input('weight_grams'),
                 'package_count' => $request->input('package_count'),
                 'fee_xaf' => $request->input('fee_xaf'),
-                'channel' => $request->input('channel') === 'momo' ? 'momo' : 'cash',
+                'channel' => $channel,
                 'user_id' => auth()->id(),
             ]);
         } catch (TravelException $e) {
             return back()->with('error', $e->getMessage())->withInput();
         }
+        if ($channel === 'momo') {
+            return redirect()->route('travel.parcels.pay', $id);
+        }
         $reference = DB::table('travel_parcels')->where('id', $id)->value('tracking_ref');
 
-        return back()->with('status', 'Parcel '.$reference.' registered.');
+        return redirect()->route('travel.parcels')->with('status', 'Parcel '.$reference.' registered. The invoice is on the sender’s phone, and the receiver has the delivery notice.');
+    }
+
+    public function parcelPay($id)
+    {
+        $this->guard('parcels');
+        $parcel = $this->parcelRow($id);
+        $payment = DB::table('travel_payments')->where('parcel_id', $parcel->id)->orderByDesc('id')->first();
+
+        return view('travel.parcel-pay', [
+            'parcel' => $parcel,
+            'payment' => $payment,
+            'sandbox' => (bool) config('travel.sandbox'),
+            'origin' => DB::table('travel_stations')->where('id', $parcel->origin_station_id)->value('name'),
+            'destination' => DB::table('travel_stations')->where('id', $parcel->destination_station_id)->value('name'),
+        ]);
+    }
+
+    public function parcelCharge(Request $request, $id)
+    {
+        $this->guard('parcels');
+        $parcel = $this->parcelRow($id);
+        $payment = DB::table('travel_payments')->where('parcel_id', $parcel->id)->where('status', 'pending')->first();
+        if (! $payment) {
+            return redirect()->route('travel.parcels')->with('status', 'This parcel is already paid.');
+        }
+        try {
+            $phone = TravelPhone::normalize($request->input('payer_phone'));
+        } catch (TravelException $e) {
+            return back()->with('error', $e->getMessage())->withInput();
+        }
+        $account = trim((string) $request->input('account_name'));
+        if ($account === '') {
+            return back()->with('error', 'Confirm the name on the Mobile Money number.')->withInput();
+        }
+        $payments = app(TravelPayments::class);
+        if (! config('travel.sandbox')) {
+            try {
+                $payments->collectParcel($parcel->id, $phone);
+            } catch (TravelException $e) {
+                return back()->with('error', $e->getMessage());
+            }
+
+            return back()->with('status', 'Ask the client to approve the MoMo prompt. The invoice goes out when the payment is confirmed.');
+        }
+        $payments->finalize([
+            'reference' => $payment->reference,
+            'amount' => (int) $payment->amount_xaf,
+            'currency' => 'XAF',
+            'status' => 'SUCCESSFUL',
+            'provider_reference' => 'sandbox',
+            'account_name' => $account,
+        ]);
+
+        return redirect()->route('travel.parcels')->with('status', 'Payment confirmed for '.$parcel->tracking_ref.'. The sender has the invoice, and the receiver has the delivery notice.');
     }
 
     public function scan(Request $request, $id)
@@ -261,7 +366,7 @@ class TravelStaffController extends Controller
             app(TravelParcels::class)->collect(
                 $this->tenant(),
                 (int) $id,
-                $request->input('method'),
+                $request->input('handover', $request->input('method')),
                 $request->input('proof'),
                 $request->input('signature'),
                 (int) $request->input('station_id'),
@@ -298,6 +403,19 @@ class TravelStaffController extends Controller
         }
 
         return back()->with('status', 'Till closed.');
+    }
+
+    protected function parcelRow($id)
+    {
+        $parcel = DB::table('travel_parcels')
+            ->where('cloud_tenant_id', $this->tenant())
+            ->where('id', (int) $id)
+            ->first();
+        if (! $parcel) {
+            abort(404);
+        }
+
+        return $parcel;
     }
 
     protected function desk($tenant)

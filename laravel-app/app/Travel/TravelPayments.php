@@ -27,6 +27,32 @@ class TravelPayments
         );
     }
 
+    public function collectParcel($parcelId, $phone)
+    {
+        $parcel = DB::table('travel_parcels')->where('id', $parcelId)->first();
+        $payment = DB::table('travel_payments')
+            ->where('parcel_id', $parcelId)
+            ->where('status', 'pending')
+            ->first();
+        if (! $parcel || ! $payment || $parcel->payment_status !== 'pending') {
+            throw new TravelException('payment', 'This parcel is not awaiting payment.');
+        }
+        if (config('travel.sandbox')) {
+            return [
+                'sandbox' => true,
+                'reference' => $payment->reference,
+                'amount' => (int) $payment->amount_xaf,
+            ];
+        }
+
+        return app(\App\Services\CampayPayoutService::class)->collect(
+            $phone,
+            (int) $payment->amount_xaf,
+            $payment->reference,
+            'Epic Travels parcel '.$parcel->tracking_ref
+        );
+    }
+
     public function finalize(array $payload)
     {
         $reference = isset($payload['reference']) ? (string) $payload['reference'] : '';
