@@ -1078,6 +1078,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/events/{id}/reminders', 'EventReminderController@storeForEvent')->name('events.reminders.store');
     Route::delete('/admin/events/reminders/{id}', 'EventReminderController@destroy')->name('events.reminders.destroy');
     Route::post('/admin/events/{id}/payments', 'EventPaymentController@createForAssignment')->name('events.payments.create');
+    Route::post('/admin/events/{id}/auto-pay/approve', 'EventController@approveAutoPay')->name('events.auto-pay.approve');
+    Route::post('/admin/events/{id}/auto-pay/reject', 'EventController@rejectAutoPay')->name('events.auto-pay.reject');
 
 	Route::get('/wp', 'HomeController@whatsapp');
 	Route::get('/mmt', 'HomeController@mobileMoneyToken');

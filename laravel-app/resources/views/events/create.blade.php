@@ -136,6 +136,36 @@
                 </div>
                 <p class="ev-crew-empty mb-2" id="crew-empty">No engineers yet.</p>
                 <p class="mb-0"><strong>Labour total: <span id="labour-total">0</span> XAF</strong></p>
+                @php
+                    $autoPay = isset($autoPay) ? $autoPay : null;
+                    $isEventAdmin = ! empty($isEventAdmin);
+                    $autoOn = $autoPay && in_array($autoPay->status, ['pending_approval', 'scheduled', 'paying'], true);
+                    $payAtValue = old('pay_at', $autoPay && $autoPay->pay_at ? $autoPay->pay_at->format('Y-m-d\TH:i') : '');
+                @endphp
+                <div id="auto-pay" class="mt-3" style="display:none;">
+                    <label class="ev-toggle">
+                        <input type="checkbox" name="automate_payment" value="1" id="automate-payment" {{ old('automate_payment', $autoOn ? '1' : '0') == '1' ? 'checked' : '' }}>
+                        Automate payment
+                    </label>
+                    <div id="auto-pay-when" class="mt-2">
+                        <label>Payment time</label>
+                        <input type="datetime-local" name="pay_at" class="form-control" value="{{ $payAtValue }}">
+                        @if($isEventAdmin)
+                            <p class="small text-muted mb-0 mt-2">Each engineer is paid their total by Mobile Money at this time.</p>
+                        @else
+                            <p class="small text-muted mb-0 mt-2">An admin has to approve this before anyone is paid.</p>
+                        @endif
+                        @if($autoPay && $autoPay->status === 'pending_approval')
+                            <p class="small mb-0 mt-1">Waiting for admin approval{{ $autoPay->pay_at ? ' for '.$autoPay->pay_at->format('d M Y H:i') : '' }}.</p>
+                        @elseif($autoPay && $autoPay->status === 'scheduled')
+                            <p class="small mb-0 mt-1">Approved. Payment runs at {{ $autoPay->pay_at->format('d M Y H:i') }}.</p>
+                        @elseif($autoPay && $autoPay->status === 'paying')
+                            <p class="small mb-0 mt-1">Payment is being sent.</p>
+                        @elseif($autoPay && $autoPay->status === 'failed')
+                            <p class="small text-danger mb-0 mt-1">{{ $autoPay->result ?: 'The last automatic payment did not finish.' }}</p>
+                        @endif
+                    </div>
+                </div>
             </div>
 
             <div class="ev-section">
@@ -283,6 +313,8 @@
         });
         document.getElementById('labour-total').textContent = money(total);
         document.getElementById('crew-empty').style.display = rows.length ? 'none' : '';
+        var autoPay = document.getElementById('auto-pay');
+        if (autoPay) autoPay.style.display = rows.length ? '' : 'none';
         paintSetup();
     }
 

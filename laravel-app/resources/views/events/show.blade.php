@@ -10,6 +10,29 @@
         @if($errors->any())
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
+        @if(!empty($autoPay) && $autoPay->status === 'pending_approval')
+            <div class="alert alert-warning">
+                <strong>Automatic payment is waiting for admin approval.</strong>
+                Engineers would be paid at {{ $autoPay->pay_at ? $autoPay->pay_at->format('d M Y H:i') : 'the chosen time' }}.
+                @if(!empty($isEventAdmin))
+                    <form method="POST" action="{{ route('events.auto-pay.approve', $event->id) }}" class="d-inline">
+                        @csrf
+                        <button class="btn btn-primary btn-sm ml-2">Approve payment</button>
+                    </form>
+                    <form method="POST" action="{{ route('events.auto-pay.reject', $event->id) }}" class="d-inline">
+                        @csrf
+                        <button class="btn btn-light btn-sm">Reject</button>
+                    </form>
+                @endif
+            </div>
+        @elseif(!empty($autoPay) && in_array($autoPay->status, ['scheduled', 'paying'], true))
+            <div class="alert alert-info">
+                Automatic payment {{ $autoPay->status === 'paying' ? 'is being sent' : 'is set for '.$autoPay->pay_at->format('d M Y H:i') }}.
+            </div>
+        @endif
 
         <div class="card mb-3">
             <div class="card-body">

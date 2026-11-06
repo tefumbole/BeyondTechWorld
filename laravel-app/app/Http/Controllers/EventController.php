@@ -48,6 +48,42 @@ class EventController extends Controller
         });
     }
 
+    public function approveAutoPay($id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403);
+        }
+        $event = Event::findOrFail($id);
+        $row = app(\App\Services\EventAutoPay::class)->openFor($event);
+        if (! $row || $row->status !== 'pending_approval') {
+            return redirect()->route('events.show', $event->id)->with('not_permitted', 'There is no payment waiting for approval.');
+        }
+        app(\App\Services\EventAutoPay::class)->approve($row, \Illuminate\Support\Facades\Auth::id());
+
+        return redirect()->route('events.show', $event->id)->with('message', 'Automatic payment is approved. Engineers are paid at '.$row->pay_at->format('d M Y H:i').'.');
+    }
+
+    public function rejectAutoPay($id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403);
+        }
+        $event = Event::findOrFail($id);
+        $row = app(\App\Services\EventAutoPay::class)->openFor($event);
+        if ($row) {
+            app(\App\Services\EventAutoPay::class)->reject($row);
+        }
+
+        return redirect()->route('events.show', $event->id)->with('message', 'Automatic payment was cancelled.');
+    }
+
+    protected function isEventAdmin()
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        return $user && (int) $user->role_id === 1;
+    }
+
     protected function can($perm)
     {
         if (! in_array($perm, $this->all_permission, true)) {
@@ -250,7 +286,10 @@ class EventController extends Controller
             'event_type' => 'other',
         ]);
 
-        return view('events.create', compact('event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions', 'selectedCustomer'));
+        $isEventAdmin = $this->isEventAdmin();
+        $autoPay = null;
+
+        return view('events.create', compact('event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions', 'selectedCustomer', 'isEventAdmin', 'autoPay'));
     }
 
     public function resolveLabourName(Request $request, CampayPayoutService $campay, MobileMoneyHolderService $holders)
@@ -330,6 +369,8 @@ class EventController extends Controller
             'crew.*.food' => 'nullable|integer|min:0',
             'crew.*.category_id' => 'nullable',
             'crew.*.work_dates' => 'nullable|string|max:4000',
+            'automate_payment' => 'nullable',
+            'pay_at' => 'nullable|date',
         ]);
 
         $customer = $this->optionalCustomer($request, $data);
@@ -442,6 +483,25 @@ class EventController extends Controller
             $workforce->refreshLabourBudgetAllocation($event);
         }
 
+        $auto = app(\App\Services\EventAutoPay::class)->remember(
+            $event,
+            $request->input('pay_at'),
+            $request->input('automate_payment') === '1' && count($kept) > 0,
+            $this->isEventAdmin()
+        );
+        if ($request->input('automate_payment') === '1' && count($kept) < 1) {
+            $warnings[] = 'Automatic payment was not set because no engineer was saved.';
+        } elseif ($request->input('automate_payment') === '1' && count($kept) > 0 && ! $request->input('pay_at')) {
+            $warnings[] = 'Choose the time the engineers should be paid.';
+        } elseif ($request->input('automate_payment') === '1' && $request->input('pay_at') && $auto) {
+            if ($auto->status === 'pending_approval') {
+                $warnings[] = 'Automatic payment is waiting for an admin to approve it.';
+            } else {
+                $msgTime = $auto->pay_at ? $auto->pay_at->format('d M Y H:i') : '';
+                $warnings[] = 'Engineers will be paid at '.$msgTime.'.';
+            }
+        }
+
         $invite = app(EventCrewInviteService::class)->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
 
@@ -505,10 +565,13 @@ class EventController extends Controller
         $countdownTargets = EventPublicationService::COUNTDOWN_TARGETS;
         $publicStatuses = EventPublicationService::PUBLIC_STATUSES;
         $contractTemplates = \App\EventContractTemplate::where('is_active', true)->orderBy('name')->get();
+        $autoPay = app(\App\Services\EventAutoPay::class)->openFor($event);
+        $isEventAdmin = $this->isEventAdmin();
 
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
-            'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates'
+            'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
+            'autoPay', 'isEventAdmin'
         ));
     }
 
@@ -550,10 +613,12 @@ class EventController extends Controller
         $editing = true;
         $existingCrew = $this->crewFromEvent($event);
         $setupDates = $this->setupDatesFor($event);
+        $isEventAdmin = $this->isEventAdmin();
+        $autoPay = app(\App\Services\EventAutoPay::class)->openFor($event);
 
         return view('events.create', compact(
             'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
-            'selectedCustomer', 'editing', 'existingCrew', 'setupDates'
+            'selectedCustomer', 'editing', 'existingCrew', 'setupDates', 'isEventAdmin', 'autoPay'
         ));
     }
 
