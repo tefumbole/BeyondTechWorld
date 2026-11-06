@@ -724,6 +724,16 @@ class PaymentController extends Controller
                 $paid->paid_notice = 1;
                 $paid->save();
                 $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
+                $person = Customer::find($paid->customer_id);
+                app(\App\Services\MomoMiniReceipt::class)->send([
+                    'phone' => $paid->mtn_number,
+                    'name' => $person ? $person->name : 'Client',
+                    'city' => $person ? $person->city : '',
+                    'amount' => $paid->amount,
+                    'reason' => trim((string) $paid->note) !== '' ? $paid->note : 'Deposit',
+                    'reference' => $paid->payment_reference ?: $paid->campay_reference,
+                    'date' => $paid->updated_at ?: now(),
+                ]);
             }
         } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
             $reason = isset($outcome['reason']) ? substr((string) $outcome['reason'], 0, 180) : 'FAILED';

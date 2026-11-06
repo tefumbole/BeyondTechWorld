@@ -1158,6 +1158,16 @@ class SaleController extends Controller
             }
 
         }
+        app(\App\Services\MomoMiniReceipt::class)->send([
+            'phone' => $lims_customer_data->phone_number,
+            'name' => $lims_customer_data->name,
+            'city' => $lims_customer_data->city,
+            'amount' => $data['amount'],
+            'reason' => 'Sale '.$lims_sale_data->reference_no,
+            'reference' => $lims_sale_data->reference_no,
+            'date' => now(),
+        ]);
+
         return back()->with('message', $message);
     }
 
@@ -1226,6 +1236,16 @@ class SaleController extends Controller
             }
 
         }
+
+        app(\App\Services\MomoMiniReceipt::class)->send([
+            'phone' => $lims_customer_data->phone_number,
+            'name' => $lims_customer_data->name,
+            'city' => $lims_customer_data->city,
+            'amount' => $data['amount'],
+            'reason' => 'Sale '.$lims_sale_data->reference_no,
+            'reference' => $lims_sale_data->reference_no,
+            'date' => now(),
+        ]);
 
         return redirect('sales/gen_invoice/' . $lims_sale_data->id)->with('message', $message);
     }
@@ -1415,6 +1435,15 @@ class SaleController extends Controller
             'unit' => $units,
         ];
         $this->sendWhatsappMsg($customer, $sale, $mail, $biller, 'MOMO/OM', $prices);
+        app(\App\Services\MomoMiniReceipt::class)->send([
+            'phone' => $customer->phone_number,
+            'name' => $customer->name,
+            'city' => $customer->city,
+            'amount' => $sale->paid_amount,
+            'reason' => count($products) ? implode(', ', $products) : 'Sale '.$sale->reference_no,
+            'reference' => $sale->reference_no,
+            'date' => $sale->updated_at ?: $sale->created_at,
+        ]);
         $email = $customer->email;
         if ($email) {
             app()->terminating(function () use ($mail, $email) {

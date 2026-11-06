@@ -103,6 +103,7 @@ class TravelPayments
                 'finalized_at' => now(),
                 'updated_at' => now(),
             ]);
+            $this->sendMini($booking->phone, $booking->passenger_name, $payment->amount_xaf, 'Bus ticket '.$booking->reference, $booking->reference);
 
             return [
                 'ok' => true,
@@ -130,8 +131,28 @@ class TravelPayments
                 'updated_at' => now(),
             ]);
             app(TravelParcels::class)->acceptanceNotice($parcel);
+            $this->sendMini($parcel->sender_phone, $parcel->sender_name, $payment->amount_xaf, 'Parcel '.$parcel->tracking_ref, $parcel->tracking_ref);
         }
 
         return ['ok' => true, 'duplicate' => false, 'status' => 'paid', 'parcel_id' => $payment->parcel_id];
+    }
+
+    protected function sendMini($phone, $name, $amount, $reason, $reference)
+    {
+        $phone = (string) $phone;
+        $name = (string) $name;
+        $reason = (string) $reason;
+        $reference = (string) $reference;
+        $amount = (int) $amount;
+        app()->terminating(function () use ($phone, $name, $amount, $reason, $reference) {
+            app(\App\Services\MomoMiniReceipt::class)->send([
+                'phone' => $phone,
+                'name' => $name,
+                'amount' => $amount,
+                'reason' => $reason,
+                'reference' => $reference,
+                'date' => date('d-m-Y H:i'),
+            ]);
+        });
     }
 }

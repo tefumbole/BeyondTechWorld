@@ -264,6 +264,16 @@ class DocumentPayController extends Controller
         $label = $this->label($link);
         $text = 'Dear '.$link->person_name.', a payment of '.number_format($link->amount, 0, '.', ' ').' XAF has been received for '.$label.' '.$link->reference_no.'.';
         app(ClientNoticeService::class)->send($link->phone, $text);
+        if ($link->method !== 'visa') {
+            app(\App\Services\MomoMiniReceipt::class)->send([
+                'phone' => $link->phone,
+                'name' => $link->person_name,
+                'amount' => $link->amount,
+                'reason' => $label.' '.$link->reference_no,
+                'reference' => $link->reference_no,
+                'date' => now(),
+            ]);
+        }
         try {
             app(\App\Services\CompanyReviewInviteService::class)->sendForDocumentPayment($link);
         } catch (\Throwable $e) {

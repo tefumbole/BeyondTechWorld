@@ -289,6 +289,16 @@ class PublicDonateController extends Controller
         $donor .= "\n".WhatsAppMessage::bullet('Date', date('d M Y'));
         $donor .= WhatsAppMessage::footer();
         app(ClientNoticeService::class)->send($donation->phone, $donor);
+        if ($donation->method !== 'visa' && $donation->method !== 'crypto') {
+            app(\App\Services\MomoMiniReceipt::class)->send([
+                'phone' => $donation->phone,
+                'name' => $donation->person_name,
+                'amount' => $donation->amount,
+                'reason' => $note !== '' ? $note : 'Payment',
+                'reference' => $donation->campay_reference ?: ('donation-'.$donation->id),
+                'date' => now(),
+            ]);
+        }
         $copy = WhatsAppMessage::statusBlock('✅', 'Payment Received');
         $copy .= 'Dear *'.$this->adminName().'*,'."\n\n";
         $copy .= 'A payment of *'.$amount.'* XAF has been received from *'.$donation->person_name."*.\n";
