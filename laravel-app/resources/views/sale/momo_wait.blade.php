@@ -10,8 +10,22 @@
                     </div>
                     <div class="card-body">
                         <p class="mb-1">Ask <strong>{{ $sale->customer ? $sale->customer->name : 'the customer' }}</strong> to approve this payment on their phone.</p>
+                        @if(! empty($lines))
+                            <table class="table">
+                                <thead><tr><th>Number</th><th>Amount</th></tr></thead>
+                                <tbody>
+                                @foreach($lines as $line)
+                                    <tr>
+                                        <td>{{ $line['phone'] }}</td>
+                                        <td>{{ number_format($line['amount'], 0, '.', ' ') }} XAF</td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        @else
                         <p class="mb-1">Number: <strong>{{ $phone }}</strong></p>
                         <p class="mb-3">Amount: <strong>{{ number_format($amount, 0, '.', ' ') }} XAF</strong></p>
+                        @endif
                         <p id="momo-hint">Waiting for approval. This screen stays here until the phone answers.</p>
                         <a id="momo-back" class="btn btn-secondary" href="{{ url('pos') }}" style="display:none">Back to POS</a>
                     </div>

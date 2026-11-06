@@ -337,7 +337,7 @@ class SaleController extends Controller
                 }
                 $nestedData['options'] .=
                     '<li>
-                        <button type="button" class="add-payment btn btn-link" data-id = "'.$sale->id.'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
+                        <button type="button" class="add-payment btn btn-link" data-id="'.$sale->id.'" data-name="'.e(optional($sale->customer)->name).'" data-phone="'.e(optional($sale->customer)->phone_number).'" data-ref="'.e($sale->reference_no).'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
                     </li>';
                 if(((float) $sale->grand_total - (float) $sale->paid_amount) >= 100) {
                     $nestedData['options'] .= '<li>'.\Form::open(["route" => ["sale.request_payment", $sale->id], "method" => "POST"] ).'
@@ -441,6 +441,7 @@ class SaleController extends Controller
         if($cash_register_data)
             $data['cash_register_id'] = $cash_register_data->id;
 
+        $posSplit = [];
         if($data['pos']) {
             if(!isset($data['reference_no']))
                 $data['reference_no'] = 'posr-' . date("Ymd") . '-'. date("his");
@@ -454,6 +455,36 @@ class SaleController extends Controller
                 if($data['paid_by_id'] == 9) {
                     $paying_method = 'Pay Later';
                 }
+            }
+            $posSplit = (! empty($data['pos']) && $request->input('pay_mode') === 'split')
+                ? $this->posSplitLines($request)
+                : [];
+            if ($posSplit instanceof \Illuminate\Http\RedirectResponse) {
+                return $posSplit;
+            }
+            if ($posSplit && (int) $data['paid_by_id'] === 1) {
+                $splitSum = 0;
+                foreach ($posSplit as $splitLine) {
+                    $splitSum += $splitLine['amount'];
+                }
+                $grand = (float) str_replace(',', '', (string) $data['grand_total']);
+                if ($splitSum - $grand > 0.01) {
+                    return back()->with('not_permitted', 'The split is more than the bill.');
+                }
+                $data['paid_amount'] = $splitSum;
+                $data['paying_amount'] = $grand;
+                $data['payment_status'] = $this->paymentStatusForBalance($splitSum, $grand - $splitSum);
+            } elseif ($posSplit && (int) $data['paid_by_id'] === 8) {
+                $splitSum = 0;
+                foreach ($posSplit as $splitLine) {
+                    $splitSum += $splitLine['amount'];
+                }
+                $grand = (float) str_replace(',', '', (string) $data['grand_total']);
+                if ($splitSum - $grand > 0.01) {
+                    return back()->with('not_permitted', 'The split is more than the bill.');
+                }
+            } elseif ($posSplit) {
+                return back()->with('not_permitted', 'Split payment works with Cash or MoMo / OM.');
             }
             if($data['draft']) {
                 $lims_sale_data = Sale::find($data['sale_id']);
@@ -517,14 +548,16 @@ class SaleController extends Controller
 
         $posMomoPhone = null;
         $posMomoAmount = 0;
-        if (! empty($data['pos']) && isset($data['paid_by_id']) && (int) $data['paid_by_id'] === 8) {
+        if (! $posSplit && ! empty($data['pos']) && isset($data['paid_by_id']) && (int) $data['paid_by_id'] === 8) {
             $typedMomo = trim((string) (isset($data['momo_phone']) ? $data['momo_phone'] : ''));
             $momoSource = $typedMomo !== '' ? $typedMomo : ($lims_customer_data ? $lims_customer_data->phone_number : '');
             $posMomoPhone = app(CampayPayoutService::class)->momoNumber($momoSource);
             if (! $posMomoPhone) {
                 return back()->with('not_permitted', 'Enter an MTN or Orange number for MOMO/OM.');
             }
-            $posMomoAmount = (int) round((float) str_replace(',', '', (string) $data['grand_total']));
+            $grand = (float) str_replace(',', '', (string) $data['grand_total']);
+            $typedAmount = (float) str_replace(',', '', (string) (isset($data['paid_amount']) ? $data['paid_amount'] : 0));
+            $posMomoAmount = (int) round($typedAmount > 0 ? $typedAmount : $grand);
             if ($posMomoAmount < 100) {
                 return back()->with('not_permitted', 'MOMO/OM needs a whole amount of at least 100 XAF.');
             }
@@ -769,7 +802,12 @@ class SaleController extends Controller
             }
         }
 
-        if($data['payment_status'] == 2 || $data['payment_status'] == 3  || $data['payment_status'] == 4 || ($data['pos'] && $data['paying_amount'] > 0)) {
+        if ($posSplit && (int) $data['paid_by_id'] === 8) {
+            return $this->collectPosSplit($lims_sale_data, $posSplit, $checkoutClaim);
+        }
+        if ($posSplit && (int) $data['paid_by_id'] === 1) {
+            $this->recordPosCashSplit($lims_sale_data, $posSplit, isset($cash_register_data) ? $cash_register_data : null);
+        } elseif($data['payment_status'] == 2 || $data['payment_status'] == 3  || $data['payment_status'] == 4 || ($data['pos'] && $data['paying_amount'] > 0)) {
 
             $lims_payment_data = new Payment();
             $lims_payment_data->user_id = Auth::id();
@@ -1262,6 +1300,7 @@ class SaleController extends Controller
             'sale' => $sale,
             'phone' => $pending['phone'],
             'amount' => $pending['amount'],
+            'lines' => isset($pending['lines']) && is_array($pending['lines']) ? $pending['lines'] : [],
             'statusUrl' => route('pos.momo.status', ['id' => $sale->id]),
         ]);
     }
@@ -1282,17 +1321,16 @@ class SaleController extends Controller
                 'message' => 'This Mobile Money request has expired. Start the sale again.',
             ]);
         }
+        if (! empty($pending['lines']) && is_array($pending['lines'])) {
+            return $this->posSplitStatus($sale, $pending);
+        }
         $campay = app(CampayPayoutService::class);
         $pattern = '/^'.preg_quote($pending['external'], '/').'$/';
         $outcome = $campay->collectionOutcome($pending['reference'], $pending['amount'], $pending['phone'], $pattern);
         if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
             $this->recordPosMomoPayment($sale, $pending);
-            $sale = $sale->fresh();
             $note = 'Campay '.$pending['reference'];
-            $paid = $sale
-                && (int) $sale->payment_status === 4
-                && Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists();
-            if (! $paid) {
+            if (! Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
                 return response()->json(['status' => 'pending']);
             }
             Cache::forget('pos_momo:'.$sale->id);
@@ -1304,7 +1342,9 @@ class SaleController extends Controller
         }
         if ($outcome['state'] === 'failed') {
             Cache::forget('pos_momo:'.$sale->id);
-            $this->eraseSale($sale->fresh());
+            if (empty($pending['keep_sale'])) {
+                $this->eraseSale($sale->fresh());
+            }
 
             return response()->json([
                 'status' => 'failed',
@@ -1315,13 +1355,180 @@ class SaleController extends Controller
         return response()->json(['status' => 'pending']);
     }
 
+    protected function posSplitLines(Request $request)
+    {
+        $phones = (array) $request->input('split_phone', []);
+        $amounts = (array) $request->input('split_amount', []);
+        $lines = [];
+        foreach ($amounts as $i => $raw) {
+            $amount = (float) str_replace([',', ' '], '', (string) $raw);
+            if ($amount <= 0) {
+                continue;
+            }
+            $lines[] = [
+                'phone' => isset($phones[$i]) ? trim((string) $phones[$i]) : '',
+                'amount' => $amount,
+            ];
+        }
+        if (count($lines) < 2) {
+            return back()->with('not_permitted', 'Add at least two numbers and amounts for a split payment.');
+        }
+
+        return $lines;
+    }
+
+    protected function recordPosCashSplit(Sale $sale, array $lines, $cashRegister)
+    {
+        $account = Account::where('is_default', true)->first();
+        foreach ($lines as $line) {
+            $payment = new Payment();
+            $payment->user_id = Auth::id();
+            $payment->sale_id = $sale->id;
+            if ($cashRegister) {
+                $payment->cash_register_id = $cashRegister->id;
+            }
+            $payment->account_id = $account ? $account->id : 1;
+            $payment->payment_reference = 'spr-'.date('Ymd').'-'.substr(md5($line['phone'].'|'.$line['amount'].uniqid('', true)), 0, 8);
+            $payment->amount = $line['amount'];
+            $payment->change = 0;
+            $payment->paying_method = 'Cash';
+            $payment->payment_note = trim('Split '.$line['phone']);
+            $payment->save();
+        }
+    }
+
+    protected function collectPosSplit(Sale $sale, array $lines, array $checkoutClaim, $eraseOnFail = true)
+    {
+        $campay = app(CampayPayoutService::class);
+        $pending = [];
+        foreach ($lines as $index => $line) {
+            $phone = $campay->momoNumber($line['phone']);
+            $amount = (int) round($line['amount']);
+            if (! $phone || $amount < 100) {
+                if (! $pending && $eraseOnFail) {
+                    $this->eraseSale($sale);
+                }
+
+                return back()->with('not_permitted', 'Each MoMo share needs an MTN or Orange number and at least 100 XAF.');
+            }
+            $external = 'pos-'.$sale->id.'-'.$index.'-'.substr(md5(uniqid('', true)), 0, 6);
+            try {
+                $body = $campay->collect($phone, $amount, $external, substr('POS '.$sale->reference_no, 0, 80));
+            } catch (\Throwable $e) {
+                \Log::warning('POS split Mobile Money collect did not answer: '.$e->getMessage());
+                $body = null;
+            }
+            $campayStatus = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+            if (! is_array($body) || empty($body['reference']) || $campayStatus === 'FAILED') {
+                if (! $pending) {
+                    if ($eraseOnFail) {
+                        $this->eraseSale($sale);
+                    }
+
+                    return back()->with('not_permitted', $this->campayCollectError($body));
+                }
+                continue;
+            }
+            $pending[] = [
+                'phone' => $phone,
+                'amount' => $amount,
+                'reference' => (string) $body['reference'],
+                'external' => $external,
+            ];
+        }
+        if (! $pending) {
+            if ($eraseOnFail) {
+                $this->eraseSale($sale);
+            }
+
+            return back()->with('not_permitted', 'None of the numbers could be asked to pay.');
+        }
+        $first = $pending[0];
+        Cache::put('pos_momo:'.$sale->id, [
+            'lines' => $pending,
+            'keep_sale' => true,
+            'phone' => $first['phone'],
+            'amount' => $first['amount'],
+            'reference' => $first['reference'],
+            'external' => $first['external'],
+            'checkout_key' => ! empty($checkoutClaim['key']) ? $checkoutClaim['key'] : null,
+        ], now()->addMinutes(30));
+
+        return redirect()->route('pos.momo.wait', ['id' => $sale->id]);
+    }
+
+    protected function posSplitStatus(Sale $sale, array $pending)
+    {
+        $campay = app(CampayPayoutService::class);
+        $lines = $pending['lines'];
+        $waiting = false;
+        foreach ($lines as $index => $line) {
+            if (! empty($line['failed'])) {
+                continue;
+            }
+            $note = 'Campay '.$line['reference'];
+            if (Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
+                $lines[$index]['paid'] = true;
+                continue;
+            }
+            $pattern = '/^'.preg_quote($line['external'], '/').'$/';
+            $outcome = $campay->collectionOutcome($line['reference'], $line['amount'], $line['phone'], $pattern);
+            if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
+                $this->recordPosMomoPayment($sale, [
+                    'reference' => $line['reference'],
+                    'phone' => $line['phone'],
+                    'amount' => $line['amount'],
+                    'external' => $line['external'],
+                    'checkout_key' => isset($pending['checkout_key']) ? $pending['checkout_key'] : null,
+                ]);
+                if (! Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
+                    $waiting = true;
+                } else {
+                    $lines[$index]['paid'] = true;
+                }
+                continue;
+            }
+            if ($outcome['state'] === 'failed') {
+                $lines[$index]['failed'] = true;
+                continue;
+            }
+            $waiting = true;
+        }
+        $pending['lines'] = $lines;
+        Cache::put('pos_momo:'.$sale->id, $pending, now()->addMinutes(30));
+        if ($waiting) {
+            return response()->json(['status' => 'pending']);
+        }
+        Cache::forget('pos_momo:'.$sale->id);
+        $anyPaid = Payment::where('sale_id', $sale->id)->exists();
+        if (! $anyPaid && empty($pending['keep_sale'])) {
+            $this->eraseSale($sale->fresh());
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'None of the numbers approved the payment.',
+            ]);
+        }
+        if (! $anyPaid) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'None of the numbers approved the payment.',
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'paid',
+            'url' => url('sales/gen_invoice/'.$sale->id),
+        ]);
+    }
+
     protected function recordPosMomoPayment(Sale $sale, array $pending)
     {
         $note = 'Campay '.$pending['reference'];
         if (Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
             return;
         }
-        if (! Cache::add('pos_momo_lock:'.$sale->id, 1, now()->addSeconds(30))) {
+        if (! Cache::add('pos_momo_lock:'.$sale->id.':'.md5((string) $pending['reference']), 1, now()->addSeconds(30))) {
             return;
         }
         $recorded = false;
@@ -3011,8 +3218,92 @@ class SaleController extends Controller
         return view('sale.invoice', compact('header', 'footer', 'water_mark', 'all_permission', 'lims_account_data_cradit', 'lims_account_data_debit', 'lims_sale_data', 'lims_product_sale_data', 'lims_biller_data', 'lims_warehouse_data', 'lims_customer_data', 'lims_payment_data', 'numberInWords'));
     }
 
+    protected function startSaleMomo(Request $request)
+    {
+        $sale = Sale::find($request->input('sale_id'));
+        if (! $sale) {
+            return back()->with('not_permitted', 'That sale was not found.');
+        }
+        $customer = Customer::find($sale->customer_id);
+        $typed = trim((string) $request->input('momo_phone'));
+        $phone = app(CampayPayoutService::class)->momoNumber($typed !== '' ? $typed : ($customer ? $customer->phone_number : ''));
+        if (! $phone) {
+            return back()->with('not_permitted', 'Enter an MTN or Orange number for MOMO/OM.');
+        }
+        $amount = (int) round((float) str_replace(',', '', (string) $request->input('amount')));
+        $due = (float) $sale->grand_total - (float) $sale->paid_amount;
+        if ($amount < 100 || $amount - $due > 0.01) {
+            return back()->with('not_permitted', 'Enter a whole amount of at least 100 XAF that is not more than the amount still due.');
+        }
+        $external = 'sale-'.$sale->id.'-'.substr(md5(uniqid('', true)), 0, 6);
+        try {
+            $body = app(CampayPayoutService::class)->collect($phone, $amount, $external, substr('Sale '.$sale->reference_no, 0, 80));
+        } catch (\Throwable $e) {
+            return back()->with('not_permitted', 'Mobile Money did not answer. Try again in a moment.');
+        }
+        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+        if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+            return back()->with('not_permitted', $this->campayCollectError($body));
+        }
+        Cache::put('pos_momo:'.$sale->id, [
+            'keep_sale' => true,
+            'phone' => $phone,
+            'amount' => $amount,
+            'reference' => (string) $body['reference'],
+            'external' => $external,
+            'checkout_key' => null,
+        ], now()->addMinutes(30));
+
+        return redirect()->route('pos.momo.wait', ['id' => $sale->id]);
+    }
+
+    protected function addSplitSalePayments(Request $request)
+    {
+        $lines = $this->posSplitLines($request);
+        if ($lines instanceof \Illuminate\Http\RedirectResponse) {
+            return $lines;
+        }
+        $sale = Sale::find($request->input('sale_id'));
+        if (! $sale) {
+            return back()->with('not_permitted', 'That sale was not found.');
+        }
+        $sum = 0;
+        foreach ($lines as $line) {
+            $sum += $line['amount'];
+        }
+        $due = (float) $sale->grand_total - (float) $sale->paid_amount;
+        if ($sum - $due > 0.01) {
+            return back()->with('not_permitted', 'The split is more than the amount still due.');
+        }
+        $method = (int) $request->input('paid_by_id');
+        if ($method === 8) {
+            return $this->collectPosSplit($sale, $lines, ['key' => null], false);
+        }
+        if ($method !== 1) {
+            return back()->with('not_permitted', 'Split payment works with Cash or MoMo / OM.');
+        }
+        $cash = CashRegister::where([
+            ['user_id', Auth::id()],
+            ['warehouse_id', $sale->warehouse_id],
+            ['status', true],
+        ])->first();
+        $this->recordPosCashSplit($sale, $lines, $cash);
+        $sale->paid_amount = (float) $sale->paid_amount + $sum;
+        $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
+        $sale->payment_status = $this->paymentStatusForBalance($sale->paid_amount, $balance);
+        $sale->save();
+
+        return back()->with('message', 'Split cash payment recorded.');
+    }
+
     public function addPayment(Request $request)
     {
+        if ($request->input('pay_mode') === 'split') {
+            return $this->addSplitSalePayments($request);
+        }
+        if ((int) $request->input('paid_by_id') === 8) {
+            return $this->startSaleMomo($request);
+        }
         $data = $request->all();
         if (!$data['amount'])
             $data['amount'] = 0.00;

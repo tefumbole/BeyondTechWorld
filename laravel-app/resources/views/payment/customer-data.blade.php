@@ -68,7 +68,7 @@
                         <td><span class="pay-pill pay-pill-wait">{{ $sale->payment_status == 1 ? 'Pending' : 'Due' }}</span></td>
                         <td>{{ $sale->created_at }}</td>
                         <td>
-                            <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
+                            <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-name="{{ optional($sale->customer)->name }}" data-phone="{{ optional($sale->customer)->phone_number }}" data-ref="{{ $sale->reference_no }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
                             <button type="button" class="get-payment btn btn-info btn-sm" data-id = "{{ $sale->id }}"><i class="fa fa-money"></i>{{ trans('file.View') }}</button>
                             <a class="get-payment btn btn-warning btn-sm" href="{{ route('sales.edit',$sale->id ) }}"><i class="fa fa-pencil"></i> Edit Sale</a>
                         </td>
@@ -106,83 +106,7 @@
         </div>
     </div>
 
-    <div id="add-payment" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
-        <div role="document" class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 id="exampleModalLabel" class="modal-title">{{trans('file.Add Payment')}}</h5>
-                    <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
-                </div>
-                <div class="modal-body">
-                    {!! Form::open(['route' => 'sale.add-payment', 'method' => 'post', 'files' => true, 'class' => 'payment-form' ]) !!}
-                    <div class="row">
-                        <input type="hidden" name="balance">
-                        <div class="col-md-6">
-                            <label>Received Amount *</label>
-                            <input type="text" name="paying_amount" class="form-control numkey" step="any" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label>{{trans('file.Paying Amount')}} *</label>
-                            <input type="text" id="amount" name="amount" class="form-control"  step="any" required>
-                        </div>
-                        <div class="col-md-6 mt-1">
-                            <label>{{trans('file.Change')}} : </label>
-                            <p class="change ml-2">0.00</p>
-                        </div>
-                        <div class="col-md-6 mt-1">
-                            <label>{{trans('file.Paid By')}}</label>
-                            <select name="paid_by_id" class="form-control">
-                                <option value="1">Cash</option>
-                                @if(in_array("JE-method", $all_permission))
-                                    <option value="3">JE</option>
-                                @endif
-                                <option value="6">Deposit</option>
-                                <option value="8">Momo/Orange</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group mt-2">
-                        <div class="card-element" class="form-control">
-                        </div>
-                        <div class="card-errors" role="alert"></div>
-                    </div>
-                    <div class="form-group">
-                        <label> {{trans('file.Account')}}</label>
-                        <select class="form-control selectpicker" name="account_id" data-live-search="true">
-                            @foreach($lims_account_list as $account)
-                                @if($account->is_default)
-                                    <option selected value="{{$account->id}}">{{$account->name}} / {{$account->account_no}} - {{@$account->departments->code}}</option>
-                                @else
-                                    <option value="{{$account->id}}">{{$account->name}} / {{$account->account_no}} - {{@$account->departments->code}}</option>
-                                @endif
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="form-group debit">
-                        <label>{{trans('file.Debit')}}</label>
-                        <select name="account_id_debit" class="form-control selectpicker" data-live-search="true">
-                            @foreach($lims_account_list as $account)
-                                @if($account->is_default_debit)
-                                    <option selected value="{{$account->id}}">{{$account->name}} / {{$account->account_no}} - {{@$account->departments->code}}</option>
-                                @else
-                                    <option value="{{$account->id}}">{{$account->name}} / {{$account->account_no}} - {{@$account->departments->code}}</option>
-                                @endif
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>{{trans('file.Payment Note')}}</label>
-                        <textarea rows="3" class="form-control" name="payment_note"></textarea>
-                    </div>
-
-                    <input type="hidden" name="sale_id">
-
-                    <button type="submit" class="btn btn-primary">{{trans('file.submit')}}</button>
-                    {{ Form::close() }}
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('payment.partials.collect_sheet')
 
 
     <script type="text/javascript">

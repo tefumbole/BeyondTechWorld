@@ -563,6 +563,9 @@ class PaymentController extends Controller
 
     public function storeDeposit(Request $request, AccountDepositService $deposits)
     {
+        if ($request->input('pay_mode') === 'split') {
+            return $this->storeSplitDeposits($request);
+        }
         $data = $request->validate([
             'account_id' => 'required|integer|exists:accounts,id',
             'amount' => 'required|numeric|min:0.01',
@@ -738,6 +741,121 @@ class PaymentController extends Controller
                 $this->tellClient($deposit->mtn_number, $this->failureText($reason, $deposit->amount));
             }
         }
+    }
+
+    protected function storeSplitDeposits(Request $request)
+    {
+        $data = $request->validate([
+            'account_id' => 'required|integer|exists:accounts,id',
+            'payment_method' => 'required|in:3,4',
+            'note' => 'nullable|string|max:1000',
+            'split_phone' => 'required|array|min:2',
+            'split_phone.*' => 'nullable|string|max:30',
+            'split_amount' => 'required|array|min:2',
+            'split_amount.*' => 'nullable|numeric',
+        ]);
+        $account = Account::where('is_active', true)->findOrFail($data['account_id']);
+        $method = (int) $data['payment_method'];
+        $lines = [];
+        foreach ($data['split_amount'] as $i => $raw) {
+            $amount = (int) round((float) $raw);
+            $phone = isset($data['split_phone'][$i]) ? trim((string) $data['split_phone'][$i]) : '';
+            if ($amount <= 0 && $phone === '') {
+                continue;
+            }
+            if ($amount < 100 || $phone === '') {
+                return $this->depositProblem($request, 'Each share needs a number and a whole amount of at least 100 XAF.');
+            }
+            $lines[] = ['phone' => $phone, 'amount' => $amount];
+        }
+        if (count($lines) < 2) {
+            return $this->depositProblem($request, 'Add at least two numbers and amounts.');
+        }
+        $asked = 0;
+        $errors = [];
+        foreach ($lines as $line) {
+            $error = $this->openDepositLine($account, $line['phone'], $line['amount'], $method, isset($data['note']) ? $data['note'] : null);
+            if ($error) {
+                $errors[] = $line['phone'].': '.$error;
+            } else {
+                $asked++;
+            }
+        }
+        if (! $asked) {
+            return $this->depositProblem($request, $errors ? $errors[0] : 'None of the deposits could be sent.');
+        }
+        $message = 'Asked '.$asked.' '.($asked === 1 ? 'number' : 'numbers').' to pay.';
+        if ($errors) {
+            $message .= ' '.implode(' ', $errors);
+        }
+
+        return redirect()->route('deposit.index')->with('message', $message);
+    }
+
+    protected function openDepositLine(Account $account, $rawPhone, $amount, $method, $note)
+    {
+        $customer = $this->customerFromPhone($rawPhone);
+        if (! $customer) {
+            return 'That number could not be used.';
+        }
+        $campay = app(CampayPayoutService::class);
+        $phone = $campay->momoNumber($customer->phone_number);
+        if ($method === 3 && ! $phone) {
+            return 'Not an MTN or Orange Cameroon number.';
+        }
+        if (! $phone) {
+            $phone = preg_replace('/\D/', '', (string) $customer->phone_number);
+        }
+        $reference = 'dep-'.date('YmdHis').'-'.substr(md5(uniqid('', true)), 0, 8);
+        $deposit = Deposit::create([
+            'amount' => $amount,
+            'customer_id' => $customer->id,
+            'user_id' => Auth::id(),
+            'depositor_id' => Auth::id(),
+            'account_id' => $account->id,
+            'note' => $note !== null && $note !== '' ? $note : null,
+            'payment_method' => $method,
+            'payment_reference' => $reference,
+            'mtn_number' => $phone,
+            'status' => 0,
+            'paid_notice' => 0,
+        ]);
+        $description = $note !== null && trim((string) $note) !== '' ? substr(trim((string) $note), 0, 80) : 'Deposit';
+        if ($method === 3) {
+            $body = $campay->collect($phone, $amount, $reference, $description);
+            $campayStatus = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+            if (! is_array($body) || empty($body['reference']) || $campayStatus === 'FAILED') {
+                $reason = is_array($body) && ! empty($body['reason']) ? (string) $body['reason'] : $campayStatus;
+                $deposit->status = 2;
+                $deposit->failure_reason = $reason !== '' ? substr($reason, 0, 180) : null;
+                $deposit->save();
+
+                return $reason !== '' ? $this->failureText($reason, $amount) : 'Campay could not ask this number to approve.';
+            }
+            $deposit->campay_reference = (string) $body['reference'];
+            $deposit->save();
+
+            return null;
+        }
+        $back = route('deposit.index');
+        $card = app(StripeCheckoutService::class)->checkout(
+            'Deposit',
+            $amount,
+            $back.'?session_id={CHECKOUT_SESSION_ID}',
+            $back,
+            ['deposit' => (string) $deposit->id]
+        );
+        if (empty($card['ok'])) {
+            $deposit->delete();
+
+            return isset($card['error']) ? $card['error'] : 'VISA could not be opened.';
+        }
+        $deposit->campay_reference = (string) $card['id'];
+        $deposit->payment_link = (string) $card['url'];
+        $deposit->save();
+        $this->tellClient($phone, 'Open this link and enter your card details to pay '.$this->money($amount).' XAF: '.$card['url']);
+
+        return null;
     }
 
     protected function depositProblem(Request $request, $message)

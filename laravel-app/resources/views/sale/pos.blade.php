@@ -4,29 +4,11 @@
     <link rel="stylesheet" href="<?php echo asset('public/vendor/keyboard/css/keyboard.css') ?>" type="text/css">
     <style>
         .pos-page .totals { display: none !important; }
-        #add-payment .modal-dialog { max-width: 520px; margin: 16px auto; }
-        #add-payment .modal-content { border-radius: 22px; overflow: hidden; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; }
-        #add-payment .modal-header { background: #12203a; color: #fff; border: 0; flex: 0 0 auto; }
-        #add-payment .modal-header .modal-title { color: #f3e3b0; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
-        #add-payment .modal-header .close { color: #fff; opacity: 1; }
-        #add-payment .modal-body { overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
-        #add-payment .modal-footer { border: 0; padding: 12px 16px 16px; flex: 0 0 auto; background: #fff; }
-        #add-payment .pay-sheet-due { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
-        #add-payment .pay-sheet-due span { display: block; color: #8a6230; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-        #add-payment .pay-sheet-due strong { display: block; font-size: 32px; line-height: 1.1; color: #12203a; }
-        #add-payment .pay-sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-        #add-payment .pay-choice { min-height: 72px; border-radius: 16px; border: 1px solid #eadcc4; background: #fff; text-align: center; padding: 10px; }
-        #add-payment .pay-choice strong, #add-payment .pay-choice small { display: block; }
-        #add-payment .pay-choice small { color: #8a7560; font-weight: 600; }
-        #add-payment .pay-choice.is-on { background: #12203a; border-color: #12203a; color: #fff; }
-        #add-payment .pay-choice.is-on small { color: #f3e3b0; }
+        #add-payment .modal-body { -webkit-overflow-scrolling: touch; }
         #add-payment .form-control { min-height: 46px; border-radius: 12px; font-size: 16px; }
-        #add-payment #submit-btn { width: 100%; min-height: 48px; border: 0; border-radius: 999px; background: #C5A059; color: #1a1208; font-weight: 800; }
         #add-payment .qc { display: none; }
-        @media (max-width: 700px) {
-            #add-payment .modal-dialog { margin: 8px; }
-        }
     </style>
+    @include('payout.partials.style')
     <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.js') ?>"></script>
     <script type="text/javascript" src="<?php echo asset('public/vendor/keyboard/js/jquery.keyboard.extension-autocomplete.js') ?>"></script>
     @if($errors->has('phone_number'))
@@ -1506,11 +1488,13 @@
                                 </div>
                             </div>
                             <!-- payment modal -->
-                            <div id="add-payment" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left">
+                            <div id="add-payment" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" class="modal fade text-left pay-sheet-modal">
                                 <div role="document" class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-header">
                                             <h5 id="exampleModalLabel" class="modal-title">Add payment</h5>
+                                            <strong class="pay-sheet-who" id="pos-sheet-who"></strong>
+                                            <div class="pay-sheet-ref" id="pos-sheet-ref"></div>
                                             <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
                                         </div>
                                         <div class="modal-body">
@@ -1518,13 +1502,30 @@
                                                 <span>Still due</span>
                                                 <strong id="pos-sheet-due">0.00</strong>
                                             </div>
+                                            <label class="pay-sheet-label" for="momo_phone">Phone number</label>
+                                            <input type="tel" name="momo_phone" id="momo_phone" class="form-control momo-payer" autocomplete="off" placeholder="6xxxxxxxx">
+                                            <p id="momo_holder" class="pay-sheet-holder"></p>
                                             <div class="pay-sheet-grid">
-                                                <button type="button" class="pay-choice" data-paid-by="1"><strong>Cash</strong><small>Record it now</small></button>
-                                                <button type="button" class="pay-choice" data-paid-by="8"><strong>MoMo / OM</strong><small>Ask the client to confirm</small></button>
+                                                <button type="button" class="pay-choice" data-paid-by="1"><strong>Cash</strong><small>Submit</small></button>
+                                                <button type="button" class="pay-choice" data-paid-by="8"><strong>MoMo / OM</strong><small>Wait for the phone</small></button>
                                                 <button type="button" class="pay-choice" data-fill="full"><strong>Full amount</strong><small>Pay everything due</small></button>
                                                 <button type="button" class="pay-choice" data-fill="part"><strong>Partial</strong><small>Pay part now</small></button>
+                                                <button type="button" class="pay-choice is-wide" data-fill="split"><strong>Split</strong><small>Several numbers pay this bill</small></button>
                                             </div>
-                                            <div class="row">
+                                            <div class="pay-split" id="pos-split" hidden>
+                                                <table>
+                                                    <thead><tr><th>Number</th><th>Amount (XAF)</th><th></th></tr></thead>
+                                                    <tbody id="pos-split-body"></tbody>
+                                                </table>
+                                                <button type="button" class="pay-plus" id="pos-split-add" title="Add a number">+</button>
+                                            </div>
+                                            <div id="pos-single-amount">
+                                                <label class="pay-sheet-label" for="pos-paid-amount">Amount (XAF)</label>
+                                                <input type="text" id="pos-paid-amount" name="paid_amount" class="form-control numkey" step="any">
+                                            </div>
+                                            <p class="pay-sheet-left" id="pos-sheet-left">Left after this payment: 0 XAF</p>
+                                            <input type="hidden" name="pay_mode" id="pos-pay-mode" value="">
+                                            <div class="pay-legacy"><div class="row">
                                                 <div class="col-md-10">
                                                     <div class="row">
                                                         <div class="col-md-6 mt-1">
@@ -1533,7 +1534,6 @@
                                                         </div>
                                                         <div class="col-md-6 mt-1">
                                                             <label>{{trans('file.Paying Amount')}} *</label>
-                                                            <input type="text" name="paid_amount" class="form-control numkey"  step="any">
                                                         </div>
                                                         <div class="col-md-6 mt-1">
                                                             <label>{{trans('file.Change')}} : </label>
@@ -1589,11 +1589,6 @@
                                                             <label>{{trans('file.Cheque Number')}} *</label>
                                                             <input type="text" name="cheque_no" class="form-control">
                                                         </div>
-                                                        <div class="form-group col-md-12 momo-payer" style="display:none">
-                                                            <label>MOMO/OM number</label>
-                                                            <input type="tel" name="momo_phone" id="momo_phone" class="form-control" autocomplete="off" placeholder="6xxxxxxxx">
-                                                            <p id="momo_holder" class="mt-2 mb-0" style="font-weight:600"></p>
-                                                        </div>
                                                         <div class="form-group col-md-12">
                                                             <label>{{trans('file.Description')}}</label>
                                                             <textarea id="payment_note" rows="2" class="form-control" name="payment_note"></textarea>
@@ -1620,10 +1615,11 @@
                                                     <button class="btn btn-block btn-primary qc-btn sound-btn" data-amount="10000" type="button">10,000</button>
                                                     <button class="btn btn-block btn-danger qc-btn sound-btn" data-amount="0" type="button">{{trans('file.Clear')}}</button>
                                                 </div>
-                                            </div>
+                                            </div></div>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" id="submit-btn" class="btn btn-primary text-white">{{trans('file.submit')}}</button>
+                                            <button type="button" id="submit-btn" class="pay-sheet-submit">{{trans('file.submit')}}</button>
+                                            <p class="pay-sheet-hint" id="pos-sheet-hint">This records the cash payment.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -3517,11 +3513,63 @@
                 $('.payment-form').submit();
         });
 
-        function paintPosDue() {
-            var due = $('input[name="paying_amount"]').val() || $('#grand-total').text() || '0.00';
-            $('#pos-sheet-due').text(due);
+        function posMoney(value) {
+            var number = parseFloat(String(value || '').replace(/,/g, ''));
+            return isNaN(number) ? 0 : number;
         }
-        $('#add-payment').on('show.bs.modal', paintPosDue);
+        function posSplitSum() {
+            var sum = 0;
+            $('#pos-split-body .pos-split-amount').each(function () { sum += posMoney($(this).val()); });
+            return sum;
+        }
+        function paintPosDue() {
+            var due = posMoney($('input[name="paying_amount"]').val() || $('#grand-total').text());
+            var paid = $('#pos-pay-mode').val() === 'split' ? posSplitSum() : posMoney($('input[name="paid_amount"]').val());
+            if ($('#pos-pay-mode').val() === 'split') {
+                $('input[name="paid_amount"]').val(paid ? paid.toFixed(2) : '');
+            }
+            var who = $.trim($('#customer_id option:selected').text() || '');
+            $('#pos-sheet-who').text(who);
+            $('#pos-sheet-ref').text($('input[name="reference_no"]').val() || '');
+            $('#pos-sheet-due').text(due.toLocaleString() + ' XAF');
+            $('#pos-sheet-left').text('Left after this payment: ' + Math.max(0, due - paid).toLocaleString() + ' XAF');
+            var momo = String($('select[name="paid_by_id_select"]').val()) === '8';
+            $('#pos-sheet-hint').text($('#pos-pay-mode').val() === 'split'
+                ? 'Each number pays its own amount.'
+                : (momo ? 'This waits for the phone to approve.' : 'This records the cash payment.'));
+        }
+        function posSplitRow(phone, amount) {
+            var row = $('<tr>');
+            row.append($('<td>').append($('<input>', {type: 'tel', name: 'split_phone[]', class: 'form-control pos-split-phone', value: phone || '', placeholder: '6xxxxxxxx'})));
+            row.append($('<td>').append($('<input>', {type: 'number', name: 'split_amount[]', class: 'form-control pos-split-amount', min: '1', step: '1', value: amount || ''})));
+            row.append($('<td>').append($('<button>', {type: 'button', class: 'btn btn-link pos-split-remove', text: 'Remove'})));
+            $('#pos-split-body').append(row);
+        }
+        function showPosSplit(on) {
+            $('#pos-pay-mode').val(on ? 'split' : '');
+            $('#pos-split').prop('hidden', !on);
+            $('#pos-single-amount').toggle(!on);
+            $('#pos-split-body input').prop('disabled', !on);
+            if (on && !$('#pos-split-body tr').length) {
+                posSplitRow($('#momo_phone').val(), '');
+                posSplitRow('', '');
+            }
+            $('#add-payment .pay-choice[data-fill]').removeClass('is-on');
+            if (on) $('#add-payment .pay-choice[data-fill="split"]').addClass('is-on');
+            paintPosDue();
+        }
+        $('#add-payment').on('show.bs.modal', function () {
+            if (!$('#momo_phone').val()) $('#momo_phone').val(selectedCustomerPhone());
+            lookupMomoName($('#momo_phone').val());
+            paintPosDue();
+        });
+        $('#pos-split-add').on('click', function () { posSplitRow('', ''); });
+        $('#pos-split-body').on('click', '.pos-split-remove', function () {
+            $(this).closest('tr').remove();
+            paintPosDue();
+        });
+        $('#pos-split-body').on('input', '.pos-split-amount', paintPosDue);
+        $('input[name="paid_amount"]').on('input', paintPosDue);
         $(document).on('click', '#add-payment .pay-choice', function () {
             var by = $(this).attr('data-paid-by');
             if (by) {
@@ -3533,17 +3581,25 @@
                 picker.trigger('change');
                 $('#add-payment .pay-choice[data-paid-by]').removeClass('is-on');
                 $(this).addClass('is-on');
+                paintPosDue();
             }
             if ($(this).attr('data-fill') === 'full') {
+                showPosSplit(false);
                 var due = $('input[name="paying_amount"]').val();
                 $('input[name="paid_amount"]').prop('readonly', false).val(due);
                 $('#add-payment .pay-choice[data-fill]').removeClass('is-on');
                 $(this).addClass('is-on');
+                paintPosDue();
             }
             if ($(this).attr('data-fill') === 'part') {
+                showPosSplit(false);
                 $('input[name="paid_amount"]').prop('readonly', false).val('').focus();
                 $('#add-payment .pay-choice[data-fill]').removeClass('is-on');
                 $(this).addClass('is-on');
+                paintPosDue();
+            }
+            if ($(this).attr('data-fill') === 'split') {
+                showPosSplit(true);
             }
         });
 
@@ -4437,6 +4493,23 @@
 
         $(document).on('submit', '.payment-form', function(e) {
             var rownumber = $('table.order-list tbody tr:last').index();
+            if ($('#pos-pay-mode').val() === 'split') {
+                var rows = 0;
+                $('#pos-split-body .pos-split-amount').each(function () { if (posMoney($(this).val()) > 0) rows++; });
+                if (rows < 2) {
+                    alert('Add at least two numbers and amounts.');
+                    e.preventDefault();
+                    $('#submit-btn').prop('disabled', false);
+                    return;
+                }
+                if (posSplitSum() - posMoney($('input[name="paying_amount"]').val()) > 0.01) {
+                    alert('The split is more than the bill.');
+                    e.preventDefault();
+                    $('#submit-btn').prop('disabled', false);
+                    return;
+                }
+                $('input[name="paid_amount"]').val(posSplitSum().toFixed(2));
+            }
             if (rownumber < 0) {
                 alert("Please insert product to order table!")
                 e.preventDefault();

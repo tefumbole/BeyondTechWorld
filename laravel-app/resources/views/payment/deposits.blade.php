@@ -3,10 +3,10 @@
 @include('payout.partials.style')
 <style>
     .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-    .pay-method { min-height: 72px; padding: 10px 12px; border: 1px solid #eadcc4; border-radius: 16px; background: #fff; color: #12203a; font-weight: 800; }
-    .pay-method.is-on { background: #12203a; border-color: #12203a; color: #fff; }
-    .pay-method small { display: block; font-weight: 600; color: #8a7560; }
-    .pay-method.is-on small { color: #f3e3b0; }
+    .pay-method { min-height: 72px; padding: 10px 12px; border: 1px solid #d5deee; border-radius: 16px; background: #fff; color: #1f2a44; font-weight: 800; }
+    .pay-method.is-on { background: #0b3f90; border-color: #0b3f90; color: #fff; }
+    .pay-method small { display: block; font-weight: 600; color: #6f7b91; }
+    .pay-method.is-on small { color: #c6ab47; }
     .pay-chosen { margin-top: 8px; font-weight: 700; }
 </style>
 <section class="container-fluid pay-app">
@@ -28,11 +28,12 @@
         <div class="pay-card">
             <div class="pay-card-head"><h2>Make Deposit</h2></div>
             <div class="pay-card-body">
-                <p class="pay-help">Choose Cash, Mobile Money, or card. Mobile Money asks the client to approve on their phone. A card payment sends them a link on WhatsApp, or by SMS if they have no WhatsApp.</p>
+                <p class="pay-help">Mobile Money asks the client to approve on their phone. VISA sends them a card link. Split sends a separate request to each number.</p>
                 <form method="POST" action="{{ route('deposit.store') }}" id="depositForm">
                     @csrf
                     <input type="hidden" name="customer_id" id="depositCustomerId" value="{{ old('customer_id') }}">
-                    <input type="hidden" name="payment_method" id="depositMethod" value="{{ old('payment_method', '1') }}">
+                    <input type="hidden" name="payment_method" id="depositMethod" value="{{ old('payment_method', '3') }}">
+                    <input type="hidden" name="pay_mode" id="depositPayMode" value="">
                     <div class="pay-search">
                         <label>Client</label>
                         <div style="display:flex;gap:8px;align-items:center">
@@ -54,17 +55,24 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="form-group" style="max-width:220px">
+                    <div class="form-group" id="depositSingleAmount" style="max-width:220px">
                         <label>Amount (XAF)</label>
-                        <input type="number" name="amount" class="form-control" min="1" step="1" value="{{ old('amount') }}" required>
+                        <input type="number" name="amount" id="depositAmount" class="form-control" min="1" step="1" value="{{ old('amount') }}" required>
                     </div>
                     <label>Payment method</label>
                     <div class="pay-methods">
-                        <button class="pay-method" type="button" data-method="1">Cash<small>Record it now</small></button>
-                        <button class="pay-method" type="button" data-method="3">MoMo / OM<small>Ask the client to confirm</small></button>
-                        <button class="pay-method" type="button" data-method="4">Card<small>Send a payment link</small></button>
+                        <button class="pay-method" type="button" data-method="3">MoMo / OM<small>Wait for the phone</small></button>
+                        <button class="pay-method" type="button" data-method="4">VISA<small>Send a card link</small></button>
+                        <button class="pay-method" type="button" data-fill="split" style="grid-column:1 / -1">Split<small>Several numbers, each with an amount</small></button>
                     </div>
-                    <p class="pay-help" id="depositHint">Cash is saved now. Choose a client if they should get a WhatsApp or SMS.</p>
+                    <div id="depositSplit" hidden>
+                        <table class="pay-table">
+                            <thead><tr><th>Number</th><th>Amount (XAF)</th><th></th></tr></thead>
+                            <tbody id="depositSplitBody"></tbody>
+                        </table>
+                        <button class="pay-plus" type="button" id="depositSplitAdd" title="Add a number">+</button>
+                    </div>
+                    <p class="pay-help" id="depositHint">This stays on the screen until the client approves the prompt on their phone.</p>
                     <div class="form-group" style="max-width:460px">
                         <label>Note</label>
                         <textarea name="note" class="form-control" rows="2">{{ old('note') }}</textarea>
@@ -163,14 +171,12 @@
     var hint = document.getElementById('depositHint');
     var submit = document.getElementById('depositSubmit');
     var labels = {
-        '1': 'Save Deposit',
         '3': 'Query the phone for approval',
-        '4': 'Send card link'
+        '4': 'Send VISA link'
     };
     var hints = {
-        '1': 'Cash is saved now. Choose a client if they should get a WhatsApp or SMS.',
         '3': 'This stays on the screen until the client approves the prompt on their phone.',
-        '4': 'The client receives a link on WhatsApp, or by SMS, and enters the card details there.'
+        '4': 'The client receives a VISA link on WhatsApp, or by SMS, and enters the card details there.'
     };
     var clientGuard = {block_amount: 0, warning: ''};
     function showMethod(value) {
@@ -182,9 +188,42 @@
         if (submit) submit.textContent = labels[value] || labels['1'];
     }
     form.querySelectorAll('.pay-method').forEach(function (button) {
-        button.addEventListener('click', function () { showMethod(button.getAttribute('data-method')); });
+        button.addEventListener('click', function () {
+            if (!button.getAttribute('data-method')) return;
+            document.getElementById('depositPayMode').value = '';
+            document.getElementById('depositSplit').hidden = true;
+            document.getElementById('depositSingleAmount').hidden = false;
+            document.getElementById('depositAmount').required = true;
+            var splitBtn = form.querySelector('[data-fill="split"]');
+            if (splitBtn) splitBtn.classList.remove('is-on');
+            showMethod(button.getAttribute('data-method'));
+        });
     });
-    showMethod(methodInput.value || '1');
+    showMethod(methodInput.value === '4' ? '4' : '3');
+    function depositRow() {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td><input type="tel" name="split_phone[]" class="form-control" placeholder="6xxxxxxxx"></td>'
+            + '<td><input type="number" name="split_amount[]" class="form-control" min="100" step="1"></td>'
+            + '<td><button type="button" class="btn btn-link deposit-split-remove">Remove</button></td>';
+        document.getElementById('depositSplitBody').appendChild(tr);
+    }
+    document.getElementById('depositSplitAdd').addEventListener('click', depositRow);
+    document.getElementById('depositSplitBody').addEventListener('click', function (event) {
+        if (event.target.classList.contains('deposit-split-remove')) event.target.closest('tr').remove();
+    });
+    document.querySelector('[data-fill="split"]').addEventListener('click', function () {
+        var on = document.getElementById('depositPayMode').value !== 'split';
+        document.getElementById('depositPayMode').value = on ? 'split' : '';
+        document.getElementById('depositSplit').hidden = !on;
+        document.getElementById('depositSingleAmount').hidden = on;
+        document.getElementById('depositAmount').required = !on;
+        this.classList.toggle('is-on', on);
+        if (on && !document.getElementById('depositSplitBody').children.length) {
+            depositRow();
+            depositRow();
+        }
+        hint.textContent = on ? 'Each number is asked for its own amount.' : (hints[methodInput.value] || hints['3']);
+    });
 
     var search = document.getElementById('depositSearch');
     var hits = document.getElementById('depositHits');
@@ -313,6 +352,17 @@
         }, 400);
     });
     form.addEventListener('submit', function (event) {
+        if (document.getElementById('depositPayMode').value === 'split') {
+            var count = 0;
+            form.querySelectorAll('[name="split_amount[]"]').forEach(function (input) {
+                if ((parseInt(input.value, 10) || 0) > 0) count++;
+            });
+            if (count < 2) {
+                event.preventDefault();
+                hint.textContent = 'Add at least two numbers and amounts.';
+            }
+            return;
+        }
         if (methodInput.value !== '1' && !customerId.value) {
             var visible = hits.querySelector('button');
             if (visible && hits.querySelectorAll('button').length === 1) {
