@@ -324,7 +324,16 @@ class DocumentPayController extends Controller
         $phone = is_array($cached) && ! empty($cached['phone']) ? $cached['phone'] : $link->phone;
         $outcome = app(CampayPayoutService::class)->collectionOutcome($link->campay_reference, $charge, $phone);
         if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
-            $this->applyPortion($link, $charge, (string) $link->campay_reference, $phone, 'momo');
+            $bill = ! empty($outcome['bill']) ? (int) $outcome['bill'] : $charge;
+            $this->applyPortion(
+                $link,
+                $bill,
+                (string) $link->campay_reference,
+                $phone,
+                'momo',
+                isset($outcome['fee']) ? (int) $outcome['fee'] : 0,
+                isset($outcome['operator']) ? (string) $outcome['operator'] : ''
+            );
             Cache::forget('docpay:'.$link->id);
         } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
             $link->status = 'failed';
@@ -348,7 +357,16 @@ class DocumentPayController extends Controller
             $amount = (int) $line['amount'];
             $outcome = app(CampayPayoutService::class)->collectionOutcome($line['reference'], $amount, $line['phone']);
             if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
-                $this->applyPortion($link, $amount, $line['reference'], $line['phone'], 'momo');
+                $bill = ! empty($outcome['bill']) ? (int) $outcome['bill'] : $amount;
+                $this->applyPortion(
+                    $link,
+                    $bill,
+                    $line['reference'],
+                    $line['phone'],
+                    'momo',
+                    isset($outcome['fee']) ? (int) $outcome['fee'] : 0,
+                    isset($outcome['operator']) ? (string) $outcome['operator'] : ''
+                );
                 $link = $link->fresh();
                 $lines[$index]['done'] = true;
                 $lines[$index]['paid'] = true;
@@ -380,7 +398,7 @@ class DocumentPayController extends Controller
         $link->save();
     }
 
-    protected function applyPortion(DocumentPaymentLink $link, $amount, $reference, $phone, $method)
+    protected function applyPortion(DocumentPaymentLink $link, $amount, $reference, $phone, $method, $fee = 0, $operator = '')
     {
         $amount = (int) $amount;
         $reference = (string) $reference;
@@ -436,11 +454,15 @@ class DocumentPayController extends Controller
         $link->status = $finished ? 'paid' : 'waiting';
         $link->save();
         $label = $this->label($link);
-        $text = 'Dear '.$link->person_name.', a payment of '.number_format($amount, 0, '.', ' ').' XAF has been received for '.$label.' '.$link->reference_no.'.';
-        if (! $finished) {
-            $text .= ' '.number_format($link->amount, 0, '.', ' ').' XAF is still due.';
+        $invoiceTotal = null;
+        if ($link->kind === 'sale') {
+            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, &$invoiceTotal) {
+                $sale = Sale::find($link->document_id);
+                if ($sale) {
+                    $invoiceTotal = (float) $sale->grand_total;
+                }
+            });
         }
-        app(ClientNoticeService::class)->send($phone, $text);
         $requester = trim((string) $link->requested_by);
         $requesterPhone = '';
         if ($requester !== '') {
@@ -457,6 +479,10 @@ class DocumentPayController extends Controller
             'client_phone' => $phone,
             'name' => $link->person_name,
             'amount' => $amount,
+            'fee' => (int) $fee,
+            'operator' => (string) $operator,
+            'pending' => max(0, (int) $link->amount),
+            'invoice_total' => $invoiceTotal,
             'reason' => $label.' payment',
             'reference' => $link->reference_no,
             'date' => now(),

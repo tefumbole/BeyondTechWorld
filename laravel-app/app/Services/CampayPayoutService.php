@@ -210,17 +210,27 @@ class CampayPayoutService
 
         $status = strtoupper(trim((string) (isset($body['status']) ? $body['status'] : '')));
         if ($status === 'SUCCESSFUL') {
+            $split = $this->collectionSplit($body);
             if (! $this->collectionDebited($body, $expectedAmount, $expectedPhone, $externalPattern)) {
                 Log::warning('Campay success was not a confirmed debit', [
                     'reference' => $reference,
                     'amount' => isset($body['amount']) ? $body['amount'] : null,
+                    'app_amount' => isset($body['app_amount']) ? $body['app_amount'] : null,
                     'expected' => (int) $expectedAmount,
                 ]);
 
                 return ['state' => 'pending', 'confirmed' => false, 'reason' => $reason];
             }
 
-            return ['state' => 'paid', 'confirmed' => true, 'reason' => $reason];
+            return [
+                'state' => 'paid',
+                'confirmed' => true,
+                'reason' => $reason,
+                'bill' => $split['bill'],
+                'fee' => $split['fee'],
+                'gross' => $split['gross'],
+                'operator' => $split['operator'],
+            ];
         }
 
         if (in_array($status, ['FAILED', 'CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'], true)) {
@@ -247,12 +257,40 @@ class CampayPayoutService
         return 'Your Mobile Money payment of '.$money.' XAF failed.';
     }
 
+    /**
+     * Campay amount is what left the phone. app_amount is what counts toward the bill.
+     * The difference is the operator charge and must not reduce the invoice.
+     *
+     * @return array{gross:int,bill:int,fee:int,operator:string}
+     */
+    public function collectionSplit(array $body)
+    {
+        $gross = isset($body['amount']) && is_numeric($body['amount']) ? (int) round((float) $body['amount']) : 0;
+        $bill = $gross;
+        if (isset($body['app_amount']) && is_numeric($body['app_amount'])) {
+            $app = (int) round((float) $body['app_amount']);
+            if ($app > 0 && ($gross < 1 || $app <= $gross)) {
+                $bill = $app;
+            }
+        }
+        $operator = strtoupper(trim((string) (isset($body['operator']) ? $body['operator'] : '')));
+
+        return [
+            'gross' => $gross,
+            'bill' => $bill,
+            'fee' => $gross > $bill ? $gross - $bill : 0,
+            'operator' => $operator,
+        ];
+    }
+
     protected function collectionDebited(array $body, $expectedAmount, $expectedPhone = null, $externalPattern = null)
     {
-        if (! isset($body['amount']) || ! is_numeric($body['amount'])) {
+        $split = $this->collectionSplit($body);
+        if ($split['gross'] < 1 || $split['bill'] < 1) {
             return false;
         }
-        if ((int) round((float) $body['amount']) !== (int) $expectedAmount) {
+        $expected = (int) $expectedAmount;
+        if ($split['gross'] !== $expected && $split['bill'] !== $expected) {
             return false;
         }
         $currency = strtoupper(trim((string) (isset($body['currency']) ? $body['currency'] : 'XAF')));

@@ -190,12 +190,24 @@
             </tr>
             <tr class="total-row">
                 <td colspan="3">Invoice total</td>
-                <td class="num">{{ $amount }} XAF</td>
+                <td class="num">{{ $invoiceTotal ?: $amount }} XAF</td>
             </tr>
             <tr class="paid-row">
                 <td colspan="3">Amount paid</td>
                 <td class="num">{{ $amount }} XAF</td>
             </tr>
+            @if($fee !== '')
+            <tr class="paid-row">
+                <td colspan="3">{{ $feeLabel }}</td>
+                <td class="num">{{ $fee }} XAF</td>
+            </tr>
+            @endif
+            @if($pending !== null)
+            <tr class="paid-row">
+                <td colspan="3">Pending</td>
+                <td class="num">{{ $pending }} XAF</td>
+            </tr>
+            @endif
         </tbody>
     </table>
 

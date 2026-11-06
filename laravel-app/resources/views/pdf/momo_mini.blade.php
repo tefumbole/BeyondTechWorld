@@ -51,7 +51,10 @@
         <tr><td>Tax</td><td class="right">0.00</td></tr>
         <tr><td class="total">Total</td><td class="right total">{{ $amount }}</td></tr>
         <tr><td>Paying Amount</td><td class="right">{{ $amount }}</td></tr>
-        <tr><td>Pending Amount</td><td class="right">0.00</td></tr>
+        @if($fee !== '')
+        <tr><td>{{ $feeLabel }}</td><td class="right">{{ $fee }}</td></tr>
+        @endif
+        <tr><td>Pending Amount</td><td class="right">{{ $pending }}</td></tr>
         <tr><td>{{ $method }}</td><td class="right">{{ $amount }}</td></tr>
         <tr><td>Payment Status</td><td class="right">Paid</td></tr>
     </table>

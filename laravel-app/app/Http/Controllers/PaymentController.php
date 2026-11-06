@@ -721,6 +721,17 @@ class PaymentController extends Controller
             $deposit->mtn_number
         );
         if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
+            $bill = ! empty($outcome['bill']) ? (int) $outcome['bill'] : (int) $deposit->amount;
+            if ($bill > 0 && $bill < (int) round((float) $deposit->amount)) {
+                $deposit->amount = $bill;
+                $deposit->save();
+            }
+            if (! empty($outcome['fee'])) {
+                Cache::put('deposit-fee:'.$deposit->id, [
+                    'fee' => (int) $outcome['fee'],
+                    'operator' => isset($outcome['operator']) ? (string) $outcome['operator'] : '',
+                ], now()->addDays(2));
+            }
             $paid = app(AccountDepositService::class)->creditPending($deposit);
             if ($paid) {
                 \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
@@ -922,6 +933,7 @@ class PaymentController extends Controller
         $methodLabel = $method === 1 ? 'Cash' : ($method === 4 ? 'VISA' : 'Mobile Money');
         $staff = $deposit->user_id ? \App\User::find($deposit->user_id) : null;
         $staffPhone = ($staff && method_exists($staff, 'whatsappPhone')) ? (string) $staff->whatsappPhone() : '';
+        $feeBag = Cache::pull('deposit-fee:'.$deposit->id);
         $receipt = [
             'front' => true,
             'party' => 'CLIENT',
@@ -929,6 +941,8 @@ class PaymentController extends Controller
             'name' => $person ? $person->name : 'Client',
             'client_phone' => $phone,
             'amount' => $deposit->amount,
+            'fee' => is_array($feeBag) ? (int) $feeBag['fee'] : 0,
+            'operator' => is_array($feeBag) ? (string) $feeBag['operator'] : '',
             'reason' => $reason,
             'reference' => $deposit->payment_reference ?: ($deposit->campay_reference ?: ('deposit-'.$deposit->id)),
             'date' => $deposit->updated_at ?: now(),

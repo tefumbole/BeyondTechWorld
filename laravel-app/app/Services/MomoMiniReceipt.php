@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Biller;
 use App\GeneralSetting;
 use App\Support\LetterSignature;
+use App\Support\WhatsAppMessage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -40,31 +41,154 @@ class MomoMiniReceipt
             return;
         }
         $reference = isset($receipt['reference']) ? trim((string) $receipt['reference']) : '';
-        $key = 'momo-mini:'.md5($reference.'|'.$phone.'|'.(string) (isset($receipt['amount']) ? $receipt['amount'] : ''));
-        if (! Cache::add($key, 1, now()->addDays(30))) {
+        $hash = md5($reference.'|'.$phone.'|'.(string) (isset($receipt['amount']) ? $receipt['amount'] : ''));
+        $pdfKey = 'momo-mini:'.$hash;
+        $textKey = 'momo-text:'.$hash;
+        $pdfFresh = Cache::add($pdfKey, 1, now()->addDays(30));
+        $textFresh = Cache::add($textKey, 1, now()->addDays(30));
+        if (! $pdfFresh && ! $textFresh) {
             return;
         }
-        try {
-            $front = ! empty($receipt['front']);
-            $path = $front ? $this->writeFrontPdf($receipt, $reference) : $this->writePdf($receipt, $reference);
-            $sent = app(BeyondWasenderService::class)->sendDocument(
-                $phone,
-                $path,
-                $front ? 'Beyond-Invoice.pdf' : 'Beyond-Mini-Invoice.pdf',
-                $front ? 'Sales Invoice' : 'Beyond Mini Invoice',
-                true
-            );
-            if (is_file($path)) {
-                @unlink($path);
+        if ($pdfFresh) {
+            try {
+                $front = ! empty($receipt['front']);
+                $path = $front ? $this->writeFrontPdf($receipt, $reference) : $this->writePdf($receipt, $reference);
+                $sent = app(BeyondWasenderService::class)->sendDocument(
+                    $phone,
+                    $path,
+                    $front ? 'Beyond-Invoice.pdf' : 'Beyond-Mini-Invoice.pdf',
+                    $front ? 'Sales Invoice' : 'Beyond Mini Invoice',
+                    true
+                );
+                if (is_file($path)) {
+                    @unlink($path);
+                }
+                if (empty($sent['success']) && empty($sent['skipped']) && empty($sent['dev'])) {
+                    Cache::forget($pdfKey);
+                    Log::warning('MoMo mini invoice was not sent: '.(isset($sent['error']) ? $sent['error'] : 'unknown'));
+                }
+            } catch (\Throwable $e) {
+                Cache::forget($pdfKey);
+                Log::warning('MoMo mini invoice failed: '.$e->getMessage());
             }
-            if (empty($sent['success']) && empty($sent['skipped']) && empty($sent['dev'])) {
-                Cache::forget($key);
-                Log::warning('MoMo mini invoice was not sent: '.(isset($sent['error']) ? $sent['error'] : 'unknown'));
-            }
-        } catch (\Throwable $e) {
-            Cache::forget($key);
-            Log::warning('MoMo mini invoice failed: '.$e->getMessage());
         }
+        if ($textFresh) {
+            try {
+                $channel = app(ClientNoticeService::class)->send($phone, $this->textInvoice($receipt), false);
+                if ($channel === 'none') {
+                    Cache::forget($textKey);
+                }
+            } catch (\Throwable $e) {
+                Cache::forget($textKey);
+                Log::warning('Payment text invoice failed: '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Formatted WhatsApp invoice for clients who do not open the PDF.
+     */
+    protected function textInvoice(array $receipt)
+    {
+        $name = isset($receipt['name']) ? trim((string) $receipt['name']) : '';
+        if ($name === '') {
+            $name = 'Client';
+        }
+        $party = isset($receipt['party']) ? strtoupper(trim((string) $receipt['party'])) : 'CLIENT';
+        $title = $party === 'RECEIVER' ? 'Withdrawal' : 'Sales invoice';
+        $amount = (float) (isset($receipt['amount']) ? $receipt['amount'] : 0);
+        $fee = (float) (isset($receipt['fee']) ? $receipt['fee'] : 0);
+        $phone = isset($receipt['client_phone']) ? trim((string) $receipt['client_phone']) : '';
+        if ($phone === '' && isset($receipt['phone'])) {
+            $phone = trim((string) $receipt['phone']);
+        }
+        $text = WhatsAppMessage::statusBlock('✅', $title);
+        $text .= 'Dear *'.$name."*,\n\n";
+        $text .= '*Amount paid:* '.$this->money($amount)." XAF\n";
+        if ($fee > 0) {
+            $text .= '*'.$this->chargeLabel($receipt, $phone).':* '.$this->money($fee)." XAF\n";
+        }
+        if (array_key_exists('pending', $receipt) && $receipt['pending'] !== null && $receipt['pending'] !== '') {
+            $text .= '*Pending:* '.$this->money($receipt['pending'])." XAF\n";
+        }
+        $text .= "\n";
+        $reference = isset($receipt['reference']) ? trim((string) $receipt['reference']) : '';
+        if ($reference !== '') {
+            $text .= WhatsAppMessage::bullet('Reference', $reference);
+        }
+        $text .= WhatsAppMessage::bullet('Date', $this->textDate(isset($receipt['date']) ? $receipt['date'] : now()));
+        if ($phone !== '') {
+            $text .= WhatsAppMessage::bullet('Phone', $phone);
+        }
+        $method = isset($receipt['method']) ? trim((string) $receipt['method']) : '';
+        if ($method !== '') {
+            $text .= WhatsAppMessage::bullet('Method', $method);
+        }
+        $reason = isset($receipt['reason']) ? trim((string) $receipt['reason']) : '';
+        if ($reason !== '') {
+            $text .= WhatsAppMessage::bullet('Reason', $reason);
+        }
+
+        return $text.WhatsAppMessage::footer();
+    }
+
+    protected function feeAmount(array $receipt)
+    {
+        return max(0, (float) (isset($receipt['fee']) ? $receipt['fee'] : 0));
+    }
+
+    protected function hasPending(array $receipt)
+    {
+        return array_key_exists('pending', $receipt) && $receipt['pending'] !== null && $receipt['pending'] !== '';
+    }
+
+    protected function pendingAmount(array $receipt)
+    {
+        return max(0, (float) $receipt['pending']);
+    }
+
+    protected function invoiceTotal(array $receipt, $amount)
+    {
+        if (! isset($receipt['invoice_total']) || $receipt['invoice_total'] === null || $receipt['invoice_total'] === '') {
+            return null;
+        }
+        $total = (float) $receipt['invoice_total'];
+        if ($total <= 0 || abs($total - (float) $amount) < 0.01) {
+            return null;
+        }
+
+        return number_format($total, 2, '.', ',');
+    }
+
+    protected function money($amount)
+    {
+        return number_format((float) $amount, 0, '.', ' ');
+    }
+
+    protected function textDate($when)
+    {
+        if ($when instanceof \DateTimeInterface) {
+            return $when->format('d M Y');
+        }
+        $unix = strtotime((string) $when) ?: time();
+
+        return date('d M Y', $unix);
+    }
+
+    protected function chargeLabel(array $receipt, $phone)
+    {
+        $operator = strtoupper(trim((string) (isset($receipt['operator']) ? $receipt['operator'] : '')));
+        if ($operator === '' && $phone !== '') {
+            $operator = strtoupper((string) app(CampayPayoutService::class)->operatorName($phone));
+        }
+        if ($operator === 'ORANGE') {
+            return 'Orange Charges';
+        }
+        if ($operator === 'MTN' || $operator === '') {
+            return 'MTN Charges';
+        }
+
+        return ucfirst(strtolower($operator)).' Charges';
     }
 
     protected function writePdf(array $receipt, $reference)
@@ -104,6 +228,9 @@ class MomoMiniReceipt
             'city' => isset($receipt['city']) ? $receipt['city'] : '',
             'reason' => isset($receipt['reason']) && trim((string) $receipt['reason']) !== '' ? $receipt['reason'] : 'Mobile Money payment',
             'amount' => number_format($amount, 2, '.', ','),
+            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 2, '.', ',') : '',
+            'feeLabel' => $this->chargeLabel($receipt, isset($receipt['client_phone']) ? $receipt['client_phone'] : ''),
+            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 2, '.', ',') : '0.00',
             'words' => $words,
             'method' => isset($receipt['method']) && trim((string) $receipt['method']) !== '' ? $receipt['method'] : 'Mobile Money',
             'admin' => $admin ? $admin->name : 'Admin',
@@ -192,6 +319,10 @@ class MomoMiniReceipt
             'reason' => isset($receipt['reason']) ? trim((string) $receipt['reason']) : '',
             'description' => $description,
             'amount' => number_format($amount, 2, '.', ','),
+            'invoiceTotal' => $this->invoiceTotal($receipt, $amount),
+            'fee' => $this->feeAmount($receipt) > 0 ? number_format($this->feeAmount($receipt), 2, '.', ',') : '',
+            'feeLabel' => $this->chargeLabel($receipt, isset($receipt['client_phone']) ? $receipt['client_phone'] : ''),
+            'pending' => $this->hasPending($receipt) ? number_format($this->pendingAmount($receipt), 2, '.', ',') : null,
             'method' => $method,
             'createdBy' => $createdBy,
             'approvedBy' => $approvedBy,

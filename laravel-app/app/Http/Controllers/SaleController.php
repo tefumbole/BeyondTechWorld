@@ -1334,6 +1334,7 @@ class SaleController extends Controller
         $pattern = '/^'.preg_quote($pending['external'], '/').'$/';
         $outcome = $campay->collectionOutcome($pending['reference'], $pending['amount'], $pending['phone'], $pattern);
         if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
+            $pending = $this->posBillPortion($pending, $outcome);
             $this->recordPosMomoPayment($sale, $pending);
             $note = 'Campay '.$pending['reference'];
             if (! Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
@@ -1480,13 +1481,14 @@ class SaleController extends Controller
             $pattern = '/^'.preg_quote($line['external'], '/').'$/';
             $outcome = $campay->collectionOutcome($line['reference'], $line['amount'], $line['phone'], $pattern);
             if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
-                $this->recordPosMomoPayment($sale, [
+                $share = $this->posBillPortion([
                     'reference' => $line['reference'],
                     'phone' => $line['phone'],
                     'amount' => $line['amount'],
                     'external' => $line['external'],
                     'checkout_key' => isset($pending['checkout_key']) ? $pending['checkout_key'] : null,
-                ]);
+                ], $outcome);
+                $this->recordPosMomoPayment($sale, $share);
                 if (! Payment::where('sale_id', $sale->id)->where('payment_note', $note)->exists()) {
                     $waiting = true;
                 } else {
@@ -1526,6 +1528,17 @@ class SaleController extends Controller
             'status' => 'paid',
             'url' => url('sales/gen_invoice/'.$sale->id),
         ]);
+    }
+
+    protected function posBillPortion(array $pending, array $outcome)
+    {
+        if (! empty($outcome['bill']) && (int) $outcome['bill'] > 0) {
+            $pending['amount'] = (int) $outcome['bill'];
+        }
+        $pending['fee'] = isset($outcome['fee']) ? (int) $outcome['fee'] : 0;
+        $pending['operator'] = isset($outcome['operator']) ? (string) $outcome['operator'] : '';
+
+        return $pending;
     }
 
     protected function recordPosMomoPayment(Sale $sale, array $pending)
@@ -1576,6 +1589,17 @@ class SaleController extends Controller
                 $payment->save();
                 $locked->save();
                 $sale->setRawAttributes($locked->getAttributes(), true);
+                if (! empty($pending['fee'])) {
+                    $bag = Cache::get('pos_momo_fee:'.$locked->id);
+                    if (! is_array($bag)) {
+                        $bag = ['fee' => 0, 'operator' => ''];
+                    }
+                    $bag['fee'] = (int) $bag['fee'] + (int) $pending['fee'];
+                    if (! empty($pending['operator'])) {
+                        $bag['operator'] = (string) $pending['operator'];
+                    }
+                    Cache::put('pos_momo_fee:'.$locked->id, $bag, now()->addDays(2));
+                }
 
                 return (int) $locked->payment_status === 4;
             });
@@ -1648,11 +1672,16 @@ class SaleController extends Controller
             'unit' => $units,
         ];
         $this->sendWhatsappMsg($customer, $sale, $mail, $biller, 'MOMO/OM', $prices);
+        $feeBag = Cache::pull('pos_momo_fee:'.$sale->id);
         app(\App\Services\MomoMiniReceipt::class)->send([
             'phone' => $customer->phone_number,
             'name' => $customer->name,
             'city' => $customer->city,
             'amount' => $sale->paid_amount,
+            'fee' => is_array($feeBag) ? (int) $feeBag['fee'] : 0,
+            'operator' => is_array($feeBag) ? (string) $feeBag['operator'] : '',
+            'pending' => max(0, (float) $sale->grand_total - (float) $sale->paid_amount),
+            'invoice_total' => (float) $sale->grand_total,
             'reason' => count($products) ? implode(', ', $products) : 'Sale '.$sale->reference_no,
             'reference' => $sale->reference_no,
             'date' => $sale->updated_at ?: $sale->created_at,

@@ -9,7 +9,7 @@ use App\Services\Messaging\NotificationRouter;
  */
 class ClientNoticeService
 {
-    public function send($phone, $message)
+    public function send($phone, $message, $copyToAdmin = true)
     {
         $phone = trim((string) $phone);
         $message = trim((string) $message);
@@ -18,7 +18,7 @@ class ClientNoticeService
         }
 
         try {
-            $whatsapp = app(BeyondWasenderService::class)->sendTextRaw($phone, $message, false);
+            $whatsapp = app(BeyondWasenderService::class)->sendTextRaw($phone, $message, false, (bool) $copyToAdmin);
             if (! empty($whatsapp['success'])) {
                 return 'whatsapp';
             }
