@@ -321,6 +321,7 @@ class PaymentController extends Controller
             Cache::put('btw.campay.settled', 1, now()->addSeconds(30));
         }
         $this->importConfirmedCollections();
+        $this->notifyUnsentDeposits();
     }
 
     public function settleConfirmedMoney()
@@ -372,7 +373,7 @@ class PaymentController extends Controller
             if ($note === '' || strcasecmp($note, 'None') === 0) {
                 $note = 'Campay confirmed';
             }
-            Deposit::create([
+            $deposit = Deposit::create([
                 'amount' => $credit,
                 'customer_id' => $customer ? $customer->id : null,
                 'user_id' => Auth::id() ?: 1,
@@ -380,11 +381,16 @@ class PaymentController extends Controller
                 'mtn_number' => $customer ? $customer->phone_number : $phone,
                 'payment_method' => 3,
                 'status' => 1,
+                'paid_notice' => 0,
                 'note' => substr($note, 0, 180),
                 'campay_reference' => $reference,
                 'created_at' => $when,
                 'updated_at' => $when,
             ]);
+            $this->rememberCollectionFee($deposit, $item);
+            if ($this->depositIsClientMoney($note)) {
+                $this->sendDepositNotice($deposit);
+            }
         }
         Cache::put('btw.campay.imported', 1, now()->addMinutes(15));
     }
@@ -589,10 +595,8 @@ class PaymentController extends Controller
             if ($customer) {
                 $deposit->customer_id = $customer->id;
                 $deposit->mtn_number = $customer->phone_number;
-                $deposit->paid_notice = 1;
                 $deposit->save();
-                $this->tellClient($customer->phone_number, 'Beyond Enterprise received your cash deposit of '.$this->money($deposit->amount).' XAF.');
-                $this->sendDepositInvoice($deposit);
+                $this->sendDepositNotice($deposit);
             }
 
             return redirect()->route('deposit.index')->with('message', 'Deposit of '.$this->money($deposit->amount).' XAF saved to '.$account->name.'.');
@@ -705,11 +709,8 @@ class PaymentController extends Controller
                 if ($paid) {
                     \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
                 }
-                if ($paid && (int) $paid->paid_notice !== 1) {
-                    $paid->paid_notice = 1;
-                    $paid->save();
-                    $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
-                    $this->sendDepositInvoice($paid);
+                if ($paid) {
+                    $this->sendDepositNotice($paid);
                 }
             }
 
@@ -736,11 +737,8 @@ class PaymentController extends Controller
             if ($paid) {
                 \App\Gbhs\GbhsDonate::noteDepositPaid($paid);
             }
-            if ($paid && (int) $paid->paid_notice !== 1) {
-                $paid->paid_notice = 1;
-                $paid->save();
-                $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
-                $this->sendDepositInvoice($paid);
+            if ($paid) {
+                $this->sendDepositNotice($paid);
             }
         } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
             $reason = isset($outcome['reason']) ? substr((string) $outcome['reason'], 0, 180) : 'FAILED';
@@ -924,10 +922,91 @@ class PaymentController extends Controller
         ]);
     }
 
+    protected function notifyUnsentDeposits()
+    {
+        $rows = Deposit::where('status', 1)
+            ->where('payment_method', 3)
+            ->where(function ($query) {
+                $query->whereNull('paid_notice')->orWhere('paid_notice', 0);
+            })
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get();
+        foreach ($rows as $deposit) {
+            if (! $this->depositIsClientMoney($deposit->note)) {
+                $deposit->paid_notice = 1;
+                $deposit->save();
+                continue;
+            }
+            $reference = trim((string) $deposit->campay_reference);
+            if ($reference !== '' && \App\Payment::where('payment_note', 'like', '%'.$reference.'%')->exists()) {
+                $deposit->paid_notice = 1;
+                $deposit->save();
+                continue;
+            }
+            $this->sendDepositNotice($deposit);
+        }
+    }
+
+    protected function depositIsClientMoney($note)
+    {
+        $note = strtolower(trim((string) $note));
+        if (strpos($note, 'ecobank') !== false || strpos($note, '[campay]') !== false) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function rememberCollectionFee(Deposit $deposit, array $item)
+    {
+        $credit = isset($item['credit']) ? (int) round((float) $item['credit']) : (int) round((float) $deposit->amount);
+        $charge = isset($item['charge']) ? (int) round((float) $item['charge']) : 0;
+        $gross = isset($item['amount']) ? (int) round((float) $item['amount']) : 0;
+        if ($charge < 1 && $gross > $credit) {
+            $charge = $gross - $credit;
+        }
+        if ($charge < 1) {
+            return;
+        }
+        Cache::put('deposit-fee:'.$deposit->id, [
+            'fee' => $charge,
+            'operator' => app(CampayPayoutService::class)->operatorName((string) $deposit->mtn_number),
+        ], now()->addDays(2));
+    }
+
+    protected function sendDepositNotice(Deposit $deposit)
+    {
+        if ((int) $deposit->status !== 1 || (int) $deposit->paid_notice === 1) {
+            return;
+        }
+        $person = $deposit->customer_id ? Customer::find($deposit->customer_id) : null;
+        $phone = trim((string) ($deposit->mtn_number ?: ($person ? $person->phone_number : '')));
+        if ($phone === '') {
+            return;
+        }
+        $channel = $this->tellClient($phone, 'Beyond Enterprise received your deposit of '.$this->money($deposit->amount).' XAF.');
+        $this->sendDepositInvoice($deposit);
+        if ($channel !== 'none') {
+            $deposit->paid_notice = 1;
+            $deposit->save();
+        }
+    }
+
     protected function sendDepositInvoice($deposit)
     {
         $person = $deposit->customer_id ? Customer::find($deposit->customer_id) : null;
         $phone = $deposit->mtn_number ?: ($person ? $person->phone_number : '');
+        $name = $person ? trim((string) $person->name) : '';
+        if ($name === '' && trim((string) $phone) !== '') {
+            $hit = app(MobileMoneyHolderService::class)->lookup($phone, false);
+            if (is_array($hit) && isset($hit['source']) && $hit['source'] === 'campay' && ! empty($hit['name'])) {
+                $name = (string) $hit['name'];
+            }
+        }
+        if ($name === '') {
+            $name = 'Client';
+        }
         $reason = trim((string) $deposit->note);
         $method = (int) $deposit->payment_method;
         $methodLabel = $method === 1 ? 'Cash' : ($method === 4 ? 'VISA' : 'Mobile Money');
@@ -938,7 +1017,7 @@ class PaymentController extends Controller
             'front' => true,
             'party' => 'CLIENT',
             'description' => 'Payment',
-            'name' => $person ? $person->name : 'Client',
+            'name' => $name,
             'client_phone' => $phone,
             'amount' => $deposit->amount,
             'fee' => is_array($feeBag) ? (int) $feeBag['fee'] : 0,
