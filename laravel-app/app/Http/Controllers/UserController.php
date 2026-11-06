@@ -393,10 +393,21 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        if (trim((string) $request->input('username')) === '') {
+            $request->merge(['username' => null]);
+        }
         $this->validate($request, [
             'name' => [
                 'max:255',
                 Rule::unique('users')->where(function ($query) {
+                    return $query->where('is_deleted', false);
+                }),
+            ],
+            'username' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('users', 'username')->where(function ($query) {
                     return $query->where('is_deleted', false);
                 }),
             ],
@@ -505,10 +516,21 @@ class UserController extends Controller
         if(!env('USER_VERIFIED'))
             return redirect()->back()->with('not_permitted', 'This feature is disable for demo!');
 
+        if (trim((string) $request->input('username')) === '') {
+            $request->merge(['username' => null]);
+        }
         $this->validate($request, [
             'name' => [
                 'max:255',
                 Rule::unique('users')->ignore($id)->where(function ($query) {
+                    return $query->where('is_deleted', false);
+                }),
+            ],
+            'username' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('users', 'username')->ignore($id)->where(function ($query) {
                     return $query->where('is_deleted', false);
                 }),
             ],

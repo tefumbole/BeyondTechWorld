@@ -275,7 +275,7 @@ class BeyondAuthController extends Controller
                 'path' => '/login',
             ], $request);
 
-            return back()->withInput()->withErrors(['identifier' => 'Invalid email/username or password.']);
+            return back()->withInput()->withErrors(['identifier' => 'Invalid name, username, phone or password.']);
         }
 
         $profile = BeyondProfile::find($user->id);
@@ -431,8 +431,15 @@ class BeyondAuthController extends Controller
                 $q->where('phone', $id)
                     ->orWhere('phone', $digits)
                     ->orWhere('phone', '+'.$digits)
+                    ->orWhere('additional_phone', $id)
+                    ->orWhere('additional_phone', $digits)
+                    ->orWhere('additional_phone', '+'.$digits)
                     ->orWhereRaw(
                         "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
+                        [$tail]
+                    )
+                    ->orWhereRaw(
+                        "RIGHT(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(additional_phone,''), '+', ''), ' ', ''), '-', ''), '(', ''), 9) = ?",
                         [$tail]
                     );
             })->orderByRaw('CASE WHEN role_id = 5 THEN 1 ELSE 0 END')->orderBy('id')->first();

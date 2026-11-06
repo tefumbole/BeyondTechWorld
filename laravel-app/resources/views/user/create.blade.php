@@ -3,27 +3,35 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
-<section class="forms">
+@include('user.partials.form_style')
+<section class="forms user-sheet">
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header d-flex align-items-center">
-                        <h4>{{trans('file.Add User')}}</h4>
+                    <div class="card-header">
+                        <h4>Add user</h4>
+                        <p>Sign in with the full name, the username, or the phone number.</p>
                     </div>
                     <div class="card-body">
-                        <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
                         <form action="{{ route('user.store') }}" method="post" enctype="multipart/form-data">
                             @csrf
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label><strong>{{trans('file.UserName')}} *</strong> </label>
-                                        <input type="text" name="name" required class="form-control">
+                                        <label>Name *</label>
+                                        <input type="text" name="name" required class="form-control" value="{{ old('name') }}">
+                                        <p class="user-hint">Full name. This person can sign in with it.</p>
                                         @if($errors->has('name'))
-                                       <span>
-                                           <strong>{{ $errors->first('name') }}</strong>
-                                        </span>
+                                       <span><strong>{{ $errors->first('name') }}</strong></span>
+                                        @endif
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Username</label>
+                                        <input type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Short name for sign-in" autocomplete="off">
+                                        <p class="user-hint">Optional. Sign in with this, the full name, or the phone number.</p>
+                                        @if($errors->has('username'))
+                                       <span><strong>{{ $errors->first('username') }}</strong></span>
                                         @endif
                                     </div>
                                     <div class="form-group">

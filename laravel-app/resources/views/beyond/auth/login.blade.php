@@ -32,7 +32,7 @@
         </svg>
         <input type="text" name="identifier" class="auth-input"
                value="{{ old('identifier', $prefill) }}" required
-               placeholder="Name, email or phone" autocomplete="username">
+               placeholder="Name, username, phone or email" autocomplete="username">
     </div>
 
     <div class="auth-field">
