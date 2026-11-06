@@ -186,6 +186,9 @@
         </div>
     </div>
 
+    <style>
+        .sale-list .dropdown-menu.edit-options { max-height: 320px; overflow-y: auto; }
+    </style>
     @include('payout.partials.style')
     @include('payment.partials.collect_sheet')
 
@@ -351,7 +354,7 @@
                     @csrf
                     <div class="modal-body">
                         <p id="request-payment-who" class="mb-2"></p>
-                        <p class="text-muted">The client receives this amount and approves it on the phone. Leave the full amount due, or enter a part of it.</p>
+                        <p class="text-muted">The client receives this amount and approves it. Enter a part of the bill, or leave the full amount still due.</p>
                         <div class="form-group">
                             <label>Amount to request (XAF)</label>
                             <input type="number" name="amount" id="request-payment-amount" class="form-control" min="100" step="1" required>
@@ -466,13 +469,20 @@
             var row = $(this).closest('tr');
             deposit = row.find('.deposit').val();
             var sale_id = $(this).data('id').toString();
-            var balance = row.find('td').eq(5).text();
-            balance = parseFloat(String(balance).replace(/,/g, ''));
+            var balance = parseFloat($(this).attr('data-due'));
+            if (isNaN(balance)) {
+                balance = parseFloat(String(row.find('td').eq(5).text()).replace(/,/g, ''));
+            }
             if (isNaN(balance)) balance = 0;
             $('input[name="paying_amount"]').val(balance);
             $('#add-payment input[name="balance"]').val(balance);
             $('input[name="amount"]').val(balance);
             $('input[name="sale_id"]').val(sale_id);
+            $('#add-payment .pay-choice').removeClass('is-on');
+            $('#add-payment .pay-choice[data-paid-by="1"], #add-payment .pay-choice[data-fill="full"]').addClass('is-on');
+            $('#pay-mode').val('');
+            $('#pay-split').prop('hidden', true);
+            $('#pay-single-amount').show();
         });
 
         $(document).on("click", "table.sale-list tbody .get-payment", function(event) {

@@ -341,21 +341,21 @@ class SaleController extends Controller
                             <a href="'.url('sales/'.$sale->id.'/create').'" class="btn btn-link"><i class="dripicons-document-edit"></i> '.trans('file.edit').'</a>
                         </li>';
                 }
-                $nestedData['options'] .=
-                    '<li>
-                        <button type="button" class="add-payment btn btn-link" data-id="'.$sale->id.'" data-name="'.e(optional($sale->customer)->name).'" data-phone="'.e(optional($sale->customer)->phone_number).'" data-ref="'.e($sale->reference_no).'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
-                    </li>';
                 $dueNow = (float) $sale->grand_total - (float) $sale->paid_amount;
-                if($dueNow >= 100) {
-                    $nestedData['options'] .= '<li>
-                        <button type="button" class="btn btn-link request-payment" data-id="'.$sale->id.'" data-due="'.(int) round($dueNow).'" data-name="'.e(optional($sale->customer)->name).'" data-ref="'.e($sale->reference_no).'"><i class="fa fa-whatsapp"></i> Request payment</button>
-                    </li>';
-                }
                 if ((int) $sale->payment_status !== 4 && (float) $sale->paid_amount <= 0 && $dueNow > 0.5) {
                     $nestedData['options'] .= \Form::open(["route" => ["sale.send_payment", $sale->id], "method" => "POST"]).'
                         <li>
                             <button type="submit" class="btn btn-link"><i class="fa fa-paper-plane"></i> Send to Payment</button>
                         </li>'.\Form::close();
+                }
+                $nestedData['options'] .=
+                    '<li>
+                        <button type="button" class="add-payment btn btn-link" data-id="'.$sale->id.'" data-name="'.e(optional($sale->customer)->name).'" data-phone="'.e(optional($sale->customer)->phone_number).'" data-ref="'.e($sale->reference_no).'" data-due="'.(int) round(max(0, $dueNow)).'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
+                    </li>';
+                if($dueNow >= 100) {
+                    $nestedData['options'] .= '<li>
+                        <button type="button" class="btn btn-link request-payment" data-id="'.$sale->id.'" data-due="'.(int) round($dueNow).'" data-name="'.e(optional($sale->customer)->name).'" data-ref="'.e($sale->reference_no).'"><i class="fa fa-whatsapp"></i> Request payment</button>
+                    </li>';
                 }
                 $nestedData['options'] .=
                     '<li>
@@ -461,6 +461,7 @@ class SaleController extends Controller
             if(!isset($data['reference_no']))
                 $data['reference_no'] = 'posr-' . date("Ymd") . '-'. date("his");
 
+            $typedPosPaid = (float) str_replace(',', '', (string) (isset($data['paid_amount']) ? $data['paid_amount'] : 0));
             $balance = $data['grand_total'] - $data['paid_amount'];
             $data['payment_status'] = $this->paymentStatusForBalance($data['paid_amount'], $balance);
 
@@ -571,10 +572,9 @@ class SaleController extends Controller
                 return back()->with('not_permitted', 'Enter an MTN or Orange number for MOMO/OM.');
             }
             $grand = (float) str_replace(',', '', (string) $data['grand_total']);
-            $typedAmount = (float) str_replace(',', '', (string) (isset($data['paid_amount']) ? $data['paid_amount'] : 0));
-            $posMomoAmount = (int) round($typedAmount > 0 ? $typedAmount : $grand);
-            if ($posMomoAmount < 100) {
-                return back()->with('not_permitted', 'MOMO/OM needs a whole amount of at least 100 XAF.');
+            $posMomoAmount = (int) round(isset($typedPosPaid) ? $typedPosPaid : 0);
+            if ($posMomoAmount < 100 || $posMomoAmount - $grand > 0.01) {
+                return back()->with('not_permitted', 'Enter a Mobile Money amount from 100 XAF up to the '.number_format($grand, 0, '.', ' ').' XAF bill.');
             }
         }
 
