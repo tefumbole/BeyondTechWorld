@@ -816,6 +816,7 @@ class QuotationController extends Controller
             $recipients[] = [
                 'phone' => $cc->phone_number,
                 'name' => $cc->name,
+                'cc' => true,
             ];
         }
 
@@ -828,6 +829,7 @@ class QuotationController extends Controller
             }
             $seen[$digits] = true;
             try {
+                $isCc = ! empty($recipient['cc']);
                 $msg = WhatsAppMessage::quotationStakeholderNotify(
                     $recipient['name'],
                     $event,
@@ -836,9 +838,10 @@ class QuotationController extends Controller
                     $grandTotal,
                     $comment,
                     $lines,
-                    $approvalUrl,
-                    $listUrl,
-                    $pricing
+                    $isCc ? null : $approvalUrl,
+                    $isCc ? null : $listUrl,
+                    $pricing,
+                    $isCc ? $quotation->ccViewUrl() : null
                 );
                 $this->wpMessage($recipient['phone'], $msg, 'wasender');
             } catch (\Throwable $e) {
@@ -977,8 +980,11 @@ class QuotationController extends Controller
         $product_code = [];
         $product_name = [];
         $product_qty = [];
+        $product_type = [];
+        $product_id = [];
+        $product_list = [];
+        $qty_list = [];
         $product_price = [];
-        $product_data = [];
         $batch_no = [];
         $product_batch_id = [];
 
@@ -1038,8 +1044,8 @@ class QuotationController extends Controller
             $product_list[] = null;
             $qty_list[] = null;
             $product_batch_data = ProductBatch::select('id', 'batch_no')->find($product_warehouse->product_batch_id);
-            $batch_no[] = $product_batch_data->batch_no;
-            $product_batch_id[] = $product_batch_data->id;
+            $batch_no[] = $product_batch_data ? $product_batch_data->batch_no : null;
+            $product_batch_id[] = $product_batch_data ? $product_batch_data->id : null;
         }
         //retrieve data of product with variant
         $lims_product_warehouse_data = Product::join('product_warehouse', 'products.id', '=', 'product_warehouse.product_id')
@@ -1049,9 +1055,12 @@ class QuotationController extends Controller
         ])->whereNotNull('product_warehouse.variant_id')->select('product_warehouse.*')->get();
         foreach ($lims_product_warehouse_data as $product_warehouse)
         {
-            $product_qty[] = $product_warehouse->qty;
             $lims_product_data = Product::find($product_warehouse->product_id);
             $lims_product_variant_data = ProductVariant::select('item_code')->FindExactProduct($product_warehouse->product_id, $product_warehouse->variant_id)->first();
+            if (! $lims_product_data || ! $lims_product_variant_data) {
+                continue;
+            }
+            $product_qty[] = $product_warehouse->qty;
             $product_code[] =  $lims_product_variant_data->item_code;
             $product_name[] = $lims_product_data->name;
             $product_type[] = $lims_product_data->type;
@@ -1073,6 +1082,28 @@ class QuotationController extends Controller
             $product_id[] = $product->id;
             $product_list[] = $product->product_list;
             $qty_list[] = $product->qty_list;
+            $batch_no[] = null;
+            $product_batch_id[] = null;
+        }
+        $included = [];
+        foreach ($product_id as $pid) {
+            $included[(int) $pid] = true;
+        }
+        $catalog = Product::where('is_active', true)->orderBy('name')->get();
+        foreach ($catalog as $product) {
+            if (isset($included[(int) $product->id])) {
+                continue;
+            }
+            $product_qty[] = $product->qty;
+            $product_price[] = $product->price;
+            $product_code[] = $product->code;
+            $product_name[] = $product->name;
+            $product_type[] = $product->type;
+            $product_id[] = $product->id;
+            $product_list[] = $product->product_list;
+            $qty_list[] = $product->qty_list;
+            $batch_no[] = null;
+            $product_batch_id[] = null;
         }
         $product_data = [$product_code, $product_name, $product_qty, $product_type, $product_id, $product_list, $qty_list, $product_price, $batch_no, $product_batch_id];
         return $product_data;

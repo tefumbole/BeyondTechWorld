@@ -97,7 +97,7 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                            <small class="text-muted">CC contacts and the quotation creator are notified by WhatsApp when the quote is sent, and when the client approves or rejects.</small>
+                                            <small class="text-muted">CC contacts can open the quotation to read it. Only the client can sign. They are also told when the client approves or rejects.</small>
                                         </div>
                                     </div>
                                     <div class="col-md-12 mt-2">
@@ -442,24 +442,31 @@ var checkBatchUrl = @json(url('check-batch-availability'));
 	var lims_productcodeSearch = $('#lims_productcodeSearch');
 
 	lims_productcodeSearch.autocomplete({
+	    appendTo: 'body',
 	    source: function(request, response) {
-	        var matcher = new RegExp(".?" + $.ui.autocomplete.escapeRegex(request.term), "i");
+	        var words = $.trim(request.term).toLowerCase().split(/\s+/);
 	        response($.grep(lims_product_array, function(item) {
-	            return matcher.test(item);
+	            var hay = String(item).toLowerCase();
+	            for (var i = 0; i < words.length; i++) {
+	                if (words[i] !== '' && hay.indexOf(words[i]) === -1) {
+	                    return false;
+	                }
+	            }
+	            return true;
 	        }));
 	    },
         response: function(event, ui) {
-            if (ui.content.length == 1) {
+            if (ui.content.length == 1 && $.trim($(this).val()).length >= 3) {
                 var data = ui.content[0].value;
                 $(this).autocomplete( "close" );
                 productSearch(data);
-            };
+            }
         },
 	    select: function(event, ui) {
 	        var data = ui.item.value;
             productSearch(data);
 	    },
-        minLength: 3
+        minLength: 1
 	});
 
 	//Change quantity

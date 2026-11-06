@@ -405,7 +405,8 @@ class WhatsAppMessage
         array $lines = [],
         $approvalUrl = null,
         $listUrl = null,
-        array $pricing = []
+        array $pricing = [],
+        $viewUrl = null
     ) {
         $event = strtolower((string) $event);
         if ($event === 'approved') {
@@ -443,10 +444,12 @@ class WhatsAppMessage
             $msg .= "\n*Client comment:*\n{$comment}\n";
         }
 
-        if (in_array($event, ['sent', 'quote_accepted'], true) && $approvalUrl) {
+        if ($viewUrl) {
+            $msg .= self::actionLink('View quotation', $viewUrl);
+        } elseif (in_array($event, ['sent', 'quote_accepted'], true) && $approvalUrl) {
             $msg .= self::actionLink('Client approval link', $approvalUrl);
         }
-        if ($listUrl) {
+        if ($listUrl && ! $viewUrl) {
             $msg .= self::actionLink('Open quotations', $listUrl);
         }
         $msg .= self::footer();

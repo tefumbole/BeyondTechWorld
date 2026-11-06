@@ -264,6 +264,19 @@ class Quotation extends Model
     }
 
     /**
+     * Public view for a CC contact. It does not accept a signature.
+     */
+    public function ccViewSignature()
+    {
+        return substr(hash_hmac('sha256', 'quotation-cc-view|'.$this->id, (string) config('app.key')), 0, 40);
+    }
+
+    public function ccViewUrl()
+    {
+        return url('quotation-view/'.$this->id.'/'.$this->ccViewSignature());
+    }
+
+    /**
      * Absolute filesystem path for the stored client signature image.
      */
     public function clientSignatureAbsolutePath()

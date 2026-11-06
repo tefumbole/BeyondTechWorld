@@ -30,6 +30,7 @@ Route::post('/event-invite/{token}/verify', 'EventCrewController@verify')->name(
 Route::get('/my-event', 'EventCrewController@home')->name('events.crew.home');
 Route::post('/my-event/timesheet', 'EventCrewController@submitDay')->name('events.crew.timesheet');
 
+Route::get('/quotation-view/{id}/{signature}', 'QuotationApprovalController@viewCopy')->where(['id' => '[0-9]+', 'signature' => '[A-Fa-f0-9]+'])->name('quotation.cc.view');
 Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->name('quotation.client.show');
 Route::post('/quotation-approval/{token}/approve', 'QuotationApprovalController@approve')->name('quotation.client.approve');
 Route::post('/quotation-approval/{token}/reject', 'QuotationApprovalController@reject')->name('quotation.client.reject');

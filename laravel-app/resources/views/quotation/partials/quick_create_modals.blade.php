@@ -45,6 +45,21 @@
     border-color: var(--beyond-primary, #0b3f90) !important;
     background: #f7f9fd !important;
 }
+.ui-autocomplete.ui-front {
+    z-index: 10050 !important;
+    background: #fff !important;
+    color: #1f2a44 !important;
+    border: 1px solid #0b3f90 !important;
+    border-radius: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    width: min(420px, calc(100vw - 32px)) !important;
+    padding: 6px !important;
+}
+.ui-autocomplete.ui-front li.ui-menu-item {
+    color: #1f2a44 !important;
+    padding: 8px 10px !important;
+}
 .quotation-qc .input-with-action .btn-default,
 .quotation-qc .search-box .btn {
     border: 1.5px solid var(--beyond-accent, #c6ab47);

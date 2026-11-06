@@ -29,6 +29,27 @@ class QuotationApprovalController extends Controller
         return view('quotation.client_approval', compact('quotation', 'lines', 'general_setting'));
     }
 
+    /**
+     * CC copy. The quotation is visible, and there is no signature, quote, or reject action.
+     */
+    public function viewCopy($id, $signature)
+    {
+        $id = (int) $id;
+        $quotation = app(\App\Services\Cloud\CloudTenantContext::class)->withoutIsolation(function () use ($id) {
+            return Quotation::with(['customer', 'biller', 'warehouse', 'supplier'])->find($id);
+        });
+        $expect = $quotation ? $quotation->ccViewSignature() : '';
+        if (! $quotation || $expect === '' || ! hash_equals($expect, (string) $signature)) {
+            abort(404);
+        }
+        app(\App\Services\Cloud\CloudTenantResolver::class)->bindRecordTenant($quotation);
+        $lines = $this->lineItems($quotation);
+        $general_setting = GeneralSetting::first();
+        $readonly = true;
+
+        return view('quotation.client_approval', compact('quotation', 'lines', 'general_setting', 'readonly'));
+    }
+
     public function approve(Request $request, $token)
     {
         $quotation = $this->findOpenByToken($token);

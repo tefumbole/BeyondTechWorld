@@ -66,7 +66,7 @@
 <body>
 <div class="wrap">
     <div class="hero">
-        <h1>Quotation for Approval</h1>
+        <h1>{{ !empty($readonly) ? 'Quotation' : 'Quotation for Approval' }}</h1>
         <p>{{ $general_setting->site_title ?? 'Beyond Enterprise' }} · Ref {{ $quotation->reference_no }}</p>
     </div>
 
@@ -164,6 +164,13 @@
     </div>
     @endif
 
+    @if(!empty($readonly))
+    <div class="card">
+        <h3>View only</h3>
+        <p>You are copied on this quotation. You can read it here. Only the client can sign, reject, or send a counter-quote.</p>
+    </div>
+</div>
+    @else
     <div class="card">
         <h3>Your comment</h3>
         <p style="color:var(--muted);font-size:13px;margin-top:0;">Required if you reject. Optional if you approve or quote.</p>
@@ -279,8 +286,12 @@
     </div>
 </div>
 
+@endif
 <script>
 (function () {
+    if (document.getElementById('signature-pad') === null) {
+        return;
+    }
     var canvas = document.getElementById('signature-pad');
     var ctx = canvas.getContext('2d');
     var drawing = false;
