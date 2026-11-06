@@ -3,17 +3,17 @@
 .quotation-qc.card {
     border: 0;
     border-radius: 22px;
-    box-shadow: 0 18px 50px rgba(19, 45, 41, 0.08);
+    box-shadow: 0 18px 50px rgba(7, 47, 107, 0.08);
 }
 .quotation-qc > .card-header {
-    background: linear-gradient(135deg, #124638 0%, #1c6b52 100%);
+    background: var(--beyond-primary, #0b3f90);
     color: #fff;
     border: 0;
     padding: 18px 22px;
 }
-.quotation-qc > .card-header h4 { margin: 0; font-weight: 700; letter-spacing: 0.01em; }
-.quotation-qc > .card-body { padding: 22px; background: #f6f8f7; }
-.quotation-qc label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #3d524b; }
+.quotation-qc > .card-header h4 { margin: 0; font-weight: 700; letter-spacing: 0.01em; color: #fff; }
+.quotation-qc > .card-body { padding: 22px; background: var(--beyond-bg, #f3f6fb); }
+.quotation-qc label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--beyond-muted, #6f7b91); }
 .quotation-qc .form-group { margin-bottom: 16px; }
 .quotation-qc .input-with-action { display: flex; gap: 8px; align-items: stretch; }
 .quotation-qc .input-with-action .bootstrap-select { flex: 1; min-width: 0; }
@@ -21,11 +21,11 @@
 .quotation-qc .form-control,
 .quotation-qc .bootstrap-select > .dropdown-toggle,
 .quotation-qc select.form-control {
-    border: 1.5px solid #d5e0db !important;
+    border: 1.5px solid #d5deee !important;
     border-radius: 12px !important;
-    background: #fff !important;
+    background: var(--beyond-card, #fff) !important;
     min-height: 46px;
-    color: #132d29;
+    color: var(--beyond-text, #1f2a44);
     box-shadow: none;
 }
 .quotation-qc .bootstrap-select.form-control {
@@ -37,24 +37,24 @@
 .quotation-qc .form-control:focus,
 .quotation-qc .bootstrap-select > .dropdown-toggle:focus,
 .quotation-qc .bootstrap-select.show > .dropdown-toggle {
-    border-color: #c4a35a !important;
-    box-shadow: 0 0 0 3px rgba(196, 163, 90, 0.28);
+    border-color: var(--beyond-accent, #c6ab47) !important;
+    box-shadow: 0 0 0 3px rgba(198, 171, 71, 0.28);
     background: #fff !important;
 }
 .quotation-qc .search-box .form-control {
-    border-color: #0f766e !important;
-    background: #f3fbfa !important;
+    border-color: var(--beyond-primary, #0b3f90) !important;
+    background: #f7f9fd !important;
 }
 .quotation-qc .input-with-action .btn-default,
 .quotation-qc .search-box .btn {
-    border: 1.5px solid #c4a35a;
+    border: 1.5px solid var(--beyond-accent, #c6ab47);
     border-radius: 8px;
     min-height: 42px;
     background: #fff8ea;
-    color: #8a6a1f;
+    color: var(--beyond-primary-dark, #072f6b);
 }
 .quotation-qc table.order-list {
-    border: 1.5px solid #1e3a8a;
+    border: 1.5px solid var(--beyond-primary, #0b3f90);
     border-collapse: separate;
     border-spacing: 0;
     border-radius: 8px;
@@ -81,49 +81,50 @@
 .quotation-qc table.order-list th,
 .quotation-qc table.order-list td {
     border: 0;
-    border-bottom: 1px solid #e6eeea;
+    border-bottom: 1px solid #e4ebf5;
     vertical-align: middle;
 }
 .quotation-qc table.order-list thead th {
-    background: #124638;
+    background: var(--beyond-primary, #0b3f90);
     color: #fff;
-    border-color: #124638;
+    border-color: var(--beyond-primary, #0b3f90);
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.quotation-qc table.order-list tfoot th { background: #eef6f2; color: #124638; }
+.quotation-qc table.order-list tfoot th { background: #e8eef8; color: var(--beyond-primary, #0b3f90); }
 .quotation-qc #submit-button,
 .quotation-qc input[type="submit"] {
     min-height: 48px;
     padding: 0 28px;
     border: 0;
     border-radius: 14px;
-    background: #124638;
+    background: var(--beyond-primary, #0b3f90);
+    color: #fff;
     font-weight: 700;
 }
 .quote-file { margin-top: 6px; }
 .quote-file input[type="file"] { display: none; }
 .quote-file-drop {
-    border: 1.5px dashed #8fb3a6;
+    border: 1.5px dashed #9eb0d0;
     border-radius: 16px;
     background: #fff;
     padding: 16px;
     text-align: center;
     cursor: pointer;
-    color: #3d524b;
+    color: var(--beyond-muted, #6f7b91);
 }
-.quote-file-drop strong { display: block; color: #124638; margin-bottom: 4px; }
+.quote-file-drop strong { display: block; color: var(--beyond-primary, #0b3f90); margin-bottom: 4px; }
 .quote-file-drop span, .quote-file-drop em { display: block; font-style: normal; font-size: 13px; }
-.quote-file-drop em { margin-top: 6px; color: #124638; font-weight: 700; }
-.quote-file-drop.is-hot { background: #eef8f3; border-color: #124638; }
+.quote-file-drop em { margin-top: 6px; color: var(--beyond-primary, #0b3f90); font-weight: 700; }
+.quote-file-drop.is-hot { background: #eef3fb; border-color: var(--beyond-primary, #0b3f90); }
 .quote-file img { display: none; margin-top: 10px; max-height: 120px; border-radius: 12px; }
 .quote-summary {
     border: 0 !important;
     border-radius: 16px;
     overflow: hidden;
     background: #fff;
-    box-shadow: 0 10px 30px rgba(19, 45, 41, 0.06);
+    box-shadow: 0 10px 30px rgba(7, 47, 107, 0.06);
 }
 .quote-summary td { border: 0 !important; padding: 14px 16px !important; }
 </style>
