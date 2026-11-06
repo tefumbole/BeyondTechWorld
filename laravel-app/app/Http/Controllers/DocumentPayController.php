@@ -320,16 +320,13 @@ class DocumentPayController extends Controller
 
             return;
         }
-        $body = app(CampayPayoutService::class)->transaction($link->campay_reference);
-        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-        if ($status === 'SUCCESSFUL') {
-            $charge = is_array($cached) && ! empty($cached['charge']) ? (int) $cached['charge'] : (int) $link->amount;
-            if (is_array($body) && isset($body['amount']) && (int) $body['amount'] > 0 && (int) $body['amount'] <= (int) $link->amount) {
-                $charge = (int) $body['amount'];
-            }
-            $this->applyPortion($link, $charge, (string) $link->campay_reference, is_array($cached) && ! empty($cached['phone']) ? $cached['phone'] : $link->phone, 'momo');
+        $charge = is_array($cached) && ! empty($cached['charge']) ? (int) $cached['charge'] : (int) $link->amount;
+        $phone = is_array($cached) && ! empty($cached['phone']) ? $cached['phone'] : $link->phone;
+        $outcome = app(CampayPayoutService::class)->collectionOutcome($link->campay_reference, $charge, $phone);
+        if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
+            $this->applyPortion($link, $charge, (string) $link->campay_reference, $phone, 'momo');
             Cache::forget('docpay:'.$link->id);
-        } elseif ($status === 'FAILED') {
+        } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
             $link->status = 'failed';
             $link->error = 'The payment was not approved.';
             $link->campay_reference = null;
@@ -348,13 +345,9 @@ class DocumentPayController extends Controller
                 $anyPaid = $anyPaid || ! empty($line['paid']);
                 continue;
             }
-            $body = app(CampayPayoutService::class)->transaction($line['reference']);
-            $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-            if ($status === 'SUCCESSFUL') {
-                $amount = (int) $line['amount'];
-                if (is_array($body) && isset($body['amount']) && (int) $body['amount'] > 0) {
-                    $amount = (int) $body['amount'];
-                }
+            $amount = (int) $line['amount'];
+            $outcome = app(CampayPayoutService::class)->collectionOutcome($line['reference'], $amount, $line['phone']);
+            if ($outcome['state'] === 'paid' && ! empty($outcome['confirmed'])) {
                 $this->applyPortion($link, $amount, $line['reference'], $line['phone'], 'momo');
                 $link = $link->fresh();
                 $lines[$index]['done'] = true;
@@ -362,7 +355,7 @@ class DocumentPayController extends Controller
                 $anyPaid = true;
                 continue;
             }
-            if ($status === 'FAILED') {
+            if ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
                 $lines[$index]['done'] = true;
                 $lines[$index]['paid'] = false;
                 continue;

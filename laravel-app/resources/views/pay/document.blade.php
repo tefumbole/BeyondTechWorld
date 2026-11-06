@@ -56,7 +56,7 @@
                 <strong id="due">{{ number_format($link->amount, 0, '.', ' ') }} XAF</strong>
             </div>
             @if($link->status === 'paid')
-                <div class="alert ok">This payment has been received.</div>
+                <div class="alert ok" id="paidNote">Payment received. The invoice has been sent.</div>
             @elseif($link->status === 'pending')
                 <div class="alert wait" id="waitNote">A request is on the phone. Enter the PIN there to approve it. Stay on this page.</div>
                 @foreach($pendingLines as $line)
@@ -92,29 +92,42 @@
                         <input type="number" name="amount" id="amount" min="100" step="1" value="{{ (int) $link->amount }}">
                     </div>
                     <p class="left" id="left">Left after this payment: 0 XAF</p>
+                    <button class="submit" type="submit" id="go">Submit</button>
+                    <p class="hint" id="hint">This waits for the phone to approve.</p>
                 </form>
                 @if($link->payment_link && $link->method === 'visa')
                     <a class="visa" href="{{ $link->payment_link }}">Open the VISA page</a>
                 @endif
             @endif
         </div>
-        @if($link->status !== 'paid' && $link->status !== 'pending')
-            <div class="foot">
-                <button class="submit" type="submit" form="payForm" id="go">Submit</button>
-                <p class="hint" id="hint">This waits for the phone to approve.</p>
-            </div>
-        @endif
     </div>
 </div>
-@if($link->status === 'pending')
+@if($link->status === 'paid')
+<script>
+(function () {
+    setTimeout(function () {
+        var wrap = document.querySelector('.wrap');
+        if (wrap) wrap.remove();
+    }, 1600);
+})();
+</script>
+@elseif($link->status === 'pending')
 <script>
 (function () {
     var url = @json(route('document.pay.status', ['token' => $link->token]));
-    setInterval(function () {
+    var timer = setInterval(function () {
         fetch(url, {headers: {Accept: 'application/json'}}).then(function (res) { return res.json(); }).then(function (body) {
-            if (body.status === 'paid' || body.status === 'failed' || body.status === 'waiting') window.location.reload();
+            if (body.status === 'paid') {
+                clearInterval(timer);
+                var wrap = document.querySelector('.wrap');
+                if (!wrap) return;
+                wrap.innerHTML = '<div class="card"><div class="body"><div class="alert ok">Payment received. The invoice has been sent.</div></div></div>';
+                setTimeout(function () { wrap.remove(); }, 1600);
+                return;
+            }
+            if (body.status === 'failed' || body.status === 'waiting') window.location.reload();
         }).catch(function () {});
-    }, 4000);
+    }, 3000);
 })();
 </script>
 @elseif($link->status !== 'paid')
@@ -207,7 +220,11 @@
             if (paying < 100 || paying > due) {
                 event.preventDefault();
                 hint.textContent = 'Enter a whole amount from 100 XAF up to the amount still due.';
+                return;
             }
+            var go = document.getElementById('go');
+            go.disabled = true;
+            go.textContent = 'Sending…';
             return;
         }
         var count = 0;
@@ -215,7 +232,11 @@
         if (count < 2 || splitSum() > due) {
             event.preventDefault();
             hint.textContent = count < 2 ? 'Add at least two numbers and amounts.' : 'The split is more than the amount still due.';
+            return;
         }
+        var splitGo = document.getElementById('go');
+        splitGo.disabled = true;
+        splitGo.textContent = 'Sending…';
     });
     paint();
 })();
