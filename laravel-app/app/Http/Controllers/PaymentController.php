@@ -589,6 +589,7 @@ class PaymentController extends Controller
                 $deposit->paid_notice = 1;
                 $deposit->save();
                 $this->tellClient($customer->phone_number, 'Beyond Enterprise received your cash deposit of '.$this->money($deposit->amount).' XAF.');
+                $this->sendDepositInvoice($deposit);
             }
 
             return redirect()->route('deposit.index')->with('message', 'Deposit of '.$this->money($deposit->amount).' XAF saved to '.$account->name.'.');
@@ -705,6 +706,7 @@ class PaymentController extends Controller
                     $paid->paid_notice = 1;
                     $paid->save();
                     $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
+                    $this->sendDepositInvoice($paid);
                 }
             }
 
@@ -724,16 +726,7 @@ class PaymentController extends Controller
                 $paid->paid_notice = 1;
                 $paid->save();
                 $this->tellClient($paid->mtn_number, 'Beyond Enterprise received your deposit of '.$this->money($paid->amount).' XAF.');
-                $person = Customer::find($paid->customer_id);
-                app(\App\Services\MomoMiniReceipt::class)->send([
-                    'phone' => $paid->mtn_number,
-                    'name' => $person ? $person->name : 'Client',
-                    'city' => $person ? $person->city : '',
-                    'amount' => $paid->amount,
-                    'reason' => trim((string) $paid->note) !== '' ? $paid->note : 'Deposit',
-                    'reference' => $paid->payment_reference ?: $paid->campay_reference,
-                    'date' => $paid->updated_at ?: now(),
-                ]);
+                $this->sendDepositInvoice($paid);
             }
         } elseif ($outcome['state'] === 'failed' && ! empty($outcome['confirmed'])) {
             $reason = isset($outcome['reason']) ? substr((string) $outcome['reason'], 0, 180) : 'FAILED';
@@ -800,6 +793,23 @@ class PaymentController extends Controller
             'city' => 'N/A',
             'is_active' => true,
         ]);
+    }
+
+    protected function sendDepositInvoice($deposit)
+    {
+        $person = $deposit->customer_id ? Customer::find($deposit->customer_id) : null;
+        $phone = $deposit->mtn_number ?: ($person ? $person->phone_number : '');
+        $reason = trim((string) $deposit->note);
+        $receipt = [
+            'name' => $person ? $person->name : 'Client',
+            'city' => $person ? $person->city : '',
+            'amount' => $deposit->amount,
+            'reason' => $reason !== '' ? $reason : 'Deposit',
+            'reference' => $deposit->payment_reference ?: ($deposit->campay_reference ?: ('deposit-'.$deposit->id)),
+            'date' => $deposit->updated_at ?: now(),
+            'method' => (int) $deposit->payment_method === 1 ? 'Cash' : 'Mobile Money',
+        ];
+        app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
     }
 
     protected function tellClient($phone, $message)

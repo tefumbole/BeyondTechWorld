@@ -52,7 +52,7 @@
         <tr><td class="total">Total</td><td class="right total">{{ $amount }}</td></tr>
         <tr><td>Paying Amount</td><td class="right">{{ $amount }}</td></tr>
         <tr><td>Pending Amount</td><td class="right">0.00</td></tr>
-        <tr><td>Mobile Money</td><td class="right">{{ $amount }}</td></tr>
+        <tr><td>{{ $method }}</td><td class="right">{{ $amount }}</td></tr>
         <tr><td>Payment Status</td><td class="right">Paid</td></tr>
     </table>
     @if($words !== '')
@@ -64,6 +64,7 @@
             <td>
                 <div>Created By</div>
                 <div>{{ $admin }}</div>
+                <div>Admin signature</div>
                 @if($signature)
                     <img src="{{ $signature }}" class="sign" alt="">
                 @endif

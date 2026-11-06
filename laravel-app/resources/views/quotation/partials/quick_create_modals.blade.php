@@ -1,16 +1,31 @@
 {{-- Quick-create customer & product for quotation create/edit --}}
 <style>
+.quotation-qc.card {
+    border: 0;
+    border-radius: 22px;
+    box-shadow: 0 18px 50px rgba(19, 45, 41, 0.08);
+}
+.quotation-qc > .card-header {
+    background: linear-gradient(135deg, #124638 0%, #1c6b52 100%);
+    color: #fff;
+    border: 0;
+    padding: 18px 22px;
+}
+.quotation-qc > .card-header h4 { margin: 0; font-weight: 700; letter-spacing: 0.01em; }
+.quotation-qc > .card-body { padding: 22px; background: #f6f8f7; }
+.quotation-qc label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #3d524b; }
+.quotation-qc .form-group { margin-bottom: 16px; }
 .quotation-qc .input-with-action { display: flex; gap: 8px; align-items: stretch; }
 .quotation-qc .input-with-action .bootstrap-select { flex: 1; min-width: 0; }
 .quotation-qc .input-with-action .btn-default { flex: 0 0 auto; }
 .quotation-qc .form-control,
 .quotation-qc .bootstrap-select > .dropdown-toggle,
 .quotation-qc select.form-control {
-    border: 1.5px solid #3b6fd8 !important;
-    border-radius: 8px !important;
-    background: #f7f9ff !important;
-    min-height: 42px;
-    color: #1f2937;
+    border: 1.5px solid #d5e0db !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    min-height: 46px;
+    color: #132d29;
     box-shadow: none;
 }
 .quotation-qc .bootstrap-select.form-control {
@@ -49,27 +64,68 @@
 }
 .quotation-qc table.order-list thead th:nth-child(1),
 .quotation-qc table.order-list tbody td:nth-child(1) {
-    width: 44%;
+    width: 42%;
     white-space: normal;
 }
-.quotation-qc table.order-list thead th:nth-child(5),
-.quotation-qc table.order-list tbody td:nth-child(5) {
-    width: 9%;
+.quotation-qc table.order-list thead th:nth-child(2),
+.quotation-qc table.order-list tbody td:nth-child(2),
+.quotation-qc table.order-list thead th:nth-child(3),
+.quotation-qc table.order-list tbody td:nth-child(3) {
+    width: 16%;
 }
-.quotation-qc table.order-list tbody td:nth-child(5) .form-control {
+.quotation-qc table.order-list tbody td .form-control {
     width: 100%;
-    padding-left: 6px;
-    padding-right: 2px;
+    min-height: 40px;
+    border-radius: 10px !important;
 }
 .quotation-qc table.order-list th,
 .quotation-qc table.order-list td {
-    border: 1px solid #c5d4f5;
+    border: 0;
+    border-bottom: 1px solid #e6eeea;
+    vertical-align: middle;
 }
 .quotation-qc table.order-list thead th {
-    background: #1e3a8a;
+    background: #124638;
     color: #fff;
-    border-color: #16306e;
+    border-color: #124638;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
+.quotation-qc table.order-list tfoot th { background: #eef6f2; color: #124638; }
+.quotation-qc #submit-button,
+.quotation-qc input[type="submit"] {
+    min-height: 48px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 14px;
+    background: #124638;
+    font-weight: 700;
+}
+.quote-file { margin-top: 6px; }
+.quote-file input[type="file"] { display: none; }
+.quote-file-drop {
+    border: 1.5px dashed #8fb3a6;
+    border-radius: 16px;
+    background: #fff;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    color: #3d524b;
+}
+.quote-file-drop strong { display: block; color: #124638; margin-bottom: 4px; }
+.quote-file-drop span, .quote-file-drop em { display: block; font-style: normal; font-size: 13px; }
+.quote-file-drop em { margin-top: 6px; color: #124638; font-weight: 700; }
+.quote-file-drop.is-hot { background: #eef8f3; border-color: #124638; }
+.quote-file img { display: none; margin-top: 10px; max-height: 120px; border-radius: 12px; }
+.quote-summary {
+    border: 0 !important;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(19, 45, 41, 0.06);
+}
+.quote-summary td { border: 0 !important; padding: 14px 16px !important; }
 </style>
 
 <div id="addCustomer" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
@@ -307,6 +363,59 @@
                 alert(msg);
             },
             complete: function () { $btn.prop('disabled', false); }
+        });
+    });
+
+    $('.quote-file').each(function () {
+        var box = this;
+        var input = box.querySelector('input[type="file"]');
+        var drop = box.querySelector('.quote-file-drop');
+        var name = box.querySelector('.quote-file-name');
+        var preview = box.querySelector('img');
+        if (!input || !drop) return;
+        function show(file) {
+            if (name) name.textContent = file ? file.name : '';
+            if (!preview) return;
+            if (file && /^image\//.test(file.type)) {
+                var reader = new FileReader();
+                reader.onload = function (ev) { preview.src = ev.target.result; preview.style.display = 'inline-block'; };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+        function assign(file) {
+            if (!file) return;
+            try {
+                var data = new DataTransfer();
+                data.items.add(file);
+                input.files = data.files;
+            } catch (e) {}
+            show(file);
+        }
+        drop.addEventListener('click', function () { input.click(); });
+        drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+        input.addEventListener('change', function () { show(input.files && input.files[0]); });
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            drop.addEventListener(evt, function (e) { e.preventDefault(); drop.classList.add('is-hot'); });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+            drop.addEventListener(evt, function () { drop.classList.remove('is-hot'); });
+        });
+        drop.addEventListener('drop', function (e) {
+            e.preventDefault();
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) assign(e.dataTransfer.files[0]);
+        });
+        drop.addEventListener('paste', function (e) {
+            var items = (e.clipboardData || window.clipboardData).items;
+            if (!items) return;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].kind === 'file') {
+                    e.preventDefault();
+                    assign(items[i].getAsFile());
+                    return;
+                }
+            }
         });
     });
 })();

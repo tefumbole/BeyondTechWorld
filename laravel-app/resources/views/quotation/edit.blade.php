@@ -113,12 +113,8 @@
                                                 <thead>
                                                     <tr>
                                                         <th>{{trans('file.name')}}</th>
-                                                        <th>{{trans('file.Code')}}</th>
-                                                        <th>{{trans('file.Batch No')}}</th>
                                                         <th>{{trans('file.Quantity')}}</th>
                                                         <th>{{trans('file.Net Unit Price')}}</th>
-                                                        <th>{{trans('file.Discount')}}</th>
-                                                        <th>{{trans('file.Tax')}}</th>
                                                         <th>{{trans('file.Subtotal')}}</th>
                                                         <th><i class="dripicons-trash"></i></th>
                                                     </tr>
@@ -192,22 +188,9 @@
                                                         $product_batch_data = \App\ProductBatch::select('batch_no')->find($product_quotation->product_batch_id);
                                                     ?>
                                                         <td>{{$product_data->name}} <button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button> </td>
-                                                        <td>{{$product_data->code}}</td>
-                                                        @if($product_batch_data)
-                                                        <td>
-                                                            <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="{{$product_quotation->product_batch_id}}">
-                                                            <input type="text" class="form-control batch-no" name="batch_no[]" value="{{$product_batch_data->batch_no}}" required/>
-                                                        </td>
-                                                        @else
-                                                        <td>
-                                                            <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="">
-                                                            <input type="text" class="form-control batch-no" name="batch_no[]" value="" disabled />
-                                                        </td>
-                                                        @endif
+                                                        <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="{{ $product_batch_data ? $product_quotation->product_batch_id : '' }}">
                                                         <td><input type="number" class="form-control qty" name="qty[]" value="{{$product_quotation->qty}}" step="any" required/></td>
                                                         <td class="net_unit_price"><input onchange="changePrice(this)" onkeyup="changePrice(this)" value="{{ $product_quotation->net_unit_price }}" type="number" class="product_price_change form-control" /></td>
-                                                        <td class="discount">{{ number_format((float)$product_quotation->discount, 2, '.', '') }}</td>
-                                                        <td class="tax">{{ number_format((float)$product_quotation->tax, 2, '.', '') }}</td>
                                                         <td class="sub-total">{{ number_format((float)$product_quotation->total, 2, '.', '') }}</td>
                                                         <td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>
                                                         <input type="hidden" class="product-id" name="product_id[]" value="{{$product_data->id}}"/>
@@ -232,14 +215,13 @@
                                                     @endforeach
                                                 </tbody>
                                                 <tfoot class="tfoot active">
-                                                    <th colspan="2">{{trans('file.Total')}}</th>
-                                                    <th></th>
+                                                    <th>{{trans('file.Total')}}</th>
                                                     <th id="total-qty">{{$lims_quotation_data->total_qty}}</th>
                                                     <th></th>
-                                                    <th id="total-discount">{{ number_format((float)$lims_quotation_data->total_discount, 2, '.', '') }}</th>
-                                                    <th id="total-tax">{{ number_format((float)$lims_quotation_data->total_tax, 2, '.', '')}}</th>
                                                     <th id="total">{{ number_format((float)$lims_quotation_data->total_price, 2, '.', '') }}</th>
                                                     <th><i class="dripicons-trash"></i></th>
+                                                    <span id="total-discount" hidden>{{ number_format((float)$lims_quotation_data->total_discount, 2, '.', '') }}</span>
+                                                    <span id="total-tax" hidden>{{ number_format((float)$lims_quotation_data->total_tax, 2, '.', '')}}</span>
                                                 </tfoot>
                                             </table>
                                         </div>
@@ -323,8 +305,15 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Attach Document')}}</label>
-                                            <i class="dripicons-question" data-toggle="tooltip" title="Only jpg, jpeg, png, gif, pdf, csv, docx, xlsx and txt file is supported"></i>
-                                            <input type="file" name="document" class="form-control" />
+                                            <div class="quote-file">
+                                                <input type="file" name="document" class="js-no-image-paste" accept=".jpg,.jpeg,.png,.gif,.pdf,.csv,.docx,.xlsx,.txt,image/*">
+                                                <div class="quote-file-drop" tabindex="0">
+                                                    <strong>Paste, drop, or choose a file</strong>
+                                                    <span>Click this box and paste an image, or drop a jpg, png, pdf, or document.</span>
+                                                    <em class="quote-file-name"></em>
+                                                </div>
+                                                <img alt="">
+                                            </div>
                                             @if($errors->has('extension'))
                                                 <span>
                                                    <strong>{{ $errors->first('extension') }}</strong>
@@ -380,7 +369,7 @@
         </div>
     </div>
     <div class="container-fluid">
-        <table class="table table-bordered table-condensed totals">
+        <table class="table table-bordered table-condensed totals quote-summary">
             <td><strong>{{trans('file.Items')}}</strong>
                 <span class="pull-right" id="item">0.00</span>
             </td>
@@ -814,15 +803,9 @@ function productSearch(data, lineOpts, done) {
                 var cols = '';
                 temp_unit_name = (data[6]).split(',');
                 cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
-                cols += '<td>' + data[1] + '</td>';
-                if(data[12])
-                    cols += '<td><input type="text" class="form-control batch-no" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
-                else
-                    cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
                 cols += '<td><input type="number" class="form-control qty" name="qty[]" value="' + startQty + '" step="any" required/></td>';
                 cols += '<td class="net_unit_price"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
-                cols += '<td class="discount">0.00</td>';
-                cols += '<td class="tax"></td>';
+                cols += '<input type="hidden" class="product-batch-id" name="product_batch_id[]" value=""/>';
                 cols += '<td class="sub-total"></td>';
                 cols += '<td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
                 cols += '<input type="hidden" class="product-code" name="product_code[]" value="' + data[1] + '"/>';
@@ -1024,16 +1007,16 @@ function calculateTotal() {
 
     //Sum of discount
     var total_discount = 0;
-    $(".discount").each(function() {
-        total_discount += parseFloat($(this).text());
+    $(".discount-value").each(function() {
+        total_discount += parseFloat($(this).val()) || 0;
     });
     $("#total-discount").text(total_discount.toFixed(2));
     $('input[name="total_discount"]').val(total_discount.toFixed(2));
 
     //Sum of tax
     var total_tax = 0;
-    $(".tax").each(function() {
-        total_tax += parseFloat($(this).text());
+    $(".tax-value").each(function() {
+        total_tax += parseFloat($(this).val()) || 0;
     });
     $("#total-tax").text(total_tax.toFixed(2));
     $('input[name="total_tax"]').val(total_tax.toFixed(2));

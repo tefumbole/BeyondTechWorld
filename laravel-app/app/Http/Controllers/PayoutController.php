@@ -1147,6 +1147,15 @@ class PayoutController extends Controller
         }
         app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason, $requester));
         $this->notifyPaid($name, $amount, $reason, $requester);
+        $receipt = [
+            'name' => $name,
+            'amount' => $amount,
+            'reason' => $reason !== '' ? $reason : 'Withdrawal',
+            'reference' => 'WD-'.date('Ymd-His').'-'.substr(md5($phone.'|'.$amount.'|'.$reason), 0, 6),
+            'date' => now(),
+            'method' => 'Mobile Money',
+        ];
+        app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
     }
 
     protected function notifyPaid($name, $amount, $reason, $requester = '')

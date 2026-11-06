@@ -15,6 +15,26 @@ class MomoMiniReceipt
 {
     public function send(array $receipt)
     {
+        if (! isset($receipt['client_phone']) || trim((string) $receipt['client_phone']) === '') {
+            $receipt['client_phone'] = isset($receipt['phone']) ? $receipt['phone'] : '';
+        }
+        $this->deliver($receipt);
+        if (! empty($receipt['skip_admin_copy'])) {
+            return;
+        }
+        $phone = isset($receipt['phone']) ? trim((string) $receipt['phone']) : '';
+        $admin = \App\Support\TwilioAdminCopy::PHONE;
+        if ($admin === '' || \App\Support\TwilioAdminCopy::isAdmin($phone)) {
+            return;
+        }
+        $copy = $receipt;
+        $copy['phone'] = $admin;
+        $copy['skip_admin_copy'] = true;
+        $this->deliver($copy);
+    }
+
+    protected function deliver(array $receipt)
+    {
         $phone = isset($receipt['phone']) ? trim((string) $receipt['phone']) : '';
         if ($phone === '') {
             return;
@@ -90,11 +110,12 @@ class MomoMiniReceipt
             'reference' => $reference !== '' ? $reference : '—',
             'date' => $when,
             'name' => isset($receipt['name']) && trim((string) $receipt['name']) !== '' ? $receipt['name'] : 'Client',
-            'clientPhone' => isset($receipt['phone']) ? $receipt['phone'] : '',
+            'clientPhone' => isset($receipt['client_phone']) && trim((string) $receipt['client_phone']) !== '' ? $receipt['client_phone'] : (isset($receipt['phone']) ? $receipt['phone'] : ''),
             'city' => isset($receipt['city']) ? $receipt['city'] : '',
             'reason' => isset($receipt['reason']) && trim((string) $receipt['reason']) !== '' ? $receipt['reason'] : 'Mobile Money payment',
             'amount' => number_format($amount, 2, '.', ','),
             'words' => $words,
+            'method' => isset($receipt['method']) && trim((string) $receipt['method']) !== '' ? $receipt['method'] : 'Mobile Money',
             'admin' => $admin ? $admin->name : 'Admin',
             'signature' => isset($signature['src']) ? $signature['src'] : null,
         ])->setPaper([0, 0, 226.77, 640], 'portrait')->setOptions(['isRemoteEnabled' => true]);

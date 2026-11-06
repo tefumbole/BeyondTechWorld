@@ -15,6 +15,27 @@
                             <div class="alert alert-info">Cloning quotation <strong>{{ $cloneQuotation->reference_no }}</strong>. Change client, products, amounts, then save as a new quote.</div>
                         @endif
                         <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
+                        @php
+                            $pickBeyond = function ($rows, $fields) {
+                                $fallback = null;
+                                foreach ($rows as $row) {
+                                    $label = '';
+                                    foreach ($fields as $field) {
+                                        $label .= ' '.strtolower((string) data_get($row, $field));
+                                    }
+                                    if (strpos($label, 'beyond') === false) {
+                                        continue;
+                                    }
+                                    $fallback = $row->id;
+                                    if (strpos($label, 'beyond enterprise') !== false) {
+                                        return $row->id;
+                                    }
+                                }
+                                return $fallback;
+                            };
+                            $defaultBillerId = $pickBeyond($lims_biller_list, ['name', 'company_name']);
+                            $defaultWarehouseId = $pickBeyond($lims_warehouse_list, ['name']);
+                        @endphp
                         {!! Form::open(['route' => 'quotations.store', 'method' => 'post', 'files' => true, 'id' => 'quotation-form']) !!}
                         <div class="row">
                             <div class="col-md-12">
@@ -24,7 +45,7 @@
                                             <label>{{trans('file.Biller')}} *</label>
                                             <select required name="biller_id" class="selectpicker form-control" data-live-search="true" id="biller-id"  title="Select Biller...">
                                                 @foreach($lims_biller_list as $biller)
-                                                <option value="{{$biller->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->biller_id == $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
+                                                <option value="{{$biller->id}}" @if((int) $defaultBillerId === (int) $biller->id) selected @endif>{{$biller->name . ' (' . $biller->company_name . ')'}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -59,7 +80,7 @@
                                             <label>{{trans('file.Warehouse')}} *</label>
                                             <select id="warehouse_id" name="warehouse_id" required class="selectpicker form-control" data-live-search="true"   title="Select warehouse...">
                                                 @foreach($lims_warehouse_list as $warehouse)
-                                                <option value="{{$warehouse->id}}" @if(!empty($cloneQuotation) && $cloneQuotation->warehouse_id == $warehouse->id) selected @endif>{{$warehouse->name}}</option>
+                                                <option value="{{$warehouse->id}}" @if((int) $defaultWarehouseId === (int) $warehouse->id) selected @endif>{{$warehouse->name}}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -98,12 +119,8 @@
 		                                        <thead>
 		                                            <tr>
 		                                                <th>{{trans('file.name')}}</th>
-                                                        <th>{{trans('file.Code')}}</th>
-                                                        <th>{{trans('file.Batch No')}}</th>
                                                         <th>{{trans('file.Quantity')}}</th>
                                                         <th>{{trans('file.Net Unit Price')}}</th>
-                                                        <th>{{trans('file.Discount')}}</th>
-                                                        <th>{{trans('file.Tax')}}</th>
                                                         <th>{{trans('file.Subtotal')}}</th>
                                                         <th><i class="dripicons-trash"></i></th>
 		                                            </tr>
@@ -111,14 +128,13 @@
 		                                        <tbody>
 		                                        </tbody>
 		                                        <tfoot class="tfoot active">
-		                                            <th colspan="2">{{trans('file.Total')}}</th>
-                                                    <th></th>
+		                                            <th>{{trans('file.Total')}}</th>
 		                                            <th id="total-qty">0</th>
 		                                            <th></th>
-		                                            <th id="total-discount">0.00</th>
-		                                            <th id="total-tax">0.00</th>
 		                                            <th id="total">0.00</th>
 		                                            <th><i class="dripicons-trash"></i></th>
+                                                    <span id="total-discount" hidden>0.00</span>
+                                                    <span id="total-tax" hidden>0.00</span>
 		                                        </tfoot>
 		                                    </table>
 		                                </div>
@@ -212,8 +228,15 @@
                                 	<div class="col-md-4">
                                 		<div class="form-group">
                                 			<label>{{trans('file.Attach Document')}}</label>
-                                			<i class="dripicons-question" data-toggle="tooltip" title="Only jpg, jpeg, png, gif, pdf, csv, docx, xlsx and txt file is supported"></i>
-                                            <input type="file" name="document" class="form-control" />
+                                            <div class="quote-file">
+                                                <input type="file" name="document" class="js-no-image-paste" accept=".jpg,.jpeg,.png,.gif,.pdf,.csv,.docx,.xlsx,.txt,image/*">
+                                                <div class="quote-file-drop" tabindex="0">
+                                                    <strong>Paste, drop, or choose a file</strong>
+                                                    <span>Click this box and paste an image, or drop a jpg, png, pdf, or document.</span>
+                                                    <em class="quote-file-name"></em>
+                                                </div>
+                                                <img alt="">
+                                            </div>
                                             @if($errors->has('extension'))
                                                 <span>
                                                    <strong>{{ $errors->first('extension') }}</strong>
@@ -251,7 +274,7 @@
     </div>
 
     <div class="container-fluid">
-        <table class="table table-bordered table-condensed totals">
+        <table class="table table-bordered table-condensed totals quote-summary">
             <td><strong>{{trans('file.Items')}}</strong>
                 <span class="pull-right" id="item">0.00</span>
             </td>
@@ -367,6 +390,9 @@ var checkBatchUrl = @json(url('check-batch-availability'));
 	$('.selectpicker').selectpicker({
     	style: 'btn-link',
 	});
+    @if(!empty($defaultBillerId))
+    $('select[name="biller_id"]').selectpicker('val', @json((string) $defaultBillerId));
+    @endif
 
     $('[data-toggle="tooltip"]').tooltip();
 
@@ -394,6 +420,10 @@ var checkBatchUrl = @json(url('check-batch-availability'));
 	        });
 	    });
 	});
+    @if(!empty($defaultWarehouseId))
+    $('select[name="warehouse_id"]').selectpicker('val', @json((string) $defaultWarehouseId));
+    $('select[name="warehouse_id"]').trigger('change');
+    @endif
 
 	$('#lims_productcodeSearch').on('input', function(){
 	    var customer_id = $('#customer_id').val();
@@ -621,16 +651,9 @@ function productSearch(data, lineOpts, done){
                 var cols = '';
                 temp_unit_name = (data[6]).split(',');
                 cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
-                cols += '<td>' + data[1] + '</td>';
-                if(data[12])
-                    cols += '<td><input type="text" class="form-control batch-no" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
-                else
-                    cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
                 cols += '<td><input type="number" class="form-control qty" name="qty[]" value="' + startQty + '" step="any" required/></td>';
                 cols += '<td class="col-sm-2"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
-
-                cols += '<td class="discount">0.00</td>';
-                cols += '<td class="tax"></td>';
+                cols += '<input type="hidden" class="product-batch-id" name="product_batch_id[]" value=""/>';
                 cols += '<td class="sub-total"></td>';
                 cols += '<td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
                 cols += '<input type="hidden" class="product-code" name="product_code[]" value="' + data[1] + '"/>';
@@ -836,16 +859,16 @@ function calculateTotal() {
 
     //Sum of discount
     var total_discount = 0;
-    $(".discount").each(function() {
-        total_discount += parseFloat($(this).text());
+    $(".discount-value").each(function() {
+        total_discount += parseFloat($(this).val()) || 0;
     });
     $("#total-discount").text(total_discount.toFixed(2));
     $('input[name="total_discount"]').val(total_discount.toFixed(2));
 
     //Sum of tax
     var total_tax = 0;
-    $(".tax").each(function() {
-        total_tax += parseFloat($(this).text());
+    $(".tax-value").each(function() {
+        total_tax += parseFloat($(this).val()) || 0;
     });
     $("#total-tax").text(total_tax.toFixed(2));
     $('input[name="total_tax"]').val(total_tax.toFixed(2));
