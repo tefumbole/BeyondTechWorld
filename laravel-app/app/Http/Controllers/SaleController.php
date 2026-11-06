@@ -351,6 +351,12 @@ class SaleController extends Controller
                         <button type="button" class="btn btn-link request-payment" data-id="'.$sale->id.'" data-due="'.(int) round($dueNow).'" data-name="'.e(optional($sale->customer)->name).'" data-ref="'.e($sale->reference_no).'"><i class="fa fa-whatsapp"></i> Request payment</button>
                     </li>';
                 }
+                if ((int) $sale->payment_status !== 4 && (float) $sale->paid_amount <= 0 && $dueNow > 0.5) {
+                    $nestedData['options'] .= \Form::open(["route" => ["sale.send_payment", $sale->id], "method" => "POST"]).'
+                        <li>
+                            <button type="submit" class="btn btn-link"><i class="fa fa-paper-plane"></i> Send to Payment</button>
+                        </li>'.\Form::close();
+                }
                 $nestedData['options'] .=
                     '<li>
                         <button type="button" class="get-payment btn btn-link" data-id = "'.$sale->id.'"><i class="fa fa-money"></i> '.trans('file.View Payment').'</button>
@@ -812,7 +818,7 @@ class SaleController extends Controller
         }
 
         if ($posSplit && (int) $data['paid_by_id'] === 8) {
-            return $this->collectPosSplit($lims_sale_data, $posSplit, $checkoutClaim);
+            return $this->collectPosSplit($lims_sale_data, $posSplit, $checkoutClaim, false);
         }
         if ($posSplit && (int) $data['paid_by_id'] === 1) {
             $this->recordPosCashSplit($lims_sale_data, $posSplit, isset($cash_register_data) ? $cash_register_data : null);
@@ -880,9 +886,10 @@ class SaleController extends Controller
                     if ($attempt) {
                         app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'failed', ! empty($body['reference']) ? (string) $body['reference'] : null, 'declined');
                     }
-                    $this->eraseSale($lims_sale_data);
+                    $reason = is_array($body) && isset($body['reason']) ? $body['reason'] : '';
+                    $this->parkFailedPosMomo($lims_sale_data, $phone, $amount, $external, $this->posFailureMessage($reason, $amount), is_array($body) && ! empty($body['reference']) ? (string) $body['reference'] : '');
 
-                    return back()->with('not_permitted', $this->campayCollectError($body));
+                    return redirect()->route('pos.momo.wait', ['id' => $lims_sale_data->id]);
                 }
                 if ($attempt) {
                     app(\App\Services\Sales\PaymentAttemptService::class)->mark($attempt, 'pending', (string) $body['reference']);
@@ -1300,18 +1307,57 @@ class SaleController extends Controller
     public function posMomoWait($id)
     {
         $sale = Sale::with('customer')->findOrFail($id);
+        if ((int) $sale->payment_status === 4) {
+            return redirect('sales/gen_invoice/'.$sale->id);
+        }
         $pending = Cache::get('pos_momo:'.$sale->id);
         if (! is_array($pending)) {
-            return redirect('pos')->with('not_permitted', 'This Mobile Money request has expired. Start the sale again.');
+            $pending = [
+                'phone' => optional($sale->customer)->phone_number,
+                'amount' => max(0, (float) $sale->grand_total - (float) $sale->paid_amount),
+                'lines' => [],
+                'failed' => true,
+                'message' => 'This Mobile Money request has ended. The sale is in Awaiting Payment.',
+            ];
         }
 
         return view('sale.momo_wait', [
             'sale' => $sale,
-            'phone' => $pending['phone'],
-            'amount' => $pending['amount'],
+            'phone' => isset($pending['phone']) ? $pending['phone'] : '',
+            'amount' => isset($pending['amount']) ? $pending['amount'] : 0,
             'lines' => isset($pending['lines']) && is_array($pending['lines']) ? $pending['lines'] : [],
             'statusUrl' => route('pos.momo.status', ['id' => $sale->id]),
+            'cancelUrl' => route('pos.momo.cancel', ['id' => $sale->id]),
+            'failedMessage' => ! empty($pending['failed']) ? (isset($pending['message']) ? $pending['message'] : 'The payment was not approved.') : '',
         ]);
+    }
+
+    public function posMomoCancel($id)
+    {
+        $sale = Sale::findOrFail($id);
+        if ((int) $sale->payment_status === 4 || Payment::where('sale_id', $sale->id)->exists()) {
+            return redirect('pos')->with('not_permitted', 'This payment was already received and cannot be cancelled.');
+        }
+        Cache::forget('pos_momo:'.$sale->id);
+        $this->eraseSale($sale);
+
+        return redirect('pos')->with('message', 'Transaction cancelled.');
+    }
+
+    public function sendToPayment($id)
+    {
+        $sale = Sale::findOrFail($id);
+        $due = (float) $sale->grand_total - (float) $sale->paid_amount;
+        if ((int) $sale->payment_status === 4 || $due <= 0.5) {
+            return back()->with('not_permitted', 'This sale is already paid.');
+        }
+        if ((float) $sale->paid_amount <= 0) {
+            $sale->payment_status = 1;
+            $sale->paid_amount = 0;
+            $sale->save();
+        }
+
+        return redirect()->route('payment.index')->with('message', 'Sale '.$sale->reference_no.' is in Awaiting Payment.');
     }
 
     public function posMomoStatus($id)
@@ -1325,9 +1371,19 @@ class SaleController extends Controller
         }
         $pending = Cache::get('pos_momo:'.$sale->id);
         if (! is_array($pending)) {
+            $this->holdSaleForPayment($sale);
+
             return response()->json([
                 'status' => 'failed',
-                'message' => 'This Mobile Money request has expired. Start the sale again.',
+                'message' => 'This Mobile Money request has ended. The sale is in Awaiting Payment.',
+            ]);
+        }
+        if (! empty($pending['failed'])) {
+            $this->holdSaleForPayment($sale);
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => isset($pending['message']) ? $pending['message'] : 'The payment was not approved.',
             ]);
         }
         if (! empty($pending['lines']) && is_array($pending['lines'])) {
@@ -1351,14 +1407,12 @@ class SaleController extends Controller
             ]);
         }
         if ($outcome['state'] === 'failed') {
-            Cache::forget('pos_momo:'.$sale->id);
-            if (empty($pending['keep_sale'])) {
-                $this->eraseSale($sale->fresh());
-            }
+            $message = $this->posFailureMessage(isset($outcome['reason']) ? $outcome['reason'] : '', $pending['amount']);
+            $this->markPosMomoFailed($sale, $pending, $message);
 
             return response()->json([
                 'status' => 'failed',
-                'message' => $campay->payerFailure(isset($outcome['reason']) ? $outcome['reason'] : '', $pending['amount']),
+                'message' => $message,
             ]);
         }
 
@@ -1501,6 +1555,7 @@ class SaleController extends Controller
             }
             if ($outcome['state'] === 'failed') {
                 $lines[$index]['failed'] = true;
+                $lines[$index]['message'] = $this->posFailureMessage(isset($outcome['reason']) ? $outcome['reason'] : '', $line['amount']);
                 continue;
             }
             $waiting = true;
@@ -1510,22 +1565,23 @@ class SaleController extends Controller
         if ($waiting) {
             return response()->json(['status' => 'pending']);
         }
-        Cache::forget('pos_momo:'.$sale->id);
         $anyPaid = Payment::where('sale_id', $sale->id)->exists();
-        if (! $anyPaid && empty($pending['keep_sale'])) {
-            $this->eraseSale($sale->fresh());
+        if (! $anyPaid) {
+            $message = 'None of the numbers approved the payment.';
+            foreach ($lines as $line) {
+                if (! empty($line['message']) && strpos($line['message'], 'Insufficient fund') === 0) {
+                    $message = $line['message'];
+                    break;
+                }
+            }
+            $this->markPosMomoFailed($sale, $pending, $message);
 
             return response()->json([
                 'status' => 'failed',
-                'message' => 'None of the numbers approved the payment.',
+                'message' => $message,
             ]);
         }
-        if (! $anyPaid) {
-            return response()->json([
-                'status' => 'failed',
-                'message' => 'None of the numbers approved the payment.',
-            ]);
-        }
+        Cache::forget('pos_momo:'.$sale->id);
 
         return response()->json([
             'status' => 'paid',
@@ -1701,6 +1757,53 @@ class SaleController extends Controller
                 }
             });
         }
+    }
+
+    protected function posFailureMessage($reason, $amount)
+    {
+        $reason = strtoupper(trim((string) $reason));
+        if (strpos($reason, 'LOW_BALANCE') !== false || strpos($reason, 'INSUFFICIENT') !== false || strpos($reason, 'NOT_ENOUGH') !== false) {
+            return 'Insufficient fund. The client does not have enough fund.';
+        }
+
+        return app(CampayPayoutService::class)->payerFailure($reason, $amount);
+    }
+
+    protected function holdSaleForPayment(Sale $sale)
+    {
+        $fresh = $sale->fresh();
+        if (! $fresh || (int) $fresh->payment_status === 4) {
+            return;
+        }
+        if (Payment::where('sale_id', $fresh->id)->exists()) {
+            return;
+        }
+        $fresh->payment_status = 1;
+        $fresh->paid_amount = 0;
+        $fresh->save();
+    }
+
+    protected function markPosMomoFailed(Sale $sale, array $pending, $message)
+    {
+        $pending['failed'] = true;
+        $pending['message'] = $message;
+        $pending['keep_sale'] = true;
+        Cache::put('pos_momo:'.$sale->id, $pending, now()->addHours(6));
+        $this->holdSaleForPayment($sale);
+    }
+
+    protected function parkFailedPosMomo(Sale $sale, $phone, $amount, $external, $message, $reference = '')
+    {
+        Cache::put('pos_momo:'.$sale->id, [
+            'reference' => $reference,
+            'phone' => $phone,
+            'amount' => $amount,
+            'external' => $external,
+            'failed' => true,
+            'message' => $message,
+            'keep_sale' => true,
+        ], now()->addHours(6));
+        $this->holdSaleForPayment($sale);
     }
 
     protected function campayCollectError($body)

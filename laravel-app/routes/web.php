@@ -1189,6 +1189,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/pos/payment_check', 'SaleController@addPaymentMTNPOS')->name('pos.payment_check');
     Route::get('/pos/momo/{id}', 'SaleController@posMomoWait')->where('id', '[0-9]+')->name('pos.momo.wait');
     Route::get('/pos/momo/{id}/status', 'SaleController@posMomoStatus')->where('id', '[0-9]+')->name('pos.momo.status');
+    Route::post('/pos/momo/{id}/cancel', 'SaleController@posMomoCancel')->where('id', '[0-9]+')->name('pos.momo.cancel');
 	Route::get('sales/category/associate', 'SaleController@addCategoryIdInSale');
 	Route::post('sales/sale-data', 'SaleController@saleData');
 	Route::post('sales/sendmail', 'SaleController@sendMail')->name('sale.sendmail');
@@ -1221,6 +1222,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::get('sales/today-sale', 'SaleController@todaySale');
 	Route::get('sales/today-profit/{warehouse_id}', 'SaleController@todayProfit');
 	Route::post('sales/{id}/request-payment', 'DocumentPayController@requestSale')->where('id', '[0-9]+')->name('sale.request_payment');
+	Route::post('sales/{id}/send-to-payment', 'SaleController@sendToPayment')->where('id', '[0-9]+')->name('sale.send_payment');
 	Route::post('quotations/{id}/request-payment', 'DocumentPayController@requestQuotation')->where('id', '[0-9]+')->name('quotation.request_payment');
 	Route::resource('sales', 'SaleController');
     Route::post('sales/sendwhatsapp', 'SaleController@sendWhatsapp')->name('sale.sendwhatsapp');
