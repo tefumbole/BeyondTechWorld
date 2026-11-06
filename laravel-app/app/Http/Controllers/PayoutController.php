@@ -1025,7 +1025,6 @@ class PayoutController extends Controller
         foreach ($lines as $line) {
             $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl, $requester);
         }
-        $this->notifySubmission($requester, $batch->note, $lines, $reviewUrl);
 
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
     }
@@ -1145,14 +1144,14 @@ class PayoutController extends Controller
     protected function sendInvite($phone, $name, $reason, $url)
     {
         $reason = trim((string) $reason);
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->inviteText($name, $reason, $url));
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->inviteText($name, $reason, $url), false);
     }
 
     protected function sendSubmitted($phone, $name, $amount, $reason, $url, $requester = '')
     {
         $reason = trim((string) $reason);
         $requester = trim((string) $requester);
-        app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester));
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester), false);
     }
 
     protected function sendPaid($phone, $name, $amount, $reason, $requester = '', CampayPayout $line = null)
@@ -1233,7 +1232,7 @@ class PayoutController extends Controller
         $reason = trim((string) $reason);
         $note = trim((string) $note);
 
-        return app(\App\Services\ClientNoticeService::class)->send($phone, $this->rejectedText($name, $reason, $note));
+        return app(\App\Services\ClientNoticeService::class)->send($phone, $this->rejectedText($name, $reason, $note), false);
     }
 
     protected function rejectedText($name, $reason, $note)
