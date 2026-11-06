@@ -554,12 +554,14 @@ class QuotationController extends Controller
         ];
 
         $pdf = PDF::loadView('pdf.quotation_pdf', $data)->setPaper('A4', 'portrait');
-        $content = $pdf->download()->getOriginalContent();
+        $dir = storage_path('app/quotation');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $path = $dir.'/quotation_'.$lims_sale_data->id.'_invoice.pdf';
+        file_put_contents($path, $pdf->output());
 
-        $relative = 'public/quotation/quotation_'.$lims_sale_data->id.'_invoice.pdf';
-        Storage::put($relative, $content);
-
-        return storage_path('app/'.$relative);
+        return $path;
     }
 
     public function genPDFInvoice($id)
@@ -639,15 +641,9 @@ class QuotationController extends Controller
             : WhatsAppMessage::quotationSignedPdf($customer->name, $quotation->reference_no, $quotation->grand_total);
 
         try {
-            $this->wpMessage($customer->phone_number, $text, 'wasender');
-        } catch (\Throwable $e) {
-            \Log::warning('Quotation PDF text WhatsApp failed for '.$quotation->reference_no.': '.$e->getMessage());
-        }
-
-        try {
             $pdfPath = $this->buildQuotationPdf($quotation->id);
             $pdfName = 'quotation_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', $quotation->reference_no).'.pdf';
-            $this->wpPDFMessage($pdfPath, $customer, $pdfName, null, null, true);
+            $this->wpPDFMessage($pdfPath, $customer, $pdfName, null, $text, true);
             // Staff who created the quotation gets a copy (not a broadcast to all admins).
             $this->sendQuotationPdfCopyToStaff($quotation, $pdfPath, $pdfName, $customer);
             $this->sendQuotationPdfCopyToCc($quotation, $pdfPath, $pdfName, $customer, $context);

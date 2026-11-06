@@ -59,6 +59,11 @@ class QuotationApprovalController extends Controller
         if ($aiChannel) {
             app(\App\Services\Event\EventQuotationService::class)->markCustomerAccepted($quotation);
             $quotation = $quotation->fresh(['customer', 'biller', 'user']);
+            try {
+                app(QuotationController::class)->deliverQuotationPdfToClient($quotation, $quotation->customer, 'signed');
+            } catch (\Throwable $e) {
+                Log::warning('Post-signature quotation PDF delivery failed for '.$quotation->reference_no.': '.$e->getMessage());
+            }
             $this->notifyStakeholders($quotation, 'customer_accepted');
 
             return view('quotation.client_responded', [
@@ -83,15 +88,14 @@ class QuotationApprovalController extends Controller
         ]);
 
         $quotation = $quotation->fresh(['customer', 'biller', 'user']);
-        $this->notifyStakeholders($quotation, 'approved');
 
-        // Official PDF (staff + client signatures) is delivered only after the client signs.
-        // Reject path never calls this — no PDF on rejection.
+        // The signed PDF goes to the client before staff notices, so they receive it immediately.
         try {
             app(QuotationController::class)->deliverQuotationPdfToClient($quotation, $quotation->customer, 'signed');
         } catch (\Throwable $e) {
             Log::warning('Post-signature quotation PDF delivery failed for '.$quotation->reference_no.': '.$e->getMessage());
         }
+        $this->notifyStakeholders($quotation, 'approved');
 
         return view('quotation.client_responded', [
             'quotation' => $quotation,
