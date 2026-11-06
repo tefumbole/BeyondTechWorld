@@ -55,20 +55,8 @@ class PayoutController extends Controller
     public function lookup(Request $request)
     {
         $this->guard();
-        $service = app(CampayPayoutService::class);
-        $phone = $service->momoNumber($request->get('phone'));
-        if (! $phone) {
-            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
-        }
-        $hit = app(MobileMoneyHolderService::class)->lookup($phone, true);
 
-        return response()->json([
-            'ok' => true,
-            'phone' => $phone,
-            'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
-            'operator' => $service->operatorName($phone),
-            'source' => ($hit && ! empty($hit['source'])) ? $hit['source'] : null,
-        ]);
+        return response()->json($this->campayHolder($request->get('phone')));
     }
 
     public function direct(Request $request)
@@ -82,21 +70,9 @@ class PayoutController extends Controller
         if (isset($lines['error'])) {
             return redirect()->route('payout.index', ['new' => 1])->with('not_permitted', $lines['error']);
         }
-        $lookup = app(MobileMoneyHolderService::class);
         @set_time_limit(90);
-        $checked = 0;
         foreach ($lines['lines'] as $index => $line) {
-            if ($line['momo_name'] !== '' || $checked >= 20) {
-                continue;
-            }
-            $checked++;
-            $hit = $lookup->lookup($line['phone'], true);
-            if ($hit && ! empty($hit['name'])) {
-                $lines['lines'][$index]['momo_name'] = $hit['name'];
-                if ($line['person_name'] === $line['phone']) {
-                    $lines['lines'][$index]['person_name'] = $hit['name'];
-                }
-            }
+            $lines['lines'][$index] = $this->stampCampayName($line);
         }
         $batch = new CampayPayoutRequest();
         $batch->cloud_tenant_id = $this->tenantId();
@@ -896,19 +872,8 @@ class PayoutController extends Controller
     public function publicLookup(Request $request, $token)
     {
         $this->link($token);
-        $service = app(CampayPayoutService::class);
-        $phone = $service->momoNumber($request->get('phone'));
-        if (! $phone) {
-            return response()->json(['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.']);
-        }
-        $hit = app(MobileMoneyHolderService::class)->lookup($phone);
 
-        return response()->json([
-            'ok' => true,
-            'phone' => $phone,
-            'name' => ($hit && ! empty($hit['name'])) ? $hit['name'] : '',
-            'operator' => $service->operatorName($phone),
-        ]);
+        return response()->json($this->campayHolder($request->get('phone')));
     }
 
     public function publicStore(Request $request, $token)
@@ -991,7 +956,6 @@ class PayoutController extends Controller
         }
         $extraPhones = (array) $request->input('extra_phone', []);
         $extraAmounts = (array) $request->input('extra_amount', []);
-        $extraNames = (array) $request->input('extra_momo', []);
         foreach ($extraPhones as $index => $rawPhone) {
             $rawPhone = trim((string) $rawPhone);
             if ($rawPhone === '') {
@@ -1009,18 +973,20 @@ class PayoutController extends Controller
                 return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF for '.$phone.'.');
             }
             $seen[$phone] = true;
-            $campayName = isset($extraNames[$index]) ? trim((string) $extraNames[$index]) : '';
-            $known = $this->nameOnFile($link, $phone, $campayName !== '' ? $campayName : $phone);
             $lines[] = [
-                'customer_id' => $known['customer_id'],
-                'person_name' => $known['name'],
+                'customer_id' => null,
+                'person_name' => $phone,
                 'phone' => $phone,
                 'amount' => $amount,
-                'momo_name' => $campayName,
+                'momo_name' => '',
             ];
         }
         if (count($lines) < 1 || count($lines) > 40) {
             return back()->withInput()->with('not_permitted', 'Choose between 1 and 40 people.');
+        }
+        @set_time_limit(90);
+        foreach ($lines as $index => $line) {
+            $lines[$index] = $this->stampCampayName($line);
         }
         $parts = [];
         foreach ($lines as $line) {
@@ -1086,55 +1052,32 @@ class PayoutController extends Controller
 
     protected function invitePeople(Request $request)
     {
-        $service = app(CampayPayoutService::class);
         $lines = [];
         $seen = [];
+        $phones = (array) $request->input('extra_phone', []);
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('customer_id', [])))));
         if ($ids) {
-            $customers = Customer::whereIn('id', $ids)->get(['id', 'name', 'phone_number']);
-            foreach ($customers as $customer) {
-                $phone = $service->momoNumber($customer->phone_number);
-                if (! $phone || isset($seen[$phone])) {
-                    continue;
-                }
-                $seen[$phone] = true;
-                $lines[] = ['name' => (string) $customer->name, 'phone' => $phone];
+            foreach (Customer::whereIn('id', $ids)->get(['id', 'phone_number']) as $customer) {
+                $phones[] = $customer->phone_number;
             }
         }
         $userIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('user_id', [])))));
         if ($userIds) {
-            $users = \App\User::whereIn('id', $userIds)->get(['id', 'name', 'phone', 'additional_phone']);
-            foreach ($users as $user) {
-                $phone = $service->momoNumber($user->whatsappPhone());
-                if (! $phone || isset($seen[$phone])) {
-                    continue;
-                }
-                $seen[$phone] = true;
-                $lines[] = ['name' => (string) $user->name, 'phone' => $phone];
+            foreach (\App\User::whereIn('id', $userIds)->get(['id', 'phone', 'additional_phone']) as $user) {
+                $phones[] = $user->whatsappPhone();
             }
         }
-        foreach ((array) $request->input('extra_phone', []) as $raw) {
-            $phone = $service->momoNumber($raw);
-            if (! $phone || isset($seen[$phone])) {
+        @set_time_limit(90);
+        foreach ($phones as $raw) {
+            $holder = $this->campayHolder($raw);
+            if (empty($holder['ok']) || $holder['phone'] === '' || isset($seen[$holder['phone']])) {
                 continue;
             }
-            $seen[$phone] = true;
-            $tail = substr($phone, -9);
-            $match = \App\User::query()->where('is_active', 1)
-                ->where(function ($query) use ($tail) {
-                    $query->where('phone', 'like', '%'.$tail)->orWhere('additional_phone', 'like', '%'.$tail);
-                })
-                ->limit(10)
-                ->get(['id', 'name', 'phone', 'additional_phone'])
-                ->first(function ($user) use ($service, $phone) {
-                    return $service->momoNumber($user->whatsappPhone()) === $phone;
-                });
-            $customer = Customer::query()->where('phone_number', 'like', '%'.$tail)->limit(10)->get(['id', 'name', 'phone_number'])
-                ->first(function ($row) use ($service, $phone) {
-                    return $service->momoNumber($row->phone_number) === $phone;
-                });
-            $name = $customer ? (string) $customer->name : ($match ? (string) $match->name : $phone);
-            $lines[] = ['name' => $name, 'phone' => $phone];
+            $seen[$holder['phone']] = true;
+            $lines[] = [
+                'name' => $holder['name'] !== '' ? $holder['name'] : $holder['phone'],
+                'phone' => $holder['phone'],
+            ];
         }
         if (count($lines) < 1) {
             return ['error' => 'Choose at least one person.'];
@@ -1148,15 +1091,50 @@ class PayoutController extends Controller
 
     protected function systemName(CampayPayout $row)
     {
-        if ($row->customer_id) {
-            $customer = Customer::find($row->customer_id);
-            if ($customer && trim((string) $customer->name) !== '') {
-                return trim((string) $customer->name);
-            }
+        $momo = trim((string) $row->momo_name);
+        if ($momo !== '') {
+            return $momo;
         }
         $name = trim((string) $row->person_name);
 
         return $name !== '' ? $name : 'Client';
+    }
+
+    protected function campayHolder($phone)
+    {
+        $service = app(CampayPayoutService::class);
+        $number = $service->momoNumber($phone);
+        if (! $number) {
+            return ['ok' => false, 'error' => 'Not an MTN or Orange Cameroon number.', 'phone' => '', 'name' => '', 'operator' => ''];
+        }
+        $hit = app(MobileMoneyHolderService::class)->lookup($number, false);
+        $name = '';
+        if (is_array($hit) && isset($hit['source']) && $hit['source'] === 'campay' && ! empty($hit['name'])) {
+            $name = trim((string) $hit['name']);
+        }
+
+        return [
+            'ok' => true,
+            'error' => '',
+            'phone' => $number,
+            'name' => $name,
+            'operator' => $service->operatorName($number),
+            'source' => $name !== '' ? 'campay' : null,
+        ];
+    }
+
+    protected function stampCampayName(array $line)
+    {
+        $holder = $this->campayHolder(isset($line['phone']) ? $line['phone'] : '');
+        if (! empty($holder['ok']) && $holder['name'] !== '') {
+            $line['person_name'] = $holder['name'];
+            $line['momo_name'] = $holder['name'];
+        } else {
+            $line['person_name'] = isset($line['phone']) ? $line['phone'] : '';
+            $line['momo_name'] = '';
+        }
+
+        return $line;
     }
 
     protected function moneyText($amount)
@@ -1562,7 +1540,6 @@ class PayoutController extends Controller
 
     protected function fillMomoNames($lines)
     {
-        $lookup = app(MobileMoneyHolderService::class);
         $service = app(CampayPayoutService::class);
         @set_time_limit(90);
         $checked = 0;
@@ -1572,8 +1549,12 @@ class PayoutController extends Controller
                 continue;
             }
             $checked++;
-            $hit = $lookup->lookup($line->phone, true);
-            $line->momo_name = ($hit && ! empty($hit['name'])) ? substr($hit['name'], 0, 180) : '';
+            $holder = $this->campayHolder($line->phone);
+            $name = (! empty($holder['ok']) && $holder['name'] !== '') ? substr($holder['name'], 0, 180) : '';
+            $line->momo_name = $name;
+            if ($name !== '') {
+                $line->person_name = $name;
+            }
             $line->momo_checked = 1;
             $line->save();
         }

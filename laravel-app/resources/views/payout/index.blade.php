@@ -80,7 +80,7 @@
                             <td data-label="When">{{ $row->created_at ? $row->created_at->format('M j, Y H:i') : '' }}</td>
                             <td class="pay-people" data-label="People">
                                 @forelse($row->lines as $line)
-                                    <div>{{ $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
+                                    <div>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
                                 @empty
                                     <span class="pay-muted">No one on this request.</span>
                                 @endforelse
@@ -125,10 +125,10 @@
                 <button class="pay-modal-close" type="button" id="closeNewWithdrawal">Close</button>
             </div>
             <div class="pay-card-body">
-                <p class="pay-help">Start typing a name. Matching users and customers appear, the same way they do on the POS screen. Add the ones to pay, then enter each amount. One person or many, the payout is sent the same way. A number already paid is left out.</p>
+                <p class="pay-help">Enter a Mobile Money number. The name shown is the one Campay has for that number.</p>
                 <div class="pay-search">
-                    <input type="search" id="payoutSearch" class="form-control" placeholder="Type a name or number" autocomplete="off">
-                    <div id="payoutHits" class="list-group" style="position:absolute;z-index:5;width:100%;max-height:240px;overflow:auto"></div>
+                    <input type="tel" id="payoutPhone" class="form-control" placeholder="Phone number, 6xxxxxxxx" autocomplete="off">
+                    <div id="payoutPhoneName" class="pay-muted" style="margin-top:6px"></div>
                 </div>
                 <form method="POST" action="{{ route('payout.direct') }}" id="newPayoutForm">
                     @csrf
@@ -140,15 +140,14 @@
                         <table class="pay-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Number</th>
                                     <th>Name on MoMo</th>
+                                    <th>Number</th>
                                     <th>Amount (XAF)</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody id="newPayoutBody">
-                                <tr id="newPayoutEmpty"><td colspan="5" class="pay-muted">No one added yet.</td></tr>
+                                <tr id="newPayoutEmpty"><td colspan="4" class="pay-muted">No one added yet.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -180,9 +179,8 @@
                                 <tr>
                                     <th style="width:36px" title="Pay"><input type="checkbox" id="payoutAll"></th>
                                     <th style="width:36px" title="Remove"><input type="checkbox" id="payoutRemoveAll"></th>
-                                    <th>Name</th>
-                                    <th>Number</th>
                                     <th>Name on MoMo</th>
+                                    <th>Number</th>
                                     <th>Amount (XAF)</th>
                                     <th>Status</th>
                                 </tr>
@@ -205,9 +203,8 @@
                                                 <input type="checkbox" class="payout-remove" name="remove_ids[]" value="{{ $line->id }}">
                                             @endif
                                         </td>
-                                        <td data-label="Name">{{ $line->person_name }}</td>
+                                        <td data-label="Name">{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : $line->person_name) }}</td>
                                         <td data-label="Number">{{ $line->phone }} @if($line->network)<span class="pay-net">{{ $line->network }}</span>@endif</td>
-                                        <td data-label="MoMo">{{ $line->momo_name !== '' && $line->momo_name !== null ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : 'Looking up…') }}</td>
                                         <td data-label="Amount">
                                             @if($canEdit)
                                                 <input type="number" class="form-control payout-amount" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ (int) $line->amount }}" inputmode="numeric">
@@ -383,7 +380,7 @@
         open.addEventListener('click', function () {
             modal.hidden = false;
             open.classList.add('is-on');
-            var search = document.getElementById('payoutSearch');
+            var search = document.getElementById('payoutPhone');
             if (search) search.focus();
         });
     }
@@ -402,10 +399,9 @@
     var body = document.getElementById('newPayoutBody');
     var empty = document.getElementById('newPayoutEmpty');
     var total = document.getElementById('newPayoutTotal');
-    var search = document.getElementById('payoutSearch');
-    var hits = document.getElementById('payoutHits');
+    var phoneBox = document.getElementById('payoutPhone');
+    var phoneName = document.getElementById('payoutPhoneName');
     var lookupUrl = @json(route('payout.lookup'));
-    var searchUrl = @json(route('payout.search'));
     var added = {};
     function amounts() { return form.querySelectorAll('.amt'); }
     function refresh() {
@@ -441,37 +437,31 @@
             .then(function (data) { showName(cell, hidden, data); })
             .catch(function () { cell.querySelector('.momo-label').textContent = 'Could not look up that number'; });
     }
-    function addPerson(person) {
-        var key = person.kind + ':' + person.id;
+    function addNumber(phone, campayName) {
+        var key = phone;
         if (added[key]) return;
         added[key] = true;
-        var idName = person.kind === 'user' ? 'user_id[]' : 'customer_id[]';
-        var amountName = person.kind === 'user' ? 'user_amount[' + person.id + ']' : 'amount[' + person.id + ']';
-        var momoName = person.kind === 'user' ? 'user_momo[' + person.id + ']' : 'customer_momo[' + person.id + ']';
         var row = document.createElement('tr');
         var nameCell = document.createElement('td');
-        nameCell.textContent = person.name;
-        var idInput = document.createElement('input');
-        idInput.type = 'hidden';
-        idInput.name = idName;
-        idInput.value = person.id;
-        nameCell.appendChild(idInput);
+        nameCell.textContent = campayName || 'Name not found on MoMo';
         var phoneCell = document.createElement('td');
-        phoneCell.textContent = person.phone;
-        var momoCell = document.createElement('td');
-        momoCell.className = 'momo';
-        var momoLabel = document.createElement('span');
-        momoLabel.className = 'momo-label';
+        var phoneInput = document.createElement('input');
+        phoneInput.type = 'hidden';
+        phoneInput.name = 'extra_phone[]';
+        phoneInput.className = 'extra-phone';
+        phoneInput.value = phone;
+        phoneCell.textContent = phone;
+        phoneCell.appendChild(phoneInput);
         var momoInput = document.createElement('input');
         momoInput.type = 'hidden';
-        momoInput.name = momoName;
-        momoCell.appendChild(momoLabel);
-        momoCell.appendChild(momoInput);
+        momoInput.name = 'extra_momo[]';
+        momoInput.value = campayName || '';
+        nameCell.appendChild(momoInput);
         var amountCell = document.createElement('td');
         var amountInput = document.createElement('input');
-        amountInput.className = 'form-control form-control-sm amt';
+        amountInput.className = 'form-control form-control-sm amt extra-amount';
         amountInput.type = 'number';
-        amountInput.name = amountName;
+        amountInput.name = 'extra_amount[]';
         amountInput.min = '100';
         amountInput.max = '1000000';
         amountInput.step = '1';
@@ -486,70 +476,44 @@
         removeCell.appendChild(remove);
         row.appendChild(nameCell);
         row.appendChild(phoneCell);
-        row.appendChild(momoCell);
         row.appendChild(amountCell);
         row.appendChild(removeCell);
         body.appendChild(row);
-        row.querySelector('.amt').addEventListener('input', refresh);
-        row.querySelector('.remove').addEventListener('click', function () {
+        amountInput.addEventListener('input', refresh);
+        remove.addEventListener('click', function () {
             delete added[key];
             row.remove();
             refresh();
         });
-        resolve(person.phone, row.querySelector('.momo'), row.querySelector('.momo input'));
-        hits.innerHTML = '';
-        search.value = '';
+        if (phoneBox) phoneBox.value = '';
+        if (phoneName) phoneName.textContent = '';
+        amountInput.focus();
         refresh();
     }
     var timer = null;
-    search.addEventListener('input', function () {
+    if (phoneBox) phoneBox.addEventListener('input', function () {
         clearTimeout(timer);
-        var q = search.value.trim();
-        if (q.length < 1) {
-            hits.innerHTML = '';
+        var raw = phoneBox.value.trim();
+        if (raw.replace(/\D/g, '').length < 9) {
+            if (phoneName) phoneName.textContent = '';
             return;
         }
+        if (phoneName) phoneName.textContent = 'Looking up…';
         timer = setTimeout(function () {
-            fetch(searchUrl + '?q=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
+            fetch(lookupUrl + '?phone=' + encodeURIComponent(raw), {headers: {Accept: 'application/json'}})
                 .then(function (response) { return response.json(); })
                 .then(function (data) {
-                    hits.innerHTML = '';
-                    (data.people || []).forEach(function (person) {
-                        var button = document.createElement('button');
-                        button.type = 'button';
-                        button.className = 'list-group-item list-group-item-action';
-                        button.textContent = person.name + ' (' + person.phone + ')';
-                        button.addEventListener('click', function () { addPerson(person); });
-                        hits.appendChild(button);
-                    });
-                    if (!hits.children.length) {
-                        var none = document.createElement('div');
-                        none.className = 'list-group-item text-muted';
-                        none.textContent = 'No matching name';
-                        hits.appendChild(none);
+                    if (!data || !data.ok) {
+                        if (phoneName) phoneName.textContent = (data && data.error) ? data.error : 'Not an MTN or Orange number.';
+                        return;
                     }
-                });
-        }, 200);
+                    addNumber(data.phone, data.name || '');
+                })
+                .catch(function () { if (phoneName) phoneName.textContent = 'Could not look up that number'; });
+        }, 400);
     });
     document.getElementById('addPhone').addEventListener('click', function () {
-        var row = document.createElement('tr');
-        row.innerHTML = '<td colspan="2"><input class="form-control form-control-sm extra-phone" type="tel" name="extra_phone[]" placeholder="Phone number, 6xxxxxxxx"></td><td class="momo"><span class="momo-label"></span><input type="hidden" name="extra_momo[]" value=""></td><td><input class="form-control form-control-sm extra-amount amt" type="number" name="extra_amount[]" min="100" max="1000000" step="1" style="max-width:140px" placeholder="Amount"></td><td><button class="btn btn-sm btn-link text-danger remove" type="button">Remove</button></td>';
-        body.appendChild(row);
-        var phone = row.querySelector('.extra-phone');
-        var cell = row.querySelector('.momo');
-        var hidden = cell.querySelector('input');
-        var wait = null;
-        phone.addEventListener('input', function () {
-            refresh();
-            clearTimeout(wait);
-            wait = setTimeout(function () {
-                if (phone.value.trim().length >= 9) resolve(phone.value.trim(), cell, hidden);
-            }, 500);
-        });
-        row.querySelector('.amt').addEventListener('input', refresh);
-        row.querySelector('.remove').addEventListener('click', function () { row.remove(); refresh(); });
-        phone.focus();
-        refresh();
+        if (phoneBox) phoneBox.focus();
     });
     form.addEventListener('submit', function (event) {
         var count = 0;

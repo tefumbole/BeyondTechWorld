@@ -188,14 +188,6 @@
                 <td class="num">{{ $amount }}</td>
                 <td class="num"><strong>{{ $amount }}</strong></td>
             </tr>
-            <tr>
-                <td colspan="3">Discount</td>
-                <td class="num">0.00</td>
-            </tr>
-            <tr>
-                <td colspan="3">Tax</td>
-                <td class="num">0.00</td>
-            </tr>
             <tr class="total-row">
                 <td colspan="3">Invoice total</td>
                 <td class="num">{{ $amount }} XAF</td>

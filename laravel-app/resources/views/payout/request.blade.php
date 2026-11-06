@@ -8,23 +8,17 @@
     <div class="pay-card">
         <div class="pay-card-head"><h2>Request for Payment</h2></div>
         <div class="pay-card-body">
-            <p class="pay-help">Choose people from the system, or add a number. They receive a WhatsApp, in the name saved here, asking them to submit payment information. You can also copy the link.</p>
+            <p class="pay-help">Enter a Mobile Money number. Campay supplies the name. They receive a WhatsApp asking them to submit payment information. You can also copy the link.</p>
             <form method="POST" action="{{ route('payout.request.invite') }}" id="inviteForm">
                 @csrf
                 <div class="pay-search">
-                    <label>People</label>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        <input type="search" id="inviteSearch" class="form-control" placeholder="Search by name or phone number" autocomplete="off">
-                        <button class="pay-plus" type="button" id="inviteAddPhone" title="Add a number">+</button>
-                    </div>
-                    <div id="inviteHits" class="list-group" style="position:absolute;z-index:5;width:100%;max-height:240px;overflow:auto"></div>
-                    <div id="invitePhoneRow" style="display:none;margin-top:8px">
-                        <input type="tel" id="invitePhone" class="form-control" placeholder="Phone number, 6xxxxxxxx" autocomplete="off">
-                    </div>
+                    <label>Phone number</label>
+                    <input type="tel" id="invitePhone" class="form-control" placeholder="Phone number, 6xxxxxxxx" autocomplete="off">
+                    <div id="invitePhoneName" class="pay-muted" style="margin-top:6px"></div>
                 </div>
                 <div class="table-responsive" style="margin-top:14px">
                     <table class="pay-table">
-                        <thead><tr><th>Name</th><th>Number</th><th></th></tr></thead>
+                        <thead><tr><th>Name on MoMo</th><th>Number</th><th></th></tr></thead>
                         <tbody id="inviteBody">
                             <tr id="inviteEmpty"><td colspan="3" class="pay-muted">No one selected yet.</td></tr>
                         </tbody>
@@ -86,7 +80,7 @@
                                                     <input type="checkbox" class="review-line" name="remove_ids[]" value="{{ $line->id }}">
                                                 @endif
                                             </td>
-                                            <td>{{ $line->person_name }}</td>
+                                            <td>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }}</td>
                                             <td>{{ $line->phone }}</td>
                                             <td>
                                                 @if(in_array($line->status, ['pending', 'failed'], true))
@@ -187,7 +181,7 @@
                                                     <input type="checkbox" class="failed-line" name="ids[]" value="{{ $line->id }}">
                                                 @endif
                                             </td>
-                                            <td>{{ $line->person_name }}</td>
+                                            <td>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }}</td>
                                             <td>{{ $line->phone }}</td>
                                             <td>{{ number_format($line->amount, 0, '.', ' ') }}</td>
                                             <td>
@@ -271,7 +265,7 @@
                                     @endforeach
                                 @else
                                     @foreach($row->lines as $line)
-                                        <div>{{ $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
+                                        <div>{{ trim((string) $line->momo_name) !== '' ? $line->momo_name : $line->person_name }} <span class="pay-muted">{{ number_format($line->amount, 0, '.', ' ') }} XAF</span></div>
                                     @endforeach
                                     @if($row->requester_name)
                                         <div class="pay-muted">From {{ $row->requester_name }}</div>
@@ -345,11 +339,8 @@
     var form = document.getElementById('inviteForm');
     var body = document.getElementById('inviteBody');
     var empty = document.getElementById('inviteEmpty');
-    var hits = document.getElementById('inviteHits');
-    var search = document.getElementById('inviteSearch');
-    var phoneRow = document.getElementById('invitePhoneRow');
     var phoneInput = document.getElementById('invitePhone');
-    var searchUrl = @json(route('payout.search'));
+    var phoneName = document.getElementById('invitePhoneName');
     var lookupUrl = @json(route('payout.lookup'));
     var added = {};
     function refresh() {
@@ -388,59 +379,29 @@
         body.appendChild(row);
         refresh();
     }
-    var timer = null;
-    search.addEventListener('input', function () {
-        clearTimeout(timer);
-        var q = search.value.trim();
-        if (q.length < 1) {
-            hits.innerHTML = '';
-            return;
-        }
-        timer = setTimeout(function () {
-            fetch(searchUrl + '?q=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
-                .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    hits.innerHTML = '';
-                    (data.people || []).forEach(function (person) {
-                        var button = document.createElement('button');
-                        button.type = 'button';
-                        button.className = 'list-group-item list-group-item-action';
-                        button.textContent = person.name + ' (' + person.phone + ')';
-                        button.addEventListener('click', function () {
-                            var idName = person.kind === 'user' ? 'user_id[]' : 'customer_id[]';
-                            addPerson(person.kind + ':' + person.id, person.name, person.phone, [{name: idName, value: person.id}]);
-                            hits.innerHTML = '';
-                            search.value = '';
-                        });
-                        hits.appendChild(button);
-                    });
-                    if (!hits.children.length) {
-                        var none = document.createElement('div');
-                        none.className = 'list-group-item text-muted';
-                        none.textContent = 'No matching name or number';
-                        hits.appendChild(none);
-                    }
-                });
-        }, 200);
-    });
-    document.getElementById('inviteAddPhone').addEventListener('click', function () {
-        phoneRow.style.display = 'block';
-        phoneInput.focus();
-    });
     var phoneWait = null;
     phoneInput.addEventListener('input', function () {
         clearTimeout(phoneWait);
         var raw = phoneInput.value.trim();
-        if (raw.replace(/\D/g, '').length < 9) return;
+        if (raw.replace(/\D/g, '').length < 9) {
+            if (phoneName) phoneName.textContent = '';
+            return;
+        }
+        if (phoneName) phoneName.textContent = 'Looking up…';
         phoneWait = setTimeout(function () {
             fetch(lookupUrl + '?phone=' + encodeURIComponent(raw), {headers: {Accept: 'application/json'}})
                 .then(function (response) { return response.json(); })
                 .then(function (info) {
-                    if (!info || !info.ok) return;
-                    var label = info.name ? info.name : info.phone;
+                    if (!info || !info.ok) {
+                        if (phoneName) phoneName.textContent = (info && info.error) ? info.error : 'Not an MTN or Orange number.';
+                        return;
+                    }
+                    var label = info.name ? info.name : 'Name not found on MoMo';
                     addPerson('phone:' + info.phone, label, info.phone, [{name: 'extra_phone[]', value: info.phone}]);
                     phoneInput.value = '';
-                });
+                    if (phoneName) phoneName.textContent = '';
+                })
+                .catch(function () { if (phoneName) phoneName.textContent = 'Could not look up that number'; });
         }, 400);
     });
     form.addEventListener('submit', function (event) {

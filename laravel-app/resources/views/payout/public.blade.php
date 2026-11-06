@@ -143,13 +143,13 @@
 <div class="wrap">
     <a class="back" href="{{ route('payments.hub') }}">Back to Payments</a>
     <h1>Payout</h1>
-    <p class="lead">Search for a person, add them, then enter the amount. The name on their Mobile Money number appears beside them. Money is not taken until the payment is approved.</p>
+    <p class="lead">Enter a Mobile Money number. The name Campay has for that number is the only name shown. Money is not taken until the payment is approved.</p>
     @if(session('message'))<div class="alert ok">{{ session('message') }}</div>@endif
     @if(session('not_permitted'))<div class="alert bad">{{ session('not_permitted') }}</div>@endif
 
     <div class="card">
         <div class="search-row">
-            <input type="search" id="searchBox" placeholder="Search by name or phone number" autocomplete="off" enterkeyhint="search">
+            <input type="tel" id="searchBox" placeholder="Phone number, 6xxxxxxxx" autocomplete="off" enterkeyhint="search">
             <button class="btn icon-btn" type="button" id="addPhoneTop" title="Add a number" aria-label="Add a number">+</button>
         </div>
         <p class="note" id="addedNote" hidden></p>
@@ -179,7 +179,7 @@
                 <h2>People</h2>
                 <button class="btn ghost tiny" type="button" id="addPhone">Add a number</button>
             </div>
-            <p class="empty" id="addedEmpty">No one added yet. Search above, then tap Add.</p>
+            <p class="empty" id="addedEmpty">No one added yet. Enter a phone number above.</p>
             <div id="addedBody"></div>
         </div>
     </form>
@@ -203,7 +203,6 @@
     var searchBox = document.getElementById('searchBox');
     var addedNote = document.getElementById('addedNote');
     var noteTimer = null;
-    var searchUrl = @json(route('payout.request.search', ['token' => $token]));
     var lookupUrl = @json(route('payout.request.lookup', ['token' => $token]));
     var tones = ['0', '1', '2', '3', '4', '5'];
 
@@ -331,7 +330,14 @@
         var idField = document.createElement('input');
         idField.type = 'hidden';
         idField.value = person.id;
-        if (person.kind === 'user') {
+        if (person.kind === 'phone') {
+            idField.name = 'extra_phone[]';
+            idField.value = person.phone;
+            money.input.name = 'extra_amount[]';
+            hiddenName.name = 'extra_momo[]';
+            hiddenName.value = person.momo || '';
+            momo.textContent = person.momo ? person.momo : 'Name not found on MoMo';
+        } else if (person.kind === 'user') {
             idField.name = 'user_id[]';
             money.input.name = 'user_amount[' + person.id + ']';
             hiddenName.name = 'user_momo[' + person.id + ']';
@@ -345,7 +351,7 @@
         row.appendChild(hiddenName);
         row.appendChild(idField);
         body.appendChild(row);
-        lookup(person.phone, momo, hiddenName);
+        if (person.kind !== 'phone') lookup(person.phone, momo, hiddenName);
         flash('Added ' + person.name);
         resetSearch();
         refresh();
@@ -353,40 +359,26 @@
     function search() {
         var q = searchBox.value.trim();
         results.innerHTML = '';
-        if (q.length < 2) return;
-        results.innerHTML = '<p class="empty">Searching…</p>';
-        fetch(searchUrl + '?q=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
+        if (q.replace(/\D/g, '').length < 9) return;
+        results.innerHTML = '<p class="empty">Looking up the Campay name…</p>';
+        fetch(lookupUrl + '?phone=' + encodeURIComponent(q), {headers: {Accept: 'application/json'}})
             .then(function (response) { return response.json(); })
             .then(function (data) {
                 if (searchBox.value.trim() !== q) return;
                 results.innerHTML = '';
-                var people = data.people || [];
-                if (!people.length) {
-                    results.innerHTML = '<p class="empty">No users or customers match that search.</p>';
+                if (!data || !data.ok) {
+                    results.innerHTML = '<p class="empty">' + ((data && data.error) ? data.error : 'Not an MTN or Orange number.') + '</p>';
                     return;
                 }
-                people.forEach(function (person) {
-                    var hit = document.createElement('div');
-                    hit.className = 'hit';
-                    var copy = document.createElement('div');
-                    var strong = document.createElement('strong');
-                    strong.textContent = person.name;
-                    var meta = document.createElement('span');
-                    meta.textContent = person.phone + ' · ' + (person.kind === 'user' ? 'User' : 'Customer');
-                    copy.appendChild(strong);
-                    copy.appendChild(meta);
-                    var button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'btn tiny';
-                    button.textContent = phones()[person.phone] ? 'Added' : 'Add';
-                    button.disabled = !!phones()[person.phone];
-                    button.addEventListener('click', function () { addRow(person); });
-                    hit.appendChild(copy);
-                    hit.appendChild(button);
-                    results.appendChild(hit);
+                addRow({
+                    kind: 'phone',
+                    id: data.phone,
+                    name: data.name || 'Name not found on MoMo',
+                    phone: data.phone,
+                    momo: data.name || ''
                 });
             })
-            .catch(function () { results.innerHTML = '<p class="empty">The search did not answer. Try again.</p>'; });
+            .catch(function () { results.innerHTML = '<p class="empty">The lookup did not answer. Try again.</p>'; });
     }
     var searchWait = null;
     searchBox.addEventListener('input', function () {
