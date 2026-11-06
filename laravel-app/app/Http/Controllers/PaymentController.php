@@ -918,14 +918,24 @@ class PaymentController extends Controller
         $person = $deposit->customer_id ? Customer::find($deposit->customer_id) : null;
         $phone = $deposit->mtn_number ?: ($person ? $person->phone_number : '');
         $reason = trim((string) $deposit->note);
+        $method = (int) $deposit->payment_method;
+        $methodLabel = $method === 1 ? 'Cash' : ($method === 4 ? 'VISA' : 'Mobile Money');
+        $staff = $deposit->user_id ? \App\User::find($deposit->user_id) : null;
+        $staffPhone = ($staff && method_exists($staff, 'whatsappPhone')) ? (string) $staff->whatsappPhone() : '';
         $receipt = [
+            'front' => true,
+            'party' => 'CLIENT',
+            'description' => 'Payment',
             'name' => $person ? $person->name : 'Client',
-            'city' => $person ? $person->city : '',
+            'client_phone' => $phone,
             'amount' => $deposit->amount,
-            'reason' => $reason !== '' ? $reason : 'Deposit',
+            'reason' => $reason,
             'reference' => $deposit->payment_reference ?: ($deposit->campay_reference ?: ('deposit-'.$deposit->id)),
             'date' => $deposit->updated_at ?: now(),
-            'method' => (int) $deposit->payment_method === 1 ? 'Cash' : 'Mobile Money',
+            'method' => $methodLabel,
+            'requested_by' => $staff ? trim((string) $staff->name) : '',
+            'requested_phone' => $staffPhone,
+            'created_by' => $staff ? trim((string) $staff->name) : '',
         ];
         app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
     }

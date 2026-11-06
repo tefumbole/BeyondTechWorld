@@ -563,7 +563,7 @@ class PayoutController extends Controller
             if ($line->status === 'paid') {
                 $paid++;
                 $total += (int) $line->amount;
-                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note, $this->requesterName($line));
+                $this->sendPaid($line->phone, $this->systemName($line), $line->amount, $line->note, $this->requesterName($line), $line);
             } elseif ($line->status === 'pending' && $line->campay_reference) {
                 $waiting++;
             } else {
@@ -716,7 +716,7 @@ class PayoutController extends Controller
             $row->error = null;
             $row->save();
             if (! $alreadyPaid && $notify && $row->created_at && $row->created_at->gt(now()->subMinutes(20))) {
-                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row));
+                $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row), $row);
             }
 
             return 'paid';
@@ -1177,7 +1177,7 @@ class PayoutController extends Controller
         app(\App\Services\ClientNoticeService::class)->send($phone, $this->submittedText($name, $amount, $reason, $url, null, $requester));
     }
 
-    protected function sendPaid($phone, $name, $amount, $reason, $requester = '')
+    protected function sendPaid($phone, $name, $amount, $reason, $requester = '', CampayPayout $line = null)
     {
         $reason = trim((string) $reason);
         if (strcasecmp($reason, 'Payout') === 0) {
@@ -1185,13 +1185,46 @@ class PayoutController extends Controller
         }
         app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason, $requester));
         $this->notifyPaid($name, $amount, $reason, $requester);
+        $requesterPhone = '';
+        $createdBy = trim((string) $requester);
+        if ($line && $line->request_id) {
+            $batch = CampayPayoutRequest::find($line->request_id);
+            if ($batch) {
+                $saved = trim((string) $batch->requester_name);
+                if ($saved !== '') {
+                    $requester = $saved;
+                }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('campay_payout_requests', 'requester_phone')) {
+                    $requesterPhone = preg_replace('/\D/', '', (string) $batch->requester_phone);
+                }
+                if ($requesterPhone === '') {
+                    $requesterPhone = $this->requesterPhone($batch);
+                }
+            }
+        }
+        if ($line && $line->user_id) {
+            $maker = \App\User::find($line->user_id);
+            if ($maker && trim((string) $maker->name) !== '') {
+                $createdBy = trim((string) $maker->name);
+            }
+        }
+        $approver = Auth::user();
         $receipt = [
+            'front' => true,
+            'party' => 'RECEIVER',
+            'description' => 'Withdrawal',
             'name' => $name,
+            'client_phone' => $phone,
             'amount' => $amount,
-            'reason' => $reason !== '' ? $reason : 'Withdrawal',
+            'reason' => $reason,
             'reference' => 'WD-'.date('Ymd-His').'-'.substr(md5($phone.'|'.$amount.'|'.$reason), 0, 6),
             'date' => now(),
             'method' => 'Mobile Money',
+            'requested_by' => $requester,
+            'requested_phone' => $requesterPhone,
+            'created_by' => $createdBy,
+            'approved_by' => $approver ? trim((string) $approver->name) : '',
+            'approver_id' => $approver ? (int) $approver->id : 0,
         ];
         app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
     }

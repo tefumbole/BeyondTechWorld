@@ -448,16 +448,30 @@ class DocumentPayController extends Controller
             $text .= ' '.number_format($link->amount, 0, '.', ' ').' XAF is still due.';
         }
         app(ClientNoticeService::class)->send($phone, $text);
-        if (! $wasVisa) {
-            app(\App\Services\MomoMiniReceipt::class)->send([
-                'phone' => $phone,
-                'name' => $link->person_name,
-                'amount' => $amount,
-                'reason' => $label.' '.$link->reference_no,
-                'reference' => $link->reference_no,
-                'date' => now(),
-            ]);
+        $requester = trim((string) $link->requested_by);
+        $requesterPhone = '';
+        if ($requester !== '') {
+            $staff = \App\User::query()->where('is_active', 1)->where('name', $requester)->first();
+            if ($staff && method_exists($staff, 'whatsappPhone')) {
+                $requesterPhone = (string) $staff->whatsappPhone();
+            }
         }
+        app(\App\Services\MomoMiniReceipt::class)->send([
+            'front' => true,
+            'party' => 'CLIENT',
+            'description' => 'Payment',
+            'phone' => $phone,
+            'client_phone' => $phone,
+            'name' => $link->person_name,
+            'amount' => $amount,
+            'reason' => $label.' payment',
+            'reference' => $link->reference_no,
+            'date' => now(),
+            'method' => $wasVisa ? 'VISA' : 'Mobile Money',
+            'requested_by' => $requester,
+            'requested_phone' => $requesterPhone,
+            'created_by' => $requester,
+        ]);
         if ($finished) {
             try {
                 app(\App\Services\CompanyReviewInviteService::class)->sendForDocumentPayment($link);

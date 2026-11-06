@@ -423,13 +423,17 @@ class CustomerController extends Controller
             $payment->payment_reference = $reference;
             $payment->save();
             app(\App\Services\MomoMiniReceipt::class)->send([
+                'front' => true,
+                'party' => 'CLIENT',
+                'description' => 'Payment',
                 'phone' => $lims_customer_data->phone_number,
+                'client_phone' => $lims_customer_data->phone_number,
                 'name' => $lims_customer_data->name,
-                'city' => $lims_customer_data->city,
                 'amount' => $amount,
                 'reason' => 'Deposit',
                 'reference' => $reference,
                 'date' => now(),
+                'method' => 'Mobile Money',
             ]);
 
             $message = 'Payment completed successfully';

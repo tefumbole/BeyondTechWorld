@@ -45,12 +45,13 @@ class MomoMiniReceipt
             return;
         }
         try {
-            $path = $this->writePdf($receipt, $reference);
+            $front = ! empty($receipt['front']);
+            $path = $front ? $this->writeFrontPdf($receipt, $reference) : $this->writePdf($receipt, $reference);
             $sent = app(BeyondWasenderService::class)->sendDocument(
                 $phone,
                 $path,
-                'Beyond-Mini-Invoice.pdf',
-                'Beyond Mini Invoice',
+                $front ? 'Beyond-Invoice.pdf' : 'Beyond-Mini-Invoice.pdf',
+                $front ? 'Sales Invoice' : 'Beyond Mini Invoice',
                 true
             );
             if (is_file($path)) {
@@ -85,18 +86,7 @@ class MomoMiniReceipt
         } catch (\Throwable $e) {
             $words = '';
         }
-        $logo = '';
-        if ($setting && ! empty($setting->site_logo)) {
-            $file = public_path('logo/'.$setting->site_logo);
-            if (is_file($file)) {
-                $raw = @file_get_contents($file);
-                if ($raw !== false) {
-                    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                    $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : ($ext === 'gif' ? 'image/gif' : 'image/png');
-                    $logo = 'data:'.$mime.';base64,'.base64_encode($raw);
-                }
-            }
-        }
+        $logo = $this->logoData($setting);
         $when = isset($receipt['date']) ? $receipt['date'] : now();
         if ($when instanceof \DateTimeInterface) {
             $when = $when->format('d-m-Y H:i');
@@ -128,5 +118,112 @@ class MomoMiniReceipt
         file_put_contents($path, $pdf->output());
 
         return $path;
+    }
+
+    /**
+     * A4 sales invoice for a front-end payment or a withdrawal.
+     * The signature belongs to the approver only.
+     */
+    protected function writeFrontPdf(array $receipt, $reference)
+    {
+        $setting = GeneralSetting::first();
+        $biller = null;
+        if ($setting && ! empty($setting->default_biller_id)) {
+            $biller = Biller::find($setting->default_biller_id);
+        }
+        if (! $biller) {
+            $biller = Biller::query()->first();
+        }
+        $company = ($biller && trim((string) $biller->company_name) !== '')
+            ? trim((string) $biller->company_name)
+            : ($setting && trim((string) $setting->site_title) !== '' ? trim((string) $setting->site_title) : 'Beyond Enterprise');
+
+        $when = isset($receipt['date']) ? $receipt['date'] : now();
+        $stamp = $when instanceof \DateTimeInterface ? $when : now();
+        $admin = LetterSignature::adminWithSignature();
+        $signer = $admin;
+        if (! empty($receipt['approver_id'])) {
+            $user = \App\User::find($receipt['approver_id']);
+            if ($user) {
+                $signer = $user;
+            }
+        }
+        $signature = LetterSignature::invoiceSignatureForUser($signer, $stamp);
+        $approvedBy = isset($receipt['approved_by']) ? trim((string) $receipt['approved_by']) : '';
+        if ($approvedBy === '') {
+            $approvedBy = $signer && trim((string) $signer->name) !== ''
+                ? trim((string) $signer->name)
+                : ($admin ? trim((string) $admin->name) : 'Admin');
+        }
+        $createdBy = isset($receipt['created_by']) ? trim((string) $receipt['created_by']) : '';
+        if ($createdBy === '') {
+            $createdBy = $admin && trim((string) $admin->name) !== '' ? trim((string) $admin->name) : 'Admin';
+        }
+        $amount = (float) (isset($receipt['amount']) ? $receipt['amount'] : 0);
+        if ($when instanceof \DateTimeInterface) {
+            $dateText = $when->format('d M Y').' · '.$when->format('H:i');
+        } else {
+            $unix = strtotime((string) $when) ?: time();
+            $dateText = date('d M Y', $unix).' · '.date('H:i', $unix);
+        }
+        $party = isset($receipt['party']) ? strtoupper(trim((string) $receipt['party'])) : 'CLIENT';
+        if ($party === '') {
+            $party = 'CLIENT';
+        }
+        $description = isset($receipt['description']) ? trim((string) $receipt['description']) : '';
+        if ($description === '') {
+            $description = $party === 'RECEIVER' ? 'Withdrawal' : 'Payment';
+        }
+        $method = isset($receipt['method']) ? trim((string) $receipt['method']) : '';
+        if ($method === '') {
+            $method = 'Mobile Money';
+        }
+
+        $pdf = \PDF::loadView('pdf.front_payment', [
+            'company' => $company,
+            'logo' => $this->logoData($setting),
+            'reference' => $reference !== '' ? $reference : '—',
+            'date' => $dateText,
+            'partyLabel' => $party,
+            'partyName' => isset($receipt['name']) ? trim((string) $receipt['name']) : '',
+            'partyPhone' => isset($receipt['client_phone']) ? trim((string) $receipt['client_phone']) : '',
+            'requestedName' => isset($receipt['requested_by']) ? trim((string) $receipt['requested_by']) : '',
+            'requestedPhone' => isset($receipt['requested_phone']) ? trim((string) $receipt['requested_phone']) : '',
+            'reason' => isset($receipt['reason']) ? trim((string) $receipt['reason']) : '',
+            'description' => $description,
+            'amount' => number_format($amount, 2, '.', ','),
+            'method' => $method,
+            'createdBy' => $createdBy,
+            'approvedBy' => $approvedBy,
+            'signature' => isset($signature['src']) ? $signature['src'] : null,
+        ])->setPaper('a4', 'portrait')->setOptions(['isRemoteEnabled' => true]);
+
+        $dir = storage_path('app/momo-invoices');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $path = $dir.'/invoice-'.substr(md5($reference.'|'.microtime(true)), 0, 12).'.pdf';
+        file_put_contents($path, $pdf->output());
+
+        return $path;
+    }
+
+    protected function logoData($setting)
+    {
+        if (! $setting || empty($setting->site_logo)) {
+            return '';
+        }
+        $file = public_path('logo/'.$setting->site_logo);
+        if (! is_file($file)) {
+            return '';
+        }
+        $raw = @file_get_contents($file);
+        if ($raw === false) {
+            return '';
+        }
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : ($ext === 'gif' ? 'image/gif' : 'image/png');
+
+        return 'data:'.$mime.';base64,'.base64_encode($raw);
     }
 }
