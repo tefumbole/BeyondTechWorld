@@ -284,6 +284,44 @@ class ProductController extends Controller
         echo json_encode($json_data);
     }
 
+    public function pasteImage(Request $request, $id)
+    {
+        $roleId = Auth::user() ? (int) Auth::user()->role_id : 0;
+        $role = Role::find($roleId);
+        $allowed = in_array($roleId, [1, 2], true) || ($role && $role->hasPermissionTo('products-edit'));
+        if (! $allowed) {
+            return response()->json(['ok' => false, 'error' => 'You cannot change this image.'], 403);
+        }
+        $product = Product::where('is_active', true)->find($id);
+        if (! $product) {
+            return response()->json(['ok' => false, 'error' => 'Product was not found.'], 404);
+        }
+        $file = $request->file('image');
+        if (! $file || ! $file->isValid()) {
+            return response()->json(['ok' => false, 'error' => 'Paste an image.'], 422);
+        }
+        $map = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+        ];
+        $mime = (string) $file->getMimeType();
+        if (! isset($map[$mime])) {
+            return response()->json(['ok' => false, 'error' => 'Use a JPEG, PNG, GIF, or WebP image.'], 422);
+        }
+        $name = 'paste-'.$product->id.'-'.date('YmdHis').'.'.$map[$mime];
+        $file->move('public/images/product', $name);
+        $product->image = $name;
+        $product->save();
+
+        return response()->json([
+            'ok' => true,
+            'image' => $name,
+            'url' => url('public/images/product/'.$name),
+        ]);
+    }
+
     public function inlineUpdate(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);

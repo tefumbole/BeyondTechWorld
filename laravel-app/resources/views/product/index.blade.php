@@ -27,6 +27,9 @@
         .product-modern table thead th { background: #f8fafc; border-bottom: 1px solid #d0d5dd !important; color: #344054; font-size: 13px; }
         .product-modern table td { border-top: 1px solid #eaecf0; vertical-align: middle; }
         .product-modern table img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #e4e7ec; background: #f8fafc; }
+        #product-paste { margin-top: 12px; min-height: 72px; border: 2px dashed #0b3f90; border-radius: 14px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: #0b3f90; font-weight: 800; background: #f3f6fb; cursor: text; outline: none; }
+        #product-paste:focus { background: #fff; box-shadow: 0 0 0 3px rgba(11, 63, 144, .18); }
+        #product-paste-note { margin: 8px 0 0; color: #6f7b91; font-size: 13px; }
         .product-modern .form-control, .product-modern select.form-control { border: 1px solid #d0d5dd; border-radius: 8px; min-height: 36px; background: #fff; }
         .product-modern .dataTables_wrapper .dataTables_filter input,
         .product-modern .dataTables_wrapper .dataTables_length select { border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; }
@@ -167,6 +170,9 @@
     var is_admin_user = <?php echo json_encode(in_array(Auth::user()->role_id, [1, 2])) ?>;
     var can_manage_products = user_verified == '1' || is_admin_user;
     var can_edit_products = all_permission.indexOf('products-edit') !== -1;
+    var can_paste_product_image = is_admin_user || can_edit_products;
+    var openProduct = null;
+    var openRow = null;
     var productBrands = <?php echo json_encode($brands) ?>;
     $.ajaxSetup({
         headers: {
@@ -187,13 +193,13 @@
         if ($(e.target).closest('input, select, option, button, .product-inline').length) {
             return;
         }
-        productDetails( $(this).parent().data('product'), $(this).parent().data('imagedata') );
+        openRow = $(this).parent();
+        productDetails( openRow.data('product'), openRow.data('imagedata') );
     });
 
     $(document).on("click", ".view", function(){
-        var product = $(this).parent().parent().parent().parent().parent().data('product');
-        var imagedata = $(this).parent().parent().parent().parent().parent().data('imagedata');
-        productDetails(product, imagedata);
+        openRow = $(this).closest('tr');
+        productDetails(openRow.data('product'), openRow.data('imagedata'));
     });
 
     $("#print-btn").on("click", function(){
@@ -205,7 +211,15 @@
           setTimeout(function(){newWin.close();},10);
     });
 
+    function productPasteBox() {
+        if (!can_paste_product_image) {
+            return '';
+        }
+        return '<div id="product-paste" tabindex="0">Click here, then paste an image</div><p id="product-paste-note"></p>';
+    }
+
     function productDetails(product, imagedata) {
+        openProduct = product;
         product[11] = product[11].replace(/@/g, '"');
         htmltext = slidertext = '';
         @if(in_array("booking_module", $all_permission))
@@ -322,10 +336,61 @@
         }
 
         $('#product-content').html(htmltext);
-        $('#slider-content').html(slidertext);
+        $('#slider-content').html((slidertext || '') + productPasteBox());
         $('#product-details').modal('show');
         $('#product-img-slider').carousel(0);
+        var pasteTarget = document.getElementById('product-paste');
+        if (pasteTarget) {
+            setTimeout(function () { pasteTarget.focus(); }, 250);
+        }
     }
+
+    $(document).on('paste', '#product-details', function (event) {
+        if (!can_paste_product_image || !openProduct) {
+            return;
+        }
+        var clipboard = event.originalEvent.clipboardData;
+        var items = clipboard ? clipboard.items : [];
+        var file = null;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type && items[i].type.indexOf('image/') === 0) {
+                file = items[i].getAsFile();
+                break;
+            }
+        }
+        if (!file) {
+            return;
+        }
+        event.preventDefault();
+        var note = document.getElementById('product-paste-note');
+        if (note) note.textContent = 'Saving…';
+        var body = new FormData();
+        body.append('image', file, file.name || 'pasted.png');
+        $.ajax({
+            url: 'products/' + openProduct[12] + '/paste-image',
+            method: 'POST',
+            data: body,
+            processData: false,
+            contentType: false,
+            success: function (saved) {
+                openProduct[17] = saved.image;
+                if (openRow) {
+                    openRow.data('product', openProduct);
+                    openRow.find('img').first().attr('src', saved.url);
+                }
+                $('#slider-content').html('<img src="' + saved.url + '" alt="" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;background:#fff;">' + productPasteBox());
+                var done = document.getElementById('product-paste-note');
+                if (done) done.textContent = 'Saved. It is on the product list.';
+                var box = document.getElementById('product-paste');
+                if (box) box.focus();
+            },
+            error: function (xhr) {
+                var message = 'The image was not saved.';
+                if (xhr.responseJSON && xhr.responseJSON.error) message = xhr.responseJSON.error;
+                if (note) note.textContent = message;
+            }
+        });
+    });
 
     $(document).ready(function() {
         var table = $('#product-data-table').DataTable( {
