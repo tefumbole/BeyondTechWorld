@@ -699,14 +699,26 @@ window.TM_CSRF = @json(csrf_token());
                 return '<input type="hidden" name="tasks['+i+'][cc_ids][]" value="'+esc(id)+'">';
             }).join('');
         }
+        function paintPeople(listEl, query, role, selected, onToggle, onChips) {
+            if (!(query || '').trim()) {
+                listEl.innerHTML = '';
+                listEl.style.display = 'none';
+                onChips();
+                return;
+            }
+            listEl.style.display = '';
+            searchUsers(query, role, function (users) {
+                renderUserList(listEl, users, selected, onToggle);
+                onChips();
+            });
+        }
         function refreshAssignees() {
             var q = wrap.querySelector('.tm-asearch').value;
-            searchUsers(q, aRole, function (users) {
-                renderUserList(aList, users, assignees, function (id) {
-                    var idx = assignees.indexOf(id);
-                    if (idx === -1) assignees.push(id); else assignees.splice(idx, 1);
-                    refreshAssignees();
-                });
+            paintPeople(aList, q, aRole, assignees, function (id) {
+                var idx = assignees.indexOf(id);
+                if (idx === -1) assignees.push(id); else assignees.splice(idx, 1);
+                refreshAssignees();
+            }, function () {
                 renderChips(aChips, assignees, function (id) {
                     assignees = assignees.filter(function (x) { return x !== id; });
                     refreshAssignees();
@@ -716,12 +728,11 @@ window.TM_CSRF = @json(csrf_token());
         }
         function refreshCc() {
             var q = wrap.querySelector('.tm-csearch').value;
-            searchUsers(q, cRole, function (users) {
-                renderUserList(cList, users, ccs, function (id) {
-                    var idx = ccs.indexOf(id);
-                    if (idx === -1) ccs.push(id); else ccs.splice(idx, 1);
-                    refreshCc();
-                });
+            paintPeople(cList, q, cRole, ccs, function (id) {
+                var idx = ccs.indexOf(id);
+                if (idx === -1) ccs.push(id); else ccs.splice(idx, 1);
+                refreshCc();
+            }, function () {
                 renderChips(cChips, ccs, function (id) {
                     ccs = ccs.filter(function (x) { return x !== id; });
                     refreshCc();
