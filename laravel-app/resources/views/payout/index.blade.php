@@ -30,9 +30,22 @@
     @endphp
     <div class="pay-card" @if($watchPayouts) data-payout-wait="1" @endif>
         <form method="POST" action="{{ route('payout.pending.delete') }}" id="pendingDeleteForm">@csrf</form>
+        <form method="POST" action="{{ route('payout.approve_many') }}" id="pendingApproveForm">@csrf</form>
         <div class="pay-card-head">
             <h2>Withdrawals</h2>
-            @if($deletablePayouts->count())
+            @php
+                $canBulkPay = $deletablePayouts->count() > 0;
+                if (! $canBulkPay) {
+                    foreach ($requests as $bulkRow) {
+                        if ($bulkRow->lines->whereIn('status', ['pending', 'failed'])->count() > 0) {
+                            $canBulkPay = true;
+                            break;
+                        }
+                    }
+                }
+            @endphp
+            @if($canBulkPay)
+                <button class="pay-go" type="button" id="pendingApprove">Approve and Pay</button>
                 <button class="pay-danger" type="submit" form="pendingDeleteForm" id="pendingDeleteSelected">Delete selected</button>
             @endif
         </div>
@@ -40,7 +53,7 @@
             <table class="pay-table pay-stack">
                 <thead>
                     <tr>
-                        <th style="width:36px">@if($deletablePayouts->count())<input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all">@endif</th>
+                        <th style="width:36px"><input type="checkbox" id="pendingAll" form="pendingDeleteForm" title="Select all"></th>
                         <th>When</th>
                         <th>People</th>
                         <th>Reason</th>
@@ -60,7 +73,7 @@
                         @endphp
                         <tr>
                             <td data-label="">
-                                @if($canDelete)
+                                @if($canDelete || $unpaid > 0)
                                     <input type="checkbox" class="pending-row" form="pendingDeleteForm" name="ids[]" value="{{ $row->id }}">
                                 @endif
                             </td>
@@ -80,7 +93,7 @@
                             <td data-label="">
                                 <div class="pay-row-actions">
                                     @if($unpaid > 0)
-                                        <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}">Open</a>
+                                        <a class="pay-open" href="{{ route('payout.index', ['request' => $row->id]) }}#open-payout">Open</a>
                                     @endif
                                     @if($unsent > 0)
                                         <form method="POST" action="{{ route('payout.request.revise') }}">
@@ -150,13 +163,13 @@
     </div>
 
     @if($open)
-        <div class="pay-card">
+        <div class="pay-card" id="open-payout">
             <div class="pay-card-head">
-                <h2>{{ $open->requester_name }} @if($open->note)<span class="pay-muted">· {{ $open->note }}</span>@endif</h2>
+                <h2>Edit the amount, then pay @if($open->note)<span class="pay-muted">· {{ $open->note }}</span>@endif</h2>
                 <a href="{{ route('payout.index') }}">All pending</a>
             </div>
             <div class="pay-card-body">
-                <p class="pay-help">This is everyone on the request. Change an amount when someone did not work the whole day, or remove a name that did not work. Save keeps the change without paying.</p>
+                <p class="pay-help">{{ $open->requester_name }} Change the amount for anyone who should receive less, then pay. Save keeps the change without sending the money.</p>
                 <form method="POST" action="{{ route('payout.pay') }}" id="payoutForm">
                     @csrf
                     <input type="hidden" name="request_id" value="{{ $open->id }}">
@@ -197,7 +210,7 @@
                                         <td data-label="MoMo">{{ $line->momo_name !== '' && $line->momo_name !== null ? $line->momo_name : ((int) $line->momo_checked === 1 ? 'Not found on MoMo' : 'Looking up…') }}</td>
                                         <td data-label="Amount">
                                             @if($canEdit)
-                                                <input type="number" class="form-control form-control-sm payout-amount" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ (int) $line->amount }}" inputmode="numeric">
+                                                <input type="number" class="form-control payout-amount" name="amounts[{{ $line->id }}]" min="100" max="1000000" step="1" value="{{ (int) $line->amount }}" inputmode="numeric">
                                             @else
                                                 {{ number_format($line->amount, 0, '.', ' ') }}
                                             @endif
@@ -272,6 +285,28 @@
             event.preventDefault();
         }
     });
+    var approve = document.getElementById('pendingApprove');
+    var approveForm = document.getElementById('pendingApproveForm');
+    if (approve && approveForm) {
+        approve.addEventListener('click', function () {
+            var ids = [];
+            boxes().forEach(function (box) { if (box.checked) ids.push(box.value); });
+            if (!ids.length) {
+                window.alert('Select the payments to approve and pay.');
+                return;
+            }
+            if (!window.confirm('Approve and pay ' + ids.length + ' ' + (ids.length === 1 ? 'request' : 'requests') + '?')) return;
+            approveForm.querySelectorAll('input[name="ids[]"]').forEach(function (input) { input.remove(); });
+            ids.forEach(function (id) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = id;
+                approveForm.appendChild(input);
+            });
+            approveForm.submit();
+        });
+    }
 })();
 </script>
 <script>

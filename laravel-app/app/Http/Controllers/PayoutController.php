@@ -199,6 +199,44 @@ class PayoutController extends Controller
         return redirect()->route('payout.index')->with('message', $message);
     }
 
+    public function approveMany(Request $request)
+    {
+        $this->guard();
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('ids', [])))));
+        if (count($ids) < 1) {
+            return redirect()->route('payout.index')->with('not_permitted', 'Select the payments to approve and pay.');
+        }
+        $paid = 0;
+        $failed = 0;
+        $skipped = 0;
+        foreach ($ids as $id) {
+            $batch = $this->requests($this->tenantId())->where('id', $id)->first();
+            if (! $batch) {
+                $skipped++;
+                continue;
+            }
+            $rows = CampayPayout::where('request_id', $batch->id)->whereIn('status', ['pending', 'failed'])->orderBy('id')->get();
+            if ($rows->count() < 1) {
+                $skipped++;
+                continue;
+            }
+            $result = $this->payLines($this->prepareUnpaid($rows));
+            $this->closeBatch($batch);
+            $paid += (int) $result['paid'] + (int) $result['waiting'];
+            $failed += (int) $result['failed'];
+            $skipped += (int) $result['skipped'];
+        }
+        $message = $paid.' '.($paid === 1 ? 'payment was' : 'payments were').' sent.';
+        if ($failed > 0) {
+            $message .= ' '.$failed.' could not be sent.';
+        }
+        if ($skipped > 0) {
+            $message .= ' '.$skipped.' '.($skipped === 1 ? 'was' : 'were').' left out.';
+        }
+
+        return redirect()->route('payout.index')->with($failed && ! $paid ? 'not_permitted' : 'message', $message);
+    }
+
     public function requestLink(Request $request)
     {
         $this->guard();

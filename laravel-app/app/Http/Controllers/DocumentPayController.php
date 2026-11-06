@@ -14,6 +14,7 @@ use App\Services\Cloud\CloudTenantContext;
 use App\Support\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class DocumentPayController extends Controller
 {
@@ -73,8 +74,11 @@ class DocumentPayController extends Controller
     {
         $link = $this->find($token);
         $this->refresh($link);
+        $link = $link->fresh();
+        $cached = Cache::get('docpay:'.$link->id);
+        $pendingLines = is_array($cached) && ! empty($cached['lines']) ? $cached['lines'] : [];
 
-        return view('pay.document', ['link' => $link->fresh()]);
+        return view('pay.document', ['link' => $link, 'pendingLines' => $pendingLines]);
     }
 
     public function pay(Request $request, $token)
@@ -85,9 +89,24 @@ class DocumentPayController extends Controller
         if ($link->status === 'paid') {
             return redirect()->route('document.pay', ['token' => $link->token]);
         }
-        $method = (string) $request->input('method');
+        if ($link->status === 'pending') {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'A payment is already waiting for approval.');
+        }
+        $method = (string) ($request->input('pay_with') ?: $request->input('method'));
         if (! in_array($method, ['momo', 'visa'], true)) {
             return redirect()->route('document.pay', ['token' => $link->token]);
+        }
+        $typedPhone = trim((string) $request->input('phone'));
+        if ($typedPhone !== '') {
+            $link->phone = $typedPhone;
+        }
+        $due = (int) $link->amount;
+        if ($request->input('pay_mode') === 'split') {
+            return $this->startSplit($request, $link, $method, $due);
+        }
+        $charge = (int) round((float) str_replace([',', ' '], '', (string) $request->input('amount', $due)));
+        if ($charge < 100 || $charge > $due) {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Enter a whole amount from 100 XAF up to the amount still due.');
         }
         $service = app(CampayPayoutService::class);
         $phone = $service->momoNumber($link->phone);
@@ -96,22 +115,22 @@ class DocumentPayController extends Controller
         }
         $from = $phone ?: preg_replace('/\D/', '', (string) $link->phone);
         if ($from === '') {
-            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'There is no phone number on this request.');
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Enter the number that should pay.');
         }
-        $reference = 'doc-'.date('YmdHis').'-'.$link->id.'-'.substr(md5(uniqid('', true)), 0, 6);
+        Cache::put('docpay:'.$link->id, ['charge' => $charge, 'phone' => $from], now()->addDays(7));
         $description = substr($this->label($link).' '.$link->reference_no, 0, 80);
         if ($method === 'momo') {
-            $body = $service->collect($from, (int) $link->amount, $reference, $description);
-            $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-            if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+            $asked = $this->askMomo($link, $from, $charge, $description);
+            if (! empty($asked['error'])) {
                 $link->status = 'failed';
-                $link->error = 'Campay could not ask for the Mobile Money approval.';
+                $link->error = $asked['error'];
                 $link->save();
 
-                return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', $link->error);
+                return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', $asked['error']);
             }
             $link->method = 'momo';
-            $link->campay_reference = (string) $body['reference'];
+            $link->phone = $from;
+            $link->campay_reference = $asked['reference'];
             $link->status = 'pending';
             $link->error = null;
             $link->save();
@@ -121,7 +140,7 @@ class DocumentPayController extends Controller
         $back = route('document.pay', ['token' => $link->token]);
         $card = app(StripeCheckoutService::class)->checkout(
             $description,
-            (int) $link->amount,
+            $charge,
             $back.'?session_id={CHECKOUT_SESSION_ID}',
             $back,
             ['document' => (string) $link->id]
@@ -130,6 +149,7 @@ class DocumentPayController extends Controller
             return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', isset($card['error']) ? $card['error'] : 'VISA could not be opened.');
         }
         $link->method = 'visa';
+        $link->phone = $from;
         $link->campay_reference = (string) $card['id'];
         $link->payment_link = (string) $card['url'];
         $link->status = 'pending';
@@ -201,14 +221,101 @@ class DocumentPayController extends Controller
         app(ClientNoticeService::class)->send($link->phone, $msg);
     }
 
+    protected function startSplit(Request $request, DocumentPaymentLink $link, $method, $due)
+    {
+        if ($method !== 'momo') {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Split payment is sent to Mobile Money numbers. VISA pays one amount.');
+        }
+        $phones = (array) $request->input('split_phone', []);
+        $amounts = (array) $request->input('split_amount', []);
+        $lines = [];
+        foreach ($amounts as $i => $raw) {
+            $amount = (int) round((float) str_replace([',', ' '], '', (string) $raw));
+            $phone = isset($phones[$i]) ? trim((string) $phones[$i]) : '';
+            if ($amount <= 0 && $phone === '') {
+                continue;
+            }
+            $lines[] = ['phone' => $phone, 'amount' => $amount];
+        }
+        if (count($lines) < 2) {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Add at least two numbers and amounts.');
+        }
+        $sum = 0;
+        foreach ($lines as $line) {
+            $sum += $line['amount'];
+            if ($line['amount'] < 100) {
+                return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'Each share must be at least 100 XAF.');
+            }
+        }
+        if ($sum > $due) {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'The split is more than the amount still due.');
+        }
+        $description = substr($this->label($link).' '.$link->reference_no, 0, 80);
+        $pending = [];
+        foreach ($lines as $line) {
+            $asked = $this->askMomo($link, $line['phone'], $line['amount'], $description);
+            if (! empty($asked['error'])) {
+                if (! $pending) {
+                    return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', $asked['error']);
+                }
+                continue;
+            }
+            $pending[] = $asked;
+        }
+        if (! $pending) {
+            return redirect()->route('document.pay', ['token' => $link->token])->with('not_permitted', 'None of the numbers could be asked to pay.');
+        }
+        Cache::put('docpay:'.$link->id, ['lines' => $pending], now()->addDays(7));
+        $link->method = 'momo';
+        $link->campay_reference = $pending[0]['reference'];
+        $link->status = 'pending';
+        $link->error = null;
+        $link->save();
+
+        return redirect()->route('document.pay', ['token' => $link->token]);
+    }
+
+    protected function askMomo(DocumentPaymentLink $link, $phone, $amount, $description)
+    {
+        $service = app(CampayPayoutService::class);
+        $from = $service->momoNumber($phone);
+        if (! $from) {
+            return ['error' => 'Enter an MTN or Orange Cameroon number.'];
+        }
+        $external = 'doc-'.date('YmdHis').'-'.$link->id.'-'.substr(md5(uniqid('', true)), 0, 6);
+        $body = $service->collect($from, (int) $amount, $external, $description);
+        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+        if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+            return ['error' => 'Campay could not ask for the Mobile Money approval.'];
+        }
+
+        return [
+            'phone' => $from,
+            'amount' => (int) $amount,
+            'reference' => (string) $body['reference'],
+            'external' => $external,
+        ];
+    }
+
     protected function refresh(DocumentPaymentLink $link)
     {
-        if ($link->status === 'paid' || ! $link->campay_reference) {
+        if ($link->status === 'paid') {
+            return;
+        }
+        $cached = Cache::get('docpay:'.$link->id);
+        if (is_array($cached) && ! empty($cached['lines']) && count($cached['lines']) > 1) {
+            $this->settleLines($link, $cached);
+
+            return;
+        }
+        if (! $link->campay_reference) {
             return;
         }
         if (strpos((string) $link->campay_reference, 'cs_') === 0) {
             if (app(StripeCheckoutService::class)->isPaid($link->campay_reference)) {
-                $this->markPaid($link);
+                $charge = is_array($cached) && ! empty($cached['charge']) ? (int) $cached['charge'] : (int) $link->amount;
+                $this->applyPortion($link, $charge, (string) $link->campay_reference, $link->phone, 'visa');
+                Cache::forget('docpay:'.$link->id);
             }
 
             return;
@@ -216,32 +323,98 @@ class DocumentPayController extends Controller
         $body = app(CampayPayoutService::class)->transaction($link->campay_reference);
         $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
         if ($status === 'SUCCESSFUL') {
-            $this->markPaid($link);
+            $charge = is_array($cached) && ! empty($cached['charge']) ? (int) $cached['charge'] : (int) $link->amount;
+            if (is_array($body) && isset($body['amount']) && (int) $body['amount'] > 0 && (int) $body['amount'] <= (int) $link->amount) {
+                $charge = (int) $body['amount'];
+            }
+            $this->applyPortion($link, $charge, (string) $link->campay_reference, is_array($cached) && ! empty($cached['phone']) ? $cached['phone'] : $link->phone, 'momo');
+            Cache::forget('docpay:'.$link->id);
         } elseif ($status === 'FAILED') {
             $link->status = 'failed';
             $link->error = 'The payment was not approved.';
+            $link->campay_reference = null;
             $link->save();
+            Cache::forget('docpay:'.$link->id);
         }
     }
 
-    protected function markPaid(DocumentPaymentLink $link)
+    protected function settleLines(DocumentPaymentLink $link, array $cached)
     {
-        if ($link->status === 'paid') {
+        $lines = $cached['lines'];
+        $waiting = false;
+        $anyPaid = false;
+        foreach ($lines as $index => $line) {
+            if (! empty($line['done'])) {
+                $anyPaid = $anyPaid || ! empty($line['paid']);
+                continue;
+            }
+            $body = app(CampayPayoutService::class)->transaction($line['reference']);
+            $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+            if ($status === 'SUCCESSFUL') {
+                $amount = (int) $line['amount'];
+                if (is_array($body) && isset($body['amount']) && (int) $body['amount'] > 0) {
+                    $amount = (int) $body['amount'];
+                }
+                $this->applyPortion($link, $amount, $line['reference'], $line['phone'], 'momo');
+                $link = $link->fresh();
+                $lines[$index]['done'] = true;
+                $lines[$index]['paid'] = true;
+                $anyPaid = true;
+                continue;
+            }
+            if ($status === 'FAILED') {
+                $lines[$index]['done'] = true;
+                $lines[$index]['paid'] = false;
+                continue;
+            }
+            $waiting = true;
+        }
+        if ($waiting) {
+            $cached['lines'] = $lines;
+            Cache::put('docpay:'.$link->id, $cached, now()->addDays(7));
+            $link->status = 'pending';
+            $link->save();
+
             return;
         }
-        $link->status = 'paid';
-        $link->error = null;
+        Cache::forget('docpay:'.$link->id);
+        if ((int) $link->amount <= 0) {
+            return;
+        }
+        $link->campay_reference = null;
+        $link->status = $anyPaid ? 'waiting' : 'failed';
+        $link->error = $anyPaid ? null : 'The payment was not approved.';
         $link->save();
+    }
+
+    protected function applyPortion(DocumentPaymentLink $link, $amount, $reference, $phone, $method)
+    {
+        $amount = (int) $amount;
+        $reference = (string) $reference;
+        if ($amount < 1 || ($reference !== '' && Cache::has('docpay-done:'.$reference))) {
+            return;
+        }
+        if ($reference !== '') {
+            Cache::put('docpay-done:'.$reference, 1, now()->addDays(14));
+        }
+        $amount = min($amount, (int) $link->amount);
+        if ($amount < 1) {
+            return;
+        }
+        $phone = $phone ?: $link->phone;
+        $wasVisa = $method === 'visa';
         if ($link->kind === 'sale') {
-            app(CloudTenantContext::class)->withoutIsolation(function () use ($link) {
+            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, $amount, $reference, $wasVisa) {
                 $sale = Sale::find($link->document_id);
                 if (! $sale) {
                     return;
                 }
-                $paid = (float) $sale->paid_amount + (int) $link->amount;
-                $sale->paid_amount = $paid;
-                $balance = (float) $sale->grand_total - $paid;
-                $sale->payment_status = $balance <= 0 ? 4 : 3;
+                if ($reference !== '' && Payment::where('sale_id', $sale->id)->where('payment_note', 'Campay '.$reference)->exists()) {
+                    return;
+                }
+                $sale->paid_amount = (float) $sale->paid_amount + $amount;
+                $balance = (float) $sale->grand_total - (float) $sale->paid_amount;
+                $sale->payment_status = $balance <= 0 ? 4 : ($sale->paid_amount > 0 ? 3 : 2);
                 $sale->save();
                 $account = Account::where('is_default', true)->first();
                 $payment = new Payment();
@@ -253,31 +426,44 @@ class DocumentPayController extends Controller
                 if ($sale->cloud_tenant_id) {
                     $payment->setAttribute('cloud_tenant_id', $sale->cloud_tenant_id);
                 }
-                $payment->amount = (int) $link->amount;
+                $payment->amount = $amount;
                 $payment->change = 0;
-                $payment->paying_method = $link->method === 'visa' ? 'Credit Card' : 'Mobile Money';
+                $payment->paying_method = $wasVisa ? 'Credit Card' : 'Mobile Money';
                 $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('His');
-                $payment->payment_note = 'Paid from the payment link';
+                $payment->payment_note = $reference !== '' ? 'Campay '.$reference : 'Paid from the payment link';
                 $payment->save();
             });
         }
+        $left = (int) $link->amount - $amount;
+        $link->amount = max(0, $left);
+        $link->campay_reference = null;
+        $link->payment_link = null;
+        $link->error = null;
+        $finished = $link->amount <= 0;
+        $link->status = $finished ? 'paid' : 'waiting';
+        $link->save();
         $label = $this->label($link);
-        $text = 'Dear '.$link->person_name.', a payment of '.number_format($link->amount, 0, '.', ' ').' XAF has been received for '.$label.' '.$link->reference_no.'.';
-        app(ClientNoticeService::class)->send($link->phone, $text);
-        if ($link->method !== 'visa') {
+        $text = 'Dear '.$link->person_name.', a payment of '.number_format($amount, 0, '.', ' ').' XAF has been received for '.$label.' '.$link->reference_no.'.';
+        if (! $finished) {
+            $text .= ' '.number_format($link->amount, 0, '.', ' ').' XAF is still due.';
+        }
+        app(ClientNoticeService::class)->send($phone, $text);
+        if (! $wasVisa) {
             app(\App\Services\MomoMiniReceipt::class)->send([
-                'phone' => $link->phone,
+                'phone' => $phone,
                 'name' => $link->person_name,
-                'amount' => $link->amount,
+                'amount' => $amount,
                 'reason' => $label.' '.$link->reference_no,
                 'reference' => $link->reference_no,
                 'date' => now(),
             ]);
         }
-        try {
-            app(\App\Services\CompanyReviewInviteService::class)->sendForDocumentPayment($link);
-        } catch (\Throwable $e) {
-            \Log::warning('Review invite failed', ['error' => $e->getMessage()]);
+        if ($finished) {
+            try {
+                app(\App\Services\CompanyReviewInviteService::class)->sendForDocumentPayment($link);
+            } catch (\Throwable $e) {
+                \Log::warning('Review invite failed', ['error' => $e->getMessage()]);
+            }
         }
     }
 

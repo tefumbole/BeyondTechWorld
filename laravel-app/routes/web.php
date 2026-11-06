@@ -793,6 +793,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/payout/retry', 'PayoutController@retry')->name('payout.retry');
     Route::post('/admin/payout/drop', 'PayoutController@drop')->name('payout.drop');
     Route::post('/admin/payout/pending/delete', 'PayoutController@deletePending')->name('payout.pending.delete');
+    Route::post('/admin/payout/pending/approve', 'PayoutController@approveMany')->name('payout.approve_many');
     Route::post('/admin/payout/pay', 'PayoutController@pay')->name('payout.pay');
     Route::post('/admin/payout/direct', 'PayoutController@direct')->name('payout.direct');
     Route::get('/admin/donations', 'PublicDonateController@adminIndex')->name('donations.index');
