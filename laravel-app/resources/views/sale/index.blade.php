@@ -340,6 +340,32 @@
         </div>
     </div>
 
+    <div id="request-payment" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
+        <div role="document" class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request payment</h5>
+                    <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+                </div>
+                <form method="POST" id="request-payment-form" action="">
+                    @csrf
+                    <div class="modal-body">
+                        <p id="request-payment-who" class="mb-2"></p>
+                        <p class="text-muted">The client receives this amount and approves it on the phone. Leave the full amount due, or enter a part of it.</p>
+                        <div class="form-group">
+                            <label>Amount to request (XAF)</label>
+                            <input type="number" name="amount" id="request-payment-amount" class="form-control" min="100" step="1" required>
+                        </div>
+                        <p class="text-muted mb-0">Still due: <strong id="request-payment-due"></strong> XAF</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Send request</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <script type="text/javascript">
 
         $("ul#sale").siblings('a').attr('aria-expanded','true');
@@ -1049,6 +1075,18 @@
 
         if(all_permission.indexOf("sales-delete") == -1)
             $('.buttons-delete').addClass('d-none');
+
+        $(document).on('click', '.request-payment', function () {
+            var id = $(this).data('id');
+            var due = parseInt($(this).data('due'), 10) || 0;
+            var name = $(this).data('name') || 'Client';
+            var ref = $(this).data('ref') || '';
+            $('#request-payment-form').attr('action', @json(url('sales')) + '/' + id + '/request-payment');
+            $('#request-payment-who').text(name + (ref ? ' · ' + ref : ''));
+            $('#request-payment-due').text(due.toLocaleString());
+            $('#request-payment-amount').attr('max', due).val(due);
+            $('#request-payment').modal('show');
+        });
 
         function confirmDelete() {
             if (confirm("Are you sure want to delete?")) {

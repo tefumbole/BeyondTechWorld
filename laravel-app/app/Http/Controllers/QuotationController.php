@@ -234,7 +234,7 @@ class QuotationController extends Controller
     public function quickStoreProduct(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);
-        if (! $role || (! $role->hasPermissionTo('quotes-add') && ! $role->hasPermissionTo('quotes-edit') && ! $role->hasPermissionTo('products-add'))) {
+        if (! $role || (! $role->hasPermissionTo('quotes-add') && ! $role->hasPermissionTo('quotes-edit') && ! $role->hasPermissionTo('products-add') && ! $role->hasPermissionTo('sales-add'))) {
             return response()->json(['success' => false, 'message' => 'Not permitted'], 403);
         }
 

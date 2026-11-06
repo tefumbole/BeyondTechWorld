@@ -30,17 +30,23 @@ class DocumentPayController extends Controller
         return $this->sendRequest('quotation', $document, $amount, 'Quotation');
     }
 
-    public function requestSale($id)
+    public function requestSale(Request $request, $id)
     {
         $this->guard();
         $document = Sale::with('customer')->findOrFail($id);
         $due = (float) $document->grand_total - (float) $document->paid_amount;
-        $amount = (int) round($due);
-        if (abs($due - $amount) > 0.001 || $amount < 100) {
+        $whole = (int) round($due);
+        if (abs($due - $whole) > 0.001 || $whole < 100) {
             return back()->with('message', 'There is no whole amount of at least 100 XAF left to request.');
         }
+        $asked = $request->filled('amount')
+            ? (int) round((float) str_replace([',', ' '], '', (string) $request->input('amount')))
+            : $whole;
+        if ($asked < 100 || $asked > $whole) {
+            return back()->with('not_permitted', 'Enter a whole amount from 100 XAF up to the '.$whole.' XAF still due.');
+        }
 
-        return $this->sendRequest('sale', $document, $amount, 'Invoice');
+        return $this->sendRequest('sale', $document, $asked, 'Invoice');
     }
 
     public function requestMany(array $ids)

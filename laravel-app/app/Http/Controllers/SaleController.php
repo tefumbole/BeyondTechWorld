@@ -345,10 +345,11 @@ class SaleController extends Controller
                     '<li>
                         <button type="button" class="add-payment btn btn-link" data-id="'.$sale->id.'" data-name="'.e(optional($sale->customer)->name).'" data-phone="'.e(optional($sale->customer)->phone_number).'" data-ref="'.e($sale->reference_no).'" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i> '.trans('file.Add Payment').'</button>
                     </li>';
-                if(((float) $sale->grand_total - (float) $sale->paid_amount) >= 100) {
-                    $nestedData['options'] .= '<li>'.\Form::open(["route" => ["sale.request_payment", $sale->id], "method" => "POST"] ).'
-                        <button type="submit" class="btn btn-link" onclick="return confirm(\'Send a payment link to the client? They can pay with MTN, Orange, or VISA.\')"><i class="fa fa-whatsapp"></i> Request payment</button>'
-                        .\Form::close().'</li>';
+                $dueNow = (float) $sale->grand_total - (float) $sale->paid_amount;
+                if($dueNow >= 100) {
+                    $nestedData['options'] .= '<li>
+                        <button type="button" class="btn btn-link request-payment" data-id="'.$sale->id.'" data-due="'.(int) round($dueNow).'" data-name="'.e(optional($sale->customer)->name).'" data-ref="'.e($sale->reference_no).'"><i class="fa fa-whatsapp"></i> Request payment</button>
+                    </li>';
                 }
                 $nestedData['options'] .=
                     '<li>
@@ -411,6 +412,8 @@ class SaleController extends Controller
             }
 
             $lims_tax_list = Tax::where('is_active', true)->get();
+            $lims_category_list = Category::where('is_active', true)->orderBy('name')->get();
+            $lims_unit_list = Unit::where('is_active', true)->orderBy('unit_name')->get();
             $lims_pos_setting_data = PosSetting::latest()->first();
             $lims_reward_point_setting_data = RewardPointSetting::latest()->first();
             list($lims_customer_list, $lims_warehouse_list, $lims_biller_list, $lims_pos_setting_data) = $this->companySaleLists(
@@ -420,7 +423,7 @@ class SaleController extends Controller
                 $lims_pos_setting_data
             );
 
-            return view('sale.create',compact('all_permission', 'lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_tax_list', 'lims_reward_point_setting_data'));
+            return view('sale.create',compact('all_permission', 'lims_customer_list', 'lims_warehouse_list', 'lims_biller_list', 'lims_pos_setting_data', 'lims_tax_list', 'lims_reward_point_setting_data', 'lims_category_list', 'lims_unit_list'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
@@ -2036,14 +2039,24 @@ class SaleController extends Controller
         $product_code = [];
         $product_name = [];
         $product_qty = [];
+        $product_type = [];
+        $product_id = [];
+        $product_list = [];
+        $qty_list = [];
         $product_price = [];
+        $batch_no = [];
+        $product_batch_id = [];
+        $product_expired_date = [];
         $product_data = [];
         //product without variant
         foreach ($lims_product_warehouse_data as $product_warehouse)
         {
+            $lims_product_data = Product::find($product_warehouse->product_id);
+            if (! $lims_product_data) {
+                continue;
+            }
             $product_qty[] = $product_warehouse->qty;
             $product_price[] = $product_warehouse->price;
-            $lims_product_data = Product::find($product_warehouse->product_id);
             $product_code[] =  $lims_product_data->code;
             $product_name[] = htmlspecialchars($lims_product_data->name);
             $product_type[] = $lims_product_data->type;
@@ -2057,16 +2070,19 @@ class SaleController extends Controller
         //product with batches
         foreach ($lims_product_with_batch_warehouse_data as $product_warehouse)
         {
+            $lims_product_data = Product::find($product_warehouse->product_id);
+            $product_batch_data = ProductBatch::select('id', 'batch_no', 'expired_date')->find($product_warehouse->product_batch_id);
+            if (! $lims_product_data || ! $product_batch_data) {
+                continue;
+            }
             $product_qty[] = $product_warehouse->qty;
             $product_price[] = $product_warehouse->price;
-            $lims_product_data = Product::find($product_warehouse->product_id);
             $product_code[] =  $lims_product_data->code;
             $product_name[] = htmlspecialchars($lims_product_data->name);
             $product_type[] = $lims_product_data->type;
             $product_id[] = $lims_product_data->id;
             $product_list[] = $lims_product_data->product_list;
             $qty_list[] = $lims_product_data->qty_list;
-            $product_batch_data = ProductBatch::select('id', 'batch_no', 'expired_date')->find($product_warehouse->product_batch_id);
             $batch_no[] = $product_batch_data->batch_no;
             $product_batch_id[] = $product_batch_data->id;
             $product_expired_date[] = $product_batch_data->expired_date;
@@ -2074,9 +2090,12 @@ class SaleController extends Controller
         //product with variant
         foreach ($lims_product_with_variant_warehouse_data as $product_warehouse)
         {
-            $product_qty[] = $product_warehouse->qty;
             $lims_product_data = Product::find($product_warehouse->product_id);
             $lims_product_variant_data = ProductVariant::select('item_code')->FindExactProduct($product_warehouse->product_id, $product_warehouse->variant_id)->first();
+            if (! $lims_product_data || ! $lims_product_variant_data) {
+                continue;
+            }
+            $product_qty[] = $product_warehouse->qty;
             $product_code[] =  $lims_product_variant_data->item_code;
             $product_name[] = htmlspecialchars($lims_product_data->name);
             $product_type[] = $lims_product_data->type;
@@ -2103,9 +2122,11 @@ class SaleController extends Controller
             $product_expired_date[] = null;
         }
 
-        if ($role->hasPermissionTo('search_all_products')) {
-            $zero_stock = Product::whereNotIn('id', $product_id)->where('is_active', true)->get();
-            foreach ($zero_stock as $zero) {
+        $catalog = Product::where('is_active', true)->orderBy('name')->get();
+        foreach ($catalog as $zero) {
+            if (in_array($zero->id, $product_id, false)) {
+                continue;
+            }
                 $product_qty[] = $zero->qty;
                 $product_price[] = $zero->price;
                 $lims_product_data = $zero;
@@ -2118,7 +2139,6 @@ class SaleController extends Controller
                 $batch_no[] = null;
                 $product_batch_id[] = null;
                 $product_expired_date[] = null;
-            }
         }
 
         $product_data = [$product_code, $product_name, $product_qty, $product_type, $product_id, $product_list, $qty_list, $product_price, $batch_no, $product_batch_id, $product_expired_date];

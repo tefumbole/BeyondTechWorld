@@ -74,10 +74,13 @@
                                         <label>{{trans('file.Select Product')}}</label>
                                         <div class="search-box input-group">
                                             @if(in_array("search_on_click", $all_permission))
-                                                    <input type="text" name="product_code_name" id="click_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
-                                                    <button class="btn btn-secondary btn-lg" id="search_btn" href="javascript.void(0)"><i class="fa fa-search"></i></button>
-                                                @else<button type="button" class="btn btn-secondary btn-lg"><i class="fa fa-barcode"></i></button>
-                                            <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />@endif
+                                                <input type="text" name="product_code_name" id="click_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                                <button type="button" class="btn btn-secondary btn-lg" id="search_btn"><i class="fa fa-search"></i></button>
+                                            @else
+                                                <button type="button" class="btn btn-secondary btn-lg"><i class="fa fa-barcode"></i></button>
+                                                <input type="text" name="product_code_name" id="lims_productcodeSearch" placeholder="Please type product code and select..." class="form-control" />
+                                            @endif
+                                            <button type="button" class="btn btn-secondary btn-lg" data-toggle="modal" data-target="#addProduct" title="{{trans('file.add_product')}}"><i class="dripicons-plus"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -412,6 +415,48 @@
             </div>
         </div>
     </section>
+    <div id="addProduct" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
+        <div role="document" class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{trans('file.add_product')}}</h5>
+                    <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+                </div>
+                <div class="modal-body">
+                    <p class="italic"><small>{{trans('file.The field labels marked with * are required input fields')}}.</small></p>
+                    <div class="form-group">
+                        <label>{{trans('file.name')}} *</label>
+                        <input type="text" id="sale_product_name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>{{trans('file.Price')}} *</label>
+                        <input type="number" id="sale_product_price" class="form-control" step="any" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>{{trans('file.category')}} *</label>
+                        <select id="sale_product_category" class="form-control">
+                            @foreach($lims_category_list as $list)
+                                <option value="{{$list->id}}">{{$list->name}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>{{trans('file.unit')}} *</label>
+                        <select id="sale_product_unit" class="form-control">
+                            @foreach($lims_unit_list as $list)
+                                <option value="{{$list->id}}">{{$list->unit_name}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="button" id="sale-product-submit" class="btn btn-primary">{{trans('file.submit')}}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        .ui-autocomplete.ui-front { z-index: 10050 !important; background: #fff !important; color: #1f2a44 !important; max-height: 280px; overflow-y: auto; }
+        .ui-autocomplete.ui-front li.ui-menu-item { color: #1f2a44 !important; }
+    </style>
     <script type="text/javascript">
 
         $("ul#sale").siblings('a').attr('aria-expanded','true');
@@ -509,6 +554,9 @@
 
             isCashRegisterAvailable(id);
         });
+        if ($('#warehouse_id').val()) {
+            $('#warehouse_id').trigger('change');
+        }
 
         $('#lims_productcodeSearch').on('input', function(){
             var customer_id = $('#customer_id').val();
@@ -527,23 +575,68 @@
 
         var lims_productcodeSearch = $('#lims_productcodeSearch');
 
-        lims_productcodeSearch.autocomplete({
+        $('#lims_productcodeSearch, #click_productcodeSearch').autocomplete({
+            appendTo: 'body',
             source: function(request, response) {
-                var matcher = new RegExp(".?" + $.ui.autocomplete.escapeRegex(request.term), "i");
+                var words = $.trim(request.term).toLowerCase().split(/\s+/);
                 response($.grep(lims_product_array, function(item) {
-                    return matcher.test(item);
+                    var hay = String(item).toLowerCase();
+                    for (var i = 0; i < words.length; i++) {
+                        if (words[i] !== '' && hay.indexOf(words[i]) === -1) {
+                            return false;
+                        }
+                    }
+                    return true;
                 }));
             },
             response: function(event, ui) {
-                if (ui.content.length == 1) {
+                if (ui.content.length == 1 && $.trim(requestTerm(this)).length >= 3) {
                     var data = ui.content[0].value;
                     $(this).autocomplete( "close" );
                     productSearch(data);
-                };
+                }
             },
             select: function(event, ui) {
                 var data = ui.item.value;
                 productSearch(data);
+            },
+            minLength: 1
+        });
+
+        function requestTerm(field) {
+            return $(field).val();
+        }
+
+        function saleProductMatches(term) {
+            var words = $.trim(term).toLowerCase().split(/\s+/);
+            return $.grep(lims_product_array, function(item) {
+                var hay = String(item).toLowerCase();
+                for (var i = 0; i < words.length; i++) {
+                    if (words[i] !== '' && hay.indexOf(words[i]) === -1) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+        }
+
+        $('#search_btn').on('click', function (e) {
+            e.preventDefault();
+            var term = $.trim($('#click_productcodeSearch').val());
+            if (!term) {
+                return;
+            }
+            var matches = saleProductMatches(term);
+            if (!matches.length) {
+                alert('Product not found');
+                return;
+            }
+            productSearch(matches[0]);
+        });
+        $('#click_productcodeSearch').on('keydown', function (e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                $('#search_btn').trigger('click');
             }
         });
 
@@ -1147,6 +1240,60 @@
         $("ul#sale").siblings('a').attr('aria-expanded','true');
         $("ul#sale").addClass("show");
         $("ul#sale li").eq(2).addClass("active");
+
+        $('#sale-product-submit').on('click', function () {
+            var name = $.trim($('#sale_product_name').val());
+            var price = $('#sale_product_price').val();
+            if (!name || price === '' || price === null) {
+                alert('Product name and price are required.');
+                return;
+            }
+            if (!$('#customer_id').val()) {
+                alert('Please select Customer!');
+                return;
+            }
+            if (!$('#warehouse_id').val()) {
+                alert('Please select Warehouse!');
+                return;
+            }
+            var $btn = $(this).prop('disabled', true);
+            $.ajax({
+                type: 'POST',
+                url: @json(route('quotation.quick_product')),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    product_name: name,
+                    product_price: price,
+                    category: $('#sale_product_category').val(),
+                    unit: $('#sale_product_unit').val(),
+                    profit: 25,
+                    warehouse_id: $('#warehouse_id').val()
+                },
+                success: function (res) {
+                    if (!res.success || !res.product) {
+                        alert(res.message || 'Product create failed');
+                        return;
+                    }
+                    $('#addProduct').modal('hide');
+                    $('#sale_product_name, #sale_product_price').val('');
+                    var label = res.product.code + ' (' + res.product.name + ')';
+                    if (typeof lims_product_array !== 'undefined') {
+                        lims_product_array.push(label);
+                    }
+                    productSearch(label);
+                },
+                error: function (xhr) {
+                    var msg = 'Could not create product.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        msg = Object.values(xhr.responseJSON.errors).join('\n');
+                    }
+                    alert(msg);
+                },
+                complete: function () { $btn.prop('disabled', false); }
+            });
+        });
     </script>
 @endsection @section('scripts')
     <script type="text/javascript" src="https://js.stripe.com/v3/"></script>
