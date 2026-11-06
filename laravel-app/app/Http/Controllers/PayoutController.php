@@ -1300,7 +1300,7 @@ class PayoutController extends Controller
 
     protected function paidText($name, $amount, $reason, $requester = '')
     {
-        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmed');
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmation');
         $msg .= 'Dear *'.$name.'*,'."\n\n";
         $msg .= 'A payment of *'.$this->moneyText($amount)."* XAF has been made to you.\n";
         $msg .= $this->paidDetails($reason, $requester);
@@ -1311,7 +1311,7 @@ class PayoutController extends Controller
 
     protected function paidAdminText($name, $amount, $reason, $requester = '')
     {
-        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmed');
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment Confirmation');
         $msg .= 'Dear *'.$this->copyName().'*,'."\n\n";
         $msg .= 'A payment of *'.$this->moneyText($amount).'* XAF has been made to *'.$name."*.\n";
         $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Paid to', $name);

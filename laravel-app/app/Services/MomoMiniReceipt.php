@@ -19,35 +19,38 @@ class MomoMiniReceipt
         if (! isset($receipt['client_phone']) || trim((string) $receipt['client_phone']) === '') {
             $receipt['client_phone'] = isset($receipt['phone']) ? $receipt['phone'] : '';
         }
-        $this->deliver($receipt);
+        $channel = $this->deliver($receipt);
         if (! empty($receipt['skip_admin_copy'])) {
-            return;
+            return $channel;
         }
         $phone = isset($receipt['phone']) ? trim((string) $receipt['phone']) : '';
         $admin = \App\Support\TwilioAdminCopy::PHONE;
         if ($admin === '' || \App\Support\TwilioAdminCopy::isAdmin($phone)) {
-            return;
+            return $channel;
         }
         $copy = $receipt;
         $copy['phone'] = $admin;
         $copy['skip_admin_copy'] = true;
         $this->deliver($copy);
+
+        return $channel;
     }
 
     protected function deliver(array $receipt)
     {
         $phone = isset($receipt['phone']) ? trim((string) $receipt['phone']) : '';
         if ($phone === '') {
-            return;
+            return 'none';
         }
         $reference = isset($receipt['reference']) ? trim((string) $receipt['reference']) : '';
         $hash = md5($reference.'|'.$phone.'|'.(string) (isset($receipt['amount']) ? $receipt['amount'] : ''));
         $pdfKey = 'momo-mini:'.$hash;
         $textKey = 'momo-text:'.$hash;
-        $pdfFresh = Cache::add($pdfKey, 1, now()->addDays(30));
+        $skipPdf = ! empty($receipt['skip_pdf']);
+        $pdfFresh = $skipPdf ? false : Cache::add($pdfKey, 1, now()->addDays(30));
         $textFresh = Cache::add($textKey, 1, now()->addDays(30));
         if (! $pdfFresh && ! $textFresh) {
-            return;
+            return 'none';
         }
         if ($pdfFresh) {
             try {
@@ -72,6 +75,7 @@ class MomoMiniReceipt
                 Log::warning('MoMo mini invoice failed: '.$e->getMessage());
             }
         }
+        $channel = 'none';
         if ($textFresh) {
             try {
                 $channel = app(ClientNoticeService::class)->send($phone, $this->textInvoice($receipt), false);
@@ -83,6 +87,8 @@ class MomoMiniReceipt
                 Log::warning('Payment text invoice failed: '.$e->getMessage());
             }
         }
+
+        return $channel;
     }
 
     /**
@@ -95,7 +101,10 @@ class MomoMiniReceipt
             $name = 'Client';
         }
         $party = isset($receipt['party']) ? strtoupper(trim((string) $receipt['party'])) : 'CLIENT';
-        $title = $party === 'RECEIVER' ? 'Withdrawal' : 'Sales invoice';
+        $title = isset($receipt['title']) ? trim((string) $receipt['title']) : '';
+        if ($title === '') {
+            $title = $party === 'RECEIVER' ? 'Withdrawal' : 'Sales invoice';
+        }
         $amount = (float) (isset($receipt['amount']) ? $receipt['amount'] : 0);
         $fee = (float) (isset($receipt['fee']) ? $receipt['fee'] : 0);
         $phone = isset($receipt['client_phone']) ? trim((string) $receipt['client_phone']) : '';

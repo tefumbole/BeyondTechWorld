@@ -1071,8 +1071,7 @@ class PaymentController extends Controller
         if ($phone === '') {
             return;
         }
-        $channel = $this->tellClient($phone, 'Beyond Enterprise received your deposit of '.$this->money($deposit->amount).' XAF.');
-        $this->sendDepositInvoice($deposit);
+        $channel = $this->sendDepositInvoice($deposit);
         if ($channel !== 'none') {
             $deposit->paid_notice = 1;
             $deposit->save();
@@ -1115,8 +1114,12 @@ class PaymentController extends Controller
             'requested_by' => $staff ? trim((string) $staff->name) : '',
             'requested_phone' => $staffPhone,
             'created_by' => $staff ? trim((string) $staff->name) : '',
+            'title' => 'Payment Confirmation',
+            'skip_pdf' => true,
+            'skip_admin_copy' => true,
         ];
-        app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
+
+        return app(\App\Services\MomoMiniReceipt::class)->send($receipt + ['phone' => $phone]);
     }
 
     protected function tellClient($phone, $message)

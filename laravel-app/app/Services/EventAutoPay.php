@@ -261,6 +261,9 @@ class EventAutoPay
             'reference' => $payout->external_reference,
             'date' => now(),
             'method' => 'Mobile Money',
+            'title' => 'Payment Confirmation',
+            'skip_pdf' => true,
+            'skip_admin_copy' => true,
         ]);
     }
 
