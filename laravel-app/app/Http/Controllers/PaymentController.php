@@ -321,6 +321,7 @@ class PaymentController extends Controller
             Cache::put('btw.campay.settled', 1, now()->addSeconds(30));
         }
         $this->importConfirmedCollections();
+        $this->applySaleCollections();
         $this->notifyUnsentDeposits();
     }
 
@@ -328,6 +329,12 @@ class PaymentController extends Controller
     {
         $this->settleWaitingDeposits();
         $this->importConfirmedCollections();
+        $this->applySaleCollections();
+    }
+
+    public function applyConfirmedSalePayments()
+    {
+        $this->applySaleCollections();
     }
 
     public function importConfirmedCollections()
@@ -388,6 +395,7 @@ class PaymentController extends Controller
                 'updated_at' => $when,
             ]);
             $this->rememberCollectionFee($deposit, $item);
+            $this->applyDepositToSale($deposit);
             if ($this->depositIsClientMoney($note)) {
                 $this->sendDepositNotice($deposit);
             }
@@ -920,6 +928,87 @@ class PaymentController extends Controller
             'city' => 'N/A',
             'is_active' => true,
         ]);
+    }
+
+    protected function applySaleCollections()
+    {
+        if (! Schema::hasTable('sales') || ! Schema::hasTable('payments') || ! Schema::hasTable('deposits')) {
+            return;
+        }
+        $rows = Deposit::where('status', 1)
+            ->where('payment_method', 3)
+            ->where(function ($query) {
+                $query->where('note', 'like', '%posr-%')->orWhere('note', 'like', '%sr-%');
+            })
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
+        foreach ($rows as $deposit) {
+            $this->applyDepositToSale($deposit);
+        }
+    }
+
+    protected function applyDepositToSale(Deposit $deposit)
+    {
+        $note = (string) $deposit->note;
+        if (! preg_match('/\b((?:posr|sr)-\d{8}-\d+)\b/i', $note, $match)) {
+            return false;
+        }
+        $sale = Sale::where('reference_no', $match[1])->first();
+        if (! $sale) {
+            return false;
+        }
+        $campayRef = trim((string) $deposit->campay_reference);
+        if ($campayRef === '') {
+            return false;
+        }
+        if (\App\Payment::where('payment_note', 'like', '%'.$campayRef.'%')->exists()) {
+            return false;
+        }
+        $amount = (int) round((float) $deposit->amount);
+        $due = (float) $sale->grand_total - (float) $sale->paid_amount;
+        if ($amount < 1 || $due < 0.5) {
+            return false;
+        }
+        if ($amount - $due > 0.5) {
+            $amount = (int) round($due);
+        }
+        $applied = false;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($deposit, $sale, $campayRef, $amount, &$applied) {
+            $locked = Sale::where('id', $sale->id)->lockForUpdate()->first();
+            if (! $locked) {
+                return;
+            }
+            if (\App\Payment::where('payment_note', 'like', '%'.$campayRef.'%')->lockForUpdate()->exists()) {
+                return;
+            }
+            $locked->paid_amount = (float) $locked->paid_amount + $amount;
+            $balance = (float) $locked->grand_total - (float) $locked->paid_amount;
+            $locked->payment_status = $balance <= 0.5 ? 4 : 3;
+            $accountId = $deposit->account_id ?: Account::where('is_active', true)->value('id');
+            $payment = new \App\Payment();
+            $payment->user_id = $deposit->user_id ?: (Auth::id() ?: 1);
+            $payment->sale_id = $locked->id;
+            $payment->account_id = $accountId ?: 1;
+            $payment->payment_reference = 'spr-'.date('Ymd').'-'.date('His');
+            $payment->amount = $amount;
+            $payment->change = $balance < 0 ? abs($balance) : 0;
+            $payment->paying_method = 'MOMO/OM';
+            $payment->payment_note = 'Campay '.$campayRef;
+            if (Schema::hasColumn('payments', 'provider')) {
+                $payment->provider = 'campay';
+                $payment->provider_reference = $campayRef;
+            }
+            $payment->save();
+            $locked->save();
+            $applied = true;
+        });
+        if ($applied && ! $deposit->customer_id && $sale->customer_id) {
+            $deposit->customer_id = $sale->customer_id;
+            $deposit->save();
+        }
+
+        return $applied;
     }
 
     protected function notifyUnsentDeposits()

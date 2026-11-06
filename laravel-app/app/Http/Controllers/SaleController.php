@@ -149,6 +149,11 @@ class SaleController extends Controller
 
     public function saleData(Request $request)
     {
+        try {
+            app(PaymentController::class)->applyConfirmedSalePayments();
+        } catch (\Throwable $e) {
+            \Log::warning('Confirmed sale payments were not applied: '.$e->getMessage());
+        }
         $columns = array(
             1 => 'created_at',
             3 => 'grand_total',

@@ -18,9 +18,13 @@
     }
     .user-sheet .user-hint { margin: 6px 0 0; color: #6f7b91; font-size: 12px; }
     .user-sheet .btn-primary, .user-sheet input[type="submit"].btn-primary {
-        min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: #c6ab47; color: #072f6b; font-weight: 800;
+        min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px;
+        background: #0b3f90 !important; border-color: #0b3f90 !important;
+        color: #ffffff !important; -webkit-text-fill-color: #ffffff; font-weight: 800;
     }
-    .user-sheet .btn-primary:hover { background: #072f6b; color: #fff; }
+    .user-sheet .btn-primary:hover, .user-sheet input[type="submit"].btn-primary:hover {
+        background: #072f6b !important; border-color: #072f6b !important; color: #ffffff !important;
+    }
     .user-sheet #genbutton { border-radius: 0 12px 12px 0; border: 1px solid #d5deee; background: #fff; color: #0b3f90; font-weight: 700; }
     .user-sheet .alert-light { border-radius: 16px; background: #fff; }
 </style>
