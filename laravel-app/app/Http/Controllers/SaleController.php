@@ -128,6 +128,12 @@ class SaleController extends Controller
             }
 
             $lims_gift_card_list = GiftCard::where("is_active", true)->get();
+            $balance = [];
+            $expired_date = [];
+            foreach ($lims_gift_card_list as $gift_card) {
+                $balance[$gift_card->id] = $gift_card->amount - $gift_card->expense;
+                $expired_date[$gift_card->id] = $gift_card->expired_date;
+            }
             $lims_pos_setting_data = PosSetting::latest()->first();
             $lims_reward_point_setting_data = RewardPointSetting::latest()->first();
             $lims_warehouse_list = Warehouse::where('is_active', true)->get();
@@ -135,7 +141,7 @@ class SaleController extends Controller
 
             $lims_customer_list = Customer::where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone_number']);
 
-            return view('sale.index',compact('starting_date', 'ending_date', 'warehouse_id', 'lims_gift_card_list', 'lims_pos_setting_data', 'lims_reward_point_setting_data', 'lims_account_list', 'lims_warehouse_list', 'all_permission', 'lims_customer_list'));
+            return view('sale.index',compact('starting_date', 'ending_date', 'warehouse_id', 'lims_gift_card_list', 'lims_pos_setting_data', 'lims_reward_point_setting_data', 'lims_account_list', 'lims_warehouse_list', 'all_permission', 'lims_customer_list', 'balance', 'expired_date'));
         }
         else
             return redirect()->back()->with('not_permitted', 'Sorry! You are not allowed to access this module');
