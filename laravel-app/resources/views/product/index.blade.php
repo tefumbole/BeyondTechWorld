@@ -26,7 +26,9 @@
         .product-modern table.dataTable { margin: 0 !important; }
         .product-modern table thead th { background: #f8fafc; border-bottom: 1px solid #d0d5dd !important; color: #344054; font-size: 13px; }
         .product-modern table td { border-top: 1px solid #eaecf0; vertical-align: middle; }
-        .product-modern table img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #e4e7ec; background: #f8fafc; }
+        .product-modern table img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #e4e7ec; background: #f8fafc; cursor: pointer; }
+        .product-modern table img.product-image-selected { outline: 3px solid #0b3f90; outline-offset: 2px; }
+        #product-image-paste-note { margin: 0 0 10px; color: #0b3f90; font-weight: 700; min-height: 18px; }
         #product-paste { margin-top: 12px; min-height: 72px; border: 2px dashed #0b3f90; border-radius: 14px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: #0b3f90; font-weight: 800; background: #f3f6fb; cursor: text; outline: none; }
         #product-paste:focus { background: #fff; box-shadow: 0 0 0 3px rgba(11, 63, 144, .18); }
         #product-paste-note { margin: 8px 0 0; color: #6f7b91; font-size: 13px; }
@@ -44,6 +46,7 @@
         @endif
         </div>
     </div>
+    <p id="product-image-paste-note"></p>
     <div class="table-responsive">
         <table id="product-data-table" class="table" style="width: 100%">
             <thead>
@@ -189,12 +192,26 @@
         }
     });
 
-    $(document).on("click", "tr.product-link td:not(:first-child, :last-child)", function(e) {
-        if ($(e.target).closest('input, select, option, button, .product-inline').length) {
+    function selectProductImage(row) {
+        if (!can_paste_product_image) {
             return;
         }
-        openRow = $(this).parent();
-        productDetails( openRow.data('product'), openRow.data('imagedata') );
+        $('#product-data-table img').removeClass('product-image-selected');
+        openRow = row;
+        openProduct = row.data('product');
+        var image = row.find('img').first();
+        image.addClass('product-image-selected').attr('tabindex', '0');
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+        image.focus();
+        $('#product-image-paste-note').text('Selected. Paste an image now.');
+    }
+
+    $(document).on('click', '#product-data-table tbody img', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectProductImage($(this).closest('tr'));
     });
 
     $(document).on("click", ".view", function(){
@@ -345,25 +362,25 @@
         }
     }
 
-    $(document).on('paste', '#product-details', function (event) {
-        if (!can_paste_product_image || !openProduct) {
-            return;
-        }
-        var clipboard = event.originalEvent.clipboardData;
+    function pastedImageFile(event) {
+        var clipboard = event.originalEvent ? event.originalEvent.clipboardData : event.clipboardData;
         var items = clipboard ? clipboard.items : [];
-        var file = null;
         for (var i = 0; i < items.length; i++) {
             if (items[i].type && items[i].type.indexOf('image/') === 0) {
-                file = items[i].getAsFile();
-                break;
+                return items[i].getAsFile();
             }
         }
-        if (!file) {
+        return null;
+    }
+
+    function savePastedProductImage(file) {
+        if (!file || !can_paste_product_image || !openProduct) {
             return;
         }
-        event.preventDefault();
         var note = document.getElementById('product-paste-note');
+        var listNote = document.getElementById('product-image-paste-note');
         if (note) note.textContent = 'Saving…';
+        if (listNote) listNote.textContent = 'Saving…';
         var body = new FormData();
         body.append('image', file, file.name || 'pasted.png');
         $.ajax({
@@ -376,20 +393,37 @@
                 openProduct[17] = saved.image;
                 if (openRow) {
                     openRow.data('product', openProduct);
-                    openRow.find('img').first().attr('src', saved.url);
+                    openRow.find('img').first().attr('src', saved.url).addClass('product-image-selected');
                 }
-                $('#slider-content').html('<img src="' + saved.url + '" alt="" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;background:#fff;">' + productPasteBox());
-                var done = document.getElementById('product-paste-note');
-                if (done) done.textContent = 'Saved. It is on the product list.';
-                var box = document.getElementById('product-paste');
-                if (box) box.focus();
+                if ($('#product-details').is(':visible')) {
+                    $('#slider-content').html('<img src="' + saved.url + '" alt="" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;background:#fff;">' + productPasteBox());
+                }
+                if (note) note.textContent = 'Saved. It is on the product list.';
+                if (listNote) listNote.textContent = 'Saved.';
             },
             error: function (xhr) {
                 var message = 'The image was not saved.';
                 if (xhr.responseJSON && xhr.responseJSON.error) message = xhr.responseJSON.error;
                 if (note) note.textContent = message;
+                if (listNote) listNote.textContent = message;
             }
         });
+    }
+
+    $(document).on('paste', function (event) {
+        if (!can_paste_product_image || !openProduct || !openRow) {
+            return;
+        }
+        var target = event.target;
+        if (target && $(target).closest('input, textarea, select').length && !$('#product-details').is(':visible')) {
+            return;
+        }
+        var file = pastedImageFile(event);
+        if (!file) {
+            return;
+        }
+        event.preventDefault();
+        savePastedProductImage(file);
     });
 
     $(document).ready(function() {
