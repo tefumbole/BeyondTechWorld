@@ -93,7 +93,7 @@
                     </div>
                     <p class="left" id="left">Left after this payment: 0 XAF</p>
                     <button class="submit" type="submit" id="go">Submit</button>
-                    <p class="hint" id="hint">This waits for the phone to approve.</p>
+                    <p class="hint" id="hint">Approve the full amount, or choose Partial to pay less.</p>
                 </form>
                 @if($link->payment_link && $link->method === 'visa')
                     <a class="visa" href="{{ $link->payment_link }}">Open the VISA page</a>
@@ -137,6 +137,7 @@
     var name = @json($link->person_name);
     var method = document.getElementById('payWith');
     var mode = document.getElementById('payMode');
+    var fill = 'full';
     var amount = document.getElementById('amount');
     var phone = document.getElementById('phone');
     var holder = document.getElementById('holder');
@@ -167,9 +168,11 @@
         var op = operator(phone.value);
         holder.textContent = name + (op ? ' · ' + op : '');
         left.textContent = 'Left after this payment: ' + Math.max(0, due - paid).toLocaleString() + ' XAF';
-        hint.textContent = mode.value === 'split'
+        hint.textContent = fill === 'split'
             ? 'Each number pays its own amount.'
-            : (method.value === 'visa' ? 'A card link is sent to this number.' : 'This waits for the phone to approve.');
+            : (fill === 'part'
+                ? 'Enter a smaller amount. It can be any whole figure from 100 XAF up to the amount still due.'
+                : (method.value === 'visa' ? 'A card link is sent to this number. You can pay a smaller part.' : 'Approve the full amount, or choose Partial to pay less.'));
     }
     function row(number, value) {
         var tr = document.createElement('tr');
@@ -187,6 +190,7 @@
         paint();
     }
     function setFill(value) {
+        fill = value;
         mode.value = value === 'split' ? 'split' : '';
         split.hidden = value !== 'split';
         single.hidden = value === 'split';

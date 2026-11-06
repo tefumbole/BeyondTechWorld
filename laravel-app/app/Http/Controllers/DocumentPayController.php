@@ -461,11 +461,13 @@ class DocumentPayController extends Controller
         $link->save();
         $label = $this->label($link);
         $invoiceTotal = null;
+        $pendingLeft = max(0, (int) $link->amount);
         if ($link->kind === 'sale') {
-            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, &$invoiceTotal) {
+            app(CloudTenantContext::class)->withoutIsolation(function () use ($link, &$invoiceTotal, &$pendingLeft) {
                 $sale = Sale::find($link->document_id);
                 if ($sale) {
                     $invoiceTotal = (float) $sale->grand_total;
+                    $pendingLeft = (int) round(max(0, $invoiceTotal - (float) $sale->paid_amount));
                 }
             });
         }
@@ -487,7 +489,7 @@ class DocumentPayController extends Controller
             'amount' => $amount,
             'fee' => (int) $fee,
             'operator' => (string) $operator,
-            'pending' => max(0, (int) $link->amount),
+            'pending' => $pendingLeft,
             'invoice_total' => $invoiceTotal,
             'reason' => $label.' payment',
             'reference' => $link->reference_no,

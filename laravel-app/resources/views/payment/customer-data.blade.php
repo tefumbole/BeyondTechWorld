@@ -65,9 +65,13 @@
                         <td>{{ number_format($sale->grand_total, 2) }}</td>
                         <td>{{ number_format($sale->paid_amount, 2) ?? 0 }}</td>
                         <td>{{ number_format($sale->grand_total - $sale->paid_amount, 2) }}</td>
-                        <td><span class="pay-pill pay-pill-wait">{{ $sale->payment_status == 1 ? 'Pending' : 'Due' }}</span></td>
+                        <td><span class="pay-pill pay-pill-wait">{{ (int) $sale->payment_status === 3 ? 'Partial' : ((int) $sale->payment_status === 1 ? 'Pending' : 'Due') }}</span></td>
                         <td>{{ $sale->created_at }}</td>
                         <td>
+                            @php $dueNow = (int) round(max(0, (float) $sale->grand_total - (float) $sale->paid_amount)); @endphp
+                            @if($dueNow >= 100)
+                                <button type="button" class="request-payment btn btn-sm btn-primary" data-id="{{ $sale->id }}" data-due="{{ $dueNow }}" data-name="{{ optional($sale->customer)->name }}" data-ref="{{ $sale->reference_no }}"><i class="fa fa-whatsapp"></i> Request payment</button>
+                            @endif
                             <button type="button" class="add-payment btn btn-sm btn-success" data-id="{{ $sale->id }}" data-name="{{ optional($sale->customer)->name }}" data-phone="{{ optional($sale->customer)->phone_number }}" data-ref="{{ $sale->reference_no }}" data-toggle="modal" data-target="#add-payment"><i class="fa fa-plus"></i>{{ trans('file.Add Payment') }}</button>
                             <button type="button" class="get-payment btn btn-info btn-sm" data-id = "{{ $sale->id }}"><i class="fa fa-money"></i>{{ trans('file.View') }}</button>
                             <a class="get-payment btn btn-warning btn-sm" href="{{ route('sales.edit',$sale->id ) }}"><i class="fa fa-pencil"></i> Edit Sale</a>
@@ -107,6 +111,33 @@
     </div>
 
     @include('payment.partials.collect_sheet')
+
+    <div id="request-payment" tabindex="-1" role="dialog" aria-hidden="true" class="modal fade text-left">
+        <div role="document" class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request payment</h5>
+                    <button type="button" data-dismiss="modal" aria-label="Close" class="close"><span aria-hidden="true"><i class="dripicons-cross"></i></span></button>
+                </div>
+                <form method="POST" id="request-payment-form" action="">
+                    @csrf
+                    <div class="modal-body">
+                        <p id="request-payment-who" class="mb-2"></p>
+                        <p class="text-muted">The client receives this amount and approves it. Enter a part of the bill, or leave the full amount still due. The client can still pay a smaller part.</p>
+                        <div class="form-group">
+                            <label>Amount to request (XAF)</label>
+                            <input type="number" name="amount" id="request-payment-amount" class="form-control" min="100" step="1" required>
+                        </div>
+                        <p class="text-muted mb-0">Still due: <strong id="request-payment-due"></strong> XAF</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" style="background:#0b3f90;border-color:#0b3f90;color:#fff;">Send request</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
 
     <script type="text/javascript">
@@ -348,11 +379,33 @@
             if (!confirm('Delete ' + ids.length + (ids.length === 1 ? ' payment?' : ' payments?'))) return;
             postAwaiting('awaiting-delete-form', ids);
         });
+        function openRequest(button) {
+            var due = parseInt(button.getAttribute('data-due'), 10) || 0;
+            var name = button.getAttribute('data-name') || '';
+            var ref = button.getAttribute('data-ref') || '';
+            var id = button.getAttribute('data-id');
+            document.getElementById('request-payment-form').action = @json(url('sales')) + '/' + id + '/request-payment';
+            document.getElementById('request-payment-who').textContent = name + (ref ? ' · ' + ref : '');
+            document.getElementById('request-payment-due').textContent = due.toLocaleString();
+            var amount = document.getElementById('request-payment-amount');
+            amount.max = due;
+            amount.value = due;
+            $('#request-payment').modal('show');
+        }
+        $(document).on('click', '.request-payment', function () {
+            openRequest(this);
+        });
         $('#awaiting-request').on('click', function () {
             var ids = awaitingIds();
-            if (!ids.length) { alert('Select the payments you want to request.'); return; }
-            if (!confirm('Send a payment request for ' + ids.length + (ids.length === 1 ? ' sale?' : ' sales?'))) return;
-            postAwaiting('awaiting-request-form', ids);
+            if (!ids.length) { alert('Select one payment to choose the amount.'); return; }
+            if (ids.length > 1) {
+                if (!confirm('Send the full amount still due for ' + ids.length + ' sales?')) return;
+                postAwaiting('awaiting-request-form', ids);
+                return;
+            }
+            var button = document.querySelector('#biller-table tbody tr[data-id="' + ids[0] + '"] .request-payment');
+            if (!button) { alert('That sale has no whole amount of at least 100 XAF left to request.'); return; }
+            openRequest(button);
         });
 
     </script>
