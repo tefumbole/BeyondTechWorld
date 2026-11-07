@@ -48,13 +48,13 @@ class EventController extends Controller
         });
     }
 
-    public function approveAutoPay($id)
+    public function approveAutoPay(Request $request, $id)
     {
         if (! $this->isEventAdmin()) {
             abort(403);
         }
         $event = Event::findOrFail($id);
-        $row = app(\App\Services\EventAutoPay::class)->openFor($event);
+        $row = $this->autoPayRow($event, $request->input('schedule_id'));
         if (! $row || $row->status !== 'pending_approval') {
             return redirect()->route('events.show', $event->id)->with('not_permitted', 'There is no payment waiting for approval.');
         }
@@ -63,18 +63,56 @@ class EventController extends Controller
         return redirect()->route('events.show', $event->id)->with('message', 'Automatic payment is approved. Engineers are paid at '.$row->pay_at->format('d M Y H:i').'.');
     }
 
-    public function rejectAutoPay($id)
+    public function rejectAutoPay(Request $request, $id)
     {
         if (! $this->isEventAdmin()) {
             abort(403);
         }
         $event = Event::findOrFail($id);
-        $row = app(\App\Services\EventAutoPay::class)->openFor($event);
+        $row = $this->autoPayRow($event, $request->input('schedule_id'));
         if ($row) {
             app(\App\Services\EventAutoPay::class)->reject($row);
         }
 
         return redirect()->route('events.show', $event->id)->with('message', 'Automatic payment was cancelled.');
+    }
+
+    public function schedulePay(Request $request, $id)
+    {
+        $this->can('events.update');
+        $event = Event::with('assignments.workerProfile')->findOrFail($id);
+        $data = $request->validate([
+            'assignment_id' => 'required|string|max:64',
+            'amount' => 'required|integer|min:100',
+            'pay_at' => 'required|date',
+        ]);
+        $result = app(\App\Services\EventAutoPay::class)->schedule(
+            $event,
+            $data['assignment_id'],
+            $data['amount'],
+            $data['pay_at'],
+            $this->isEventAdmin()
+        );
+        if (empty($result['ok'])) {
+            return redirect()->route('events.show', $event->id)->with('not_permitted', $result['message']);
+        }
+        $when = $result['row']->pay_at ? $result['row']->pay_at->format('d M Y H:i') : '';
+        $message = number_format((int) $data['amount']).' XAF is scheduled for '.$when.'.';
+        if ($result['row']->status === 'pending_approval') {
+            $message .= ' An admin still has to approve it.';
+        }
+
+        return redirect()->route('events.show', $event->id)->with('message', $message);
+    }
+
+    protected function autoPayRow(Event $event, $scheduleId)
+    {
+        $service = app(\App\Services\EventAutoPay::class);
+        if ($scheduleId) {
+            return \App\EventAutoPayment::where('event_id', $event->id)->where('id', $scheduleId)->first();
+        }
+
+        return $service->openFor($event);
     }
 
     protected function isEventAdmin()
@@ -156,21 +194,26 @@ class EventController extends Controller
 
     protected function setupDatesFor(Event $event)
     {
-        $dates = $this->dateList($event->setup_dates);
-        if (! count($dates) && $event->setup_start_at) {
-            $dates = $this->datesBetween(
+        $entries = Event::parseSetup($event->setup_dates);
+        if (! count($entries) && $event->setup_start_at) {
+            foreach ($this->datesBetween(
                 $event->setup_start_at->toDateString(),
                 $event->setup_end_at ? $event->setup_end_at->toDateString() : $event->setup_start_at->toDateString()
-            );
+            ) as $date) {
+                $entries[] = array('date' => $date, 'note' => '');
+            }
         }
 
-        return $dates;
+        return $entries;
     }
 
     protected function crewFromEvent(Event $event)
     {
         $rows = array();
         foreach ($event->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
             $profile = $assignment->workerProfile;
             if (! $profile) {
                 continue;
@@ -357,7 +400,11 @@ class EventController extends Controller
             'event_end_at' => 'required|date|after_or_equal:event_start_at',
             'internal_notes' => 'nullable|string|max:5000',
             'publish_on_website' => 'nullable',
-            'setup_dates' => 'nullable|string|max:4000',
+            'setup_dates' => 'nullable|string|max:20000',
+            'schedules' => 'nullable|array',
+            'schedules.*.key' => 'nullable|string|max:80',
+            'schedules.*.amount' => 'nullable|integer|min:0',
+            'schedules.*.pay_at' => 'nullable|date',
             'crew' => 'nullable|array',
             'crew.*.assignment_id' => 'nullable|string|max:64',
             'crew.*.kind' => 'nullable|string|max:32',
@@ -380,7 +427,12 @@ class EventController extends Controller
         $publish = $request->boolean('publish_on_website');
         $warnings = [];
 
-        $setup = $this->dateList(isset($data['setup_dates']) ? $data['setup_dates'] : '');
+        $beforeSetup = $existing ? (string) $existing->setup_dates : '';
+        $setup = Event::parseSetup(isset($data['setup_dates']) ? $data['setup_dates'] : '');
+        $setupDates = array();
+        foreach ($setup as $entry) {
+            $setupDates[] = $entry['date'];
+        }
         $payload = [
             'name' => $data['name'],
             'customer_id' => $customer ? $customer->id : null,
@@ -395,8 +447,8 @@ class EventController extends Controller
         ];
         if (! $existing || $request->input('crew_form') === '1') {
             $payload['setup_dates'] = count($setup) ? json_encode($setup) : null;
-            $payload['setup_start_at'] = count($setup) ? $setup[0].' 00:00:00' : null;
-            $payload['setup_end_at'] = count($setup) ? $setup[count($setup) - 1].' 23:59:00' : null;
+            $payload['setup_start_at'] = count($setupDates) ? $setupDates[0].' 00:00:00' : null;
+            $payload['setup_end_at'] = count($setupDates) ? $setupDates[count($setupDates) - 1].' 23:59:00' : null;
         }
         if ($request->hasFile('flyer')) {
             $flyer = $request->file('flyer');
@@ -434,8 +486,10 @@ class EventController extends Controller
             $event = $eventService->create($payload, $publish);
         }
 
+        $alreadyInvited = $event->assignments()->whereNotNull('invited_at')->pluck('id')->all();
         $prepared = $this->prepareCrew($request->input('crew', []), $warnings);
         $kept = [];
+        $byKey = [];
         foreach ($prepared as $member) {
             try {
                 $category = ! empty($member['category_id'])
@@ -464,6 +518,7 @@ class EventController extends Controller
                     'food_per_day' => $member['food'],
                 ], $member['assignment_id']);
                 $kept[] = $assignment->id;
+                $byKey[$member['kind'].':'.$member['ref']] = $assignment->id;
             } catch (\Exception $e) {
                 $warnings[] = trim($member['name'].' was not saved. '.$e->getMessage());
             }
@@ -474,6 +529,9 @@ class EventController extends Controller
                 $extras->whereNotIn('id', $kept);
             }
             foreach ($extras->get() as $extra) {
+                if ($extra->acceptance_status === 'rejected') {
+                    continue;
+                }
                 $extra->load('workerProfile');
                 $label = $extra->workerProfile ? $extra->workerProfile->displayName() : 'A person';
                 if (! $workforce->dropAssignment($extra)) {
@@ -481,6 +539,36 @@ class EventController extends Controller
                 }
             }
             $workforce->refreshLabourBudgetAllocation($event);
+        }
+
+        foreach ((array) $request->input('schedules', []) as $schedule) {
+            if (! is_array($schedule)) {
+                continue;
+            }
+            $amount = (int) (isset($schedule['amount']) ? $schedule['amount'] : 0);
+            $when = isset($schedule['pay_at']) ? $schedule['pay_at'] : '';
+            $key = isset($schedule['key']) ? (string) $schedule['key'] : '';
+            if ($amount < 1 && $when === '' && $key === '') {
+                continue;
+            }
+            if (! isset($byKey[$key])) {
+                $warnings[] = 'A scheduled payment was skipped because that engineer was not saved.';
+                continue;
+            }
+            $scheduled = app(\App\Services\EventAutoPay::class)->schedule(
+                $event,
+                $byKey[$key],
+                $amount,
+                $when,
+                $this->isEventAdmin()
+            );
+            if (empty($scheduled['ok'])) {
+                $warnings[] = $scheduled['message'];
+            } elseif ($scheduled['row']->status === 'pending_approval') {
+                $warnings[] = number_format($amount).' XAF is waiting for an admin to approve it.';
+            } else {
+                $warnings[] = number_format($amount).' XAF will be paid at '.$scheduled['row']->pay_at->format('d M Y H:i').'.';
+            }
         }
 
         $auto = app(\App\Services\EventAutoPay::class)->remember(
@@ -502,8 +590,16 @@ class EventController extends Controller
             }
         }
 
-        $invite = app(EventCrewInviteService::class)->inviteAssigned($event);
+        $invites = app(EventCrewInviteService::class);
+        $invite = $invites->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
+        if ($existing && (string) $event->setup_dates !== '' && (string) $event->setup_dates !== $beforeSetup) {
+            $setupNotice = $invites->notifySetup($event, $alreadyInvited);
+            $warnings = array_merge($warnings, $setupNotice['warnings']);
+            if ($setupNotice['sent'] > 0) {
+                $warnings[] = 'Setup dates were sent to '.$setupNotice['sent'].' engineers.';
+            }
+        }
 
         $msg = $existing ? $event->name.' saved.' : $event->name.' is on the Events dashboard.';
         if ($invite['sent'] > 0) {
@@ -565,13 +661,23 @@ class EventController extends Controller
         $countdownTargets = EventPublicationService::COUNTDOWN_TARGETS;
         $publicStatuses = EventPublicationService::PUBLIC_STATUSES;
         $contractTemplates = \App\EventContractTemplate::where('is_active', true)->orderBy('name')->get();
-        $autoPay = app(\App\Services\EventAutoPay::class)->openFor($event);
+        $autoPayService = app(\App\Services\EventAutoPay::class);
+        $autoPay = $autoPayService->openFor($event);
+        $paymentSchedules = $autoPayService->openRows($event);
         $isEventAdmin = $this->isEventAdmin();
+        $setupEntries = Event::parseSetup($event->setup_dates);
+        $payRooms = array();
+        foreach ($event->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            $payRooms[$assignment->id] = $autoPayService->roomFor($assignment);
+        }
 
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
             'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
-            'autoPay', 'isEventAdmin'
+            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'payRooms'
         ));
     }
 

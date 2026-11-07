@@ -15,6 +15,7 @@
         .meta { background: #f8fafc; border-radius: 12px; padding: 12px 14px; margin: 16px 0; }
         .meta div { margin: 4px 0; }
         button, .btn { display: block; width: 100%; border: 0; border-radius: 12px; background: #0b3f90; color: #fff; font-weight: 700; font-size: 16px; padding: 14px; cursor: pointer; }
+        .ghost { background: #fff; color: #b91c1c; border: 1px solid #fecaca; margin-top: 10px; }
         input { width: 100%; box-sizing: border-box; border: 1px solid #d6deea; border-radius: 12px; padding: 14px; font-size: 22px; letter-spacing: .2em; text-align: center; margin: 8px 0 14px; }
         .err { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
         .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
@@ -32,21 +33,37 @@
             <div><strong>Daily pay.</strong> {{ number_format($dailyRate) }} XAF</div>
             <div><strong>Food money.</strong> {{ number_format($foodAmount) }} XAF</div>
             <div><strong>Place.</strong> {{ $event->venue ?: 'As arranged' }}</div>
+            @if(!empty($workDates))
+                <div><strong>Your working days.</strong> {{ collect($workDates)->map(function ($date) { return date('d M Y', strtotime($date)); })->implode(', ') }}</div>
+            @endif
+            @if(!empty($setupText))
+                <div><strong>Setup dates.</strong><br>{!! nl2br(e(trim($setupText))) !!}</div>
+            @endif
         </div>
         @if(session('message'))<div class="ok">{{ session('message') }}</div>@endif
         @if($errors->any())<div class="err">{{ $errors->first() }}</div>@endif
-        @if($step === 'otp')
+        @if($step === 'declined' || $assignment->acceptance_status === 'rejected')
+            <p>You rejected this job. Your name is no longer on the event, and payments that had not been sent for you are cancelled.</p>
+        @elseif($step === 'otp')
             <p>Enter the code sent to {{ $masked }}.</p>
             <form method="POST" action="{{ route('events.crew.verify', $assignment->invite_token) }}">
                 @csrf
                 <input name="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
                 <button type="submit">Log in</button>
             </form>
+            <form method="POST" action="{{ route('events.crew.reject', $assignment->invite_token) }}">
+                @csrf
+                <button type="submit" class="ghost">Reject this job</button>
+            </form>
         @else
             <p>Accept to receive a login code on {{ $masked }}.</p>
             <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
                 @csrf
                 <button type="submit">Accept</button>
+            </form>
+            <form method="POST" action="{{ route('events.crew.reject', $assignment->invite_token) }}">
+                @csrf
+                <button type="submit" class="ghost">Reject this job</button>
             </form>
         @endif
     </div>

@@ -9,7 +9,7 @@ class EventAutoPayment extends Model
     protected $table = 'event_auto_payments';
 
     protected $fillable = [
-        'event_id', 'pay_at', 'status', 'attempt',
+        'event_id', 'assignment_id', 'amount', 'pay_at', 'status', 'attempt',
         'requested_by', 'approved_by', 'approved_at', 'paid_at', 'result',
     ];
 

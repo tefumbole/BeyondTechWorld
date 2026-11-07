@@ -26,9 +26,11 @@ Route::get('/booking/payment/check/display', 'CartController@placeBookingAfterPa
 
 Route::get('/event-invite/{token}', 'EventCrewController@show')->name('events.crew.invite');
 Route::post('/event-invite/{token}/accept', 'EventCrewController@accept')->name('events.crew.accept');
+Route::post('/event-invite/{token}/reject', 'EventCrewController@reject')->name('events.crew.reject');
 Route::post('/event-invite/{token}/verify', 'EventCrewController@verify')->name('events.crew.verify');
 Route::get('/my-event', 'EventCrewController@home')->name('events.crew.home');
 Route::post('/my-event/timesheet', 'EventCrewController@submitDay')->name('events.crew.timesheet');
+Route::post('/my-event/reject', 'EventCrewController@rejectCurrent')->name('events.crew.reject_current');
 
 Route::get('/quotation-view/{id}/{signature}', 'QuotationApprovalController@viewCopy')->where(['id' => '[0-9]+', 'signature' => '[A-Fa-f0-9]+'])->name('quotation.cc.view');
 Route::get('/quotation-approval/{token}', 'QuotationApprovalController@show')->name('quotation.client.show');
@@ -1080,6 +1082,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/events/{id}/reminders', 'EventReminderController@storeForEvent')->name('events.reminders.store');
     Route::delete('/admin/events/reminders/{id}', 'EventReminderController@destroy')->name('events.reminders.destroy');
     Route::post('/admin/events/{id}/payments', 'EventPaymentController@createForAssignment')->name('events.payments.create');
+    Route::post('/admin/events/{id}/schedule-pay', 'EventController@schedulePay')->name('events.schedule-pay');
     Route::post('/admin/events/{id}/auto-pay/approve', 'EventController@approveAutoPay')->name('events.auto-pay.approve');
     Route::post('/admin/events/{id}/auto-pay/reject', 'EventController@rejectAutoPay')->name('events.auto-pay.reject');
 

@@ -138,10 +138,49 @@ class Event extends Model
         return $this->hasMany(EventAssignment::class, 'event_id');
     }
 
+    public static function parseSetup($value)
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : array();
+        }
+        if (! is_array($value)) {
+            return array();
+        }
+        $out = array();
+        foreach ($value as $item) {
+            $note = '';
+            if (is_string($item)) {
+                $date = substr(trim($item), 0, 10);
+            } elseif (is_array($item)) {
+                $date = substr(trim(isset($item['date']) ? (string) $item['date'] : ''), 0, 10);
+                $note = trim(isset($item['note']) ? (string) $item['note'] : '');
+            } else {
+                continue;
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                continue;
+            }
+            $out[$date] = array(
+                'date' => $date,
+                'note' => function_exists('mb_substr') ? mb_substr($note, 0, 240) : substr($note, 0, 240),
+            );
+        }
+        $out = array_values($out);
+        usort($out, function ($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
+        return array_slice($out, 0, 62);
+    }
+
     public function staffNames()
     {
         $names = [];
         foreach ($this->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
             if ($assignment->workerProfile) {
                 $names[] = $assignment->workerProfile->displayName();
             }
@@ -152,7 +191,15 @@ class Event extends Model
 
     public function labourTotal()
     {
-        return (int) $this->assignments->sum('expected_total');
+        $total = 0;
+        foreach ($this->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            $total += (int) $assignment->expected_total;
+        }
+
+        return $total;
     }
 
     public function scopeUpcoming($query)

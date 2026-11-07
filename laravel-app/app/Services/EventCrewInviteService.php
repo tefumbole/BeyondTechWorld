@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\CampayPayout;
 use App\Event;
 use App\EventAssignment;
+use App\EventAutoPayment;
 use App\EventTimesheet;
 use App\EventTimesheetEntry;
 use App\EventWorkerPayment;
@@ -48,6 +50,7 @@ class EventCrewInviteService
             $url = url('/event-invite/'.$assignment->invite_token);
             $notes = trim((string) $event->internal_notes);
             $workLine = $this->workDatesLine($assignment);
+            $setupLine = $this->setupText($event);
             $body = "Hello {$name},\n\n"
                 ."You have been selected for {$event->name}.\n"
                 ."Dates: {$start} to {$end}\n"
@@ -55,10 +58,14 @@ class EventCrewInviteService
                 .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
                 ."Daily pay: {$pay} XAF\n"
                 ."Food money: {$food} XAF\n";
+            if ($setupLine !== '') {
+                $body .= "\nSetup dates:\n{$setupLine}";
+            }
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
             }
             $body .= "\nAccept your place:\n{$url}\n\n"
+                ."If you cannot take this job, open the same link and choose Reject.\n"
                 .'After you accept, a code is sent to this phone so you can open the event and your timesheet.';
             if ($attempted) {
                 usleep(5000000);
@@ -169,6 +176,106 @@ class EventCrewInviteService
         }
 
         return ['ok' => true, 'code' => $code, 'phone' => $phone];
+    }
+
+    public function setupText(Event $event)
+    {
+        $lines = array();
+        foreach (Event::parseSetup($event->setup_dates) as $entry) {
+            $line = date('d M Y', strtotime($entry['date']));
+            if ($entry['note'] !== '') {
+                $line .= ' — '.$entry['note'];
+            }
+            $lines[] = $line;
+        }
+
+        return $lines ? implode("\n", $lines)."\n" : '';
+    }
+
+    public function notifySetup(Event $event, array $assignmentIds)
+    {
+        $setup = $this->setupText($event);
+        if ($setup === '' || ! count($assignmentIds)) {
+            return array('sent' => 0, 'warnings' => array());
+        }
+        $event->load('assignments.workerProfile.customer', 'assignments.workerProfile.user');
+        $sent = 0;
+        $warnings = array();
+        $attempted = false;
+        foreach ($event->assignments as $assignment) {
+            if (! in_array((string) $assignment->id, array_map('strval', $assignmentIds), true)) {
+                continue;
+            }
+            if ($assignment->acceptance_status === 'rejected' || $this->isClient($event, $assignment)) {
+                continue;
+            }
+            $phone = $this->phoneFor($assignment);
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
+            if (! $phone) {
+                $warnings[] = $name.' has no phone, so the setup dates were not sent.';
+                continue;
+            }
+            $body = "Hello {$name},\n\n"
+                ."Setup dates for {$event->name}:\n"
+                .$setup
+                ."\nOpen your place:\n".url('/event-invite/'.$assignment->invite_token);
+            if ($attempted) {
+                usleep(5000000);
+            }
+            $attempted = true;
+            try {
+                $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
+            } catch (\Exception $e) {
+                $result = array('success' => false);
+            }
+            if (empty($result['success']) || ! empty($result['skipped'])) {
+                $warnings[] = 'The setup dates were not sent to '.$name.'.';
+            } else {
+                $sent++;
+            }
+        }
+
+        return array('sent' => $sent, 'warnings' => $warnings);
+    }
+
+    public function rejectJob(EventAssignment $assignment)
+    {
+        if ($assignment->acceptance_status === 'rejected') {
+            return;
+        }
+        $assignment->load('event', 'workerProfile.customer', 'workerProfile.user');
+        $assignment->acceptance_status = 'rejected';
+        if ($assignment->payment_status !== 'paid') {
+            $assignment->payment_status = 'cancelled';
+        }
+        $assignment->save();
+
+        EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('status', '!=', EventWorkerPayment::STATUS_PAID)
+            ->update(['status' => EventWorkerPayment::STATUS_CANCELLED]);
+
+        EventAutoPayment::where('assignment_id', $assignment->id)
+            ->whereIn('status', ['pending_approval', 'scheduled', 'failed'])
+            ->update([
+                'status' => 'cancelled',
+                'result' => 'The engineer rejected the job.',
+            ]);
+
+        $phone = $this->phoneFor($assignment);
+        $eventName = $assignment->event ? $assignment->event->name : '';
+        if ($phone && $eventName !== '') {
+            CampayPayout::where('phone', $phone)
+                ->where('status', 'pending')
+                ->where('note', 'like', '%'.$eventName.'%')
+                ->update([
+                    'status' => 'failed',
+                    'error' => 'Engineer rejected the job.',
+                ]);
+        }
+
+        if ($assignment->event) {
+            app(EventWorkforceService::class)->refreshLabourBudgetAllocation($assignment->event);
+        }
     }
 
     public function markAccepted(EventAssignment $assignment)

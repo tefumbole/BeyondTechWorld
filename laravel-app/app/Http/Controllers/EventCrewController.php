@@ -17,6 +17,29 @@ class EventCrewController extends Controller
         return view('events.crew.invite', $this->inviteView($assignment, 'accept'));
     }
 
+    public function reject($token, EventCrewInviteService $invites)
+    {
+        $assignment = $this->assignment($token);
+        $invites->rejectJob($assignment);
+
+        return view('events.crew.invite', $this->inviteView($assignment->fresh(), 'declined'))
+            ->with('message', 'You have rejected this job. Your name is off the event and unpaid amounts for you are cancelled.');
+    }
+
+    public function rejectCurrent(EventCrewInviteService $invites)
+    {
+        $id = session('event_crew_assignment');
+        $assignment = $id ? EventAssignment::with('event', 'workerProfile')->find($id) : null;
+        if (! $assignment) {
+            abort(403, 'Accept the event and enter the WhatsApp code first.');
+        }
+        $invites->rejectJob($assignment);
+        session()->forget('event_crew_assignment');
+
+        return view('events.crew.invite', $this->inviteView($assignment->fresh(), 'declined'))
+            ->with('message', 'You have rejected this job. Your name is off the event and unpaid amounts for you are cancelled.');
+    }
+
     public function accept(Request $request, $token, EventCrewInviteService $invites)
     {
         $assignment = $this->assignment($token);
@@ -121,6 +144,8 @@ class EventCrewController extends Controller
             'masked' => $this->mask($assignment),
             'dailyRate' => $invites->dailyRate($assignment),
             'foodAmount' => $invites->foodAmount($assignment),
+            'setupText' => $invites->setupText($assignment->event),
+            'workDates' => $invites->workDates($assignment),
         ];
     }
 

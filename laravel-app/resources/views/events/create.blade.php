@@ -81,9 +81,10 @@
                     <div>
                         <button type="button" class="btn btn-outline-primary" id="setup-open">Choose setup dates</button>
                         <div class="ev-chips" id="setup-chips"></div>
+                        <div id="setup-notes" class="mt-2"></div>
                         <input type="hidden" name="setup_dates" id="setup-dates" value="{{ json_encode(array_values($setupDates)) }}">
                     </div>
-                    <div class="small text-muted mt-1">Click every setup day. You can select more than one date, including a day before the event.</div>
+                    <div class="small text-muted mt-1">Click every setup day. Add a note for each date. Engineers receive these dates and notes.</div>
                 </div>
                 <div class="form-group mb-0">
                     <label>Notes</label>
@@ -164,6 +165,12 @@
                         @elseif($autoPay && $autoPay->status === 'failed')
                             <p class="small text-danger mb-0 mt-1">{{ $autoPay->result ?: 'The last automatic payment did not finish.' }}</p>
                         @endif
+                    </div>
+                    <div class="mt-3">
+                        <label>Schedule part of a payment</label>
+                        <p class="small text-muted mb-2">Each row pays one engineer part of their event total. You can add more than one, and you can add more after the event is saved.</p>
+                        <div id="part-rows"></div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="part-add">Add a scheduled payment</button>
                     </div>
                 </div>
             </div>
@@ -273,6 +280,24 @@
         return out;
     }
 
+    function readSetup(value) {
+        var raw = readDates(value);
+        var out = [];
+        raw.forEach(function (item) {
+            var date = '';
+            var note = '';
+            if (item && typeof item === 'object') {
+                date = String(item.date || '').slice(0, 10);
+                note = item.note || '';
+            } else {
+                date = String(item || '').slice(0, 10);
+            }
+            if (/^\d{4}-\d{2}-\d{2}$/.test(date)) out.push({date: date, note: String(note)});
+        });
+        out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+        return out;
+    }
+
     function readDates(value) {
         if (Array.isArray(value)) return value.slice();
         if (!value) return [];
@@ -316,6 +341,7 @@
         var autoPay = document.getElementById('auto-pay');
         if (autoPay) autoPay.style.display = rows.length ? '' : 'none';
         paintSetup();
+        if (typeof paintPartOptions === 'function') paintPartOptions();
     }
 
     function roleLabel(role) {
@@ -639,26 +665,35 @@
 
     function paintSetup() {
         var box = document.getElementById('setup-chips');
+        var notes = document.getElementById('setup-notes');
         var input = document.getElementById('setup-dates');
         if (!box || !input) return;
-        var dates = readDates(input.value);
+        var entries = readSetup(input.value);
+        input.value = JSON.stringify(entries);
         box.innerHTML = '';
-        dates.forEach(function (date) {
+        if (notes) notes.innerHTML = '';
+        entries.forEach(function (entry) {
             var chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'ev-chip';
-            chip.setAttribute('data-date', date);
-            chip.textContent = prettyDate(date);
+            chip.setAttribute('data-date', entry.date);
+            chip.textContent = prettyDate(entry.date);
             box.appendChild(chip);
+            if (!notes) return;
+            var row = document.createElement('div');
+            row.className = 'form-row align-items-center mb-2';
+            row.innerHTML = '<div class="col-md-4"><strong>' + escapeHtml(prettyDate(entry.date)) + '</strong></div>' +
+                '<div class="col-md-8"><input type="text" class="form-control form-control-sm setup-note" data-date="' + entry.date + '" maxlength="240" placeholder="Note for this setup date" value="' + escapeHtml(entry.note) + '"></div>';
+            notes.appendChild(row);
         });
         var opener = document.getElementById('setup-open');
-        if (opener) opener.textContent = dates.length ? dates.length + (dates.length === 1 ? ' setup date' : ' setup dates') : 'Choose setup dates';
+        if (opener) opener.textContent = entries.length ? entries.length + (entries.length === 1 ? ' setup date' : ' setup dates') : 'Choose setup dates';
     }
 
     function renderPop() {
         var input = popState.input;
         if (!input) return;
-        var selected = readDates(input.value);
+        var selected = input.id === 'setup-dates' ? readSetup(input.value).map(function (entry) { return entry.date; }) : readDates(input.value);
         var from = document.getElementById('event-from').value;
         var to = document.getElementById('event-to').value;
         var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -697,17 +732,75 @@
 
     function toggleDate(date) {
         if (!popState.input) return;
-        var dates = readDates(popState.input.value);
-        var index = dates.indexOf(date);
-        if (index === -1) dates.push(date); else dates.splice(index, 1);
-        dates.sort();
-        popState.input.value = JSON.stringify(dates);
-        popState.input.setAttribute('data-auto', '0');
+        if (popState.input.id === 'setup-dates') {
+            var entries = readSetup(popState.input.value);
+            var found = -1;
+            entries.forEach(function (entry, index) { if (entry.date === date) found = index; });
+            if (found === -1) entries.push({date: date, note: ''}); else entries.splice(found, 1);
+            entries.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+            popState.input.value = JSON.stringify(entries);
+        } else {
+            var dates = readDates(popState.input.value);
+            var index = dates.indexOf(date);
+            if (index === -1) dates.push(date); else dates.splice(index, 1);
+            dates.sort();
+            popState.input.value = JSON.stringify(dates);
+            popState.input.setAttribute('data-auto', '0');
+        }
         renderPop();
         refresh();
     }
 
-    document.getElementById('setup-dates').value = JSON.stringify(initialSetup || []);
+    document.getElementById('setup-dates').value = JSON.stringify(readSetup(initialSetup || []));
+    document.getElementById('setup-notes').addEventListener('input', function (event) {
+        var field = event.target.closest('.setup-note');
+        if (!field) return;
+        var input = document.getElementById('setup-dates');
+        var entries = readSetup(input.value);
+        entries.forEach(function (entry) {
+            if (entry.date === field.getAttribute('data-date')) entry.note = field.value;
+        });
+        input.value = JSON.stringify(entries);
+    });
+    var partIndex = 0;
+    function partPeople() {
+        var people = [];
+        tbody.querySelectorAll('tr').forEach(function (row) {
+            var name = row.querySelector('.crew-name');
+            people.push({key: row.getAttribute('data-key'), name: name ? name.value : 'Engineer'});
+        });
+        return people;
+    }
+    function paintPartOptions() {
+        var people = partPeople();
+        document.querySelectorAll('.part-person').forEach(function (select) {
+            var current = select.value;
+            select.innerHTML = '<option value="">Choose an engineer</option>';
+            people.forEach(function (person) {
+                var option = document.createElement('option');
+                option.value = person.key;
+                option.textContent = person.name;
+                if (person.key === current) option.selected = true;
+                select.appendChild(option);
+            });
+        });
+    }
+    document.getElementById('part-add').addEventListener('click', function () {
+        var i = partIndex++;
+        var row = document.createElement('div');
+        row.className = 'form-row align-items-end mb-2';
+        row.innerHTML = '<div class="col-md-4"><select class="form-control form-control-sm part-person" name="schedules[' + i + '][key]"></select></div>' +
+            '<div class="col-md-3"><input type="number" class="form-control form-control-sm" name="schedules[' + i + '][amount]" min="100" placeholder="Amount"></div>' +
+            '<div class="col-md-4"><input type="datetime-local" class="form-control form-control-sm" name="schedules[' + i + '][pay_at]"></div>' +
+            '<div class="col-md-1"><button type="button" class="btn btn-sm btn-light part-remove">×</button></div>';
+        document.getElementById('part-rows').appendChild(row);
+        paintPartOptions();
+    });
+    document.getElementById('part-rows').addEventListener('click', function (event) {
+        var button = event.target.closest('.part-remove');
+        if (!button) return;
+        button.closest('.form-row').remove();
+    });
     document.getElementById('setup-open').addEventListener('click', function () {
         openPop(this, document.getElementById('setup-dates'));
     });

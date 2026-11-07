@@ -266,7 +266,9 @@ class EventWorkforceService
         if (! $budget) {
             return;
         }
-        $allocated = (int) $event->assignments()->sum('expected_total');
+        $allocated = (int) $event->assignments()->where(function ($query) {
+            $query->whereNull('acceptance_status')->orWhere('acceptance_status', '!=', 'rejected');
+        })->sum('expected_total');
         $budget->allocated_amount = $allocated;
         $budget->save();
     }

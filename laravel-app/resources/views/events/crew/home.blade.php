@@ -16,6 +16,7 @@
         label { display: block; font-weight: 700; margin: 12px 0 6px; }
         input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #d6deea; border-radius: 12px; padding: 12px; font-size: 16px; font-family: inherit; }
         button { margin-top: 16px; border: 0; border-radius: 12px; background: #0b3f90; color: #fff; font-weight: 700; font-size: 16px; padding: 14px 18px; cursor: pointer; }
+        .ghost { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
         .pay { font-size: 28px; font-weight: 800; color: #0b3f90; }
         .err { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
         .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
@@ -80,6 +81,23 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+    @php $setupEntries = \App\Event::parseSetup($event->setup_dates); @endphp
+    @if(count($setupEntries))
+        <div class="card">
+            <h2>Setup dates</h2>
+            @foreach($setupEntries as $entry)
+                <div><strong>{{ date('d M Y', strtotime($entry['date'])) }}.</strong> {{ $entry['note'] !== '' ? $entry['note'] : 'No note for this day.' }}</div>
+            @endforeach
+        </div>
+    @endif
+    <div class="card">
+        <h2>Cannot take this job?</h2>
+        <p class="hint">Rejecting removes your name from the event and cancels payments that have not been sent.</p>
+        <form method="POST" action="{{ route('events.crew.reject_current') }}" onsubmit="return confirm('Reject this job and leave the event?');">
+            @csrf
+            <button type="submit" class="ghost">Reject this job</button>
+        </form>
     </div>
 </div>
 </body>

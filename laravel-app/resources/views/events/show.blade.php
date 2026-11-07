@@ -13,26 +13,32 @@
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
-        @if(!empty($autoPay) && $autoPay->status === 'pending_approval')
-            <div class="alert alert-warning">
-                <strong>Automatic payment is waiting for admin approval.</strong>
-                Engineers would be paid at {{ $autoPay->pay_at ? $autoPay->pay_at->format('d M Y H:i') : 'the chosen time' }}.
-                @if(!empty($isEventAdmin))
-                    <form method="POST" action="{{ route('events.auto-pay.approve', $event->id) }}" class="d-inline">
-                        @csrf
-                        <button class="btn btn-primary btn-sm ml-2">Approve payment</button>
-                    </form>
-                    <form method="POST" action="{{ route('events.auto-pay.reject', $event->id) }}" class="d-inline">
-                        @csrf
-                        <button class="btn btn-light btn-sm">Reject</button>
-                    </form>
-                @endif
-            </div>
-        @elseif(!empty($autoPay) && in_array($autoPay->status, ['scheduled', 'paying'], true))
-            <div class="alert alert-info">
-                Automatic payment {{ $autoPay->status === 'paying' ? 'is being sent' : 'is set for '.$autoPay->pay_at->format('d M Y H:i') }}.
-            </div>
-        @endif
+        @foreach(($paymentSchedules ?? collect()) as $schedule)
+            @if($schedule->status === 'pending_approval')
+                <div class="alert alert-warning">
+                    <strong>A payment is waiting for admin approval.</strong>
+                    {{ $schedule->amount ? number_format($schedule->amount).' XAF' : 'Engineer totals' }}
+                    at {{ $schedule->pay_at ? $schedule->pay_at->format('d M Y H:i') : 'the chosen time' }}.
+                    @if(!empty($isEventAdmin))
+                        <form method="POST" action="{{ route('events.auto-pay.approve', $event->id) }}" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
+                            <button class="btn btn-primary btn-sm ml-2">Approve payment</button>
+                        </form>
+                        <form method="POST" action="{{ route('events.auto-pay.reject', $event->id) }}" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
+                            <button class="btn btn-light btn-sm">Cancel</button>
+                        </form>
+                    @endif
+                </div>
+            @elseif(in_array($schedule->status, ['scheduled', 'paying'], true))
+                <div class="alert alert-info">
+                    {{ $schedule->amount ? number_format($schedule->amount).' XAF' : 'Automatic payment' }}
+                    {{ $schedule->status === 'paying' ? 'is being sent' : 'is set for '.optional($schedule->pay_at)->format('d M Y H:i') }}.
+                </div>
+            @endif
+        @endforeach
 
         <div class="card mb-3">
             <div class="card-body">
@@ -118,6 +124,14 @@
                                 <dd class="col-sm-8">{{ $event->internal_description ?: '—' }}</dd>
                                 <dt class="col-sm-4">Notes</dt>
                                 <dd class="col-sm-8">{{ $event->internal_notes ?: '—' }}</dd>
+                                <dt class="col-sm-4">Setup dates</dt>
+                                <dd class="col-sm-8">
+                                    @forelse(($setupEntries ?? []) as $entry)
+                                        <div><strong>{{ date('d M Y', strtotime($entry['date'])) }}</strong>@if($entry['note'] !== '') — {{ $entry['note'] }}@endif</div>
+                                    @empty
+                                        —
+                                    @endforelse
+                                </dd>
                             </dl>
                         </div>
                     </div>
@@ -145,6 +159,37 @@
                                 <p class="mb-2"><strong>Staff:</strong> {{ $event->staffNames() }}</p>
                             @endif
                             <a href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}" class="btn btn-sm btn-outline-primary">Payments</a>
+                            @if(in_array('events.update', $all_permission))
+                                <div class="mt-3">
+                                    <div class="font-weight-bold mb-2">Schedule payment</div>
+                                    <p class="small text-muted">Pay part of an engineer's event total at a time you choose. You can add more than one.</p>
+                                    <form method="POST" action="{{ route('events.schedule-pay', $event->id) }}">
+                                        @csrf
+                                        <div class="form-group">
+                                            <select name="assignment_id" class="form-control form-control-sm" required>
+                                                <option value="">Choose an engineer</option>
+                                                @foreach($event->assignments as $assignment)
+                                                    @if($assignment->acceptance_status === 'rejected')
+                                                        @continue
+                                                    @endif
+                                                    @php
+                                                        $left = isset($payRooms[$assignment->id]) ? $payRooms[$assignment->id] : (int) $assignment->expected_total;
+                                                        $who = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Engineer';
+                                                    @endphp
+                                                    <option value="{{ $assignment->id }}">{{ $who }} — {{ number_format($left) }} XAF left of {{ number_format($assignment->expected_total) }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <input type="number" name="amount" min="100" class="form-control form-control-sm" placeholder="Amount in XAF" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <input type="datetime-local" name="pay_at" class="form-control form-control-sm" required>
+                                        </div>
+                                        <button class="btn btn-primary btn-sm">Schedule payment</button>
+                                    </form>
+                                </div>
+                            @endif
                             @if($rentalWarning)<p class="text-warning small mb-0">{{ $rentalWarning }}</p>@endif
                         </div>
                     </div>

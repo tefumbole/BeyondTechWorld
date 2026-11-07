@@ -16,9 +16,72 @@ class EventAutoPay
     public function openFor(Event $event)
     {
         return EventAutoPayment::where('event_id', $event->id)
+            ->whereNull('assignment_id')
             ->whereIn('status', ['pending_approval', 'scheduled', 'paying', 'failed'])
             ->orderByDesc('id')
             ->first();
+    }
+
+    public function openRows(Event $event)
+    {
+        return EventAutoPayment::where('event_id', $event->id)
+            ->whereIn('status', ['pending_approval', 'scheduled', 'paying', 'failed', 'paid'])
+            ->orderBy('pay_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function roomFor(EventAssignment $assignment)
+    {
+        $paid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('status', EventWorkerPayment::STATUS_PAID)
+            ->sum('amount');
+        $waiting = (int) EventAutoPayment::where('assignment_id', $assignment->id)
+            ->whereIn('status', ['pending_approval', 'scheduled', 'paying'])
+            ->sum('amount');
+
+        return max(0, (int) $assignment->expected_total - $paid - $waiting);
+    }
+
+    public function schedule(Event $event, $assignmentId, $amount, $payAt, $isAdmin)
+    {
+        $assignment = EventAssignment::where('event_id', $event->id)->where('id', $assignmentId)->first();
+        if (! $assignment || $assignment->acceptance_status === 'rejected') {
+            return array('ok' => false, 'message' => 'That engineer is not on this event.');
+        }
+        $amount = (int) $amount;
+        $room = $this->roomFor($assignment);
+        if ($amount < 100) {
+            return array('ok' => false, 'message' => 'A scheduled payment has to be at least 100 XAF.');
+        }
+        if ($amount > $room) {
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This engineer';
+
+            return array('ok' => false, 'message' => $name.' has '.number_format($room).' XAF left to schedule.');
+        }
+        if ($payAt === null || $payAt === '') {
+            return array('ok' => false, 'message' => 'Choose the time this part should be paid.');
+        }
+        $row = new EventAutoPayment();
+        $row->event_id = $event->id;
+        $row->assignment_id = $assignment->id;
+        $row->amount = $amount;
+        $row->pay_at = \Carbon\Carbon::parse($payAt);
+        $row->attempt = 1;
+        $row->requested_by = Auth::id();
+        if ($isAdmin) {
+            $row->status = 'scheduled';
+            $row->approved_by = Auth::id();
+            $row->approved_at = now();
+        } else {
+            $row->status = 'pending_approval';
+        }
+        $row->save();
+        if (! $isAdmin) {
+            $this->askAdmin($event, $row);
+        }
+
+        return array('ok' => true, 'row' => $row);
     }
 
     public function remember(Event $event, $payAt, $enabled, $isAdmin)
@@ -119,7 +182,25 @@ class EventAutoPay
         $paid = 0;
         $assignments = EventAssignment::with('workerProfile.customer', 'workerProfile.user')
             ->where('event_id', $event->id)
-            ->get();
+            ->get()
+            ->filter(function ($assignment) use ($row) {
+                if ($assignment->acceptance_status === 'rejected') {
+                    return false;
+                }
+                if ($row->assignment_id) {
+                    return (string) $assignment->id === (string) $row->assignment_id;
+                }
+
+                return true;
+            })
+            ->values();
+        if ($row->assignment_id && $assignments->count() === 0) {
+            $row->status = 'cancelled';
+            $row->result = 'The engineer rejected the job.';
+            $row->save();
+
+            return;
+        }
         foreach ($assignments as $assignment) {
             $outcome = $this->payOne($service, $event, $assignment, $row);
             $notes[] = $outcome['note'];
@@ -145,10 +226,14 @@ class EventAutoPay
     {
         $profile = $assignment->workerProfile;
         $name = $profile ? $profile->displayName() : 'Engineer';
-        if ($assignment->payment_status === 'paid') {
+        $alreadyPaid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('status', EventWorkerPayment::STATUS_PAID)
+            ->sum('amount');
+        $remaining = max(0, (int) $assignment->expected_total - $alreadyPaid);
+        if ($remaining < 100) {
             return ['state' => 'paid', 'note' => $name.' was already paid.'];
         }
-        $amount = (int) $assignment->expected_total;
+        $amount = $row->amount ? min((int) $row->amount, $remaining) : $remaining;
         $reference = 'evpay-'.substr(md5($assignment->id.'|'.$row->id.'|'.$row->attempt), 0, 24);
         $existing = CampayPayout::where('external_reference', $reference)->first();
         if ($existing && $existing->status === 'paid') {
@@ -234,9 +319,10 @@ class EventAutoPay
 
     protected function recordPaid(Event $event, EventAssignment $assignment, CampayPayout $payout)
     {
-        $assignment->payment_status = 'paid';
-        $assignment->save();
-        $already = EventWorkerPayment::where('assignment_id', $assignment->id)->where('status', EventWorkerPayment::STATUS_PAID)->exists();
+        $marker = 'Auto '.$payout->external_reference;
+        $already = EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('notes', $marker)
+            ->exists();
         if (! $already) {
             EventWorkerPayment::create([
                 'event_id' => $event->id,
@@ -248,11 +334,16 @@ class EventAutoPay
                 'mobile_money_number' => $payout->phone,
                 'status' => EventWorkerPayment::STATUS_PAID,
                 'paid_at' => now(),
-                'notes' => 'Paid automatically for '.$event->name,
+                'notes' => $marker,
                 'created_by' => $payout->user_id,
                 'approved_by' => $payout->user_id,
             ]);
         }
+        $paidSum = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('status', EventWorkerPayment::STATUS_PAID)
+            ->sum('amount');
+        $assignment->payment_status = $paidSum >= (int) $assignment->expected_total ? 'paid' : 'partial';
+        $assignment->save();
         app(MomoMiniReceipt::class)->send([
             'phone' => $payout->phone,
             'name' => $payout->person_name,
@@ -272,7 +363,8 @@ class EventAutoPay
         $who = Auth::user() ? Auth::user()->name : 'Someone';
         $when = $row->pay_at ? $row->pay_at->format('d M Y H:i') : '';
         $url = route('events.show', $event->id);
-        $text = $who.' asked to pay the engineers for '.$event->name.' at '.$when.'. Approve it before that time: '.$url;
+        $part = $row->amount ? number_format((int) $row->amount).' XAF' : 'the engineer totals';
+        $text = $who.' asked to pay '.$part.' for '.$event->name.' at '.$when.'. Approve it before that time: '.$url;
         try {
             app(ClientNoticeService::class)->send(TwilioAdminCopy::PHONE, $text);
         } catch (\Throwable $e) {
