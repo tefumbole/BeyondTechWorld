@@ -56,6 +56,36 @@
                 </div>
                 <p class="small text-muted mb-0 mt-2">This replaces each person's open schedules with one payment of that percentage. 100% schedules everything still owed.</p>
             </form>
+            <form method="POST" action="{{ route('events.schedule-pay', $event->id) }}" class="border rounded p-3 mb-3">
+                @csrf
+                <div class="font-weight-bold mb-2">Add another schedule</div>
+                <div class="form-row align-items-end">
+                    <div class="col-md-4 form-group mb-md-0">
+                        <label>Person</label>
+                        <select name="assignment_id" class="form-control" required>
+                            <option value="">Choose a person</option>
+                            @foreach($event->assignments as $assignment)
+                                @if($assignment->acceptance_status === 'rejected')
+                                    @continue
+                                @endif
+                                <option value="{{ $assignment->id }}">{{ $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Person' }} — {{ number_format(isset($payRooms[$assignment->id]) ? $payRooms[$assignment->id] : 0) }} XAF remaining</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group mb-md-0">
+                        <label>Amount</label>
+                        <input type="number" name="amount" class="form-control" min="100" required>
+                    </div>
+                    <div class="col-md-3 form-group mb-md-0">
+                        <label>When</label>
+                        <input type="datetime-local" name="pay_at" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary btn-block">Add schedule</button>
+                    </div>
+                </div>
+                <p class="small text-muted mb-0 mt-2">This adds a date. It does not remove the schedules already listed. The amount cannot be more than what is remaining.</p>
+            </form>
         @endif
 
         @if(!count($openSchedules))
@@ -74,7 +104,9 @@
                         <tr>
                             @if(!empty($isEventAdmin))<th style="width:36px;"><input type="checkbox" id="sched-all" aria-label="Select all"></th>@endif
                             <th>Person</th>
-                            <th>Amount</th>
+                            <th>Amount due</th>
+                            <th>This schedule</th>
+                            <th>Remaining</th>
                             <th>When</th>
                             <th>Status</th>
                             @if(!empty($isEventAdmin))<th></th>@endif
@@ -87,6 +119,8 @@
                                     ? $scheduleRow->assignment->workerProfile->displayName()
                                     : 'Everyone on the event';
                                 $editable = !empty($isEventAdmin) && in_array($scheduleRow->status, ['pending_approval', 'scheduled', 'failed'], true);
+                                $amountDue = $scheduleRow->assignment ? (int) $scheduleRow->assignment->expected_total : $dueShown;
+                                $remaining = isset($payRooms[$scheduleRow->assignment_id]) ? (int) $payRooms[$scheduleRow->assignment_id] : max(0, $amountDue - (int) $scheduleRow->amount);
                             @endphp
                             <tr>
                                 @if(!empty($isEventAdmin))
@@ -97,25 +131,22 @@
                                     </td>
                                 @endif
                                 <td>{{ $person }}</td>
+                                <td>{{ number_format($amountDue) }}</td>
                                 @if($editable)
-                                    <td colspan="4">
-                                        <form method="POST" action="{{ route('events.auto-pay.update', [$event->id, $scheduleRow->id]) }}" class="form-row align-items-center">
+                                    <td><input form="sched-{{ $scheduleRow->id }}" type="number" name="amount" class="form-control form-control-sm" min="100" value="{{ (int) $scheduleRow->amount }}" required></td>
+                                    <td class="font-weight-bold">{{ number_format($remaining) }}</td>
+                                    <td><input form="sched-{{ $scheduleRow->id }}" type="datetime-local" name="pay_at" class="form-control form-control-sm" value="{{ $scheduleRow->pay_at ? $scheduleRow->pay_at->format('Y-m-d\TH:i') : '' }}" required></td>
+                                    <td><span class="badge badge-secondary">{{ str_replace('_', ' ', $scheduleRow->status) }}</span></td>
+                                    <td class="text-nowrap">
+                                        <form id="sched-{{ $scheduleRow->id }}" method="POST" action="{{ route('events.auto-pay.update', [$event->id, $scheduleRow->id]) }}" class="d-inline">
                                             @csrf
-                                            <div class="col-md-3 mb-1">
-                                                <input type="number" name="amount" class="form-control form-control-sm" min="100" value="{{ (int) $scheduleRow->amount }}" required>
-                                            </div>
-                                            <div class="col-md-4 mb-1">
-                                                <input type="datetime-local" name="pay_at" class="form-control form-control-sm" value="{{ $scheduleRow->pay_at ? $scheduleRow->pay_at->format('Y-m-d\TH:i') : '' }}" required>
-                                            </div>
-                                            <div class="col-md-2 mb-1"><span class="badge badge-secondary">{{ str_replace('_', ' ', $scheduleRow->status) }}</span></div>
-                                            <div class="col-md-3 mb-1 text-right">
-                                                <button class="btn btn-sm btn-primary">Save</button>
-                                                <button form="schedule-bulk" class="btn btn-sm btn-light" name="do" value="delete" onclick="document.querySelectorAll('.sched-pick').forEach(function (box) { box.checked = box.value === '{{ $scheduleRow->id }}'; }); return confirm('Delete this schedule?');">Delete</button>
-                                            </div>
+                                            <button class="btn btn-sm btn-primary">Save</button>
                                         </form>
+                                        <button form="schedule-bulk" class="btn btn-sm btn-light" name="do" value="delete" onclick="document.querySelectorAll('.sched-pick').forEach(function (box) { box.checked = box.value === '{{ $scheduleRow->id }}'; }); return confirm('Delete this schedule?');">Delete</button>
                                     </td>
                                 @else
-                                    <td>{{ number_format((int) $scheduleRow->amount) }} XAF</td>
+                                    <td>{{ number_format((int) $scheduleRow->amount) }}</td>
+                                    <td class="font-weight-bold">{{ number_format($remaining) }}</td>
                                     <td>{{ $scheduleRow->pay_at ? $scheduleRow->pay_at->format('d M Y H:i') : '—' }}</td>
                                     <td>{{ str_replace('_', ' ', $scheduleRow->status) }}</td>
                                     @if(!empty($isEventAdmin))<td></td>@endif

@@ -183,7 +183,7 @@ class EventController extends Controller
             $this->isEventAdmin()
         );
         if (empty($result['ok'])) {
-            return redirect()->route('events.show', $event->id)->with('not_permitted', $result['message']);
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $result['message']);
         }
         $when = $result['row']->pay_at ? $result['row']->pay_at->format('d M Y H:i') : '';
         $message = number_format((int) $data['amount']).' XAF is scheduled for '.$when.'.';
@@ -191,7 +191,7 @@ class EventController extends Controller
             $message .= ' An admin still has to approve it.';
         }
 
-        return redirect()->route('events.show', $event->id)->with('message', $message);
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
     }
 
     protected function autoPayRow(Event $event, $scheduleId)
