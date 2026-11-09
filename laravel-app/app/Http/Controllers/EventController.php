@@ -74,7 +74,93 @@ class EventController extends Controller
             app(\App\Services\EventAutoPay::class)->reject($row);
         }
 
-        return redirect()->route('events.show', $event->id)->with('message', 'Automatic payment was cancelled.');
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', 'Automatic payment was cancelled.');
+    }
+
+    public function updateSchedule(Request $request, $id, $scheduleId)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can change a payment schedule.');
+        }
+        $event = Event::findOrFail($id);
+        $row = $this->autoPayRow($event, $scheduleId);
+        if (! $row) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'That schedule was not found.');
+        }
+        $data = $request->validate([
+            'amount' => 'required|integer|min:100',
+            'pay_at' => 'required|date',
+        ]);
+        $result = app(\App\Services\EventAutoPay::class)->updateRow($row, $data['amount'], $data['pay_at']);
+        if (empty($result['ok'])) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $result['message']);
+        }
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', 'The schedule was updated.');
+    }
+
+    public function selectedSchedules(Request $request, $id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can change a payment schedule.');
+        }
+        $event = Event::findOrFail($id);
+        $ids = array_filter((array) $request->input('ids', []));
+        if (! count($ids)) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Select at least one schedule.');
+        }
+        $rows = \App\EventAutoPayment::where('event_id', $event->id)->whereIn('id', $ids)->get();
+        $service = app(\App\Services\EventAutoPay::class);
+        $action = $request->input('do') === 'delete' ? 'delete' : 'pay';
+        $done = 0;
+        foreach ($rows as $row) {
+            if ($action === 'delete') {
+                if (in_array($row->status, ['pending_approval', 'scheduled', 'failed'], true)) {
+                    $service->reject($row);
+                    $done++;
+                }
+                continue;
+            }
+            if ($row->status === 'pending_approval') {
+                $service->approve($row, \Illuminate\Support\Facades\Auth::id());
+                $row = $row->fresh();
+            }
+            if (! in_array($row->status, ['scheduled', 'failed'], true)) {
+                continue;
+            }
+            $row->pay_at = now();
+            $row->status = 'scheduled';
+            $row->save();
+            $service->pay($row->fresh());
+            $done++;
+        }
+        $message = $action === 'delete'
+            ? $done.' schedule'.($done === 1 ? '' : 's').' removed.'
+            : $done.' schedule'.($done === 1 ? '' : 's').' sent for payment.';
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
+    }
+
+    public function percentSchedules(Request $request, $id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can schedule a payment.');
+        }
+        $event = Event::findOrFail($id);
+        $data = $request->validate([
+            'percent' => 'required|integer|min:1|max:100',
+            'pay_at' => 'required|date',
+        ]);
+        $result = app(\App\Services\EventAutoPay::class)->applyPercent($event, $data['percent'], $data['pay_at'], true);
+        if (empty($result['ok'])) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $result['message']);
+        }
+        $message = $data['percent'].'% of the amount still due is scheduled for '.$result['set'].' people.';
+        if (! empty($result['warnings'])) {
+            $message .= ' '.implode(' ', $result['warnings']);
+        }
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
     }
 
     public function schedulePay(Request $request, $id)
@@ -802,17 +888,22 @@ class EventController extends Controller
         $setupEntries = Event::parseSetup($event->setup_dates);
         $unpackEntries = Event::parseSetup($event->unpack_dates);
         $payRooms = array();
+        $dueTotal = 0;
         foreach ($event->assignments as $assignment) {
             if ($assignment->acceptance_status === 'rejected') {
                 continue;
             }
+            $dueTotal += (int) $assignment->expected_total;
             $payRooms[$assignment->id] = $autoPayService->roomFor($assignment);
         }
+        $paidTotal = (int) \App\EventWorkerPayment::where('event_id', $event->id)
+            ->where('status', \App\EventWorkerPayment::STATUS_PAID)
+            ->sum('amount');
 
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
             'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
-            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms'
+            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms', 'dueTotal', 'paidTotal'
         ));
     }
 

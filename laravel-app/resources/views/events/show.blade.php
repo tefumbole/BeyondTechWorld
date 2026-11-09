@@ -2,6 +2,25 @@
 
 @section('content')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .ev-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+    .ev-subnav a {
+        display: inline-block;
+        padding: 12px 18px;
+        border-radius: 12px;
+        background: #e7eefb;
+        color: #0b3f90;
+        font-weight: 800;
+        font-size: 15px;
+        text-decoration: none;
+        border: 2px solid #c5d4f2;
+    }
+    .ev-subnav a.active { background: #0b3f90; color: #fff; border-color: #0b3f90; }
+    .ev-money { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    .ev-money div { background: #f4f7fb; border: 1px solid #d6e0f0; border-radius: 12px; padding: 10px 14px; min-width: 160px; }
+    .ev-money strong { display: block; font-size: 18px; color: #0b3f90; }
+    .ev-money span { color: #64748b; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+</style>
 <section class="forms">
     <div class="container-fluid">
         @if(session('message'))
@@ -13,32 +32,20 @@
         @if(session('not_permitted'))
             <div class="alert alert-danger">{{ session('not_permitted') }}</div>
         @endif
-        @foreach(($paymentSchedules ?? collect()) as $schedule)
-            @if($schedule->status === 'pending_approval')
-                <div class="alert alert-warning">
-                    <strong>A payment is waiting for admin approval.</strong>
-                    {{ $schedule->amount ? number_format($schedule->amount).' XAF' : 'Engineer totals' }}
-                    at {{ $schedule->pay_at ? $schedule->pay_at->format('d M Y H:i') : 'the chosen time' }}.
-                    @if(!empty($isEventAdmin))
-                        <form method="POST" action="{{ route('events.auto-pay.approve', $event->id) }}" class="d-inline">
-                            @csrf
-                            <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
-                            <button class="btn btn-primary btn-sm ml-2">Approve payment</button>
-                        </form>
-                        <form method="POST" action="{{ route('events.auto-pay.reject', $event->id) }}" class="d-inline">
-                            @csrf
-                            <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
-                            <button class="btn btn-light btn-sm">Cancel</button>
-                        </form>
-                    @endif
-                </div>
-            @elseif(in_array($schedule->status, ['scheduled', 'paying'], true))
-                <div class="alert alert-info">
-                    {{ $schedule->amount ? number_format($schedule->amount).' XAF' : 'Automatic payment' }}
-                    {{ $schedule->status === 'paying' ? 'is being sent' : 'is set for '.optional($schedule->pay_at)->format('d M Y H:i') }}.
-                </div>
-            @endif
-        @endforeach
+        @php
+            $openScheduleCount = 0;
+            foreach (($paymentSchedules ?? []) as $scheduleNote) {
+                if (in_array($scheduleNote->status, ['pending_approval', 'scheduled', 'paying', 'failed'], true)) {
+                    $openScheduleCount++;
+                }
+            }
+        @endphp
+        @if($openScheduleCount > 0 && $tab !== 'payments')
+            <div class="alert alert-info">
+                {{ $openScheduleCount }} payment {{ $openScheduleCount === 1 ? 'schedule is' : 'schedules are' }} waiting.
+                <a href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}" class="font-weight-bold">Open Payments</a>
+            </div>
+        @endif
 
         <div class="card mb-3">
             <div class="card-body">
@@ -76,26 +83,14 @@
             </div>
         </div>
 
-        <ul class="nav nav-tabs mb-3">
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'overview' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'overview']) }}">Overview</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'publication' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'publication']) }}">Public Website</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'workforce' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'workforce']) }}">Workforce</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'contracts' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'contracts']) }}">Contracts</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'reminders' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'reminders']) }}">Reminders</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === 'payments' ? 'active font-weight-bold' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}">Payments</a>
-            </li>
-        </ul>
+        <nav class="ev-subnav" aria-label="Event sections">
+            <a class="{{ $tab === 'overview' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'overview']) }}">Overview</a>
+            <a class="{{ $tab === 'publication' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'publication']) }}">Public Website</a>
+            <a class="{{ $tab === 'workforce' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'workforce']) }}">Workforce</a>
+            <a class="{{ $tab === 'contracts' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'contracts']) }}">Contracts</a>
+            <a class="{{ $tab === 'reminders' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'reminders']) }}">Reminders</a>
+            <a class="{{ $tab === 'payments' ? 'active' : '' }}" href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}">Payments</a>
+        </nav>
 
         @if($tab === 'publication')
             @include('events.partials.tab_publication')

@@ -24,7 +24,8 @@ class EventAutoPay
 
     public function openRows(Event $event)
     {
-        return EventAutoPayment::where('event_id', $event->id)
+        return EventAutoPayment::with('assignment.workerProfile')
+            ->where('event_id', $event->id)
             ->whereIn('status', ['pending_approval', 'scheduled', 'paying', 'failed', 'paid'])
             ->orderBy('pay_at')
             ->orderBy('id')
@@ -144,13 +145,102 @@ class EventAutoPay
 
     public function reject(EventAutoPayment $row)
     {
-        if (! in_array($row->status, ['pending_approval', 'scheduled'], true)) {
+        if (! in_array($row->status, ['pending_approval', 'scheduled', 'failed'], true)) {
             return $row;
         }
         $row->status = 'cancelled';
+        $row->result = 'Removed from the payment schedule.';
         $row->save();
 
         return $row;
+    }
+
+    public function updateRow(EventAutoPayment $row, $amount, $payAt)
+    {
+        if (! in_array($row->status, ['pending_approval', 'scheduled', 'failed'], true)) {
+            return ['ok' => false, 'message' => 'That schedule can no longer be changed.'];
+        }
+        $amount = (int) $amount;
+        if ($amount < 100) {
+            return ['ok' => false, 'message' => 'A scheduled payment has to be at least 100 XAF.'];
+        }
+        if ($payAt === null || $payAt === '') {
+            return ['ok' => false, 'message' => 'Choose the date and time.'];
+        }
+        if ($row->assignment_id) {
+            $assignment = EventAssignment::find($row->assignment_id);
+            if (! $assignment) {
+                return ['ok' => false, 'message' => 'That person is no longer on the event.'];
+            }
+            $paid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+                ->where('status', EventWorkerPayment::STATUS_PAID)
+                ->sum('amount');
+            $others = (int) EventAutoPayment::where('assignment_id', $assignment->id)
+                ->where('id', '!=', $row->id)
+                ->whereIn('status', ['pending_approval', 'scheduled', 'paying'])
+                ->sum('amount');
+            $room = max(0, (int) $assignment->expected_total - $paid - $others);
+            if ($amount > $room) {
+                $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This person';
+
+                return ['ok' => false, 'message' => $name.' has '.number_format($room).' XAF left to schedule.'];
+            }
+        }
+        $row->amount = $amount;
+        $row->pay_at = \Carbon\Carbon::parse($payAt);
+        if ($row->status === 'failed') {
+            $row->status = 'scheduled';
+            $row->result = null;
+        }
+        $row->save();
+
+        return ['ok' => true, 'row' => $row];
+    }
+
+    public function applyPercent(Event $event, $percent, $payAt, $isAdmin)
+    {
+        $percent = (int) $percent;
+        if ($percent < 1 || $percent > 100) {
+            return ['ok' => false, 'message' => 'Choose a percentage from 1 to 100.'];
+        }
+        if ($payAt === null || $payAt === '') {
+            return ['ok' => false, 'message' => 'Choose the date and time for this percentage.'];
+        }
+        $event->load('assignments.workerProfile');
+        $set = 0;
+        $warnings = [];
+        foreach ($event->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            EventAutoPayment::where('assignment_id', $assignment->id)
+                ->whereIn('status', ['pending_approval', 'scheduled', 'failed'])
+                ->update(['status' => 'cancelled', 'result' => 'Replaced by a percentage for everyone.']);
+            $paid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+                ->where('status', EventWorkerPayment::STATUS_PAID)
+                ->sum('amount');
+            $paying = (int) EventAutoPayment::where('assignment_id', $assignment->id)
+                ->where('status', 'paying')
+                ->sum('amount');
+            $due = max(0, (int) $assignment->expected_total - $paid - $paying);
+            $amount = (int) round($due * $percent / 100);
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'A person';
+            if ($amount < 100) {
+                $warnings[] = $name.' was skipped because '.$percent.'% is under 100 XAF.';
+                continue;
+            }
+            $scheduled = $this->schedule($event, $assignment->id, $amount, $payAt, $isAdmin);
+            if (empty($scheduled['ok'])) {
+                $warnings[] = $scheduled['message'];
+            } else {
+                $set++;
+            }
+        }
+        if ($set < 1) {
+            return ['ok' => false, 'message' => $warnings ? implode(' ', $warnings) : 'Nobody had an amount left to schedule.'];
+        }
+
+        return ['ok' => true, 'set' => $set, 'warnings' => $warnings];
     }
 
     public function runDue()

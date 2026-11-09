@@ -20,6 +20,11 @@ class EventAutoPayment extends Model
         return $this->belongsTo(Event::class, 'event_id');
     }
 
+    public function assignment()
+    {
+        return $this->belongsTo(EventAssignment::class, 'assignment_id');
+    }
+
     public function requester()
     {
         return $this->belongsTo(User::class, 'requested_by');

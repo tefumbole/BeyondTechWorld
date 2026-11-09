@@ -1086,6 +1086,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/events/{id}/schedule-pay', 'EventController@schedulePay')->name('events.schedule-pay');
     Route::post('/admin/events/{id}/auto-pay/approve', 'EventController@approveAutoPay')->name('events.auto-pay.approve');
     Route::post('/admin/events/{id}/auto-pay/reject', 'EventController@rejectAutoPay')->name('events.auto-pay.reject');
+    Route::post('/admin/events/{id}/auto-pay/selected', 'EventController@selectedSchedules')->name('events.auto-pay.selected');
+    Route::post('/admin/events/{id}/auto-pay/percent', 'EventController@percentSchedules')->name('events.auto-pay.percent');
+    Route::post('/admin/events/{id}/auto-pay/{scheduleId}', 'EventController@updateSchedule')->name('events.auto-pay.update');
 
 	Route::get('/wp', 'HomeController@whatsapp');
 	Route::get('/mmt', 'HomeController@mobileMoneyToken');
