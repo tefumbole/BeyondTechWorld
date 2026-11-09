@@ -278,10 +278,33 @@
         background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
         padding: 22px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, .04);
     }
+    .ev-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .ev-section-head h3 { margin: 0; }
+    .ev-plus {
+        width: 44px; height: 44px; border: 0; border-radius: 14px;
+        background: #0b3f90; color: #fff; font-size: 28px; font-weight: 500; line-height: 1;
+        box-shadow: 0 8px 18px rgba(11, 63, 144, .22);
+    }
+    .ev-plus.is-on { background: #072f6b; }
+    .ev-comment {
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px;
+        padding: 14px; margin-bottom: 14px;
+    }
+    .ev-comment label {
+        display: block; margin-bottom: 8px; font-size: 12px; font-weight: 800;
+        letter-spacing: .08em; text-transform: uppercase; color: #0b3f90;
+    }
+    .ev-comment textarea {
+        width: 100%; border: 0; background: #fff; border-radius: 12px;
+        padding: 12px 14px; min-height: 96px; font-size: 16px; color: #0f172a;
+        box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
+    .ev-when-wide { margin-top: 14px; }
     .ev-section h3 {
         margin: 0 0 14px; font-size: 13px; font-weight: 800; letter-spacing: .12em;
         text-transform: uppercase; color: #0b3f90;
     }
+    .ev-section .ev-section-head h3 { margin: 0; }
     .ev-crew-empty { color: #94a3b8; padding: 14px 4px; }
     .ev-offer {
         display: inline-flex; align-items: center; border-radius: 999px;

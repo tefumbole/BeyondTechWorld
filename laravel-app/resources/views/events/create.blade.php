@@ -54,7 +54,14 @@
             @if($editing) @method('PUT') @endif
             <input type="hidden" name="crew_form" value="1">
             <div class="ev-section">
-                <h3>Event</h3>
+                <div class="ev-section-head">
+                    <h3>Event</h3>
+                    <button type="button" class="ev-plus" id="comment-open" aria-expanded="false" aria-controls="comment-box">+</button>
+                </div>
+                <div id="comment-box" class="ev-comment" hidden>
+                    <label for="event-comment">Comment</label>
+                    <textarea id="event-comment" name="internal_notes" rows="3" placeholder="Add a comment for this event">{{ old('internal_notes', $event->internal_notes) }}</textarea>
+                </div>
                 <div class="row">
                     <div class="col-md-6 form-group">
                         <label>Event name <span class="text-danger">*</span></label>
@@ -122,16 +129,10 @@
                     <div id="unpack-notes" class="ev-date-notes"></div>
                     <input type="hidden" name="unpack_dates" id="unpack-dates" value="{{ json_encode(array_values($unpackDates)) }}">
                 </div>
-                <div class="ev-when-grid">
-                    <label class="ev-when-card">
-                        <span>Description</span>
-                        <textarea name="internal_description" rows="3" placeholder="What this event is">{{ old('internal_description', $event->internal_description) }}</textarea>
-                    </label>
-                    <label class="ev-when-card">
-                        <span>Notes</span>
-                        <textarea name="internal_notes" rows="3" placeholder="Schedule notes, call times, or anything to remember">{{ old('internal_notes', $event->internal_notes) }}</textarea>
-                    </label>
-                </div>
+                <label class="ev-when-card ev-when-wide">
+                    <span>Description</span>
+                    <textarea name="internal_description" rows="3" placeholder="What this event is">{{ old('internal_description', $event->internal_description) }}</textarea>
+                </label>
             </div>
 
             <div class="ev-section">
@@ -750,6 +751,22 @@
         openSchedule = openSchedule === key ? '' : key;
         paintDays(true);
         refresh();
+    });
+
+    var commentBox = document.getElementById('comment-box');
+    var commentOpen = document.getElementById('comment-open');
+    var commentField = document.getElementById('event-comment');
+    function setCommentOpen(open) {
+        commentBox.hidden = !open;
+        commentOpen.classList.toggle('is-on', open);
+        commentOpen.setAttribute('aria-expanded', open ? 'true' : 'false');
+        commentOpen.setAttribute('aria-label', open ? 'Hide comment' : 'Add a comment');
+    }
+    if (commentField.value.trim()) setCommentOpen(true);
+    commentOpen.addEventListener('click', function () {
+        var open = commentBox.hidden;
+        setCommentOpen(open);
+        if (open) commentField.focus();
     });
 
     document.getElementById('event-from').addEventListener('change', spanDays);
