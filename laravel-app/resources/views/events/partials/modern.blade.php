@@ -115,12 +115,51 @@
     .events-shell .ev-role-pill { color: #1d4ed8; background: #dbeafe; }
     .events-shell .ev-source-pill { color: #475569; background: #f1f5f9; }
     .ev-duration-note {
-        background: #eff6ff;
-        color: #1e3a8a;
-        border-radius: 12px;
-        padding: 10px 14px;
+        background: linear-gradient(135deg, #0b3f90, #1d4ed8);
+        color: #fff;
+        border-radius: 16px;
+        padding: 14px 18px;
         font-weight: 700;
-        margin: 0 0 14px;
+        margin: 14px 0;
+        letter-spacing: -.01em;
+    }
+    .ev-when-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .ev-when-card {
+        display: flex; flex-direction: column; gap: 8px; margin: 0;
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 16px;
+    }
+    .ev-when-card span { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #0b3f90; }
+    .ev-when-card input,
+    .ev-when-card textarea {
+        width: 100%; border: 0; background: #fff; border-radius: 14px;
+        padding: 14px 16px; font-size: 16px; font-weight: 700; color: #0f172a;
+        box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
+    .ev-when-card textarea { font-weight: 500; resize: vertical; min-height: 110px; }
+    .ev-date-block {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
+        padding: 16px; margin-bottom: 14px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
+    }
+    .ev-date-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .ev-date-head strong { display: block; font-size: 18px; letter-spacing: -.03em; color: #0f172a; }
+    .ev-date-head p { margin: 2px 0 0; color: #64748b; font-size: 13px; }
+    .ev-date-head button {
+        border: 0; background: #0b3f90; color: #fff; border-radius: 999px;
+        padding: 10px 16px; font-weight: 700;
+    }
+    .ev-date-notes .form-row {
+        background: #f8fafc; border-radius: 14px; margin: 8px 0 0; padding: 10px 12px;
+    }
+    .crew-table { min-width: 1280px; }
+    .crew-table th:first-child,
+    .crew-table td:first-child { min-width: 320px; width: 340px; }
+    .crew-table .crew-name {
+        min-width: 300px; width: 100%; font-weight: 700; font-size: 15px;
+    }
+    .crew-table td:nth-child(2) { min-width: 190px; }
+    @media (max-width: 767px) {
+        .ev-when-grid { grid-template-columns: 1fr; }
     }
     .ev-role { position: relative; }
     .ev-role-btn {
@@ -268,7 +307,10 @@
         .events-shell .form-inline select,
         .events-shell .form-inline .btn { width: 100%; margin-right: 0 !important; min-height: 44px; font-size: 16px; }
         .events-shell .table-responsive { margin: 0 -4px; }
-        .crew-table { min-width: 680px; }
+        .crew-table { min-width: 1280px; }
+        .crew-table th:first-child,
+        .crew-table td:first-child,
+        .crew-table .crew-name { min-width: 300px; }
         .ev-cal-toolbar { flex-direction: column; align-items: stretch; }
         .ev-cal-toolbar h3 { font-size: 18px; }
         .ev-actions .btn { width: 100%; }

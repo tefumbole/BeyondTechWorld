@@ -85,46 +85,52 @@
                 </div>
             </div>
 
-            <div class="ev-section">
+            <div class="ev-section ev-when">
                 <h3>Event duration</h3>
-                <div class="row">
-                    <div class="col-md-6 form-group">
-                        <label>From <span class="text-danger">*</span></label>
-                        <input type="datetime-local" name="event_start_at" id="event-from" class="form-control" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d\TH:i')) }}">
-                    </div>
-                    <div class="col-md-6 form-group">
-                        <label>To <span class="text-danger">*</span></label>
-                        <input type="datetime-local" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
-                    </div>
+                <div class="ev-when-grid">
+                    <label class="ev-when-card">
+                        <span>From</span>
+                        <input type="datetime-local" name="event_start_at" id="event-from" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d\TH:i')) }}">
+                    </label>
+                    <label class="ev-when-card">
+                        <span>To</span>
+                        <input type="datetime-local" name="event_end_at" id="event-to" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
+                    </label>
                 </div>
                 <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's working days start from that span.</div>
-                <div class="form-group">
-                    <label>Setup dates</label>
-                    <div>
-                        <button type="button" class="btn btn-outline-primary" id="setup-open">Choose setup dates</button>
-                        <div class="ev-chips" id="setup-chips"></div>
-                        <div id="setup-notes" class="mt-2"></div>
-                        <input type="hidden" name="setup_dates" id="setup-dates" value="{{ json_encode(array_values($setupDates)) }}">
+                <div class="ev-date-block">
+                    <div class="ev-date-head">
+                        <div>
+                            <strong>Setup</strong>
+                            <p>Select every setup day and leave a note. Engineers receive these dates.</p>
+                        </div>
+                        <button type="button" id="setup-open">Choose setup dates</button>
                     </div>
-                    <div class="small text-muted mt-1">Click every setup day. You can select more than one. Add a note for each date. Engineers receive these dates and notes.</div>
+                    <div class="ev-chips" id="setup-chips"></div>
+                    <div id="setup-notes" class="ev-date-notes"></div>
+                    <input type="hidden" name="setup_dates" id="setup-dates" value="{{ json_encode(array_values($setupDates)) }}">
                 </div>
-                <div class="form-group">
-                    <label>Unpacking dates</label>
-                    <div>
-                        <button type="button" class="btn btn-outline-primary" id="unpack-open">Choose unpacking dates</button>
-                        <div class="ev-chips" id="unpack-chips"></div>
-                        <div id="unpack-notes" class="mt-2"></div>
-                        <input type="hidden" name="unpack_dates" id="unpack-dates" value="{{ json_encode(array_values($unpackDates)) }}">
+                <div class="ev-date-block">
+                    <div class="ev-date-head">
+                        <div>
+                            <strong>Unpacking</strong>
+                            <p>Select every unpacking day, including a day after the event.</p>
+                        </div>
+                        <button type="button" id="unpack-open">Choose unpacking dates</button>
                     </div>
-                    <div class="small text-muted mt-1">Click every unpacking day. You can select more than one, including a day after the event.</div>
+                    <div class="ev-chips" id="unpack-chips"></div>
+                    <div id="unpack-notes" class="ev-date-notes"></div>
+                    <input type="hidden" name="unpack_dates" id="unpack-dates" value="{{ json_encode(array_values($unpackDates)) }}">
                 </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea name="internal_description" class="form-control" rows="3" placeholder="What this event is">{{ old('internal_description', $event->internal_description) }}</textarea>
-                </div>
-                <div class="form-group mb-0">
-                    <label>Notes</label>
-                    <textarea name="internal_notes" class="form-control" rows="3" placeholder="Schedule notes, call times, or anything to remember about these dates">{{ old('internal_notes', $event->internal_notes) }}</textarea>
+                <div class="ev-when-grid">
+                    <label class="ev-when-card">
+                        <span>Description</span>
+                        <textarea name="internal_description" rows="3" placeholder="What this event is">{{ old('internal_description', $event->internal_description) }}</textarea>
+                    </label>
+                    <label class="ev-when-card">
+                        <span>Notes</span>
+                        <textarea name="internal_notes" rows="3" placeholder="Schedule notes, call times, or anything to remember">{{ old('internal_notes', $event->internal_notes) }}</textarea>
+                    </label>
                 </div>
             </div>
 

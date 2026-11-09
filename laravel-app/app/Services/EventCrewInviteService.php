@@ -374,6 +374,30 @@ class EventCrewInviteService
         $assignment->acceptance_status = 'accepted';
         $assignment->accepted_at = now();
         $assignment->save();
+        $this->notifyAccepted($assignment);
+    }
+
+    public function notifyAccepted(EventAssignment $assignment)
+    {
+        $assignment->load('event', 'workerProfile.customer', 'workerProfile.user');
+        $event = $assignment->event;
+        $phone = $this->phoneFor($assignment);
+        if (! $event || ! $phone) {
+            return;
+        }
+        $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
+        $start = $event->event_start_at ? $event->event_start_at->format('d M Y H:i') : '';
+        $end = $event->event_end_at ? $event->event_end_at->format('d M Y H:i') : $start;
+        $body = "Hello {$name},\n\n"
+            ."You have accepted {$event->name}.\n"
+            ."Dates: {$start} to {$end}\n"
+            .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
+            ."Your place is confirmed. There is nothing else to accept.";
+        try {
+            app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
+        } catch (\Exception $e) {
+            \Log::warning('Accepted-job notice was not sent: '.$e->getMessage());
+        }
     }
 
     public function submitDay(EventAssignment $assignment, $date, $activity, $hours, $phone)
