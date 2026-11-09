@@ -48,13 +48,29 @@ class EventPaymentController extends Controller
         }
 
         $payments = $query->paginate(25);
-        $assignments = EventAssignment::with(['event', 'workerProfile.customer', 'workerProfile.user'])
-            ->where('expected_total', '>', 0)
-            ->orderBy('created_at', 'desc')
-            ->limit(50)
+        $offer = (string) $request->get('offer', '');
+        $assignmentQuery = EventAssignment::with(['event', 'workerProfile.customer', 'workerProfile.user'])
+            ->where('expected_total', '>', 0);
+        if ($offer === 'accepted') {
+            $assignmentQuery->where('acceptance_status', 'accepted');
+        } elseif ($offer === 'waiting') {
+            $assignmentQuery->where(function ($query) {
+                $query->whereNull('acceptance_status')->orWhere('acceptance_status', 'pending');
+            });
+        } elseif ($offer === 'declined') {
+            $assignmentQuery->where('acceptance_status', 'rejected');
+        }
+        $assignments = $assignmentQuery
+            ->orderByRaw("case when acceptance_status = 'accepted' then 0 when acceptance_status = 'rejected' then 2 else 1 end")
+            ->orderByDesc('accepted_at')
+            ->orderByDesc('created_at')
+            ->limit(100)
             ->get();
+        $acceptedCount = EventAssignment::where('expected_total', '>', 0)
+            ->where('acceptance_status', 'accepted')
+            ->count();
 
-        return view('events.payments.index', compact('payments', 'assignments'));
+        return view('events.payments.index', compact('payments', 'assignments', 'offer', 'acceptedCount'));
     }
 
     public function createForAssignment(Request $request, $eventId, EventPaymentService $payments)

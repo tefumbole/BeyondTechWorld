@@ -997,14 +997,21 @@ class EventController extends Controller
         $monthStart = $builder->monthStart($request->get('month'));
         $gridStart = $monthStart->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
         $gridEnd = $monthStart->copy()->endOfMonth()->endOfWeek(\Carbon\Carbon::MONDAY)->endOfDay();
+        $windowStart = $gridStart->copy()->subDays(21);
+        $windowEnd = $gridEnd->copy()->addDays(21);
         $events = Event::whereNotNull('event_start_at')
-            ->where('event_start_at', '<=', $gridEnd)
-            ->where(function ($query) use ($gridStart) {
-                $query->where('event_end_at', '>=', $gridStart)
-                    ->orWhereNull('event_end_at');
+            ->where(function ($query) use ($gridStart, $gridEnd, $windowStart, $windowEnd) {
+                $query->where(function ($query) use ($gridStart, $gridEnd) {
+                    $query->where('event_start_at', '<=', $gridEnd)
+                        ->where(function ($query) use ($gridStart) {
+                            $query->where('event_end_at', '>=', $gridStart)
+                                ->orWhereNull('event_end_at');
+                        });
+                })->orWhereBetween('event_start_at', [$windowStart, $windowEnd])
+                    ->orWhereBetween('event_end_at', [$windowStart, $windowEnd]);
             })
             ->orderBy('event_start_at')
-            ->get(['id', 'name', 'event_start_at', 'event_end_at', 'internal_status', 'venue']);
+            ->get(['id', 'name', 'event_start_at', 'event_end_at', 'internal_status', 'venue', 'setup_dates', 'unpack_dates']);
         $weeks = $builder->weeks($events, $monthStart);
         $monthLabel = $monthStart->format('F Y');
         $monthKey = $monthStart->format('Y-m');

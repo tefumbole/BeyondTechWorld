@@ -234,7 +234,14 @@
         background: rgba(255,255,255,.16); color: #fff; font-size: 22px; text-decoration: none;
     }
     .ev-cal-nav:hover { background: rgba(255,255,255,.28); color: #fff; text-decoration: none; }
-    .ev-cal-scroll { overflow-x: auto; }
+    .ev-cal-legend {
+        display: flex; flex-wrap: wrap; gap: 14px; padding: 12px 18px;
+        background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+        font-size: 13px; font-weight: 700; color: #0f172a;
+    }
+    .ev-cal-legend span { display: inline-flex; align-items: center; gap: 8px; }
+    .ev-cal-legend i { width: 18px; height: 10px; border-radius: 999px; display: inline-block; }
+    .ev-cal-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .ev-cal-grid { min-width: 760px; }
     .ev-cal-weekdays, .ev-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); }
     .ev-cal-weekdays span {
@@ -259,9 +266,14 @@
     .ev-bar.is-continued-after { border-top-right-radius: 2px; border-bottom-right-radius: 2px; }
     .ev-create-hero {
         display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
-        margin-bottom: 18px;
+        margin-bottom: 18px; padding: 22px 24px; border-radius: 24px;
+        background: linear-gradient(135deg, #072f6b, #0b3f90 58%, #1d4ed8);
+        box-shadow: 0 16px 40px rgba(11, 63, 144, .22);
     }
-    .ev-create-hero h2 { margin: 0; font-weight: 800; letter-spacing: -.04em; color: #0f172a; }
+    .ev-create-hero .ev-kicker { color: #f3e3a4; }
+    .ev-create-hero h2 { margin: 0; font-weight: 800; letter-spacing: -.04em; color: #fff; font-size: 1.8rem; }
+    .ev-create-hero .ev-lead { color: rgba(255,255,255,.84); max-width: 640px; }
+    .ev-create-hero .btn { border-radius: 999px; font-weight: 800; color: #0b3f90; }
     .ev-section {
         background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
         padding: 22px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, .04);
@@ -271,6 +283,31 @@
         text-transform: uppercase; color: #0b3f90;
     }
     .ev-crew-empty { color: #94a3b8; padding: 14px 4px; }
+    .ev-offer {
+        display: inline-flex; align-items: center; border-radius: 999px;
+        padding: 4px 10px; font-size: 12px; font-weight: 800; letter-spacing: .02em;
+    }
+    .ev-offer.is-yes { background: #dcfce7; color: #166534; }
+    .ev-offer.is-wait { background: #fef3c7; color: #92400e; }
+    .ev-offer.is-no { background: #fee2e2; color: #991b1b; }
+    .ev-offer-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
+    .ev-offer-filters a {
+        border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px;
+        background: #f1f5f9; color: #0b3f90; text-decoration: none;
+    }
+    .ev-offer-filters a.is-on { background: #0b3f90; color: #fff; }
+    .ev-labour {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: #eff6ff; color: #0b3f90; border-radius: 999px;
+        padding: 8px 14px; font-weight: 700;
+    }
+    .ev-day-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+        padding: 16px; margin-bottom: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
+    }
+    .crew-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .crew-tools { white-space: nowrap; }
+    .crew-table input[type="checkbox"] { width: 22px; height: 22px; }
     .ev-rate-note { display: block; font-size: 11px; color: #64748b; margin-top: 4px; }
     .ev-drop {
         border: 1.5px dashed #cbd5e1; border-radius: 16px; padding: 18px; background: #f8fafc; text-align: center;
@@ -295,24 +332,55 @@
     .ev-popcal-grid span { font-size: 10px; font-weight: 800; color: #94a3b8; padding: 4px 0; }
     .ev-popcal-grid button { border: 0; background: #f8fafc; border-radius: 8px; padding: 7px 0; font-weight: 700; font-size: 13px; }
     .ev-popcal-grid button.is-on { background: #0b3f90; color: #fff; }
+    .ev-popcal-grid button.is-anchor { box-shadow: inset 0 0 0 2px #c6ab47; }
     .ev-popcal-grid button.is-event { box-shadow: inset 0 0 0 1px #93c5fd; }
     .ev-popcal-grid button.is-out { color: #cbd5e1; background: transparent; }
     @media (max-width: 767px) {
         .events-shell { padding-bottom: 24px; }
         .ev-section { padding: 16px; }
+        .ev-create-hero { padding: 16px; align-items: stretch; }
+        .ev-create-hero h2 { font-size: 1.45rem; }
+        .ev-create-hero .btn { width: 100%; }
         .ev-page-head { align-items: stretch; }
         .ev-page-head .btn { width: 100%; }
+        .ev-date-head { align-items: stretch; }
+        .ev-date-head button { width: 100%; min-height: 44px; }
         .events-shell .form-inline { display: flex; flex-direction: column; align-items: stretch; }
         .events-shell .form-inline .form-control,
         .events-shell .form-inline select,
         .events-shell .form-inline .btn { width: 100%; margin-right: 0 !important; min-height: 44px; font-size: 16px; }
         .events-shell .table-responsive { margin: 0 -4px; }
-        .crew-table { min-width: 1280px; }
-        .crew-table th:first-child,
-        .crew-table td:first-child,
-        .crew-table .crew-name { min-width: 300px; }
+        .crew-scroll { overflow: visible; }
+        .crew-table { min-width: 0; width: 100%; }
+        .crew-table thead { display: none; }
+        .crew-table,
+        .crew-table tbody,
+        .crew-table tr,
+        .crew-table td { display: block; width: 100%; min-width: 0 !important; }
+        .crew-table tr {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
+            padding: 12px 14px; margin-bottom: 12px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+        }
+        .crew-table td { border: 0; padding: 8px 0; }
+        .crew-table td:before {
+            content: attr(data-label);
+            display: block; margin-bottom: 4px;
+            font-size: 11px; font-weight: 800; letter-spacing: .08em;
+            text-transform: uppercase; color: #0b3f90;
+        }
+        .crew-table .crew-name { min-width: 0; width: 100%; font-size: 16px; }
+        .crew-tools { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
+        .crew-tools .btn { flex: 1 1 120px; }
+        .ev-popcal { width: min(340px, calc(100vw - 16px)); }
+        .ev-popcal-grid button { min-height: 40px; font-size: 15px; }
         .ev-cal-toolbar { flex-direction: column; align-items: stretch; }
         .ev-cal-toolbar h3 { font-size: 18px; }
+        .ev-actions {
+            position: sticky; bottom: 0; z-index: 20;
+            background: #fff; margin: 0 -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid #e2e8f0; box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
+        }
         .ev-actions .btn { width: 100%; }
         .ev-board { grid-template-columns: 1fr !important; }
     }

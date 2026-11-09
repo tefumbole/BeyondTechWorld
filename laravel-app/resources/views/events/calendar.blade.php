@@ -8,7 +8,7 @@
             <div>
                 <div class="ev-kicker">Events</div>
                 <h4>Event Calendar</h4>
-                <p>A name stays on every day the event runs.</p>
+                <p>Gold is setup. The event colour is the event itself. Green is unpacking.</p>
             </div>
         </div>
         <div class="ev-cal">
@@ -16,6 +16,11 @@
                 <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $prevMonth]) }}" aria-label="Previous month">‹</a>
                 <h3>{{ $monthLabel }}</h3>
                 <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $nextMonth]) }}" aria-label="Next month">›</a>
+            </div>
+            <div class="ev-cal-legend">
+                <span><i style="background:#c6ab47"></i> Setup</span>
+                <span><i style="background:#0b3f90"></i> Event</span>
+                <span><i style="background:#0f766e"></i> Unpacking</span>
             </div>
             <div class="ev-cal-scroll">
                 <div class="ev-cal-grid">
@@ -35,7 +40,7 @@
                             </div>
                             <div class="ev-cal-bars" style="height: {{ $week['lanes'] * 28 }}px;">
                                 @foreach($week['bars'] as $bar)
-                                    <a class="ev-bar {{ $bar['continues_before'] ? 'is-continued-before' : '' }} {{ $bar['continues_after'] ? 'is-continued-after' : '' }}"
+                                    <a class="ev-bar is-{{ $bar['kind'] ?? 'event' }} {{ $bar['continues_before'] ? 'is-continued-before' : '' }} {{ $bar['continues_after'] ? 'is-continued-after' : '' }}"
                                        href="{{ route('events.show', $bar['id']) }}"
                                        title="{{ $bar['name'] }}"
                                        style="background: {{ $bar['color'] }}; top: {{ $bar['lane'] * 28 }}px; left: calc({{ $bar['col'] }} * 14.2857% + 3px); width: calc({{ $bar['span'] }} * 14.2857% - 6px);">

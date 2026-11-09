@@ -97,7 +97,7 @@
                         <input type="datetime-local" name="event_end_at" id="event-to" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
                     </label>
                 </div>
-                <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's working days start from that span.</div>
+                <div class="ev-duration-note" id="span-note">Choose the first and last date. Setup dates become each person's working days.</div>
                 <div class="ev-date-block">
                     <div class="ev-date-head">
                         <div>
@@ -148,7 +148,7 @@
                         <button type="button" class="btn btn-outline-primary btn-block" id="show-new-person">New number</button>
                     </div>
                 </div>
-                <p class="ev-lead mt-2">Add people here, change the daily rate, and open Working days to pick the exact dates. A person can work a day before or after the event, and not everyone has to work every day. Click a date chip to remove that day.</p>
+                <p class="ev-lead mt-2">Setup dates are selected for every person until you change that person's days. Open the calendar and choose several days at once, or tap a date chip to remove it.</p>
                 <div id="new-person" class="ev-new-person" style="display:none;">
                     <label>Mobile Money number</label>
                     <div class="form-row">
@@ -161,7 +161,7 @@
                     </div>
                     <div id="find-result" class="small text-muted"></div>
                 </div>
-                <div class="table-responsive mt-3">
+                <div class="crew-scroll mt-3">
                     <table class="table crew-table mb-2" id="crew-table">
                         <thead>
                             <tr>
@@ -179,7 +179,7 @@
                     </table>
                 </div>
                 <p class="ev-crew-empty mb-2" id="crew-empty">No engineers yet.</p>
-                <p class="mb-0"><strong>Labour total: <span id="labour-total">0</span> XAF</strong></p>
+                <p class="ev-labour mb-0">Labour total <strong><span id="labour-total">0</span> XAF</strong></p>
                 <div id="day-panels" class="mt-3"></div>
             </div>
 
@@ -257,14 +257,14 @@
         var to = document.getElementById('event-to').value;
         var note = document.getElementById('span-note');
         if (!from || !to) {
-            note.textContent = 'Choose the first and last date and time. Each person\'s working days start from that span.';
+            note.textContent = 'Choose the first and last date and time. Setup dates become each person\'s working days.';
             return 1;
         }
         var fromDay = dateOnly(from);
         var toDay = dateOnly(to);
         var ms = Date.parse(toDay) - Date.parse(fromDay);
         var days = ms < 0 || isNaN(ms) ? 1 : Math.floor(ms / 86400000) + 1;
-        note.textContent = days + (days === 1 ? ' day' : ' days') + ', from ' + prettyWhen(from) + ' to ' + prettyWhen(to) + '.';
+        note.textContent = days + (days === 1 ? ' day' : ' days') + ', from ' + prettyWhen(from) + ' to ' + prettyWhen(to) + '. Working days follow the setup dates.';
         return days;
     }
 
@@ -304,8 +304,18 @@
     function spanDateList() {
         var from = dateOnly(document.getElementById('event-from').value);
         var to = dateOnly(document.getElementById('event-to').value);
+        return eachDate(from, to || from);
+    }
+
+    function eachDate(from, to) {
+        from = dateOnly(from);
+        to = dateOnly(to);
         if (!from) return [];
-        if (!to || to < from) to = from;
+        if (!to || to < from) {
+            var swap = from;
+            from = to || from;
+            to = swap;
+        }
         var out = [];
         var cursor = new Date(from + 'T00:00:00');
         var end = new Date(to + 'T00:00:00');
@@ -316,6 +326,20 @@
             guard++;
         }
         return out;
+    }
+
+    function autoWorkDates() {
+        return readSetup(document.getElementById('setup-dates').value).map(function (entry) {
+            return {date: entry.date, note: '', description: '', pay_amount: '', pay_at: ''};
+        });
+    }
+
+    function applyAutoDays() {
+        tbody.querySelectorAll('.crew-dates').forEach(function (input) {
+            if (input.getAttribute('data-auto') !== '1') return;
+            input.value = JSON.stringify(autoWorkDates());
+        });
+        refresh();
     }
 
     function readEntries(value, rich) {
@@ -468,7 +492,7 @@
         var i = rowIndex++;
         var dates = readEntries(person.work_dates, true);
         var auto = dates.length ? '0' : '1';
-        if (!dates.length) dates = spanDateList().map(function (date) { return {date: date, note: '', description: '', pay_amount: '', pay_at: ''}; });
+        if (!dates.length) dates = autoWorkDates();
         var role = roleById(person.category_id);
         var rate = (person.rate || person.rate === 0) && person.work_dates ? (parseInt(person.rate, 10) || 0) : (role ? role.rate : (parseInt(person.rate, 10) || 0));
         if (person.assignment_id) rate = parseInt(person.rate, 10) || 0;
@@ -477,31 +501,31 @@
         tr.setAttribute('data-kind', person.kind);
         tr.setAttribute('data-ref', person.ref || '');
         tr.innerHTML =
-            '<td><input type="text" class="form-control form-control-sm crew-name" name="crew[' + i + '][name]" value="' + escapeHtml(person.name || '') + '" required>' +
+            '<td data-label="Name"><input type="text" class="form-control form-control-sm crew-name" name="crew[' + i + '][name]" value="' + escapeHtml(person.name || '') + '" required>' +
                 '<div class="small text-muted">' + escapeHtml(person.phone || '') + '</div>' +
                 '<input type="hidden" name="crew[' + i + '][assignment_id]" value="' + escapeHtml(person.assignment_id || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][kind]" value="' + escapeHtml(person.kind) + '">' +
                 '<input type="hidden" name="crew[' + i + '][ref]" value="' + escapeHtml(person.ref || '') + '">' +
                 '<input type="hidden" name="crew[' + i + '][phone]" value="' + escapeHtml(person.phone || '') + '">' +
             '</td>' +
-            '<td><div class="ev-role">' +
+            '<td data-label="Role"><div class="ev-role">' +
                 '<input type="hidden" class="crew-role" name="crew[' + i + '][category_id]" value="' + escapeHtml(person.category_id || '') + '">' +
                 '<button type="button" class="ev-role-btn' + (role ? '' : ' is-empty') + '">' + escapeHtml(roleLabel(role)) + '</button>' +
             '</div></td>' +
-            '<td><button type="button" class="btn btn-sm btn-outline-primary crew-days-btn">Working days</button>' +
+            '<td data-label="Working days"><button type="button" class="btn btn-sm btn-outline-primary crew-days-btn">Working days</button>' +
                 '<div class="ev-chips crew-date-chips"></div>' +
                 '<input type="hidden" class="crew-dates" name="crew[' + i + '][work_dates]" data-auto="' + auto + '" value="' + escapeHtml(JSON.stringify(dates)) + '">' +
                 '<input type="hidden" class="crew-days" name="crew[' + i + '][days]" value="' + dates.length + '">' +
             '</td>' +
-            '<td><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + rate + '" required>' +
+            '<td data-label="Daily rate"><input type="number" class="form-control form-control-sm crew-rate" name="crew[' + i + '][rate]" min="0" value="' + rate + '" required>' +
                 '<span class="ev-rate-note">' + (role ? 'You can change this rate' : 'Set the daily rate') + '</span></td>' +
-            '<td><input type="number" class="form-control form-control-sm crew-food" name="crew[' + i + '][food]" min="0" value="' + (parseInt(person.food, 10) || 0) + '" placeholder="0"></td>' +
-            '<td class="crew-line font-weight-bold">0</td>' +
-            '<td class="text-center"><input type="hidden" name="crew[' + i + '][is_supervisor]" value="0">' +
+            '<td data-label="Food money"><input type="number" class="form-control form-control-sm crew-food" name="crew[' + i + '][food]" min="0" value="' + (parseInt(person.food, 10) || 0) + '" placeholder="0"></td>' +
+            '<td data-label="Total" class="crew-line font-weight-bold">0</td>' +
+            '<td data-label="Supervisor" class="text-center"><input type="hidden" name="crew[' + i + '][is_supervisor]" value="0">' +
                 '<input type="checkbox" name="crew[' + i + '][is_supervisor]" value="1"' + (person.supervisor ? ' checked' : '') + ' aria-label="Supervisor"></td>' +
-            '<td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary crew-schedule">Schedule</button>' +
+            '<td data-label="Actions" class="crew-tools"><button type="button" class="btn btn-sm btn-outline-primary crew-schedule">Schedule</button>' +
                 '<div class="small text-muted crew-per-day"></div>' +
-                '<button type="button" class="btn btn-sm btn-light crew-remove" aria-label="Remove">×</button></td>';
+                '<button type="button" class="btn btn-sm btn-light crew-remove" aria-label="Remove">Remove</button></td>';
         tbody.appendChild(tr);
         refresh();
     }
@@ -728,27 +752,15 @@
         refresh();
     });
 
-    function applySpan() {
-        var dates = spanDateList();
-        spanDays();
-        tbody.querySelectorAll('.crew-dates').forEach(function (input) {
-            if (input.getAttribute('data-auto') === '1') {
-                input.value = JSON.stringify(dates.map(function (date) {
-                    return {date: date, note: '', description: '', pay_amount: '', pay_at: ''};
-                }));
-            }
-        });
-        refresh();
-    }
-    document.getElementById('event-from').addEventListener('change', applySpan);
-    document.getElementById('event-to').addEventListener('change', applySpan);
+    document.getElementById('event-from').addEventListener('change', spanDays);
+    document.getElementById('event-to').addEventListener('change', spanDays);
     spanDays();
 
     var pop = document.createElement('div');
     pop.className = 'ev-popcal';
     pop.hidden = true;
     document.body.appendChild(pop);
-    var popState = {input: null, year: 2026, month: 0};
+    var popState = {input: null, year: 2026, month: 0, several: false, anchor: null};
 
     function paintDateNotes(inputId, boxId, notesId, openId, single, plural, placeholder) {
         var box = document.getElementById(boxId);
@@ -802,7 +814,7 @@
         var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
         var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
         var card = document.createElement('div');
-        card.className = 'border rounded p-3 mb-3';
+        card.className = 'ev-day-card';
         var html = '<strong>' + escapeHtml(name ? name.value : 'Engineer') + '</strong>';
         html += '<p class="small text-muted mb-2">Schedule ' + escapeHtml(money(rate + food)) + ' XAF per day. Change a day only when this person should be paid a different amount.</p>';
         if (isAdmin) {
@@ -861,10 +873,12 @@
             var date = isoDate(new Date(popState.year, popState.month, day));
             var classes = '';
             if (selected.indexOf(date) !== -1) classes += ' is-on';
+            if (popState.anchor === date) classes += ' is-anchor';
             if (from && to && date >= from && date <= to) classes += ' is-event';
             html += '<button type="button" data-date="' + date + '" class="' + classes + '">' + day + '</button>';
         }
-        html += '</div><div class="small text-muted mt-2">Click a day to select it. Click it again to clear it.</div>';
+        html += '</div><label class="d-block mt-2 mb-0"><input type="checkbox" id="pop-several"' + (popState.several ? ' checked' : '') + '> Select several days at once</label>';
+        html += '<div class="small text-muted mt-1">' + (popState.several ? (popState.anchor ? 'Now click the last day. Every day between the two is selected.' : 'Click the first day, then the last day.') : 'Click a day to select it. Click it again to clear it.') + '</div>';
         pop.innerHTML = html;
     }
 
@@ -883,6 +897,12 @@
         pop.hidden = false;
     }
 
+    function writeDates(entries, rich) {
+        entries.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+        popState.input.value = JSON.stringify(entries);
+        if (rich) popState.input.setAttribute('data-auto', '0');
+    }
+
     function toggleDate(date) {
         if (!popState.input) return;
         if (popState.input.id === 'setup-dates' || popState.input.id === 'unpack-dates' || popState.input.classList.contains('crew-dates')) {
@@ -897,9 +917,7 @@
             } else {
                 entries.splice(found, 1);
             }
-            entries.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-            popState.input.value = JSON.stringify(entries);
-            if (rich) popState.input.setAttribute('data-auto', '0');
+            writeDates(entries, rich);
         } else {
             var dates = readDates(popState.input.value);
             var index = dates.indexOf(date);
@@ -908,8 +926,45 @@
             popState.input.value = JSON.stringify(dates);
             popState.input.setAttribute('data-auto', '0');
         }
+        finishDatePick();
+    }
+
+    function addDate(date) {
+        if (!popState.input) return;
+        if (popState.input.id === 'setup-dates' || popState.input.id === 'unpack-dates' || popState.input.classList.contains('crew-dates')) {
+            var rich = popState.input.classList.contains('crew-dates');
+            var entries = readEntries(popState.input.value, rich);
+            var found = false;
+            entries.forEach(function (entry) { if (entry.date === date) found = true; });
+            if (!found) {
+                var added = {date: date, note: ''};
+                if (rich) { added.description = ''; added.pay_amount = ''; added.pay_at = ''; }
+                entries.push(added);
+            }
+            writeDates(entries, rich);
+        }
+    }
+
+    function chooseDate(date) {
+        if (!popState.several) {
+            toggleDate(date);
+            return;
+        }
+        if (!popState.anchor) {
+            popState.anchor = date;
+            renderPop();
+            return;
+        }
+        eachDate(popState.anchor, date).forEach(addDate);
+        popState.anchor = null;
+        finishDatePick();
+    }
+
+    function finishDatePick() {
+        var setupChanged = popState.input && popState.input.id === 'setup-dates';
         renderPop();
-        refresh();
+        if (setupChanged) applyAutoDays();
+        else refresh();
     }
 
     document.getElementById('setup-dates').value = JSON.stringify(readSetup(initialSetup || []));
@@ -1003,8 +1058,14 @@
             renderPop();
             return;
         }
+        if (event.target.id === 'pop-several') {
+            popState.several = event.target.checked;
+            popState.anchor = null;
+            renderPop();
+            return;
+        }
         var day = event.target.closest('[data-date]');
-        if (day) toggleDate(day.getAttribute('data-date'));
+        if (day) chooseDate(day.getAttribute('data-date'));
     });
     document.addEventListener('click', function (event) {
         if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('#unpack-open') || event.target.closest('.ev-chip')) return;
