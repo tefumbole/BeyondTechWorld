@@ -1,6 +1,7 @@
 <div class="card">
     <div class="card-header font-weight-bold">Event Reminders</div>
     <div class="card-body">
+        <p class="small text-muted">A reminder tells people the time and place. It does not ask them to accept.</p>
         <form method="POST" action="{{ route('events.reminders.store', $event->id) }}" class="mb-4">
             @csrf
             <div class="row">

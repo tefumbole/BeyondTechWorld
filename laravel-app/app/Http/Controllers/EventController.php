@@ -471,6 +471,7 @@ class EventController extends Controller
             'crew.*.work_dates' => 'nullable|string|max:20000',
             'automate_payment' => 'nullable',
             'pay_at' => 'nullable|date',
+            'notify_crew' => 'nullable|in:affected,everyone',
         ]);
 
         $customer = $this->optionalCustomer($request, $data);
@@ -484,6 +485,20 @@ class EventController extends Controller
 
         $beforeSetup = $existing ? (string) $existing->setup_dates : '';
         $beforeUnpack = $existing ? (string) $existing->unpack_dates : '';
+        $beforeEvent = null;
+        if ($existing) {
+            $beforeEvent = [
+                'name' => (string) $existing->name,
+                'venue' => (string) $existing->venue,
+                'notes' => (string) $existing->internal_notes,
+                'description' => (string) $existing->internal_description,
+                'start' => $existing->event_start_at ? $existing->event_start_at->format('Y-m-d H:i') : '',
+                'end' => $existing->event_end_at ? $existing->event_end_at->format('Y-m-d H:i') : '',
+                'setup' => (string) $existing->setup_dates,
+                'unpack' => (string) $existing->unpack_dates,
+                'type' => (string) $existing->event_type,
+            ];
+        }
         $setup = Event::parseSetup(isset($data['setup_dates']) ? $data['setup_dates'] : '');
         $unpack = Event::parseSetup(isset($data['unpack_dates']) ? $data['unpack_dates'] : '');
         $setupDates = array();
@@ -554,7 +569,20 @@ class EventController extends Controller
             $event = $eventService->create($payload, $publish);
         }
 
-        $alreadyInvited = $event->assignments()->whereNotNull('invited_at')->pluck('id')->all();
+        $beforeCrew = [];
+        if ($existing) {
+            foreach ($event->assignments()->get() as $row) {
+                $beforeCrew[(string) $row->id] = [
+                    'role' => (string) $row->assignment_role,
+                    'rate' => (int) $row->event_daily_rate,
+                    'food' => (int) $row->food_per_day,
+                    'days' => json_encode(Event::parseWorkDays($row->work_dates)),
+                    'supervisor' => (bool) $row->is_supervisor,
+                    'invited' => $row->invited_at ? true : false,
+                    'status' => (string) $row->acceptance_status,
+                ];
+            }
+        }
         $prepared = $this->prepareCrew($request->input('crew', []), $warnings);
         $kept = [];
         $byKey = [];
@@ -666,11 +694,44 @@ class EventController extends Controller
         $invites = app(EventCrewInviteService::class);
         $invite = $invites->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
-        if ($existing && (((string) $event->setup_dates !== '' && (string) $event->setup_dates !== $beforeSetup) || ((string) $event->unpack_dates !== '' && (string) $event->unpack_dates !== $beforeUnpack))) {
-            $setupNotice = $invites->notifySetup($event, $alreadyInvited);
-            $warnings = array_merge($warnings, $setupNotice['warnings']);
-            if ($setupNotice['sent'] > 0) {
-                $warnings[] = 'Setup dates were sent to '.$setupNotice['sent'].' engineers.';
+        if ($existing) {
+            $eventWideChanged = $beforeEvent
+                && (
+                    $beforeEvent['name'] !== (string) $event->name
+                    || $beforeEvent['venue'] !== (string) $event->venue
+                    || $beforeEvent['notes'] !== (string) $event->internal_notes
+                    || $beforeEvent['description'] !== (string) $event->internal_description
+                    || $beforeEvent['start'] !== ($event->event_start_at ? $event->event_start_at->format('Y-m-d H:i') : '')
+                    || $beforeEvent['end'] !== ($event->event_end_at ? $event->event_end_at->format('Y-m-d H:i') : '')
+                    || $beforeEvent['setup'] !== (string) $event->setup_dates
+                    || $beforeEvent['unpack'] !== (string) $event->unpack_dates
+                    || $beforeEvent['type'] !== (string) $event->event_type
+                );
+            $notify = $request->input('notify_crew') === 'everyone' ? 'everyone' : 'affected';
+            $targets = [];
+            foreach ($event->assignments()->get() as $assignment) {
+                $id = (string) $assignment->id;
+                $snap = isset($beforeCrew[$id]) ? $beforeCrew[$id] : null;
+                if (! $snap || empty($snap['invited']) || $snap['status'] === 'rejected' || $assignment->acceptance_status === 'rejected') {
+                    continue;
+                }
+                $personal = $snap['role'] !== (string) $assignment->assignment_role
+                    || (int) $snap['rate'] !== (int) $assignment->event_daily_rate
+                    || (int) $snap['food'] !== (int) $assignment->food_per_day
+                    || $snap['days'] !== json_encode(Event::parseWorkDays($assignment->work_dates))
+                    || (bool) $snap['supervisor'] !== (bool) $assignment->is_supervisor;
+                if ($notify === 'everyone' || $personal || $eventWideChanged) {
+                    $targets[] = $id;
+                }
+            }
+            if (count($targets)) {
+                $notice = $invites->notifyUpdate($event, $targets);
+                $warnings = array_merge($warnings, $notice['warnings']);
+                if ($notice['sent'] > 0) {
+                    $warnings[] = $notify === 'everyone'
+                        ? 'The update was sent to '.$notice['sent'].' people. Anyone who already accepted was not asked to accept again.'
+                        : 'The update was sent to '.$notice['sent'].' '.($notice['sent'] === 1 ? 'person' : 'people').' affected by the changes.';
+                }
             }
         }
 

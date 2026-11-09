@@ -115,6 +115,7 @@ class EventReminderService
         if ($reminder->message) {
             $base .= "\n\n" . $reminder->message;
         }
+        $base .= "\n\nThis is a reminder only. There is nothing to accept.";
 
         return $base;
     }

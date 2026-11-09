@@ -1061,6 +1061,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/events/payments', 'EventPaymentController@index')->name('events.payments.index');
     Route::post('/admin/events/payments/{paymentId}/mark-paid', 'EventPaymentController@markPaid')->name('events.payments.mark-paid');
     Route::get('/admin/events/reminders', 'EventReminderController@index')->name('events.reminders.index');
+    Route::post('/admin/events/reminders', 'EventReminderController@schedule')->name('events.reminders.schedule');
     Route::get('/admin/events/settings/contract-templates', 'EventContractTemplateController@index')->name('events.settings.contract-templates');
     Route::post('/admin/events/settings/contract-templates', 'EventContractTemplateController@store')->name('events.settings.contract-templates.store');
     Route::post('/admin/events/settings/contract-templates/{id}', 'EventContractTemplateController@update')->name('events.settings.contract-templates.update');

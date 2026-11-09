@@ -42,9 +42,25 @@ class EventReminderController extends Controller
         $reminders = EventReminder::with(['event', 'creator'])
             ->orderByDesc('remind_at')
             ->paginate(30);
-        $events = Event::orderByDesc('event_start_at')->limit(100)->get(['id', 'name', 'reference_no']);
+        $events = Event::orderByDesc('event_start_at')->limit(200)->get(['id', 'name', 'reference_no']);
 
         return view('events.reminders.index', compact('reminders', 'events'));
+    }
+
+    public function schedule(Request $request, EventReminderService $service)
+    {
+        $this->can('event_reminders.create');
+
+        $data = $this->reminderData($request);
+        if (empty($data['event_id'])) {
+            return back()->withErrors(['event_id' => 'Select an event.'])->withInput();
+        }
+        $event = Event::findOrFail($data['event_id']);
+        unset($data['event_id']);
+        $service->create($event, $data);
+
+        return redirect()->route('events.reminders.index')
+            ->with('message', 'Reminder scheduled for '.$event->name.'. It will not ask anyone to accept.');
     }
 
     public function storeForEvent(Request $request, $eventId, EventReminderService $service)
@@ -52,7 +68,19 @@ class EventReminderController extends Controller
         $this->can('event_reminders.create');
 
         $event = Event::findOrFail($eventId);
+        $data = $this->reminderData($request);
+        unset($data['event_id']);
+
+        $service->create($event, $data);
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'reminders'])
+            ->with('message', 'Reminder scheduled.');
+    }
+
+    protected function reminderData(Request $request)
+    {
         $data = $request->validate([
+            'event_id' => 'nullable|string|max:64',
             'remind_at' => 'required|date|after:now',
             'message' => 'nullable|string|max:2000',
             'recipient_type' => 'nullable|in:all_workers,client,custom',
@@ -60,10 +88,7 @@ class EventReminderController extends Controller
         ]);
         $data['remind_at'] = Carbon::parse($data['remind_at'])->format('Y-m-d H:i:s');
 
-        $service->create($event, $data);
-
-        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'reminders'])
-            ->with('message', 'Reminder scheduled.');
+        return $data;
     }
 
     public function destroy($id)

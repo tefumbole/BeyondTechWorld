@@ -249,6 +249,86 @@ class EventCrewInviteService
         return array('sent' => $sent, 'warnings' => $warnings);
     }
 
+    public function notifyUpdate(Event $event, array $assignmentIds)
+    {
+        if (! count($assignmentIds)) {
+            return ['sent' => 0, 'warnings' => []];
+        }
+        $event->load('assignments.workerProfile.customer', 'assignments.workerProfile.user');
+        $wanted = array_map('strval', $assignmentIds);
+        $sent = 0;
+        $warnings = [];
+        $attempted = false;
+        $start = $event->event_start_at ? $event->event_start_at->format('d M Y H:i') : '';
+        $end = $event->event_end_at ? $event->event_end_at->format('d M Y H:i') : $start;
+        $setupLine = $this->setupText($event);
+        $unpackLine = $this->datedList($event->unpack_dates);
+        $notes = trim((string) $event->internal_notes);
+        foreach ($event->assignments as $assignment) {
+            if (! in_array((string) $assignment->id, $wanted, true)) {
+                continue;
+            }
+            if ($assignment->acceptance_status === 'rejected' || $this->isClient($event, $assignment)) {
+                continue;
+            }
+            $phone = $this->phoneFor($assignment);
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
+            if (! $phone) {
+                $warnings[] = $name.' has no phone, so the update was not sent.';
+                continue;
+            }
+            $pay = number_format($this->dailyRate($assignment));
+            $food = number_format($this->foodAmount($assignment));
+            $workLine = $this->workDatesLine($assignment);
+            $body = "Hello {$name},\n\n"
+                ."{$event->name} was updated.\n"
+                ."Dates: {$start} to {$end}\n"
+                .($workLine !== '' ? "Your working days: {$workLine}\n" : '')
+                .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
+                ."Daily pay: {$pay} XAF\n"
+                ."Food money: {$food} XAF\n";
+            if ($event->venue) {
+                $body .= 'Venue: '.$event->venue."\n";
+            }
+            if ($setupLine !== '') {
+                $body .= "\nSetup dates:\n{$setupLine}";
+            }
+            if ($unpackLine !== '') {
+                $body .= "\nUnpacking dates:\n{$unpackLine}";
+            }
+            if ($notes !== '') {
+                $body .= "\nNotes:\n{$notes}\n";
+            }
+            if ($assignment->acceptance_status === 'accepted') {
+                $body .= "\nYou already accepted this job. This message is an update only.";
+            } else {
+                if (! $assignment->invite_token) {
+                    $assignment->invite_token = Str::random(40);
+                    $assignment->save();
+                }
+                $url = url('/event-invite/'.$assignment->invite_token);
+                $body .= "\nAccept your place:\n{$url}\n\n"
+                    .'If you cannot take this job, open the same link and choose Reject.';
+            }
+            if ($attempted) {
+                usleep(5000000);
+            }
+            $attempted = true;
+            try {
+                $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
+            } catch (\Exception $e) {
+                $result = ['success' => false];
+            }
+            if (empty($result['success']) || ! empty($result['skipped'])) {
+                $warnings[] = 'The update was not sent to '.$name.'.';
+            } else {
+                $sent++;
+            }
+        }
+
+        return ['sent' => $sent, 'warnings' => $warnings];
+    }
+
     public function rejectJob(EventAssignment $assignment)
     {
         if ($assignment->acceptance_status === 'rejected') {

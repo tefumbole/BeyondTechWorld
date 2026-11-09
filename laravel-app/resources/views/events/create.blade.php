@@ -191,6 +191,21 @@
                 </label>
             </div>
 
+            @if($editing)
+                <div class="ev-section">
+                    <h3>Tell the crew</h3>
+                    <label class="d-block mb-2">
+                        <input type="radio" name="notify_crew" value="affected" {{ old('notify_crew', 'affected') === 'affected' ? 'checked' : '' }}>
+                        Message only people affected by these changes
+                    </label>
+                    <label class="d-block mb-2">
+                        <input type="radio" name="notify_crew" value="everyone" {{ old('notify_crew') === 'everyone' ? 'checked' : '' }}>
+                        Message everyone on this event
+                    </label>
+                    <p class="small text-muted mb-0">Someone who already accepted does not get an accept link. A new person still receives the selection message.</p>
+                </div>
+            @endif
+
             <div class="ev-actions">
                 <button type="submit" class="btn btn-primary btn-lg">{{ $editing ? 'Save changes' : 'Create event' }}</button>
                 <a href="{{ $editing ? route('events.show', $event->id) : route('events.index') }}" class="btn btn-light btn-lg">Cancel</a>
