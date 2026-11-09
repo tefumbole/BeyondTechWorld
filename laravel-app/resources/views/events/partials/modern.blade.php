@@ -151,13 +151,22 @@
     .ev-date-notes .form-row {
         background: #f8fafc; border-radius: 14px; margin: 8px 0 0; padding: 10px 12px;
     }
-    .crew-table { min-width: 1280px; }
+    .crew-table { width: 100%; min-width: 0; }
+    .crew-table th,
+    .crew-table td { padding: 6px 8px; }
     .crew-table th:first-child,
-    .crew-table td:first-child { min-width: 320px; width: 340px; }
+    .crew-table td:first-child { width: 210px; min-width: 180px; max-width: 230px; }
     .crew-table .crew-name {
-        min-width: 300px; width: 100%; font-weight: 700; font-size: 15px;
+        min-width: 0; width: 100%; font-weight: 700; font-size: 15px;
+        padding-top: 4px; padding-bottom: 4px;
     }
-    .crew-table td:nth-child(2) { min-width: 190px; }
+    .crew-table td:first-child .small { margin: 0; line-height: 1.15; }
+    .crew-table td:nth-child(2) { width: 170px; min-width: 150px; }
+    .crew-table td:nth-child(4),
+    .crew-table td:nth-child(5) { width: 108px; white-space: nowrap; }
+    .crew-table .crew-rate,
+    .crew-table .crew-food { width: 96px; padding-left: 8px; padding-right: 4px; }
+    .crew-table .ev-chips { margin-top: 4px; gap: 4px; }
     @media (max-width: 767px) {
         .ev-when-grid { grid-template-columns: 1fr; }
     }
@@ -331,7 +340,7 @@
     .crew-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .crew-tools { white-space: nowrap; }
     .crew-table input[type="checkbox"] { width: 22px; height: 22px; }
-    .ev-rate-note { display: block; font-size: 11px; color: #64748b; margin-top: 4px; }
+    .ev-rate-note { display: block; font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.15; }
     .ev-drop {
         border: 1.5px dashed #cbd5e1; border-radius: 16px; padding: 18px; background: #f8fafc; text-align: center;
     }
@@ -392,7 +401,14 @@
             font-size: 11px; font-weight: 800; letter-spacing: .08em;
             text-transform: uppercase; color: #0b3f90;
         }
-        .crew-table .crew-name { min-width: 0; width: 100%; font-size: 16px; }
+        .crew-table th:first-child,
+        .crew-table td:first-child,
+        .crew-table td:nth-child(2),
+        .crew-table td:nth-child(4),
+        .crew-table td:nth-child(5) { width: 100%; max-width: none; white-space: normal; }
+        .crew-table .crew-name,
+        .crew-table .crew-rate,
+        .crew-table .crew-food { width: 100%; min-width: 0; font-size: 16px; }
         .crew-tools { display: flex; flex-wrap: wrap; gap: 8px; white-space: normal; }
         .crew-tools .btn { flex: 1 1 120px; }
         .ev-popcal { width: min(340px, calc(100vw - 16px)); }
