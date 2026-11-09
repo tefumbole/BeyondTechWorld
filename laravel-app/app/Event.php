@@ -230,7 +230,7 @@ class Event extends Model
                 continue;
             }
             if ($assignment->workerProfile) {
-                $names[] = $assignment->workerProfile->displayName();
+                $names[] = $assignment->workerProfile->displayName().($assignment->is_supervisor ? ' (Supervisor)' : '');
             }
         }
 

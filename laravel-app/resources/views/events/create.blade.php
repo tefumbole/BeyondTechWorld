@@ -60,6 +60,20 @@
                         <label>Event name <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" required value="{{ old('name', $event->name) }}" placeholder="Name shown with the flyer">
                     </div>
+                    <div class="col-md-3 form-group">
+                        <label>Type</label>
+                        <select name="event_type" class="form-control">
+                            @foreach(\App\Event::TYPES as $key => $label)
+                                <option value="{{ $key }}" {{ old('event_type', $event->event_type ?: 'other') === $key ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Venue</label>
+                        <input type="text" name="venue" class="form-control" value="{{ old('venue', $event->venue) }}" placeholder="Where it happens">
+                    </div>
+                </div>
+                <div class="row">
                     <div class="col-md-6 form-group">
                         <label>Customer</label>
                         <div class="ev-combo" id="customer-combo">
@@ -104,6 +118,10 @@
                     </div>
                     <div class="small text-muted mt-1">Click every unpacking day. You can select more than one, including a day after the event.</div>
                 </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="internal_description" class="form-control" rows="3" placeholder="What this event is">{{ old('internal_description', $event->internal_description) }}</textarea>
+                </div>
                 <div class="form-group mb-0">
                     <label>Notes</label>
                     <textarea name="internal_notes" class="form-control" rows="3" placeholder="Schedule notes, call times, or anything to remember about these dates">{{ old('internal_notes', $event->internal_notes) }}</textarea>
@@ -147,6 +165,7 @@
                                 <th>Daily rate</th>
                                 <th>Food money</th>
                                 <th>Total</th>
+                                <th>Supervisor</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -191,6 +210,7 @@
     var initialSetup = @json(array_values($setupDates));
     var initialUnpack = @json(array_values($unpackDates));
     var isAdmin = @json(!empty($isEventAdmin));
+    var openSchedule = '';
     var lookupUrl = @json(route('events.labour-name'));
     var roleUrl = @json(route('events.labour-role'));
     var token = document.querySelector('#event-form input[name="_token"]').value;
@@ -358,6 +378,10 @@
             var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
             var line = (rate + food) * (dates.length || days);
             row.querySelector('.crew-line').textContent = money(line);
+            var perDay = row.querySelector('.crew-per-day');
+            if (perDay) perDay.textContent = money(rate + food) + ' XAF / day';
+            var scheduleBtn = row.querySelector('.crew-schedule');
+            if (scheduleBtn) scheduleBtn.textContent = row.getAttribute('data-key') === openSchedule ? 'Close' : 'Schedule';
             total += line;
         });
         document.getElementById('labour-total').textContent = money(total);
@@ -452,7 +476,11 @@
                 '<span class="ev-rate-note">' + (role ? 'You can change this rate' : 'Set the daily rate') + '</span></td>' +
             '<td><input type="number" class="form-control form-control-sm crew-food" name="crew[' + i + '][food]" min="0" value="' + (parseInt(person.food, 10) || 0) + '" placeholder="0"></td>' +
             '<td class="crew-line font-weight-bold">0</td>' +
-            '<td><button type="button" class="btn btn-sm btn-light crew-remove" aria-label="Remove">×</button></td>';
+            '<td class="text-center"><input type="hidden" name="crew[' + i + '][is_supervisor]" value="0">' +
+                '<input type="checkbox" name="crew[' + i + '][is_supervisor]" value="1"' + (person.supervisor ? ' checked' : '') + ' aria-label="Supervisor"></td>' +
+            '<td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary crew-schedule">Schedule</button>' +
+                '<div class="small text-muted crew-per-day"></div>' +
+                '<button type="button" class="btn btn-sm btn-light crew-remove" aria-label="Remove">×</button></td>';
         tbody.appendChild(tr);
         refresh();
     }
@@ -663,8 +691,19 @@
     }, true);
     window.addEventListener('resize', closeRoleMenu);
     tbody.addEventListener('click', function (event) {
-        if (!event.target.classList.contains('crew-remove')) return;
-        event.target.closest('tr').remove();
+        if (event.target.classList.contains('crew-remove')) {
+            var removed = event.target.closest('tr');
+            if (removed && removed.getAttribute('data-key') === openSchedule) openSchedule = '';
+            removed.remove();
+            refresh();
+            return;
+        }
+        var schedule = event.target.closest('.crew-schedule');
+        if (!schedule) return;
+        var row = schedule.closest('tr');
+        var key = row.getAttribute('data-key');
+        openSchedule = openSchedule === key ? '' : key;
+        paintDays(true);
         refresh();
     });
 
@@ -725,44 +764,49 @@
         paintDateNotes('unpack-dates', 'unpack-chips', 'unpack-notes', 'unpack-open', 'unpacking date', 'unpacking dates', 'Note for this unpacking date');
     }
 
-    function paintDays() {
+    function paintDays(force) {
         var box = document.getElementById('day-panels');
         if (!box) return;
-        if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#day-panels')) return;
+        if (!force && document.activeElement && document.activeElement.closest && document.activeElement.closest('#day-panels')) return;
         box.innerHTML = '';
-        tbody.querySelectorAll('tr').forEach(function (row) {
-            var input = row.querySelector('.crew-dates');
-            var entries = readEntries(input.value, true);
-            if (!entries.length) return;
-            var name = row.querySelector('.crew-name');
-            var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
-            var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
-            var card = document.createElement('div');
-            card.className = 'border rounded p-3 mb-3';
-            var html = '<strong>' + escapeHtml(name ? name.value : 'Engineer') + '</strong>';
-            html += '<p class="small text-muted mb-2">Add a note and a description for each day this person works.</p>';
+        if (!openSchedule) return;
+        var row = tbody.querySelector('tr[data-key="' + openSchedule + '"]');
+        if (!row) {
+            openSchedule = '';
+            return;
+        }
+        var input = row.querySelector('.crew-dates');
+        var entries = readEntries(input.value, true);
+        var name = row.querySelector('.crew-name');
+        var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
+        var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
+        var card = document.createElement('div');
+        card.className = 'border rounded p-3 mb-3';
+        var html = '<strong>' + escapeHtml(name ? name.value : 'Engineer') + '</strong>';
+        html += '<p class="small text-muted mb-2">Schedule ' + escapeHtml(money(rate + food)) + ' XAF per day. Change a day only when this person should be paid a different amount.</p>';
+        if (isAdmin) {
+            html += '<div class="form-row align-items-end mb-2">' +
+                '<div class="col-md-5"><label class="small mb-1">Automatic payment time for this person</label><input type="datetime-local" class="form-control form-control-sm day-auto-time" data-key="' + escapeHtml(row.getAttribute('data-key')) + '"></div>' +
+                '<div class="col-md-4"><button type="button" class="btn btn-sm btn-outline-primary day-auto-apply" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">Use this time for every day</button></div>' +
+                '</div>';
+            html += '<p class="small text-muted">Leave the time empty when that day should not be paid automatically.</p>';
+        }
+        if (!entries.length) {
+            html += '<p class="small text-muted mb-0">Choose working days for this person first.</p>';
+        }
+        entries.forEach(function (entry) {
+            var amount = entry.pay_amount === '' ? (rate + food) : entry.pay_amount;
+            html += '<div class="border-top pt-2 mt-2" data-date="' + entry.date + '" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">';
+            html += '<div class="font-weight-bold mb-1">' + escapeHtml(prettyDate(entry.date)) + '</div>';
+            html += '<input type="text" class="form-control form-control-sm mb-1 day-description" maxlength="500" placeholder="Description" value="' + escapeHtml(entry.description) + '">';
             if (isAdmin) {
-                html += '<div class="form-row align-items-end mb-2">' +
-                    '<div class="col-md-5"><label class="small mb-1">Automatic payment time for this person</label><input type="datetime-local" class="form-control form-control-sm day-auto-time" data-key="' + escapeHtml(row.getAttribute('data-key')) + '"></div>' +
-                    '<div class="col-md-4"><button type="button" class="btn btn-sm btn-outline-primary day-auto-apply" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">Use this time for every day</button></div>' +
-                    '</div>';
-                html += '<p class="small text-muted">Set a different amount and time for each day. Leave the time empty when that day should not be paid automatically.</p>';
+                html += '<div class="form-row"><div class="col-md-4"><input type="number" min="0" class="form-control form-control-sm day-amount" placeholder="Amount" value="' + escapeHtml(amount) + '"></div>' +
+                    '<div class="col-md-8"><input type="datetime-local" class="form-control form-control-sm day-pay" value="' + escapeHtml(entry.pay_at) + '"></div></div>';
             }
-            entries.forEach(function (entry) {
-                var amount = entry.pay_amount === '' ? (rate + food) : entry.pay_amount;
-                html += '<div class="border-top pt-2 mt-2" data-date="' + entry.date + '" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">';
-                html += '<div class="font-weight-bold mb-1">' + escapeHtml(prettyDate(entry.date)) + '</div>';
-                html += '<input type="text" class="form-control form-control-sm mb-1 day-note" maxlength="240" placeholder="Note" value="' + escapeHtml(entry.note) + '">';
-                html += '<input type="text" class="form-control form-control-sm mb-1 day-description" maxlength="500" placeholder="Description" value="' + escapeHtml(entry.description) + '">';
-                if (isAdmin) {
-                    html += '<div class="form-row"><div class="col-md-4"><input type="number" min="0" class="form-control form-control-sm day-amount" placeholder="Amount" value="' + escapeHtml(amount) + '"></div>' +
-                        '<div class="col-md-8"><input type="datetime-local" class="form-control form-control-sm day-pay" value="' + escapeHtml(entry.pay_at) + '"></div></div>';
-                }
-                html += '</div>';
-            });
-            card.innerHTML = html;
-            box.appendChild(card);
+            html += '</div>';
         });
+        card.innerHTML = html;
+        box.appendChild(card);
     }
 
     function writeDay(key, date, changes) {

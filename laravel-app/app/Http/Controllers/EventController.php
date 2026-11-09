@@ -284,6 +284,7 @@ class EventController extends Controller
                 'days' => count($dates) ? count($dates) : (int) $assignment->expected_days,
                 'category_id' => $category ? (int) $category->id : '',
                 'work_dates' => $dates,
+                'supervisor' => (bool) $assignment->is_supervisor,
             );
         }
 
@@ -441,6 +442,9 @@ class EventController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
+            'event_type' => 'nullable|string|max:40',
+            'venue' => 'nullable|string|max:255',
+            'internal_description' => 'nullable|string|max:5000',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'customer_query' => 'nullable|string|max:255',
             'event_start_at' => 'required|date',
@@ -463,6 +467,7 @@ class EventController extends Controller
             'crew.*.rate' => 'nullable|integer|min:0',
             'crew.*.food' => 'nullable|integer|min:0',
             'crew.*.category_id' => 'nullable',
+            'crew.*.is_supervisor' => 'nullable',
             'crew.*.work_dates' => 'nullable|string|max:20000',
             'automate_payment' => 'nullable',
             'pay_at' => 'nullable|date',
@@ -489,8 +494,12 @@ class EventController extends Controller
         foreach ($unpack as $entry) {
             $unpackDates[] = $entry['date'];
         }
+        $eventType = isset($data['event_type']) ? (string) $data['event_type'] : '';
         $payload = [
             'name' => $data['name'],
+            'event_type' => isset(Event::TYPES[$eventType]) ? $eventType : ($existing ? $existing->event_type : 'other'),
+            'venue' => isset($data['venue']) ? trim((string) $data['venue']) : null,
+            'internal_description' => isset($data['internal_description']) ? trim((string) $data['internal_description']) : null,
             'customer_id' => $customer ? $customer->id : null,
             'client_contact_person' => $customer ? $customer->name : null,
             'client_telephone' => $customer ? $customer->phone_number : null,
@@ -575,6 +584,7 @@ class EventController extends Controller
                     'work_start_date' => $start,
                     'work_end_date' => $end,
                     'food_per_day' => $member['food'],
+                    'is_supervisor' => ! empty($member['supervisor']),
                 ], $member['assignment_id']);
                 $kept[] = $assignment->id;
                 $byKey[$member['kind'].':'.$member['ref']] = $assignment->id;
@@ -984,6 +994,7 @@ class EventController extends Controller
                 'category_id' => $categoryId,
                 'work_dates' => $workDates,
                 'assignment_id' => $assignmentId,
+                'supervisor' => isset($row['is_supervisor']) && (string) $row['is_supervisor'] === '1',
             ];
             unset($memberName);
         }

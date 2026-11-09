@@ -101,7 +101,7 @@ class HomeController extends Controller
         }
 
         try {
-            $this->forceSendOTP($user);
+            $this->forceSendOTP($user, true);
         } catch (\Exception $e) {
             return redirect()->back()->with('not_permitted', $e->getMessage());
         }
@@ -154,8 +154,24 @@ class HomeController extends Controller
             return redirect()->back()->with('not_permitted', 'That code is no longer valid. Request a new one.');
         }
         $stored = preg_replace('/\D+/', '', (string) $user->otp);
-        $fresh = $user->otp_time && $user->otp_time->gt(\Carbon\Carbon::now()->subMinutes(5));
-        if ($given !== '' && $stored !== '' && strlen($given) === strlen($stored) && hash_equals($stored, $given) && $fresh) {
+        $candidates = [];
+        if ($this->otpStillValid($user) && $stored !== '') {
+            $candidates[] = $stored;
+        }
+        foreach ((array) $request->session()->get('staff_otp_codes', []) as $row) {
+            if (! is_array($row) || empty($row['code']) || (int) $row['until'] < time()) {
+                continue;
+            }
+            $candidates[] = preg_replace('/\D+/', '', (string) $row['code']);
+        }
+        $matched = false;
+        foreach ($candidates as $candidate) {
+            if ($given !== '' && $candidate !== '' && strlen($given) === strlen($candidate) && hash_equals($candidate, $given)) {
+                $matched = true;
+                break;
+            }
+        }
+        if ($matched) {
             $request->session()->forget('staff_otp_fails');
             $request->session()->put('staff_otp_accepted', ['code' => $given, 'until' => time() + 120]);
             $user->update(['otp' => null, 'otp_time' => null, 'otp_verify' => '1']);
@@ -201,29 +217,73 @@ class HomeController extends Controller
     protected function otpExpirySecondsRemaining($user)
     {
         if (empty($user->otp_time)) {
-            return 300;
+            return 600;
         }
 
         $elapsed = time() - strtotime($user->otp_time);
 
-        return max(0, 300 - $elapsed);
+        return max(0, 600 - $elapsed);
+    }
+
+    protected function otpStillValid($user)
+    {
+        if (empty($user->otp) || empty($user->otp_time)) {
+            return false;
+        }
+        $sent = strtotime((string) $user->otp_time);
+
+        return $sent && $sent >= time() - 600;
+    }
+
+    protected function rememberStaffOtp($code)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $code);
+        if ($digits === '') {
+            return;
+        }
+        $codes = session('staff_otp_codes', []);
+        if (! is_array($codes)) {
+            $codes = [];
+        }
+        $codes[] = ['code' => $digits, 'until' => time() + 600];
+        session(['staff_otp_codes' => array_slice($codes, -3)]);
     }
 
     public function sendOTP($user) {
-        if (!empty($user->otp_time) && $user->otp_time >= date('Y-m-d H:i:s', strtotime('-5 minutes'))) {
+        $user->refresh();
+        if ($this->otpStillValid($user)) {
+            $this->rememberStaffOtp($user->otp);
+
             return null;
         }
+        $lock = 'staff-otp-send-'.$user->id;
+        if (! \Cache::add($lock, 1, now()->addSeconds(20))) {
+            usleep(400000);
+            $user->refresh();
+            if ($this->otpStillValid($user)) {
+                $this->rememberStaffOtp($user->otp);
 
-        return $this->forceSendOTP($user);
+                return null;
+            }
+        }
+
+        return $this->forceSendOTP($user, false);
     }
 
-    protected function forceSendOTP($user)
+    protected function forceSendOTP($user, $keepCode = false)
     {
-        $otp = \App\Support\MemorableOtp::code();
+        $user->refresh();
+        $existing = preg_replace('/\D+/', '', (string) $user->otp);
+        $otp = ($keepCode && $this->otpStillValid($user) && strlen($existing) === 6)
+            ? $existing
+            : \App\Support\MemorableOtp::code();
         $phone = trim((string) $user->phone);
         if ($phone === '') {
             throw new \Exception('No phone number on this account for WhatsApp OTP.');
         }
+
+        $user->update(['otp' => $otp, 'otp_time' => date('Y-m-d H:i:s')]);
+        $this->rememberStaffOtp($otp);
 
         $result = app(\App\Services\Messaging\NotificationRouter::class)
             ->sendWhatsAppOtp($phone, $otp, 'login', 10);
@@ -231,7 +291,6 @@ class HomeController extends Controller
         if (empty($result['success'])) {
             // Local/dev: still issue the OTP so admins can continue when WhatsApp is down.
             if (config('app.env') === 'local' || config('app.debug')) {
-                $user->update(['otp' => $otp, 'otp_time' => date('Y-m-d H:i:s')]);
                 \Log::warning('[otp] WhatsApp send failed in local — OTP available on screen', [
                     'user_id' => $user->id,
                     'error' => $result['error'] ?? null,
@@ -244,8 +303,6 @@ class HomeController extends Controller
 
             throw new \Exception('Could not send OTP via WhatsApp: '.($result['error'] ?? 'unknown error'));
         }
-
-        $user->update(['otp' => $otp, 'otp_time' => date('Y-m-d H:i:s')]);
 
         return $otp;
     }

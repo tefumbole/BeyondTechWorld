@@ -117,6 +117,7 @@ class EventWorkforceService
                 'compensation_method' => 'daily',
                 'expected_total' => $total,
                 'food_per_day' => $foodPerDay,
+                'is_supervisor' => ! empty($data['is_supervisor']),
                 'notes' => $foodPerDay > 0 ? 'Food money '.number_format($foodPerDay).' XAF per day' : null,
             ];
 
