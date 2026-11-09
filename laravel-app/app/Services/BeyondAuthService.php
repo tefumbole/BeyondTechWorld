@@ -101,6 +101,16 @@ class BeyondAuthService
     public function createOtp($phone, $purpose = 'login')
     {
         $formatted = $this->whatsapp->formatPhone($phone);
+        $existing = BeyondOtpSession::where('phone', $formatted)
+            ->where('purpose', $purpose)
+            ->whereNull('verified_at')
+            ->where('expires_at', '>=', now())
+            ->where('attempts', '<', 5)
+            ->orderBy('created_at', 'desc')
+            ->first();
+        if ($existing && preg_match('/^\d{6}$/', (string) $existing->otp)) {
+            return ['code' => (string) $existing->otp, 'phone' => $formatted];
+        }
         $code = \App\Support\MemorableOtp::code();
 
         BeyondOtpSession::create([
@@ -120,25 +130,36 @@ class BeyondAuthService
     public function verifyOtp($phone, $otp, $purpose = 'login')
     {
         $formatted = $this->whatsapp->formatPhone($phone);
-        $clean = preg_replace('/\D/', '', $otp);
+        $clean = preg_replace('/\D/', '', (string) $otp);
 
-        $session = BeyondOtpSession::where('phone', $formatted)
+        $sessions = BeyondOtpSession::where('phone', $formatted)
             ->where('purpose', $purpose)
             ->whereNull('verified_at')
             ->where('expires_at', '>=', now())
             ->orderBy('created_at', 'desc')
-            ->first();
+            ->get();
 
-        if (! $session || $session->otp !== $clean) {
-            if ($session) {
-                $session->increment('attempts');
+        $match = null;
+        foreach ($sessions as $session) {
+            $stored = preg_replace('/\D/', '', (string) $session->otp);
+            if ($clean !== '' && strlen($clean) === strlen($stored) && hash_equals($stored, $clean)) {
+                $match = $session;
+                break;
+            }
+        }
+
+        if (! $match) {
+            if ($sessions->first()) {
+                $sessions->first()->increment('attempts');
             }
 
             return ['success' => false, 'error' => 'Invalid or expired verification code.'];
         }
 
-        $session->verified_at = now();
-        $session->save();
+        BeyondOtpSession::where('phone', $formatted)
+            ->where('purpose', $purpose)
+            ->whereNull('verified_at')
+            ->update(['verified_at' => now()]);
 
         return ['success' => true];
     }

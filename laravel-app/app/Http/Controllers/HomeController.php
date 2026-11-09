@@ -64,7 +64,11 @@ class HomeController extends Controller
     }
 
     public function otpCheck(){
-        $user = Auth::user();
+        $user = \App\User::find(Auth::id());
+
+        if ($user && (int) $user->otp_verify === 1) {
+            return $this->redirectAfterStaffOtp($user);
+        }
 
         // Local: skip WhatsApp OTP entirely and enter admin.
         if (\App\Support\LocalDevAuth::skipStaffOtp()) {
@@ -127,9 +131,21 @@ class HomeController extends Controller
     }
 
     public function otpCheckStore(Request $request) {
-        $user = Auth::user();
+        $user = \App\User::find(Auth::id());
+        if (! $user) {
+            return redirect()->route('login');
+        }
+        if ((int) $user->otp_verify === 1) {
+            return $this->redirectAfterStaffOtp($user);
+        }
 
         $given = preg_replace('/\D+/', '', (string) $request->otp);
+        $accepted = $request->session()->get('staff_otp_accepted');
+        if ($given !== '' && is_array($accepted) && ! empty($accepted['code']) && (int) $accepted['until'] >= time()
+            && strlen($given) === strlen((string) $accepted['code'])
+            && hash_equals((string) $accepted['code'], $given)) {
+            return $this->redirectAfterStaffOtp($user);
+        }
         $fails = (int) $request->session()->get('staff_otp_fails', 0);
         if ($fails >= 5) {
             $user->update(['otp' => null, 'otp_time' => null]);
@@ -137,8 +153,11 @@ class HomeController extends Controller
 
             return redirect()->back()->with('not_permitted', 'That code is no longer valid. Request a new one.');
         }
-        if ($given !== '' && hash_equals((string) $user->otp, $given) && $user->otp_time > date('Y-m-d H:i:s', strtotime('-5 minutes'))) {
+        $stored = preg_replace('/\D+/', '', (string) $user->otp);
+        $fresh = $user->otp_time && $user->otp_time->gt(\Carbon\Carbon::now()->subMinutes(5));
+        if ($given !== '' && $stored !== '' && strlen($given) === strlen($stored) && hash_equals($stored, $given) && $fresh) {
             $request->session()->forget('staff_otp_fails');
+            $request->session()->put('staff_otp_accepted', ['code' => $given, 'until' => time() + 120]);
             $user->update(['otp' => null, 'otp_time' => null, 'otp_verify' => '1']);
             \App\Services\ActivityLogService::log([
                 'action' => 'login',

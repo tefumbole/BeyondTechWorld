@@ -10,11 +10,21 @@ use Illuminate\Http\Request;
 
 class EventCrewController extends Controller
 {
-    public function show($token)
+    public function show(Request $request, $token)
     {
         $assignment = $this->assignment($token);
+        $step = 'accept';
+        if ($assignment->acceptance_status === 'rejected') {
+            $step = 'declined';
+        } elseif ($assignment->acceptance_status === 'accepted') {
+            $request->session()->put('event_crew_assignment', $assignment->id);
 
-        return view('events.crew.invite', $this->inviteView($assignment, 'accept'));
+            return redirect()->route('events.crew.home');
+        } elseif ($request->session()->get('event_otp_for') === $token) {
+            $step = 'otp';
+        }
+
+        return view('events.crew.invite', $this->inviteView($assignment, $step));
     }
 
     public function reject($token, EventCrewInviteService $invites)
@@ -51,22 +61,28 @@ class EventCrewController extends Controller
             'code' => $sent['code'],
             'until' => time() + 600,
         ]);
+        $request->session()->put('event_otp_for', $token);
 
-        return view('events.crew.invite', $this->inviteView($assignment, 'otp'))
+        return redirect()->route('events.crew.invite', $token)
             ->with('message', 'A code is on its way to your WhatsApp.');
     }
 
     public function verify(Request $request, $token, EventCrewInviteService $invites)
     {
         $assignment = $this->assignment($token);
-        $request->validate(['otp' => 'required|string|min:6|max:8']);
+        if ($assignment->acceptance_status === 'accepted') {
+            $request->session()->put('event_crew_assignment', $assignment->id);
+
+            return redirect()->route('events.crew.home');
+        }
+        $request->validate(['otp' => 'required|string|min:6|max:12']);
         $stored = $request->session()->get($this->otpKey($token));
         $given = preg_replace('/\D+/', '', (string) $request->input('otp'));
         $expected = is_array($stored) ? preg_replace('/\D+/', '', (string) $stored['code']) : '';
         $fresh = is_array($stored) && (int) $stored['until'] >= time();
-        if (! $fresh || $expected === '' || ! hash_equals($expected, $given)) {
-            return view('events.crew.invite', $this->inviteView($assignment, 'otp'))
-                ->withErrors(['otp' => 'That code is not valid. Accept again to receive a new one.']);
+        if (! $fresh || $expected === '' || strlen($expected) !== strlen($given) || ! hash_equals($expected, $given)) {
+            return redirect()->route('events.crew.invite', $token)
+                ->withErrors(['otp' => 'That code is not valid. Enter it again.']);
         }
         $invites->markAccepted($assignment);
         $request->session()->forget($this->otpKey($token));
