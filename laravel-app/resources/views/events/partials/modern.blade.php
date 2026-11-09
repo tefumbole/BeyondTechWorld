@@ -260,24 +260,41 @@
     .ev-cal-legend span { display: inline-flex; align-items: center; gap: 8px; }
     .ev-cal-legend i { width: 18px; height: 10px; border-radius: 999px; display: inline-block; }
     .ev-cal-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .ev-cal-grid { min-width: 760px; }
-    .ev-cal-weekdays, .ev-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .ev-cal-grid { min-width: 840px; }
+    .ev-cal-weekdays, .ev-cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
     .ev-cal-weekdays span {
-        padding: 10px 8px; font-size: 11px; font-weight: 800; letter-spacing: .08em;
-        text-transform: uppercase; color: #64748b; background: #f8fafc;
+        padding: 12px 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em;
+        text-transform: uppercase; color: #0b3f90; background: #f8fafc;
+        text-align: center; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;
     }
-    .ev-cal-week { border-top: 1px solid #eef2f7; }
-    .ev-cal-day { min-height: 36px; padding: 8px 8px 0; }
-    .ev-cal-day .num { font-weight: 700; color: #0f172a; font-size: 13px; }
-    .ev-cal-day.is-out .num { color: #cbd5e1; }
-    .ev-cal-day.is-today .num {
-        background: #0b3f90; color: #fff; border-radius: 999px; padding: 2px 8px;
+    .ev-cal-week { position: relative; }
+    .ev-cal-cell {
+        min-height: calc(56px + var(--lanes, 1) * 30px);
+        aspect-ratio: 1;
+        padding: 8px;
+        background: #fff;
+        border-right: 1px solid #d6e0ee;
+        border-bottom: 1px solid #d6e0ee;
     }
-    .ev-cal-bars { position: relative; margin: 4px 4px 8px; }
+    .ev-cal-cell.is-weekend { background: #f8fafc; }
+    .ev-cal-cell.is-out { background: #f1f5f9; }
+    .ev-cal-cell .num {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 8px;
+        background: #fff; color: #0f172a; font-weight: 800; font-size: 16px;
+        box-shadow: inset 0 0 0 1px #d6e0ee;
+    }
+    .ev-cal-cell.is-out .num { color: #94a3b8; background: transparent; box-shadow: inset 0 0 0 1px #e2e8f0; }
+    .ev-cal-cell.is-today .num { background: #0b3f90; color: #fff; box-shadow: none; }
+    .ev-cal-bars {
+        position: absolute; left: 0; right: 0; bottom: 8px;
+        margin: 0; pointer-events: none; z-index: 2;
+    }
     .ev-bar {
         position: absolute; height: 24px; border-radius: 8px; color: #fff;
         font-size: 12px; font-weight: 700; line-height: 24px; padding: 0 8px;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none;
+        pointer-events: auto;
     }
     .ev-bar:hover { color: #fff; text-decoration: none; filter: brightness(1.08); }
     .ev-bar.is-continued-before { border-top-left-radius: 2px; border-bottom-left-radius: 2px; }
@@ -331,12 +348,32 @@
     .ev-offer.is-yes { background: #dcfce7; color: #166534; }
     .ev-offer.is-wait { background: #fef3c7; color: #92400e; }
     .ev-offer.is-no { background: #fee2e2; color: #991b1b; }
-    .ev-offer-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0; }
-    .ev-offer-filters a {
-        border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 13px;
-        background: #f1f5f9; color: #0b3f90; text-decoration: none;
+    .ev-pay-tabs { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 18px 4px; }
+    .ev-pay-tabs a {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        min-height: 48px; padding: 10px 16px; border-radius: 14px;
+        background: #e7eefb; color: #0b3f90; border: 2px solid #b9cff5;
+        font-weight: 800; font-size: 15px; text-decoration: none;
     }
-    .ev-offer-filters a.is-on { background: #0b3f90; color: #fff; }
+    .ev-pay-tabs a span {
+        min-width: 28px; padding: 2px 8px; border-radius: 999px;
+        background: #fff; color: #0b3f90; font-size: 13px; text-align: center;
+    }
+    .ev-pay-tabs a.is-on { background: #0b3f90; color: #fff; border-color: #072f6b; }
+    .ev-pay-tabs a.is-on span { background: rgba(255,255,255,.22); color: #fff; }
+    .ev-pay-card { border: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, .05); }
+    .ev-pay-card .card-header {
+        background: #fff; border-bottom: 1px solid #e2e8f0; padding: 16px 18px;
+        font-size: 16px; font-weight: 800; color: #0f172a;
+    }
+    .ev-pay-status {
+        display: inline-flex; align-items: center; border-radius: 999px;
+        padding: 4px 10px; font-size: 12px; font-weight: 800; text-transform: capitalize;
+        background: #f1f5f9; color: #475569;
+    }
+    .ev-pay-status.is-paid { background: #dcfce7; color: #166534; }
+    .ev-pay-status.is-pending { background: #fef3c7; color: #92400e; }
+    .ev-pay-status.is-cancelled { background: #fee2e2; color: #991b1b; }
     .ev-labour {
         display: inline-flex; align-items: center; gap: 8px;
         background: #eff6ff; color: #0b3f90; border-radius: 999px;
@@ -429,6 +466,7 @@
             background: #fff; margin: 0 -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
             border-top: 1px solid #e2e8f0; box-shadow: 0 -8px 24px rgba(15, 23, 42, .08);
         }
+        .ev-pay-tabs a { flex: 1 1 140px; }
         .ev-actions .btn { width: 100%; }
         .ev-board { grid-template-columns: 1fr !important; }
     }

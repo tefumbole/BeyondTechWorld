@@ -1422,6 +1422,9 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::get('wealth/help', 'Wealth\WealthHelpController@index')->name('wealth.help');
 
 	Route::post('expenses/deletebyselection', 'ExpenseController@deleteBySelection');
+	Route::get('expenses/board', 'ExpenseController@board')->name('expenses.board');
+	Route::post('expenses/board', 'ExpenseController@storeBoard')->name('expenses.board.store');
+	Route::post('expenses/board/category', 'ExpenseController@storeBoardCategory')->name('expenses.board.category');
 	Route::resource('expenses', 'ExpenseController');
 	Route::get('/expense/asset', 'ExpenseController@asset')->name('asset.expense');
 	Route::get('/activity/asset', 'ExpenseController@assetActivity')->name('asset.activity');

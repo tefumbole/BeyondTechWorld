@@ -30,15 +30,13 @@
                         @endforeach
                     </div>
                     @foreach($weeks as $week)
-                        <div class="ev-cal-week">
-                            <div class="ev-cal-days">
-                                @foreach($week['days'] as $day)
-                                    <div class="ev-cal-day {{ $day->format('Y-m') === $monthKey ? '' : 'is-out' }} {{ $day->toDateString() === $today ? 'is-today' : '' }}">
-                                        <span class="num">{{ $day->format('j') }}</span>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <div class="ev-cal-bars" style="height: {{ $week['lanes'] * 28 }}px;">
+                        <div class="ev-cal-week" style="--lanes: {{ (int) $week['lanes'] }};">
+                            @foreach($week['days'] as $day)
+                                <div class="ev-cal-cell {{ $day->format('Y-m') === $monthKey ? '' : 'is-out' }} {{ $day->toDateString() === $today ? 'is-today' : '' }} {{ $day->isWeekend() ? 'is-weekend' : '' }}">
+                                    <span class="num">{{ $day->format('j') }}</span>
+                                </div>
+                            @endforeach
+                            <div class="ev-cal-bars" style="height: {{ max(28, $week['lanes'] * 28) }}px;">
                                 @foreach($week['bars'] as $bar)
                                     <a class="ev-bar is-{{ $bar['kind'] ?? 'event' }} {{ $bar['continues_before'] ? 'is-continued-before' : '' }} {{ $bar['continues_after'] ? 'is-continued-after' : '' }}"
                                        href="{{ route('events.show', $bar['id']) }}"

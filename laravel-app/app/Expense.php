@@ -9,7 +9,8 @@ class Expense extends Model
     protected $fillable =[
         "reference_no", "expense_category_id", "category_id", "warehouse_id", "account_id", "user_id", "cash_register_id", "amount", "note",
         "allocation_bucket_id", "wealth_subcategory_id", "program_id", "biller_id", "employee_id", "entity_type",
-        "payee", "payment_method", "document", "title", "created_by", "updated_by"
+        "payee", "payment_method", "document", "title", "created_by", "updated_by",
+        "event_id", "quotation_id", "payment_id"
     ];
 
     public function warehouse()
@@ -19,6 +20,21 @@ class Expense extends Model
 
     public function expenseCategory() {
     	return $this->belongsTo('App\ExpenseCategory');
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class, 'event_id');
+    }
+
+    public function quotation()
+    {
+        return $this->belongsTo(Quotation::class, 'quotation_id');
+    }
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class, 'payment_id');
     }
 
     public function category() {

@@ -377,6 +377,23 @@ class EventCrewInviteService
         $this->notifyAccepted($assignment);
     }
 
+    protected function acceptedWhen(Event $event)
+    {
+        $start = $event->event_start_at;
+        $end = $event->event_end_at;
+        if (! $start) {
+            return '';
+        }
+        if (! $end || $start->equalTo($end)) {
+            return $start->format('d M Y, H:i');
+        }
+        if ($start->toDateString() === $end->toDateString()) {
+            return $start->format('d M Y').', '.$start->format('H:i').'–'.$end->format('H:i');
+        }
+
+        return $start->format('d M Y H:i').' – '.$end->format('d M Y H:i');
+    }
+
     public function notifyAccepted(EventAssignment $assignment)
     {
         $assignment->load('event', 'workerProfile.customer', 'workerProfile.user');
@@ -386,13 +403,13 @@ class EventCrewInviteService
             return;
         }
         $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
-        $start = $event->event_start_at ? $event->event_start_at->format('d M Y H:i') : '';
-        $end = $event->event_end_at ? $event->event_end_at->format('d M Y H:i') : $start;
-        $body = "Hello {$name},\n\n"
-            ."You have accepted {$event->name}.\n"
-            ."Dates: {$start} to {$end}\n"
-            .'Role: '.($assignment->assignment_role ?: 'Crew')."\n"
-            ."Your place is confirmed. There is nothing else to accept.";
+        $when = $this->acceptedWhen($event);
+        $role = $assignment->assignment_role ?: 'Crew';
+        $body = \App\Support\WhatsAppMessage::statusBlock('✅', 'Job accepted')
+            .'*'.$event->name."*\n\n"
+            .'Hello '.$name.",\n"
+            .$role.($when !== '' ? ' · '.$when : '')."\n"
+            .'Your place is confirmed.';
         try {
             app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
         } catch (\Exception $e) {

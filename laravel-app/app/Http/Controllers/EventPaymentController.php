@@ -66,11 +66,17 @@ class EventPaymentController extends Controller
             ->orderByDesc('created_at')
             ->limit(100)
             ->get();
-        $acceptedCount = EventAssignment::where('expected_total', '>', 0)
-            ->where('acceptance_status', 'accepted')
-            ->count();
+        $offerBase = EventAssignment::where('expected_total', '>', 0);
+        $offerCounts = [
+            'all' => (clone $offerBase)->count(),
+            'accepted' => (clone $offerBase)->where('acceptance_status', 'accepted')->count(),
+            'waiting' => (clone $offerBase)->where(function ($query) {
+                $query->whereNull('acceptance_status')->orWhere('acceptance_status', 'pending');
+            })->count(),
+            'declined' => (clone $offerBase)->where('acceptance_status', 'rejected')->count(),
+        ];
 
-        return view('events.payments.index', compact('payments', 'assignments', 'offer', 'acceptedCount'));
+        return view('events.payments.index', compact('payments', 'assignments', 'offer', 'offerCounts'));
     }
 
     public function createForAssignment(Request $request, $eventId, EventPaymentService $payments)
