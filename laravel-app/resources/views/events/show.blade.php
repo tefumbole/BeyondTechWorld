@@ -132,6 +132,14 @@
                                         —
                                     @endforelse
                                 </dd>
+                                <dt class="col-sm-4">Unpacking dates</dt>
+                                <dd class="col-sm-8">
+                                    @forelse(($unpackEntries ?? []) as $entry)
+                                        <div><strong>{{ date('d M Y', strtotime($entry['date'])) }}</strong>@if($entry['note'] !== '') — {{ $entry['note'] }}@endif</div>
+                                    @empty
+                                        —
+                                    @endforelse
+                                </dd>
                             </dl>
                         </div>
                     </div>
@@ -159,7 +167,7 @@
                                 <p class="mb-2"><strong>Staff:</strong> {{ $event->staffNames() }}</p>
                             @endif
                             <a href="{{ route('events.show', ['id' => $event->id, 'tab' => 'payments']) }}" class="btn btn-sm btn-outline-primary">Payments</a>
-                            @if(in_array('events.update', $all_permission))
+                            @if(!empty($isEventAdmin))
                                 <div class="mt-3">
                                     <div class="font-weight-bold mb-2">Schedule payment</div>
                                     <p class="small text-muted">Pay part of an engineer's event total at a time you choose. You can add more than one.</p>

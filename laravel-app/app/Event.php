@@ -19,7 +19,7 @@ class Event extends Model
         'venue', 'venue_address', 'city', 'timezone',
         'internal_description', 'internal_notes',
         'packing_at', 'loading_at', 'departure_at',
-        'setup_start_at', 'setup_end_at', 'setup_dates', 'rehearsal_at',
+        'setup_start_at', 'setup_end_at', 'setup_dates', 'unpack_dates', 'rehearsal_at',
         'event_start_at', 'event_end_at',
         'dismantling_start_at', 'dismantling_end_at', 'return_at',
         'expected_workdays', 'timesheet_deadline_at',
@@ -164,6 +164,54 @@ class Event extends Model
             $out[$date] = array(
                 'date' => $date,
                 'note' => function_exists('mb_substr') ? mb_substr($note, 0, 240) : substr($note, 0, 240),
+            );
+        }
+        $out = array_values($out);
+        usort($out, function ($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
+        return array_slice($out, 0, 62);
+    }
+
+    public static function parseWorkDays($value)
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : array();
+        }
+        if (! is_array($value)) {
+            return array();
+        }
+        $out = array();
+        foreach ($value as $item) {
+            $note = '';
+            $description = '';
+            $payAmount = null;
+            $payAt = '';
+            if (is_string($item)) {
+                $date = substr(trim($item), 0, 10);
+            } elseif (is_array($item)) {
+                $date = substr(trim(isset($item['date']) ? (string) $item['date'] : ''), 0, 10);
+                $note = trim(isset($item['note']) ? (string) $item['note'] : '');
+                $description = trim(isset($item['description']) ? (string) $item['description'] : '');
+                if (isset($item['pay_amount']) && $item['pay_amount'] !== '' && $item['pay_amount'] !== null) {
+                    $payAmount = max(0, (int) $item['pay_amount']);
+                }
+                $payAt = trim(isset($item['pay_at']) ? (string) $item['pay_at'] : '');
+            } else {
+                continue;
+            }
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                continue;
+            }
+            $cut = function_exists('mb_substr') ? 'mb_substr' : 'substr';
+            $out[$date] = array(
+                'date' => $date,
+                'note' => $cut($note, 0, 240),
+                'description' => $cut($description, 0, 500),
+                'pay_amount' => $payAmount,
+                'pay_at' => substr($payAt, 0, 19),
             );
         }
         $out = array_values($out);

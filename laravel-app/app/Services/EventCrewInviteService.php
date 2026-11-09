@@ -51,6 +51,7 @@ class EventCrewInviteService
             $notes = trim((string) $event->internal_notes);
             $workLine = $this->workDatesLine($assignment);
             $setupLine = $this->setupText($event);
+            $unpackLine = $this->datedList($event->unpack_dates);
             $body = "Hello {$name},\n\n"
                 ."You have been selected for {$event->name}.\n"
                 ."Dates: {$start} to {$end}\n"
@@ -60,6 +61,9 @@ class EventCrewInviteService
                 ."Food money: {$food} XAF\n";
             if ($setupLine !== '') {
                 $body .= "\nSetup dates:\n{$setupLine}";
+            }
+            if ($unpackLine !== '') {
+                $body .= "\nUnpacking dates:\n{$unpackLine}";
             }
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
@@ -132,27 +136,29 @@ class EventCrewInviteService
 
     public function workDates(EventAssignment $assignment)
     {
-        $dates = json_decode((string) $assignment->work_dates, true);
-        if (! is_array($dates)) {
-            return array();
-        }
         $clean = array();
-        foreach ($dates as $date) {
-            $date = substr(trim((string) $date), 0, 10);
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                $clean[] = $date;
-            }
+        foreach (Event::parseWorkDays($assignment->work_dates) as $day) {
+            $clean[] = $day['date'];
         }
-        sort($clean);
 
         return $clean;
+    }
+
+    public function workDayEntries(EventAssignment $assignment)
+    {
+        return Event::parseWorkDays($assignment->work_dates);
     }
 
     protected function workDatesLine(EventAssignment $assignment)
     {
         $labels = array();
-        foreach ($this->workDates($assignment) as $date) {
-            $labels[] = date('d M', strtotime($date));
+        foreach ($this->workDayEntries($assignment) as $day) {
+            $label = date('d M', strtotime($day['date']));
+            $extra = trim($day['note'].($day['description'] !== '' ? ' — '.$day['description'] : ''));
+            if ($extra !== '') {
+                $label .= ' ('.$extra.')';
+            }
+            $labels[] = $label;
         }
 
         return implode(', ', $labels);
@@ -180,8 +186,13 @@ class EventCrewInviteService
 
     public function setupText(Event $event)
     {
+        return $this->datedList($event->setup_dates);
+    }
+
+    public function datedList($json)
+    {
         $lines = array();
-        foreach (Event::parseSetup($event->setup_dates) as $entry) {
+        foreach (Event::parseSetup($json) as $entry) {
             $line = date('d M Y', strtotime($entry['date']));
             if ($entry['note'] !== '') {
                 $line .= ' — '.$entry['note'];
@@ -292,8 +303,8 @@ class EventCrewInviteService
         if ($amount <= 0) {
             throw new \InvalidArgumentException('This place has no daily amount to request.');
         }
-        $allowed = json_decode((string) $assignment->work_dates, true);
-        if (is_array($allowed) && count($allowed)) {
+        $allowed = $this->workDates($assignment);
+        if (count($allowed)) {
             if (! in_array($date, $allowed, true)) {
                 throw new \InvalidArgumentException('That date is not one of your working days.');
             }

@@ -6,12 +6,20 @@
     $editing = ! empty($editing);
     $existingCrew = isset($existingCrew) ? $existingCrew : [];
     $setupDates = isset($setupDates) ? $setupDates : [];
+    $unpackDates = isset($unpackDates) ? $unpackDates : [];
     $published = $event->exists && optional($event->publication)->publish_on_website;
     $setupOld = old('setup_dates');
     if (is_string($setupOld) && $setupOld !== '') {
         $decodedSetup = json_decode($setupOld, true);
         if (is_array($decodedSetup)) {
             $setupDates = $decodedSetup;
+        }
+    }
+    $unpackOld = old('unpack_dates');
+    if (is_string($unpackOld) && $unpackOld !== '') {
+        $decodedUnpack = json_decode($unpackOld, true);
+        if (is_array($decodedUnpack)) {
+            $unpackDates = $decodedUnpack;
         }
     }
 @endphp
@@ -68,11 +76,11 @@
                 <div class="row">
                     <div class="col-md-6 form-group">
                         <label>From <span class="text-danger">*</span></label>
-                        <input type="date" name="event_start_at" id="event-from" class="form-control" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d')) }}">
+                        <input type="datetime-local" name="event_start_at" id="event-from" class="form-control" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d\TH:i')) }}">
                     </div>
                     <div class="col-md-6 form-group">
                         <label>To <span class="text-danger">*</span></label>
-                        <input type="date" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d')) }}">
+                        <input type="datetime-local" name="event_end_at" id="event-to" class="form-control" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
                     </div>
                 </div>
                 <div class="ev-duration-note" id="span-note">Choose the first and last date. Each person's working days start from that span.</div>
@@ -84,7 +92,17 @@
                         <div id="setup-notes" class="mt-2"></div>
                         <input type="hidden" name="setup_dates" id="setup-dates" value="{{ json_encode(array_values($setupDates)) }}">
                     </div>
-                    <div class="small text-muted mt-1">Click every setup day. Add a note for each date. Engineers receive these dates and notes.</div>
+                    <div class="small text-muted mt-1">Click every setup day. You can select more than one. Add a note for each date. Engineers receive these dates and notes.</div>
+                </div>
+                <div class="form-group">
+                    <label>Unpacking dates</label>
+                    <div>
+                        <button type="button" class="btn btn-outline-primary" id="unpack-open">Choose unpacking dates</button>
+                        <div class="ev-chips" id="unpack-chips"></div>
+                        <div id="unpack-notes" class="mt-2"></div>
+                        <input type="hidden" name="unpack_dates" id="unpack-dates" value="{{ json_encode(array_values($unpackDates)) }}">
+                    </div>
+                    <div class="small text-muted mt-1">Click every unpacking day. You can select more than one, including a day after the event.</div>
                 </div>
                 <div class="form-group mb-0">
                     <label>Notes</label>
@@ -137,42 +155,7 @@
                 </div>
                 <p class="ev-crew-empty mb-2" id="crew-empty">No engineers yet.</p>
                 <p class="mb-0"><strong>Labour total: <span id="labour-total">0</span> XAF</strong></p>
-                @php
-                    $autoPay = isset($autoPay) ? $autoPay : null;
-                    $isEventAdmin = ! empty($isEventAdmin);
-                    $autoOn = $autoPay && in_array($autoPay->status, ['pending_approval', 'scheduled', 'paying'], true);
-                    $payAtValue = old('pay_at', $autoPay && $autoPay->pay_at ? $autoPay->pay_at->format('Y-m-d\TH:i') : '');
-                @endphp
-                <div id="auto-pay" class="mt-3" style="display:none;">
-                    <label class="ev-toggle">
-                        <input type="checkbox" name="automate_payment" value="1" id="automate-payment" {{ old('automate_payment', $autoOn ? '1' : '0') == '1' ? 'checked' : '' }}>
-                        Automate payment
-                    </label>
-                    <div id="auto-pay-when" class="mt-2">
-                        <label>Payment time</label>
-                        <input type="datetime-local" name="pay_at" class="form-control" value="{{ $payAtValue }}">
-                        @if($isEventAdmin)
-                            <p class="small text-muted mb-0 mt-2">Each engineer is paid their total by Mobile Money at this time.</p>
-                        @else
-                            <p class="small text-muted mb-0 mt-2">An admin has to approve this before anyone is paid.</p>
-                        @endif
-                        @if($autoPay && $autoPay->status === 'pending_approval')
-                            <p class="small mb-0 mt-1">Waiting for admin approval{{ $autoPay->pay_at ? ' for '.$autoPay->pay_at->format('d M Y H:i') : '' }}.</p>
-                        @elseif($autoPay && $autoPay->status === 'scheduled')
-                            <p class="small mb-0 mt-1">Approved. Payment runs at {{ $autoPay->pay_at->format('d M Y H:i') }}.</p>
-                        @elseif($autoPay && $autoPay->status === 'paying')
-                            <p class="small mb-0 mt-1">Payment is being sent.</p>
-                        @elseif($autoPay && $autoPay->status === 'failed')
-                            <p class="small text-danger mb-0 mt-1">{{ $autoPay->result ?: 'The last automatic payment did not finish.' }}</p>
-                        @endif
-                    </div>
-                    <div class="mt-3">
-                        <label>Schedule part of a payment</label>
-                        <p class="small text-muted mb-2">Each row pays one engineer part of their event total. You can add more than one, and you can add more after the event is saved.</p>
-                        <div id="part-rows"></div>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="part-add">Add a scheduled payment</button>
-                    </div>
-                </div>
+                <div id="day-panels" class="mt-3"></div>
             </div>
 
             <div class="ev-section">
@@ -206,6 +189,8 @@
     var roles = @json($roleOptions);
     var oldCrew = @json(old('crew', $existingCrew));
     var initialSetup = @json(array_values($setupDates));
+    var initialUnpack = @json(array_values($unpackDates));
+    var isAdmin = @json(!empty($isEventAdmin));
     var lookupUrl = @json(route('events.labour-name'));
     var roleUrl = @json(route('events.labour-role'));
     var token = document.querySelector('#event-form input[name="_token"]').value;
@@ -231,12 +216,14 @@
         var to = document.getElementById('event-to').value;
         var note = document.getElementById('span-note');
         if (!from || !to) {
-            note.textContent = 'Choose the first and last date. Each person\'s working days start from that span.';
+            note.textContent = 'Choose the first and last date and time. Each person\'s working days start from that span.';
             return 1;
         }
-        var ms = Date.parse(to) - Date.parse(from);
+        var fromDay = dateOnly(from);
+        var toDay = dateOnly(to);
+        var ms = Date.parse(toDay) - Date.parse(fromDay);
         var days = ms < 0 || isNaN(ms) ? 1 : Math.floor(ms / 86400000) + 1;
-        note.textContent = days + (days === 1 ? ' day' : ' days') + ', from ' + prettyDate(from) + ' to ' + prettyDate(to) + '.';
+        note.textContent = days + (days === 1 ? ' day' : ' days') + ', from ' + prettyWhen(from) + ' to ' + prettyWhen(to) + '.';
         return days;
     }
 
@@ -263,9 +250,19 @@
         return date.getFullYear() + '-' + (month < 10 ? '0' : '') + month + '-' + (day < 10 ? '0' : '') + day;
     }
 
+    function dateOnly(value) {
+        return String(value || '').slice(0, 10);
+    }
+
+    function prettyWhen(value) {
+        var date = prettyDate(dateOnly(value));
+        var match = String(value || '').match(/T(\d{2}:\d{2})/);
+        return match ? date + ' ' + match[1] : date;
+    }
+
     function spanDateList() {
-        var from = document.getElementById('event-from').value;
-        var to = document.getElementById('event-to').value;
+        var from = dateOnly(document.getElementById('event-from').value);
+        var to = dateOnly(document.getElementById('event-to').value);
         if (!from) return [];
         if (!to || to < from) to = from;
         var out = [];
@@ -280,22 +277,48 @@
         return out;
     }
 
-    function readSetup(value) {
+    function readEntries(value, rich) {
         var raw = readDates(value);
         var out = [];
         raw.forEach(function (item) {
             var date = '';
             var note = '';
+            var description = '';
+            var payAmount = '';
+            var payAt = '';
             if (item && typeof item === 'object') {
                 date = String(item.date || '').slice(0, 10);
                 note = item.note || '';
+                description = item.description || '';
+                payAmount = item.pay_amount === 0 || item.pay_amount ? item.pay_amount : '';
+                payAt = item.pay_at || '';
             } else {
                 date = String(item || '').slice(0, 10);
             }
-            if (/^\d{4}-\d{2}-\d{2}$/.test(date)) out.push({date: date, note: String(note)});
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+            var entry = {date: date, note: String(note)};
+            if (rich) {
+                entry.description = String(description);
+                entry.pay_amount = payAmount === '' ? '' : String(parseInt(payAmount, 10) || 0);
+                entry.pay_at = String(payAt).replace(' ', 'T').slice(0, 16);
+            }
+            out.push(entry);
         });
         out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
         return out;
+    }
+
+    function readSetup(value) {
+        return readEntries(value, false);
+    }
+
+    function entryDates(input) {
+        if (!input) return [];
+        var rich = input.classList && input.classList.contains('crew-dates');
+        if (rich || input.id === 'setup-dates' || input.id === 'unpack-dates') {
+            return readEntries(input.value, rich).map(function (entry) { return entry.date; });
+        }
+        return readDates(input.value).filter(function (item) { return typeof item === 'string'; });
     }
 
     function readDates(value) {
@@ -313,7 +336,8 @@
         var total = 0;
         var rows = tbody.querySelectorAll('tr');
         rows.forEach(function (row) {
-            var dates = readDates(row.querySelector('.crew-dates').value);
+            var dates = readEntries(row.querySelector('.crew-dates').value, true);
+            row.querySelector('.crew-dates').value = JSON.stringify(dates);
             var days = dates.length || parseInt(row.querySelector('.crew-days').value, 10) || 0;
             row.querySelector('.crew-days').value = dates.length || days;
             var button = row.querySelector('.crew-days-btn');
@@ -321,12 +345,12 @@
             var chips = row.querySelector('.crew-date-chips');
             if (chips) {
                 chips.innerHTML = '';
-                dates.forEach(function (date) {
+                dates.forEach(function (entry) {
                     var chip = document.createElement('button');
                     chip.type = 'button';
                     chip.className = 'ev-chip';
-                    chip.setAttribute('data-date', date);
-                    chip.textContent = prettyDate(date);
+                    chip.setAttribute('data-date', entry.date);
+                    chip.textContent = prettyDate(entry.date);
                     chips.appendChild(chip);
                 });
             }
@@ -338,10 +362,9 @@
         });
         document.getElementById('labour-total').textContent = money(total);
         document.getElementById('crew-empty').style.display = rows.length ? 'none' : '';
-        var autoPay = document.getElementById('auto-pay');
-        if (autoPay) autoPay.style.display = rows.length ? '' : 'none';
         paintSetup();
-        if (typeof paintPartOptions === 'function') paintPartOptions();
+        paintUnpack();
+        paintDays();
     }
 
     function roleLabel(role) {
@@ -398,9 +421,9 @@
         var key = person.kind + ':' + person.ref;
         if (tbody.querySelector('tr[data-key="' + key + '"]')) return;
         var i = rowIndex++;
-        var dates = readDates(person.work_dates);
+        var dates = readEntries(person.work_dates, true);
         var auto = dates.length ? '0' : '1';
-        if (!dates.length) dates = spanDateList();
+        if (!dates.length) dates = spanDateList().map(function (date) { return {date: date, note: '', description: '', pay_amount: '', pay_at: ''}; });
         var role = roleById(person.category_id);
         var rate = (person.rate || person.rate === 0) && person.work_dates ? (parseInt(person.rate, 10) || 0) : (role ? role.rate : (parseInt(person.rate, 10) || 0));
         if (person.assignment_id) rate = parseInt(person.rate, 10) || 0;
@@ -649,7 +672,11 @@
         var dates = spanDateList();
         spanDays();
         tbody.querySelectorAll('.crew-dates').forEach(function (input) {
-            if (input.getAttribute('data-auto') === '1') input.value = JSON.stringify(dates);
+            if (input.getAttribute('data-auto') === '1') {
+                input.value = JSON.stringify(dates.map(function (date) {
+                    return {date: date, note: '', description: '', pay_amount: '', pay_at: ''};
+                }));
+            }
         });
         refresh();
     }
@@ -663,10 +690,10 @@
     document.body.appendChild(pop);
     var popState = {input: null, year: 2026, month: 0};
 
-    function paintSetup() {
-        var box = document.getElementById('setup-chips');
-        var notes = document.getElementById('setup-notes');
-        var input = document.getElementById('setup-dates');
+    function paintDateNotes(inputId, boxId, notesId, openId, single, plural, placeholder) {
+        var box = document.getElementById(boxId);
+        var notes = document.getElementById(notesId);
+        var input = document.getElementById(inputId);
         if (!box || !input) return;
         var entries = readSetup(input.value);
         input.value = JSON.stringify(entries);
@@ -683,19 +710,80 @@
             var row = document.createElement('div');
             row.className = 'form-row align-items-center mb-2';
             row.innerHTML = '<div class="col-md-4"><strong>' + escapeHtml(prettyDate(entry.date)) + '</strong></div>' +
-                '<div class="col-md-8"><input type="text" class="form-control form-control-sm setup-note" data-date="' + entry.date + '" maxlength="240" placeholder="Note for this setup date" value="' + escapeHtml(entry.note) + '"></div>';
+                '<div class="col-md-8"><input type="text" class="form-control form-control-sm date-note" data-date="' + entry.date + '" maxlength="240" placeholder="' + escapeHtml(placeholder) + '" value="' + escapeHtml(entry.note) + '"></div>';
             notes.appendChild(row);
         });
-        var opener = document.getElementById('setup-open');
-        if (opener) opener.textContent = entries.length ? entries.length + (entries.length === 1 ? ' setup date' : ' setup dates') : 'Choose setup dates';
+        var opener = document.getElementById(openId);
+        if (opener) opener.textContent = entries.length ? entries.length + ' ' + (entries.length === 1 ? single : plural) : 'Choose ' + plural;
+    }
+
+    function paintSetup() {
+        paintDateNotes('setup-dates', 'setup-chips', 'setup-notes', 'setup-open', 'setup date', 'setup dates', 'Note for this setup date');
+    }
+
+    function paintUnpack() {
+        paintDateNotes('unpack-dates', 'unpack-chips', 'unpack-notes', 'unpack-open', 'unpacking date', 'unpacking dates', 'Note for this unpacking date');
+    }
+
+    function paintDays() {
+        var box = document.getElementById('day-panels');
+        if (!box) return;
+        if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#day-panels')) return;
+        box.innerHTML = '';
+        tbody.querySelectorAll('tr').forEach(function (row) {
+            var input = row.querySelector('.crew-dates');
+            var entries = readEntries(input.value, true);
+            if (!entries.length) return;
+            var name = row.querySelector('.crew-name');
+            var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
+            var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
+            var card = document.createElement('div');
+            card.className = 'border rounded p-3 mb-3';
+            var html = '<strong>' + escapeHtml(name ? name.value : 'Engineer') + '</strong>';
+            html += '<p class="small text-muted mb-2">Add a note and a description for each day this person works.</p>';
+            if (isAdmin) {
+                html += '<div class="form-row align-items-end mb-2">' +
+                    '<div class="col-md-5"><label class="small mb-1">Automatic payment time for this person</label><input type="datetime-local" class="form-control form-control-sm day-auto-time" data-key="' + escapeHtml(row.getAttribute('data-key')) + '"></div>' +
+                    '<div class="col-md-4"><button type="button" class="btn btn-sm btn-outline-primary day-auto-apply" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">Use this time for every day</button></div>' +
+                    '</div>';
+                html += '<p class="small text-muted">Set a different amount and time for each day. Leave the time empty when that day should not be paid automatically.</p>';
+            }
+            entries.forEach(function (entry) {
+                var amount = entry.pay_amount === '' ? (rate + food) : entry.pay_amount;
+                html += '<div class="border-top pt-2 mt-2" data-date="' + entry.date + '" data-key="' + escapeHtml(row.getAttribute('data-key')) + '">';
+                html += '<div class="font-weight-bold mb-1">' + escapeHtml(prettyDate(entry.date)) + '</div>';
+                html += '<input type="text" class="form-control form-control-sm mb-1 day-note" maxlength="240" placeholder="Note" value="' + escapeHtml(entry.note) + '">';
+                html += '<input type="text" class="form-control form-control-sm mb-1 day-description" maxlength="500" placeholder="Description" value="' + escapeHtml(entry.description) + '">';
+                if (isAdmin) {
+                    html += '<div class="form-row"><div class="col-md-4"><input type="number" min="0" class="form-control form-control-sm day-amount" placeholder="Amount" value="' + escapeHtml(amount) + '"></div>' +
+                        '<div class="col-md-8"><input type="datetime-local" class="form-control form-control-sm day-pay" value="' + escapeHtml(entry.pay_at) + '"></div></div>';
+                }
+                html += '</div>';
+            });
+            card.innerHTML = html;
+            box.appendChild(card);
+        });
+    }
+
+    function writeDay(key, date, changes) {
+        var row = tbody.querySelector('tr[data-key="' + key + '"]');
+        if (!row) return;
+        var input = row.querySelector('.crew-dates');
+        var entries = readEntries(input.value, true);
+        entries.forEach(function (entry) {
+            if (entry.date !== date) return;
+            Object.keys(changes).forEach(function (name) { entry[name] = changes[name]; });
+        });
+        input.value = JSON.stringify(entries);
+        input.setAttribute('data-auto', '0');
     }
 
     function renderPop() {
         var input = popState.input;
         if (!input) return;
-        var selected = input.id === 'setup-dates' ? readSetup(input.value).map(function (entry) { return entry.date; }) : readDates(input.value);
-        var from = document.getElementById('event-from').value;
-        var to = document.getElementById('event-to').value;
+        var selected = entryDates(input);
+        var from = dateOnly(document.getElementById('event-from').value);
+        var to = dateOnly(document.getElementById('event-to').value);
         var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         var first = new Date(popState.year, popState.month, 1);
         var startPad = first.getDay();
@@ -716,8 +804,8 @@
     }
 
     function openPop(button, input) {
-        var dates = readDates(input.value);
-        var seed = dates[0] || document.getElementById('event-from').value || isoDate(new Date());
+        var dates = entryDates(input);
+        var seed = dates[0] || dateOnly(document.getElementById('event-from').value) || isoDate(new Date());
         var parts = seed.split('-');
         popState.input = input;
         popState.year = parseInt(parts[0], 10);
@@ -732,13 +820,21 @@
 
     function toggleDate(date) {
         if (!popState.input) return;
-        if (popState.input.id === 'setup-dates') {
-            var entries = readSetup(popState.input.value);
+        if (popState.input.id === 'setup-dates' || popState.input.id === 'unpack-dates' || popState.input.classList.contains('crew-dates')) {
+            var rich = popState.input.classList.contains('crew-dates');
+            var entries = readEntries(popState.input.value, rich);
             var found = -1;
             entries.forEach(function (entry, index) { if (entry.date === date) found = index; });
-            if (found === -1) entries.push({date: date, note: ''}); else entries.splice(found, 1);
+            if (found === -1) {
+                var added = {date: date, note: ''};
+                if (rich) { added.description = ''; added.pay_amount = ''; added.pay_at = ''; }
+                entries.push(added);
+            } else {
+                entries.splice(found, 1);
+            }
             entries.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
             popState.input.value = JSON.stringify(entries);
+            if (rich) popState.input.setAttribute('data-auto', '0');
         } else {
             var dates = readDates(popState.input.value);
             var index = dates.indexOf(date);
@@ -752,57 +848,65 @@
     }
 
     document.getElementById('setup-dates').value = JSON.stringify(readSetup(initialSetup || []));
-    document.getElementById('setup-notes').addEventListener('input', function (event) {
-        var field = event.target.closest('.setup-note');
-        if (!field) return;
-        var input = document.getElementById('setup-dates');
-        var entries = readSetup(input.value);
+    document.getElementById('unpack-dates').value = JSON.stringify(readSetup(initialUnpack || []));
+    function bindDateNotes(notesId, inputId) {
+        document.getElementById(notesId).addEventListener('input', function (event) {
+            var field = event.target.closest('.date-note');
+            if (!field) return;
+            var input = document.getElementById(inputId);
+            var entries = readSetup(input.value);
+            entries.forEach(function (entry) {
+                if (entry.date === field.getAttribute('data-date')) entry.note = field.value;
+            });
+            input.value = JSON.stringify(entries);
+        });
+    }
+    bindDateNotes('setup-notes', 'setup-dates');
+    bindDateNotes('unpack-notes', 'unpack-dates');
+    document.getElementById('day-panels').addEventListener('input', function (event) {
+        var block = event.target.closest('[data-key][data-date]');
+        if (!block) return;
+        var changes = {};
+        if (event.target.classList.contains('day-note')) changes.note = event.target.value;
+        if (event.target.classList.contains('day-description')) changes.description = event.target.value;
+        if (event.target.classList.contains('day-amount')) changes.pay_amount = event.target.value;
+        if (event.target.classList.contains('day-pay')) changes.pay_at = event.target.value;
+        if (!Object.keys(changes).length) return;
+        writeDay(block.getAttribute('data-key'), block.getAttribute('data-date'), changes);
+    });
+    document.getElementById('day-panels').addEventListener('click', function (event) {
+        var button = event.target.closest('.day-auto-apply');
+        if (!button) return;
+        var wrap = button.closest('.border');
+        var time = wrap ? wrap.querySelector('.day-auto-time') : null;
+        var when = time ? time.value : '';
+        if (!when) return;
+        var row = tbody.querySelector('tr[data-key="' + button.getAttribute('data-key') + '"]');
+        if (!row) return;
+        var input = row.querySelector('.crew-dates');
+        var rate = parseInt(row.querySelector('.crew-rate').value, 10) || 0;
+        var food = parseInt(row.querySelector('.crew-food').value, 10) || 0;
+        var entries = readEntries(input.value, true);
         entries.forEach(function (entry) {
-            if (entry.date === field.getAttribute('data-date')) entry.note = field.value;
+            entry.pay_at = when;
+            if (entry.pay_amount === '') entry.pay_amount = String(rate + food);
         });
         input.value = JSON.stringify(entries);
-    });
-    var partIndex = 0;
-    function partPeople() {
-        var people = [];
-        tbody.querySelectorAll('tr').forEach(function (row) {
-            var name = row.querySelector('.crew-name');
-            people.push({key: row.getAttribute('data-key'), name: name ? name.value : 'Engineer'});
-        });
-        return people;
-    }
-    function paintPartOptions() {
-        var people = partPeople();
-        document.querySelectorAll('.part-person').forEach(function (select) {
-            var current = select.value;
-            select.innerHTML = '<option value="">Choose an engineer</option>';
-            people.forEach(function (person) {
-                var option = document.createElement('option');
-                option.value = person.key;
-                option.textContent = person.name;
-                if (person.key === current) option.selected = true;
-                select.appendChild(option);
-            });
-        });
-    }
-    document.getElementById('part-add').addEventListener('click', function () {
-        var i = partIndex++;
-        var row = document.createElement('div');
-        row.className = 'form-row align-items-end mb-2';
-        row.innerHTML = '<div class="col-md-4"><select class="form-control form-control-sm part-person" name="schedules[' + i + '][key]"></select></div>' +
-            '<div class="col-md-3"><input type="number" class="form-control form-control-sm" name="schedules[' + i + '][amount]" min="100" placeholder="Amount"></div>' +
-            '<div class="col-md-4"><input type="datetime-local" class="form-control form-control-sm" name="schedules[' + i + '][pay_at]"></div>' +
-            '<div class="col-md-1"><button type="button" class="btn btn-sm btn-light part-remove">×</button></div>';
-        document.getElementById('part-rows').appendChild(row);
-        paintPartOptions();
-    });
-    document.getElementById('part-rows').addEventListener('click', function (event) {
-        var button = event.target.closest('.part-remove');
-        if (!button) return;
-        button.closest('.form-row').remove();
+        input.setAttribute('data-auto', '0');
+        paintDays();
     });
     document.getElementById('setup-open').addEventListener('click', function () {
         openPop(this, document.getElementById('setup-dates'));
+    });
+    document.getElementById('unpack-open').addEventListener('click', function () {
+        openPop(this, document.getElementById('unpack-dates'));
+    });
+    document.getElementById('unpack-chips').addEventListener('click', function (event) {
+        var chip = event.target.closest('.ev-chip');
+        if (!chip) return;
+        popState.input = document.getElementById('unpack-dates');
+        toggleDate(chip.getAttribute('data-date'));
+        if (pop.hidden) refresh();
     });
     document.getElementById('setup-chips').addEventListener('click', function (event) {
         var chip = event.target.closest('.ev-chip');
@@ -838,7 +942,7 @@
         if (day) toggleDate(day.getAttribute('data-date'));
     });
     document.addEventListener('click', function (event) {
-        if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('.ev-chip')) return;
+        if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('#unpack-open') || event.target.closest('.ev-chip')) return;
         pop.hidden = true;
     });
 
@@ -876,6 +980,8 @@
         });
     });
     paintSetup();
+    paintUnpack();
+    paintDays();
 })();
 </script>
 @endsection

@@ -79,6 +79,9 @@ class EventController extends Controller
 
     public function schedulePay(Request $request, $id)
     {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can schedule a payment.');
+        }
         $this->can('events.update');
         $event = Event::with('assignments.workerProfile')->findOrFail($id);
         $data = $request->validate([
@@ -192,6 +195,47 @@ class EventController extends Controller
         return $date.' '.$time;
     }
 
+    protected function dateTimeLocal($value, $fallbackTime)
+    {
+        $value = trim((string) $value);
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/', $value, $match)) {
+            return $match[1].' '.$match[2].':00';
+        }
+
+        return $this->dateTimeValue($value, $fallbackTime);
+    }
+
+    protected function scheduleStaffDays(Event $event, EventAssignment $assignment, $days, array &$warnings)
+    {
+        \App\EventAutoPayment::where('assignment_id', $assignment->id)
+            ->whereIn('status', ['pending_approval', 'scheduled', 'failed'])
+            ->update(['status' => 'cancelled', 'result' => 'Replaced when the event was saved.']);
+        $set = 0;
+        $assignment->load('workerProfile');
+        $who = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'An engineer';
+        foreach (Event::parseWorkDays($days) as $day) {
+            $when = trim(str_replace('T', ' ', (string) $day['pay_at']));
+            if ($when === '') {
+                continue;
+            }
+            $amount = $day['pay_amount'] !== null
+                ? (int) $day['pay_amount']
+                : ((int) $assignment->event_daily_rate + (int) $assignment->food_per_day);
+            if ($amount < 100) {
+                continue;
+            }
+            $scheduled = app(\App\Services\EventAutoPay::class)->schedule($event, $assignment->id, $amount, $when, true);
+            if (empty($scheduled['ok'])) {
+                $warnings[] = $scheduled['message'];
+            } else {
+                $set++;
+            }
+        }
+        if ($set > 0) {
+            $warnings[] = $who.' has '.$set.' scheduled payment'.($set === 1 ? '' : 's').'.';
+        }
+    }
+
     protected function setupDatesFor(Event $event)
     {
         $entries = Event::parseSetup($event->setup_dates);
@@ -218,7 +262,10 @@ class EventController extends Controller
             if (! $profile) {
                 continue;
             }
-            $dates = $this->dateList($assignment->work_dates);
+            $dates = Event::parseWorkDays($assignment->work_dates);
+            if (! count($dates)) {
+                $dates = $this->dateList($assignment->work_dates);
+            }
             if (! count($dates) && $assignment->work_start_date) {
                 $dates = $this->datesBetween(
                     $assignment->work_start_date->toDateString(),
@@ -401,6 +448,7 @@ class EventController extends Controller
             'internal_notes' => 'nullable|string|max:5000',
             'publish_on_website' => 'nullable',
             'setup_dates' => 'nullable|string|max:20000',
+            'unpack_dates' => 'nullable|string|max:20000',
             'schedules' => 'nullable|array',
             'schedules.*.key' => 'nullable|string|max:80',
             'schedules.*.amount' => 'nullable|integer|min:0',
@@ -415,7 +463,7 @@ class EventController extends Controller
             'crew.*.rate' => 'nullable|integer|min:0',
             'crew.*.food' => 'nullable|integer|min:0',
             'crew.*.category_id' => 'nullable',
-            'crew.*.work_dates' => 'nullable|string|max:4000',
+            'crew.*.work_dates' => 'nullable|string|max:20000',
             'automate_payment' => 'nullable',
             'pay_at' => 'nullable|date',
         ]);
@@ -423,15 +471,23 @@ class EventController extends Controller
         $customer = $this->optionalCustomer($request, $data);
         $start = $data['event_start_at'];
         $end = $data['event_end_at'];
-        $days = max(1, (int) ((strtotime($end) - strtotime($start)) / 86400) + 1);
+        $startDay = substr($start, 0, 10);
+        $endDay = substr($end, 0, 10);
+        $days = max(1, (int) ((strtotime($endDay) - strtotime($startDay)) / 86400) + 1);
         $publish = $request->boolean('publish_on_website');
         $warnings = [];
 
         $beforeSetup = $existing ? (string) $existing->setup_dates : '';
+        $beforeUnpack = $existing ? (string) $existing->unpack_dates : '';
         $setup = Event::parseSetup(isset($data['setup_dates']) ? $data['setup_dates'] : '');
+        $unpack = Event::parseSetup(isset($data['unpack_dates']) ? $data['unpack_dates'] : '');
         $setupDates = array();
         foreach ($setup as $entry) {
             $setupDates[] = $entry['date'];
+        }
+        $unpackDates = array();
+        foreach ($unpack as $entry) {
+            $unpackDates[] = $entry['date'];
         }
         $payload = [
             'name' => $data['name'],
@@ -440,8 +496,8 @@ class EventController extends Controller
             'client_telephone' => $customer ? $customer->phone_number : null,
             'client_email' => $customer ? $customer->email : null,
             'city' => $customer ? $customer->city : null,
-            'event_start_at' => $this->dateTimeValue($start, '00:00:00'),
-            'event_end_at' => $this->dateTimeValue($end, '23:59:00'),
+            'event_start_at' => $this->dateTimeLocal($start, '00:00:00'),
+            'event_end_at' => $this->dateTimeLocal($end, '23:59:00'),
             'internal_notes' => isset($data['internal_notes']) ? trim((string) $data['internal_notes']) : null,
             'expected_workdays' => $days,
         ];
@@ -449,6 +505,9 @@ class EventController extends Controller
             $payload['setup_dates'] = count($setup) ? json_encode($setup) : null;
             $payload['setup_start_at'] = count($setupDates) ? $setupDates[0].' 00:00:00' : null;
             $payload['setup_end_at'] = count($setupDates) ? $setupDates[count($setupDates) - 1].' 23:59:00' : null;
+            $payload['unpack_dates'] = count($unpack) ? json_encode($unpack) : null;
+            $payload['dismantling_start_at'] = count($unpackDates) ? $unpackDates[0].' 00:00:00' : null;
+            $payload['dismantling_end_at'] = count($unpackDates) ? $unpackDates[count($unpackDates) - 1].' 23:59:00' : null;
         }
         if ($request->hasFile('flyer')) {
             $flyer = $request->file('flyer');
@@ -519,6 +578,9 @@ class EventController extends Controller
                 ], $member['assignment_id']);
                 $kept[] = $assignment->id;
                 $byKey[$member['kind'].':'.$member['ref']] = $assignment->id;
+                if ($this->isEventAdmin()) {
+                    $this->scheduleStaffDays($event, $assignment, $member['work_dates'], $warnings);
+                }
             } catch (\Exception $e) {
                 $warnings[] = trim($member['name'].' was not saved. '.$e->getMessage());
             }
@@ -541,6 +603,7 @@ class EventController extends Controller
             $workforce->refreshLabourBudgetAllocation($event);
         }
 
+        if ($this->isEventAdmin()) {
         foreach ((array) $request->input('schedules', []) as $schedule) {
             if (! is_array($schedule)) {
                 continue;
@@ -571,20 +634,20 @@ class EventController extends Controller
             }
         }
 
-        $auto = app(\App\Services\EventAutoPay::class)->remember(
-            $event,
-            $request->input('pay_at'),
-            $request->input('automate_payment') === '1' && count($kept) > 0,
-            $this->isEventAdmin()
-        );
-        if ($request->input('automate_payment') === '1' && count($kept) < 1) {
-            $warnings[] = 'Automatic payment was not set because no engineer was saved.';
-        } elseif ($request->input('automate_payment') === '1' && count($kept) > 0 && ! $request->input('pay_at')) {
-            $warnings[] = 'Choose the time the engineers should be paid.';
-        } elseif ($request->input('automate_payment') === '1' && $request->input('pay_at') && $auto) {
-            if ($auto->status === 'pending_approval') {
-                $warnings[] = 'Automatic payment is waiting for an admin to approve it.';
-            } else {
+        }
+
+        if ($this->isEventAdmin() && $request->exists('automate_payment')) {
+            $auto = app(\App\Services\EventAutoPay::class)->remember(
+                $event,
+                $request->input('pay_at'),
+                $request->input('automate_payment') === '1' && count($kept) > 0,
+                true
+            );
+            if ($request->input('automate_payment') === '1' && count($kept) < 1) {
+                $warnings[] = 'Automatic payment was not set because no engineer was saved.';
+            } elseif ($request->input('automate_payment') === '1' && count($kept) > 0 && ! $request->input('pay_at')) {
+                $warnings[] = 'Choose the time the engineers should be paid.';
+            } elseif ($request->input('automate_payment') === '1' && $request->input('pay_at') && $auto) {
                 $msgTime = $auto->pay_at ? $auto->pay_at->format('d M Y H:i') : '';
                 $warnings[] = 'Engineers will be paid at '.$msgTime.'.';
             }
@@ -593,7 +656,7 @@ class EventController extends Controller
         $invites = app(EventCrewInviteService::class);
         $invite = $invites->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
-        if ($existing && (string) $event->setup_dates !== '' && (string) $event->setup_dates !== $beforeSetup) {
+        if ($existing && (((string) $event->setup_dates !== '' && (string) $event->setup_dates !== $beforeSetup) || ((string) $event->unpack_dates !== '' && (string) $event->unpack_dates !== $beforeUnpack))) {
             $setupNotice = $invites->notifySetup($event, $alreadyInvited);
             $warnings = array_merge($warnings, $setupNotice['warnings']);
             if ($setupNotice['sent'] > 0) {
@@ -666,6 +729,7 @@ class EventController extends Controller
         $paymentSchedules = $autoPayService->openRows($event);
         $isEventAdmin = $this->isEventAdmin();
         $setupEntries = Event::parseSetup($event->setup_dates);
+        $unpackEntries = Event::parseSetup($event->unpack_dates);
         $payRooms = array();
         foreach ($event->assignments as $assignment) {
             if ($assignment->acceptance_status === 'rejected') {
@@ -677,7 +741,7 @@ class EventController extends Controller
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
             'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
-            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'payRooms'
+            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms'
         ));
     }
 
@@ -719,12 +783,13 @@ class EventController extends Controller
         $editing = true;
         $existingCrew = $this->crewFromEvent($event);
         $setupDates = $this->setupDatesFor($event);
+        $unpackDates = Event::parseSetup($event->unpack_dates);
         $isEventAdmin = $this->isEventAdmin();
         $autoPay = app(\App\Services\EventAutoPay::class)->openFor($event);
 
         return view('events.create', compact(
             'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
-            'selectedCustomer', 'editing', 'existingCrew', 'setupDates', 'isEventAdmin', 'autoPay'
+            'selectedCustomer', 'editing', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay'
         ));
     }
 
@@ -866,7 +931,7 @@ class EventController extends Controller
             $rate = max(0, (int) (isset($row['rate']) ? $row['rate'] : 0));
             $food = max(0, (int) (isset($row['food']) ? $row['food'] : 0));
             $categoryId = isset($row['category_id']) ? (int) $row['category_id'] : 0;
-            $workDates = $this->dateList(isset($row['work_dates']) ? $row['work_dates'] : []);
+            $workDates = Event::parseWorkDays(isset($row['work_dates']) ? $row['work_dates'] : []);
             $assignmentId = isset($row['assignment_id']) ? trim((string) $row['assignment_id']) : '';
             $phone = '';
             $name = isset($row['name']) ? (string) $row['name'] : '';

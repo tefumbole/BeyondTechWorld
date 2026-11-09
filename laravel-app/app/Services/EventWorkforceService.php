@@ -88,23 +88,34 @@ class EventWorkforceService
                     ->first();
             }
 
-            $dates = isset($data['work_dates']) && is_array($data['work_dates']) ? array_values($data['work_dates']) : [];
-            sort($dates);
+            $days = Event::parseWorkDays(isset($data['work_dates']) ? $data['work_dates'] : []);
+            $dates = array();
+            foreach ($days as $day) {
+                $dates[] = $day['date'];
+            }
             $expectedDays = count($dates) > 0 ? count($dates) : max(1, (int) (isset($data['expected_days']) ? $data['expected_days'] : 1));
             $dailyRate = (int) (isset($data['event_daily_rate']) ? $data['event_daily_rate'] : 0);
             $foodPerDay = max(0, (int) (isset($data['food_per_day']) ? $data['food_per_day'] : 0));
             $start = count($dates) ? $dates[0] : (isset($data['work_start_date']) ? $data['work_start_date'] : null);
             $end = count($dates) ? $dates[count($dates) - 1] : (isset($data['work_end_date']) ? $data['work_end_date'] : $start);
+            $total = 0;
+            if (count($days)) {
+                foreach ($days as $day) {
+                    $total += $day['pay_amount'] !== null ? (int) $day['pay_amount'] : ($dailyRate + $foodPerDay);
+                }
+            } else {
+                $total = $this->calculateExpectedTotal('daily', $dailyRate, $expectedDays, [], $foodPerDay);
+            }
             $fields = [
                 'assignment_role' => isset($data['assignment_role']) ? $data['assignment_role'] : null,
                 'work_start_date' => $start,
                 'work_end_date' => $end,
-                'work_dates' => count($dates) ? json_encode($dates) : null,
+                'work_dates' => count($days) ? json_encode($days) : null,
                 'expected_days' => $expectedDays,
                 'event_daily_rate' => $dailyRate,
                 'default_daily_rate' => $profile->standard_daily_rate,
                 'compensation_method' => 'daily',
-                'expected_total' => $this->calculateExpectedTotal('daily', $dailyRate, $expectedDays, [], $foodPerDay),
+                'expected_total' => $total,
                 'food_per_day' => $foodPerDay,
                 'notes' => $foodPerDay > 0 ? 'Food money '.number_format($foodPerDay).' XAF per day' : null,
             ];
