@@ -8,6 +8,10 @@
     $setupDates = isset($setupDates) ? $setupDates : [];
     $unpackDates = isset($unpackDates) ? $unpackDates : [];
     $published = $event->exists && optional($event->publication)->publish_on_website;
+    $currentType = old('event_type', $event->event_type ?: 'other');
+    if (! isset(\App\Event::TYPES[$currentType])) {
+        $currentType = 'other';
+    }
     $setupOld = old('setup_dates');
     if (is_string($setupOld) && $setupOld !== '') {
         $decodedSetup = json_decode($setupOld, true);
@@ -68,12 +72,12 @@
                         <input type="text" name="name" class="form-control" required value="{{ old('name', $event->name) }}" placeholder="Name shown with the flyer">
                     </div>
                     <div class="col-md-3 form-group">
-                        <label>Type</label>
-                        <select name="event_type" class="form-control">
-                            @foreach(\App\Event::TYPES as $key => $label)
-                                <option value="{{ $key }}" {{ old('event_type', $event->event_type ?: 'other') === $key ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <label for="type-search">Type</label>
+                        <div class="ev-combo ev-type" id="type-combo">
+                            <input type="hidden" name="event_type" id="event-type" value="{{ $currentType }}">
+                            <input type="search" class="form-control ev-combo-input" id="type-search" placeholder="Search a type" autocomplete="off" value="{{ \App\Event::TYPES[$currentType] }}">
+                            <div class="ev-combo-menu" id="type-menu" hidden></div>
+                        </div>
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Venue</label>
@@ -226,6 +230,9 @@
 <script>
 (function () {
     var people = @json($people);
+    var eventTypes = @json(collect(\App\Event::TYPES)->map(function ($label, $key) {
+        return ['id' => $key, 'name' => $label];
+    })->values());
     var customers = @json($customerOptions);
     var roles = @json($roleOptions);
     var oldCrew = @json(old('crew', $existingCrew));
@@ -603,6 +610,29 @@
         menu._items = items.slice(0, 20);
     }
 
+    function typeMenu() {
+        var menu = document.getElementById('type-menu');
+        var query = document.getElementById('type-search').value.trim().toLowerCase();
+        var current = document.getElementById('event-type').value;
+        var items = eventTypes.filter(function (item) {
+            return !query || item.name.toLowerCase().indexOf(query) !== -1;
+        });
+        paintMenu(menu, items, function (item) {
+            var mark = item.id === current ? '<span class="ev-role-pill">Selected</span>' : '';
+            return '<span><strong>' + escapeHtml(item.name) + '</strong></span>' + mark;
+        }, 'No type matches that search.');
+        menu._items = items.slice(0, 20);
+        menu.querySelectorAll('.ev-combo-item').forEach(function (button, index) {
+            if (items[index] && items[index].id === current) button.classList.add('is-current');
+        });
+    }
+
+    function chooseType(item) {
+        document.getElementById('event-type').value = item.id;
+        document.getElementById('type-search').value = item.name;
+        document.getElementById('type-menu').hidden = true;
+    }
+
     function chooseCustomer(item) {
         document.getElementById('customer-id').value = item.id;
         document.getElementById('customer-search').value = item.name + (item.phone ? ' — ' + item.phone : '');
@@ -669,9 +699,22 @@
 
     bindCombo('customer-search', 'customer-menu', customerMenu, chooseCustomer);
     bindCombo('engineer-search', 'engineer-menu', engineerMenu, chooseEngineer);
+    bindCombo('type-search', 'type-menu', typeMenu, chooseType);
+    document.getElementById('type-search').addEventListener('blur', function () {
+        var typed = this.value.trim().toLowerCase();
+        var match = eventTypes.filter(function (item) { return item.name.toLowerCase() === typed; });
+        if (match.length === 1) {
+            chooseType(match[0]);
+            return;
+        }
+        var current = document.getElementById('event-type').value;
+        var selected = eventTypes.filter(function (item) { return item.id === current; })[0];
+        this.value = selected ? selected.name : '';
+    });
     document.addEventListener('click', function (event) {
         if (!event.target.closest('#customer-combo')) document.getElementById('customer-menu').hidden = true;
         if (!event.target.closest('#engineer-combo')) document.getElementById('engineer-menu').hidden = true;
+        if (!event.target.closest('#type-combo')) document.getElementById('type-menu').hidden = true;
     });
 
     document.getElementById('show-new-person').addEventListener('click', function () {

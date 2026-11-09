@@ -73,6 +73,15 @@
         font-weight: 700;
     }
     .events-shell .ev-combo { position: relative; }
+    .ev-type .ev-combo-input {
+        padding-right: 40px;
+        background-image: linear-gradient(45deg, transparent 50%, #0b3f90 50%), linear-gradient(135deg, #0b3f90 50%, transparent 50%);
+        background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+    }
+    .ev-type .ev-combo-item { min-height: 42px; font-weight: 700; }
+    .ev-type .ev-combo-item.is-current { background: #eff6ff; box-shadow: inset 3px 0 0 #0b3f90; }
     .events-shell .ev-combo-menu {
         position: absolute;
         z-index: 40;
