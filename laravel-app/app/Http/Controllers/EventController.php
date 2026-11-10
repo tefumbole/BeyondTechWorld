@@ -170,34 +170,47 @@ class EventController extends Controller
         }
         $event = Event::with('assignments.workerProfile')->findOrFail($id);
         $data = $request->validate([
-            'assignment_ids' => 'required|array|min:1',
+            'assignment_ids' => 'nullable|array',
             'assignment_ids.*' => 'string|max:64',
-            'mode' => 'required|in:percent,day',
+            'picks' => 'nullable|array|min:1',
+            'picks.*' => 'string|max:80',
+            'mode' => 'required|in:percent,day,days',
             'percent' => 'nullable|integer|min:1|max:100',
             'work_date' => 'nullable|date',
-            'pay_at' => 'required|date',
+            'pay_at' => 'nullable|date',
             'do' => 'nullable|in:schedule,pay',
         ]);
         $service = app(\App\Services\EventAutoPay::class);
-        $ids = array_map('strval', $data['assignment_ids']);
-        if ($data['mode'] === 'day') {
+        $payingNow = $request->input('do') === 'pay';
+        $payAt = ! empty($data['pay_at']) ? $data['pay_at'] : ($payingNow ? now()->toDateTimeString() : null);
+        if (! $payingNow && ($payAt === null || $payAt === '')) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose when the money should be sent.');
+        }
+        $ids = array_map('strval', isset($data['assignment_ids']) ? $data['assignment_ids'] : array());
+        if ($data['mode'] === 'days') {
+            if (empty($data['picks'])) {
+                return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Select the people and the days to pay.');
+            }
+            $result = $service->schedulePicked($event, $data['picks'], $payAt, true);
+            $label = 'the selected days';
+        } elseif ($data['mode'] === 'day') {
             if (empty($data['work_date'])) {
                 return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose the working day.');
             }
-            $result = $service->scheduleDay($event, $data['work_date'], $data['pay_at'], true, $ids);
+            $result = $service->scheduleDay($event, $data['work_date'], $payAt, true, $ids);
             $label = 'that working day';
         } else {
             if (empty($data['percent'])) {
                 return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose a percentage.');
             }
-            $result = $service->applyPercent($event, $data['percent'], $data['pay_at'], true, $ids);
+            $result = $service->applyPercent($event, $data['percent'], $payAt, true, $ids);
             $label = $data['percent'].'% of what is still owed';
         }
         if (empty($result['ok'])) {
             return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $result['message']);
         }
         $paidNow = 0;
-        if ($request->input('do') === 'pay' && $data['mode'] === 'day') {
+        if ($payingNow) {
             foreach ($result['rows'] as $row) {
                 $row->pay_at = now();
                 $row->status = 'scheduled';
@@ -211,6 +224,102 @@ class EventController extends Controller
             : $label.' is scheduled for '.$result['set'].' '.($result['set'] === 1 ? 'person' : 'people').'.';
         if (! empty($result['warnings'])) {
             $message .= ' '.implode(' ', $result['warnings']);
+        }
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
+    }
+
+    public function payListed(Request $request, $id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can pay these.');
+        }
+        $event = Event::with('assignments.workerProfile')->findOrFail($id);
+        $lines = array_values(array_filter((array) $request->input('lines', [])));
+        if (! count($lines)) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Select the payments to pay.');
+        }
+        $payingNow = $request->input('do') !== 'schedule';
+        $payAt = $request->input('pay_at') ?: ($payingNow ? now()->toDateTimeString() : null);
+        $service = app(\App\Services\EventAutoPay::class);
+        $dayPicks = array();
+        $autoIds = array();
+        $paymentIds = array();
+        foreach ($lines as $line) {
+            $parts = explode('|', (string) $line);
+            if (($parts[0] ?? '') === 'day' && count($parts) === 3) {
+                $dayPicks[] = $parts[1].'|'.$parts[2];
+            } elseif (($parts[0] ?? '') === 'auto' && isset($parts[1])) {
+                $autoIds[] = $parts[1];
+            } elseif (($parts[0] ?? '') === 'pay' && isset($parts[1])) {
+                $paymentIds[] = $parts[1];
+            }
+        }
+        if (! $payingNow && ! count($dayPicks)) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose the due days to schedule.');
+        }
+        if (! $payingNow && ($payAt === null || $payAt === '')) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose when the money should be sent.');
+        }
+        $done = 0;
+        $warnings = array();
+        if (count($dayPicks)) {
+            $result = $service->schedulePicked($event, $dayPicks, $payingNow ? now()->toDateTimeString() : $payAt, true);
+            if (empty($result['ok'])) {
+                $warnings[] = $result['message'];
+            } else {
+                if ($payingNow) {
+                    foreach ($result['rows'] as $row) {
+                        $row->pay_at = now();
+                        $row->status = 'scheduled';
+                        $row->save();
+                        $service->pay($row->fresh());
+                        $done++;
+                    }
+                } else {
+                    $done += (int) $result['set'];
+                }
+                if (! empty($result['warnings'])) {
+                    $warnings = array_merge($warnings, $result['warnings']);
+                }
+            }
+        }
+        if ($payingNow && count($autoIds)) {
+            $rows = \App\EventAutoPayment::where('event_id', $event->id)->whereIn('id', $autoIds)->get();
+            foreach ($rows as $row) {
+                if ($row->status === 'pending_approval') {
+                    $service->approve($row, \Illuminate\Support\Facades\Auth::id());
+                    $row = $row->fresh();
+                }
+                if (! in_array($row->status, ['scheduled', 'failed', 'paying'], true)) {
+                    continue;
+                }
+                $row->pay_at = now();
+                $row->status = 'scheduled';
+                $row->save();
+                $service->pay($row->fresh());
+                $done++;
+            }
+        }
+        if ($payingNow && count($paymentIds)) {
+            $recorder = app(\App\Services\EventPaymentService::class);
+            $found = \App\EventWorkerPayment::where('event_id', $event->id)
+                ->whereIn('id', $paymentIds)
+                ->where('status', \App\EventWorkerPayment::STATUS_PENDING)
+                ->get();
+            foreach ($found as $payment) {
+                $recorder->markPaid($payment);
+                $done++;
+            }
+        }
+        if ($done < 1) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $warnings ? implode(' ', $warnings) : 'Nothing was paid.');
+        }
+        $message = $payingNow
+            ? $done.' payment'.($done === 1 ? '' : 's').' sent.'
+            : $done.' day'.($done === 1 ? '' : 's').' scheduled.';
+        if (count($warnings)) {
+            $message .= ' '.implode(' ', $warnings);
         }
 
         return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
@@ -948,6 +1057,8 @@ class EventController extends Controller
         $unpackEntries = Event::parseSetup($event->unpack_dates);
         $payRooms = array();
         $dayDues = array();
+        $dueDays = array();
+        $dueDates = array();
         $today = now()->toDateString();
         $dueTotal = 0;
         foreach ($event->assignments as $assignment) {
@@ -957,7 +1068,18 @@ class EventController extends Controller
             $dueTotal += (int) $assignment->expected_total;
             $payRooms[$assignment->id] = $autoPayService->roomFor($assignment);
             $dayDues[$assignment->id] = $autoPayService->dueOnDay($assignment, $today);
+            $person = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Person';
+            foreach ($autoPayService->unpaidDays($assignment) as $day) {
+                $dueDays[] = array(
+                    'assignment_id' => $assignment->id,
+                    'name' => $person,
+                    'date' => $day['date'],
+                    'amount' => $day['amount'],
+                );
+                $dueDates[$day['date']] = \Carbon\Carbon::parse($day['date'])->format('d M Y');
+            }
         }
+        ksort($dueDates);
         $paidTotal = (int) \App\EventWorkerPayment::where('event_id', $event->id)
             ->where('status', \App\EventWorkerPayment::STATUS_PAID)
             ->sum('amount');
@@ -965,7 +1087,7 @@ class EventController extends Controller
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
             'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
-            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms', 'dayDues', 'dueTotal', 'paidTotal'
+            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms', 'dayDues', 'dueDays', 'dueDates', 'dueTotal', 'paidTotal'
         ));
     }
 

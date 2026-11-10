@@ -92,13 +92,28 @@ class EventPaymentController extends Controller
         }
         $data = $request->validate([
             'event_id' => 'required|string|max:64',
-            'work_date' => 'required|date',
-            'pay_at' => 'required|date',
+            'work_date' => 'nullable|date',
+            'all_days' => 'nullable|in:1',
+            'pay_at' => 'nullable|date',
             'do' => 'nullable|in:schedule,pay',
         ]);
+        $payingNow = $request->input('do') === 'pay';
+        $payAt = ! empty($data['pay_at']) ? $data['pay_at'] : ($payingNow ? now()->toDateTimeString() : null);
+        if (! $payingNow && ($payAt === null || $payAt === '')) {
+            return redirect()->route('events.payments.index')->with('not_permitted', 'Choose when the money should be sent.');
+        }
         $event = Event::with('assignments.workerProfile')->findOrFail($data['event_id']);
         $service = app(\App\Services\EventAutoPay::class);
-        $result = $service->scheduleDay($event, $data['work_date'], $data['pay_at'], true, null);
+        if ($request->input('all_days') === '1') {
+            $result = $service->scheduleAllDays($event, $payAt, true, null);
+            $when = 'every unpaid day';
+        } else {
+            if (empty($data['work_date'])) {
+                return redirect()->route('events.payments.index')->with('not_permitted', 'Choose the working day, or all unpaid days.');
+            }
+            $result = $service->scheduleDay($event, $data['work_date'], $payAt, true, null);
+            $when = \Carbon\Carbon::parse($data['work_date'])->format('d M Y');
+        }
         if (empty($result['ok'])) {
             return redirect()->route('events.payments.index')->with('not_permitted', $result['message']);
         }
@@ -112,7 +127,6 @@ class EventPaymentController extends Controller
                 $paidNow++;
             }
         }
-        $when = \Carbon\Carbon::parse($data['work_date'])->format('d M Y');
         $message = $paidNow > 0
             ? $event->name.': '.$when.' was sent for '.$paidNow.' '.($paidNow === 1 ? 'person' : 'people').'.'
             : $event->name.': '.$when.' is scheduled for '.$result['set'].' '.($result['set'] === 1 ? 'person' : 'people').'.';

@@ -20,6 +20,24 @@
     .ev-money div { background: #f4f7fb; border: 1px solid #d6e0f0; border-radius: 12px; padding: 10px 14px; min-width: 160px; }
     .ev-money strong { display: block; font-size: 18px; color: #0b3f90; }
     .ev-money span { color: #64748b; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .ev-pick { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 18px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(15, 23, 42, .05); }
+    .ev-pick table input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+    .ev-pick h3 { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: #0f172a; }
+    .ev-pick .hint { color: #64748b; margin: 0 0 14px; }
+    .ev-day-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .ev-day-pills button { border: 2px solid #d6e0f0; background: #f4f7fb; color: #0b3f90; border-radius: 999px; padding: 8px 14px; font-weight: 800; }
+    .ev-day-pills button.is-on { background: #0b3f90; color: #fff; border-color: #0b3f90; }
+    .ev-person { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 14px; margin-bottom: 8px; background: #fff; }
+    .ev-person input[type="checkbox"] { width: 22px; height: 22px; margin: 0; flex: none; }
+    .ev-person .who { font-weight: 800; color: #0f172a; }
+    .ev-person .when { color: #64748b; font-size: 13px; }
+    .ev-person .amt { margin-left: auto; font-weight: 800; color: #0b3f90; white-space: nowrap; }
+    .ev-send { margin: 12px 0; }
+    .ev-send label { font-weight: 800; color: #0f172a; }
+    .ev-pay-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ev-pay-actions .btn { min-height: 48px; border-radius: 14px; font-weight: 800; }
+    .ev-pay-actions .btn-pay { background: #072f6b; border-color: #072f6b; color: #fff; }
+    @media (max-width: 640px) { .ev-pay-actions { grid-template-columns: 1fr; } }
 </style>
 <section class="forms">
     <div class="container-fluid">

@@ -78,6 +78,22 @@ class EventAutoPay
         return $amount >= 100 ? $amount : 0;
     }
 
+    public function unpaidDays(EventAssignment $assignment)
+    {
+        $rows = array();
+        foreach (Event::parseWorkDays($assignment->work_dates) as $day) {
+            $amount = $this->dueOnDay($assignment, $day['date']);
+            if ($amount >= 100) {
+                $rows[] = array('date' => $day['date'], 'amount' => $amount);
+            }
+        }
+        usort($rows, function ($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
+        return $rows;
+    }
+
     public function schedule(Event $event, $assignmentId, $amount, $payAt, $isAdmin, $workDate = null)
     {
         $assignment = EventAssignment::where('event_id', $event->id)->where('id', $assignmentId)->first();
@@ -227,8 +243,9 @@ class EventAutoPay
                 ->where('id', '!=', $row->id)
                 ->whereIn('status', ['pending_approval', 'scheduled', 'paying'])
                 ->sum('amount');
+            $dayPay = is_string($row->result) && strpos($row->result, 'work_date:') === 0;
             $room = max(0, (int) $assignment->expected_total - $paid - $others);
-            if ($amount > $room) {
+            if (! $dayPay && $amount > $room) {
                 $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This person';
 
                 return ['ok' => false, 'message' => $name.' has '.number_format($room).' XAF left to schedule.'];
@@ -238,7 +255,9 @@ class EventAutoPay
         $row->pay_at = \Carbon\Carbon::parse($payAt);
         if ($row->status === 'failed') {
             $row->status = 'scheduled';
-            $row->result = null;
+            if (! (is_string($row->result) && strpos($row->result, 'work_date:') === 0)) {
+                $row->result = null;
+            }
         }
         $row->save();
 
@@ -358,6 +377,80 @@ class EventAutoPay
         }
 
         return ['ok' => true, 'set' => $set, 'rows' => $rows, 'warnings' => $warnings];
+    }
+
+    public function schedulePicked(Event $event, array $picks, $payAt, $isAdmin)
+    {
+        if ($payAt === null || $payAt === '') {
+            return ['ok' => false, 'message' => 'Choose when the money should be sent.'];
+        }
+        $event->load('assignments.workerProfile');
+        $byId = array();
+        foreach ($event->assignments as $assignment) {
+            $byId[(string) $assignment->id] = $assignment;
+        }
+        $set = 0;
+        $rows = array();
+        $warnings = array();
+        $seen = array();
+        foreach ($picks as $pick) {
+            $parts = explode('|', (string) $pick, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $assignmentId = $parts[0];
+            $workDate = substr(trim($parts[1]), 0, 10);
+            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $workDate) || ! isset($byId[$assignmentId])) {
+                continue;
+            }
+            $key = $assignmentId.'|'.$workDate;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $assignment = $byId[$assignmentId];
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'A person';
+            $amount = $this->dueOnDay($assignment, $workDate);
+            if ($amount < 100) {
+                $warnings[] = $name.' has nothing left for '.\Carbon\Carbon::parse($workDate)->format('d M Y').'.';
+                continue;
+            }
+            $scheduled = $this->schedule($event, $assignment->id, $amount, $payAt, $isAdmin, $workDate);
+            if (empty($scheduled['ok'])) {
+                $warnings[] = $scheduled['message'];
+            } else {
+                $set++;
+                $rows[] = $scheduled['row'];
+            }
+        }
+        if ($set < 1) {
+            return ['ok' => false, 'message' => $warnings ? implode(' ', $warnings) : 'Select the people and the days to pay.'];
+        }
+
+        return ['ok' => true, 'set' => $set, 'rows' => $rows, 'warnings' => $warnings];
+    }
+
+    public function scheduleAllDays(Event $event, $payAt, $isAdmin, array $onlyIds = null)
+    {
+        $event->load('assignments.workerProfile');
+        $wanted = $onlyIds === null ? null : array_map('strval', $onlyIds);
+        $picks = array();
+        foreach ($event->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            if ($wanted !== null && ! in_array((string) $assignment->id, $wanted, true)) {
+                continue;
+            }
+            foreach ($this->unpaidDays($assignment) as $day) {
+                $picks[] = $assignment->id.'|'.$day['date'];
+            }
+        }
+
+        return $this->schedulePicked($event, $picks, $payAt, $isAdmin);
     }
 
     public function runDue()

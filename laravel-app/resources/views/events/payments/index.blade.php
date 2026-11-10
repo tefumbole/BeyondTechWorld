@@ -23,7 +23,7 @@
         @if((int) optional(auth()->user())->role_id === 1)
             <form method="POST" action="{{ route('events.payments.day') }}" class="card ev-pay-card mb-4">
                 @csrf
-                <div class="card-header">Pay one working day</div>
+                <div class="card-header">Pay what everyone is due</div>
                 <div class="card-body">
                     <div class="form-row align-items-end">
                         <div class="col-md-4 form-group mb-md-0">
@@ -37,17 +37,19 @@
                         </div>
                         <div class="col-md-3 form-group mb-md-0">
                             <label>Working day</label>
-                            <input type="date" name="work_date" class="form-control" required>
+                            <input type="date" name="work_date" id="pay-work-date" class="form-control">
+                            <label class="d-block mt-2 mb-0"><input type="checkbox" name="all_days" value="1" id="pay-all-days"> All unpaid days</label>
                         </div>
                         <div class="col-md-3 form-group mb-md-0">
-                            <label>Send on</label>
-                            <input type="datetime-local" name="pay_at" class="form-control" required>
+                            <label>Send a schedule on</label>
+                            <input type="datetime-local" name="pay_at" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}">
                         </div>
                         <div class="col-md-2">
-                            <button type="submit" name="do" value="pay" class="btn btn-primary btn-block" onclick="return confirm('Pay only this working day for everyone who works it?');">Pay this day</button>
+                            <button type="submit" name="do" value="schedule" class="btn btn-primary btn-block mb-2">Schedule</button>
+                            <button type="submit" name="do" value="pay" class="btn btn-primary btn-block" style="background:#072f6b;" onclick="return confirm('Pay everyone who is due for the day you chose?');">Pay now</button>
                         </div>
                     </div>
-                    <p class="small text-muted mb-0 mt-2">This pays the rate and food money for that day. It does not pay earlier days that are still open.</p>
+                    <p class="small text-muted mb-0 mt-2">Choose one day, or all unpaid days. Schedule keeps the money for the time above. Pay sends it now.</p>
                 </div>
             </form>
         @endif
