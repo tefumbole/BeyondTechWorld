@@ -600,6 +600,19 @@ class SaleController extends Controller
             }
         }
 
+        if (! isset($data['sale_status']) || $data['sale_status'] === '' || $data['sale_status'] === null) {
+            $data['sale_status'] = 1;
+        }
+        if (! isset($data['payment_status']) || $data['payment_status'] === '' || $data['payment_status'] === null) {
+            $data['payment_status'] = 2;
+        }
+        if (! isset($data['paid_amount']) || $data['paid_amount'] === '' || $data['paid_amount'] === null) {
+            $data['paid_amount'] = 0;
+        }
+        if (! isset($data['paying_amount']) || $data['paying_amount'] === '' || $data['paying_amount'] === null) {
+            $data['paying_amount'] = $data['paid_amount'];
+        }
+
         $lims_sale_data = Sale::create($data);
         if (! empty($checkoutClaim['submission'])) {
             app(\App\Services\Sales\OrderSubmissionService::class)->link($checkoutClaim['submission'], $lims_sale_data);
@@ -959,6 +972,15 @@ class SaleController extends Controller
                 $lims_account_data = Account::where('is_default', true)->first();
             }else{
                 $lims_account_data = Account::where('id', $data['credit'])->first();
+            }
+            if (! $lims_account_data) {
+                $lims_account_data = Account::orderBy('id')->first();
+            }
+            if (! $lims_account_data) {
+                return redirect('sales/gen_invoice/'.$lims_sale_data->id)->with('message', 'Sale created. Add an account before this payment can be recorded.');
+            }
+            if (! isset($paying_method)) {
+                $paying_method = 'Cash';
             }
             $lims_payment_data->account_id = $lims_account_data->id;
             $lims_payment_data->sale_id = $lims_sale_data->id;

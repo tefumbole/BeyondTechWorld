@@ -14,6 +14,8 @@
     .qs-sale .totals { border-radius: 16px; overflow: hidden; }
     .qs-sale .qs-off { display: none !important; }
     .qs-sale #submit-button { border-radius: 12px; background: #0b3f90; border: 0; font-weight: 800; min-height: 46px; padding: 10px 22px; }
+    .qs-sale .qs-pay { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 14px 4px; margin-bottom: 12px; }
+    .qs-sale #due-amount { background: #fff; font-weight: 800; color: #0b3f90; }
 </style>
 <section class="forms qs-sale">
     <div class="container-fluid">
@@ -293,8 +295,8 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Sale Status')}} *</label>
-                                            <select name="sale_status" class="selectpicker form-control" data-live-search="true" data-live-search-style="begins" title="Choose a sale status">
-                                                <option value="1">{{trans('file.Completed')}}</option>
+                                            <select required name="sale_status" class="selectpicker form-control" data-live-search="true" data-live-search-style="begins" title="Choose a sale status">
+                                                <option value="1" selected>{{trans('file.Completed')}}</option>
                                                 <option value="2">{{trans('file.Pending')}}</option>
                                             </select>
                                         </div>
@@ -302,16 +304,16 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Payment Status')}} *</label>
-                                            <select name="payment_status" class="selectpicker form-control" title="Choose a payment status">
+                                            <select required name="payment_status" class="selectpicker form-control" title="Choose a payment status">
                                                 <option value="1">{{trans('file.Pending')}}</option>
-                                                <option value="2">{{trans('file.Due')}}</option>
+                                                <option value="2" selected>{{trans('file.Due')}}</option>
                                                 <option value="3">{{trans('file.Partial')}}</option>
                                                 <option value="4">{{trans('file.Paid')}}</option>
                                             </select>
                                         </div>
                                     </div>
                                 </div>
-                                <div id="payment">
+                                <div id="payment" class="qs-pay">
                                     <div class="row">
                                         <div class="col-md-3">
                                             <div class="form-group">
@@ -328,20 +330,16 @@
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label>{{trans('file.Recieved Amount')}} *</label>
-                                                <input type="number" name="paying_amount" class="form-control" id="paying-amount" step="any" />
+                                                <label>Paying Amount *</label>
+                                                <input type="number" name="paid_amount" class="form-control" id="paid-amount" step="any" min="0" placeholder="Amount you are paying now" />
+                                                <input type="hidden" name="paying_amount" id="paying-amount" />
                                             </div>
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label>Due Amount *</label>
-                                                <input type="number" name="paid_amount" class="form-control" id="paid-amount" step="any"/>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label>Balance Owing</label>
-                                                <p id="change" class="ml-2">0.00</p>
+                                                <label>Due Amount</label>
+                                                <input type="text" id="due-amount" class="form-control" readonly value="0.00" />
+                                                <p id="change" class="qs-off">0.00</p>
                                             </div>
                                         </div>
                                     </div>
@@ -474,7 +472,6 @@
     </div>
 </section>
 <script type="text/javascript">
-$("#payment").hide();
 $(".card-element").hide();
 $("#gift-card").hide();
 $("#cheque").hide();
@@ -745,26 +742,35 @@ $('button[name="update_btn"]').on("click", function() {
     checkQuantity(edit_qty, false);
 });
 
+function syncPaymentAmounts() {
+    var grand = parseFloat($('input[name="grand_total"]').val()) || 0;
+    var paying = parseFloat($('#paid-amount').val());
+    if (isNaN(paying) || paying < 0) paying = 0;
+    $('#paying-amount').val(paying.toFixed(2));
+    var due = grand - paying;
+    if (due < 0) due = 0;
+    $('#due-amount').val(due.toFixed(2));
+    $('#change').text(due.toFixed(2));
+}
+
 $('select[name="payment_status"]').on("change", function() {
     var payment_status = $('select[name="payment_status"]').val();
+    var grand = parseFloat($('input[name="grand_total"]').val()) || 0;
     if (payment_status == 3 || payment_status == 4) {
-        $("#paid-amount").prop('disabled',false);
+        $("#paid-amount").prop('disabled', false).prop('required', true);
         $("#payment").show();
-        $("#paying-amount").prop('required',true);
-        $("#paid-amount").prop('required',true);
-        if(payment_status == 4){
-            $("#paid-amount").prop('disabled',true);
-            $('input[name="paying_amount"]').val($('input[name="grand_total"]').val());
-            $('input[name="paid_amount"]').val($('input[name="grand_total"]').val());
+        if (payment_status == 4) {
+            $("#paid-amount").val(grand.toFixed(2)).prop('disabled', true);
         }
-    } else{
-        $("#paying-amount").prop('required',false);
-        $("#paid-amount").prop('required',false);
-        $('input[name="paying_amount"]').val('');
-        $('input[name="paid_amount"]').val('');
-        $("#payment").hide();
+    } else {
+        $("#paid-amount").prop('required', false).prop('disabled', true).val('0');
+        $("#payment").show();
     }
+    syncPaymentAmounts();
 });
+
+$('#paid-amount').on('input', syncPaymentAmounts);
+$('select[name="payment_status"]').trigger('change');
 
 $('select[name="paid_by_id"]').on("change", function() {
     $("#gift-card").hide();
@@ -813,16 +819,12 @@ $('select[name="gift_card_id"]').on("change", function() {
 });
 
 $('input[name="paid_amount"]').on("input", function() {
-    if( $(this).val() > parseFloat($('input[name="paying_amount"]').val()) ) {
-        alert('Paying amount cannot be bigger than recieved amount');
-        $(this).val('');
+    var grand = parseFloat($('#grand_total').text()) || 0;
+    if (parseFloat($(this).val()) > grand) {
+        alert('Paying amount cannot be bigger than the invoice total');
+        $(this).val(grand.toFixed(2));
     }
-    else if( $(this).val() > parseFloat($('#grand_total').text()) ){
-        alert('Paying amount cannot be bigger than grand total');
-        $(this).val('');
-    }
-
-    $("#change").text( parseFloat($("#paying-amount").val() - $(this).val()).toFixed(2) );
+    syncPaymentAmounts();
     var id = $('select[name="paid_by_id"]').val();
     if(id == 2){
         var balance = gift_card_amount[$("#gift_card_id").val()] - gift_card_expense[$("#gift_card_id").val()];
@@ -833,10 +835,6 @@ $('input[name="paid_amount"]').on("input", function() {
         if( $('input[name="paid_amount"]').val() > deposit[$('#customer_id').val()] )
             alert('Amount exceeds customer deposit! Customer deposit : '+ deposit[$('#customer_id').val()]);
     }
-});
-
-$('input[name="paying_amount"]').on("input", function() {
-    $("#change").text( parseFloat($(this).val() - $("#paid-amount").val()).toFixed(2));
 });
 
 function productSearch(data){
@@ -1114,11 +1112,11 @@ function calculateGrandTotal() {
     $('#order_discount').text(order_discount.toFixed(2));
     $('#shipping_cost').text(shipping_cost.toFixed(2));
     $('#grand_total').text(grand_total.toFixed(2));
+    $('input[name="grand_total"]').val(grand_total.toFixed(2));
     if( $('select[name="payment_status"]').val() == 4 ){
-        $('#paying-amount').val('');
         $('#paid-amount').val(grand_total.toFixed(2));
     }
-    $('input[name="grand_total"]').val(grand_total.toFixed(2));
+    if (typeof syncPaymentAmounts === 'function') syncPaymentAmounts();
 }
 
 $('input[name="order_discount"]').on("input", function() {
@@ -1158,8 +1156,8 @@ $(document).on('submit', '.payment-form', function(e) {
         alert("Please insert product to order table!")
         e.preventDefault();
     }
-    else if( parseFloat($("#paying-amount").val()) < parseFloat($("#paid-amount").val()) ){
-        alert('Paying amount cannot be bigger than recieved amount');
+    else if( $('select[name="payment_status"]').val() == 3 && !(parseFloat($("#paid-amount").val()) > 0) ){
+        alert('Enter the paying amount for this partial payment.');
         e.preventDefault();
     }
     else if( $('select[name="payment_status"]').val() == 3 && parseFloat($("#paid-amount").val()) == parseFloat($('input[name="grand_total"]').val()) ) {
