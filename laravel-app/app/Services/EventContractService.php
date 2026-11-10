@@ -30,7 +30,8 @@ class EventContractService
             '{{event_start}}' => $event->event_start_at ? $event->event_start_at->format('d M Y H:i') : 'TBD',
             '{{event_end}}' => $event->event_end_at ? $event->event_end_at->format('d M Y H:i') : 'TBD',
             '{{daily_rate}}' => number_format($assignment->event_daily_rate ?: $assignment->default_daily_rate ?: 0),
-            '{{expected_days}}' => (string) ($assignment->expected_days ?: 1),
+            '{{expected_days}}' => (string) $this->dayCount($assignment),
+            '{{food_allowance}}' => number_format((int) ($assignment->food_per_day ?: 1000)),
             '{{total_amount}}' => number_format($assignment->expected_total ?: 0),
         ];
 
@@ -70,6 +71,45 @@ class EventContractService
         $assignment->update(['contract_status' => 'draft']);
 
         return $contract;
+    }
+
+    public function offerForAssignment(Event $event, EventAssignment $assignment)
+    {
+        $existing = $assignment->contract()->whereNotIn('status', [EventContract::STATUS_CANCELLED])->first();
+        if ($existing) {
+            return $existing;
+        }
+        $template = EventContractTemplate::where('contract_type', 'engineer')->where('is_active', true)->orderBy('name')->first();
+        if (! $template) {
+            return null;
+        }
+
+        return $this->createContract($event, $assignment, $template->id);
+    }
+
+    public function finishSigned(EventContract $contract)
+    {
+        $contract->update([
+            'status' => EventContract::STATUS_APPROVED,
+            'admin_signed_at' => now(),
+            'approved_at' => now(),
+        ]);
+        $contract->assignment->update(['contract_status' => 'approved']);
+        $pdfPath = $this->generatePdf($contract->fresh());
+        $contract->update(['signed_pdf_path' => $pdfPath]);
+
+        return $contract->fresh();
+    }
+
+    public function dayCount(EventAssignment $assignment)
+    {
+        $days = (int) $assignment->expected_days;
+        if ($days > 0) {
+            return $days;
+        }
+        $listed = count(Event::parseWorkDays($assignment->work_dates));
+
+        return $listed > 0 ? $listed : 1;
     }
 
     public function markSent(EventContract $contract)

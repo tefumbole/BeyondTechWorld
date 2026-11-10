@@ -68,15 +68,40 @@ class EventCrewInviteService
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
             }
-            $body .= "\nOpen the link to accept every day, or keep only the days you can work. Your pay follows the days you accept.\n{$url}\n\n"
-                ."If you cannot take this job, open the same link and choose Reject.\n"
-                .'After you accept, a code is sent to this phone so you can open the event and your timesheet.';
+            $body .= "\nYour contract is attached. Open it, then use this link to accept the days you can work and sign:\n{$url}\n\n"
+                ."If you cannot take this job, open the same link and choose Reject.";
+            $contractFile = null;
+            $contractName = 'engineer-contract.pdf';
+            try {
+                $contracts = app(EventContractService::class);
+                $contract = $contracts->offerForAssignment($event, $assignment);
+                if ($contract && $contract->status === \App\EventContract::STATUS_DRAFT) {
+                    $contracts->markSent($contract);
+                    $contract = $contract->fresh();
+                }
+                if ($contract && $contract->status !== \App\EventContract::STATUS_APPROVED) {
+                    $relative = $contracts->generatePdf($contract);
+                    $contract->signed_pdf_path = $relative;
+                    $contract->save();
+                    $contractFile = public_path($relative);
+                    $contractName = $contract->reference_no.'.pdf';
+                } elseif ($contract && $contract->signed_pdf_path) {
+                    $contractFile = public_path($contract->signed_pdf_path);
+                    $contractName = $contract->reference_no.'.pdf';
+                }
+            } catch (\Exception $e) {
+                $contractFile = null;
+            }
             if ($attempted) {
                 usleep(5000000);
             }
             $attempted = true;
             try {
-                $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
+                if ($contractFile && is_file($contractFile)) {
+                    $result = app(NotificationRouter::class)->sendWhatsAppDocument($phone, $contractFile, $contractName, $body);
+                } else {
+                    $result = app(NotificationRouter::class)->sendWhatsAppText($phone, $body);
+                }
             } catch (\Exception $e) {
                 $result = ['success' => false];
             }

@@ -5,15 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sign Contract — {{ $contract->reference_no }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-    <style>body{background:#f4f6fb}.contract-doc{background:#fff;padding:24px;border-radius:8px;max-height:50vh;overflow-y:auto}</style>
+    <style>
+        body{background:#f4f7fb;color:#0f172a}
+        .sheet{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:28px;box-shadow:0 12px 30px rgba(11,63,144,.06)}
+        .contract-doc{background:#f8fafc;padding:20px;border-radius:14px;max-height:52vh;overflow:auto}
+        .sign-name{margin-top:22px;line-height:1.35}
+        h4{color:#0b3f90;font-weight:800}
+        .btn-primary{background:#0b3f90;border-color:#0b3f90}
+    </style>
 </head>
 <body>
 <div class="container py-4" style="max-width:800px">
     @if(session('message'))<div class="alert alert-success">{{ session('message') }}</div>@endif
+<div class="sheet">
     <h4 class="mb-1">{{ $contract->title }}</h4>
     <p class="text-muted">{{ $contract->event->name }} · {{ $contract->reference_no }}</p>
 
-    <div class="contract-doc border mb-3">{!! $contract->rendered_body !!}</div>
+    <div class="contract-doc mb-3">{!! $contract->rendered_body !!}
+        <p class="sign-name"><strong>Sr. Engr. Tefu R. Mbole</strong><br>CEO / Director<br>Beyond Group of Companies</p>
+    </div>
 
     <form method="POST" action="{{ route('event.contract.sign.submit', $contract->signature_token) }}">
         @csrf
@@ -29,6 +39,7 @@
             <button type="submit" class="btn btn-primary" onclick="return captureSig()">Sign contract</button>
         </div>
     </form>
+</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>

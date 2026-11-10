@@ -25,8 +25,10 @@ td{padding:8px;vertical-align:top;width:50%}
 </td>
 <td class="sig">
 <strong>Company signature</strong><br>
-@if($adminSigPath)<img src="{{ $adminSigPath }}">@endif<br>
-{{ optional($contract->adminSigner)->name ?? 'Beyond Enterprise' }}<br>
+@if($adminSigPath)<img src="{{ $adminSigPath }}"><br>@endif
+<strong>Sr. Engr. Tefu R. Mbole</strong><br>
+CEO / Director<br>
+Beyond Group of Companies<br>
 {{ optional($contract->admin_signed_at)->format('d M Y H:i') }}
 </td>
 </tr>

@@ -36,8 +36,23 @@ class EventContractSigningController extends Controller
         ]);
 
         $contracts->workerSign($contract, $request->signature_image);
+        $signed = $contracts->finishSigned($contract->fresh());
+        $signed->load('assignment.workerProfile.customer', 'assignment.workerProfile.user');
+        $phone = $signed->assignment ? app(\App\Services\EventCrewInviteService::class)->phoneFor($signed->assignment) : '';
+        if ($phone && $signed->signed_pdf_path && is_file(public_path($signed->signed_pdf_path))) {
+            try {
+                $this->sendWhatsAppDocumentToPhone(
+                    $phone,
+                    public_path($signed->signed_pdf_path),
+                    $signed->reference_no.'.pdf',
+                    url($signed->signed_pdf_path)
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Signed contract WhatsApp failed: '.$e->getMessage());
+            }
+        }
 
         return redirect()->route('event.contract.sign', $token)
-            ->with('message', 'Thank you! Your signature has been recorded. Beyond Enterprise will countersign and send the final PDF shortly.');
+            ->with('message', 'Signed. Your copy, with the company signature, has been sent to your WhatsApp.');
     }
 }

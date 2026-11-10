@@ -41,7 +41,7 @@
                     @elseif($prefillLinkType === 'shareholder')
                         <p class="text-muted small mb-2">Shareholder contracts use the <strong>Shareholder Agreement</strong> template (exact portal wording).</p>
                     @endif
-                    <select name="template_id" id="ct-template-id" class="ct-field" required>
+                    <select name="template_id" id="ct-template-id" class="selectpicker ct-field" data-live-search="true" data-size="8" title="Search templates…" required>
                         <option value="">Select template…</option>
                         @foreach($templates ?? [] as $tpl)
                             @php
@@ -57,6 +57,7 @@
                             </option>
                         @endforeach
                     </select>
+                    <a id="ct-tpl-open" class="btn btn-outline-primary mt-3" target="_blank" rel="noopener" href="#">Preview this contract</a>
                 </div>
 
                 {{-- 2 Link + Details together --}}

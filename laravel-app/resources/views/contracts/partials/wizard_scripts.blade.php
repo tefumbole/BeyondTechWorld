@@ -151,9 +151,15 @@
             });
     }
     var tplSel = document.getElementById('ct-template-id');
+    var tplPreview = document.getElementById('ct-tpl-open');
+    function paintTemplatePreview() {
+        if (!tplSel || !tplPreview) return;
+        tplPreview.href = tplSel.value ? @json(url('/admin/contracts/templates')) + '/' + tplSel.value + '/preview' : '#';
+    }
     if (tplSel) {
         tplSel.addEventListener('change', function () {
             contentLoadedFor = null;
+            paintTemplatePreview();
             ensureContentLoaded();
             var opt = tplSel.options[tplSel.selectedIndex];
             if (opt) {
@@ -163,6 +169,7 @@
                 if (b && opt.getAttribute('data-b-label')) b.value = opt.getAttribute('data-b-label');
             }
         });
+        paintTemplatePreview();
     }
 
     /* ---------- engineer rates ---------- */

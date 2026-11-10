@@ -6,4 +6,5 @@
 <p><code>{{ $contract->reference_no }}</code> — {{ $contract->statusLabel() }}</p>
 <hr>
 {!! $contract->rendered_body !!}
+<p style="margin-top:28px;line-height:1.4;"><strong>Sr. Engr. Tefu R. Mbole</strong><br>CEO / Director<br>Beyond Group of Companies</p>
 </body></html>

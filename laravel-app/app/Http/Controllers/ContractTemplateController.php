@@ -154,7 +154,12 @@ class ContractTemplateController extends Controller
      */
     public function preview(Request $request, PlaceholderResolver $resolver, $id = null)
     {
-        $this->gate();
+        if (! in_array('contracts.templates', $this->all_permission, true)
+            && ! in_array('contracts_module', $this->all_permission, true)
+            && ! in_array('contracts.create', $this->all_permission, true)
+            && ! in_array('contracts.view', $this->all_permission, true)) {
+            abort(403, 'You are not allowed to preview a contract.');
+        }
         $html = $request->input('content_html');
         if ($html === null && $id) {
             $template = ContractTemplate::with('currentVersion')->findOrFail($id);
@@ -193,8 +198,8 @@ class ContractTemplateController extends Controller
                 'address' => 'Douala, Cameroon',
                 'email' => 'contracts@beyondtechworld.com',
                 'phone' => '+237600000000',
-                'signer_name' => 'Authorized Signatory',
-                'signer_title' => 'Director',
+                'signer_name' => 'Sr. Engr. Tefu R. Mbole',
+                'signer_title' => 'CEO / Director, Beyond Group of Companies',
             ],
             'party_b' => [
                 'role_label' => 'Party B',

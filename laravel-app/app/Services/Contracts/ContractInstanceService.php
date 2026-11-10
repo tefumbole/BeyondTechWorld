@@ -490,6 +490,36 @@ class ContractInstanceService
                     'start_date' => $this->fmtDate($event->event_start_at ?? $event->start_date ?? null),
                     'end_date' => $this->fmtDate($event->event_end_at ?? $event->end_date ?? null),
                 ];
+                $assignments = $event->assignments()->with('workerProfile')->get();
+                $match = null;
+                foreach ($assignments as $assignment) {
+                    $who = $assignment->workerProfile ? $assignment->workerProfile->displayName() : '';
+                    if ($who !== '' && strcasecmp($who, (string) $data['party_b']['name']) === 0) {
+                        $match = $assignment;
+                        break;
+                    }
+                }
+                if (! $match && $assignments->count() === 1) {
+                    $match = $assignments->first();
+                }
+                if ($match) {
+                    if ($data['worker']['role'] === '') {
+                        $data['worker']['role'] = $match->assignment_role ?: 'Engineer';
+                    }
+                    if ($data['worker']['daily_rate'] === '') {
+                        $data['worker']['daily_rate'] = number_format((int) ($match->event_daily_rate ?: $match->default_daily_rate ?: 0));
+                    }
+                    if ($data['work']['estimated_days'] === '') {
+                        $days = (int) $match->expected_days;
+                        if ($days < 1) {
+                            $days = max(1, count(\App\Event::parseWorkDays($match->work_dates)));
+                        }
+                        $data['work']['estimated_days'] = (string) $days;
+                    }
+                    if (($data['worker']['food_allowance'] ?? '') === '') {
+                        $data['worker']['food_allowance'] = number_format((int) ($match->food_per_day ?: 1000));
+                    }
+                }
             }
         }
         if ($contract->primary_link_type === 'quotation' && $contract->primary_link_id) {
