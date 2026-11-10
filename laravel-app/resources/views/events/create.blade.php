@@ -191,6 +191,31 @@
                 <div id="day-panels" class="mt-3"></div>
             </div>
 
+            @if(! $editing)
+                <div class="ev-section">
+                    <h3>Contract</h3>
+                    <label class="ev-toggle">
+                        <input type="hidden" name="attach_contract" value="0">
+                        <input type="checkbox" name="attach_contract" value="1" id="attach-contract" {{ old('attach_contract', '1') === '1' ? 'checked' : '' }}>
+                        Attach the contract for every engineer
+                    </label>
+                    <div class="form-group mt-3 mb-0" id="contract-template-wrap">
+                        <label for="contract-template-search">Contract</label>
+                        @if(($contractTemplates ?? collect())->count())
+                            <input type="search" class="form-control mb-2" id="contract-template-search" placeholder="Search contracts" autocomplete="off">
+                            <select name="contract_template_id" class="form-control" id="contract-template" size="1">
+                                @foreach($contractTemplates as $template)
+                                    <option value="{{ $template->id }}" {{ (string) old('contract_template_id', $defaultContractId ?? '') === (string) $template->id ? 'selected' : '' }}>{{ $template->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="small text-muted mt-2">The PDF is sent with the selection message. Each engineer signs from that link.</div>
+                        @else
+                            <p class="text-muted mb-0">Add a contract under Event Settings before it can be attached.</p>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             <div class="ev-section">
                 <h3>Website</h3>
                 <div class="ev-drop">
@@ -247,6 +272,38 @@
     var initialUnpack = @json(array_values($unpackDates));
     var isAdmin = @json(!empty($isEventAdmin));
     var openSchedule = '';
+    var attachContract = document.getElementById('attach-contract');
+    var contractWrap = document.getElementById('contract-template-wrap');
+    var contractSearch = document.getElementById('contract-template-search');
+    var contractSelect = document.getElementById('contract-template');
+    function paintContract() {
+        if (!attachContract || !contractWrap) return;
+        var on = attachContract.checked;
+        contractWrap.style.display = on ? '' : 'none';
+        if (contractSelect) contractSelect.disabled = !on;
+    }
+    if (attachContract) {
+        attachContract.addEventListener('change', paintContract);
+        paintContract();
+    }
+    if (contractSearch && contractSelect) {
+        var contractOptions = Array.prototype.map.call(contractSelect.options, function (option) {
+            return {value: option.value, text: option.text};
+        });
+        contractSearch.addEventListener('input', function () {
+            var query = contractSearch.value.toLowerCase();
+            var current = contractSelect.value;
+            contractSelect.innerHTML = '';
+            contractOptions.forEach(function (option) {
+                if (query && option.text.toLowerCase().indexOf(query) === -1 && option.value !== current) return;
+                var el = document.createElement('option');
+                el.value = option.value;
+                el.textContent = option.text;
+                if (option.value === current) el.selected = true;
+                contractSelect.appendChild(el);
+            });
+        });
+    }
     var lookupUrl = @json(route('events.labour-name'));
     var roleUrl = @json(route('events.labour-role'));
     var token = document.querySelector('#event-form input[name="_token"]').value;

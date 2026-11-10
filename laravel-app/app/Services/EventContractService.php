@@ -73,13 +73,19 @@ class EventContractService
         return $contract;
     }
 
-    public function offerForAssignment(Event $event, EventAssignment $assignment)
+    public function offerForAssignment(Event $event, EventAssignment $assignment, $templateId = null)
     {
         $existing = $assignment->contract()->whereNotIn('status', [EventContract::STATUS_CANCELLED])->first();
         if ($existing) {
             return $existing;
         }
-        $template = EventContractTemplate::where('contract_type', 'engineer')->where('is_active', true)->orderBy('name')->first();
+        $template = null;
+        if ($templateId) {
+            $template = EventContractTemplate::where('is_active', true)->find($templateId);
+        }
+        if (! $template) {
+            $template = EventContractTemplate::where('contract_type', 'engineer')->where('is_active', true)->orderBy('name')->first();
+        }
         if (! $template) {
             return null;
         }

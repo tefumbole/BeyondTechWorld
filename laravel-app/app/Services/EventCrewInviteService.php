@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 
 class EventCrewInviteService
 {
-    public function inviteAssigned(Event $event)
+    public function inviteAssigned(Event $event, $attachContract = true, $templateId = null)
     {
         $event->load('assignments.workerProfile.customer', 'assignments.workerProfile.user');
         $sent = 0;
@@ -68,13 +68,18 @@ class EventCrewInviteService
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
             }
-            $body .= "\nYour contract is attached. Open it, then use this link to accept the days you can work and sign:\n{$url}\n\n"
-                ."If you cannot take this job, open the same link and choose Reject.";
+            if ($attachContract) {
+                $body .= "\nYour contract is attached. Open it, then use this link to accept the days you can work and sign:\n{$url}\n\n"
+                    ."If you cannot take this job, open the same link and choose Reject.";
+            } else {
+                $body .= "\nOpen this link to accept the days you can work:\n{$url}\n\n"
+                    ."If you cannot take this job, open the same link and choose Reject.";
+            }
             $contractFile = null;
             $contractName = 'engineer-contract.pdf';
             try {
                 $contracts = app(EventContractService::class);
-                $contract = $contracts->offerForAssignment($event, $assignment);
+                $contract = $attachContract ? $contracts->offerForAssignment($event, $assignment, $templateId) : null;
                 if ($contract && $contract->status === \App\EventContract::STATUS_DRAFT) {
                     $contracts->markSent($contract);
                     $contract = $contract->fresh();

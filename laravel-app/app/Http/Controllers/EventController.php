@@ -504,6 +504,17 @@ class EventController extends Controller
         return $entries;
     }
 
+    protected function contractChoices()
+    {
+        $templates = \App\EventContractTemplate::where('is_active', true)->orderBy('name')->get();
+        $engineer = $templates->first(function ($template) {
+            return $template->contract_type === 'engineer';
+        });
+        $defaultId = $engineer ? $engineer->id : optional($templates->first())->id;
+
+        return [$templates, $defaultId];
+    }
+
     protected function crewFromEvent(Event $event)
     {
         $rows = array();
@@ -632,8 +643,9 @@ class EventController extends Controller
 
         $isEventAdmin = $this->isEventAdmin();
         $autoPay = null;
+        list($contractTemplates, $defaultContractId) = $this->contractChoices();
 
-        return view('events.create', compact('event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions', 'selectedCustomer', 'isEventAdmin', 'autoPay'));
+        return view('events.create', compact('event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions', 'selectedCustomer', 'isEventAdmin', 'autoPay', 'contractTemplates', 'defaultContractId'));
     }
 
     public function resolveLabourName(Request $request, CampayPayoutService $campay, MobileMoneyHolderService $holders)
@@ -725,6 +737,8 @@ class EventController extends Controller
             'automate_payment' => 'nullable',
             'pay_at' => 'nullable|date',
             'notify_crew' => 'nullable|in:none,affected,everyone',
+            'attach_contract' => 'nullable',
+            'contract_template_id' => 'nullable|string|max:64',
         ]);
 
         $customer = $this->optionalCustomer($request, $data);
@@ -950,7 +964,13 @@ class EventController extends Controller
         }
 
         $invites = app(EventCrewInviteService::class);
-        $invite = $silent ? ['sent' => 0, 'warnings' => []] : $invites->inviteAssigned($event);
+        $attachContract = true;
+        $contractTemplateId = null;
+        if (! $existing) {
+            $attachContract = $request->input('attach_contract') === '1';
+            $contractTemplateId = $attachContract ? $request->input('contract_template_id') : null;
+        }
+        $invite = $silent ? ['sent' => 0, 'warnings' => []] : $invites->inviteAssigned($event, $attachContract, $contractTemplateId);
         $warnings = array_merge($warnings, $invite['warnings']);
         if ($existing && ! $silent) {
             $eventWideChanged = $beforeEvent
@@ -1191,10 +1211,11 @@ class EventController extends Controller
         $unpackDates = Event::parseSetup($event->unpack_dates);
         $isEventAdmin = $this->isEventAdmin();
         $autoPay = null;
+        list($contractTemplates, $defaultContractId) = $this->contractChoices();
 
         return view('events.create', compact(
             'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
-            'selectedCustomer', 'editing', 'cloning', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay'
+            'selectedCustomer', 'editing', 'cloning', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay', 'contractTemplates', 'defaultContractId'
         ));
     }
 
