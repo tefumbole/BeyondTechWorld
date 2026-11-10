@@ -124,7 +124,7 @@
                             </thead>
                             <tbody>
                                 @foreach($payList as $line)
-                                    <tr class="due-row" data-day="{{ $line['date'] }}">
+                                    <tr class="due-row" data-day="{{ $line['date'] }}" data-amount="{{ $line['amount'] }}">
                                         <td><input type="checkbox" class="due-pick" name="lines[]" value="{{ $line['token'] }}"></td>
                                         <td>{{ $line['ref'] !== '' ? $line['ref'] : '—' }}</td>
                                         <td>{{ $line['name'] }}</td>
@@ -135,6 +135,10 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+                    <div class="ev-paying" id="paying-total">
+                        <span>Paying amount</span>
+                        <strong>0 XAF</strong>
                     </div>
                     <div class="ev-send">
                         <label for="pay-at">Send a schedule on</label>
@@ -152,7 +156,21 @@
                     var all = document.getElementById('crew-all');
                     if (!pills || !all) return;
                     var current = '';
+                    var totalBox = document.getElementById('paying-total');
                     function rows() { return document.querySelectorAll('.due-row'); }
+                    function money(amount) {
+                        return String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' XAF';
+                    }
+                    function paintTotal() {
+                        if (!totalBox) return;
+                        var sum = 0;
+                        rows().forEach(function (row) {
+                            if (row.style.display === 'none') return;
+                            var box = row.querySelector('.due-pick');
+                            if (box && box.checked) sum += parseInt(row.getAttribute('data-amount') || '0', 10) || 0;
+                        });
+                        totalBox.querySelector('strong').textContent = money(sum);
+                    }
                     pills.addEventListener('click', function (event) {
                         var button = event.target.closest('button');
                         if (!button) return;
@@ -167,6 +185,7 @@
                             }
                         });
                         all.checked = false;
+                        paintTotal();
                     });
                     all.addEventListener('change', function () {
                         var on = this.checked;
@@ -175,7 +194,13 @@
                             var box = row.querySelector('.due-pick');
                             if (box) box.checked = on;
                         });
+                        paintTotal();
                     });
+                    document.getElementById('crew-pay').addEventListener('change', function (event) {
+                        if (!event.target.classList.contains('due-pick')) return;
+                        paintTotal();
+                    });
+                    paintTotal();
                 })();
             </script>
         @elseif(!count($payList))
@@ -184,27 +209,40 @@
         @php
             $paidRows = $event->payments->filter(function ($payment) {
                 return $payment->status === 'paid';
-            });
+            })->sortByDesc('paid_at');
         @endphp
-        @if($paidRows->count())
-            <h3 class="mt-4" style="font-size:16px;font-weight:800;">Already paid</h3>
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead style="background:#0b3f90;color:#fff;">
-                        <tr><th>Ref</th><th>Person</th><th>Amount</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach($paidRows as $payment)
-                            <tr>
-                                <td><code>{{ $payment->reference_no }}</code></td>
-                                <td>{{ $payment->workerProfile ? $payment->workerProfile->displayName() : 'Person' }}</td>
-                                <td>{{ number_format($payment->amount) }} XAF</td>
-                                <td><span class="ev-offer is-yes">Paid</span></td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+        <div class="ev-pick">
+            <h3>Paid</h3>
+            @if($paidRows->count())
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead style="background:#0b3f90;color:#fff;">
+                            <tr><th>Ref</th><th>Person</th><th>Date</th><th>Amount</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($paidRows as $payment)
+                                @php
+                                    $paidDate = '';
+                                    if (preg_match('/^(\d{4}-\d{2}-\d{2})\s\|/', (string) $payment->notes, $paidMatch)) {
+                                        $paidDate = \Carbon\Carbon::parse($paidMatch[1])->format('d M Y');
+                                    } elseif ($payment->paid_at) {
+                                        $paidDate = $payment->paid_at->format('d M Y');
+                                    }
+                                @endphp
+                                <tr>
+                                    <td><code>{{ $payment->reference_no }}</code></td>
+                                    <td>{{ $payment->workerProfile ? $payment->workerProfile->displayName() : 'Person' }}</td>
+                                    <td>{{ $paidDate !== '' ? $paidDate : '—' }}</td>
+                                    <td>{{ number_format($payment->amount) }} XAF</td>
+                                    <td><span class="ev-offer is-yes">Paid</span></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-muted mb-0">Paid people show here.</p>
+            @endif
+        </div>
     </div>
 </div>

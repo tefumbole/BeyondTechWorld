@@ -34,6 +34,9 @@
     .ev-person .amt { margin-left: auto; font-weight: 800; color: #0b3f90; white-space: nowrap; }
     .ev-send { margin: 12px 0; }
     .ev-send label { font-weight: 800; color: #0f172a; }
+    .ev-paying { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0; padding: 14px 16px; border-radius: 16px; background: #f4f7fb; border: 1px solid #d6e0f0; }
+    .ev-paying span { font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #64748b; }
+    .ev-paying strong { font-size: 22px; color: #0b3f90; }
     .ev-pay-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .ev-pay-actions .btn { min-height: 48px; border-radius: 14px; font-weight: 800; }
     .ev-pay-actions .btn-pay { background: #072f6b; border-color: #072f6b; color: #fff; }
