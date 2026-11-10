@@ -219,7 +219,7 @@
                         <input type="radio" name="notify_crew" value="everyone" {{ old('notify_crew') === 'everyone' ? 'checked' : '' }}>
                         Message everyone on this event
                     </label>
-                    <p class="small text-muted mb-0">Do not send any message keeps this save quiet, including for a new person. Someone who already accepted does not get an accept link.</p>
+                    <p class="small text-muted mb-0">Do not send any message keeps this save quiet. Nobody is messaged, and this save does not send a payment. Someone who already accepted does not get an accept link.</p>
                 </div>
             @endif
 

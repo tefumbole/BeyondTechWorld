@@ -38,24 +38,54 @@
         @endif
 
         @if(!empty($isEventAdmin))
-            <form method="POST" action="{{ route('events.auto-pay.percent', $event->id) }}" class="border rounded p-3 mb-3">
+            <form method="POST" action="{{ route('events.auto-pay.selection', $event->id) }}" class="border rounded p-3 mb-3" id="crew-pay">
                 @csrf
-                <div class="font-weight-bold mb-2">Same percentage for everyone</div>
-                <div class="form-row align-items-end">
+                <div class="font-weight-bold mb-2">Schedule the people you select</div>
+                <label class="d-block mb-2"><input type="checkbox" id="crew-all"> Select all</label>
+                @foreach($event->assignments as $assignment)
+                    @if($assignment->acceptance_status === 'rejected')
+                        @continue
+                    @endif
+                    <label class="d-block mb-1">
+                        <input type="checkbox" class="crew-pick" name="assignment_ids[]" value="{{ $assignment->id }}">
+                        {{ $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Person' }}
+                        — {{ number_format(isset($payRooms[$assignment->id]) ? $payRooms[$assignment->id] : 0) }} XAF still to schedule
+                    </label>
+                @endforeach
+                <div class="form-row align-items-end mt-3">
                     <div class="col-md-3 form-group mb-md-0">
-                        <label>Percentage of what each person is still owed</label>
-                        <input type="number" name="percent" class="form-control" min="1" max="100" value="100" required>
+                        <label class="d-block"><input type="radio" name="mode" value="percent" checked> Percentage</label>
+                        <input type="number" name="percent" id="pay-percent" class="form-control" min="1" max="100" value="100">
                     </div>
-                    <div class="col-md-4 form-group mb-md-0">
-                        <label>Pay on</label>
+                    <div class="col-md-3 form-group mb-md-0">
+                        <label class="d-block"><input type="radio" name="mode" value="day"> One working day</label>
+                        <input type="date" name="work_date" id="pay-day" class="form-control">
+                    </div>
+                    <div class="col-md-3 form-group mb-md-0">
+                        <label>Send on</label>
                         <input type="datetime-local" name="pay_at" class="form-control" required>
                     </div>
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary btn-block">Apply to everyone</button>
+                        <button type="submit" name="do" value="schedule" class="btn btn-primary btn-block">Schedule selected</button>
+                        <button type="submit" name="do" value="pay" id="pay-day-now" class="btn btn-outline-primary btn-block mt-2" onclick="return confirm('Pay only this working day for the selected people now?');">Pay this day now</button>
                     </div>
                 </div>
-                <p class="small text-muted mb-0 mt-2">This replaces each person's open schedules with one payment of that percentage. 100% schedules everything still owed.</p>
+                <p class="small text-muted mb-0 mt-2">A percentage uses what is still owed. A working day pays only that day's rate and food money, not earlier days.</p>
             </form>
+            <script>
+                document.getElementById('crew-all').addEventListener('change', function () {
+                    var on = this.checked;
+                    document.querySelectorAll('.crew-pick').forEach(function (box) { box.checked = on; });
+                });
+                document.getElementById('crew-pay').addEventListener('change', function (event) {
+                    if (event.target.name !== 'mode') return;
+                    var day = event.target.value === 'day';
+                    document.getElementById('pay-day').required = day;
+                    document.getElementById('pay-percent').required = !day;
+                    document.getElementById('pay-day-now').style.display = day ? '' : 'none';
+                });
+                document.getElementById('pay-day-now').style.display = 'none';
+            </script>
             <form method="POST" action="{{ route('events.schedule-pay', $event->id) }}" class="border rounded p-3 mb-3">
                 @csrf
                 <div class="font-weight-bold mb-2">Add another schedule</div>

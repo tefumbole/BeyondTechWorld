@@ -16,6 +16,41 @@
         @if(session('message'))
             <div class="alert alert-success">{{ session('message') }}</div>
         @endif
+        @if(session('not_permitted'))
+            <div class="alert alert-danger">{{ session('not_permitted') }}</div>
+        @endif
+
+        @if((int) optional(auth()->user())->role_id === 1)
+            <form method="POST" action="{{ route('events.payments.day') }}" class="card ev-pay-card mb-4">
+                @csrf
+                <div class="card-header">Pay one working day</div>
+                <div class="card-body">
+                    <div class="form-row align-items-end">
+                        <div class="col-md-4 form-group mb-md-0">
+                            <label>Event</label>
+                            <select name="event_id" class="form-control" required>
+                                <option value="">Choose an event</option>
+                                @foreach(($payEvents ?? []) as $payEvent)
+                                    <option value="{{ $payEvent->id }}">{{ $payEvent->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3 form-group mb-md-0">
+                            <label>Working day</label>
+                            <input type="date" name="work_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-3 form-group mb-md-0">
+                            <label>Send on</label>
+                            <input type="datetime-local" name="pay_at" class="form-control" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" name="do" value="pay" class="btn btn-primary btn-block" onclick="return confirm('Pay only this working day for everyone who works it?');">Pay this day</button>
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-0 mt-2">This pays the rate and food money for that day. It does not pay earlier days that are still open.</p>
+                </div>
+            </form>
+        @endif
 
         <div class="card ev-pay-card mb-4">
             <div class="card-header">Staff and labour on events</div>

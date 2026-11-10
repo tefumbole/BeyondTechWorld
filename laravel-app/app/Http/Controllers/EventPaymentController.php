@@ -76,7 +76,51 @@ class EventPaymentController extends Controller
             'declined' => (clone $offerBase)->where('acceptance_status', 'rejected')->count(),
         ];
 
-        return view('events.payments.index', compact('payments', 'assignments', 'offer', 'offerCounts'));
+        $payEvents = Event::whereNotIn('internal_status', ['cancelled', 'completed'])
+            ->orderByDesc('event_start_at')
+            ->limit(80)
+            ->get(['id', 'name']);
+
+        return view('events.payments.index', compact('payments', 'assignments', 'offer', 'offerCounts', 'payEvents'));
+    }
+
+    public function payDay(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user || (int) $user->role_id !== 1) {
+            abort(403, 'Only an admin can pay a working day.');
+        }
+        $data = $request->validate([
+            'event_id' => 'required|string|max:64',
+            'work_date' => 'required|date',
+            'pay_at' => 'required|date',
+            'do' => 'nullable|in:schedule,pay',
+        ]);
+        $event = Event::with('assignments.workerProfile')->findOrFail($data['event_id']);
+        $service = app(\App\Services\EventAutoPay::class);
+        $result = $service->scheduleDay($event, $data['work_date'], $data['pay_at'], true, null);
+        if (empty($result['ok'])) {
+            return redirect()->route('events.payments.index')->with('not_permitted', $result['message']);
+        }
+        $paidNow = 0;
+        if ($request->input('do') === 'pay') {
+            foreach ($result['rows'] as $row) {
+                $row->pay_at = now();
+                $row->status = 'scheduled';
+                $row->save();
+                $service->pay($row->fresh());
+                $paidNow++;
+            }
+        }
+        $when = \Carbon\Carbon::parse($data['work_date'])->format('d M Y');
+        $message = $paidNow > 0
+            ? $event->name.': '.$when.' was sent for '.$paidNow.' '.($paidNow === 1 ? 'person' : 'people').'.'
+            : $event->name.': '.$when.' is scheduled for '.$result['set'].' '.($result['set'] === 1 ? 'person' : 'people').'.';
+        if (! empty($result['warnings'])) {
+            $message .= ' '.implode(' ', $result['warnings']);
+        }
+
+        return redirect()->route('events.payments.index')->with('message', $message);
     }
 
     public function createForAssignment(Request $request, $eventId, EventPaymentService $payments)

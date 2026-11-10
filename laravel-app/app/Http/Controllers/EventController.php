@@ -163,6 +163,59 @@ class EventController extends Controller
         return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
     }
 
+    public function selectionSchedules(Request $request, $id)
+    {
+        if (! $this->isEventAdmin()) {
+            abort(403, 'Only an admin can schedule a payment.');
+        }
+        $event = Event::with('assignments.workerProfile')->findOrFail($id);
+        $data = $request->validate([
+            'assignment_ids' => 'required|array|min:1',
+            'assignment_ids.*' => 'string|max:64',
+            'mode' => 'required|in:percent,day',
+            'percent' => 'nullable|integer|min:1|max:100',
+            'work_date' => 'nullable|date',
+            'pay_at' => 'required|date',
+            'do' => 'nullable|in:schedule,pay',
+        ]);
+        $service = app(\App\Services\EventAutoPay::class);
+        $ids = array_map('strval', $data['assignment_ids']);
+        if ($data['mode'] === 'day') {
+            if (empty($data['work_date'])) {
+                return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose the working day.');
+            }
+            $result = $service->scheduleDay($event, $data['work_date'], $data['pay_at'], true, $ids);
+            $label = 'that working day';
+        } else {
+            if (empty($data['percent'])) {
+                return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', 'Choose a percentage.');
+            }
+            $result = $service->applyPercent($event, $data['percent'], $data['pay_at'], true, $ids);
+            $label = $data['percent'].'% of what is still owed';
+        }
+        if (empty($result['ok'])) {
+            return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('not_permitted', $result['message']);
+        }
+        $paidNow = 0;
+        if ($request->input('do') === 'pay' && $data['mode'] === 'day') {
+            foreach ($result['rows'] as $row) {
+                $row->pay_at = now();
+                $row->status = 'scheduled';
+                $row->save();
+                $service->pay($row->fresh());
+                $paidNow++;
+            }
+        }
+        $message = $paidNow > 0
+            ? 'Payment for '.$label.' was sent for '.$paidNow.' '.($paidNow === 1 ? 'person' : 'people').'.'
+            : $label.' is scheduled for '.$result['set'].' '.($result['set'] === 1 ? 'person' : 'people').'.';
+        if (! empty($result['warnings'])) {
+            $message .= ' '.implode(' ', $result['warnings']);
+        }
+
+        return redirect()->route('events.show', ['id' => $event->id, 'tab' => 'payments'])->with('message', $message);
+    }
+
     public function schedulePay(Request $request, $id)
     {
         if (! $this->isEventAdmin()) {
@@ -669,6 +722,11 @@ class EventController extends Controller
                 ];
             }
         }
+        $notify = $request->input('notify_crew');
+        if (! in_array($notify, ['none', 'affected', 'everyone'], true)) {
+            $notify = 'affected';
+        }
+        $silent = $existing && $notify === 'none';
         $prepared = $this->prepareCrew($request->input('crew', []), $warnings);
         $kept = [];
         $byKey = [];
@@ -702,7 +760,7 @@ class EventController extends Controller
                 ], $member['assignment_id']);
                 $kept[] = $assignment->id;
                 $byKey[$member['kind'].':'.$member['ref']] = $assignment->id;
-                if ($this->isEventAdmin()) {
+                if ($this->isEventAdmin() && ! $silent) {
                     $this->scheduleStaffDays($event, $assignment, $member['work_dates'], $warnings);
                 }
             } catch (\Exception $e) {
@@ -727,7 +785,7 @@ class EventController extends Controller
             $workforce->refreshLabourBudgetAllocation($event);
         }
 
-        if ($this->isEventAdmin()) {
+        if ($this->isEventAdmin() && ! $silent) {
         foreach ((array) $request->input('schedules', []) as $schedule) {
             if (! is_array($schedule)) {
                 continue;
@@ -760,7 +818,7 @@ class EventController extends Controller
 
         }
 
-        if ($this->isEventAdmin() && $request->exists('automate_payment')) {
+        if ($this->isEventAdmin() && ! $silent && $request->exists('automate_payment')) {
             $auto = app(\App\Services\EventAutoPay::class)->remember(
                 $event,
                 $request->input('pay_at'),
@@ -778,11 +836,6 @@ class EventController extends Controller
         }
 
         $invites = app(EventCrewInviteService::class);
-        $notify = $request->input('notify_crew');
-        if (! in_array($notify, ['none', 'affected', 'everyone'], true)) {
-            $notify = 'affected';
-        }
-        $silent = $existing && $notify === 'none';
         $invite = $silent ? ['sent' => 0, 'warnings' => []] : $invites->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
         if ($existing && ! $silent) {

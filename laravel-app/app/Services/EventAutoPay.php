@@ -197,7 +197,7 @@ class EventAutoPay
         return ['ok' => true, 'row' => $row];
     }
 
-    public function applyPercent(Event $event, $percent, $payAt, $isAdmin)
+    public function applyPercent(Event $event, $percent, $payAt, $isAdmin, array $onlyIds = null)
     {
         $percent = (int) $percent;
         if ($percent < 1 || $percent > 100) {
@@ -208,9 +208,14 @@ class EventAutoPay
         }
         $event->load('assignments.workerProfile');
         $set = 0;
+        $rows = [];
         $warnings = [];
+        $wanted = $onlyIds === null ? null : array_map('strval', $onlyIds);
         foreach ($event->assignments as $assignment) {
             if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            if ($wanted !== null && ! in_array((string) $assignment->id, $wanted, true)) {
                 continue;
             }
             EventAutoPayment::where('assignment_id', $assignment->id)
@@ -234,13 +239,77 @@ class EventAutoPay
                 $warnings[] = $scheduled['message'];
             } else {
                 $set++;
+                $rows[] = $scheduled['row'];
             }
         }
         if ($set < 1) {
             return ['ok' => false, 'message' => $warnings ? implode(' ', $warnings) : 'Nobody had an amount left to schedule.'];
         }
 
-        return ['ok' => true, 'set' => $set, 'warnings' => $warnings];
+        return ['ok' => true, 'set' => $set, 'rows' => $rows, 'warnings' => $warnings];
+    }
+
+    public function scheduleDay(Event $event, $workDate, $payAt, $isAdmin, array $onlyIds = null)
+    {
+        $workDate = substr(trim((string) $workDate), 0, 10);
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $workDate)) {
+            return ['ok' => false, 'message' => 'Choose the working day to pay.'];
+        }
+        if ($payAt === null || $payAt === '') {
+            return ['ok' => false, 'message' => 'Choose when the money should be sent.'];
+        }
+        $event->load('assignments.workerProfile');
+        $wanted = $onlyIds === null ? null : array_map('strval', $onlyIds);
+        $set = 0;
+        $rows = [];
+        $warnings = [];
+        foreach ($event->assignments as $assignment) {
+            if ($assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            if ($wanted !== null && ! in_array((string) $assignment->id, $wanted, true)) {
+                continue;
+            }
+            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'A person';
+            $match = null;
+            foreach (\App\Event::parseWorkDays($assignment->work_dates) as $day) {
+                if ($day['date'] === $workDate) {
+                    $match = $day;
+                    break;
+                }
+            }
+            if (! $match) {
+                $warnings[] = $name.' does not work on that day.';
+                continue;
+            }
+            $already = EventWorkerPayment::where('assignment_id', $assignment->id)
+                ->where('status', EventWorkerPayment::STATUS_PAID)
+                ->where('notes', 'like', $workDate.' | %')
+                ->exists();
+            if ($already) {
+                $warnings[] = $name.' is already paid for that day.';
+                continue;
+            }
+            $amount = $match['pay_amount'] !== null
+                ? (int) $match['pay_amount']
+                : ((int) $assignment->event_daily_rate + (int) $assignment->food_per_day);
+            if ($amount < 100) {
+                $warnings[] = $name.' was skipped because that day is under 100 XAF.';
+                continue;
+            }
+            $scheduled = $this->schedule($event, $assignment->id, $amount, $payAt, $isAdmin);
+            if (empty($scheduled['ok'])) {
+                $warnings[] = $scheduled['message'];
+            } else {
+                $set++;
+                $rows[] = $scheduled['row'];
+            }
+        }
+        if ($set < 1) {
+            return ['ok' => false, 'message' => $warnings ? implode(' ', $warnings) : 'Nobody is due for that day.'];
+        }
+
+        return ['ok' => true, 'set' => $set, 'rows' => $rows, 'warnings' => $warnings];
     }
 
     public function runDue()

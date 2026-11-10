@@ -1059,6 +1059,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/events/timesheets/{id}/approve', 'EventTimesheetController@approve')->name('events.timesheets.approve');
     Route::post('/admin/events/timesheets/{id}/reject', 'EventTimesheetController@reject')->name('events.timesheets.reject');
     Route::get('/admin/events/payments', 'EventPaymentController@index')->name('events.payments.index');
+    Route::post('/admin/events/payments/day', 'EventPaymentController@payDay')->name('events.payments.day');
     Route::post('/admin/events/payments/{paymentId}/mark-paid', 'EventPaymentController@markPaid')->name('events.payments.mark-paid');
     Route::get('/admin/events/reminders', 'EventReminderController@index')->name('events.reminders.index');
     Route::post('/admin/events/reminders', 'EventReminderController@schedule')->name('events.reminders.schedule');
@@ -1088,6 +1089,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/events/{id}/auto-pay/reject', 'EventController@rejectAutoPay')->name('events.auto-pay.reject');
     Route::post('/admin/events/{id}/auto-pay/selected', 'EventController@selectedSchedules')->name('events.auto-pay.selected');
     Route::post('/admin/events/{id}/auto-pay/percent', 'EventController@percentSchedules')->name('events.auto-pay.percent');
+    Route::post('/admin/events/{id}/auto-pay/selection', 'EventController@selectionSchedules')->name('events.auto-pay.selection');
     Route::post('/admin/events/{id}/auto-pay/{scheduleId}', 'EventController@updateSchedule')->name('events.auto-pay.update');
 
 	Route::get('/wp', 'HomeController@whatsapp');
