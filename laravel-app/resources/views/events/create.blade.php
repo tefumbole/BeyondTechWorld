@@ -1109,21 +1109,26 @@
         popState.input = row.querySelector('.crew-dates');
         toggleDate(chip.getAttribute('data-date'));
     });
+    function shiftMonth(step) {
+        var moved = new Date(popState.year, popState.month + step, 1);
+        popState.year = moved.getFullYear();
+        popState.month = moved.getMonth();
+        renderPop();
+    }
+    pop.addEventListener('mousedown', function (event) {
+        var nav = event.target.closest('[data-nav]');
+        if (!nav) return;
+        event.preventDefault();
+        event.stopPropagation();
+        shiftMonth(parseInt(nav.getAttribute('data-nav'), 10));
+    });
     pop.addEventListener('click', function (event) {
         event.stopPropagation();
         if (event.target.closest('[data-ok]')) {
             pop.hidden = true;
             return;
         }
-        var nav = event.target.closest('[data-nav]');
-        if (nav) {
-            var next = popState.month + parseInt(nav.getAttribute('data-nav'), 10);
-            var moved = new Date(popState.year, next, 1);
-            popState.year = moved.getFullYear();
-            popState.month = moved.getMonth();
-            renderPop();
-            return;
-        }
+        if (event.target.closest('[data-nav]')) return;
         if (event.target.id === 'pop-several') {
             popState.several = event.target.checked;
             popState.anchor = null;
@@ -1134,6 +1139,7 @@
         if (day) chooseDate(day.getAttribute('data-date'));
     });
     document.addEventListener('click', function (event) {
+        if (!event.target || !event.target.isConnected) return;
         if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('#unpack-open') || event.target.closest('.ev-chip')) return;
         pop.hidden = true;
     });

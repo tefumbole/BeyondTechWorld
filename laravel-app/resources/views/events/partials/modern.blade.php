@@ -406,13 +406,18 @@
         padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
     }
     .ev-popcal {
-        position: fixed; z-index: 4000; width: 300px; background: #fff;
+        position: fixed; z-index: 4000; width: 300px; max-height: calc(100vh - 16px);
+        overflow: auto; background: #fff;
         border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px;
         box-shadow: 0 16px 40px rgba(15, 23, 42, .18);
     }
     .ev-popcal[hidden] { display: none; }
-    .ev-popcal-head { display: flex; align-items: center; justify-content: space-between; font-weight: 800; margin-bottom: 8px; }
-    .ev-popcal-head button { border: 0; background: #f1f5f9; border-radius: 8px; width: 32px; height: 32px; font-weight: 800; }
+    .ev-popcal-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        font-weight: 800; margin-bottom: 8px; position: sticky; top: -12px;
+        background: #fff; padding: 4px 0; z-index: 1;
+    }
+    .ev-popcal-head button { border: 0; background: #f1f5f9; border-radius: 8px; width: 40px; height: 40px; font-weight: 800; font-size: 20px; }
     .ev-popcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .ev-popcal-grid span { font-size: 10px; font-weight: 800; color: #94a3b8; padding: 4px 0; }
     .ev-popcal-grid button { border: 0; background: #f8fafc; border-radius: 8px; padding: 7px 0; font-weight: 700; font-size: 13px; }
