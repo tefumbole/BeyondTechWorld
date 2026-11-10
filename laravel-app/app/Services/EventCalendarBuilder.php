@@ -57,16 +57,16 @@ class EventCalendarBuilder
                         'name' => 'Setup · '.$eventName,
                         'start' => $span[0],
                         'end' => $span[1],
-                        'color' => '#c6ab47',
+                        'color' => '#f97316',
                     ];
                 }
                 foreach ($this->dateSpans(isset($event->unpack_dates) ? $event->unpack_dates : null) as $span) {
                     $segments[] = [
                         'kind' => 'unpack',
-                        'name' => 'Unpack · '.$eventName,
+                        'name' => 'Unpacking · '.$eventName,
                         'start' => $span[0],
                         'end' => $span[1],
-                        'color' => '#0f766e',
+                        'color' => '#06b6d4',
                     ];
                 }
                 foreach ($segments as $segment) {
@@ -96,6 +96,221 @@ class EventCalendarBuilder
         }
 
         return $weeks;
+    }
+
+    public function weeksFromMarks(array $marks, Carbon $monthStart)
+    {
+        $monthStart = Carbon::parse($monthStart->format('Y-m-01').' 00:00:00')->startOfMonth();
+        $gridStart = $monthStart->copy()->startOfWeek(Carbon::MONDAY);
+        $gridEnd = $monthStart->copy()->endOfMonth()->endOfWeek(Carbon::MONDAY);
+        $weeks = [];
+        $cursor = $gridStart->copy();
+
+        while ($cursor->lte($gridEnd)) {
+            $days = [];
+            for ($i = 0; $i < 7; $i++) {
+                $days[] = $cursor->copy();
+                $cursor->addDay();
+            }
+            $occupied = [];
+            $bars = [];
+            foreach ($marks as $mark) {
+                $payload = [];
+                foreach ((array) (isset($mark['dates']) ? $mark['dates'] : []) as $date) {
+                    $payload[] = ['date' => $date];
+                }
+                foreach ($this->dateSpans($payload) as $span) {
+                    $placed = $this->placeBar($span[0], $span[1], $days, $occupied);
+                    if (! $placed) {
+                        continue;
+                    }
+                    $bars[] = [
+                        'id' => (string) (isset($mark['id']) ? $mark['id'] : ''),
+                        'name' => (string) (isset($mark['name']) ? $mark['name'] : ''),
+                        'kind' => (string) (isset($mark['kind']) ? $mark['kind'] : 'event'),
+                        'status' => '',
+                        'col' => $placed['col'],
+                        'span' => $placed['span'],
+                        'lane' => $placed['lane'],
+                        'continues_before' => $placed['continues_before'],
+                        'continues_after' => $placed['continues_after'],
+                        'color' => (string) (isset($mark['color']) ? $mark['color'] : '#0b3f90'),
+                    ];
+                }
+            }
+            $weeks[] = [
+                'days' => $days,
+                'bars' => $bars,
+                'lanes' => max(1, count($occupied)),
+            ];
+        }
+
+        return $weeks;
+    }
+
+    public function eventDateMarks($events)
+    {
+        $palette = ['#0b3f90', '#7c3aed', '#db2777', '#0f766e', '#b45309', '#0369a1', '#be123c', '#15803d'];
+        $marks = [];
+        foreach ($events as $event) {
+            $start = $this->day(isset($event->event_start_at) ? $event->event_start_at : null);
+            if (! $start) {
+                continue;
+            }
+            $end = $this->day(isset($event->event_end_at) ? $event->event_end_at : null);
+            if (! $end || $end->lt($start)) {
+                $end = $start->copy();
+            }
+            $dates = [];
+            $cursor = $start->copy();
+            $guard = 0;
+            while ($cursor->lte($end) && $guard < 120) {
+                $dates[] = $cursor->format('Y-m-d');
+                $cursor->addDay();
+                $guard++;
+            }
+            $marks[] = [
+                'id' => (string) $event->id,
+                'name' => (string) $event->name,
+                'kind' => 'event',
+                'color' => $palette[abs(crc32((string) $event->id)) % count($palette)],
+                'dates' => $dates,
+            ];
+        }
+
+        return $marks;
+    }
+
+    public function setupMarks($events)
+    {
+        return $this->dutyMarks($events, 'setup_dates', 'Setup', 'setup', '#f97316');
+    }
+
+    public function unpackingMarks($events)
+    {
+        return $this->dutyMarks($events, 'unpack_dates', 'Unpacking', 'unpack', '#06b6d4');
+    }
+
+    public function engineerMarks($assignments)
+    {
+        $palette = ['#0b3f90', '#7c3aed', '#db2777', '#0f766e', '#b45309', '#0369a1', '#be123c', '#15803d'];
+        $marks = [];
+        foreach ($assignments as $assignment) {
+            if ((string) $assignment->acceptance_status === 'rejected') {
+                continue;
+            }
+            $event = $assignment->event;
+            if (! $event || (string) $event->internal_status === 'cancelled') {
+                continue;
+            }
+            $profile = $assignment->workerProfile;
+            if (! $profile || ! class_exists(\App\Event::class)) {
+                continue;
+            }
+            $dates = [];
+            foreach (\App\Event::parseWorkDays($assignment->work_dates) as $day) {
+                if (! empty($day['date'])) {
+                    $dates[] = $day['date'];
+                }
+            }
+            if (! count($dates)) {
+                continue;
+            }
+            $marks[] = [
+                'id' => (string) $event->id,
+                'name' => $profile->displayName().' · '.$event->name,
+                'kind' => 'engineer',
+                'color' => $palette[abs(crc32((string) $profile->id)) % count($palette)],
+                'dates' => $dates,
+            ];
+        }
+
+        return $marks;
+    }
+
+    public function paymentMarks($payments)
+    {
+        $grouped = [];
+        foreach ($payments as $payment) {
+            if ((string) $payment->status !== 'paid') {
+                continue;
+            }
+            $date = $this->paymentDay($payment);
+            if (! $date) {
+                continue;
+            }
+            $profile = $payment->workerProfile;
+            $name = $profile ? $profile->displayName() : 'Payment';
+            $eventName = $payment->event ? $payment->event->name : '';
+            $key = $date.'|'.(string) $payment->event_id.'|'.(string) $payment->worker_profile_id;
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'id' => (string) $payment->event_id,
+                    'name' => $name,
+                    'event' => $eventName,
+                    'date' => $date,
+                    'amount' => 0,
+                ];
+            }
+            $grouped[$key]['amount'] += (int) $payment->amount;
+        }
+        $marks = [];
+        foreach ($grouped as $row) {
+            $label = number_format($row['amount']).' XAF · '.$row['name'];
+            if ($row['event'] !== '') {
+                $label .= ' · '.$row['event'];
+            }
+            $marks[] = [
+                'id' => $row['id'],
+                'name' => $label,
+                'kind' => 'pay',
+                'color' => '#059669',
+                'dates' => [$row['date']],
+            ];
+        }
+
+        return $marks;
+    }
+
+    protected function dutyMarks($events, $field, $label, $kind, $color)
+    {
+        $marks = [];
+        if (! class_exists(\App\Event::class)) {
+            return $marks;
+        }
+        foreach ($events as $event) {
+            $dates = [];
+            foreach (\App\Event::parseSetup(isset($event->{$field}) ? $event->{$field} : null) as $entry) {
+                if (! empty($entry['date'])) {
+                    $dates[] = $entry['date'];
+                }
+            }
+            if (! count($dates)) {
+                continue;
+            }
+            $marks[] = [
+                'id' => (string) $event->id,
+                'name' => $label.' · '.$event->name,
+                'kind' => $kind,
+                'color' => $color,
+                'dates' => $dates,
+            ];
+        }
+
+        return $marks;
+    }
+
+    protected function paymentDay($payment)
+    {
+        $notes = (string) (isset($payment->notes) ? $payment->notes : '');
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})\s*\|/', $notes, $match)) {
+            return $match[1];
+        }
+        if (! empty($payment->paid_at)) {
+            return Carbon::parse($payment->paid_at)->toDateString();
+        }
+
+        return null;
     }
 
     protected function placeBar(Carbon $start, Carbon $end, array $days, array &$occupied)

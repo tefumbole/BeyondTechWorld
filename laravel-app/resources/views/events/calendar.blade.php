@@ -8,20 +8,40 @@
             <div>
                 <div class="ev-kicker">Events</div>
                 <h4>Event Calendar</h4>
-                <p>Gold is setup. The event colour is the event itself. Green is unpacking.</p>
+                <p>{{ $intro }}</p>
             </div>
         </div>
-        <div class="ev-cal">
+        <div class="ev-cal is-{{ $tab }} {{ in_array($tab, ['engineers', 'payments'], true) ? 'is-detail' : '' }}">
+            <nav class="ev-cal-tabs">
+                @foreach([
+                    'event' => ['Event Date', '#e11d48'],
+                    'setup' => ['Setup', '#f97316'],
+                    'unpacking' => ['Unpacking', '#06b6d4'],
+                    'engineers' => ['Engineers', '#7c3aed'],
+                    'payments' => ['Payments', '#059669'],
+                ] as $key => $meta)
+                    <a class="is-{{ $key }} {{ $tab === $key ? 'is-on' : '' }}" href="{{ route('events.calendar', ['month' => $monthKey, 'tab' => $key]) }}">
+                        <i style="background:{{ $tab === $key ? 'rgba(255,255,255,.9)' : $meta[1] }}"></i>{{ $meta[0] }}
+                    </a>
+                @endforeach
+            </nav>
             <div class="ev-cal-toolbar">
-                <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $prevMonth]) }}" aria-label="Previous month">‹</a>
+                <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $prevMonth, 'tab' => $tab]) }}" aria-label="Previous month">‹</a>
                 <h3>{{ $monthLabel }}</h3>
-                <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $nextMonth]) }}" aria-label="Next month">›</a>
+                <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $nextMonth, 'tab' => $tab]) }}" aria-label="Next month">›</a>
             </div>
             <div class="ev-cal-legend">
-                <span><b class="ev-cal-date-key"></b> Date with an event</span>
-                <span><i style="background:#c6ab47"></i> Setup</span>
-                <span><i style="background:#0b3f90"></i> Event</span>
-                <span><i style="background:#0f766e"></i> Unpacking</span>
+                @if($tab === 'setup')
+                    <span><i style="background:#f97316"></i> Setup dates only</span>
+                @elseif($tab === 'unpacking')
+                    <span><i style="background:#06b6d4"></i> Unpacking dates only</span>
+                @elseif($tab === 'engineers')
+                    <span><i style="background:#7c3aed"></i> Engineer on that day</span>
+                @elseif($tab === 'payments')
+                    <span><i style="background:#059669"></i> Amount paid</span>
+                @else
+                    <span><b class="ev-cal-date-key"></b> Event dates only</span>
+                @endif
             </div>
             <div class="ev-cal-scroll">
                 <div class="ev-cal-grid">

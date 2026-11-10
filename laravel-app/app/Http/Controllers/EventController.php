@@ -1269,31 +1269,49 @@ class EventController extends Controller
         $this->can('events.view');
 
         $monthStart = $builder->monthStart($request->get('month'));
-        $gridStart = $monthStart->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->startOfDay();
-        $gridEnd = $monthStart->copy()->endOfMonth()->endOfWeek(\Carbon\Carbon::MONDAY)->endOfDay();
-        $windowStart = $gridStart->copy()->subDays(21);
-        $windowEnd = $gridEnd->copy()->addDays(21);
-        $events = Event::whereNotNull('event_start_at')
-            ->where(function ($query) use ($gridStart, $gridEnd, $windowStart, $windowEnd) {
-                $query->where(function ($query) use ($gridStart, $gridEnd) {
-                    $query->where('event_start_at', '<=', $gridEnd)
-                        ->where(function ($query) use ($gridStart) {
-                            $query->where('event_end_at', '>=', $gridStart)
-                                ->orWhereNull('event_end_at');
-                        });
-                })->orWhereBetween('event_start_at', [$windowStart, $windowEnd])
-                    ->orWhereBetween('event_end_at', [$windowStart, $windowEnd]);
+        $events = Event::where(function ($query) {
+                $query->whereNull('internal_status')->orWhere('internal_status', '!=', 'cancelled');
             })
             ->orderBy('event_start_at')
             ->get(['id', 'name', 'event_start_at', 'event_end_at', 'internal_status', 'venue', 'setup_dates', 'unpack_dates']);
-        $weeks = $builder->weeks($events, $monthStart);
+        $tab = (string) $request->get('tab', 'event');
+        if (! in_array($tab, ['event', 'setup', 'unpacking', 'engineers', 'payments'], true)) {
+            $tab = 'event';
+        }
+        if ($tab === 'setup') {
+            $weeks = $builder->weeksFromMarks($builder->setupMarks($events), $monthStart);
+        } elseif ($tab === 'unpacking') {
+            $weeks = $builder->weeksFromMarks($builder->unpackingMarks($events), $monthStart);
+        } elseif ($tab === 'engineers') {
+            $assignments = \App\EventAssignment::with(['event', 'workerProfile.customer', 'workerProfile.user'])
+                ->where(function ($query) {
+                    $query->whereNull('acceptance_status')->orWhere('acceptance_status', '!=', 'rejected');
+                })
+                ->get();
+            $weeks = $builder->weeksFromMarks($builder->engineerMarks($assignments), $monthStart);
+        } elseif ($tab === 'payments') {
+            $payments = \App\EventWorkerPayment::with(['event', 'workerProfile.customer', 'workerProfile.user'])
+                ->where('status', 'paid')
+                ->get();
+            $weeks = $builder->weeksFromMarks($builder->paymentMarks($payments), $monthStart);
+        } else {
+            $weeks = $builder->weeksFromMarks($builder->eventDateMarks($events), $monthStart);
+        }
         $monthLabel = $monthStart->format('F Y');
         $monthKey = $monthStart->format('Y-m');
         $prevMonth = $monthStart->copy()->subMonth()->format('Y-m');
         $nextMonth = $monthStart->copy()->addMonth()->format('Y-m');
         $today = \Carbon\Carbon::now('Africa/Douala')->toDateString();
+        $tabCopy = [
+            'event' => 'Event dates only. Setup and unpacking stay on their own tabs.',
+            'setup' => 'Setup dates only.',
+            'unpacking' => 'Unpacking dates only.',
+            'engineers' => 'Each engineer is shown only on the days that person works.',
+            'payments' => 'Amounts already paid, on the day they were paid.',
+        ];
+        $intro = $tabCopy[$tab];
 
-        return view('events.calendar', compact('weeks', 'monthLabel', 'monthKey', 'prevMonth', 'nextMonth', 'today'));
+        return view('events.calendar', compact('weeks', 'monthLabel', 'monthKey', 'prevMonth', 'nextMonth', 'today', 'tab', 'intro'));
     }
 
     private function validatedEvent(Request $request, Event $existing = null)
