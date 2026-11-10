@@ -963,15 +963,13 @@ class EventController extends Controller
             }
         }
 
-        $invites = app(EventCrewInviteService::class);
         $attachContract = true;
         $contractTemplateId = null;
         if (! $existing) {
             $attachContract = $request->input('attach_contract') === '1';
             $contractTemplateId = $attachContract ? $request->input('contract_template_id') : null;
         }
-        $invite = $silent ? ['sent' => 0, 'warnings' => []] : $invites->inviteAssigned($event, $attachContract, $contractTemplateId);
-        $warnings = array_merge($warnings, $invite['warnings']);
+        $targets = [];
         if ($existing && ! $silent) {
             $eventWideChanged = $beforeEvent
                 && (
@@ -985,7 +983,6 @@ class EventController extends Controller
                     || $beforeEvent['unpack'] !== (string) $event->unpack_dates
                     || $beforeEvent['type'] !== (string) $event->event_type
                 );
-            $targets = [];
             foreach ($event->assignments()->get() as $assignment) {
                 $id = (string) $assignment->id;
                 $snap = isset($beforeCrew[$id]) ? $beforeCrew[$id] : null;
@@ -1001,22 +998,29 @@ class EventController extends Controller
                     $targets[] = $id;
                 }
             }
-            if (count($targets)) {
-                $notice = $invites->notifyUpdate($event, $targets);
-                $warnings = array_merge($warnings, $notice['warnings']);
-                if ($notice['sent'] > 0) {
-                    $warnings[] = $notify === 'everyone'
-                        ? 'The update was sent to '.$notice['sent'].' people. Anyone who already accepted was not asked to accept again.'
-                        : 'The update was sent to '.$notice['sent'].' '.($notice['sent'] === 1 ? 'person' : 'people').' affected by the changes.';
+        }
+        if (! $silent) {
+            $eventId = $event->id;
+            app()->terminating(function () use ($eventId, $attachContract, $contractTemplateId, $targets) {
+                $saved = Event::find($eventId);
+                if (! $saved) {
+                    return;
                 }
-            }
+                $invites = app(EventCrewInviteService::class);
+                $invites->inviteAssigned($saved, $attachContract, $contractTemplateId);
+                if (count($targets)) {
+                    $invites->notifyUpdate($saved, $targets);
+                }
+            });
         }
 
         $msg = $existing ? $event->name.' saved.' : $event->name.' is on the Events dashboard.';
         if ($silent) {
             $msg .= ' No messages were sent.';
-        } elseif ($invite['sent'] > 0) {
-            $msg .= ' '.$invite['sent'].' people received the selection message.';
+        } elseif (! $existing) {
+            $msg .= ' The engineers will receive the selection message with this name.';
+        } elseif (count($targets)) {
+            $msg .= ' The engineers who are affected will receive this name.';
         }
         if ($publish) {
             $msg .= ' It is also on the website Events page.';
@@ -1175,8 +1179,6 @@ class EventController extends Controller
             'assignments.workerProfile.user',
             'assignments.workerProfile.category',
         ])->findOrFail($id);
-        $copyName = trim($event->name.' (copy)');
-        $event->name = strlen($copyName) > 255 ? substr($copyName, 0, 255) : $copyName;
         $customers = Customer::where('is_active', true)->orderBy('name')
             ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
         $roles = EventWorkerCategory::active()->orderBy('name')->get();

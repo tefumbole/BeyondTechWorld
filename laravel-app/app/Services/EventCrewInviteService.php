@@ -19,6 +19,7 @@ class EventCrewInviteService
 {
     public function inviteAssigned(Event $event, $attachContract = true, $templateId = null)
     {
+        $event = $event->fresh() ?: $event;
         $event->load('assignments.workerProfile.customer', 'assignments.workerProfile.user');
         $sent = 0;
         $warnings = [];
@@ -98,7 +99,7 @@ class EventCrewInviteService
                 $contractFile = null;
             }
             if ($attempted) {
-                usleep(5000000);
+                usleep(400000);
             }
             $attempted = true;
             try {
@@ -261,7 +262,7 @@ class EventCrewInviteService
                 .$setup
                 ."\nOpen your place:\n".url('/event-invite/'.$assignment->invite_token);
             if ($attempted) {
-                usleep(5000000);
+                usleep(400000);
             }
             $attempted = true;
             try {
@@ -284,6 +285,7 @@ class EventCrewInviteService
         if (! count($assignmentIds)) {
             return ['sent' => 0, 'warnings' => []];
         }
+        $event = $event->fresh() ?: $event;
         $event->load('assignments.workerProfile.customer', 'assignments.workerProfile.user');
         $wanted = array_map('strval', $assignmentIds);
         $sent = 0;
@@ -341,7 +343,7 @@ class EventCrewInviteService
                     .'If you cannot take this job, open the same link and choose Reject.';
             }
             if ($attempted) {
-                usleep(5000000);
+                usleep(400000);
             }
             $attempted = true;
             try {
@@ -503,8 +505,8 @@ class EventCrewInviteService
 
     public function notifyAccepted(EventAssignment $assignment)
     {
-        $assignment->load('event', 'workerProfile.customer', 'workerProfile.user');
-        $event = $assignment->event;
+        $assignment->load('workerProfile.customer', 'workerProfile.user');
+        $event = Event::find($assignment->event_id);
         $phone = $this->phoneFor($assignment);
         if (! $event || ! $phone) {
             return;
