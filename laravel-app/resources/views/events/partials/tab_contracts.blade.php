@@ -4,9 +4,28 @@
 <div class="card mb-3" style="border:1px solid #d7e6f7;">
     <div class="card-body">
         <h6 class="mb-2" style="font-weight:700;color:#0b3f90;">Bulk Engineer Engagements (Enterprise Contracts)</h6>
-        <p class="text-muted small">Creates draft contracts from the <strong>ENG-EVENT</strong> template for selected workers. Open each from the Contracts module to send for signature.</p>
+        <p class="text-muted small">Choose a contract template, then create a draft for each selected worker.</p>
         <form method="POST" action="{{ route('contracts.bulk_engineer', $event->id) }}">
             @csrf
+            @php
+                $enterpriseTemplates = \App\ContractTemplate::where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
+                $defaultEnterprise = optional($enterpriseTemplates->first(function ($template) {
+                    return $template->code === 'ENG-EVENT';
+                }))->id;
+            @endphp
+            <div class="form-group">
+                <label for="enterprise-template">Contract template</label>
+                @if($enterpriseTemplates->count())
+                    <input type="search" class="form-control mb-2" id="enterprise-template-search" placeholder="Search templates" autocomplete="off">
+                    <select name="template_id" id="enterprise-template" class="form-control" required>
+                        @foreach($enterpriseTemplates as $template)
+                            <option value="{{ $template->id }}" {{ (string) $template->id === (string) $defaultEnterprise ? 'selected' : '' }}>{{ $template->name }}{{ $template->code ? ' ('.$template->code.')' : '' }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <p class="text-muted mb-0">No contract templates are available yet.</p>
+                @endif
+            </div>
             <div class="table-responsive mb-2">
                 <table class="table table-sm">
                     <thead><tr><th style="width:36px;"></th><th>Worker</th><th>Role</th><th>Daily rate</th></tr></thead>
@@ -23,7 +42,7 @@
                 </table>
             </div>
             @if(in_array('contracts.create', $all_permission) || in_array('contracts.bulk', $all_permission) || in_array('contracts_module', $all_permission))
-                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Create enterprise Engineer Engagement drafts for selected workers?');">
+                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Create contracts from the selected template for the workers you checked?');">
                     Create enterprise contracts
                 </button>
             @endif
@@ -103,3 +122,26 @@
         @endif
     </div>
 </div>
+<script>
+(function () {
+    var search = document.getElementById('enterprise-template-search');
+    var select = document.getElementById('enterprise-template');
+    if (!search || !select) return;
+    var options = Array.prototype.map.call(select.options, function (option) {
+        return {value: option.value, text: option.text};
+    });
+    search.addEventListener('input', function () {
+        var query = search.value.toLowerCase();
+        var current = select.value;
+        select.innerHTML = '';
+        options.forEach(function (option) {
+            if (query && option.text.toLowerCase().indexOf(query) === -1 && option.value !== current) return;
+            var el = document.createElement('option');
+            el.value = option.value;
+            el.textContent = option.text;
+            if (option.value === current) el.selected = true;
+            select.appendChild(el);
+        });
+    });
+})();
+</script>

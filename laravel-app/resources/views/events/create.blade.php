@@ -191,8 +191,7 @@
                 <div id="day-panels" class="mt-3"></div>
             </div>
 
-            @if(! $editing)
-                <div class="ev-section">
+            <div class="ev-section">
                     <h3>Contract</h3>
                     <label class="ev-toggle">
                         <input type="hidden" name="attach_contract" value="0">
@@ -214,7 +213,6 @@
                         @endif
                     </div>
                 </div>
-            @endif
 
             <div class="ev-section">
                 <h3>Website</h3>

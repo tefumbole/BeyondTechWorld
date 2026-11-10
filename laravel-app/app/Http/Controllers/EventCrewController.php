@@ -17,9 +17,7 @@ class EventCrewController extends Controller
         if ($assignment->acceptance_status === 'rejected') {
             $step = 'declined';
         } elseif ($assignment->acceptance_status === 'accepted') {
-            $request->session()->put('event_crew_assignment', $assignment->id);
-
-            return redirect()->route('events.crew.home');
+            $step = 'expired';
         } elseif ($request->query('choose') === '1') {
             $request->session()->forget('event_otp_for');
             $step = 'accept';
@@ -56,7 +54,22 @@ class EventCrewController extends Controller
     public function accept(Request $request, $token, EventCrewInviteService $invites)
     {
         $assignment = $this->assignment($token);
-        $offered = $invites->workDates($assignment);
+        if ($assignment->acceptance_status === 'accepted') {
+            return view('events.crew.invite', $this->inviteView($assignment, 'expired'));
+        }
+        $offeredEntries = $invites->offeredDayEntries($assignment);
+        $offered = array();
+        foreach ($offeredEntries as $day) {
+            $offered[] = $day['date'];
+        }
+        $contract = $assignment->contract()->whereNotIn('status', [\App\EventContract::STATUS_CANCELLED])->first();
+        if ($contract && ! in_array($contract->status, [\App\EventContract::STATUS_WORKER_SIGNED, \App\EventContract::STATUS_APPROVED], true)) {
+            $signature = (string) $request->input('signature_image');
+            if (strpos($signature, 'data:image/png') !== 0) {
+                return back()->withErrors(['signature' => 'Sign the contract before you accept.']);
+            }
+            $request->session()->put($this->signatureKey($token), $signature);
+        }
         $acceptAll = $request->input('accept_all') === '1' || ! count($offered);
         if ($acceptAll) {
             $chosen = $offered;
@@ -86,9 +99,7 @@ class EventCrewController extends Controller
     {
         $assignment = $this->assignment($token);
         if ($assignment->acceptance_status === 'accepted') {
-            $request->session()->put('event_crew_assignment', $assignment->id);
-
-            return redirect()->route('events.crew.home');
+            return view('events.crew.invite', $this->inviteView($assignment, 'expired'));
         }
         $request->validate(['otp' => 'required|string|min:6|max:12']);
         $stored = $request->session()->get($this->otpKey($token));
@@ -105,6 +116,7 @@ class EventCrewController extends Controller
             $assignment = $assignment->fresh();
         }
         $invites->markAccepted($assignment);
+        $this->signAttachedContract($assignment->fresh(), $request->session()->pull($this->signatureKey($token)));
         $request->session()->forget($this->otpKey($token));
         $request->session()->forget($this->daysKey($token));
         $request->session()->put('event_crew_assignment', $assignment->id);
@@ -184,14 +196,35 @@ class EventCrewController extends Controller
             'setupText' => $invites->setupText($assignment->event),
             'workDates' => $invites->workDates($assignment),
             'dayChoices' => $this->dayChoices($assignment, $invites),
+            'engineerName' => $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Engineer',
+            'contract' => $assignment->contract()->whereNotIn('status', [\App\EventContract::STATUS_CANCELLED])->first(),
         ];
+    }
+
+    protected function signatureKey($token)
+    {
+        return 'event_accept_signature.'.sha1($token);
+    }
+
+    protected function signAttachedContract(EventAssignment $assignment, $signature)
+    {
+        if (! is_string($signature) || strpos($signature, 'data:image/png') !== 0) {
+            return;
+        }
+        $contract = $assignment->contract()->whereNotIn('status', [\App\EventContract::STATUS_CANCELLED])->first();
+        if (! $contract || in_array($contract->status, [\App\EventContract::STATUS_WORKER_SIGNED, \App\EventContract::STATUS_APPROVED], true)) {
+            return;
+        }
+        $contracts = app(\App\Services\EventContractService::class);
+        $contracts->workerSign($contract, $signature);
+        $contracts->finishSigned($contract->fresh());
     }
 
     protected function dayChoices(EventAssignment $assignment, EventCrewInviteService $invites)
     {
         $daily = $invites->dayAmount($assignment);
         $rows = array();
-        foreach ($invites->workDayEntries($assignment) as $day) {
+        foreach ($invites->offeredDayEntries($assignment) as $day) {
             $amount = $day['pay_amount'] !== null ? (int) $day['pay_amount'] : $daily;
             $rows[] = array(
                 'date' => $day['date'],

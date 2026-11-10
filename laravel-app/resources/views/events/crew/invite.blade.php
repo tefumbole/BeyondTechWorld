@@ -24,13 +24,19 @@
         .day input[type="checkbox"] { width: 22px; height: 22px; min-height: 22px; margin: 0; padding: 0; letter-spacing: 0; border-radius: 6px; }
         .err { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
         .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+        .who { margin: 0; font-size: 28px; line-height: 1.15; }
+        .role { margin: 4px 0 0; color: #0b3f90; font-weight: 800; }
+        .event-name { margin: 14px 0 0; font-size: 16px; color: #334155; }
+        canvas { width: 100%; height: 140px; border: 1px solid #d6deea; border-radius: 12px; background: #fff; touch-action: none; }
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="card">
         <div class="kicker">BeyondTechWorld</div>
-        <h1>{{ $event->name }}</h1>
+        <h1 class="who">{{ $engineerName ?? 'Engineer' }}</h1>
+        <p class="role">{{ $assignment->assignment_role ?: 'Crew' }}</p>
+        <p class="event-name">{{ $event->name }}</p>
         <p>You have been selected for this event.</p>
         <div class="meta">
             <div><strong>Dates.</strong> {{ $event->event_start_at ? $event->event_start_at->format('d M Y') : '—' }} to {{ $event->event_end_at ? $event->event_end_at->format('d M Y') : '—' }}</div>
@@ -49,6 +55,8 @@
         @if($errors->any())<div class="err">{{ $errors->first() }}</div>@endif
         @if($step === 'declined' || $assignment->acceptance_status === 'rejected')
             <p>You rejected this job. Your name is no longer on the event, and payments that had not been sent for you are cancelled.</p>
+        @elseif($step === 'expired' || $assignment->acceptance_status === 'accepted')
+            <p>This link has expired. You already accepted this event, so it cannot be accepted again.</p>
         @elseif($step === 'otp')
             <p>Enter the code sent to {{ $masked }}.</p>
             <form method="POST" action="{{ route('events.crew.verify', $assignment->invite_token) }}">
@@ -76,17 +84,15 @@
                         </div>
                     @endforeach
                     <div class="payline" id="day-pay">Pay {{ number_format(collect($dayChoices)->sum('amount')) }} XAF</div>
+                    @include('events.crew.signature', ['contract' => $contract ?? null])
                     <button type="submit">Accept these days</button>
-                </form>
-                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
-                    @csrf
-                    <input type="hidden" name="accept_all" value="1">
-                    <button type="submit" class="soft">Accept the entire event</button>
+                    <button type="submit" class="soft" name="accept_all" value="1">Accept the entire event</button>
                 </form>
             @else
-                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
+                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}" id="day-form">
                     @csrf
                     <input type="hidden" name="accept_all" value="1">
+                    @include('events.crew.signature', ['contract' => $contract ?? null])
                     <button type="submit">Accept the entire event</button>
                 </form>
             @endif

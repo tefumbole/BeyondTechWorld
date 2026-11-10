@@ -14,8 +14,9 @@ class EventContractSigningController extends Controller
             ->where('signature_token', $token)
             ->firstOrFail();
 
-        if ($contract->status === EventContract::STATUS_APPROVED) {
-            return view('events.contracts.signed', compact('contract'));
+        if (in_array($contract->status, [EventContract::STATUS_WORKER_SIGNED, EventContract::STATUS_APPROVED], true)) {
+            return view('events.contracts.signed', compact('contract'))
+                ->with('message', 'This link has expired. The contract is already signed.');
         }
 
         return view('events.contracts.sign', compact('contract'));

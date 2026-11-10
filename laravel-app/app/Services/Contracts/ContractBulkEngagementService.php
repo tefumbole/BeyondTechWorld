@@ -23,14 +23,16 @@ class ContractBulkEngagementService
     /**
      * @return array{created: BtwContract[], skipped: array, errors: array}
      */
-    public function createForAssignments(Event $event, array $assignmentIds)
+    public function createForAssignments(Event $event, array $assignmentIds, $templateId = null)
     {
-        $template = ContractTemplate::with('currentVersion')
-            ->where('code', 'ENG-EVENT')
-            ->where('active', true)
-            ->first();
+        $templateQuery = ContractTemplate::with('currentVersion')->where('active', true);
+        if ($templateId) {
+            $template = $templateQuery->where('id', $templateId)->first();
+        } else {
+            $template = $templateQuery->where('code', 'ENG-EVENT')->first();
+        }
         if (! $template || ! $template->currentVersion) {
-            throw new \RuntimeException('Active Engineer Engagement template (ENG-EVENT) not found.');
+            throw new \RuntimeException('Choose an active contract template.');
         }
 
         $companyName = ContractSetting::getValue('company_legal_name', 'Beyond Enterprise');

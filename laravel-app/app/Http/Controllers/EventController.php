@@ -965,7 +965,7 @@ class EventController extends Controller
 
         $attachContract = true;
         $contractTemplateId = null;
-        if (! $existing) {
+        if ($request->exists('attach_contract')) {
             $attachContract = $request->input('attach_contract') === '1';
             $contractTemplateId = $attachContract ? $request->input('contract_template_id') : null;
         }
@@ -1161,10 +1161,18 @@ class EventController extends Controller
         $unpackDates = Event::parseSetup($event->unpack_dates);
         $isEventAdmin = $this->isEventAdmin();
         $autoPay = app(\App\Services\EventAutoPay::class)->openFor($event);
+        list($contractTemplates, $defaultContractId) = $this->contractChoices();
+        $existingContract = \App\EventContract::where('event_id', $event->id)
+            ->whereNotIn('status', [\App\EventContract::STATUS_CANCELLED])
+            ->orderBy('created_at', 'desc')
+            ->first();
+        if ($existingContract && $existingContract->template_id) {
+            $defaultContractId = $existingContract->template_id;
+        }
 
         return view('events.create', compact(
             'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
-            'selectedCustomer', 'editing', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay'
+            'selectedCustomer', 'editing', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay', 'contractTemplates', 'defaultContractId'
         ));
     }
 

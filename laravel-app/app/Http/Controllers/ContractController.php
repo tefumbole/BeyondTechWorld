@@ -421,11 +421,12 @@ class ContractController extends Controller
         $request->validate([
             'assignment_ids' => 'required|array|min:1',
             'assignment_ids.*' => 'string',
+            'template_id' => 'nullable|string|max:64',
         ]);
         $event = \App\Event::findOrFail($eventId);
         try {
             $result = app(\App\Services\Contracts\ContractBulkEngagementService::class)
-                ->createForAssignments($event, $request->assignment_ids);
+                ->createForAssignments($event, $request->assignment_ids, $request->input('template_id'));
         } catch (\Throwable $e) {
             return back()->withErrors(['bulk' => $e->getMessage()]);
         }

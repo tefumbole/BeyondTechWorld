@@ -8,8 +8,8 @@
 </head>
 <body class="bg-light">
 <div class="container py-5 text-center" style="max-width:600px">
-    <h3 class="text-success">✓ Contract signed</h3>
-    <p>{{ $contract->title }}</p>
+    <h3 class="text-success">This link has expired</h3>
+    <p>{{ $contract->title }} is already signed.</p>
     <p class="text-muted">Status: {{ $contract->statusLabel() }}</p>
     @if($contract->signed_pdf_path)
         <a href="{{ url($contract->signed_pdf_path) }}" class="btn btn-primary" target="_blank">Download PDF</a>

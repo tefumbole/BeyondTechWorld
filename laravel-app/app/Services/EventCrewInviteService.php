@@ -180,6 +180,37 @@ class EventCrewInviteService
         return Event::parseWorkDays($assignment->work_dates);
     }
 
+    public function offeredDayEntries(EventAssignment $assignment)
+    {
+        $byDate = array();
+        foreach ($this->workDayEntries($assignment) as $day) {
+            $byDate[$day['date']] = $day;
+        }
+        $event = $assignment->event;
+        if ($event && $event->event_start_at) {
+            $cursor = strtotime($event->event_start_at->toDateString());
+            $last = strtotime($event->event_end_at ? $event->event_end_at->toDateString() : $event->event_start_at->toDateString());
+            $guard = 0;
+            while ($cursor && $last && $cursor <= $last && $guard < 62) {
+                $date = date('Y-m-d', $cursor);
+                if (! isset($byDate[$date])) {
+                    $byDate[$date] = array(
+                        'date' => $date,
+                        'note' => '',
+                        'description' => '',
+                        'pay_amount' => null,
+                        'pay_at' => '',
+                    );
+                }
+                $cursor = strtotime('+1 day', $cursor);
+                $guard++;
+            }
+        }
+        ksort($byDate);
+
+        return array_values($byDate);
+    }
+
     protected function workDatesLine(EventAssignment $assignment)
     {
         $labels = array();
@@ -403,7 +434,7 @@ class EventCrewInviteService
 
     public function keepDays(EventAssignment $assignment, array $chosenDates)
     {
-        $entries = $this->workDayEntries($assignment);
+        $entries = $this->offeredDayEntries($assignment);
         if (! count($entries)) {
             return $assignment;
         }
@@ -419,7 +450,17 @@ class EventCrewInviteService
             }
         }
         $kept = array_values($kept);
-        if (! count($kept) || count($kept) === count($entries)) {
+        $stored = array();
+        foreach ($this->workDayEntries($assignment) as $day) {
+            $stored[$day['date']] = true;
+        }
+        $same = count($kept) === count($stored);
+        foreach ($kept as $day) {
+            if (! isset($stored[$day['date']])) {
+                $same = false;
+            }
+        }
+        if (! count($kept) || $same) {
             return $assignment;
         }
         usort($kept, function ($a, $b) {
