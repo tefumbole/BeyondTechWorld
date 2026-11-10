@@ -57,6 +57,21 @@
     @media (max-width: 575px) {
         .ev-board { grid-template-columns: 1fr; }
     }
+    .ev-chart {
+        margin-top: 22px;
+        background: #fff;
+        border: 1px solid #e4eaf4;
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 10px 28px rgba(11, 63, 144, 0.06);
+    }
+    .ev-chart h3 { margin: 0 0 18px; font-size: 18px; font-weight: 800; color: #0f172a; }
+    .ev-bars { display: flex; align-items: flex-end; gap: 18px; min-height: 240px; }
+    .ev-bar { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+    .ev-bar-track { width: 100%; max-width: 88px; height: 180px; display: flex; align-items: flex-end; justify-content: center; }
+    .ev-bar-fill { width: 100%; border-radius: 14px 14px 6px 6px; min-height: 8px; }
+    .ev-bar-val { margin-top: 10px; font-size: 20px; font-weight: 800; color: #0b3f90; }
+    .ev-bar-label { margin-top: 4px; font-size: 13px; font-weight: 700; color: #334155; text-align: center; }
 </style>
 <section class="forms events-shell">
     <div class="container-fluid">
@@ -81,6 +96,20 @@
                     <div class="open">Open events</div>
                 </a>
             @endforeach
+        </div>
+        <div class="ev-chart">
+            <h3>Events</h3>
+            <div class="ev-bars">
+                @foreach($chart as $bar)
+                    <div class="ev-bar">
+                        <div class="ev-bar-track">
+                            <div class="ev-bar-fill" style="height: {{ max(8, (int) round($bar['count'] / $chartMax * 100)) }}%; background: {{ $bar['color'] }};"></div>
+                        </div>
+                        <div class="ev-bar-val">{{ $bar['count'] }}</div>
+                        <div class="ev-bar-label">{{ $bar['label'] }}</div>
+                    </div>
+                @endforeach
+            </div>
         </div>
     </div>
 </section>
