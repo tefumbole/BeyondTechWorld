@@ -2,7 +2,20 @@
 @if(session()->has('not_permitted'))
   <div class="alert alert-danger alert-dismissible text-center"><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>{{ session()->get('not_permitted') }}</div>
 @endif
-<section class="forms">
+<style>
+    .qs-sale .card { border: 0; border-radius: 20px; box-shadow: 0 10px 30px rgba(15, 23, 42, .06); }
+    .qs-sale .card-header { background: #fff; border-bottom: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; }
+    .qs-sale .card-header h4 { font-weight: 800; letter-spacing: -.03em; color: #0f172a; }
+    .qs-sale .form-control, .qs-sale .bootstrap-select > .dropdown-toggle {
+        border-radius: 12px; min-height: 44px; border-color: #e2e8f0;
+    }
+    .qs-sale .bootstrap-select .dropdown-menu { border-radius: 14px; }
+    .qs-sale .order-list thead th { background: #0b3f90; color: #fff; border: 0; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+    .qs-sale .totals { border-radius: 16px; overflow: hidden; }
+    .qs-sale .qs-off { display: none !important; }
+    .qs-sale #submit-button { border-radius: 12px; background: #0b3f90; border: 0; font-weight: 800; min-height: 46px; padding: 10px 22px; }
+</style>
+<section class="forms qs-sale">
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-12">
@@ -77,11 +90,11 @@
                                                     <tr>
                                                         <th>{{trans('file.name')}}</th>
                                                         <th>{{trans('file.Code')}}</th>
-                                                        <th>{{trans('file.Batch No')}}</th>
+                                                        <th class="qs-off">{{trans('file.Batch No')}}</th>
                                                         <th>{{trans('file.Quantity')}}</th>
                                                         <th>{{trans('file.Net Unit Price')}}</th>
-                                                        <th>{{trans('file.Discount')}}</th>
-                                                        <th>{{trans('file.Tax')}}</th>
+                                                        <th class="qs-off">{{trans('file.Discount')}}</th>
+                                                        <th class="qs-off">{{trans('file.Tax')}}</th>
                                                         <th>{{trans('file.Subtotal')}}</th>
                                                         <th><i class="dripicons-trash"></i></th>
                                                     </tr>
@@ -150,20 +163,20 @@
                                                         <td>{{$product_data->name}} <button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button> </td>
                                                         <td>{{$product_data->code}}</td>
                                                         @if($product_batch_data)
-                                                        <td>
+                                                        <td class="qs-off">
                                                             <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="{{$product_quotation->product_batch_id}}">
-                                                            <input type="text" class="form-control batch-no" name="batch_no[]" value="{{$product_batch_data->batch_no}}" required/>
+                                                            <input type="hidden" class="batch-no" name="batch_no[]" value="{{$product_batch_data->batch_no}}"/>
                                                         </td>
                                                         @else
-                                                        <td>
+                                                        <td class="qs-off">
                                                             <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="">
-                                                            <input type="text" class="form-control batch-no" name="batch_no[]" value="" disabled />
+                                                            <input type="hidden" class="batch-no" name="batch_no[]" value="" />
                                                         </td>
                                                         @endif
                                                         <td><input type="number" class="form-control qty" name="qty[]" value="{{$product_quotation->qty}}" step="any" required/></td>
                                                         <td class="net_unit_price">{{ number_format((float)$product_quotation->net_unit_price, 2, '.', '') }} </td>
-                                                        <td class="discount">{{ number_format((float)$product_quotation->discount, 2, '.', '') }}</td>
-                                                        <td class="tax">{{ number_format((float)$product_quotation->tax, 2, '.', '') }}</td>
+                                                        <td class="discount qs-off">{{ number_format((float)$product_quotation->discount, 2, '.', '') }}</td>
+                                                        <td class="tax qs-off">{{ number_format((float)$product_quotation->tax, 2, '.', '') }}</td>
                                                         <td class="sub-total">{{ number_format((float)$product_quotation->total, 2, '.', '') }}</td>
                                                         <td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>
                                                         <input type="hidden" class="product-code" name="product_code[]" value="{{$product_data->code}}"/>
@@ -235,7 +248,7 @@
                                     </div>
                                 </div>
                                 <div class="row mt-3">
-                                    <div class="col-md-4">
+                                    <div class="col-md-4 qs-off">
                                         <div class="form-group">
                                             <input type="hidden" name="order_tax_rate_hidden" value="{{$lims_quotation_data->order_tax_rate}}">
                                             <label>{{trans('file.Order Tax')}}</label>
@@ -247,7 +260,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-4 qs-off">
                                         <div class="form-group">
                                             <label>
                                                 <strong>{{trans('file.Order Discount')}}</strong>
@@ -280,7 +293,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Sale Status')}} *</label>
-                                            <select name="sale_status" class="form-control">
+                                            <select name="sale_status" class="selectpicker form-control" data-live-search="true" data-live-search-style="begins" title="Choose a sale status">
                                                 <option value="1">{{trans('file.Completed')}}</option>
                                                 <option value="2">{{trans('file.Pending')}}</option>
                                             </select>
@@ -289,7 +302,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group">
                                             <label>{{trans('file.Payment Status')}} *</label>
-                                            <select name="payment_status" class="form-control">
+                                            <select name="payment_status" class="selectpicker form-control" title="Choose a payment status">
                                                 <option value="1">{{trans('file.Pending')}}</option>
                                                 <option value="2">{{trans('file.Due')}}</option>
                                                 <option value="3">{{trans('file.Partial')}}</option>
@@ -397,10 +410,10 @@
             <td><strong>{{trans('file.Total')}}</strong>
                 <span class="pull-right" id="subtotal">0.00</span>
             </td>
-            <td><strong>{{trans('file.Order Tax')}}</strong>
+            <td class="qs-off"><strong>{{trans('file.Order Tax')}}</strong>
                 <span class="pull-right" id="order_tax">0.00</span>
             </td>
-            <td><strong>{{trans('file.Order Discount')}}</strong>
+            <td class="qs-off"><strong>{{trans('file.Order Discount')}}</strong>
                 <span class="pull-right" id="order_discount">0.00</span>
             </td>
             <td><strong>{{trans('file.Shipping Cost')}}</strong>
@@ -424,7 +437,7 @@
                             <label>{{trans('file.Quantity')}}</label>
                             <input type="number" name="edit_qty" class="form-control" step="any">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group qs-off">
                             <label>{{trans('file.Unit Discount')}}</label>
                             <input type="number" name="edit_discount" class="form-control" step="any">
                         </div>
@@ -440,7 +453,7 @@
                                 $tax_rate_all[] = $tax->rate;
                             }
                         ?>
-                            <div class="form-group">
+                            <div class="form-group qs-off">
                                 <label>{{trans('file.Tax Rate')}}</label>
                                 <select name="edit_tax_rate" class="form-control selectpicker">
                                     @foreach($tax_name_all as $key => $name)
@@ -854,15 +867,15 @@ function productSearch(data){
                 cols += '<td>' + data[1] + '</td>';
                 console.log(batch_no);
                 if(data[12]) {
-                    cols += '<td><input type="text" class="form-control batch-no" value="'+batch_no[pos]+'" required/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
+                    cols += '<td class="qs-off"><input type="hidden" class="batch-no" value="'+batch_no[pos]+'"/> <input type="hidden" class="product-batch-id" name="product_batch_id[]" value="'+product_batch_id[pos]+'"/> </td>';
                 }
                 else {
-                    cols += '<td><input type="text" class="form-control batch-no" disabled/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
+                    cols += '<td class="qs-off"><input type="hidden" class="batch-no"/> <input type="hidden" class="product-batch-id" name="product_batch_id[]"/> </td>';
                 }
                 cols += '<td><input type="number" class="form-control qty" name="qty[]" value="1" step="any" required/></td>';
                 cols += '<td class="net_unit_price"></td>';
-                cols += '<td class="discount">0.00</td>';
-                cols += '<td class="tax"></td>';
+                cols += '<td class="discount qs-off">0.00</td>';
+                cols += '<td class="tax qs-off"></td>';
                 cols += '<td class="sub-total"></td>';
                 cols += '<td><button type="button" class="ibtnDel btn btn-md btn-danger">{{trans("file.delete")}}</button></td>';
                 cols += '<input type="hidden" class="product-code" name="product_code[]" value="' + data[1] + '"/>';

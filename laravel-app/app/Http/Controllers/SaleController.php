@@ -519,6 +519,15 @@ class SaleController extends Controller
         else {
             if(!isset($data['reference_no']))
                 $data['reference_no'] = 'sr-' . date("Ymd") . '-'. date("his");
+            foreach (['paid_amount', 'paying_amount', 'order_discount', 'order_tax', 'shipping_cost'] as $moneyField) {
+                if (! isset($data[$moneyField]) || $data[$moneyField] === '' || $data[$moneyField] === null) {
+                    $data[$moneyField] = 0;
+                }
+            }
+            if ((int) $data['payment_status'] === 2) {
+                $data['paid_amount'] = 0;
+                $data['paying_amount'] = 0;
+            }
         }
 
         $document = $request->document;
@@ -827,7 +836,7 @@ class SaleController extends Controller
         }
         if ($posSplit && (int) $data['paid_by_id'] === 1) {
             $this->recordPosCashSplit($lims_sale_data, $posSplit, isset($cash_register_data) ? $cash_register_data : null);
-        } elseif($data['payment_status'] == 2 || $data['payment_status'] == 3  || $data['payment_status'] == 4 || ($data['pos'] && $data['paying_amount'] > 0)) {
+        } elseif((int) $data['payment_status'] === 3 || (int) $data['payment_status'] === 4 || ($data['pos'] && $data['paying_amount'] > 0)) {
 
             $lims_payment_data = new Payment();
             $lims_payment_data->user_id = Auth::id();
