@@ -68,7 +68,7 @@ class EventCrewInviteService
             if ($notes !== '') {
                 $body .= "\nNotes:\n{$notes}\n";
             }
-            $body .= "\nAccept your place:\n{$url}\n\n"
+            $body .= "\nOpen the link to accept every day, or keep only the days you can work. Your pay follows the days you accept.\n{$url}\n\n"
                 ."If you cannot take this job, open the same link and choose Reject.\n"
                 .'After you accept, a code is sent to this phone so you can open the event and your timesheet.';
             if ($attempted) {
@@ -369,6 +369,83 @@ class EventCrewInviteService
         }
     }
 
+    public function keepDays(EventAssignment $assignment, array $chosenDates)
+    {
+        $entries = $this->workDayEntries($assignment);
+        if (! count($entries)) {
+            return $assignment;
+        }
+        $offered = array();
+        foreach ($entries as $day) {
+            $offered[$day['date']] = $day;
+        }
+        $kept = array();
+        foreach ($chosenDates as $date) {
+            $date = substr(trim((string) $date), 0, 10);
+            if (isset($offered[$date])) {
+                $kept[$date] = $offered[$date];
+            }
+        }
+        $kept = array_values($kept);
+        if (! count($kept) || count($kept) === count($entries)) {
+            return $assignment;
+        }
+        usort($kept, function ($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+        $daily = $this->dailyRate($assignment) + $this->foodAmount($assignment);
+        $total = 0;
+        $keptDates = array();
+        foreach ($kept as $day) {
+            $total += $day['pay_amount'] !== null ? (int) $day['pay_amount'] : $daily;
+            $keptDates[] = $day['date'];
+        }
+        $assignment->work_dates = json_encode($kept);
+        $assignment->expected_days = count($kept);
+        $assignment->expected_total = $total;
+        $assignment->work_start_date = $keptDates[0];
+        $assignment->work_end_date = $keptDates[count($keptDates) - 1];
+        $assignment->save();
+
+        $dropped = array();
+        foreach ($offered as $date => $day) {
+            if (! in_array($date, $keptDates, true)) {
+                $dropped[] = $date;
+            }
+        }
+        if (count($dropped)) {
+            EventAutoPayment::where('assignment_id', $assignment->id)
+                ->whereIn('status', ['pending_approval', 'scheduled', 'failed'])
+                ->get()
+                ->each(function ($payment) use ($dropped) {
+                    $when = $payment->pay_at ? $payment->pay_at->toDateString() : '';
+                    if ($when !== '' && in_array($when, $dropped, true)) {
+                        $payment->status = 'cancelled';
+                        $payment->result = 'The engineer did not accept this day.';
+                        $payment->save();
+                    }
+                });
+            $pending = EventWorkerPayment::where('assignment_id', $assignment->id)
+                ->where('status', '!=', EventWorkerPayment::STATUS_PAID)
+                ->get();
+            foreach ($pending as $payment) {
+                $note = (string) $payment->notes;
+                foreach ($dropped as $date) {
+                    if (strpos($note, $date.' | ') === 0) {
+                        $payment->status = EventWorkerPayment::STATUS_CANCELLED;
+                        $payment->save();
+                        break;
+                    }
+                }
+            }
+        }
+        if ($assignment->event) {
+            app(EventWorkforceService::class)->refreshLabourBudgetAllocation($assignment->event);
+        }
+
+        return $assignment->fresh();
+    }
+
     public function markAccepted(EventAssignment $assignment)
     {
         $assignment->acceptance_status = 'accepted';
@@ -405,10 +482,14 @@ class EventCrewInviteService
         $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'there';
         $when = $this->acceptedWhen($event);
         $role = $assignment->assignment_role ?: 'Crew';
+        $days = $this->workDatesLine($assignment);
+        $pay = number_format((int) $assignment->expected_total);
         $body = \App\Support\WhatsAppMessage::statusBlock('✅', 'Job accepted')
             .'*'.$event->name."*\n\n"
             .'Hello '.$name.",\n"
             .$role.($when !== '' ? ' · '.$when : '')."\n"
+            .($days !== '' ? 'Days: '.$days."\n" : '')
+            .'Pay: '.$pay." XAF\n"
             .'Your place is confirmed.';
         try {
             app(NotificationRouter::class)->sendWhatsAppText($phone, $body);

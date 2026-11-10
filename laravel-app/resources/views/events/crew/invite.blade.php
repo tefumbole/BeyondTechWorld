@@ -16,7 +16,12 @@
         .meta div { margin: 4px 0; }
         button, .btn { display: block; width: 100%; border: 0; border-radius: 12px; background: #0b3f90; color: #fff; font-weight: 700; font-size: 16px; padding: 14px; cursor: pointer; }
         .ghost { background: #fff; color: #b91c1c; border: 1px solid #fecaca; margin-top: 10px; }
+        .btn.soft, button.soft { background: #fff; color: #0b3f90; border: 1px solid #bfdbfe; margin-top: 10px; text-align: center; text-decoration: none; box-sizing: border-box; }
+        .day { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+        .day label { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #0f172a; }
+        .payline { font-weight: 800; color: #0b3f90; margin: 12px 0; }
         input { width: 100%; box-sizing: border-box; border: 1px solid #d6deea; border-radius: 12px; padding: 14px; font-size: 22px; letter-spacing: .2em; text-align: center; margin: 8px 0 14px; }
+        .day input[type="checkbox"] { width: 22px; height: 22px; min-height: 22px; margin: 0; padding: 0; letter-spacing: 0; border-radius: 6px; }
         .err { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
         .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
     </style>
@@ -51,20 +56,58 @@
                 <input name="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
                 <button type="submit">Log in</button>
             </form>
+            <a class="btn soft" href="{{ route('events.crew.invite', ['token' => $assignment->invite_token, 'choose' => 1]) }}">Change the days</a>
             <form method="POST" action="{{ route('events.crew.reject', $assignment->invite_token) }}">
                 @csrf
                 <button type="submit" class="ghost">Reject this job</button>
             </form>
         @else
-            <p>Accept to receive a login code on {{ $masked }}.</p>
-            <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
-                @csrf
-                <button type="submit">Accept</button>
-            </form>
+            <p>Keep the days you can work, or accept every day. Pay follows the days you accept. A login code then goes to {{ $masked }}.</p>
+            @if(count($dayChoices))
+                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}" id="day-form">
+                    @csrf
+                    @foreach($dayChoices as $day)
+                        <div class="day">
+                            <label>
+                                <input type="checkbox" name="days[]" value="{{ $day['date'] }}" checked data-amount="{{ $day['amount'] }}">
+                                {{ $day['label'] }}
+                            </label>
+                            <strong>{{ number_format($day['amount']) }}</strong>
+                        </div>
+                    @endforeach
+                    <div class="payline" id="day-pay">Pay {{ number_format(collect($dayChoices)->sum('amount')) }} XAF</div>
+                    <button type="submit">Accept these days</button>
+                </form>
+                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
+                    @csrf
+                    <input type="hidden" name="accept_all" value="1">
+                    <button type="submit" class="soft">Accept the entire event</button>
+                </form>
+            @else
+                <form method="POST" action="{{ route('events.crew.accept', $assignment->invite_token) }}">
+                    @csrf
+                    <input type="hidden" name="accept_all" value="1">
+                    <button type="submit">Accept the entire event</button>
+                </form>
+            @endif
             <form method="POST" action="{{ route('events.crew.reject', $assignment->invite_token) }}">
                 @csrf
                 <button type="submit" class="ghost">Reject this job</button>
             </form>
+            <script>
+                var form = document.getElementById('day-form');
+                if (form) {
+                    var line = document.getElementById('day-pay');
+                    function paintPay() {
+                        var total = 0;
+                        form.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+                            if (box.checked) total += parseInt(box.getAttribute('data-amount'), 10) || 0;
+                        });
+                        line.textContent = 'Pay ' + total.toLocaleString('en-US') + ' XAF';
+                    }
+                    form.addEventListener('change', paintPay);
+                }
+            </script>
         @endif
     </div>
 </div>

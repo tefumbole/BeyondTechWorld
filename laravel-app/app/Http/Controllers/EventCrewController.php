@@ -20,6 +20,9 @@ class EventCrewController extends Controller
             $request->session()->put('event_crew_assignment', $assignment->id);
 
             return redirect()->route('events.crew.home');
+        } elseif ($request->query('choose') === '1') {
+            $request->session()->forget('event_otp_for');
+            $step = 'accept';
         } elseif ($request->session()->get('event_otp_for') === $token) {
             $step = 'otp';
         }
@@ -53,6 +56,18 @@ class EventCrewController extends Controller
     public function accept(Request $request, $token, EventCrewInviteService $invites)
     {
         $assignment = $this->assignment($token);
+        $offered = $invites->workDates($assignment);
+        $acceptAll = $request->input('accept_all') === '1' || ! count($offered);
+        if ($acceptAll) {
+            $chosen = $offered;
+        } else {
+            $posted = is_array($request->input('days')) ? $request->input('days') : array();
+            $chosen = array_values(array_intersect($offered, $posted));
+            if (! count($chosen)) {
+                return back()->withErrors(['days' => 'Choose at least one day, or reject the job.']);
+            }
+        }
+        $request->session()->put($this->daysKey($token), $chosen);
         $sent = $invites->sendLoginCode($assignment);
         if (empty($sent['ok'])) {
             return back()->withErrors(['otp' => $sent['message']]);
@@ -84,8 +99,14 @@ class EventCrewController extends Controller
             return redirect()->route('events.crew.invite', $token)
                 ->withErrors(['otp' => 'That code is not valid. Enter it again.']);
         }
+        $chosen = $request->session()->get($this->daysKey($token));
+        if (is_array($chosen) && count($chosen)) {
+            $invites->keepDays($assignment, $chosen);
+            $assignment = $assignment->fresh();
+        }
         $invites->markAccepted($assignment);
         $request->session()->forget($this->otpKey($token));
+        $request->session()->forget($this->daysKey($token));
         $request->session()->put('event_crew_assignment', $assignment->id);
 
         return redirect()->route('events.crew.home');
@@ -162,7 +183,29 @@ class EventCrewController extends Controller
             'foodAmount' => $invites->foodAmount($assignment),
             'setupText' => $invites->setupText($assignment->event),
             'workDates' => $invites->workDates($assignment),
+            'dayChoices' => $this->dayChoices($assignment, $invites),
         ];
+    }
+
+    protected function dayChoices(EventAssignment $assignment, EventCrewInviteService $invites)
+    {
+        $daily = $invites->dayAmount($assignment);
+        $rows = array();
+        foreach ($invites->workDayEntries($assignment) as $day) {
+            $amount = $day['pay_amount'] !== null ? (int) $day['pay_amount'] : $daily;
+            $rows[] = array(
+                'date' => $day['date'],
+                'label' => date('d M Y', strtotime($day['date'])),
+                'amount' => $amount,
+            );
+        }
+
+        return $rows;
+    }
+
+    protected function daysKey($token)
+    {
+        return 'event_accept_days.'.sha1($token);
     }
 
     protected function assignment($token)
