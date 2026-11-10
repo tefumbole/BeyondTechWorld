@@ -4,10 +4,11 @@
 @include('events.partials.modern')
 @php
     $editing = ! empty($editing);
+    $cloning = ! empty($cloning);
     $existingCrew = isset($existingCrew) ? $existingCrew : [];
     $setupDates = isset($setupDates) ? $setupDates : [];
     $unpackDates = isset($unpackDates) ? $unpackDates : [];
-    $published = $event->exists && optional($event->publication)->publish_on_website;
+    $published = $event->exists && ! $cloning && optional($event->publication)->publish_on_website;
     $currentType = old('event_type', $event->event_type ?: 'other');
     if (! isset(\App\Event::TYPES[$currentType])) {
         $currentType = 'other';
@@ -32,8 +33,8 @@
         <div class="ev-create-hero">
             <div>
                 <div class="ev-kicker">Events</div>
-                <h2>{{ $editing ? 'Edit event' : 'Create event' }}</h2>
-                <p class="ev-lead">{{ $editing ? 'Add or remove engineers, change a rate, and choose the days each person works.' : 'Set the dates and the engineers. Notes go to the staff. The client is not notified.' }}</p>
+                <h2>{{ $cloning ? 'Clone event' : ($editing ? 'Edit event' : 'Create event') }}</h2>
+                <p class="ev-lead">{{ $cloning ? 'Change the name, dates, and setup. The engineers are already here. Change only the ones you need to, then create the new event.' : ($editing ? 'Add or remove engineers, change a rate, and choose the days each person works.' : 'Set the dates and the engineers. Notes go to the staff. The client is not notified.') }}</p>
             </div>
             <a href="{{ route('events.dashboard') }}" class="btn btn-light">Dashboard</a>
         </div>
@@ -1237,7 +1238,8 @@
             food: parseInt(row.food, 10) || 0,
             category_id: row.category_id || '',
             assignment_id: row.assignment_id || '',
-            work_dates: row.work_dates || ''
+            work_dates: row.work_dates || '',
+            supervisor: !!row.supervisor
         });
     });
     paintSetup();

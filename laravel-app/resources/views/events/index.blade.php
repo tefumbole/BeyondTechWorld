@@ -73,6 +73,9 @@
                                     @if(in_array('events.update', $all_permission))
                                         <a href="{{ route('events.edit', $ev->id) }}" class="btn btn-sm btn-primary">Edit</a>
                                     @endif
+                                    @if(in_array('events.create', $all_permission))
+                                        <a href="{{ route('events.clone', $ev->id) }}" class="btn btn-sm btn-outline-secondary">Clone</a>
+                                    @endif
                                     <a href="{{ route('events.show', $ev->id) }}" class="btn btn-sm btn-outline-primary">View</a>
                                     @if(!empty($canDelete))
                                         <form method="POST" action="{{ route('events.destroy', $ev->id) }}" class="d-inline" onsubmit="return confirm('Delete this event?');">

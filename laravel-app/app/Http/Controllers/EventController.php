@@ -1144,6 +1144,60 @@ class EventController extends Controller
         ));
     }
 
+    public function cloneForm($id)
+    {
+        $this->can('events.create');
+
+        $event = Event::with([
+            'publication',
+            'customer',
+            'assignments.workerProfile.customer',
+            'assignments.workerProfile.user',
+            'assignments.workerProfile.category',
+        ])->findOrFail($id);
+        $copyName = trim($event->name.' (copy)');
+        $event->name = strlen($copyName) > 255 ? substr($copyName, 0, 255) : $copyName;
+        $customers = Customer::where('is_active', true)->orderBy('name')
+            ->get(['id', 'name', 'phone_number', 'email', 'company_name', 'address', 'city']);
+        $roles = EventWorkerCategory::active()->orderBy('name')->get();
+        $people = $this->engineerDirectory();
+        $customerOptions = [];
+        $selectedCustomer = '';
+        if ($event->customer) {
+            $selectedCustomer = $event->customer->name.($event->customer->phone_number ? ' — '.$event->customer->phone_number : '');
+        }
+        foreach ($customers as $customer) {
+            $customerOptions[] = [
+                'id' => (string) $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone_number,
+            ];
+        }
+        $roleOptions = [];
+        foreach ($roles as $role) {
+            $roleOptions[] = [
+                'id' => (int) $role->id,
+                'name' => $role->name,
+                'rate' => (int) $role->default_daily_rate,
+            ];
+        }
+        $editing = false;
+        $cloning = true;
+        $existingCrew = $this->crewFromEvent($event);
+        foreach ($existingCrew as $index => $row) {
+            $existingCrew[$index]['assignment_id'] = '';
+        }
+        $setupDates = $this->setupDatesFor($event);
+        $unpackDates = Event::parseSetup($event->unpack_dates);
+        $isEventAdmin = $this->isEventAdmin();
+        $autoPay = null;
+
+        return view('events.create', compact(
+            'event', 'customers', 'people', 'roles', 'customerOptions', 'roleOptions',
+            'selectedCustomer', 'editing', 'cloning', 'existingCrew', 'setupDates', 'unpackDates', 'isEventAdmin', 'autoPay'
+        ));
+    }
+
     public function update(Request $request, $id, EventService $eventService, EventWorkforceService $workforce)
     {
         $this->can('events.update');

@@ -1071,6 +1071,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::get('/admin/event-contracts/{contractId}/preview', 'EventContractController@preview')->name('events.contracts.preview');
     Route::get('/admin/events/{id}', 'EventController@show')->name('events.show');
     Route::get('/admin/events/{id}/edit', 'EventController@edit')->name('events.edit');
+    Route::get('/admin/events/{id}/clone', 'EventController@cloneForm')->name('events.clone');
     Route::put('/admin/events/{id}', 'EventController@update')->name('events.update');
     Route::delete('/admin/events/{id}', 'EventController@destroy')->name('events.destroy');
     Route::post('/admin/events/{id}/publication', 'EventPublicationController@update')->name('events.publication.update');
