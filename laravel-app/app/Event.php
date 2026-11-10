@@ -128,6 +128,30 @@ class Event extends Model
         return $this->belongsTo(Booking::class);
     }
 
+    public function spanLabel()
+    {
+        $dates = array();
+        foreach (array(self::parseSetup($this->setup_dates), self::parseSetup($this->unpack_dates)) as $entries) {
+            foreach ($entries as $entry) {
+                $dates[] = $entry['date'];
+            }
+        }
+        foreach (array('setup_start_at', 'setup_end_at', 'event_start_at', 'event_end_at', 'dismantling_start_at', 'dismantling_end_at') as $field) {
+            if ($this->{$field}) {
+                $dates[] = $this->{$field}->toDateString();
+            }
+        }
+        $dates = array_values(array_unique(array_filter($dates)));
+        sort($dates);
+        if (! count($dates)) {
+            return '—';
+        }
+        $start = \Carbon\Carbon::parse($dates[0])->format('d M Y');
+        $end = \Carbon\Carbon::parse($dates[count($dates) - 1])->format('d M Y');
+
+        return $start === $end ? $start : $start.' – '.$end;
+    }
+
     public function publication()
     {
         return $this->hasOne(EventPublication::class, 'event_id');

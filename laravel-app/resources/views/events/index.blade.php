@@ -40,35 +40,34 @@
             </div>
         </div>
 
+        <style>
+            .ev-list-date { min-width: 168px; white-space: nowrap; font-weight: 700; color: #0b3f90; }
+            .ev-list-client { min-width: 140px; }
+            .ev-list-labour { min-width: 130px; white-space: nowrap; }
+        </style>
         <div class="card">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead style="background:#0b3f90;color:#fff;">
                         <tr>
-                            <th>Reference</th>
+                            <th>Events date</th>
                             <th>Event</th>
                             <th>Type</th>
                             <th>Client</th>
                             <th>Staff</th>
                             <th>Labour</th>
-                            <th>Event date</th>
-                            <th>Status</th>
-                            <th>Public</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($events as $ev)
                             <tr>
-                                <td><code>{{ $ev->reference_no }}</code></td>
+                                <td class="ev-list-date">{{ $ev->spanLabel() }}</td>
                                 <td><strong>{{ $ev->name }}</strong><br><small class="text-muted">{{ $ev->venue }}</small></td>
                                 <td>{{ \App\Event::TYPES[$ev->event_type] ?? $ev->event_type }}</td>
-                                <td>{{ optional($ev->customer)->name ?? '—' }}</td>
+                                <td class="ev-list-client">{{ optional($ev->customer)->name ?? '—' }}</td>
                                 <td>{{ $ev->staffNames() ?: '—' }}</td>
-                                <td>{{ number_format($ev->labourTotal()) }} XAF</td>
-                                <td>{{ $ev->event_start_at ? $ev->event_start_at->format('d M Y H:i') : '—' }}</td>
-                                <td><span class="badge badge-secondary">{{ $ev->statusLabel() }}</span></td>
-                                <td>{{ optional($ev->publication)->publication_status ?? '—' }}</td>
+                                <td class="ev-list-labour">{{ number_format($ev->labourTotal()) }} XAF</td>
                                 <td class="text-nowrap">
                                     @if(in_array('events.update', $all_permission))
                                         <a href="{{ route('events.edit', $ev->id) }}" class="btn btn-sm btn-primary">Edit</a>
@@ -87,7 +86,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="10" class="text-center text-muted py-4">No events found.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">No events found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
