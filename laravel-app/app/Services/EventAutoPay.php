@@ -44,7 +44,7 @@ class EventAutoPay
         return max(0, (int) $assignment->expected_total - $paid - $waiting);
     }
 
-    public function dueOnDay(EventAssignment $assignment, $date)
+    public function dueOnDay(EventAssignment $assignment, $date, $exceptAutoId = null)
     {
         $date = substr(trim((string) $date), 0, 10);
         $match = null;
@@ -64,10 +64,13 @@ class EventAutoPay
         if ($paid) {
             return 0;
         }
-        $waiting = EventAutoPayment::where('assignment_id', $assignment->id)
+        $waitingQuery = EventAutoPayment::where('assignment_id', $assignment->id)
             ->whereIn('status', ['pending_approval', 'scheduled', 'paying'])
-            ->where('result', 'like', 'work_date:'.$date.'%')
-            ->exists();
+            ->where('result', 'like', 'work_date:'.$date.'%');
+        if ($exceptAutoId) {
+            $waitingQuery->where('id', '!=', $exceptAutoId);
+        }
+        $waiting = $waitingQuery->exists();
         if ($waiting) {
             return 0;
         }
@@ -531,7 +534,7 @@ class EventAutoPay
             ? substr($row->result, 10, 10)
             : '';
         if ($workDate !== '') {
-            $amount = $this->dueOnDay($assignment, $workDate);
+            $amount = $this->dueOnDay($assignment, $workDate, $row->id);
             if ($amount < 100) {
                 return ['state' => 'paid', 'note' => $name.' is already paid for '.$workDate.'.'];
             }
@@ -545,16 +548,18 @@ class EventAutoPay
             }
             $amount = $row->amount ? min((int) $row->amount, $remaining) : $remaining;
         }
-        $reference = 'evpay-'.substr(md5($assignment->id.'|'.$row->id.'|'.$row->attempt), 0, 24);
+        $reference = 'evpay-'.substr(md5($assignment->id.'|'.($workDate !== '' ? $workDate : $row->id.'|'.$row->attempt)), 0, 24);
         $existing = CampayPayout::where('external_reference', $reference)->first();
         if ($existing && $existing->status === 'paid') {
             $this->recordPaid($event, $assignment, $existing, $workDate);
 
             return ['state' => 'paid', 'note' => $name.' was paid '.number_format($amount).' XAF.'];
         }
-        if ($existing && $existing->status === 'pending' && $existing->campay_reference) {
-            $this->refreshPayout($service, $existing);
-            $existing = $existing->fresh();
+        if ($existing && $existing->status === 'pending') {
+            if ($existing->campay_reference) {
+                $this->refreshPayout($service, $existing);
+                $existing = $existing->fresh();
+            }
             if ($existing->status === 'paid') {
                 $this->recordPaid($event, $assignment, $existing, $workDate);
 
@@ -564,8 +569,11 @@ class EventAutoPay
                 return ['state' => 'pending', 'note' => $name.' is still waiting for Mobile Money.'];
             }
         }
-        if ($existing && $existing->status === 'failed') {
+        if ($existing && $existing->status === 'failed' && $existing->campay_reference) {
             return ['state' => 'failed', 'note' => $name.' was not paid. '.($existing->error ?: '')];
+        }
+        if ($existing && $existing->status === 'failed') {
+            $existing->delete();
         }
         $raw = '';
         if ($profile) {
@@ -649,24 +657,24 @@ class EventAutoPay
                 'created_by' => $payout->user_id,
                 'approved_by' => $payout->user_id,
             ]);
+            app(MomoMiniReceipt::class)->send([
+                'phone' => $payout->phone,
+                'name' => $payout->person_name,
+                'amount' => $payout->amount,
+                'reason' => 'Event '.$event->name,
+                'reference' => $payout->external_reference,
+                'date' => now(),
+                'method' => 'Mobile Money',
+                'title' => 'Payment Confirmation',
+                'skip_pdf' => true,
+                'skip_admin_copy' => true,
+            ]);
         }
         $paidSum = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
             ->where('status', EventWorkerPayment::STATUS_PAID)
             ->sum('amount');
         $assignment->payment_status = $paidSum >= (int) $assignment->expected_total ? 'paid' : 'partial';
         $assignment->save();
-        app(MomoMiniReceipt::class)->send([
-            'phone' => $payout->phone,
-            'name' => $payout->person_name,
-            'amount' => $payout->amount,
-            'reason' => 'Event '.$event->name,
-            'reference' => $payout->external_reference,
-            'date' => now(),
-            'method' => 'Mobile Money',
-            'title' => 'Payment Confirmation',
-            'skip_pdf' => true,
-            'skip_admin_copy' => true,
-        ]);
     }
 
     protected function askAdmin(Event $event, EventAutoPayment $row)

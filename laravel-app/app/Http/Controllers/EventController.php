@@ -274,7 +274,12 @@ class EventController extends Controller
                         $row->status = 'scheduled';
                         $row->save();
                         $service->pay($row->fresh());
-                        $done++;
+                        $fresh = $row->fresh();
+                        if ($fresh && in_array($fresh->status, ['paid', 'paying'], true)) {
+                            $done++;
+                        } else {
+                            $warnings[] = trim((string) ($fresh ? $fresh->result : 'A payment did not go out.'));
+                        }
                     }
                 } else {
                     $done += (int) $result['set'];
