@@ -434,9 +434,6 @@
                         @if($events_module_active)
                             <li data-nav-key="events"><a href="#events-module" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-calendar"></i><span>Events</span></a>
                                 <ul id="events-module" class="collapse list-unstyled ">
-                                    @if(in_array('events.create', $all_permission))
-                                        <li id="events-create-menu"><a href="{{ route('events.create') }}">Create Event</a></li>
-                                    @endif
                                     @if(in_array('events.view', $all_permission))
                                         <li id="events-dashboard-menu"><a href="{{ route('events.dashboard') }}">Events Dashboard</a></li>
                                         <li id="events-calendar-menu"><a href="{{ route('events.calendar') }}">Event Calendar</a></li>
@@ -2805,7 +2802,6 @@
                   'booking-goods-received-menu': 'dripicons-archive',
                   'booking-product-menu': 'dripicons-basket',
                   'booking-report-menu': 'dripicons-graph-line',
-                  'events-create-menu': 'dripicons-plus',
                   'events-dashboard-menu': 'dripicons-graph-bar',
                   'events-calendar-menu': 'dripicons-calendar',
                   'events-timesheets-menu': 'dripicons-clock',
