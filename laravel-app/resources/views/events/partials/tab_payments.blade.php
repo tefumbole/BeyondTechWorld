@@ -46,10 +46,18 @@
                     @if($assignment->acceptance_status === 'rejected')
                         @continue
                     @endif
+                    @php
+                        $todayDue = isset($dayDues[$assignment->id]) ? (int) $dayDues[$assignment->id] : 0;
+                        $still = isset($payRooms[$assignment->id]) ? (int) $payRooms[$assignment->id] : 0;
+                    @endphp
                     <label class="d-block mb-1">
                         <input type="checkbox" class="crew-pick" name="assignment_ids[]" value="{{ $assignment->id }}">
                         {{ $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'Person' }}
-                        — {{ number_format(isset($payRooms[$assignment->id]) ? $payRooms[$assignment->id] : 0) }} XAF still to schedule
+                        @if($todayDue > 0)
+                            — {{ number_format($todayDue) }} XAF for today
+                        @else
+                            — {{ number_format($still) }} XAF still to schedule
+                        @endif
                     </label>
                 @endforeach
                 <div class="form-row align-items-end mt-3">

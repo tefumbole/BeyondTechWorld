@@ -44,21 +44,66 @@ class EventAutoPay
         return max(0, (int) $assignment->expected_total - $paid - $waiting);
     }
 
-    public function schedule(Event $event, $assignmentId, $amount, $payAt, $isAdmin)
+    public function dueOnDay(EventAssignment $assignment, $date)
+    {
+        $date = substr(trim((string) $date), 0, 10);
+        $match = null;
+        foreach (\App\Event::parseWorkDays($assignment->work_dates) as $day) {
+            if ($day['date'] === $date) {
+                $match = $day;
+                break;
+            }
+        }
+        if (! $match) {
+            return 0;
+        }
+        $paid = EventWorkerPayment::where('assignment_id', $assignment->id)
+            ->where('status', EventWorkerPayment::STATUS_PAID)
+            ->where('notes', 'like', $date.' | %')
+            ->exists();
+        if ($paid) {
+            return 0;
+        }
+        $waiting = EventAutoPayment::where('assignment_id', $assignment->id)
+            ->whereIn('status', ['pending_approval', 'scheduled', 'paying'])
+            ->where('result', 'like', 'work_date:'.$date.'%')
+            ->exists();
+        if ($waiting) {
+            return 0;
+        }
+        $amount = $match['pay_amount'] !== null
+            ? (int) $match['pay_amount']
+            : ((int) $assignment->event_daily_rate + (int) $assignment->food_per_day);
+
+        return $amount >= 100 ? $amount : 0;
+    }
+
+    public function schedule(Event $event, $assignmentId, $amount, $payAt, $isAdmin, $workDate = null)
     {
         $assignment = EventAssignment::where('event_id', $event->id)->where('id', $assignmentId)->first();
         if (! $assignment || $assignment->acceptance_status === 'rejected') {
             return array('ok' => false, 'message' => 'That engineer is not on this event.');
         }
         $amount = (int) $amount;
-        $room = $this->roomFor($assignment);
+        $workDate = $workDate ? substr(trim((string) $workDate), 0, 10) : null;
+        if ($workDate) {
+            $due = $this->dueOnDay($assignment, $workDate);
+            if ($due < 100) {
+                $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This engineer';
+
+                return array('ok' => false, 'message' => $name.' has no unpaid amount for that day.');
+            }
+            $amount = $due;
+        } else {
+            $room = $this->roomFor($assignment);
+            if ($amount > $room) {
+                $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This engineer';
+
+                return array('ok' => false, 'message' => $name.' has '.number_format($room).' XAF left to schedule.');
+            }
+        }
         if ($amount < 100) {
             return array('ok' => false, 'message' => 'A scheduled payment has to be at least 100 XAF.');
-        }
-        if ($amount > $room) {
-            $name = $assignment->workerProfile ? $assignment->workerProfile->displayName() : 'This engineer';
-
-            return array('ok' => false, 'message' => $name.' has '.number_format($room).' XAF left to schedule.');
         }
         if ($payAt === null || $payAt === '') {
             return array('ok' => false, 'message' => 'Choose the time this part should be paid.');
@@ -70,6 +115,9 @@ class EventAutoPay
         $row->pay_at = \Carbon\Carbon::parse($payAt);
         $row->attempt = 1;
         $row->requested_by = Auth::id();
+        if ($workDate) {
+            $row->result = 'work_date:'.$workDate;
+        }
         if ($isAdmin) {
             $row->status = 'scheduled';
             $row->approved_by = Auth::id();
@@ -297,7 +345,7 @@ class EventAutoPay
                 $warnings[] = $name.' was skipped because that day is under 100 XAF.';
                 continue;
             }
-            $scheduled = $this->schedule($event, $assignment->id, $amount, $payAt, $isAdmin);
+            $scheduled = $this->schedule($event, $assignment->id, $amount, $payAt, $isAdmin, $workDate);
             if (empty($scheduled['ok'])) {
                 $warnings[] = $scheduled['message'];
             } else {
@@ -369,7 +417,8 @@ class EventAutoPay
                 $paid++;
             }
         }
-        $row->result = implode("\n", array_filter($notes));
+        $prefix = (is_string($row->result) && strpos($row->result, 'work_date:') === 0) ? substr($row->result, 0, 20)."\n" : '';
+        $row->result = $prefix.implode("\n", array_filter($notes));
         if ($pending > 0) {
             $row->status = 'paying';
         } elseif ($assignments->count() > 0 && $paid === $assignments->count()) {
@@ -385,18 +434,28 @@ class EventAutoPay
     {
         $profile = $assignment->workerProfile;
         $name = $profile ? $profile->displayName() : 'Engineer';
-        $alreadyPaid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
-            ->where('status', EventWorkerPayment::STATUS_PAID)
-            ->sum('amount');
-        $remaining = max(0, (int) $assignment->expected_total - $alreadyPaid);
-        if ($remaining < 100) {
-            return ['state' => 'paid', 'note' => $name.' was already paid.'];
+        $workDate = (is_string($row->result) && strpos($row->result, 'work_date:') === 0)
+            ? substr($row->result, 10, 10)
+            : '';
+        if ($workDate !== '') {
+            $amount = $this->dueOnDay($assignment, $workDate);
+            if ($amount < 100) {
+                return ['state' => 'paid', 'note' => $name.' is already paid for '.$workDate.'.'];
+            }
+        } else {
+            $alreadyPaid = (int) EventWorkerPayment::where('assignment_id', $assignment->id)
+                ->where('status', EventWorkerPayment::STATUS_PAID)
+                ->sum('amount');
+            $remaining = max(0, (int) $assignment->expected_total - $alreadyPaid);
+            if ($remaining < 100) {
+                return ['state' => 'paid', 'note' => $name.' was already paid.'];
+            }
+            $amount = $row->amount ? min((int) $row->amount, $remaining) : $remaining;
         }
-        $amount = $row->amount ? min((int) $row->amount, $remaining) : $remaining;
         $reference = 'evpay-'.substr(md5($assignment->id.'|'.$row->id.'|'.$row->attempt), 0, 24);
         $existing = CampayPayout::where('external_reference', $reference)->first();
         if ($existing && $existing->status === 'paid') {
-            $this->recordPaid($event, $assignment, $existing);
+            $this->recordPaid($event, $assignment, $existing, $workDate);
 
             return ['state' => 'paid', 'note' => $name.' was paid '.number_format($amount).' XAF.'];
         }
@@ -404,7 +463,7 @@ class EventAutoPay
             $this->refreshPayout($service, $existing);
             $existing = $existing->fresh();
             if ($existing->status === 'paid') {
-                $this->recordPaid($event, $assignment, $existing);
+                $this->recordPaid($event, $assignment, $existing, $workDate);
 
                 return ['state' => 'paid', 'note' => $name.' was paid '.number_format($amount).' XAF.'];
             }
@@ -450,7 +509,7 @@ class EventAutoPay
         }
         $payout = $payout->fresh();
         if ($payout->status === 'paid') {
-            $this->recordPaid($event, $assignment, $payout);
+            $this->recordPaid($event, $assignment, $payout, $workDate);
 
             return ['state' => 'paid', 'note' => $name.' was paid '.number_format($amount).' XAF.'];
         }
@@ -476,9 +535,9 @@ class EventAutoPay
         }
     }
 
-    protected function recordPaid(Event $event, EventAssignment $assignment, CampayPayout $payout)
+    protected function recordPaid(Event $event, EventAssignment $assignment, CampayPayout $payout, $workDate = null)
     {
-        $marker = 'Auto '.$payout->external_reference;
+        $marker = ($workDate ? $workDate.' | ' : '').'Auto '.$payout->external_reference;
         $already = EventWorkerPayment::where('assignment_id', $assignment->id)
             ->where('notes', $marker)
             ->exists();

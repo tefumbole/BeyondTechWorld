@@ -947,6 +947,8 @@ class EventController extends Controller
         $setupEntries = Event::parseSetup($event->setup_dates);
         $unpackEntries = Event::parseSetup($event->unpack_dates);
         $payRooms = array();
+        $dayDues = array();
+        $today = now()->toDateString();
         $dueTotal = 0;
         foreach ($event->assignments as $assignment) {
             if ($assignment->acceptance_status === 'rejected') {
@@ -954,6 +956,7 @@ class EventController extends Controller
             }
             $dueTotal += (int) $assignment->expected_total;
             $payRooms[$assignment->id] = $autoPayService->roomFor($assignment);
+            $dayDues[$assignment->id] = $autoPayService->dueOnDay($assignment, $today);
         }
         $paidTotal = (int) \App\EventWorkerPayment::where('event_id', $event->id)
             ->where('status', \App\EventWorkerPayment::STATUS_PAID)
@@ -962,7 +965,7 @@ class EventController extends Controller
         return view('events.show', compact(
             'event', 'tab', 'categories', 'workerProfiles', 'rentalWarning',
             'specializations', 'countdownTargets', 'publicStatuses', 'contractTemplates',
-            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms', 'dueTotal', 'paidTotal'
+            'autoPay', 'isEventAdmin', 'paymentSchedules', 'setupEntries', 'unpackEntries', 'payRooms', 'dayDues', 'dueTotal', 'paidTotal'
         ));
     }
 
