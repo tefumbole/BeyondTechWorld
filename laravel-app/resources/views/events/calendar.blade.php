@@ -11,7 +11,11 @@
                 <p>{{ $intro }}</p>
             </div>
         </div>
-        <div class="ev-cal is-{{ $tab }} {{ in_array($tab, ['engineers', 'payments'], true) ? 'is-detail' : '' }}">
+        @php
+            $split = in_array($tab, ['setup', 'unpacking'], true);
+            $laneStep = $split ? 38 : 18;
+        @endphp
+        <div class="ev-cal is-{{ $tab }} {{ $split ? 'is-split' : '' }} {{ in_array($tab, ['engineers', 'payments', 'setup', 'unpacking'], true) ? 'is-detail' : '' }}">
             <nav class="ev-cal-tabs">
                 @foreach([
                     'event' => ['Event Date', '#e11d48'],
@@ -38,9 +42,12 @@
                 @elseif($tab === 'engineers')
                     <span><i style="background:#7c3aed"></i> Engineer on that day</span>
                 @elseif($tab === 'payments')
-                    <span><i style="background:#059669"></i> Amount paid</span>
+                    <span><i style="background:#059669"></i> Total paid that day</span>
                 @else
-                    <span><b class="ev-cal-date-key"></b> Event dates only</span>
+                    <span><b class="ev-cal-date-key"></b> Date of event</span>
+                    <span><i style="background:#f97316"></i> Setup</span>
+                    <span><i style="background:#0b3f90"></i> Event</span>
+                    <span><i style="background:#06b6d4"></i> Unpacking</span>
                 @endif
             </div>
             <div class="ev-cal-scroll">
@@ -67,13 +74,18 @@
                                     <span class="num">{{ $day->format('j') }}</span>
                                 </div>
                             @endforeach
-                            <div class="ev-cal-bars" style="height: {{ max(18, $week['lanes'] * 18) }}px;">
+                            <div class="ev-cal-bars" style="height: {{ max($laneStep, $week['lanes'] * $laneStep) }}px;">
                                 @foreach($week['bars'] as $bar)
                                     <a class="ev-bar is-{{ $bar['kind'] ?? 'event' }} {{ $bar['continues_before'] ? 'is-continued-before' : '' }} {{ $bar['continues_after'] ? 'is-continued-after' : '' }}"
-                                       href="{{ route('events.show', $bar['id']) }}"
+                                       href="{{ $bar['id'] !== '' ? route('events.show', $bar['id']) : route('events.calendar', ['month' => $monthKey, 'tab' => $tab]) }}"
                                        title="{{ $bar['name'] }}"
-                                       style="background: {{ $bar['color'] }}; top: {{ $bar['lane'] * 18 }}px; left: calc({{ $bar['col'] }} * 14.2857% + 3px); width: calc({{ $bar['span'] }} * 14.2857% - 6px);">
-                                        {{ $bar['name'] }}
+                                       style="background: {{ $bar['color'] }}; top: {{ $bar['lane'] * $laneStep }}px; left: calc({{ $bar['col'] }} * 14.2857% + 3px); width: calc({{ $bar['span'] }} * 14.2857% - 6px);">
+                                        @if($split && ! empty($bar['kicker']))
+                                            <span class="ev-bar-kicker">{{ $bar['kicker'] }}</span>
+                                            <span class="ev-bar-title">{{ $bar['event'] !== '' ? $bar['event'] : $bar['name'] }}</span>
+                                        @else
+                                            {{ $bar['name'] }}
+                                        @endif
                                     </a>
                                 @endforeach
                             </div>

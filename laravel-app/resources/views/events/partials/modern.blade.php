@@ -280,7 +280,8 @@
     .ev-cal-tabs a.is-engineers.is-on { background: #7c3aed; }
     .ev-cal-tabs a.is-payments.is-on { background: #059669; }
     .ev-cal.is-detail .ev-cal-grid { height: auto; min-height: 0; }
-    .ev-cal.is-detail .ev-cal-week { flex: 0 0 auto; min-height: 108px; }
+    .ev-cal.is-detail .ev-cal-week { flex: 0 0 auto; min-height: calc(42px + var(--lanes, 1) * 20px); }
+    .ev-cal.is-split .ev-cal-week { min-height: calc(42px + var(--lanes, 1) * 38px); }
     .ev-cal.is-detail .ev-cal-scroll { overflow: auto; max-height: calc(100vh - 300px); }
     .ev-cal-nav {
         width: 40px; height: 40px; border-radius: 12px;
@@ -295,7 +296,7 @@
     }
     .ev-cal-legend span { display: inline-flex; align-items: center; gap: 8px; }
     .ev-cal-legend i { width: 18px; height: 10px; border-radius: 999px; display: inline-block; }
-    .ev-cal-date-key { width: 18px; height: 18px; border-radius: 6px; background: #e11d48; display: inline-block; }
+    .ev-cal-date-key { width: 18px; height: 18px; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 2px #e11d48; display: inline-block; }
     .ev-cal-scroll { overflow: hidden; }
     .ev-cal-grid { min-width: 0; height: calc(100vh - 250px); min-height: 520px; display: flex; flex-direction: column; }
     .ev-cal-weekdays, .ev-cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -324,11 +325,11 @@
         box-shadow: inset 0 0 0 1px #d6e0ee;
     }
     .ev-cal-cell.is-out .num { color: #94a3b8; background: transparent; box-shadow: inset 0 0 0 1px #e2e8f0; }
-    .ev-cal-cell.has-event { background: #ffe4e6; }
-    .ev-cal-cell.has-event.is-weekend { background: #fecdd3; }
-    .ev-cal-cell.has-event .num { background: #e11d48; color: #fff; box-shadow: none; }
-    .ev-cal-cell.has-event.is-out { background: #fff1f2; }
-    .ev-cal-cell.has-event.is-out .num { background: #fb7185; color: #fff; box-shadow: none; }
+    .ev-cal-cell.has-event { background: #fff; }
+    .ev-cal-cell.has-event.is-weekend { background: #f8fafc; }
+    .ev-cal-cell.has-event .num { background: #fff; color: #e11d48; box-shadow: inset 0 0 0 2px #e11d48; }
+    .ev-cal-cell.has-event.is-out { background: #f8fafc; }
+    .ev-cal-cell.has-event.is-out .num { background: #fff; color: #fb7185; box-shadow: inset 0 0 0 2px #fb7185; }
     .ev-cal-cell.is-today .num { background: #0b3f90; color: #fff; box-shadow: none; }
     .ev-cal-cell.has-event.is-today .num { background: #0b3f90; color: #fff; box-shadow: 0 0 0 3px #e11d48; }
     .ev-cal-bars {
@@ -345,6 +346,13 @@
     .ev-cal .ev-bar.is-setup:hover { color: #431407; }
     .ev-cal .ev-bar.is-unpack,
     .ev-cal .ev-bar.is-unpack:hover { color: #083344; }
+    .ev-cal.is-split .ev-bar.is-setup,
+    .ev-cal.is-split .ev-bar.is-unpack {
+        height: 34px; line-height: 14px; white-space: normal;
+        display: flex; flex-direction: column; justify-content: center; padding: 1px 6px;
+    }
+    .ev-bar-kicker { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .ev-bar-title { font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ev-cal .ev-bar:hover { text-decoration: none; filter: brightness(1.08); }
     .ev-cal .ev-bar.is-continued-before { border-top-left-radius: 2px; border-bottom-left-radius: 2px; }
     .ev-cal .ev-bar.is-continued-after { border-top-right-radius: 2px; border-bottom-right-radius: 2px; }

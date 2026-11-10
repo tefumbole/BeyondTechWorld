@@ -127,6 +127,8 @@ class EventCalendarBuilder
                     $bars[] = [
                         'id' => (string) (isset($mark['id']) ? $mark['id'] : ''),
                         'name' => (string) (isset($mark['name']) ? $mark['name'] : ''),
+                        'kicker' => (string) (isset($mark['kicker']) ? $mark['kicker'] : ''),
+                        'event' => (string) (isset($mark['event']) ? $mark['event'] : ''),
                         'kind' => (string) (isset($mark['kind']) ? $mark['kind'] : 'event'),
                         'status' => '',
                         'col' => $placed['col'],
@@ -194,7 +196,7 @@ class EventCalendarBuilder
     public function engineerMarks($assignments)
     {
         $palette = ['#0b3f90', '#7c3aed', '#db2777', '#0f766e', '#b45309', '#0369a1', '#be123c', '#15803d'];
-        $marks = [];
+        $grouped = [];
         foreach ($assignments as $assignment) {
             if ((string) $assignment->acceptance_status === 'rejected') {
                 continue;
@@ -216,21 +218,52 @@ class EventCalendarBuilder
             if (! count($dates)) {
                 continue;
             }
-            $marks[] = [
-                'id' => (string) $event->id,
-                'name' => $profile->displayName().' · '.$event->name,
-                'kind' => 'engineer',
-                'color' => $palette[abs(crc32((string) $profile->id)) % count($palette)],
-                'dates' => $dates,
-            ];
+            $key = (string) $profile->id;
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'id' => (string) $event->id,
+                    'name' => $this->shortEngineerName($profile->displayName()),
+                    'kind' => 'engineer',
+                    'color' => $palette[abs(crc32($key)) % count($palette)],
+                    'dates' => [],
+                ];
+            }
+            $grouped[$key]['dates'] = array_merge($grouped[$key]['dates'], $dates);
         }
 
-        return $marks;
+        return array_values($grouped);
+    }
+
+    public function shortEngineerName($name)
+    {
+        $name = trim(preg_replace('/\s+/', ' ', (string) $name));
+        $name = trim(preg_replace('/\s*\([^)]*\)/', '', $name));
+        $previous = '';
+        while ($name !== $previous) {
+            $previous = $name;
+            $name = trim(preg_replace('/^(ass\.?\s*engr\.?|assistant\s+engineer|sr\.?\s*engr\.?|engr\.?|engineer|mrs\.?|mr\.?|ms\.?|miss|dr\.?)\s+/i', '', $name));
+        }
+        $parts = preg_split('/\s+/', $name);
+        $parts = array_values(array_filter($parts));
+        if (! count($parts)) {
+            return 'Engineer';
+        }
+        if (count($parts) >= 3 && strcasecmp($parts[0], $parts[count($parts) - 1]) === 0) {
+            return $parts[0];
+        }
+        if (count($parts) >= 3) {
+            return $parts[1];
+        }
+        if (count($parts) === 2 && strlen($parts[1]) <= 4) {
+            return $parts[1];
+        }
+
+        return $parts[0];
     }
 
     public function paymentMarks($payments)
     {
-        $grouped = [];
+        $totals = [];
         foreach ($payments as $payment) {
             if ((string) $payment->status !== 'paid') {
                 continue;
@@ -239,33 +272,22 @@ class EventCalendarBuilder
             if (! $date) {
                 continue;
             }
-            $profile = $payment->workerProfile;
-            $name = $profile ? $profile->displayName() : 'Payment';
-            $eventName = $payment->event ? $payment->event->name : '';
-            $key = $date.'|'.(string) $payment->event_id.'|'.(string) $payment->worker_profile_id;
-            if (! isset($grouped[$key])) {
-                $grouped[$key] = [
+            if (! isset($totals[$date])) {
+                $totals[$date] = [
                     'id' => (string) $payment->event_id,
-                    'name' => $name,
-                    'event' => $eventName,
-                    'date' => $date,
                     'amount' => 0,
                 ];
             }
-            $grouped[$key]['amount'] += (int) $payment->amount;
+            $totals[$date]['amount'] += (int) $payment->amount;
         }
         $marks = [];
-        foreach ($grouped as $row) {
-            $label = number_format($row['amount']).' XAF · '.$row['name'];
-            if ($row['event'] !== '') {
-                $label .= ' · '.$row['event'];
-            }
+        foreach ($totals as $date => $row) {
             $marks[] = [
                 'id' => $row['id'],
-                'name' => $label,
+                'name' => number_format($row['amount']).' XAF',
                 'kind' => 'pay',
                 'color' => '#059669',
-                'dates' => [$row['date']],
+                'dates' => [$date],
             ];
         }
 
@@ -291,6 +313,8 @@ class EventCalendarBuilder
             $marks[] = [
                 'id' => (string) $event->id,
                 'name' => $label.' · '.$event->name,
+                'kicker' => $label,
+                'event' => (string) $event->name,
                 'kind' => $kind,
                 'color' => $color,
                 'dates' => $dates,

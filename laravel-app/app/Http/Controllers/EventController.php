@@ -1295,7 +1295,7 @@ class EventController extends Controller
                 ->get();
             $weeks = $builder->weeksFromMarks($builder->paymentMarks($payments), $monthStart);
         } else {
-            $weeks = $builder->weeksFromMarks($builder->eventDateMarks($events), $monthStart);
+            $weeks = $builder->weeks($events, $monthStart);
         }
         $monthLabel = $monthStart->format('F Y');
         $monthKey = $monthStart->format('Y-m');
@@ -1303,11 +1303,11 @@ class EventController extends Controller
         $nextMonth = $monthStart->copy()->addMonth()->format('Y-m');
         $today = \Carbon\Carbon::now('Africa/Douala')->toDateString();
         $tabCopy = [
-            'event' => 'Event dates only. Setup and unpacking stay on their own tabs.',
+            'event' => 'The full month: setup, the event, and unpacking together.',
             'setup' => 'Setup dates only.',
             'unpacking' => 'Unpacking dates only.',
             'engineers' => 'Each engineer is shown only on the days that person works.',
-            'payments' => 'Amounts already paid, on the day they were paid.',
+            'payments' => 'The total already paid on each day.',
         ];
         $intro = $tabCopy[$tab];
 

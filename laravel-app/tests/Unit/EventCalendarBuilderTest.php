@@ -120,6 +120,16 @@ class EventCalendarBuilderTest extends TestCase
         $this->assertSame('Unpacking', substr($unpackMarks[0]['name'], 0, 9));
     }
 
+    public function test_short_engineer_names_drop_titles()
+    {
+        $builder = new EventCalendarBuilder();
+        $this->assertSame('Perez', $builder->shortEngineerName('Ass. Engr. Nfor Perez Ngange'));
+        $this->assertSame('Gracious', $builder->shortEngineerName('Gracious Fofeyin'));
+        $this->assertSame('Lee', $builder->shortEngineerName('Engr. Marven Lee'));
+        $this->assertSame('Gracious', $builder->shortEngineerName('Ass. Engr. Fumyen Gracious Chia'));
+        $this->assertSame('NGONG', $builder->shortEngineerName('NGONG EVERARE NGONG'));
+    }
+
     public function test_engineers_stay_on_their_own_days()
     {
         $weeks = (new EventCalendarBuilder())->weeksFromMarks([
