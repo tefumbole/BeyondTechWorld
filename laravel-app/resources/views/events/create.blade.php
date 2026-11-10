@@ -111,12 +111,12 @@
                         <input type="hidden" name="event_end_at" id="event-to" value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
                     </div>
                 </div>
-                <div class="ev-duration-note" id="span-note">Choose the first and last date. Setup dates become each person's working days.</div>
+                <div class="ev-duration-note" id="span-note">Choose the first and last date. Setup and unpacking dates are selected for every engineer.</div>
                 <div class="ev-date-block">
                     <div class="ev-date-head">
                         <div>
                             <strong>Setup</strong>
-                            <p>Select every setup day and leave a note. Engineers receive these dates.</p>
+                            <p>Select every setup day and leave a note. These days are selected for every engineer.</p>
                         </div>
                         <button type="button" id="setup-open">Choose setup dates</button>
                     </div>
@@ -128,7 +128,7 @@
                     <div class="ev-date-head">
                         <div>
                             <strong>Unpacking</strong>
-                            <p>Select every unpacking day, including a day after the event.</p>
+                            <p>Select every unpacking day, including a day after the event. These days are selected for every engineer.</p>
                         </div>
                         <button type="button" id="unpack-open">Choose unpacking dates</button>
                     </div>
@@ -344,16 +344,46 @@
     }
 
     function autoWorkDates() {
-        return readSetup(document.getElementById('setup-dates').value).map(function (entry) {
-            return {date: entry.date, note: '', description: '', pay_amount: '', pay_at: ''};
+        var seen = {};
+        var out = [];
+        ['setup-dates', 'unpack-dates'].forEach(function (id) {
+            var input = document.getElementById(id);
+            if (!input) return;
+            readSetup(input.value).forEach(function (entry) {
+                if (seen[entry.date]) return;
+                seen[entry.date] = true;
+                out.push({date: entry.date, note: '', description: '', pay_amount: '', pay_at: ''});
+            });
         });
+        out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+        return out;
     }
 
+    var lastDuty = {};
+
     function applyAutoDays() {
+        var duty = autoWorkDates();
+        var next = {};
+        duty.forEach(function (entry) { next[entry.date] = true; });
         tbody.querySelectorAll('.crew-dates').forEach(function (input) {
-            if (input.getAttribute('data-auto') !== '1') return;
-            input.value = JSON.stringify(autoWorkDates());
+            if (input.getAttribute('data-auto') === '1') {
+                input.value = JSON.stringify(duty);
+                return;
+            }
+            var entries = readEntries(input.value, true).filter(function (entry) {
+                if (next[entry.date]) return true;
+                var blank = !entry.note && !entry.description && (entry.pay_amount === '' || entry.pay_amount == null) && !entry.pay_at;
+                if (lastDuty[entry.date] && blank) return false;
+                return true;
+            });
+            var have = {};
+            entries.forEach(function (entry) { have[entry.date] = true; });
+            duty.forEach(function (entry) {
+                if (!have[entry.date] && !lastDuty[entry.date]) entries.push(entry);
+            });
+            input.value = JSON.stringify(entries);
         });
+        lastDuty = next;
         refresh();
     }
 
@@ -506,8 +536,13 @@
         if (tbody.querySelector('tr[data-key="' + key + '"]')) return;
         var i = rowIndex++;
         var dates = readEntries(person.work_dates, true);
-        var auto = dates.length ? '0' : '1';
-        if (!dates.length) dates = autoWorkDates();
+        var hadDates = dates.length > 0;
+        var haveDates = {};
+        dates.forEach(function (entry) { haveDates[entry.date] = true; });
+        autoWorkDates().forEach(function (entry) {
+            if (!haveDates[entry.date]) dates.push(entry);
+        });
+        var auto = hadDates ? '0' : '1';
         var role = roleById(person.category_id);
         var rate = (person.rate || person.rate === 0) && person.work_dates ? (parseInt(person.rate, 10) || 0) : (role ? role.rate : (parseInt(person.rate, 10) || 0));
         if (person.assignment_id) rate = parseInt(person.rate, 10) || 0;
@@ -1065,9 +1100,9 @@
     }
 
     function finishDatePick() {
-        var setupChanged = popState.input && popState.input.id === 'setup-dates';
+        var dutyChanged = popState.input && (popState.input.id === 'setup-dates' || popState.input.id === 'unpack-dates');
         renderPop();
-        if (setupChanged) applyAutoDays();
+        if (dutyChanged) applyAutoDays();
         else refresh();
     }
 
@@ -1242,9 +1277,7 @@
             supervisor: !!row.supervisor
         });
     });
-    paintSetup();
-    paintUnpack();
-    paintDays();
+    applyAutoDays();
 })();
 </script>
 @endsection
