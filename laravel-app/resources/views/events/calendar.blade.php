@@ -47,12 +47,12 @@
                                     <span class="num">{{ $day->format('j') }}</span>
                                 </div>
                             @endforeach
-                            <div class="ev-cal-bars" style="height: {{ max(28, $week['lanes'] * 28) }}px;">
+                            <div class="ev-cal-bars" style="height: {{ max(18, $week['lanes'] * 18) }}px;">
                                 @foreach($week['bars'] as $bar)
                                     <a class="ev-bar is-{{ $bar['kind'] ?? 'event' }} {{ $bar['continues_before'] ? 'is-continued-before' : '' }} {{ $bar['continues_after'] ? 'is-continued-after' : '' }}"
                                        href="{{ route('events.show', $bar['id']) }}"
                                        title="{{ $bar['name'] }}"
-                                       style="background: {{ $bar['color'] }}; top: {{ $bar['lane'] * 28 }}px; left: calc({{ $bar['col'] }} * 14.2857% + 3px); width: calc({{ $bar['span'] }} * 14.2857% - 6px);">
+                                       style="background: {{ $bar['color'] }}; top: {{ $bar['lane'] * 18 }}px; left: calc({{ $bar['col'] }} * 14.2857% + 3px); width: calc({{ $bar['span'] }} * 14.2857% - 6px);">
                                         {{ $bar['name'] }}
                                     </a>
                                 @endforeach

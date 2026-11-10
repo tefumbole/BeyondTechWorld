@@ -270,9 +270,11 @@
     .ev-cal-legend span { display: inline-flex; align-items: center; gap: 8px; }
     .ev-cal-legend i { width: 18px; height: 10px; border-radius: 999px; display: inline-block; }
     .ev-cal-date-key { width: 18px; height: 18px; border-radius: 6px; background: #c6ab47; display: inline-block; }
-    .ev-cal-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .ev-cal-grid { min-width: 840px; }
+    .ev-cal-scroll { overflow: hidden; }
+    .ev-cal-grid { min-width: 0; height: calc(100vh - 250px); min-height: 520px; display: flex; flex-direction: column; }
     .ev-cal-weekdays, .ev-cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .ev-cal-weekdays { flex: 0 0 auto; }
+    .ev-cal-week { flex: 1 1 0; min-height: 0; }
     .ev-cal-weekdays span {
         padding: 12px 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em;
         text-transform: uppercase; color: #0b3f90; background: #f8fafc;
@@ -280,9 +282,9 @@
     }
     .ev-cal-week { position: relative; }
     .ev-cal-cell {
-        min-height: calc(56px + var(--lanes, 1) * 30px);
-        aspect-ratio: 1;
-        padding: 8px;
+        min-height: 0;
+        height: 100%;
+        padding: 6px;
         background: #fff;
         border-right: 1px solid #d6e0ee;
         border-bottom: 1px solid #d6e0ee;
@@ -291,8 +293,8 @@
     .ev-cal-cell.is-out { background: #f1f5f9; }
     .ev-cal-cell .num {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 36px; height: 36px; border-radius: 8px;
-        background: #fff; color: #0f172a; font-weight: 800; font-size: 16px;
+        width: 26px; height: 26px; border-radius: 7px;
+        background: #fff; color: #0f172a; font-weight: 800; font-size: 13px;
         box-shadow: inset 0 0 0 1px #d6e0ee;
     }
     .ev-cal-cell.is-out .num { color: #94a3b8; background: transparent; box-shadow: inset 0 0 0 1px #e2e8f0; }
@@ -307,9 +309,9 @@
         position: absolute; left: 0; right: 0; bottom: 8px;
         margin: 0; pointer-events: none; z-index: 2;
     }
-    .ev-bar {
-        position: absolute; height: 24px; border-radius: 8px; color: #fff;
-        font-size: 12px; font-weight: 700; line-height: 24px; padding: 0 8px;
+    .ev-cal .ev-bar {
+        position: absolute; height: 16px; border-radius: 6px; color: #fff;
+        font-size: 11px; font-weight: 700; line-height: 16px; padding: 0 6px;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none;
         pointer-events: auto;
     }
@@ -487,6 +489,9 @@
         .ev-popcal-grid button { min-height: 40px; font-size: 15px; }
         .ev-cal-toolbar { flex-direction: column; align-items: stretch; }
         .ev-cal-toolbar h3 { font-size: 18px; }
+        .ev-cal-grid { height: auto; min-height: 0; }
+        .ev-cal-week { min-height: 78px; }
+        .ev-cal-scroll { overflow-x: auto; }
         .ev-actions {
             position: sticky; bottom: 0; z-index: 20;
             background: #fff; margin: 0 -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
