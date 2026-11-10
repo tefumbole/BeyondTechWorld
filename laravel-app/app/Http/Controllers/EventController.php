@@ -557,7 +557,7 @@ class EventController extends Controller
             'crew.*.work_dates' => 'nullable|string|max:20000',
             'automate_payment' => 'nullable',
             'pay_at' => 'nullable|date',
-            'notify_crew' => 'nullable|in:affected,everyone',
+            'notify_crew' => 'nullable|in:none,affected,everyone',
         ]);
 
         $customer = $this->optionalCustomer($request, $data);
@@ -778,9 +778,14 @@ class EventController extends Controller
         }
 
         $invites = app(EventCrewInviteService::class);
-        $invite = $invites->inviteAssigned($event);
+        $notify = $request->input('notify_crew');
+        if (! in_array($notify, ['none', 'affected', 'everyone'], true)) {
+            $notify = 'affected';
+        }
+        $silent = $existing && $notify === 'none';
+        $invite = $silent ? ['sent' => 0, 'warnings' => []] : $invites->inviteAssigned($event);
         $warnings = array_merge($warnings, $invite['warnings']);
-        if ($existing) {
+        if ($existing && ! $silent) {
             $eventWideChanged = $beforeEvent
                 && (
                     $beforeEvent['name'] !== (string) $event->name
@@ -793,7 +798,6 @@ class EventController extends Controller
                     || $beforeEvent['unpack'] !== (string) $event->unpack_dates
                     || $beforeEvent['type'] !== (string) $event->event_type
                 );
-            $notify = $request->input('notify_crew') === 'everyone' ? 'everyone' : 'affected';
             $targets = [];
             foreach ($event->assignments()->get() as $assignment) {
                 $id = (string) $assignment->id;
@@ -822,7 +826,9 @@ class EventController extends Controller
         }
 
         $msg = $existing ? $event->name.' saved.' : $event->name.' is on the Events dashboard.';
-        if ($invite['sent'] > 0) {
+        if ($silent) {
+            $msg .= ' No messages were sent.';
+        } elseif ($invite['sent'] > 0) {
             $msg .= ' '.$invite['sent'].' people received the selection message.';
         }
         if ($publish) {
