@@ -852,7 +852,7 @@ class EventController extends Controller
         }
         $notify = $request->input('notify_crew');
         if (! in_array($notify, ['none', 'affected', 'everyone'], true)) {
-            $notify = 'affected';
+            $notify = $existing ? 'none' : 'affected';
         }
         $silent = $existing && $notify === 'none';
         $prepared = $this->prepareCrew($request->input('crew', []), $warnings);

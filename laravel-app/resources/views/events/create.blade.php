@@ -232,11 +232,11 @@
                 <div class="ev-section">
                     <h3>Tell the crew</h3>
                     <label class="d-block mb-2">
-                        <input type="radio" name="notify_crew" value="none" {{ old('notify_crew') === 'none' ? 'checked' : '' }}>
+                        <input type="radio" name="notify_crew" value="none" {{ old('notify_crew', 'none') === 'none' ? 'checked' : '' }}>
                         Do not send any message
                     </label>
                     <label class="d-block mb-2">
-                        <input type="radio" name="notify_crew" value="affected" {{ old('notify_crew', 'affected') === 'affected' ? 'checked' : '' }}>
+                        <input type="radio" name="notify_crew" value="affected" {{ old('notify_crew') === 'affected' ? 'checked' : '' }}>
                         Message only people affected by these changes
                     </label>
                     <label class="d-block mb-2">
