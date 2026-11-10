@@ -58,15 +58,15 @@
     @media (max-width: 575px) {
         .ev-board { grid-template-columns: 1fr; }
     }
+    .ev-graphs { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-top: 8px; }
     .ev-chart {
-        margin-top: 22px;
         background: #fff;
-        border: 1px solid #e4eaf4;
-        border-radius: 18px;
-        padding: 22px;
-        box-shadow: 0 10px 28px rgba(11, 63, 144, 0.06);
+        border: 1px solid #eef2f7;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
     }
-    .ev-chart h3 { margin: 0 0 18px; font-size: 18px; font-weight: 800; color: #0b3f90; }
+    .ev-chart h3 { margin: 0 0 16px; font-size: 18px; font-weight: 800; color: #0b3f90; }
     .ev-dash-title { color: #0b3f90; font-weight: 800; font-size: 1.75rem; margin: 0 0 4px; }
     .ev-dash-btn {
         background: #0b3f90; border: 1px solid #0b3f90; color: #fff;
@@ -74,12 +74,18 @@
         display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
     }
     .ev-dash-btn:hover { background: #0a3578; color: #fff; text-decoration: none; }
-    .ev-bars { display: flex; align-items: flex-end; gap: 18px; min-height: 240px; }
-    .ev-bar { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
-    .ev-bar-track { width: 100%; max-width: 88px; height: 180px; display: flex; align-items: flex-end; justify-content: center; }
-    .ev-bar-fill { width: 100%; border-radius: 14px 14px 6px 6px; min-height: 8px; }
-    .ev-bar-val { margin-top: 10px; font-size: 20px; font-weight: 800; color: #0b3f90; }
-    .ev-bar-label { margin-top: 4px; font-size: 13px; font-weight: 700; color: #334155; text-align: center; }
+    .ev-bars { display: flex; align-items: flex-end; justify-content: space-around; gap: 12px; height: 220px; }
+    .ev-bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+    .ev-bar-fill { width: 100%; max-width: 72px; border-radius: 12px 12px 4px 4px; }
+    .ev-bar-val { margin-top: 8px; font-size: 18px; font-weight: 800; color: #0b3f90; }
+    .ev-bar-label { margin-top: 2px; font-size: 13px; font-weight: 700; color: #334155; text-align: center; }
+    .ev-line { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+    .ev-line span { width: 110px; font-size: 13px; font-weight: 700; color: #334155; }
+    .ev-line strong { width: 28px; text-align: right; color: #0b3f90; }
+    .ev-line i { display: block; height: 14px; border-radius: 999px; }
+    @media (max-width: 991px) {
+        .ev-graphs { grid-template-columns: 1fr; }
+    }
 </style>
 <section class="forms events-shell">
     <div class="container-fluid">
@@ -104,16 +110,28 @@
                 </a>
             @endforeach
         </div>
-        <div class="ev-chart">
-            <h3>Events</h3>
-            <div class="ev-bars">
-                @foreach($chart as $bar)
-                    <div class="ev-bar">
-                        <div class="ev-bar-track">
-                            <div class="ev-bar-fill" style="height: {{ max(8, (int) round($bar['count'] / $chartMax * 100)) }}%; background: {{ $bar['color'] }};"></div>
+        <div class="ev-graphs">
+            <div class="ev-chart">
+                <h3>Events</h3>
+                <div class="ev-bars">
+                    @foreach($chart as $bar)
+                        <div class="ev-bar">
+                            <div class="ev-bar-fill" style="height: {{ $bar['height'] }}px; background: {{ $bar['color'] }};"></div>
+                            <div class="ev-bar-val">{{ $bar['count'] }}</div>
+                            <div class="ev-bar-label">{{ $bar['label'] }}</div>
                         </div>
-                        <div class="ev-bar-val">{{ $bar['count'] }}</div>
-                        <div class="ev-bar-label">{{ $bar['label'] }}</div>
+                    @endforeach
+                </div>
+            </div>
+            <div class="ev-chart">
+                <h3>Share of events</h3>
+                @foreach($chart as $bar)
+                    <div class="ev-line">
+                        <span>{{ $bar['label'] }}</span>
+                        <div style="flex:1;background:#f1f5f9;border-radius:999px;">
+                            <i style="width: {{ $bar['width'] }}%; background: {{ $bar['color'] }};"></i>
+                        </div>
+                        <strong>{{ $bar['count'] }}</strong>
                     </div>
                 @endforeach
             </div>

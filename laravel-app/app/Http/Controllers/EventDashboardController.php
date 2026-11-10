@@ -49,9 +49,13 @@ class EventDashboardController extends Controller
             ['label' => 'Upcoming', 'count' => $cards[0]['count'], 'color' => '#f59e0b'],
             ['label' => 'In progress', 'count' => $cards[1]['count'], 'color' => '#7b61ff'],
             ['label' => 'Completed', 'count' => $cards[2]['count'], 'color' => '#10b981'],
-            ['label' => 'Events', 'count' => Event::where('internal_status', '!=', 'cancelled')->count(), 'color' => '#0b3f90'],
+            ['label' => 'Published', 'count' => $cards[3]['count'], 'color' => '#0b3f90'],
         ];
         $chartMax = max(1, max(array_column($chart, 'count')));
+        foreach ($chart as $index => $bar) {
+            $chart[$index]['height'] = max(10, (int) round($bar['count'] / $chartMax * 160));
+            $chart[$index]['width'] = max(4, (int) round($bar['count'] / $chartMax * 100));
+        }
 
         return view('events.dashboard', compact('cards', 'chart', 'chartMax'));
     }
