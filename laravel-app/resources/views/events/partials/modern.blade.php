@@ -145,6 +145,16 @@
         box-shadow: inset 0 0 0 1px #e2e8f0;
     }
     .ev-when-card textarea { font-weight: 500; resize: vertical; min-height: 110px; }
+    .ev-when-card .ev-when-btn {
+        width: 100%; border: 0; background: #fff; border-radius: 14px;
+        padding: 14px 16px; font-size: 16px; font-weight: 700; color: #0f172a;
+        box-shadow: inset 0 0 0 1px #e2e8f0; text-align: left; cursor: pointer;
+    }
+    .ev-popcal-time {
+        width: 100%; margin-top: 8px; border: 0; background: #f8fafc; border-radius: 12px;
+        padding: 10px 12px; font-weight: 800; font-size: 16px; color: #0f172a;
+        box-shadow: inset 0 0 0 1px #e2e8f0;
+    }
     .ev-date-block {
         background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
         padding: 16px; margin-bottom: 14px;

@@ -99,14 +99,16 @@
             <div class="ev-section ev-when">
                 <h3>Event duration</h3>
                 <div class="ev-when-grid">
-                    <label class="ev-when-card">
+                    <div class="ev-when-card">
                         <span>From</span>
-                        <input type="datetime-local" name="event_start_at" id="event-from" required value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d\TH:i')) }}">
-                    </label>
-                    <label class="ev-when-card">
+                        <button type="button" class="ev-when-btn" id="event-from-open">Choose start</button>
+                        <input type="hidden" name="event_start_at" id="event-from" value="{{ old('event_start_at', optional($event->event_start_at)->format('Y-m-d\TH:i')) }}">
+                    </div>
+                    <div class="ev-when-card">
                         <span>To</span>
-                        <input type="datetime-local" name="event_end_at" id="event-to" required value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
-                    </label>
+                        <button type="button" class="ev-when-btn" id="event-to-open">Choose end</button>
+                        <input type="hidden" name="event_end_at" id="event-to" value="{{ old('event_end_at', optional($event->event_end_at)->format('Y-m-d\TH:i')) }}">
+                    </div>
                 </div>
                 <div class="ev-duration-note" id="span-note">Choose the first and last date. Setup dates become each person's working days.</div>
                 <div class="ev-date-block">
@@ -812,8 +814,23 @@
         if (open) commentField.focus();
     });
 
-    document.getElementById('event-from').addEventListener('change', spanDays);
-    document.getElementById('event-to').addEventListener('change', spanDays);
+    function isWhen(input) {
+        return input && (input.id === 'event-from' || input.id === 'event-to');
+    }
+
+    function whenTime(input) {
+        var match = String(input && input.value || '').match(/T(\d{2}:\d{2})/);
+        return match ? match[1] : '09:00';
+    }
+
+    function paintWhen() {
+        var from = document.getElementById('event-from');
+        var to = document.getElementById('event-to');
+        document.getElementById('event-from-open').textContent = from.value ? prettyWhen(from.value) : 'Choose start';
+        document.getElementById('event-to-open').textContent = to.value ? prettyWhen(to.value) : 'Choose end';
+    }
+
+    paintWhen();
     spanDays();
 
     var pop = document.createElement('div');
@@ -918,7 +935,10 @@
     function renderPop() {
         var input = popState.input;
         if (!input) return;
-        var selected = entryDates(input);
+        var timeField = document.getElementById('pop-time');
+        if (timeField && timeField.value) popState.time = timeField.value;
+        var when = isWhen(input);
+        var selected = when ? (popState.picked ? [popState.picked] : []) : entryDates(input);
         var from = dateOnly(document.getElementById('event-from').value);
         var to = dateOnly(document.getElementById('event-to').value);
         var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -937,15 +957,26 @@
             if (from && to && date >= from && date <= to) classes += ' is-event';
             html += '<button type="button" data-date="' + date + '" class="' + classes + '">' + day + '</button>';
         }
-        html += '</div><label class="d-block mt-2 mb-0"><input type="checkbox" id="pop-several"' + (popState.several ? ' checked' : '') + '> Select several days at once</label>';
-        html += '<div class="small text-muted mt-1">' + (popState.several ? (popState.anchor ? 'Now click the last day. Every day between the two is selected.' : 'Click the first day, then the last day.') : 'Click a day to select it. Click it again to clear it.') + ' The calendar stays open until you click OK.</div>';
+        html += '</div>';
+        if (when) {
+            html += '<label class="d-block mt-2 mb-0" for="pop-time">Time</label>';
+            html += '<input type="time" id="pop-time" class="ev-popcal-time" value="' + escapeHtml(popState.time || '09:00') + '">';
+            html += '<div class="small text-muted mt-1">Choose the day and time. The calendar stays open until you click OK.</div>';
+        } else {
+            html += '<label class="d-block mt-2 mb-0"><input type="checkbox" id="pop-several"' + (popState.several ? ' checked' : '') + '> Select several days at once</label>';
+            html += '<div class="small text-muted mt-1">' + (popState.several ? (popState.anchor ? 'Now click the last day. Every day between the two is selected.' : 'Click the first day, then the last day.') : 'Click a day to select it. Click it again to clear it.') + ' The calendar stays open until you click OK.</div>';
+        }
         html += '<button type="button" class="ev-popcal-ok" data-ok="1">OK</button>';
         pop.innerHTML = html;
     }
 
     function openPop(button, input) {
-        var dates = entryDates(input);
-        var seed = dates[0] || dateOnly(document.getElementById('event-from').value) || isoDate(new Date());
+        var dates = isWhen(input) ? [] : entryDates(input);
+        if (isWhen(input)) {
+            popState.picked = dateOnly(input.value);
+            popState.time = whenTime(input);
+        }
+        var seed = (isWhen(input) ? popState.picked : dates[0]) || dateOnly(document.getElementById('event-from').value) || isoDate(new Date());
         var parts = seed.split('-');
         popState.input = input;
         popState.year = parseInt(parts[0], 10);
@@ -1007,6 +1038,13 @@
     }
 
     function chooseDate(date) {
+        if (isWhen(popState.input)) {
+            popState.picked = date;
+            var timeField = document.getElementById('pop-time');
+            if (timeField && timeField.value) popState.time = timeField.value;
+            renderPop();
+            return;
+        }
         if (!popState.several) {
             toggleDate(date);
             return;
@@ -1076,6 +1114,12 @@
         input.setAttribute('data-auto', '0');
         paintDays();
     });
+    document.getElementById('event-from-open').addEventListener('click', function () {
+        openPop(this, document.getElementById('event-from'));
+    });
+    document.getElementById('event-to-open').addEventListener('click', function () {
+        openPop(this, document.getElementById('event-to'));
+    });
     document.getElementById('setup-open').addEventListener('click', function () {
         openPop(this, document.getElementById('setup-dates'));
     });
@@ -1125,6 +1169,15 @@
     pop.addEventListener('click', function (event) {
         event.stopPropagation();
         if (event.target.closest('[data-ok]')) {
+            if (isWhen(popState.input)) {
+                var timeField = document.getElementById('pop-time');
+                var time = timeField && timeField.value ? timeField.value : (popState.time || '09:00');
+                var day = popState.picked || dateOnly(popState.input.value);
+                if (!day) return;
+                popState.input.value = day + 'T' + time;
+                paintWhen();
+                spanDays();
+            }
             pop.hidden = true;
             return;
         }
@@ -1140,13 +1193,19 @@
     });
     document.addEventListener('click', function (event) {
         if (!event.target || !event.target.isConnected) return;
-        if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('#unpack-open') || event.target.closest('.ev-chip')) return;
+        if (event.target.closest('.ev-popcal') || event.target.closest('.crew-days-btn') || event.target.closest('#setup-open') || event.target.closest('#unpack-open') || event.target.closest('#event-from-open') || event.target.closest('#event-to-open') || event.target.closest('.ev-chip')) return;
         pop.hidden = true;
     });
 
     document.getElementById('event-form').addEventListener('submit', function (event) {
         var formError = document.getElementById('form-error');
         formError.style.display = 'none';
+        if (!document.getElementById('event-from').value || !document.getElementById('event-to').value) {
+            formError.textContent = 'Choose the event start and end, including the time.';
+            formError.style.display = '';
+            event.preventDefault();
+            return;
+        }
         if (!roles.length) return;
         var missing = false;
         tbody.querySelectorAll('.crew-role').forEach(function (input) {
