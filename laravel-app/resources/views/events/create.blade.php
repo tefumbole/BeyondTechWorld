@@ -938,7 +938,8 @@
             html += '<button type="button" data-date="' + date + '" class="' + classes + '">' + day + '</button>';
         }
         html += '</div><label class="d-block mt-2 mb-0"><input type="checkbox" id="pop-several"' + (popState.several ? ' checked' : '') + '> Select several days at once</label>';
-        html += '<div class="small text-muted mt-1">' + (popState.several ? (popState.anchor ? 'Now click the last day. Every day between the two is selected.' : 'Click the first day, then the last day.') : 'Click a day to select it. Click it again to clear it.') + '</div>';
+        html += '<div class="small text-muted mt-1">' + (popState.several ? (popState.anchor ? 'Now click the last day. Every day between the two is selected.' : 'Click the first day, then the last day.') : 'Click a day to select it. Click it again to clear it.') + ' The calendar stays open until you click OK.</div>';
+        html += '<button type="button" class="ev-popcal-ok" data-ok="1">OK</button>';
         pop.innerHTML = html;
     }
 
@@ -953,7 +954,7 @@
         var rect = button.getBoundingClientRect();
         var left = Math.min(rect.left, window.innerWidth - 316);
         pop.style.left = Math.max(8, left) + 'px';
-        pop.style.top = Math.min(rect.bottom + 8, window.innerHeight - 360) + 'px';
+        pop.style.top = Math.min(rect.bottom + 8, window.innerHeight - 430) + 'px';
         pop.hidden = false;
     }
 
@@ -1109,6 +1110,11 @@
         toggleDate(chip.getAttribute('data-date'));
     });
     pop.addEventListener('click', function (event) {
+        event.stopPropagation();
+        if (event.target.closest('[data-ok]')) {
+            pop.hidden = true;
+            return;
+        }
         var nav = event.target.closest('[data-nav]');
         if (nav) {
             var next = popState.month + parseInt(nav.getAttribute('data-nav'), 10);

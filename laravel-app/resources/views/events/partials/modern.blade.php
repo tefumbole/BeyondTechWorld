@@ -259,6 +259,7 @@
     }
     .ev-cal-legend span { display: inline-flex; align-items: center; gap: 8px; }
     .ev-cal-legend i { width: 18px; height: 10px; border-radius: 999px; display: inline-block; }
+    .ev-cal-date-key { width: 18px; height: 18px; border-radius: 6px; background: #c6ab47; display: inline-block; }
     .ev-cal-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .ev-cal-grid { min-width: 840px; }
     .ev-cal-weekdays, .ev-cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -285,7 +286,13 @@
         box-shadow: inset 0 0 0 1px #d6e0ee;
     }
     .ev-cal-cell.is-out .num { color: #94a3b8; background: transparent; box-shadow: inset 0 0 0 1px #e2e8f0; }
+    .ev-cal-cell.has-event { background: #fff8e8; }
+    .ev-cal-cell.has-event.is-weekend { background: #fff3d0; }
+    .ev-cal-cell.has-event .num { background: #c6ab47; color: #072f6b; box-shadow: none; }
+    .ev-cal-cell.has-event.is-out { background: #f8fafc; }
+    .ev-cal-cell.has-event.is-out .num { background: #f3e3a4; color: #072f6b; box-shadow: none; }
     .ev-cal-cell.is-today .num { background: #0b3f90; color: #fff; box-shadow: none; }
+    .ev-cal-cell.has-event.is-today .num { background: #0b3f90; color: #fff; box-shadow: 0 0 0 3px #c6ab47; }
     .ev-cal-bars {
         position: absolute; left: 0; right: 0; bottom: 8px;
         margin: 0; pointer-events: none; z-index: 2;
@@ -413,6 +420,10 @@
     .ev-popcal-grid button.is-anchor { box-shadow: inset 0 0 0 2px #c6ab47; }
     .ev-popcal-grid button.is-event { box-shadow: inset 0 0 0 1px #93c5fd; }
     .ev-popcal-grid button.is-out { color: #cbd5e1; background: transparent; }
+    .ev-popcal-ok {
+        display: block; width: 100%; margin-top: 12px; border: 0; border-radius: 12px;
+        background: #0b3f90; color: #fff; font-weight: 800; min-height: 42px;
+    }
     @media (max-width: 767px) {
         .events-shell { padding-bottom: 24px; }
         .ev-section { padding: 16px; }

@@ -18,6 +18,7 @@
                 <a class="ev-cal-nav" href="{{ route('events.calendar', ['month' => $nextMonth]) }}" aria-label="Next month">›</a>
             </div>
             <div class="ev-cal-legend">
+                <span><b class="ev-cal-date-key"></b> Date with an event</span>
                 <span><i style="background:#c6ab47"></i> Setup</span>
                 <span><i style="background:#0b3f90"></i> Event</span>
                 <span><i style="background:#0f766e"></i> Unpacking</span>
@@ -30,9 +31,19 @@
                         @endforeach
                     </div>
                     @foreach($weeks as $week)
+                        @php
+                            $eventDays = [];
+                            foreach ($week['bars'] as $bar) {
+                                $start = (int) $bar['col'];
+                                $span = max(1, (int) $bar['span']);
+                                for ($i = $start; $i < $start + $span && $i < 7; $i++) {
+                                    $eventDays[$i] = true;
+                                }
+                            }
+                        @endphp
                         <div class="ev-cal-week" style="--lanes: {{ (int) $week['lanes'] }};">
-                            @foreach($week['days'] as $day)
-                                <div class="ev-cal-cell {{ $day->format('Y-m') === $monthKey ? '' : 'is-out' }} {{ $day->toDateString() === $today ? 'is-today' : '' }} {{ $day->isWeekend() ? 'is-weekend' : '' }}">
+                            @foreach($week['days'] as $index => $day)
+                                <div class="ev-cal-cell {{ $day->format('Y-m') === $monthKey ? '' : 'is-out' }} {{ $day->toDateString() === $today ? 'is-today' : '' }} {{ $day->isWeekend() ? 'is-weekend' : '' }} {{ ! empty($eventDays[$index]) ? 'has-event' : '' }}">
                                     <span class="num">{{ $day->format('j') }}</span>
                                 </div>
                             @endforeach
