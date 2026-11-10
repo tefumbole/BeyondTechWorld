@@ -472,6 +472,19 @@
             .beyond-module-tab.tone-red.is-active { background: #ef4444 !important; border-color: #ef4444 !important; }
             .beyond-module-tab.tone-red i { color: #ef4444 !important; }
 
+            .beyond-module-tabs.is-events .beyond-module-tabs-label { display: none; }
+            .beyond-module-tabs.is-events .beyond-module-tabs-nav { padding: 16px 8px 14px; gap: 10px; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-blue:hover { background: #0b3f90; color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-blue:hover i { color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-orange:hover { background: #f59e0b; color: #10213d !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-orange:hover i { color: #10213d !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-purple:hover { background: #7b61ff; color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-purple:hover i { color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-green:hover { background: #10b981; color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-green:hover i { color: #fff !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-gold:hover { background: #c6ab47; color: #10213d !important; }
+            .beyond-module-tabs.is-events .beyond-module-tab.tone-gold:hover i { color: #10213d !important; }
+
             .header .navbar {
                 background: var(--beyond-primary) !important;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08);

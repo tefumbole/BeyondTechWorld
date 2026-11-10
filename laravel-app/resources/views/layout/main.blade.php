@@ -2920,7 +2920,15 @@
                       }
 
                       var tones = ['tone-blue', 'tone-gold', 'tone-purple', 'tone-pink', 'tone-green', 'tone-orange', 'tone-teal', 'tone-red'];
-                      var toneClass = tones[index % tones.length];
+                      var eventTones = {
+                          'events-dashboard-menu': 'tone-blue',
+                          'events-calendar-menu': 'tone-blue',
+                          'events-timesheets-menu': 'tone-orange',
+                          'events-payments-menu': 'tone-purple',
+                          'events-reminders-menu': 'tone-green',
+                          'events-settings-menu': 'tone-gold'
+                      };
+                      var toneClass = eventTones[$li.attr('id')] || tones[index % tones.length];
                       var isActive = $link.closest('li').hasClass('active');
                       var iconClass = resolveTabIcon($link, $parentLink);
                       var $tab = $('<a>', {
@@ -2971,6 +2979,11 @@
                       $tabsWrap.addClass('is-payments');
                   } else {
                       $tabsWrap.removeClass('is-payments');
+                  }
+                  if ($submenu.attr('id') === 'events-module') {
+                      $tabsWrap.addClass('is-events');
+                  } else {
+                      $tabsWrap.removeClass('is-events');
                   }
                   if ($nav.children().length) {
                       $tabsWrap.addClass('is-visible');

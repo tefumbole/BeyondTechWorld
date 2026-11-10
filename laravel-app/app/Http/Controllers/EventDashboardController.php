@@ -40,16 +40,16 @@ class EventDashboardController extends Controller
         $this->authorizeEvents();
 
         $cards = [
-            ['view' => 'upcoming', 'label' => 'Upcoming events', 'count' => Event::upcoming()->count(), 'note' => 'Starts after today'],
-            ['view' => 'progress', 'label' => 'In progress', 'count' => Event::inProgressWindow()->count(), 'note' => 'Happening now'],
-            ['view' => 'completed', 'label' => 'Completed events', 'count' => Event::finished()->count(), 'note' => 'Finished and past events'],
-            ['view' => 'published', 'label' => 'Published events', 'count' => Event::onWebsite()->count(), 'note' => 'Live on the website'],
+            ['view' => 'upcoming', 'label' => 'Upcoming events', 'count' => Event::upcoming()->count(), 'note' => 'Starts after today', 'accent' => '#f59e0b'],
+            ['view' => 'progress', 'label' => 'In progress', 'count' => Event::inProgressWindow()->count(), 'note' => 'Happening now', 'accent' => '#7b61ff'],
+            ['view' => 'completed', 'label' => 'Completed events', 'count' => Event::finished()->count(), 'note' => 'Finished and past events', 'accent' => '#10b981'],
+            ['view' => 'published', 'label' => 'Published events', 'count' => Event::onWebsite()->count(), 'note' => 'Live on the website', 'accent' => '#0b3f90'],
         ];
         $chart = [
-            ['label' => 'Upcoming', 'count' => $cards[0]['count'], 'color' => '#0b3f90'],
-            ['label' => 'In progress', 'count' => $cards[1]['count'], 'color' => '#c6ab47'],
-            ['label' => 'Completed', 'count' => $cards[2]['count'], 'color' => '#0f766e'],
-            ['label' => 'Events', 'count' => Event::where('internal_status', '!=', 'cancelled')->count(), 'color' => '#072f6b'],
+            ['label' => 'Upcoming', 'count' => $cards[0]['count'], 'color' => '#f59e0b'],
+            ['label' => 'In progress', 'count' => $cards[1]['count'], 'color' => '#7b61ff'],
+            ['label' => 'Completed', 'count' => $cards[2]['count'], 'color' => '#10b981'],
+            ['label' => 'Events', 'count' => Event::where('internal_status', '!=', 'cancelled')->count(), 'color' => '#0b3f90'],
         ];
         $chartMax = max(1, max(array_column($chart, 'count')));
 

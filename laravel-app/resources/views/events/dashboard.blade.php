@@ -13,11 +13,12 @@
         text-decoration: none;
         color: inherit;
         background: #fff;
-        border: 1px solid #e4eaf4;
-        border-radius: 18px;
-        padding: 22px 22px 18px;
-        box-shadow: 0 10px 28px rgba(11, 63, 144, 0.06);
-        min-height: 168px;
+        border: 1px solid #eef2f7;
+        border-left: 4px solid #0b3f90;
+        border-radius: 14px;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+        min-height: 0;
         transition: transform .15s ease, box-shadow .15s ease;
     }
     .ev-board a:hover {
@@ -26,17 +27,17 @@
         color: inherit;
     }
     .ev-board .count {
-        font-size: 42px;
+        font-size: 2rem;
         font-weight: 800;
         color: #0b3f90;
-        line-height: 1;
-        letter-spacing: -0.03em;
+        line-height: 1.1;
     }
     .ev-board .name {
-        margin-top: 14px;
-        font-size: 16px;
-        font-weight: 700;
-        color: #0f172a;
+        margin-top: 0;
+        margin-bottom: 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #6b7280;
     }
     .ev-board .note {
         margin-top: 4px;
@@ -65,7 +66,14 @@
         padding: 22px;
         box-shadow: 0 10px 28px rgba(11, 63, 144, 0.06);
     }
-    .ev-chart h3 { margin: 0 0 18px; font-size: 18px; font-weight: 800; color: #0f172a; }
+    .ev-chart h3 { margin: 0 0 18px; font-size: 18px; font-weight: 800; color: #0b3f90; }
+    .ev-dash-title { color: #0b3f90; font-weight: 800; font-size: 1.75rem; margin: 0 0 4px; }
+    .ev-dash-btn {
+        background: #0b3f90; border: 1px solid #0b3f90; color: #fff;
+        border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px;
+        display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .ev-dash-btn:hover { background: #0a3578; color: #fff; text-decoration: none; }
     .ev-bars { display: flex; align-items: flex-end; gap: 18px; min-height: 240px; }
     .ev-bar { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .ev-bar-track { width: 100%; max-width: 88px; height: 180px; display: flex; align-items: flex-end; justify-content: center; }
@@ -80,20 +88,19 @@
         @endif
         <div class="ev-page-head">
             <div>
-                <div class="ev-kicker">Events</div>
-                <h4>Events Dashboard</h4>
+                <h1 class="ev-dash-title">Events Dashboard</h1>
+                <p class="ev-lead">Upcoming, in progress, completed, and published events.</p>
             </div>
             @if(in_array('events.create', $all_permission))
-                <a href="{{ route('events.create') }}" class="btn btn-primary"><i class="dripicons-plus"></i> Create Event</a>
+                <a href="{{ route('events.create') }}" class="ev-dash-btn"><i class="dripicons-plus"></i> Create Event</a>
             @endif
         </div>
         <div class="ev-board">
             @foreach($cards as $card)
-                <a href="{{ route('events.index', ['view' => $card['view']]) }}">
-                    <div class="count">{{ $card['count'] }}</div>
+                <a href="{{ route('events.index', ['view' => $card['view']]) }}" style="border-left-color: {{ $card['accent'] }};">
                     <div class="name">{{ $card['label'] }}</div>
+                    <div class="count">{{ $card['count'] }}</div>
                     <div class="note">{{ $card['note'] }}</div>
-                    <div class="open">Open events</div>
                 </a>
             @endforeach
         </div>
