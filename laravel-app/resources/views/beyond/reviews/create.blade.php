@@ -586,25 +586,31 @@
         if (!poll || poll.getAttribute('data-polling') === '1') return;
         poll.setAttribute('data-polling', '1');
         setInterval(function () {
-            fetch(poll.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
+            var url = poll.getAttribute('data-url');
+            if (!url) return;
+            fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.json(); })
                 .then(function (data) {
-                    if (data.photo_url && preview) {
-                        preview.src = data.photo_url;
+                    if (data.photo_url && preview && preview.getAttribute('data-base') !== data.photo_url) {
+                        preview.setAttribute('data-base', data.photo_url);
+                        preview.src = data.photo_url + (data.photo_url.indexOf('?') === -1 ? '?' : '&') + 'v=' + Date.now();
                         preview.classList.add('is-on');
                         if (placeholder) placeholder.hidden = true;
+                        if (clearPhoto) clearPhoto.hidden = false;
                     }
                     if (data.signature_url) {
                         var signed = document.getElementById('handoff-signature');
                         var flag = document.getElementById('handoff-signed');
-                        if (signed) {
-                            signed.src = data.signature_url;
+                        if (signed && signed.getAttribute('data-base') !== data.signature_url) {
+                            signed.setAttribute('data-base', data.signature_url);
+                            signed.src = data.signature_url + (data.signature_url.indexOf('?') === -1 ? '?' : '&') + 'v=' + Date.now();
                             signed.classList.add('is-on');
                         }
                         if (flag) flag.value = '1';
                     }
-                });
-        }, 4000);
+                })
+                .catch(function () {});
+        }, 2000);
     }
     function showQr(name) {
         document.querySelectorAll('.rv-qr-slot').forEach(function (el) { el.classList.remove('is-open'); });

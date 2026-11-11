@@ -280,12 +280,13 @@ class CompanyReviewController extends Controller
             return redirect()->route('reviews.create')->with('error', 'Confirm your phone number before continuing on another device.');
         }
         $focus = $request->input('focus') === 'sign' ? 'sign' : 'selfie';
+        $previous = $this->currentHandoff();
         $this->forgetHandoff();
         $token = bin2hex(random_bytes(16));
         Cache::put($this->handoffKey($token), [
             'phone' => $phone,
-            'photo' => null,
-            'signature' => null,
+            'photo' => ($previous && ! empty($previous['photo'])) ? $previous['photo'] : null,
+            'signature' => ($previous && ! empty($previous['signature'])) ? $previous['signature'] : null,
         ], now()->addMinutes(20));
         session([
             'review_handoff_token' => $token,
@@ -354,12 +355,32 @@ class CompanyReviewController extends Controller
             }
             $row['signature'] = $signature;
         }
-        if (empty($row['photo']) && ! $signature && empty($row['signature'])) {
+        $latest = Cache::get($this->handoffKey($token));
+        if (is_array($latest)) {
+            if (empty($row['photo']) && ! empty($latest['photo'])) {
+                $row['photo'] = $latest['photo'];
+            }
+            if (empty($row['signature']) && ! empty($latest['signature'])) {
+                $row['signature'] = $latest['signature'];
+            }
+        }
+        if (empty($row['photo']) && empty($row['signature'])) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'message' => 'Take a selfie or draw your signature.'], 422);
+            }
+
             return back()->withErrors(['selfie' => 'Take a selfie or draw your signature.']);
         }
         Cache::put($this->handoffKey($token), $row, now()->addMinutes(20));
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'photo' => ! empty($row['photo']),
+                'signature' => ! empty($row['signature']),
+            ]);
+        }
 
-        return back()->with('message', 'Saved. You can return to the first screen.');
+        return back()->with('message', 'Saved. It is now on the first screen.');
     }
 
     protected function backToForm()
@@ -552,7 +573,9 @@ class CompanyReviewController extends Controller
         $qr = null;
         if ($row && $token !== '') {
             try {
-                $qr = \QrCode::size(168)->margin(1)->generate(route('reviews.capture', ['token' => $token]));
+                $qr = \QrCode::size(168)->margin(1)->generate(
+                    route('reviews.capture', ['token' => $token]).'?focus='.(session('review_handoff_focus') === 'sign' ? 'sign' : 'selfie')
+                );
             } catch (\Throwable $e) {
                 $qr = null;
             }

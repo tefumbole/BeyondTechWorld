@@ -62,6 +62,7 @@
                     <button type="button" id="capture-clear" class="rv-clear">Clear signature</button>
                 </div>
                 <button type="submit" class="rv-send">Save on this phone</button>
+                <p id="capture-saved" class="rv-hint" hidden>Saved. It is now on the first screen.</p>
             </form>
         </div>
     </div>
@@ -135,8 +136,6 @@
             photo.files = transfer.files;
         }
     }
-    photo.addEventListener('change', function () { if (photo.files[0]) showFile(photo.files[0]); });
-    fallback.addEventListener('change', function () { if (fallback.files[0]) showFile(fallback.files[0]); });
     document.getElementById('capture-file-btn').addEventListener('click', function () { photo.click(); });
     function stopCamera() {
         if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
@@ -170,8 +169,44 @@
             showFile(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
             modal.hidden = true;
             stopCamera();
+            savePhone();
         }, 'image/jpeg', 0.9);
     });
+    var saveTimer;
+    var saving = false;
+    function savePhone() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+            if (saving) {
+                savePhone();
+                return;
+            }
+            var form = document.getElementById('capture-form');
+            if (!form) return;
+            if (!pad.isEmpty()) {
+                document.getElementById('capture-signature-input').value = pad.toDataURL('image/png');
+            }
+            var hasPhoto = photo && photo.files && photo.files[0];
+            var hasSign = document.getElementById('capture-signature-input').value !== '';
+            if (!hasPhoto && !hasSign) return;
+            saving = true;
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function (response) { return response.json(); }).then(function (data) {
+                saving = false;
+                var note = document.getElementById('capture-saved');
+                if (note && data && data.ok) note.hidden = false;
+            }).catch(function () { saving = false; });
+        }, 400);
+    }
+    if (pad && pad.addEventListener) {
+        pad.addEventListener('endStroke', savePhone);
+    }
+    photo.addEventListener('change', function () { if (photo.files[0]) { showFile(photo.files[0]); savePhone(); } });
+    fallback.addEventListener('change', function () { if (fallback.files[0]) { showFile(fallback.files[0]); savePhone(); } });
     document.getElementById('capture-form').addEventListener('submit', function () {
         if (!pad.isEmpty()) {
             document.getElementById('capture-signature-input').value = pad.toDataURL('image/png');
