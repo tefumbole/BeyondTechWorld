@@ -139,6 +139,7 @@
                             <li data-nav-key="subscriptions"><a href="{{ route('cloud.admin') }}" data-nav-key="subscriptions"> <i class="dripicons-card"></i><span>Subscriptions</span></a></li>
                             <li data-nav-key="leaders"><a href="{{ url('/admin/leaders') }}" data-nav-key="leaders"> <i class="dripicons-user-group"></i><span>About Us Leaders</span></a></li>
                             <li data-nav-key="reviews"><a href="{{ url('/admin/reviews') }}" data-nav-key="reviews"> <i class="dripicons-star"></i><span>Reviews</span></a></li>
+                            <li data-nav-key="antivirus" class="{{ request()->is('admin/antivirus*') ? 'active' : '' }}"><a href="{{ url('/admin/antivirus') }}" data-nav-key="antivirus"> <i class="dripicons-document"></i><span>Antivirus</span></a></li>
                         @endif
                         <?php
                         $role = \Spatie\Permission\Models\Role::find(Auth::user()->role_id);

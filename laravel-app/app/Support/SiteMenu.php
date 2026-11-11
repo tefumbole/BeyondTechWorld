@@ -40,6 +40,7 @@ class SiteMenu
             'site-content' => 'Site Content',
             'leaders'      => 'About Us Leaders',
             'reviews'      => 'Reviews',
+            'antivirus'    => 'Antivirus',
             'product'      => 'Product',
             'purchase'     => 'Purchase',
             'sale'         => 'Sale',
@@ -117,6 +118,9 @@ class SiteMenu
         $ordered = self::ordered('side_menu_order', self::sideItems());
         if (! is_array($saved) || ! in_array('reviews', $saved, true)) {
             $ordered = self::moveAfter($ordered, 'reviews', 'leaders');
+        }
+        if (! is_array($saved) || ! in_array('antivirus', $saved, true)) {
+            $ordered = self::moveAfter($ordered, 'antivirus', 'reviews');
         }
 
         return $ordered;
