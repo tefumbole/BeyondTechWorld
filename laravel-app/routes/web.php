@@ -91,7 +91,7 @@ Route::post('/antivirus/selfie', 'AntivirusPublicController@selfie')->middleware
 Route::post('/antivirus/signature', 'AntivirusPublicController@signature')->middleware('throttle:20,1,antivirus-signature')->name('antivirus.signature');
 Route::post('/antivirus/handoff', 'AntivirusPublicController@handoff')->middleware('throttle:30,10,antivirus-handoff')->name('antivirus.handoff');
 Route::get('/antivirus/status', 'AntivirusPublicController@status')->middleware('throttle:60,1,antivirus-status')->name('antivirus.status');
-Route::post('/antivirus/lookup', 'AntivirusPublicController@lookup')->middleware('throttle:8,10,antivirus-lookup')->name('antivirus.lookup');
+Route::post('/antivirus/lookup', 'AntivirusPublicController@lookup')->middleware('throttle:40,10,antivirus-lookup')->name('antivirus.lookup');
 Route::post('/antivirus/approvers', 'AntivirusPublicController@approvers')->middleware('throttle:20,1,antivirus-approvers')->name('antivirus.approvers');
 Route::post('/antivirus/approvers/edit', 'AntivirusPublicController@editApprovers')->name('antivirus.approvers.edit');
 Route::post('/antivirus/submit', 'AntivirusPublicController@submit')->middleware('throttle:6,10')->name('antivirus.submit');

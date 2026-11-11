@@ -124,6 +124,16 @@ class AntivirusRequestFlowTest extends TestCase
         $row = $this->service->submit($draft->fresh());
         $approver = AntivirusApprover::where('antivirus_request_id', $row->id)->first();
         $this->assertSame('manual', $approver->name_source);
+        $foreign = $this->readyDraft();
+        $saved = $this->service->saveApprovers($foreign, [[
+            'role' => 'administrator',
+            'phone' => '+250794006160',
+            'manual_name' => 'Alpha Brindge Technologies',
+        ]], [
+            '250794006160' => ['name' => 'Alpha Brindge Technologies', 'source' => 'pawapay'],
+        ]);
+        $this->assertSame('250794006160', $saved[0]['phone']);
+        $this->assertSame('pawapay', $saved[0]['name_source']);
         $this->service->markApproverVerified($approver);
         try {
             $this->service->signApprover($approver, $this->pngData(), false);

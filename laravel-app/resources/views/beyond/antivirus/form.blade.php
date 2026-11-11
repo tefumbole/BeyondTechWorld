@@ -157,7 +157,7 @@
                             @if($showCard)
                                 <div class="av-person" data-slot="{{ $slot }}">
                                     <label class="av-field">Phone number</label>
-                                    <input class="av-input av-approver-phone" name="approver{{ $slot }}_phone" type="tel" inputmode="tel" value="{{ $savedPhone }}" placeholder="+237 6 75 32 17 39">
+                                    <input class="av-input av-approver-phone" name="approver{{ $slot }}_phone" type="tel" inputmode="tel" value="{{ $savedPhone }}" placeholder="+250 794 006 160">
                                     <label class="av-field">Name</label>
                                     <input class="av-input" name="approver{{ $slot }}_manual_name" data-wa-phone="off" value="{{ $savedName }}" placeholder="Full name">
                                     <label class="av-field">Role</label>

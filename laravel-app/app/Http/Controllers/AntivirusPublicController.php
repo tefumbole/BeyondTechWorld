@@ -282,18 +282,19 @@ class AntivirusPublicController extends Controller
         $this->guardTenant();
         try {
             $digits = WhatsAppPhone::normalize($request->input('phone'));
-            if (strpos($digits, '237') !== 0 || strlen($digits) !== 12) {
-                throw new AntivirusRuleException('phone', 'Enter a Cameroon phone number, for example 675321739.');
-            }
         } catch (\Throwable $e) {
-            $message = $e instanceof AntivirusRuleException ? $e->getMessage() : 'Enter a Cameroon phone number, for example 675321739.';
-
-            return response()->json(['name' => '', 'source' => 'manual', 'message' => $message], 422);
+            return response()->json(['name' => '', 'source' => 'manual'], 422);
+        }
+        if (strlen($digits) < 8 || strlen($digits) > 15) {
+            return response()->json(['name' => '', 'source' => 'manual'], 422);
         }
         $found = $this->lookupName($digits);
         $this->rememberHit($digits, $found);
 
-        return response()->json($found);
+        return response()->json([
+            'name' => isset($found['name']) ? (string) $found['name'] : '',
+            'source' => isset($found['source']) ? (string) $found['source'] : 'manual',
+        ]);
     }
 
     public function approvers(Request $request)

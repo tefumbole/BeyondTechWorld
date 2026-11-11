@@ -821,12 +821,19 @@ class AntivirusRequestService
             if ($role === 'other' && $other === '') {
                 throw new AntivirusRuleException('approver_role_other', 'Describe the approver’s role.');
             }
-            $phone = $this->phone($phoneRaw, 'approver_phone');
-            $tail = substr($phone, -9);
-            if (isset($seen[$tail])) {
-                throw new AntivirusRuleException('approver_phone', 'Each approver needs a different phone number.');
+            $phone = $this->approverPhone($phoneRaw);
+            $keys = [$phone];
+            if (strpos($phone, '237') === 0 && strlen($phone) === 12) {
+                $keys[] = substr($phone, -9);
             }
-            $seen[$tail] = true;
+            foreach ($keys as $key) {
+                if (isset($seen[$key])) {
+                    throw new AntivirusRuleException('approver_phone', 'Each approver needs a different phone number.');
+                }
+            }
+            foreach ($keys as $key) {
+                $seen[$key] = true;
+            }
             $manual = $this->cleanName(isset($item['manual_name']) ? $item['manual_name'] : '');
             $hit = isset($hits[$phone]) ? $hits[$phone] : null;
             $hitName = (is_array($hit) && ! empty($hit['name'])) ? $this->cleanName($hit['name']) : '';
@@ -971,6 +978,20 @@ class AntivirusRequestService
         }
         if (strpos($digits, '237') !== 0 || strlen($digits) !== 12) {
             throw new AntivirusRuleException($field, 'Enter a Cameroon phone number, for example 675321739.');
+        }
+
+        return $digits;
+    }
+
+    protected function approverPhone($raw)
+    {
+        try {
+            $digits = WhatsAppPhone::normalize($raw);
+        } catch (\InvalidArgumentException $e) {
+            throw new AntivirusRuleException('approver_phone', 'Enter the phone number with its country code, for example +250794006160.');
+        }
+        if (strlen($digits) < 8 || strlen($digits) > 15) {
+            throw new AntivirusRuleException('approver_phone', 'Enter the phone number with its country code, for example +250794006160.');
         }
 
         return $digits;

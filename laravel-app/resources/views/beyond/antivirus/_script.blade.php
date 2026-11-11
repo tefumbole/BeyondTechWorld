@@ -54,9 +54,19 @@
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
     }
-    function phoneReady(value) {
+    function phoneDigits(value) {
         var digits = String(value || '').replace(/\D/g, '');
+        if (digits.charAt(0) === '0') digits = digits.replace(/^0+/, '');
+        return digits;
+    }
+    function phoneReady(value) {
+        var digits = phoneDigits(value);
         return (digits.length === 9 && digits.charAt(0) === '6') || (digits.indexOf('237') === 0 && digits.length === 12);
+    }
+    function approverReady(value) {
+        var digits = phoneDigits(value);
+        if (digits.length === 9 && digits.charAt(0) === '6') return true;
+        return digits.length >= 10 && digits.length <= 15;
     }
     function lookupPhone(url, value) {
         var body = new FormData();
@@ -146,18 +156,27 @@
         bindRoleSearch(search, hidden, menu, other, approverRoles);
         if (!phone || !approverForm) return;
         var timer;
-        phone.addEventListener('input', function () {
+        var lookupSeq = 0;
+        function resolveApprover() {
             clearTimeout(timer);
-            if (!phoneReady(phone.value)) return;
+            if (!approverReady(phone.value)) return;
+            var seq = ++lookupSeq;
+            var typed = phone.value;
             timer = setTimeout(function () {
-                lookupPhone(approverForm.getAttribute('data-lookup-url'), phone.value).then(function (data) {
-                    if (name && (!name.value || name.getAttribute('data-filled') === '1')) {
-                        name.value = data && data.name ? data.name : '';
+                lookupPhone(approverForm.getAttribute('data-lookup-url'), typed).then(function (data) {
+                    if (seq !== lookupSeq || !name) return;
+                    if (data && data.name && (!name.value || name.getAttribute('data-filled') === '1')) {
+                        name.value = data.name;
                         name.setAttribute('data-filled', '1');
                     }
-                });
+                }).catch(function () {});
             }, 350);
-        });
+        }
+        phone.addEventListener('input', resolveApprover);
+        phone.addEventListener('change', resolveApprover);
+        phone.addEventListener('blur', resolveApprover);
+        phone.addEventListener('paste', function () { setTimeout(resolveApprover, 0); });
+        if (approverReady(phone.value)) resolveApprover();
         if (name) name.addEventListener('input', function () { name.setAttribute('data-filled', '0'); });
     }
     document.querySelectorAll('.av-person').forEach(bindApprover);
@@ -175,7 +194,7 @@
             card.className = 'av-person';
             card.innerHTML = ''
                 + '<label class="av-field">Phone number</label>'
-                + '<input class="av-input av-approver-phone" name="approver' + slot + '_phone" type="tel" inputmode="tel" placeholder="+237 6 75 32 17 39">'
+                + '<input class="av-input av-approver-phone" name="approver' + slot + '_phone" type="tel" inputmode="tel" placeholder="+250 794 006 160">'
                 + '<label class="av-field">Name</label>'
                 + '<input class="av-input" name="approver' + slot + '_manual_name" data-wa-phone="off" placeholder="Full name">'
                 + '<label class="av-field">Role</label>'
