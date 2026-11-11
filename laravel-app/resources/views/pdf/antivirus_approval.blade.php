@@ -20,7 +20,7 @@
 </head>
 <body>
 @include('pdf.partials._letter_branded_open')
-<h1>Antivirus Licence Request Approval</h1>
+<h1>{{ $antivirus->approved_at ? 'Anti Virus Approval' : 'Anti Virus Request' }}</h1>
 <table>
     <tr><td>Reference</td><td>{{ $antivirus->reference }}</td></tr>
     <tr><td>Approval date</td><td>{{ $antivirus->approved_at ? $antivirus->approved_at->format('d M Y') : '' }}</td></tr>

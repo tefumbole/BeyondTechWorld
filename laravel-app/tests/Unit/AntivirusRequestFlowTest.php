@@ -63,6 +63,10 @@ class AntivirusRequestFlowTest extends TestCase
         $invite = AntivirusNotice::where('kind', 'approver_link')->value('body');
         $this->assertStringContainsString('Please review and sign here:', $invite);
         $this->assertStringContainsString('Tefu Roland, IT Technician at Bafia District Hospital', $invite);
+        $this->assertStringContainsString('CBC Health Services', $body);
+        $this->assertStringNotContainsString('Beyond Enterprise', $body);
+        $this->assertStringContainsString('CBC Health Services', $invite);
+        $this->assertStringNotContainsString('Beyond Enterprise', $invite);
     }
 
     public function test_two_approvers_forward_once_even_if_the_first_signs_again()
@@ -192,10 +196,9 @@ class AntivirusRequestFlowTest extends TestCase
         $this->assertSame('awaiting', $row->fresh()->receipt_status);
         $this->assertSame(1, AntivirusNotice::where('kind', 'approved_requester')->count());
         $approved = AntivirusNotice::where('kind', 'approved_requester')->value('body');
-        $this->assertStringStartsWith(
-            'The Chief of Administration and Finance has approved 12 antivirus licences for Bafia District Hospital for 2027. View the signed approval:',
-            $approved
-        );
+        $this->assertStringContainsString('The Chief of Administration and Finance has approved this Anti Virus request.', $approved);
+        $this->assertStringContainsString('CBC Health Services', $approved);
+        $this->assertStringNotContainsString('Beyond Enterprise', $approved);
         $this->assertSame(1, AntivirusNotice::where('kind', 'receipt_requester')->count());
 
         $row = $this->service->recordPayment($row->fresh(), '2027-03-01', '150000', 'TRX-77');

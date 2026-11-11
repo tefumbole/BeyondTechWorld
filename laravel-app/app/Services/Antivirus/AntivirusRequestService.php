@@ -312,6 +312,7 @@ class AntivirusRequestService
                     $approver->save();
                     $links[] = [
                         'phone' => $person['phone'],
+                        'name' => $person['name'],
                         'link' => route('antivirus.approve', ['token' => $token]),
                     ];
                 }
@@ -322,7 +323,7 @@ class AntivirusRequestService
                         $locked,
                         'approver_link',
                         $link['phone'],
-                        AntivirusCatalog::approverInviteMessage($locked, $link['link'])
+                        AntivirusCatalog::approverInviteMessage($locked, $link['link'], $link['name'])
                     );
                 }
                 $this->activity($locked, 'Submitted', 'Sent to '.$line);
@@ -333,9 +334,33 @@ class AntivirusRequestService
             $this->queue = [];
             throw $e;
         }
+        $this->attachApproverPdf($saved);
         $this->flush();
 
         return $saved->fresh();
+    }
+
+    protected function attachApproverPdf(AntivirusRequest $request)
+    {
+        try {
+            $this->writePdf($request);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return;
+        }
+        $request = $request->fresh();
+        if (! $request || ! $request->pdf_path) {
+            return;
+        }
+        $name = 'Anti-Virus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
+        AntivirusNotice::where('antivirus_request_id', $request->id)
+            ->where('kind', 'approver_link')
+            ->where('status', 'queued')
+            ->update([
+                'document_path' => $request->pdf_path,
+                'document_name' => $name,
+            ]);
     }
 
     public function findApprover($token)
@@ -522,13 +547,13 @@ class AntivirusRequestService
             $receipt = route('antivirus.receipt', ['token' => $receiptToken]);
             $fileName = 'Antivirus-'.$saved->reference.'.pdf';
             $fileName = str_replace(['/', ' '], '-', $fileName);
-            $this->enqueue($saved, 'approved_requester', $saved->requester_phone, AntivirusCatalog::finalApprovalMessage($saved, $letter), $saved->pdf_path, $fileName);
+            $this->enqueue($saved, 'approved_requester', $saved->requester_phone, AntivirusCatalog::finalApprovalMessage($saved, $letter, $saved->requester_name), $saved->pdf_path, $fileName);
             $this->enqueue($saved, 'receipt_requester', $saved->requester_phone, AntivirusCatalog::receiptMessage($saved, $receipt));
             foreach ($saved->approvers as $approver) {
                 if ($approver->status !== 'signed') {
                     continue;
                 }
-                $this->enqueue($saved, 'approved_approver', $approver->phone, AntivirusCatalog::finalApprovalMessage($saved, $letter), $saved->pdf_path, $fileName);
+                $this->enqueue($saved, 'approved_approver', $approver->phone, AntivirusCatalog::finalApprovalMessage($saved, $letter, $approver->name), $saved->pdf_path, $fileName);
             }
             $this->flush();
         }
@@ -706,8 +731,19 @@ class AntivirusRequestService
             $request,
             'approver_link',
             $approver->phone,
-            AntivirusCatalog::approverInviteMessage($request, route('antivirus.approve', ['token' => $token]))
+            AntivirusCatalog::approverInviteMessage($request, route('antivirus.approve', ['token' => $token]), $approver->name)
         );
+        if ($request->pdf_path) {
+            $name = 'Anti-Virus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
+            AntivirusNotice::where('antivirus_request_id', $request->id)
+                ->where('kind', 'approver_link')
+                ->where('phone', WhatsAppPhone::forWasender($approver->phone))
+                ->update([
+                    'document_path' => $request->pdf_path,
+                    'document_name' => $name,
+                    'document_sent_at' => null,
+                ]);
+        }
     }
 
     public function resendChief(AntivirusRequest $request)

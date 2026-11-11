@@ -63,7 +63,7 @@ class SendAntivirusWhatsApp implements ShouldQueue
 
         try {
             if (! $notice->text_sent_at) {
-                $result = $router->sendWhatsAppText($notice->phone, $notice->body);
+                $result = $router->sendWhatsAppText($notice->phone, $notice->body, [], false);
                 if (empty($result['success'])) {
                     throw new \RuntimeException(isset($result['error']) ? $result['error'] : 'WhatsApp was not sent.');
                 }

@@ -100,46 +100,137 @@ class AntivirusCatalog
 
     public static function submittedMessage(AntivirusRequest $row, $approverLine)
     {
-        return 'Your request for '.$row->quantity.' antivirus licences for '.$row->station.' for '.$row->year
-            .' has been submitted. It has been sent to '.$approverLine
-            .'. After station approval, it will be forwarded to the Chief of Administration and Finance. Ref '.$row->reference.'.';
+        return self::cbcMessage(
+            'Anti Virus Approval Request',
+            $row->requester_name,
+            'Your request for Anti Virus licences has been submitted.',
+            [
+                'Station' => $row->station,
+                'Approver' => $approverLine,
+                'Number of licences' => (string) $row->quantity,
+            ],
+            'After approval it will be sent to the Chief of Administration and Finance.',
+            $row->reference
+        );
     }
 
-    public static function approverInviteMessage(AntivirusRequest $row, $link)
+    public static function approverInviteMessage(AntivirusRequest $row, $link, $approverName = '')
     {
         $role = self::roleLabel('requester', $row->requester_role, $row->requester_role_other);
+        $dear = trim((string) $approverName) !== '' ? $approverName : 'Approver';
 
-        return $row->requester_name.', '.$role.' at '.$row->station.', has requested '.$row->quantity
-            .' antivirus licences for '.$row->year.'. Please review and sign here: '.$link;
+        return self::cbcMessage(
+            'Anti Virus Approval Request',
+            $dear,
+            $row->requester_name.', '.$role.' at '.$row->station.', has requested Anti Virus licences. Please review and sign here: '.$link,
+            [
+                'Station' => $row->station,
+                'Requester' => $row->requester_name.', '.$role,
+                'Number of licences' => (string) $row->quantity,
+            ],
+            '',
+            $row->reference
+        );
     }
 
     public static function stationApprovedMessage(AntivirusRequest $row)
     {
-        return 'Your antivirus request for '.$row->station
-            .' has received station approval and has been forwarded to the Chief of Administration and Finance. Ref '.$row->reference.'.';
+        return self::cbcMessage(
+            'Anti Virus Approval',
+            $row->requester_name,
+            'Your Anti Virus request has received station approval.',
+            [
+                'Station' => $row->station,
+                'Number of licences' => (string) $row->quantity,
+            ],
+            'It will be sent to the Chief of Administration and Finance.',
+            $row->reference
+        );
     }
 
     public static function chiefForwardMessage(AntivirusRequest $row, $dashboardUrl)
     {
-        return $row->requester_name.' at '.$row->station.' ('.$row->region.') requested '.$row->quantity
-            .' antivirus licences for '.$row->year.'. Station approval is complete. Ref '.$row->reference
-            .'. Open Antivirus Requests to review and sign: '.$dashboardUrl;
+        return self::cbcMessage(
+            'Anti Virus Approval Request',
+            'Chief of Administration and Finance',
+            $row->requester_name.' at '.$row->station.' requested Anti Virus licences. Station approval is complete.',
+            [
+                'Station' => $row->station,
+                'Requester' => $row->requester_name,
+                'Number of licences' => (string) $row->quantity,
+            ],
+            "Open Antivirus Requests to review and sign:\n".$dashboardUrl,
+            $row->reference
+        );
     }
 
-    public static function finalApprovalMessage(AntivirusRequest $row, $link)
+    public static function finalApprovalMessage(AntivirusRequest $row, $link, $name = '')
     {
-        return 'The Chief of Administration and Finance has approved '.$row->quantity
-            .' antivirus licences for '.$row->station.' for '.$row->year.'. View the signed approval: '.$link;
+        $dear = trim((string) $name) !== '' ? $name : $row->requester_name;
+
+        return self::cbcMessage(
+            'Anti Virus Approval',
+            $dear,
+            'The Chief of Administration and Finance has approved this Anti Virus request.',
+            [
+                'Station' => $row->station,
+                'Number of licences' => (string) $row->quantity,
+            ],
+            "View the signed approval:\n".$link,
+            $row->reference
+        );
     }
 
     public static function receiptMessage(AntivirusRequest $row, $link)
     {
-        return 'Please confirm how many antivirus licences '.$row->station.' received for '.$row->year
-            .'. The approved quantity is '.$row->quantity.'. Confirm here: '.$link;
+        return self::cbcMessage(
+            'Anti Virus Receipt',
+            $row->requester_name,
+            'Please confirm how many Anti Virus licences '.$row->station.' received.',
+            [
+                'Station' => $row->station,
+                'Approved quantity' => (string) $row->quantity,
+            ],
+            "Confirm here:\n".$link,
+            $row->reference
+        );
     }
 
     public static function declinedMessage(AntivirusRequest $row)
     {
-        return 'Your antivirus request for '.$row->station.' ('.$row->reference.') was declined. Reason: '.$row->decline_reason;
+        return self::cbcMessage(
+            'Anti Virus Request Declined',
+            $row->requester_name,
+            'Your Anti Virus request was declined.',
+            [
+                'Station' => $row->station,
+                'Reason' => (string) $row->decline_reason,
+            ],
+            '',
+            $row->reference
+        );
+    }
+
+    private static function cbcMessage($title, $name, $intro, array $facts, $closing, $reference)
+    {
+        $text = WhatsAppMessage::statusBlock('🛡️', $title);
+        $text .= 'Dear *'.trim((string) $name)."*,\n\n";
+        $text .= trim((string) $intro)."\n\n";
+        foreach ($facts as $label => $value) {
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+            $text .= WhatsAppMessage::bullet($label, $value);
+        }
+        if (trim((string) $closing) !== '') {
+            $text .= "\n".trim((string) $closing)."\n";
+        }
+        if (trim((string) $reference) !== '') {
+            $text .= "\n".WhatsAppMessage::bullet('Reference', $reference);
+        }
+        $text .= "\n_CBC Health Services_";
+
+        return $text;
     }
 }

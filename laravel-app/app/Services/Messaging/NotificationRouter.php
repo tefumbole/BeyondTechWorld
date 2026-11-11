@@ -43,9 +43,9 @@ class NotificationRouter
     /**
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
-    public function sendWhatsAppText($phone, $body, array $statusVars = [])
+    public function sendWhatsAppText($phone, $body, array $statusVars = [], $stampLetter = true)
     {
-        return $this->sendWasenderText($phone, $body);
+        return $this->sendWasenderText($phone, $body, $stampLetter);
     }
 
     /**
@@ -54,7 +54,7 @@ class NotificationRouter
      *
      * @return array{success:bool,provider?:string,error?:string,skipped?:bool,dev?:bool,sid?:string}
      */
-    public function sendWasenderText($phone, $body)
+    public function sendWasenderText($phone, $body, $stampLetter = true)
     {
         if (! $this->whatsappEnabled()) {
             \Log::info('[messaging] WhatsApp disabled — skip Wasender text');
@@ -62,7 +62,9 @@ class NotificationRouter
             return ['success' => true, 'skipped' => true, 'provider' => 'none'];
         }
 
-        $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        if ($stampLetter) {
+            $body = LetterReference::applyToMessage((string) $body, 'whatsapp');
+        }
         $result = $this->wasender->sendTextRaw($phone, $body);
         $result['provider'] = 'wasender';
 
