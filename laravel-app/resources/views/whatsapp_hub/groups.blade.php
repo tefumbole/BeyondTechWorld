@@ -22,7 +22,7 @@
         </p>
         <form method="POST" action="{{ route('whatsapp.groups.import') }}" class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             @csrf
-            <input type="text" name="invite" class="form-control" style="max-width:420px" placeholder="https://chat.whatsapp.com/…" value="{{ old('invite') }}" required>
+            <input type="url" name="invite" id="group-invite" class="form-control wa-phone-off" data-wa-phone="off" autocomplete="off" autocapitalize="off" spellcheck="false" style="max-width:420px" placeholder="Paste the full group link, letters included" value="{{ old('invite') }}" required>
             <button type="submit" class="btn btn-default">Add group from invite link</button>
         </form>
         <div class="wa-card table-responsive">
