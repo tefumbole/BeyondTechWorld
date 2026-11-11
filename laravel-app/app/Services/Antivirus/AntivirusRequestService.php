@@ -841,10 +841,15 @@ class AntivirusRequestService
             $seen[$tail] = true;
             $manual = $this->cleanName(isset($item['manual_name']) ? $item['manual_name'] : '');
             $hit = isset($hits[$phone]) ? $hits[$phone] : null;
-            if ($manual !== '') {
+            $hitName = (is_array($hit) && ! empty($hit['name'])) ? $this->cleanName($hit['name']) : '';
+            $hitSource = is_array($hit) && isset($hit['source']) ? $hit['source'] : '';
+            if ($manual !== '' && $hitName !== '' && strcasecmp($manual, $hitName) === 0 && in_array($hitSource, ['campay', 'pawapay'], true)) {
+                $name = $hitName;
+                $source = $hitSource;
+            } elseif ($manual !== '') {
                 $name = $manual;
                 $source = 'manual';
-            } elseif (is_array($hit) && ! empty($hit['name']) && in_array(isset($hit['source']) ? $hit['source'] : '', ['campay', 'pawapay'], true)) {
+            } elseif (is_array($hit) && $hitName !== '' && in_array($hitSource, ['campay', 'pawapay'], true)) {
                 $name = $this->cleanName($hit['name']);
                 $source = $hit['source'];
             } else {

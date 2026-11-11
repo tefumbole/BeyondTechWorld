@@ -49,6 +49,7 @@ class AntivirusPublicController extends Controller
         return view('beyond.antivirus.form', [
             'panel' => $panel,
             'visual' => $this->visual($panel),
+            'percent' => $this->percent($panel, $draft),
             'draft' => $draft,
             'year' => (int) $this->antivirus->settings()->campaign_year,
             'phone' => $draft ? WhatsAppPhone::display($draft->requester_phone) : WhatsAppPhone::display((string) session('antivirus_lookup_phone', '')),
@@ -60,6 +61,7 @@ class AntivirusPublicController extends Controller
             'savedApprovers' => $draft ? $this->antivirus->savedApprovers($draft) : [],
             'qr' => $qr,
             'handoff' => $handoff,
+            'handoffFocus' => (string) session('antivirus_handoff_focus', ''),
             'resign' => $draft && $draft->signature_path && ! $draft->signatureIsCurrent(),
         ]);
     }
@@ -73,19 +75,35 @@ class AntivirusPublicController extends Controller
                 throw new AntivirusRuleException('phone', 'Enter a Cameroon phone number, for example 675321739.');
             }
             $found = $this->lookupName($digits);
+            $this->rememberHit($digits, $found);
             session([
                 'antivirus_lookup_phone' => $digits,
                 'antivirus_lookup_name' => $found['name'],
                 'antivirus_lookup_source' => $found['source'],
-                'antivirus_otp_phone' => null,
+            ]);
+            $typed = trim((string) $request->input('name'));
+            if ($typed === '') {
+                return redirect()->route('antivirus.form')->withInput(['phone' => WhatsAppPhone::display($digits)])->with(
+                    'message',
+                    $found['name'] !== '' ? 'Check the name, then continue. A code is sent on the next step.' : 'No registered name was found. Type your full name, then continue.'
+                );
+            }
+            $source = ($found['name'] !== '' && strcasecmp($typed, $found['name']) === 0) ? $found['source'] : 'manual';
+            $this->sendAntivirusCode('requester', $digits, $digits);
+            session([
+                'antivirus_pending_name' => $typed,
+                'antivirus_pending_source' => $source,
+                'antivirus_otp_phone' => $digits,
             ]);
         } catch (AntivirusRuleException $e) {
             return $this->antivirusFail($e);
         } catch (\InvalidArgumentException $e) {
             return back()->withInput()->withErrors(['phone' => 'Enter a Cameroon phone number, for example 675321739.']);
+        } catch (\Throwable $e) {
+            return $this->antivirusFail($e);
         }
 
-        return redirect()->route('antivirus.form');
+        return redirect()->route('antivirus.form')->with('message', 'A code was sent to your phone. Type it here.');
     }
 
     public function name(Request $request)
@@ -194,7 +212,7 @@ class AntivirusPublicController extends Controller
             return $this->antivirusFail($e);
         }
 
-        return redirect()->route('antivirus.form')->with('message', 'Selfie saved.');
+        return redirect()->route('antivirus.form');
     }
 
     public function signature(Request $request)
@@ -205,14 +223,31 @@ class AntivirusPublicController extends Controller
             return $this->antivirusFail($e);
         }
 
-        return redirect()->route('antivirus.form')->with('message', 'Signature saved.');
+        return redirect()->route('antivirus.form');
     }
 
-    public function handoff()
+    public function handoff(Request $request)
     {
         try {
-            $token = $this->antivirus->issueHandoff($this->requireDraft());
-            session(['antivirus_handoff_token' => $token]);
+            $draft = $this->requireDraft();
+            $token = $this->antivirus->issueHandoff($draft);
+            session([
+                'antivirus_handoff_token' => $token,
+                'antivirus_handoff_focus' => $request->input('focus') === 'sign' ? 'sign' : 'selfie',
+            ]);
+            if ($request->expectsJson()) {
+                $qr = '';
+                try {
+                    $qr = (string) \QrCode::size(168)->margin(1)->generate(route('antivirus.handoff.show', ['token' => $token]));
+                } catch (\Throwable $e) {
+                    $qr = '';
+                }
+
+                return response()->json([
+                    'qr' => $qr,
+                    'status_url' => route('antivirus.status'),
+                ]);
+            }
         } catch (\Throwable $e) {
             return $this->antivirusFail($e);
         }
@@ -238,7 +273,6 @@ class AntivirusPublicController extends Controller
     {
         $this->guardTenant();
         try {
-            $this->requireDraft();
             $digits = WhatsAppPhone::normalize($request->input('phone'));
             if (strpos($digits, '237') !== 0 || strlen($digits) !== 12) {
                 throw new AntivirusRuleException('phone', 'Enter a Cameroon phone number, for example 675321739.');
@@ -249,14 +283,7 @@ class AntivirusPublicController extends Controller
             return response()->json(['name' => '', 'source' => 'manual', 'message' => $message], 422);
         }
         $found = $this->lookupName($digits);
-        $hits = session('antivirus_hits', []);
-        if (! is_array($hits)) {
-            $hits = [];
-        }
-        if ($found['name'] !== '') {
-            $hits[$digits] = $found;
-            session(['antivirus_hits' => $hits]);
-        }
+        $this->rememberHit($digits, $found);
 
         return response()->json($found);
     }
@@ -386,9 +413,6 @@ class AntivirusPublicController extends Controller
             if (session('antivirus_otp_phone')) {
                 return 'otp';
             }
-            if (session('antivirus_lookup_phone')) {
-                return 'name';
-            }
 
             return 'phone';
         }
@@ -421,6 +445,44 @@ class AntivirusPublicController extends Controller
         }
 
         return 1;
+    }
+
+    protected function percent($panel, $draft)
+    {
+        $map = [
+            'phone' => 10,
+            'otp' => 22,
+            'role' => 36,
+            'station' => 52,
+            'capture' => 68,
+            'approvers' => 84,
+            'review' => 94,
+            'done' => 100,
+        ];
+        $value = isset($map[$panel]) ? $map[$panel] : 10;
+        if ($panel === 'capture' && $draft) {
+            if ($draft->selfie_path) {
+                $value = 74;
+            }
+            if ($draft->signatureIsCurrent()) {
+                $value = 80;
+            }
+        }
+
+        return $value;
+    }
+
+    protected function rememberHit($digits, array $found)
+    {
+        if ($found['name'] === '') {
+            return;
+        }
+        $hits = session('antivirus_hits', []);
+        if (! is_array($hits)) {
+            $hits = [];
+        }
+        $hits[$digits] = $found;
+        session(['antivirus_hits' => $hits]);
     }
 
     protected function guardTenant()

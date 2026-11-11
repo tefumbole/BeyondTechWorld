@@ -50,40 +50,147 @@
         if (regionValue.value) regionInput.value = regionValue.value;
     }
 
-    document.querySelectorAll('[data-lookup]').forEach(function (button) {
-        button.addEventListener('click', function () {
-            var slot = button.getAttribute('data-lookup');
-            var phone = document.getElementById('approver' + slot + '-phone');
-            var box = document.getElementById('approver' + slot + '-found');
-            var body = new FormData();
-            body.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-            body.append('phone', phone ? phone.value : '');
-            box.textContent = 'Looking up the registered name…';
-            fetch(button.getAttribute('data-url'), { method: 'POST', body: body, headers: { 'Accept': 'application/json' } })
-                .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
-                .then(function (result) {
-                    if (result.ok && result.data.name) {
-                        box.textContent = 'Registered name: ' + result.data.name + '. Leave the name box empty to use it, or type a different full name.';
-                    } else {
-                        box.textContent = 'No registered name was found. Type the full name. They will confirm it on their link.';
-                    }
-                })
-                .catch(function () { box.textContent = 'The lookup did not answer. Type the full name.'; });
+    function csrf() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+    function phoneReady(value) {
+        var digits = String(value || '').replace(/\D/g, '');
+        return (digits.length === 9 && digits.charAt(0) === '6') || (digits.indexOf('237') === 0 && digits.length === 12);
+    }
+    function lookupPhone(url, value) {
+        var body = new FormData();
+        body.append('_token', csrf());
+        body.append('phone', value);
+        return fetch(url, { method: 'POST', body: body, headers: { 'Accept': 'application/json' } })
+            .then(function (response) { return response.json(); });
+    }
+    function bindRoleSearch(search, hidden, menu, otherWrap, roles) {
+        if (!search || !hidden || !menu) return;
+        function paint(query) {
+            var q = (query || '').toLowerCase();
+            menu.innerHTML = '';
+            Object.keys(roles).forEach(function (key) {
+                var label = roles[key];
+                if (q && label.toLowerCase().indexOf(q) === -1) return;
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = label;
+                if (hidden.value === key) button.className = 'is-on';
+                button.addEventListener('click', function () {
+                    hidden.value = key;
+                    search.value = label;
+                    menu.hidden = true;
+                    if (otherWrap) otherWrap.classList.toggle('is-hidden', key !== 'other');
+                });
+                menu.appendChild(button);
+            });
+            menu.hidden = menu.children.length === 0;
+        }
+        search.addEventListener('focus', function () {
+            var exact = hidden.value && roles[hidden.value] && search.value === roles[hidden.value];
+            paint(exact ? '' : search.value);
         });
-    });
+        search.addEventListener('input', function () {
+            hidden.value = '';
+            if (otherWrap) otherWrap.classList.add('is-hidden');
+            paint(search.value);
+        });
+        document.addEventListener('click', function (event) {
+            if (!search.parentElement.contains(event.target)) menu.hidden = true;
+        });
+    }
+    var requesterRolesNode = document.getElementById('av-requester-roles');
+    if (requesterRolesNode) {
+        bindRoleSearch(
+            document.getElementById('role-search'),
+            document.getElementById('role-value'),
+            document.getElementById('role-menu'),
+            document.getElementById('role-other-wrap'),
+            JSON.parse(requesterRolesNode.textContent || '{}')
+        );
+    }
+    var identityPhone = document.getElementById('av-phone');
+    var identityName = document.getElementById('av-name');
+    var identityWrap = document.getElementById('av-name-wrap');
+    if (identityPhone && identityName) {
+        var identityTimer;
+        identityPhone.addEventListener('input', function () {
+            clearTimeout(identityTimer);
+            if (!phoneReady(identityPhone.value)) return;
+            identityTimer = setTimeout(function () {
+                lookupPhone(identityPhone.getAttribute('data-lookup-url'), identityPhone.value).then(function (data) {
+                    if (identityWrap) identityWrap.classList.remove('is-hidden');
+                    if (!identityName.value || identityName.getAttribute('data-filled') === '1') {
+                        identityName.value = data && data.name ? data.name : '';
+                        identityName.setAttribute('data-filled', '1');
+                    }
+                }).catch(function () {
+                    if (identityWrap) identityWrap.classList.remove('is-hidden');
+                });
+            }, 350);
+        });
+        identityName.addEventListener('input', function () { identityName.setAttribute('data-filled', '0'); });
+    }
 
+    var approverForm = document.getElementById('av-approver-form');
+    var approverRolesNode = document.getElementById('av-approver-roles');
+    var approverRoles = approverRolesNode ? JSON.parse(approverRolesNode.textContent || '{}') : {};
+    function bindApprover(card) {
+        var phone = card.querySelector('.av-approver-phone');
+        var name = card.querySelector('[name$="_manual_name"]');
+        var search = card.querySelector('.av-role-search');
+        var hidden = card.querySelector('input[type="hidden"]');
+        var menu = card.querySelector('.av-menu');
+        var other = card.querySelector('.av-role-other');
+        bindRoleSearch(search, hidden, menu, other, approverRoles);
+        if (!phone || !approverForm) return;
+        var timer;
+        phone.addEventListener('input', function () {
+            clearTimeout(timer);
+            if (!phoneReady(phone.value)) return;
+            timer = setTimeout(function () {
+                lookupPhone(approverForm.getAttribute('data-lookup-url'), phone.value).then(function (data) {
+                    if (name && (!name.value || name.getAttribute('data-filled') === '1')) {
+                        name.value = data && data.name ? data.name : '';
+                        name.setAttribute('data-filled', '1');
+                    }
+                });
+            }, 350);
+        });
+        if (name) name.addEventListener('input', function () { name.setAttribute('data-filled', '0'); });
+    }
+    document.querySelectorAll('.av-person').forEach(bindApprover);
     var addApprover = document.getElementById('add-approver');
-    var secondApprover = document.getElementById('approver-2');
-    if (addApprover && secondApprover) {
+    var approverList = document.getElementById('approver-list');
+    if (addApprover && approverList) {
+        function nextSlot() {
+            return approverList.querySelectorAll('.av-person').length + 1;
+        }
+        if (nextSlot() > 2) addApprover.hidden = true;
         addApprover.addEventListener('click', function () {
-            secondApprover.hidden = false;
-            addApprover.hidden = true;
+            var slot = nextSlot();
+            if (slot > 2) return;
+            var card = document.createElement('div');
+            card.className = 'av-person';
+            card.innerHTML = ''
+                + '<label class="av-field">Phone number</label>'
+                + '<input class="av-input av-approver-phone" name="approver' + slot + '_phone" type="tel" inputmode="tel" placeholder="+237 6 75 32 17 39">'
+                + '<label class="av-field">Name</label>'
+                + '<input class="av-input" name="approver' + slot + '_manual_name" data-wa-phone="off" placeholder="Full name">'
+                + '<label class="av-field">Role</label>'
+                + '<div class="av-combo"><input class="av-input av-role-search" type="search" data-wa-phone="off" autocomplete="off" placeholder="Search the role"><input type="hidden" name="approver' + slot + '_role" value=""><div class="av-menu" hidden></div></div>'
+                + '<div class="is-hidden av-role-other"><label class="av-field">Describe the role</label><input class="av-input" name="approver' + slot + '_role_other" data-wa-phone="off"></div>';
+            approverList.appendChild(card);
+            bindApprover(card);
+            var field = card.querySelector('.av-approver-phone');
+            if (field) field.focus();
+            if (nextSlot() > 2) addApprover.hidden = true;
         });
     }
 
     var padCanvas = document.getElementById('av-pad');
     var pad;
-    var cleared = null;
     if (padCanvas && window.SignaturePad) {
         function fitPad() {
             var ratio = Math.max(window.devicePixelRatio || 1, 1);
@@ -95,22 +202,7 @@
         fitPad();
         pad = new SignaturePad(padCanvas, { minWidth: 0.8, maxWidth: 2.4, penColor: '#0b3f90' });
         var clearButton = document.getElementById('av-clear');
-        var redoButton = document.getElementById('av-redo');
-        if (clearButton) clearButton.addEventListener('click', function () {
-            if (!pad.isEmpty()) cleared = pad.toData();
-            pad.clear();
-        });
-        if (redoButton) redoButton.addEventListener('click', function () {
-            if (cleared) {
-                pad.fromData(cleared);
-                cleared = null;
-                return;
-            }
-            var data = pad.toData();
-            if (!data.length) return;
-            data.pop();
-            pad.fromData(data);
-        });
+        if (clearButton) clearButton.addEventListener('click', function () { pad.clear(); });
     }
 
     function bindSign(form) {
@@ -172,9 +264,14 @@
                 var transfer = new DataTransfer();
                 transfer.items.add(file);
                 fileInput.files = transfer.files;
-                if (preview) preview.src = URL.createObjectURL(blob);
+                if (preview) {
+                    preview.src = URL.createObjectURL(blob);
+                    preview.hidden = false;
+                }
                 modal.hidden = true;
                 stopCamera();
+                var selfieForm = document.getElementById('av-selfie-form');
+                if (selfieForm) selfieForm.submit();
             }, 'image/jpeg', 0.9);
         });
     }
@@ -185,18 +282,59 @@
             var transfer = new DataTransfer();
             transfer.items.add(fallback.files[0]);
             fileInput.files = transfer.files;
-            if (preview) preview.src = URL.createObjectURL(fallback.files[0]);
+            if (preview) {
+                preview.src = URL.createObjectURL(fallback.files[0]);
+                preview.hidden = false;
+            }
+            var selfieForm = document.getElementById('av-selfie-form');
+            if (selfieForm) selfieForm.submit();
         });
     }
 
-    var poll = document.getElementById('av-poll');
-    if (poll) {
+    function startPoll(node) {
+        if (!node || node.getAttribute('data-polling') === '1') return;
+        node.setAttribute('data-polling', '1');
         setInterval(function () {
-            fetch(poll.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
+            fetch(node.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
                 .then(function (response) { return response.json(); })
                 .then(function (data) { if (data.ready) window.location.reload(); });
         }, 4000);
     }
+    function showQr(name) {
+        document.querySelectorAll('.av-qr-slot').forEach(function (slot) { slot.classList.remove('is-open'); });
+        var chosen = document.querySelector('[data-qr-slot="' + name + '"]');
+        if (chosen) chosen.classList.add('is-open');
+    }
+    document.querySelectorAll('[data-qr]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var name = button.getAttribute('data-qr');
+            var slot = document.querySelector('[data-qr-slot="' + name + '"]');
+            if (slot && slot.querySelector('svg')) {
+                showQr(name);
+                return;
+            }
+            var form = document.getElementById('av-handoff-form');
+            if (!form) return;
+            var token = form.querySelector('input[name="_token"]');
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: '_token=' + encodeURIComponent(token.value) + '&focus=' + encodeURIComponent(name)
+            }).then(function (response) { return response.json(); }).then(function (data) {
+                if (!data.qr) return;
+                document.querySelectorAll('[data-qr-slot]').forEach(function (item) {
+                    item.innerHTML = '<div class="av-qr">' + data.qr + '</div>';
+                });
+                showQr(name);
+                var poll = document.getElementById('av-poll');
+                if (poll) {
+                    poll.setAttribute('data-url', data.status_url);
+                    startPoll(poll);
+                }
+            });
+        });
+    });
+    startPoll(document.getElementById('av-poll'));
 })();
 </script>
 @endpush

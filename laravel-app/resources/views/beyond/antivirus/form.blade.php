@@ -1,21 +1,29 @@
 @extends('beyond.layout')
 
-@section('title', 'Antivirus licences')
-@section('meta_description', 'Request antivirus licences for your hospital station.')
+@section('title', 'CBC Health Services, Anti Virus Request form '.$year)
+@section('meta_description', 'CBC Health Services anti virus request form for '.$year.'.')
 
 @section('content')
 @include('beyond.antivirus._styles')
 @php
-    $steps = [1 => 'Identity', 2 => 'Station', 3 => 'Selfie', 4 => 'Approvers'];
     $a1 = isset($savedApprovers[0]) ? $savedApprovers[0] : [];
     $a2 = isset($savedApprovers[1]) ? $savedApprovers[1] : [];
     $regionValue = old('region', $draft && $draft->region ? $draft->region : '');
+    $lookupPhone = (string) session('antivirus_lookup_phone', '');
+    $lookupName = (string) session('antivirus_lookup_name', '');
+    $phoneShown = old('phone', $lookupPhone !== '' ? \App\Support\WhatsAppPhone::display($lookupPhone) : '');
+    $nameShown = old('name', $lookupName);
+    $roleOld = (string) old('role', '');
+    $roleShown = ($roleOld !== '' && isset($requesterRoles[$roleOld])) ? $requesterRoles[$roleOld] : '';
 @endphp
 <section class="av-page">
     <div class="av-wrap">
-        <p class="av-kicker">Beyond Enterprise</p>
-        <h1>Antivirus licences</h1>
-        <p class="av-lead">Request {{ $year }} licences for your station. One or two station officials sign, then the Chief of Administration and Finance approves.</p>
+        <p class="av-kicker">CBC Health Services</p>
+        <h1>Anti Virus Request form {{ $year }}</h1>
+        <div class="av-progress" aria-label="{{ $percent }} percent complete">
+            <div class="av-progress-bar"><span style="width: {{ (int) $percent }}%"></span></div>
+            <p>{{ (int) $percent }}% complete</p>
+        </div>
 
         @if(session('message'))
             <div class="av-alert ok">{{ session('message') }}</div>
@@ -26,51 +34,20 @@
             </div>
         @endif
 
-        <div class="av-steps" aria-label="Progress">
-            @foreach($steps as $number => $label)
-                <div class="av-step {{ $visual === $number ? 'is-on' : ($visual > $number ? 'is-done' : '') }}">
-                    <span>{{ $visual > $number ? '✓' : $number }}</span>
-                    {{ $label }}
-                </div>
-            @endforeach
-        </div>
-
         <div class="av-card">
             @if($panel === 'phone')
-                <h2>Verify your identity</h2>
-                <p>Enter the Cameroon number that will receive the code.</p>
-                <form method="POST" action="{{ route('antivirus.phone') }}">
+                <h2>Your phone number</h2>
+                <p>The name appears when the number is complete. You can change it. Continue sends a code.</p>
+                <form method="POST" action="{{ route('antivirus.phone') }}" id="av-identity">
                     @csrf
                     <label class="av-field" for="av-phone">Phone number</label>
-                    <input class="av-input" id="av-phone" name="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="+237 6 75 32 17 39" value="{{ old('phone') }}">
+                    <input class="av-input" id="av-phone" name="phone" type="tel" required inputmode="tel" autocomplete="tel" placeholder="+237 6 75 32 17 39" value="{{ $phoneShown }}" data-lookup-url="{{ route('antivirus.lookup') }}">
+                    <div id="av-name-wrap" class="{{ ($nameShown !== '' || $lookupPhone !== '') ? '' : 'is-hidden' }}">
+                        <label class="av-field" for="av-name">Name</label>
+                        <input class="av-input" id="av-name" name="name" data-wa-phone="off" autocomplete="name" placeholder="Full name" value="{{ $nameShown }}" data-filled="{{ $nameShown !== '' ? '1' : '0' }}">
+                    </div>
                     <button class="av-btn" type="submit">Continue</button>
                 </form>
-            @elseif($panel === 'name')
-                <h2>Confirm your name</h2>
-                <p>Code goes to {{ $phone }}.</p>
-                @if($suggestedName !== '' && in_array($lookupSource, ['campay', 'pawapay'], true))
-                    <div class="av-note">Registered name: <strong>{{ $suggestedName }}</strong></div>
-                    <form method="POST" action="{{ route('antivirus.name') }}">
-                        @csrf
-                        <input type="hidden" name="use_lookup" value="1">
-                        <button class="av-btn" type="submit">Yes, this is my name</button>
-                    </form>
-                    <form method="POST" action="{{ route('antivirus.name') }}" style="margin-top:8px">
-                        @csrf
-                        <label class="av-field" for="av-manual-name">Or enter your full name</label>
-                        <input class="av-input" id="av-manual-name" name="name" data-wa-phone="off" autocomplete="name" placeholder="Full name">
-                        <button class="av-btn secondary" type="submit">Use this name</button>
-                    </form>
-                @else
-                    <p>No registered name was found for this number. Enter your full name. The code proves you have the phone.</p>
-                    <form method="POST" action="{{ route('antivirus.name') }}">
-                        @csrf
-                        <label class="av-field" for="av-manual-name">Full name</label>
-                        <input class="av-input" id="av-manual-name" name="name" required data-wa-phone="off" autocomplete="name" placeholder="Full name" value="{{ old('name') }}">
-                        <button class="av-btn" type="submit">Send code</button>
-                    </form>
-                @endif
-                <form method="POST" action="{{ route('antivirus.restart') }}">@csrf<button class="av-btn secondary" type="submit">Use a different number</button></form>
             @elseif($panel === 'otp')
                 <h2>Type the code</h2>
                 <p>Sent to {{ $phone }}. It expires in 10 minutes.</p>
@@ -82,14 +59,19 @@
                 </form>
             @elseif($panel === 'role')
                 <h2>Your role</h2>
-                <p>{{ $draft->requester_name }} · {{ $phone }}</p>
+                <p>{{ $draft->requester_name }}</p>
                 <form method="POST" action="{{ route('antivirus.role') }}">
                     @csrf
-                    @foreach($requesterRoles as $key => $label)
-                        <label class="av-choice"><input type="radio" name="role" value="{{ $key }}" {{ old('role') === $key ? 'checked' : '' }} required> {{ $label }}</label>
-                    @endforeach
-                    <label class="av-field" for="role-other">If you chose Other, describe the role</label>
-                    <input class="av-input" id="role-other" name="role_other" data-wa-phone="off" value="{{ old('role_other') }}" placeholder="Role description">
+                    <label class="av-field" for="role-search">Role</label>
+                    <div class="av-combo">
+                        <input class="av-input" id="role-search" type="search" data-wa-phone="off" autocomplete="off" placeholder="Search your role" value="{{ $roleShown }}">
+                        <input type="hidden" name="role" id="role-value" value="{{ $roleOld }}">
+                        <div id="role-menu" class="av-menu" hidden></div>
+                    </div>
+                    <div id="role-other-wrap" class="{{ $roleOld === 'other' ? '' : 'is-hidden' }}">
+                        <label class="av-field" for="role-other">Describe the role</label>
+                        <input class="av-input" id="role-other" name="role_other" data-wa-phone="off" value="{{ old('role_other') }}" placeholder="Role description">
+                    </div>
                     <button class="av-btn" type="submit">Continue</button>
                 </form>
             @elseif($panel === 'station')
@@ -101,7 +83,7 @@
                     <div class="av-region" id="region-box">
                         <input class="av-input" id="region-search" data-wa-phone="off" autocomplete="off" placeholder="Search regions" aria-autocomplete="list" aria-controls="region-list">
                         <input type="hidden" name="region" id="region-value" value="{{ $regionValue }}">
-                        <ul id="region-list">
+                        <ul id="region-list" hidden>
                             @foreach($regions as $region)
                                 <li data-region="{{ $region }}" class="{{ $regionValue === $region ? 'is-active' : '' }}">{{ $region }}</li>
                             @endforeach
@@ -114,21 +96,19 @@
                     <button class="av-btn" type="submit">Continue</button>
                 </form>
             @elseif($panel === 'capture')
-                <h2>Selfie and signature</h2>
-                <p>{{ $draft->station }} · {{ $draft->region }} · {{ $draft->year }}</p>
-                <div class="av-qty">{{ $draft->quantity }}</div>
-                <p>Licences. A selfie and a signature are required, including IT Technician and Assistant Engineer.</p>
-                @if($draft->selfie_path)
-                    <p class="av-note">Selfie saved.</p>
-                @endif
+                <h2>Selfie</h2>
                 <form method="POST" action="{{ route('antivirus.selfie') }}" enctype="multipart/form-data" id="av-selfie-form">
                     @csrf
-                    <img class="av-selfie" id="av-preview" alt="" @if(!$draft->selfie_path) hidden @endif>
-                    <input id="av-file" type="file" name="selfie" accept="image/*" hidden>
-                    <input id="av-fallback" type="file" accept="image/*" capture="user" hidden>
+                    <img class="av-selfie" id="av-preview" alt="" hidden>
+                    @if($draft->selfie_path)<p class="av-note">Selfie saved.</p>@endif
+                    <input id="av-file" class="av-file" type="file" name="selfie" accept="image/jpeg,image/png,image/webp" data-skip-image-paste="1">
+                    <input id="av-fallback" class="av-file" type="file" accept="image/jpeg,image/png,image/webp" capture="user" data-skip-image-paste="1">
                     <div class="av-row">
                         <button class="av-btn" id="av-open-camera" type="button">Take a selfie</button>
-                        <button class="av-btn secondary" type="submit">Save selfie</button>
+                        <button class="av-btn secondary" type="button" data-qr="selfie">Continue on another device</button>
+                    </div>
+                    <div class="av-qr-slot {{ ($qr && $handoffFocus === 'selfie') ? 'is-open' : '' }}" data-qr-slot="selfie">
+                        @if($qr)<div class="av-qr">{!! $qr !!}</div>@endif
                     </div>
                 </form>
                 <div class="av-modal" id="av-camera" hidden>
@@ -148,54 +128,59 @@
                     <p id="av-sign-error" class="av-alert bad" hidden></p>
                     <div class="av-row">
                         <button class="av-btn secondary" id="av-clear" type="button">Clear</button>
-                        <button class="av-btn secondary" id="av-redo" type="button">Redo</button>
+                        <button class="av-btn secondary" type="button" data-qr="sign">Continue on another device</button>
                     </div>
-                    <button class="av-btn" type="submit">Save signature</button>
+                    <div class="av-qr-slot {{ ($qr && $handoffFocus === 'sign') ? 'is-open' : '' }}" data-qr-slot="sign">
+                        @if($qr)<div class="av-qr">{!! $qr !!}</div>@endif
+                    </div>
+                    <button class="av-btn" type="submit">Continue</button>
                 </form>
-                <form method="POST" action="{{ route('antivirus.handoff') }}">
+                <form id="av-handoff-form" method="POST" action="{{ route('antivirus.handoff') }}" hidden>
                     @csrf
-                    <button class="av-btn secondary" type="submit">Continue on another device</button>
+                    <input type="hidden" name="focus" id="av-handoff-focus" value="selfie">
                 </form>
-                @if($qr)
-                    <div class="av-note" id="av-poll" data-url="{{ route('antivirus.status') }}">
-                        <p>Scan this code. It expires {{ $handoff->expires_at->format('H:i') }}.</p>
-                        <div>{!! $qr !!}</div>
-                        <p class="av-meta"><span>This screen updates when the phone is done.</span></p>
-                    </div>
-                @endif
+                <div id="av-poll" data-url="{{ route('antivirus.status') }}" hidden></div>
             @elseif($panel === 'approvers')
                 <h2>Approvers</h2>
-                <p>Choose the role first, then the phone. One approver is required. A second is optional.</p>
-                <div class="av-qty">{{ $draft->quantity }}</div>
-                <form method="POST" action="{{ route('antivirus.approvers') }}">
+                <p>Add a phone number. The name appears for you to edit, then choose the role.</p>
+                <form method="POST" action="{{ route('antivirus.approvers') }}" id="av-approver-form" data-lookup-url="{{ route('antivirus.lookup') }}">
                     @csrf
-                    @foreach([1 => $a1, 2 => $a2] as $slot => $saved)
-                        <div id="approver-{{ $slot }}" @if($slot === 2 && empty($saved['phone']) && old('approver2_phone') === null) hidden @endif>
-                            <h3 style="margin:18px 0 0">Approver {{ $slot }}</h3>
-                            <label class="av-field" for="approver{{ $slot }}-role">Role</label>
-                            <select class="av-select" id="approver{{ $slot }}-role" name="approver{{ $slot }}_role">
-                                <option value="">Choose a role</option>
-                                @foreach($approverRoles as $key => $label)
-                                    <option value="{{ $key }}" {{ old('approver'.$slot.'_role', isset($saved['role']) ? $saved['role'] : '') === $key ? 'selected' : '' }}>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <label class="av-field" for="approver{{ $slot }}-other">If Other, describe the role</label>
-                            <input class="av-input" id="approver{{ $slot }}-other" name="approver{{ $slot }}_role_other" data-wa-phone="off" value="{{ old('approver'.$slot.'_role_other', isset($saved['role_other']) ? $saved['role_other'] : '') }}">
-                            <label class="av-field" for="approver{{ $slot }}-phone">Phone number</label>
-                            <input class="av-input" id="approver{{ $slot }}-phone" name="approver{{ $slot }}_phone" type="tel" inputmode="tel" value="{{ old('approver'.$slot.'_phone', isset($saved['phone']) ? $saved['phone'] : '') }}" placeholder="+237 6 75 32 17 39">
-                            <button class="av-btn secondary" type="button" data-lookup="{{ $slot }}" data-url="{{ route('antivirus.lookup') }}">Find registered name</button>
-                            <p id="approver{{ $slot }}-found" class="av-note"></p>
-                            <label class="av-field" for="approver{{ $slot }}-name">Full name if lookup is empty or wrong</label>
-                            <input class="av-input" id="approver{{ $slot }}-name" name="approver{{ $slot }}_manual_name" data-wa-phone="off" value="{{ old('approver'.$slot.'_manual_name', (isset($saved['name_source']) && $saved['name_source'] === 'manual') ? $saved['name'] : '') }}">
-                        </div>
-                    @endforeach
-                    <button class="av-btn secondary" id="add-approver" type="button" @if(!empty($a2['phone'])) hidden @endif>+ Add approver</button>
+                    <div id="approver-list">
+                        @foreach([1 => $a1, 2 => $a2] as $slot => $saved)
+                            @php
+                                $savedPhone = old('approver'.$slot.'_phone', isset($saved['phone']) ? $saved['phone'] : '');
+                                $savedRole = (string) old('approver'.$slot.'_role', isset($saved['role']) ? $saved['role'] : '');
+                                $savedRoleLabel = ($savedRole !== '' && isset($approverRoles[$savedRole])) ? $approverRoles[$savedRole] : '';
+                                $savedName = old('approver'.$slot.'_manual_name', isset($saved['name']) ? $saved['name'] : '');
+                                $showCard = $savedPhone !== '' || $savedRole !== '' || $savedName !== '';
+                            @endphp
+                            @if($showCard)
+                                <div class="av-person" data-slot="{{ $slot }}">
+                                    <label class="av-field">Phone number</label>
+                                    <input class="av-input av-approver-phone" name="approver{{ $slot }}_phone" type="tel" inputmode="tel" value="{{ $savedPhone }}" placeholder="+237 6 75 32 17 39">
+                                    <label class="av-field">Name</label>
+                                    <input class="av-input" name="approver{{ $slot }}_manual_name" data-wa-phone="off" value="{{ $savedName }}" placeholder="Full name">
+                                    <label class="av-field">Role</label>
+                                    <div class="av-combo">
+                                        <input class="av-input av-role-search" type="search" data-wa-phone="off" autocomplete="off" placeholder="Search the role" value="{{ $savedRoleLabel }}">
+                                        <input type="hidden" name="approver{{ $slot }}_role" value="{{ $savedRole }}">
+                                        <div class="av-menu" hidden></div>
+                                    </div>
+                                    <div class="{{ $savedRole === 'other' ? '' : 'is-hidden' }} av-role-other">
+                                        <label class="av-field">Describe the role</label>
+                                        <input class="av-input" name="approver{{ $slot }}_role_other" data-wa-phone="off" value="{{ old('approver'.$slot.'_role_other', isset($saved['role_other']) ? $saved['role_other'] : '') }}">
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                    <button class="av-plus" id="add-approver" type="button" aria-label="Add approver">+</button>
                     <button class="av-btn" type="submit">Review request</button>
                 </form>
+                <script type="application/json" id="av-approver-roles">@json($approverRoles)</script>
             @elseif($panel === 'review')
                 <h2>Review and send</h2>
-                <div class="av-qty">{{ $draft->quantity }}</div>
-                <p>Licences for {{ $draft->year }}</p>
+                <p>{{ $draft->quantity }} licences for {{ $draft->year }}</p>
                 <div class="av-note">
                     <div><strong>{{ $draft->requester_name }}</strong> · {{ $draft->requesterRoleLabel() }}</div>
                     <div>{{ $draft->station }}, {{ $draft->region }}</div>
@@ -225,5 +210,6 @@
         </div>
     </div>
 </section>
+<script type="application/json" id="av-requester-roles">@json($requesterRoles)</script>
 @include('beyond.antivirus._script')
 @endsection

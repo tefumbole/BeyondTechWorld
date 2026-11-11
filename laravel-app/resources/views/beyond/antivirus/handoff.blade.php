@@ -11,8 +11,6 @@
         @if(session('message'))<div class="av-alert ok">{{ session('message') }}</div>@endif
         @if($errors->any())<div class="av-alert bad">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
         <div class="av-card">
-            <div class="av-qty">{{ $antivirus->quantity }}</div>
-            <p>Licences · {{ $antivirus->region }} · {{ $antivirus->year }}</p>
             @if($antivirus->selfie_path && $antivirus->signatureIsCurrent())
                 <div class="av-note">Selfie and signature are saved. Return to the first screen.</div>
             @elseif(!$verified)
@@ -32,8 +30,8 @@
                 <form method="POST" action="{{ route('antivirus.handoff.capture', ['token' => $token]) }}" enctype="multipart/form-data" id="av-capture-form">
                     @csrf
                     <img class="av-selfie" id="av-preview" alt="" hidden>
-                    <input id="av-file" type="file" name="selfie" accept="image/*" hidden>
-                    <input id="av-fallback" type="file" accept="image/*" capture="user" hidden>
+                    <input id="av-file" class="av-file" type="file" name="selfie" accept="image/jpeg,image/png,image/webp" data-skip-image-paste="1">
+                    <input id="av-fallback" class="av-file" type="file" accept="image/jpeg,image/png,image/webp" capture="user" data-skip-image-paste="1">
                     <button class="av-btn" id="av-open-camera" type="button">Take a selfie</button>
                     <label class="av-field">Signature</label>
                     <canvas class="av-sign" id="av-pad"></canvas>
@@ -41,7 +39,6 @@
                     <p id="av-sign-error"></p>
                     <div class="av-row">
                         <button class="av-btn secondary" id="av-clear" type="button">Clear</button>
-                        <button class="av-btn secondary" id="av-redo" type="button">Redo</button>
                     </div>
                     <button class="av-btn" type="submit">Save selfie and signature</button>
                 </form>
