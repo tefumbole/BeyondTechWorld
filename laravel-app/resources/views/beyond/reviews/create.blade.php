@@ -7,9 +7,13 @@
 <section class="rv-page">
     <div class="max-w-xl mx-auto px-4">
         <div class="rv-intro">
-            <p class="rv-kicker">Beyond Enterprise</p>
+            @if($step !== 'phone')
+                <p class="rv-kicker">Beyond Enterprise</p>
+            @endif
             <h1>Write a review</h1>
-            <p>A star rating out of 5, then how likely you are to recommend Beyond. A selfie is optional.</p>
+            @if($step !== 'phone')
+                <p>A star rating out of 5, then how likely you are to recommend Beyond. A selfie is optional.</p>
+            @endif
         </div>
         @if(session('message'))
             <div class="mb-4 rounded-lg border border-green-200 bg-green-50 text-green-800 px-4 py-3">{{ session('message') }}</div>
@@ -27,8 +31,6 @@
 
         <div class="rv-card">
             @if($step === 'phone')
-                <h2>Your phone number</h2>
-                <p class="rv-hint">We send a code to this number. You type the code on this page.</p>
                 <form method="POST" action="{{ route('reviews.phone') }}" class="rv-form">
                     @csrf
                     <div class="rv-field">
