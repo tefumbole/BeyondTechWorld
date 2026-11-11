@@ -99,16 +99,12 @@ class AntivirusRequestFlowTest extends TestCase
     public function test_decline_manual_name_duplicates_and_a_changed_quantity()
     {
         $draft = $this->readyDraft();
-        try {
-            $this->service->saveApprovers($draft, [[
-                'role' => 'administrator',
-                'phone' => '675321739',
-                'manual_name' => 'Tefu Roland',
-            ]], []);
-            $this->fail('The requester was accepted as an approver.');
-        } catch (AntivirusRuleException $e) {
-            $this->assertSame('approver_phone', $e->field);
-        }
+        $self = $this->service->saveApprovers($draft, [[
+            'role' => 'administrator',
+            'phone' => '675321739',
+            'manual_name' => 'Tefu Roland',
+        ]], []);
+        $this->assertSame('675321739', substr($self[0]['phone'], -9));
         try {
             $this->service->saveApprovers($draft, [
                 ['role' => 'administrator', 'phone' => '699112233', 'manual_name' => 'Ada Lovelace'],

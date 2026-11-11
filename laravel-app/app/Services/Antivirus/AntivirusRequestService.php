@@ -831,9 +831,6 @@ class AntivirusRequestService
                 throw new AntivirusRuleException('approver_role_other', 'Describe the approver’s role.');
             }
             $phone = $this->phone($phoneRaw, 'approver_phone');
-            if (AntivirusCatalog::samePhone($phone, $request->requester_phone)) {
-                throw new AntivirusRuleException('approver_phone', 'An approver cannot be the person making the request.');
-            }
             $tail = substr($phone, -9);
             if (isset($seen[$tail])) {
                 throw new AntivirusRuleException('approver_phone', 'Each approver needs a different phone number.');
