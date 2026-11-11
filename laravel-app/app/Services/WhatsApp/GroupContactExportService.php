@@ -590,6 +590,58 @@ class GroupContactExportService
         return ['success' => true, 'added' => $added, 'total' => count($groups)];
     }
 
+    public function importInvite($link)
+    {
+        $invited = app(BeyondWasenderService::class)->inviteGroup($link);
+        if (empty($invited['success'])) {
+            return [
+                'success' => false,
+                'error' => isset($invited['error']) && $invited['error'] !== '' ? $invited['error'] : 'That invite link could not be read.',
+                'jid' => '',
+                'name' => '',
+            ];
+        }
+        $jid = (string) $invited['jid'];
+        $name = trim((string) $invited['name']);
+        $saved = $this->readDirectory();
+        $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+        $row['name'] = $name;
+        $row['members'] = isset($invited['members']) ? (int) $invited['members'] : (isset($row['members']) ? (int) $row['members'] : null);
+        $saved[$jid] = $row;
+        $this->writeDirectory($saved);
+        $fetched = $this->fetchGroupContacts($jid);
+        $total = ! empty($fetched['success']) ? (int) $fetched['total'] : 0;
+        if ($total === 0 && ! empty($invited['participants'])) {
+            $contacts = [];
+            foreach ($invited['participants'] as $person) {
+                if (! is_array($person)) {
+                    continue;
+                }
+                $phone = trim((string) (isset($person['phone']) ? $person['phone'] : ''));
+                if ($phone === '') {
+                    continue;
+                }
+                $contacts[] = [
+                    'phone' => $phone,
+                    'name' => isset($person['name']) ? (string) $person['name'] : '',
+                    'role' => isset($person['role']) ? $person['role'] : 'member',
+                ];
+            }
+            if ($contacts) {
+                $this->writeMembers($jid, $contacts);
+                $total = count($contacts);
+                $saved = $this->readDirectory();
+                $row = isset($saved[$jid]) && is_array($saved[$jid]) ? $saved[$jid] : [];
+                $row['name'] = $name;
+                $row['members'] = $total;
+                $saved[$jid] = $row;
+                $this->writeDirectory($saved);
+            }
+        }
+
+        return ['success' => true, 'jid' => $jid, 'name' => $name, 'total' => $total];
+    }
+
     public function fetchGroupContacts($jid)
     {
         $local = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->groupRows($jid);

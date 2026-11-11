@@ -1132,6 +1132,7 @@ class WhatsAppHubController extends Controller
         $groups = isset($summary['groups']) ? $summary['groups'] : [];
         $listError = empty($summary['success']) ? (isset($summary['error']) ? $summary['error'] : 'Could not load groups.') : null;
         $ownNumber = app(\App\Services\Cloud\CloudLocalWhatsAppLink::class)->applies();
+        $linkedPhone = $ownNumber ? '' : app(\App\Services\BeyondWasenderService::class)->sessionPhone();
         if ($ownNumber && $listError === 'WhatsApp is not connected for this company.') {
             $listError = null;
         }
@@ -1139,7 +1140,27 @@ class WhatsAppHubController extends Controller
             app(\App\Services\WhatsApp\GroupContactExportService::class)->scheduleResolve();
         }
 
-        return view('whatsapp_hub.groups', compact('groups', 'listError', 'ownNumber'));
+        return view('whatsapp_hub.groups', compact('groups', 'listError', 'ownNumber', 'linkedPhone'));
+    }
+
+    public function importGroup(Request $request)
+    {
+        if ($deny = $this->denyUnless(['whatsapp.owner', 'whatsapp.manage'])) {
+            return $deny;
+        }
+        @set_time_limit(120);
+        $result = app(\App\Services\WhatsApp\GroupContactExportService::class)->importInvite($request->input('invite', ''));
+        if (empty($result['success'])) {
+            return back()->with('not_permitted', isset($result['error']) ? $result['error'] : 'Could not add that group.');
+        }
+        $name = trim((string) $result['name']);
+        $total = (int) $result['total'];
+        $message = $name.' is now in the group list.';
+        if ($total > 0) {
+            $message .= ' '.$total.' '.($total === 1 ? 'contact is' : 'contacts are').' saved, so a personalized message can go to each member.';
+        }
+
+        return redirect()->route('whatsapp.groups.show', ['jid' => $result['jid']])->with('message', $message);
     }
 
     public function fetchGroups()

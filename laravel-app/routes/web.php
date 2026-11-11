@@ -851,6 +851,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
     Route::post('/admin/whatsapp/appointments/availability', 'WhatsApp\WhatsAppHubController@storeAvailability')->name('whatsapp.appointments.availability');
     Route::get('/admin/whatsapp/groups', 'WhatsApp\WhatsAppHubController@groups')->name('whatsapp.groups');
     Route::post('/admin/whatsapp/groups/fetch', 'WhatsApp\WhatsAppHubController@fetchGroups')->name('whatsapp.groups.fetch');
+    Route::post('/admin/whatsapp/groups/import', 'WhatsApp\WhatsAppHubController@importGroup')->name('whatsapp.groups.import');
     Route::post('/admin/whatsapp/groups/fetch-contacts', 'WhatsApp\WhatsAppHubController@fetchGroupContacts')->name('whatsapp.groups.fetch_contacts');
     Route::post('/admin/whatsapp/groups/resolve', 'WhatsApp\WhatsAppHubController@resolveGroup')->name('whatsapp.groups.resolve');
     Route::post('/admin/whatsapp/groups/fetch-member', 'WhatsApp\WhatsAppHubController@fetchGroupMember')->name('whatsapp.groups.fetch_member');

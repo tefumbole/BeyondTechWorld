@@ -607,6 +607,85 @@ class BeyondWasenderService
         return $this->customerOutboundBlock();
     }
 
+    public function sessionPhone()
+    {
+        if (! $this->isConfigured()) {
+            return '';
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $info = $this->getJson($base.'/user');
+        $id = isset($info['data']['id']) ? (string) $info['data']['id'] : '';
+        if (! preg_match('/^(\d{8,15})/', $id, $match)) {
+            return '';
+        }
+        $digits = $match[1];
+        if (strpos($digits, '237') === 0 && strlen($digits) === 12) {
+            return '+237 '.substr($digits, 3, 3).' '.substr($digits, 6, 3).' '.substr($digits, 9, 3);
+        }
+
+        return '+'.$digits;
+    }
+
+    public function inviteCode($value)
+    {
+        $value = trim((string) $value);
+        if (preg_match('~chat\.whatsapp\.com/(?:invite/)?([A-Za-z0-9]{8,64})~', $value, $match)) {
+            return $match[1];
+        }
+        if (preg_match('/^[A-Za-z0-9]{8,64}$/', $value)) {
+            return $value;
+        }
+
+        return '';
+    }
+
+    public function inviteGroup($link)
+    {
+        $blocked = $this->customerSessionBlock();
+        if ($blocked) {
+            return ['success' => false, 'error' => $blocked['error']];
+        }
+        if (! $this->isConfigured()) {
+            return ['success' => false, 'error' => 'WhatsApp is not configured.'];
+        }
+        $code = $this->inviteCode($link);
+        if ($code === '') {
+            return ['success' => false, 'error' => 'Paste the invite link from the group.'];
+        }
+        $base = rtrim(config('services.whatsapp.wasender_base_url', 'https://wasenderapi.com/api'), '/');
+        $meta = $this->getJson($base.'/groups/invite/'.rawurlencode($code));
+        $error = isset($meta['error']) ? (string) $meta['error'] : '';
+        if ($error !== '') {
+            if (stripos($error, 'invalid') !== false || stripos($error, 'expired') !== false) {
+                $error = 'That invite link is no longer valid. In the group, open Invite via link and copy a fresh link.';
+            }
+
+            return ['success' => false, 'error' => $error];
+        }
+        $payload = isset($meta['data']) && is_array($meta['data']) ? $meta['data'] : [];
+        $jid = isset($payload['id']) ? (string) $payload['id'] : (isset($payload['jid']) ? (string) $payload['jid'] : '');
+        $name = '';
+        foreach (['subject', 'name', 'title'] as $key) {
+            if (! empty($payload[$key]) && is_string($payload[$key])) {
+                $name = trim($payload[$key]);
+                break;
+            }
+        }
+        $people = $this->participantRows(isset($payload['participants']) ? $payload['participants'] : []);
+        $members = isset($payload['size']) && is_numeric($payload['size']) ? (int) $payload['size'] : count($people);
+        if (substr($jid, -5) !== '@g.us' || $name === '') {
+            return ['success' => false, 'error' => 'That link did not return a WhatsApp group.'];
+        }
+
+        return [
+            'success' => true,
+            'jid' => $jid,
+            'name' => $name,
+            'members' => $members,
+            'participants' => $people,
+        ];
+    }
+
     public function listGroups()
     {
         $blocked = $this->customerSessionBlock();
