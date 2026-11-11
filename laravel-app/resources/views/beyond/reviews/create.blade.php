@@ -9,7 +9,7 @@
         <div class="rv-intro">
             <p class="rv-kicker">Beyond Enterprise</p>
             <h1>Write a review</h1>
-            <p>One score out of 10. A selfie is optional.</p>
+            <p>A star rating out of 5, then how likely you are to recommend Beyond. A selfie is optional.</p>
         </div>
         @if(session('message'))
             <div class="mb-4 rounded-lg border border-green-200 bg-green-50 text-green-800 px-4 py-3">{{ session('message') }}</div>
@@ -27,27 +27,31 @@
 
         <div class="rv-card">
             @if($step === 'phone')
-                <h2 class="text-lg font-bold text-gray-900 mt-0">Your phone number</h2>
-                <p class="text-gray-600">We will send a code to this number. You type the code on this page.</p>
-                <form method="POST" action="{{ route('reviews.phone') }}" class="space-y-4">
+                <h2>Your phone number</h2>
+                <p class="rv-hint">We send a code to this number. You type the code on this page.</p>
+                <form method="POST" action="{{ route('reviews.phone') }}" class="rv-form">
                     @csrf
-                    <label for="review-phone" class="text-sm font-semibold text-gray-700 block">Phone number</label>
-                    <input id="review-phone" name="phone" type="tel" required value="{{ old('phone') }}" placeholder="+237 6 75 32 17 39" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
-                    <button type="submit" class="w-full bg-brand-gold text-brand-blue font-bold py-3.5 rounded-lg">Send code</button>
+                    <div class="rv-field">
+                        <label for="review-phone">Phone number</label>
+                        <input id="review-phone" name="phone" type="tel" required value="{{ old('phone') }}" placeholder="+237 6 75 32 17 39">
+                    </div>
+                    <button type="submit" class="rv-send">Send code</button>
                 </form>
             @elseif($step === 'otp')
-                <h2 class="text-lg font-bold text-gray-900 mt-0">Type the code</h2>
-                <p class="text-gray-600">The code was sent to {{ $phone }}. Type it here on this page.</p>
-                <form method="POST" action="{{ route('reviews.otp') }}" class="space-y-4">
+                <h2>Type the code</h2>
+                <p class="rv-hint">The code was sent to {{ $phone }}. Type it here on this page.</p>
+                <form method="POST" action="{{ route('reviews.otp') }}" class="rv-form">
                     @csrf
-                    <label for="review-otp" class="text-sm font-semibold text-gray-700 block">Code</label>
-                    <input id="review-otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="000000" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-center tracking-[0.3em]">
-                    <button type="submit" class="w-full bg-brand-gold text-brand-blue font-bold py-3.5 rounded-lg">Confirm code</button>
+                    <div class="rv-field">
+                        <label for="review-otp">Code</label>
+                        <input id="review-otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="6" placeholder="000000" class="rv-otp">
+                    </div>
+                    <button type="submit" class="rv-send">Confirm code</button>
                 </form>
                 <form method="POST" action="{{ route('reviews.phone') }}" class="mt-4">
                     @csrf
                     <input type="hidden" name="phone" value="{{ $phone }}">
-                    <button type="submit" class="text-sm text-brand-blue underline">Send a new code</button>
+                    <button type="submit" class="rv-clear">Send a new code</button>
                 </form>
                 @include('partials.otp_assist', ['otpInputId' => 'review-otp'])
             @else
@@ -88,6 +92,18 @@
                     </div>
 
                     <div class="rv-score">
+                        <h2>Your rating</h2>
+                        <p>Score out of 5 stars.</p>
+                        <input type="hidden" name="stars" id="review-stars" value="{{ old('stars', 5) }}">
+                        <div class="rv-star-row" id="star-row">
+                            @for($n = 1; $n <= 5; $n++)
+                                <button type="button" class="rv-star" data-star="{{ $n }}" aria-label="{{ $n }} out of 5">★</button>
+                            @endfor
+                        </div>
+                        <p class="rv-readout"><span id="star-readout">{{ old('stars', 5) }}</span>/5</p>
+                    </div>
+
+                    <div class="rv-score">
                         <h2>How likely are you to recommend Beyond Enterprise?</h2>
                         <p>Score out of 10. A review is shown on the website from 6 upward.</p>
                         <input type="hidden" name="recommend" id="recommend-score" value="{{ old('recommend', 9) }}">
@@ -117,8 +133,8 @@
                                 <button type="button" id="selfie-file-btn" class="rv-chip rv-chip-quiet">Choose a photo</button>
                                 <button type="button" id="selfie-clear" class="rv-chip rv-chip-quiet" hidden>Remove</button>
                             </div>
-                            <input id="review-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="rv-file">
-                            <input id="selfie-capture" type="file" accept="image/jpeg,image/png,image/webp" capture="user" class="rv-file">
+                            <input id="review-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="rv-file" data-skip-image-paste="1">
+                            <input id="selfie-capture" type="file" accept="image/jpeg,image/png,image/webp" capture="user" class="rv-file" data-skip-image-paste="1">
                         </div>
                     </div>
                     <div id="selfie-modal" class="rv-modal" hidden>
@@ -142,7 +158,22 @@
                         <button type="button" id="review-signature-clear" class="rv-clear">Clear signature</button>
                     </div>
 
+                    <div class="rv-handoff" @if($capture['qr']) id="review-poll" data-url="{{ route('reviews.capture-status') }}" @endif>
+                        <p class="rv-label">Continue on another device</p>
+                        <p class="rv-hint">Scan the code to take the optional selfie and sign on your phone. This screen updates when that is done.</p>
+                        @if($capture['qr'])
+                            <div class="rv-qr">{!! $capture['qr'] !!}</div>
+                            <p class="rv-hint">This code expires at {{ date('H:i', $capture['expires']) }}.</p>
+                        @endif
+                        <button type="submit" form="review-handoff-form" class="rv-chip rv-chip-quiet">{{ $capture['qr'] ? 'New QR code' : 'Show QR code' }}</button>
+                        <img id="handoff-signature" alt="Signature from your phone" class="rv-handoff-sign" @if($capture['signature_url'] === '') hidden @else src="{{ $capture['signature_url'] }}" @endif>
+                        <input type="hidden" id="handoff-signed" value="{{ $capture['signature_url'] !== '' ? '1' : '0' }}">
+                    </div>
+
                     <button type="submit" class="rv-send">Send review</button>
+                </form>
+                <form id="review-handoff-form" method="POST" action="{{ route('reviews.handoff') }}" hidden>
+                    @csrf
                 </form>
             @endif
         </div>
@@ -160,6 +191,8 @@
     .rv-intro h1 { margin: 0; font-size: 34px; line-height: 1.1; color: #0b3f90; letter-spacing: -0.03em; }
     .rv-intro p { margin: 8px 0 0; color: #64748b; }
     .rv-card { background: #fff; border-radius: 28px; padding: 28px 22px; box-shadow: 0 24px 60px rgba(11, 63, 144, .08); border: 1px solid rgba(255,255,255,.8); }
+    .rv-card > h2 { margin: 0 0 8px; font-size: 22px; color: #0f172a; }
+    .rv-otp { text-align: center; letter-spacing: .35em; font-size: 22px; font-weight: 800; }
     .rv-form { display: flex; flex-direction: column; gap: 22px; }
     .rv-field label, .rv-label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #334155; }
     .rv-field input, .rv-field textarea, .rv-card > form input[type="tel"], .rv-card > form input[type="text"] {
@@ -174,9 +207,12 @@
     .sector-choice input { accent-color: #c6ab47; }
     .rv-score h2 { margin: 0 0 4px; font-size: 20px; color: #0f172a; letter-spacing: -0.02em; }
     .rv-score p { margin: 0; color: #64748b; font-size: 14px; }
-    .rv-scale { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-    .recommend-score { width: 44px; height: 44px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; font-weight: 800; color: #0b3f90; }
+    .rv-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .recommend-score { width: 100%; height: 48px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; font-weight: 800; color: #0b3f90; }
     .recommend-score.is-on { background: linear-gradient(180deg, #1d4ed8, #0b3f90); color: #fff; border-color: #0b3f90; box-shadow: 0 8px 18px rgba(11, 63, 144, .28); }
+    .rv-star-row { display: flex; gap: 4px; margin-top: 10px; }
+    .rv-star { border: 0; background: none; font-size: 36px; line-height: 1; color: #e2e8f0; padding: 0 2px; }
+    .rv-star.is-on { color: #e47911; }
     .rv-readout { margin: 10px 0 0; font-weight: 800; color: #0b3f90; }
     .rv-selfie { display: flex; gap: 16px; align-items: center; padding: 14px; border-radius: 22px; background: linear-gradient(180deg, #f8fbff, #fff); border: 1px solid #e8eef8; }
     .rv-selfie-ring { width: 92px; height: 92px; border-radius: 50%; overflow: hidden; flex: 0 0 92px; background: #e8eef8; display: grid; place-items: center; box-shadow: inset 0 0 0 3px #fff, 0 0 0 2px #c6ab47; }
@@ -194,6 +230,10 @@
     .rv-sign { border-radius: 18px; background: #f8fafc; padding: 8px; box-shadow: inset 0 0 0 1px #e2e8f0; }
     .rv-sign canvas { width: 100%; height: 160px; background: #fff; border-radius: 12px; }
     .rv-clear { margin-top: 8px; background: none; border: 0; color: #64748b; text-decoration: underline; font-size: 13px; }
+    .rv-handoff { padding: 16px; border-radius: 22px; background: #f8fafc; box-shadow: inset 0 0 0 1px #e2e8f0; }
+    .rv-qr { margin: 12px 0; background: #fff; border-radius: 16px; padding: 10px; width: fit-content; }
+    .rv-qr svg { display: block; }
+    .rv-handoff-sign { display: block; height: 64px; margin-top: 12px; background: #fff; border-radius: 12px; }
     .rv-send { width: 100%; border: 0; border-radius: 16px; padding: 16px; font-weight: 800; font-size: 16px; background: linear-gradient(180deg, #e4cc74, #c6ab47); color: #072f6b; box-shadow: 0 12px 24px rgba(198, 171, 71, .35); }
     .country-pick { position: relative; }
     .country-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; max-height: 280px; overflow: auto; background: #fff; border: 1px solid #d6e0ee; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .12); margin-top: 4px; }
@@ -260,9 +300,31 @@
     });
     paintScore(parseInt(scoreInput.value || '9', 10));
 
+    var starInput = document.getElementById('review-stars');
+    var starReadout = document.getElementById('star-readout');
+    function paintStars(value) {
+        document.querySelectorAll('.rv-star').forEach(function (btn) {
+            btn.classList.toggle('is-on', parseInt(btn.getAttribute('data-star'), 10) <= value);
+        });
+        if (starReadout) starReadout.textContent = value || '5';
+    }
+    document.querySelectorAll('.rv-star').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            starInput.value = btn.getAttribute('data-star');
+            paintStars(parseInt(starInput.value, 10));
+        });
+    });
+    if (starInput) paintStars(parseInt(starInput.value || '5', 10));
+
     var photo = document.getElementById('review-photo');
     var preview = document.getElementById('review-photo-preview');
     var placeholder = document.getElementById('selfie-placeholder');
+    var photoUrl = @json($capture['photo_url'] ?? '');
+    if (photoUrl && preview) {
+        preview.src = photoUrl;
+        preview.classList.add('is-on');
+        if (placeholder) placeholder.hidden = true;
+    }
     var clearPhoto = document.getElementById('selfie-clear');
     var modal = document.getElementById('selfie-modal');
     var video = document.getElementById('selfie-video');
@@ -384,16 +446,47 @@
         }
         if (!scoreInput.value) {
             e.preventDefault();
-            alert('Choose a score out of 10.');
+            alert('Choose how likely you are to recommend Beyond.');
             return;
         }
-        if (pad.isEmpty()) {
+        if (!starInput || !starInput.value) {
+            e.preventDefault();
+            alert('Choose a star rating.');
+            return;
+        }
+        var signedOnPhone = document.getElementById('handoff-signed');
+        if (pad.isEmpty() && (!signedOnPhone || signedOnPhone.value !== '1')) {
             e.preventDefault();
             alert('Please sign before sending your review.');
             return;
         }
-        document.getElementById('review-signature-input').value = pad.toDataURL('image/png');
+        if (!pad.isEmpty()) {
+            document.getElementById('review-signature-input').value = pad.toDataURL('image/png');
+        }
     });
+    var poll = document.getElementById('review-poll');
+    if (poll) {
+        setInterval(function () {
+            fetch(poll.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.photo_url && preview) {
+                        preview.src = data.photo_url;
+                        preview.classList.add('is-on');
+                        if (placeholder) placeholder.hidden = true;
+                    }
+                    if (data.signature_url) {
+                        var signed = document.getElementById('handoff-signature');
+                        var flag = document.getElementById('handoff-signed');
+                        if (signed) {
+                            signed.src = data.signature_url;
+                            signed.hidden = false;
+                        }
+                        if (flag) flag.value = '1';
+                    }
+                });
+        }, 4000);
+    }
 })();
 </script>
 @endif

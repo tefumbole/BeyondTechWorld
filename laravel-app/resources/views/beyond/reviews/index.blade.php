@@ -69,7 +69,13 @@
                                 @endif
                             </div>
                         </div>
-                        <p class="text-sm font-bold text-gray-800 mt-3 mb-0">{{ (int) $review->rating }}/10</p>
+                        <p class="text-sm font-bold text-gray-800 mt-3 mb-0">
+                            @if((int) $review->rating_value >= 1 && (int) $review->rating_value <= 5)
+                                <span style="color:#e47911;letter-spacing:1px;">{{ str_repeat('★', (int) $review->rating_value) }}{{ str_repeat('☆', 5 - (int) $review->rating_value) }}</span>
+                                <span class="text-gray-400 font-semibold"> · </span>
+                            @endif
+                            {{ (int) $review->rating }}/10
+                        </p>
                         <p class="text-gray-700 mt-3 mb-4 leading-relaxed flex-1">“{{ $review->comment }}”</p>
                         @if($review->signatureUrl())
                             <div class="mt-auto pt-3 border-t border-gray-100">

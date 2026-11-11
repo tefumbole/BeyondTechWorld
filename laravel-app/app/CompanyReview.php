@@ -46,6 +46,7 @@ class CompanyReview extends Model
             'equipment_rentals' => 'EQUIPMENT RENTALS',
             'supplies' => 'SUPPLIES',
             'it_services' => 'IT SERVICES',
+            'software' => 'SOFTWARE',
             'others' => 'OTHERS',
         ];
     }

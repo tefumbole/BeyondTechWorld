@@ -77,6 +77,10 @@ Route::get('/reviews/write', 'CompanyReviewController@create')->name('reviews.cr
 Route::post('/reviews/phone', 'CompanyReviewController@sendCode')->middleware('throttle:6,10')->name('reviews.phone');
 Route::post('/reviews/otp', 'CompanyReviewController@confirmCode')->middleware('throttle:12,1')->name('reviews.otp');
 Route::post('/reviews', 'CompanyReviewController@store')->middleware('throttle:8,1')->name('reviews.store');
+Route::post('/reviews/handoff', 'CompanyReviewController@handoff')->middleware('throttle:10,10')->name('reviews.handoff');
+Route::get('/reviews/capture-status', 'CompanyReviewController@captureStatus')->middleware('throttle:60,1')->name('reviews.capture-status');
+Route::get('/reviews/capture/{token}', 'CompanyReviewController@capture')->where('token', '[a-f0-9]{32}')->name('reviews.capture');
+Route::post('/reviews/capture/{token}', 'CompanyReviewController@captureStore')->where('token', '[a-f0-9]{32}')->middleware('throttle:20,1')->name('reviews.capture.store');
 Route::get('/payments', 'PublicDonateController@hub')->name('payments.hub');
 Route::get('/donate', 'PublicDonateController@show')->name('donate.show');
 Route::get('/donate/lookup', 'PublicDonateController@lookup')->middleware('throttle:40,1')->name('donate.lookup');

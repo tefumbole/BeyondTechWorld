@@ -57,6 +57,9 @@
                                     <td>{{ $review->countryLabel() }}</td>
                                     <td>
                                         <div class="font-weight-bold">{{ (int) $review->rating }}/10</div>
+                                        @if((int) $review->rating_value >= 1 && (int) $review->rating_value <= 5)
+                                            <div style="color:#e47911;letter-spacing:1px;">{{ str_repeat('★', (int) $review->rating_value) }}{{ str_repeat('☆', 5 - (int) $review->rating_value) }}</div>
+                                        @endif
                                         @if($review->sectorLabel())
                                             <div class="small text-muted">{{ $review->sectorLabel() }}</div>
                                         @endif

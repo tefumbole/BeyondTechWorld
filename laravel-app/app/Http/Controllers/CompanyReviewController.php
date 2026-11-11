@@ -10,6 +10,7 @@ use App\Support\MemorableOtp;
 use App\Support\WhatsAppPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Intervention\Image\Facades\Image;
 
@@ -132,10 +133,11 @@ class CompanyReviewController extends Controller
             'country' => 'required|string|max:80',
             'sector' => 'required|in:'.implode(',', array_keys(CompanyReview::sectors())),
             'sector_other' => 'nullable|string|max:191',
+            'stars' => 'required|integer|min:1|max:5',
             'recommend' => 'required|integer|min:1|max:10',
             'comment' => 'required|string|min:20|max:800',
             'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
-            'signature' => 'required|string',
+            'signature' => 'nullable|string',
         ]);
         if ($request->input('sector') === 'others' && trim((string) $request->input('sector_other')) === '') {
             return back()->withInput()->withErrors(['sector_other' => 'Say which sector this is.']);
@@ -146,7 +148,11 @@ class CompanyReviewController extends Controller
             return back()->withInput()->withErrors(['country' => 'Choose a country from the list.']);
         }
 
+        $handoff = $this->currentHandoff();
         $signaturePath = $this->storeSignature($request->input('signature'));
+        if (! $signaturePath && $handoff && ! empty($handoff['signature'])) {
+            $signaturePath = $handoff['signature'];
+        }
         if (! $signaturePath) {
             return back()->withInput()->withErrors(['signature' => 'Please sign in the box before sending your review.']);
         }
@@ -162,6 +168,8 @@ class CompanyReviewController extends Controller
         $photoPath = $review->photo_path;
         if ($request->hasFile('photo')) {
             $photoPath = $this->storePhoto($request->file('photo'), $review->photo_path);
+        } elseif (! $photoPath && $handoff && ! empty($handoff['photo'])) {
+            $photoPath = $handoff['photo'];
         }
 
         $oldSignature = $review->signature_path;
@@ -173,7 +181,7 @@ class CompanyReviewController extends Controller
             ? mb_substr(trim(strip_tags((string) $request->input('sector_other'))), 0, 191)
             : null;
         $review->rating = $score;
-        $review->rating_value = null;
+        $review->rating_value = (int) $request->input('stars');
         $review->rating_quality = null;
         $review->rating_esthetics = null;
         $review->rating_professionalism = null;
@@ -195,6 +203,15 @@ class CompanyReviewController extends Controller
         if ($oldSignature && $oldSignature !== $signaturePath) {
             $this->deleteLocal($oldSignature);
         }
+        if ($handoff) {
+            if (! empty($handoff['signature']) && $handoff['signature'] !== $signaturePath) {
+                $this->deleteLocal($handoff['signature']);
+            }
+            if (! empty($handoff['photo']) && $handoff['photo'] !== $photoPath) {
+                $this->deleteLocal($handoff['photo']);
+            }
+        }
+        $this->forgetHandoff();
         session()->forget(['review_verified', 'review_phone', 'review_suggested_name', 'review_skip_otp', 'review_invite_id', 'review_otp_hash']);
 
         if ($review->published) {
@@ -252,7 +269,86 @@ class CompanyReviewController extends Controller
             'sectors' => CompanyReview::sectors(),
             'invite' => $invite ?: $this->sessionInvite(),
             'skippedOtp' => (bool) session('review_skip_otp'),
+            'capture' => $this->captureView(),
         ];
+    }
+
+    public function handoff()
+    {
+        $phone = $this->verifiedPhone();
+        if ($phone === null) {
+            return redirect()->route('reviews.create')->with('error', 'Confirm your phone number before continuing on another device.');
+        }
+        $this->forgetHandoff();
+        $token = bin2hex(random_bytes(16));
+        Cache::put($this->handoffKey($token), [
+            'phone' => $phone,
+            'photo' => null,
+            'signature' => null,
+        ], now()->addMinutes(20));
+        session([
+            'review_handoff_token' => $token,
+            'review_handoff_expires' => time() + 1200,
+        ]);
+
+        return $this->backToForm()->with('message', 'Scan the code with your phone to add the selfie and signature.');
+    }
+
+    public function captureStatus()
+    {
+        $row = $this->currentHandoff();
+
+        return response()->json([
+            'photo' => $row && ! empty($row['photo']),
+            'signature' => $row && ! empty($row['signature']),
+            'photo_url' => ($row && ! empty($row['photo'])) ? CompanyReview::publicUrl($row['photo']) : '',
+            'signature_url' => ($row && ! empty($row['signature'])) ? CompanyReview::publicUrl($row['signature']) : '',
+        ]);
+    }
+
+    public function capture($token)
+    {
+        $row = $this->openHandoff($token);
+        if (! $row) {
+            return response()->view('beyond.reviews.message', [
+                'title' => 'This phone link has expired',
+                'message' => 'Go back to the review and generate a new QR code.',
+            ], 410);
+        }
+
+        return view('beyond.reviews.capture', [
+            'token' => $token,
+            'photoUrl' => ! empty($row['photo']) ? CompanyReview::publicUrl($row['photo']) : '',
+            'signatureUrl' => ! empty($row['signature']) ? CompanyReview::publicUrl($row['signature']) : '',
+        ]);
+    }
+
+    public function captureStore(Request $request, $token)
+    {
+        $row = $this->openHandoff($token);
+        if (! $row) {
+            return back()->withErrors(['link' => 'This phone link has expired. Generate a new QR code.']);
+        }
+        $request->validate([
+            'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
+            'signature' => 'nullable|string',
+        ]);
+        if ($request->hasFile('photo')) {
+            $row['photo'] = $this->storePhoto($request->file('photo'), isset($row['photo']) ? $row['photo'] : null);
+        }
+        $signature = $this->storeSignature($request->input('signature'));
+        if ($signature) {
+            if (! empty($row['signature']) && $row['signature'] !== $signature) {
+                $this->deleteLocal($row['signature']);
+            }
+            $row['signature'] = $signature;
+        }
+        if (empty($row['photo']) && ! $signature && empty($row['signature'])) {
+            return back()->withErrors(['selfie' => 'Take a selfie or draw your signature.']);
+        }
+        Cache::put($this->handoffKey($token), $row, now()->addMinutes(20));
+
+        return back()->with('message', 'Saved. You can return to the first screen.');
     }
 
     protected function backToForm()
@@ -387,5 +483,75 @@ class CompanyReviewController extends Controller
         if (is_file($full)) {
             @unlink($full);
         }
+    }
+
+    protected function verifiedPhone()
+    {
+        $phone = (string) session('review_phone', '');
+        if ($phone === '' || (! session('review_verified') && ! session('review_skip_otp'))) {
+            return null;
+        }
+
+        return $phone;
+    }
+
+    protected function handoffKey($token)
+    {
+        return 'review-handoff:'.hash('sha256', (string) $token);
+    }
+
+    protected function currentHandoff()
+    {
+        $token = (string) session('review_handoff_token', '');
+        if ($token === '' || (int) session('review_handoff_expires', 0) < time()) {
+            return null;
+        }
+        $row = Cache::get($this->handoffKey($token));
+        if (! is_array($row) || (string) (isset($row['phone']) ? $row['phone'] : '') !== (string) session('review_phone', '')) {
+            return null;
+        }
+
+        return $row;
+    }
+
+    protected function openHandoff($token)
+    {
+        $token = strtolower(preg_replace('/[^a-f0-9]/', '', (string) $token));
+        if (strlen($token) !== 32) {
+            return null;
+        }
+        $row = Cache::get($this->handoffKey($token));
+
+        return is_array($row) ? $row : null;
+    }
+
+    protected function forgetHandoff()
+    {
+        $token = (string) session('review_handoff_token', '');
+        if ($token !== '') {
+            Cache::forget($this->handoffKey($token));
+        }
+        session()->forget(['review_handoff_token', 'review_handoff_expires']);
+    }
+
+    protected function captureView()
+    {
+        $token = (string) session('review_handoff_token', '');
+        $row = $this->currentHandoff();
+        $qr = null;
+        if ($row && $token !== '') {
+            try {
+                $qr = \QrCode::size(210)->margin(1)->generate(route('reviews.capture', ['token' => $token]));
+            } catch (\Throwable $e) {
+                $qr = null;
+            }
+        }
+
+        return [
+            'qr' => $qr,
+            'expires' => $row ? (int) session('review_handoff_expires', 0) : 0,
+            'photo_url' => ($row && ! empty($row['photo'])) ? CompanyReview::publicUrl($row['photo']) : '',
+            'signature_url' => ($row && ! empty($row['signature'])) ? CompanyReview::publicUrl($row['signature']) : '',
+        ];
     }
 }
