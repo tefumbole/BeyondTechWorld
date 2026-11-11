@@ -13,6 +13,8 @@ class CompanyReview extends Model
         'reviewer_name',
         'google_photo',
         'country',
+        'sector',
+        'sector_other',
         'rating',
         'rating_value',
         'rating_quality',
@@ -38,36 +40,65 @@ class CompanyReview extends Model
         'hidden_by_staff' => 'boolean',
     ];
 
-    public static function scoreFields()
+    public static function sectors()
     {
         return [
-            'rating_value' => 'Value for money',
-            'rating_quality' => 'Quality of equipment',
-            'rating_esthetics' => 'Esthetics and beauty',
-            'rating_professionalism' => 'Professionalism',
-            'rating_time' => 'Time consciousness',
+            'equipment_rentals' => 'EQUIPMENT RENTALS',
+            'supplies' => 'SUPPLIES',
+            'it_services' => 'IT SERVICES',
+            'others' => 'OTHERS',
         ];
     }
 
-    public function scoreRows()
+    public function sectorLabel()
     {
-        $rows = [];
-        foreach (self::scoreFields() as $field => $label) {
-            $rows[$label] = (int) $this->{$field};
+        $sectors = self::sectors();
+        $key = (string) $this->sector;
+        if ($key === 'others') {
+            $other = trim((string) $this->sector_other);
+
+            return $other !== '' ? 'OTHERS · '.$other : 'OTHERS';
         }
 
-        return $rows;
+        return isset($sectors[$key]) ? $sectors[$key] : '';
     }
 
-    public function allFiveStars()
+    public function meetsPublishRule()
     {
-        foreach (self::scoreFields() as $field => $label) {
-            if ((int) $this->{$field} !== 5) {
-                return false;
+        return (int) $this->rating >= 6;
+    }
+
+    public static function publicSummary($reviews)
+    {
+        $count = 0;
+        $sum = 0;
+        $buckets = [];
+        for ($n = 1; $n <= 10; $n++) {
+            $buckets[$n] = 0;
+        }
+        foreach ($reviews as $review) {
+            $score = (int) $review->rating;
+            if ($score < 1 || $score > 10) {
+                continue;
             }
+            $count++;
+            $sum += $score;
+            $buckets[$score]++;
+        }
+        $bars = [];
+        for ($n = 10; $n >= 1; $n--) {
+            $bars[] = [
+                'score' => $n,
+                'count' => $buckets[$n],
+                'percent' => $count > 0 ? (int) round(($buckets[$n] / $count) * 100) : 0,
+            ];
         }
 
-        return true;
+        return [
+            'count' => $count,
+            'average' => $count > 0 ? round($sum / $count, 1) : 0,
+            'bars' => $bars,
+        ];
     }
 
     public static function countryOptions()

@@ -1,7 +1,7 @@
 @extends('beyond.layout')
 
 @section('title', 'Write a review | Beyond Company Limited')
-@section('meta_description', 'Review Beyond Company Limited. Confirm your phone, then score value, equipment, beauty, professionalism, and time.')
+@section('meta_description', 'Review Beyond Company Limited. One score out of 10: how likely you are to recommend Beyond Enterprise.')
 
 @section('content')
 <section class="bg-gradient-to-r from-brand-blue via-brand-light to-brand-blue py-8">
@@ -67,30 +67,39 @@
                         @endif
                     </div>
 
-                    <div>
-                        <label for="review-country" class="text-sm font-semibold text-gray-700 block mb-2">Your country</label>
-                        <select id="review-country" name="country" required class="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-white">
-                            <option value="">Choose a country</option>
-                            @foreach($countries as $name => $flag)
-                                <option value="{{ $name }}" {{ old('country') === $name ? 'selected' : '' }}>{{ $flag }} {{ $name }}</option>
-                            @endforeach
-                        </select>
+                    <div class="country-pick">
+                        <label for="country-search" class="text-sm font-semibold text-gray-700 block mb-2">Your country</label>
+                        <input id="country-search" type="search" autocomplete="off" placeholder="Search your country" value="{{ old('country') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2.5">
+                        <input type="hidden" name="country" id="review-country" value="{{ old('country') }}">
+                        <div id="country-menu" class="country-menu" hidden></div>
                     </div>
 
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900 mt-0 mb-1">Your scores</h2>
-                        <p id="review-rating-note" class="text-sm text-gray-600 mt-0">The review is shown on the website only when every score is 5 stars.</p>
-                        @foreach($scores as $field => $label)
-                            <div class="mt-4">
-                                <p class="text-sm font-semibold text-gray-800 mb-1">{{ $label }}</p>
-                                <input type="hidden" name="{{ $field }}" id="score-{{ $field }}" value="{{ old($field) }}">
-                                <div class="flex gap-1 review-stars" data-field="{{ $field }}">
-                                    @for($star = 1; $star <= 5; $star++)
-                                        <button type="button" data-star="{{ $star }}" class="text-3xl leading-none text-gray-300" aria-label="{{ $star }} stars for {{ $label }}">★</button>
-                                    @endfor
-                                </div>
-                            </div>
-                        @endforeach
+                        <p class="text-sm font-semibold text-gray-800 mb-2">Your sector</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            @foreach($sectors as $key => $label)
+                                <label class="sector-choice">
+                                    <input type="radio" name="sector" value="{{ $key }}" {{ old('sector') === $key ? 'checked' : '' }}>
+                                    <span>{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div id="sector-other-wrap" class="mt-3 {{ old('sector') === 'others' ? '' : 'hidden' }}">
+                            <label for="sector-other" class="text-sm font-semibold text-gray-700 block mb-2">Specify the sector</label>
+                            <input id="sector-other" name="sector_other" type="text" maxlength="191" value="{{ old('sector_other') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2.5" placeholder="Type the sector">
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 mt-0 mb-1">How likely are you to recommend Beyond Enterprise?</h2>
+                        <p class="text-sm text-gray-600 mt-0">Score out of 10. A review is shown on the website from 6 upward.</p>
+                        <input type="hidden" name="recommend" id="recommend-score" value="{{ old('recommend', 9) }}">
+                        <div class="flex flex-wrap gap-2 mt-3" id="recommend-scale">
+                            @for($n = 1; $n <= 10; $n++)
+                                <button type="button" data-score="{{ $n }}" class="recommend-score" aria-label="{{ $n }} out of 10">{{ $n }}</button>
+                            @endfor
+                        </div>
+                        <p class="text-sm font-semibold text-brand-blue mt-2 mb-0"><span id="recommend-readout">{{ old('recommend', 9) }}</span>/10</p>
                     </div>
 
                     <div>
@@ -125,26 +134,80 @@
 
 @push('scripts')
 @if($step === 'review')
+<style>
+    .country-pick { position: relative; }
+    .country-menu {
+        position: absolute; left: 0; right: 0; top: 100%; z-index: 30; max-height: 280px; overflow: auto;
+        background: #fff; border: 1px solid #d6e0ee; border-radius: 12px; box-shadow: 0 16px 40px rgba(15, 23, 42, .12); margin-top: 4px;
+    }
+    .country-menu button {
+        display: flex; width: 100%; text-align: left; gap: 8px; padding: 10px 12px; border: 0; background: #fff; font-weight: 600; color: #0f172a;
+    }
+    .country-menu button:hover, .country-menu button.is-on { background: #eff6ff; }
+    .sector-choice { display: flex; align-items: center; gap: 8px; border: 1px solid #d6e0ee; border-radius: 12px; padding: 10px 12px; font-weight: 800; color: #0b3f90; cursor: pointer; }
+    .sector-choice input { accent-color: #0b3f90; }
+    .recommend-score {
+        width: 42px; height: 42px; border-radius: 12px; border: 1px solid #d6e0ee; background: #fff; font-weight: 800; color: #0b3f90;
+    }
+    .recommend-score.is-on { background: #0b3f90; color: #fff; border-color: #0b3f90; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
 (function () {
-    document.querySelectorAll('.review-stars').forEach(function (group) {
-        var field = group.getAttribute('data-field');
-        var input = document.getElementById('score-' + field);
-        function paint(value) {
-            group.querySelectorAll('[data-star]').forEach(function (btn) {
-                var n = parseInt(btn.getAttribute('data-star'), 10);
-                btn.style.color = n <= value ? '#D4AF37' : '#d1d5db';
-            });
-        }
-        group.querySelectorAll('[data-star]').forEach(function (btn) {
+    var countries = @json($countries);
+    var search = document.getElementById('country-search');
+    var hidden = document.getElementById('review-country');
+    var menu = document.getElementById('country-menu');
+    function renderCountries(query) {
+        var q = (query || '').toLowerCase();
+        menu.innerHTML = '';
+        Object.keys(countries).forEach(function (name) {
+            if (q && name.toLowerCase().indexOf(q) === -1) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = countries[name] + ' ' + name;
+            if (hidden.value === name) btn.className = 'is-on';
             btn.addEventListener('click', function () {
-                input.value = btn.getAttribute('data-star');
-                paint(parseInt(input.value, 10));
+                hidden.value = name;
+                search.value = name;
+                menu.hidden = true;
             });
+            menu.appendChild(btn);
         });
-        paint(parseInt(input.value || '0', 10));
+        menu.hidden = menu.children.length === 0;
+    }
+    if (search && menu) {
+        search.addEventListener('focus', function () { renderCountries(search.value); });
+        search.addEventListener('input', function () {
+            hidden.value = '';
+            renderCountries(search.value);
+        });
+        document.addEventListener('click', function (event) {
+            if (!search.parentElement.contains(event.target)) menu.hidden = true;
+        });
+    }
+
+    document.querySelectorAll('input[name="sector"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            document.getElementById('sector-other-wrap').classList.toggle('hidden', input.value !== 'others' || !input.checked);
+        });
     });
+
+    var scoreInput = document.getElementById('recommend-score');
+    var readout = document.getElementById('recommend-readout');
+    function paintScore(value) {
+        document.querySelectorAll('.recommend-score').forEach(function (btn) {
+            btn.classList.toggle('is-on', parseInt(btn.getAttribute('data-score'), 10) === value);
+        });
+        if (readout) readout.textContent = value || '9';
+    }
+    document.querySelectorAll('.recommend-score').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            scoreInput.value = btn.getAttribute('data-score');
+            paintScore(parseInt(scoreInput.value, 10));
+        });
+    });
+    paintScore(parseInt(scoreInput.value || '9', 10));
 
     var photo = document.getElementById('review-photo');
     var preview = document.getElementById('review-photo-preview');
@@ -173,14 +236,20 @@
     var clearBtn = document.getElementById('review-signature-clear');
     if (clearBtn) clearBtn.addEventListener('click', function () { pad.clear(); });
     document.getElementById('review-form').addEventListener('submit', function (e) {
-        var missing = false;
-        document.querySelectorAll('.review-stars').forEach(function (group) {
-            var input = document.getElementById('score-' + group.getAttribute('data-field'));
-            if (!input.value) missing = true;
-        });
-        if (missing) {
+        if (!hidden.value) {
             e.preventDefault();
-            alert('Please choose a star score for every item.');
+            alert('Choose your country from the list.');
+            search.focus();
+            return;
+        }
+        if (!document.querySelector('input[name="sector"]:checked')) {
+            e.preventDefault();
+            alert('Choose a sector.');
+            return;
+        }
+        if (!scoreInput.value) {
+            e.preventDefault();
+            alert('Choose a score out of 10.');
             return;
         }
         if (pad.isEmpty()) {

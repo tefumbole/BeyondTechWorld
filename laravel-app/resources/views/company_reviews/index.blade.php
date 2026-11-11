@@ -6,7 +6,7 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap mb-4" style="gap:12px;">
             <div>
                 <h3 class="mb-1" style="color:#0b3f90;font-weight:800;">Reviews</h3>
-                <p class="text-muted mb-0">A review is shown on the website only when value, equipment, beauty, professionalism, and time are all 5 stars. A payment link skips the phone code.</p>
+                <p class="text-muted mb-0">A review is shown on the website from 6 out of 10 upward. A payment link skips the phone code.</p>
             </div>
             <a href="{{ route('reviews.index') }}" target="_blank" class="btn btn-outline-primary btn-sm">View on website</a>
         </div>
@@ -33,7 +33,7 @@
                             <tr>
                                 <th>Reviewer</th>
                                 <th>Country</th>
-                                <th>Stars</th>
+                                <th>Score</th>
                                 <th>Review</th>
                                 <th>Signature</th>
                                 <th>On the website</th>
@@ -55,10 +55,11 @@
                                         </div>
                                     </td>
                                     <td>{{ $review->countryLabel() }}</td>
-                                    <td style="min-width:180px;">
-                                        @foreach($review->scoreRows() as $label => $score)
-                                            <div class="small">{{ $label }}: {{ $score }}/5</div>
-                                        @endforeach
+                                    <td>
+                                        <div class="font-weight-bold">{{ (int) $review->rating }}/10</div>
+                                        @if($review->sectorLabel())
+                                            <div class="small text-muted">{{ $review->sectorLabel() }}</div>
+                                        @endif
                                     </td>
                                     <td style="max-width:280px;">{{ \Illuminate\Support\Str::limit($review->comment, 140) }}</td>
                                     <td>
@@ -69,8 +70,8 @@
                                     <td>
                                         @if($review->published)
                                             <span class="badge badge-success">Published</span>
-                                        @elseif(! $review->allFiveStars())
-                                            <span class="badge badge-secondary">Below 5 stars</span>
+                                        @elseif(! $review->meetsPublishRule())
+                                            <span class="badge badge-secondary">Below 6/10</span>
                                         @else
                                             <span class="badge badge-warning">Hidden</span>
                                         @endif
@@ -82,7 +83,7 @@
                                                 <input type="hidden" name="published" value="0">
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">Hide</button>
                                             </form>
-                                        @elseif($review->allFiveStars())
+                                        @elseif($review->meetsPublishRule())
                                             <form method="POST" action="{{ route('admin.reviews.visibility', $review->id) }}">
                                                 @csrf
                                                 <input type="hidden" name="published" value="1">

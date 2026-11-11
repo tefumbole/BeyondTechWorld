@@ -18,13 +18,12 @@ class CompanyReviewController extends Controller
     public function index()
     {
         $reviews = CompanyReview::where('published', 1)
-            ->where('rating', 5)
             ->orderBy('id', 'desc')
-            ->limit(48)
             ->get();
 
         return view('beyond.reviews.index', [
             'reviews' => $reviews,
+            'summary' => CompanyReview::publicSummary($reviews),
         ]);
     }
 
@@ -128,17 +127,19 @@ class CompanyReviewController extends Controller
             return redirect()->route('reviews.create')->with('error', 'Confirm your phone number before sending a review.');
         }
 
-        $rules = [
+        $request->validate([
             'reviewer_name' => 'required|string|max:191',
             'country' => 'required|string|max:80',
+            'sector' => 'required|in:'.implode(',', array_keys(CompanyReview::sectors())),
+            'sector_other' => 'nullable|string|max:191',
+            'recommend' => 'required|integer|min:1|max:10',
             'comment' => 'required|string|min:20|max:800',
             'photo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
             'signature' => 'required|string',
-        ];
-        foreach (array_keys(CompanyReview::scoreFields()) as $field) {
-            $rules[$field] = 'required|integer|min:1|max:5';
+        ]);
+        if ($request->input('sector') === 'others' && trim((string) $request->input('sector_other')) === '') {
+            return back()->withInput()->withErrors(['sector_other' => 'Say which sector this is.']);
         }
-        $request->validate($rules);
 
         $country = CompanyReview::canonicalCountry($request->input('country'));
         if (! $country) {
@@ -150,14 +151,7 @@ class CompanyReviewController extends Controller
             return back()->withInput()->withErrors(['signature' => 'Please sign in the box before sending your review.']);
         }
 
-        $scores = [];
-        $lowest = 5;
-        foreach (array_keys(CompanyReview::scoreFields()) as $field) {
-            $scores[$field] = (int) $request->input($field);
-            if ($scores[$field] < $lowest) {
-                $lowest = $scores[$field];
-            }
-        }
+        $score = (int) $request->input('recommend');
 
         $review = CompanyReview::where('phone', $phone)->first();
         if (! $review) {
@@ -174,14 +168,20 @@ class CompanyReviewController extends Controller
         $name = trim(strip_tags((string) $request->input('reviewer_name')));
         $review->reviewer_name = mb_substr($name, 0, 191);
         $review->country = $country;
-        $review->rating = $lowest;
-        foreach ($scores as $field => $value) {
-            $review->{$field} = $value;
-        }
+        $review->sector = (string) $request->input('sector');
+        $review->sector_other = $review->sector === 'others'
+            ? mb_substr(trim(strip_tags((string) $request->input('sector_other'))), 0, 191)
+            : null;
+        $review->rating = $score;
+        $review->rating_value = null;
+        $review->rating_quality = null;
+        $review->rating_esthetics = null;
+        $review->rating_professionalism = null;
+        $review->rating_time = null;
         $review->comment = trim(strip_tags($request->input('comment')));
         $review->photo_path = $photoPath;
         $review->signature_path = $signaturePath;
-        $review->published = $lowest === 5 && ! $review->hidden_by_staff;
+        $review->published = $score >= 6 && ! $review->hidden_by_staff;
 
         $invite = $this->sessionInvite();
         if ($invite && session('review_skip_otp') && ! $review->invite_id) {
@@ -200,11 +200,11 @@ class CompanyReviewController extends Controller
         if ($review->published) {
             return redirect()->route('reviews.index')->with('message', 'Thank you. Your review is now on the website.');
         }
-        if ($lowest === 5) {
+        if ($score >= 6) {
             return redirect()->route('reviews.index')->with('message', 'Thank you. Your review was saved. It stays off the website until a manager shows it.');
         }
 
-        return redirect()->route('reviews.index')->with('message', 'Thank you. We received your review. It is shown on the website only when every score is 5 stars.');
+        return redirect()->route('reviews.index')->with('message', 'Thank you. We received your review. It is shown on the website from 6 out of 10 upward.');
     }
 
     public function admin()
@@ -221,8 +221,8 @@ class CompanyReviewController extends Controller
         $this->authorizeAdmin();
         $review = CompanyReview::findOrFail($id);
         $show = (string) $request->input('published') === '1';
-        if ($show && ! $review->allFiveStars()) {
-            return back()->with('error', 'A review is shown only when every score is 5 stars.');
+        if ($show && ! $review->meetsPublishRule()) {
+            return back()->with('error', 'A review is shown only from 6 out of 10 upward.');
         }
 
         $review->published = $show;
@@ -249,7 +249,7 @@ class CompanyReviewController extends Controller
             'phone' => (string) session('review_phone', ''),
             'suggestedName' => (string) session('review_suggested_name', ''),
             'countries' => CompanyReview::countryOptions(),
-            'scores' => CompanyReview::scoreFields(),
+            'sectors' => CompanyReview::sectors(),
             'invite' => $invite ?: $this->sessionInvite(),
             'skippedOtp' => (bool) session('review_skip_otp'),
         ];
