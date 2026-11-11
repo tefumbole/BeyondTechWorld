@@ -180,13 +180,10 @@
                 <script type="application/json" id="av-approver-roles">@json($approverRoles)</script>
             @elseif($panel === 'review')
                 <h2>Review and send</h2>
-                <p>{{ $draft->quantity }} licences for {{ $draft->year }}</p>
                 <div class="av-note">
-                    <div><strong>{{ $draft->requester_name }}</strong> · {{ $draft->requesterRoleLabel() }}</div>
-                    <div>{{ $draft->station }}, {{ $draft->region }}</div>
-                    @foreach($savedApprovers as $person)
-                        <div>{{ $person['name'] }} · {{ \App\Support\AntivirusCatalog::roleLabel('approver', $person['role'], isset($person['role_other']) ? $person['role_other'] : '') }}</div>
-                    @endforeach
+                    <div class="av-request-title">Anti Virus Request {{ $draft->year }}</div>
+                    <div class="av-fact"><span>Station</span><strong>{{ $draft->station }}</strong></div>
+                    <div class="av-fact"><span>Number</span><strong>{{ $draft->quantity }}</strong></div>
                 </div>
                 <form method="POST" action="{{ route('antivirus.submit') }}">
                     @csrf
@@ -201,9 +198,10 @@
                 <div class="av-ref">{{ $draft->reference }}</div>
                 <p>{{ $draft->decisionLabel() }}</p>
                 <div class="av-note">
-                    <div class="av-qty" style="font-size:42px">{{ $draft->quantity }}</div>
-                    <div>{{ $draft->station }} · {{ $draft->year }}</div>
-                    <div>A WhatsApp message names the station approvers. After they sign, the request goes to the Chief of Administration and Finance.</div>
+                    <div class="av-request-title">Anti Virus Request {{ $draft->year }}</div>
+                    <div class="av-fact"><span>Station</span><strong>{{ $draft->station }}</strong></div>
+                    <div class="av-fact"><span>Number</span><strong>{{ $draft->quantity }}</strong></div>
+                    <p class="av-after">A WhatsApp message names the station approvers. After they sign, the request goes to the Chief of Administration and Finance.</p>
                 </div>
                 <form method="POST" action="{{ route('antivirus.restart') }}">@csrf<button class="av-btn secondary" type="submit">Start another request</button></form>
             @endif

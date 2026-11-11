@@ -6,10 +6,11 @@
         <p class="mb-1"><a href="{{ route('admin.antivirus.index') }}">Antivirus requests</a></p>
         <div class="d-flex justify-content-between flex-wrap" style="gap:12px;">
             <div>
-                <h3 class="mb-1" style="color:#0b3f90;font-weight:800;">{{ $row->reference ?: 'Draft' }}</h3>
-                <p class="mb-0">{{ $row->decisionLabel() }}</p>
+                <h3 class="mb-1" style="color:#0b3f90;font-weight:800;">Anti Virus Request {{ $row->year }}</h3>
+                <p class="mb-0">Station: {{ $row->station }}</p>
+                <p class="mb-0">Number: {{ $row->quantity }}</p>
+                <p class="mb-0 text-muted">{{ $row->reference }} · {{ $row->decisionLabel() }}</p>
             </div>
-            <div style="font-size:42px;font-weight:800;color:#0b3f90;line-height:1;">{{ $row->quantity }}</div>
         </div>
         @if(session('message'))<div class="alert alert-success mt-3">{{ session('message') }}</div>@endif
         @if($errors->any())<div class="alert alert-danger mt-3">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif

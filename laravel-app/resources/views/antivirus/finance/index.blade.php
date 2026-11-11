@@ -73,8 +73,6 @@
                     <tr>
                         <th>Station</th>
                         <th>Region</th>
-                        <th>Year</th>
-                        <th>Quantity</th>
                         <th>Approval</th>
                         <th>Payment</th>
                         <th>Receipt</th>
@@ -83,16 +81,18 @@
                 <tbody>
                     @forelse($rows as $row)
                         <tr>
-                            <td><a href="{{ route('admin.antivirus.show', ['id' => $row->id]) }}">{{ $row->station }}</a><div class="text-muted">{{ $row->reference }}</div></td>
+                            <td>
+                                <a href="{{ route('admin.antivirus.show', ['id' => $row->id]) }}" style="font-weight:800;color:#0b3f90;">Anti Virus Request {{ $row->year }}</a>
+                                <div>Station: {{ $row->station }}</div>
+                                <div>Number: {{ $row->quantity }}</div>
+                            </td>
                             <td>{{ $row->region }}</td>
-                            <td>{{ $row->year }}</td>
-                            <td><strong>{{ $row->quantity }}</strong></td>
                             <td>{{ $row->progressLabel() }}<div class="text-muted">{{ $row->decisionLabel() }}</div></td>
                             <td>{{ $row->paymentLabel() }}</td>
                             <td @if($row->receipt_status === 'shortfall') style="color:#9f1239;font-weight:700;" @endif>{{ $row->receiptLabel() }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="7">No requests yet.</td></tr>
+                        <tr><td colspan="5">No requests yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
