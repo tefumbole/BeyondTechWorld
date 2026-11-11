@@ -238,32 +238,23 @@ class AntivirusRequestService
         return $handoff;
     }
 
-    public function captureHandoff(AntivirusHandoff $handoff, $selfieFile, $dataUrl)
+    public function captureHandoff(AntivirusHandoff $handoff, $selfieFile, $dataUrl, $focus = 'selfie')
     {
         $handoff = $this->openHandoffById($handoff->id);
-        if (! $handoff->phone_verified_at || $handoff->phone_verified_at->lt(now()->subMinutes(30))) {
-            throw new AntivirusRuleException('otp', 'Enter the code sent to your phone first.');
-        }
-        if (! $selfieFile && trim((string) $dataUrl) === '') {
-            throw new AntivirusRuleException('selfie', 'Take a selfie and draw your signature.');
-        }
+        $focus = $focus === 'sign' ? 'sign' : 'selfie';
         $request = AntivirusRequest::find($handoff->antivirus_request_id);
         if (! $request) {
             throw new AntivirusRuleException('link', 'This request is no longer available.');
         }
-        if ($selfieFile) {
+        if ($focus === 'sign') {
+            $this->saveSignature($request, $dataUrl);
+        } else {
             $this->saveSelfie($request, $selfieFile);
         }
-        if (trim((string) $dataUrl) !== '') {
-            $this->saveSignature($request, $dataUrl);
-        }
-        $request = $request->fresh();
-        if ($request->selfie_path && $request->signatureIsCurrent()) {
-            $handoff->consumed_at = now();
-            $handoff->save();
-        }
+        $handoff->consumed_at = now();
+        $handoff->save();
 
-        return $request;
+        return $request->fresh();
     }
 
     public function saveApprovers(AntivirusRequest $request, array $raw, array $hits)

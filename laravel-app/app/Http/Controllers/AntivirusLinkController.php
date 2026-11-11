@@ -41,8 +41,8 @@ class AntivirusLinkController extends Controller
             'handoff' => $handoff,
             'antivirus' => $request,
             'token' => $token,
-            'verified' => $handoff->phone_verified_at && $handoff->phone_verified_at->gt(now()->subMinutes(30)),
-            'phone' => WhatsAppPhone::display($request->requester_phone),
+            'done' => (bool) $handoff->consumed_at,
+            'focus' => request('focus') === 'sign' ? 'sign' : 'selfie',
         ]);
     }
 
@@ -69,7 +69,8 @@ class AntivirusLinkController extends Controller
     {
         try {
             $handoff = $this->antivirus->openHandoff($token);
-            $this->antivirus->captureHandoff($handoff, $request->file('selfie'), $request->input('signature'));
+            $focus = $request->input('focus') === 'sign' ? 'sign' : 'selfie';
+            $this->antivirus->captureHandoff($handoff, $request->file('selfie'), $request->input('signature'), $focus);
         } catch (\Throwable $e) {
             return $this->antivirusFail($e);
         }

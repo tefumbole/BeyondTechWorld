@@ -139,7 +139,7 @@
                     @csrf
                     <input type="hidden" name="focus" id="av-handoff-focus" value="selfie">
                 </form>
-                <div id="av-poll" data-url="{{ route('antivirus.status') }}" hidden></div>
+                <div id="av-poll" data-url="{{ route('antivirus.status') }}" data-selfie="{{ $draft->selfie_path ? '1' : '0' }}" data-signature="{{ ($draft->signature_path && $draft->signatureIsCurrent()) ? '1' : '0' }}" hidden></div>
             @elseif($panel === 'approvers')
                 <h2>Approvers</h2>
                 <p>Add a phone number. The name appears for you to edit, then choose the role.</p>

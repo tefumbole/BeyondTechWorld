@@ -291,15 +291,21 @@
         });
     }
 
-    function startPoll(node) {
+    function startPoll(node, focus) {
         if (!node || node.getAttribute('data-polling') === '1') return;
         var url = node.getAttribute('data-url');
         if (!url) return;
+        var watch = focus || '';
+        var seenSelfie = node.getAttribute('data-selfie') === '1';
+        var seenSign = node.getAttribute('data-signature') === '1';
         node.setAttribute('data-polling', '1');
         setInterval(function () {
             fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.json(); })
-                .then(function (data) { if (data.ready) window.location.reload(); })
+                .then(function (data) {
+                    if (watch === 'selfie' && data.selfie && !seenSelfie) window.location.reload();
+                    if (watch === 'sign' && data.signature && !seenSign) window.location.reload();
+                })
                 .catch(function () {});
         }, 4000);
     }
@@ -351,15 +357,15 @@
                 var poll = document.getElementById('av-poll');
                 if (poll) {
                     if (data.status_url) poll.setAttribute('data-url', data.status_url);
-                    startPoll(poll);
+                    startPoll(poll, name);
                 }
             }).catch(function () {
                 note(name, 'The QR code could not be created. Try again.');
             });
         });
     });
-    var openSlot = document.querySelector('.av-qr-slot.is-open svg');
-    if (openSlot) startPoll(document.getElementById('av-poll'));
+    var openSlot = document.querySelector('.av-qr-slot.is-open');
+    if (openSlot && openSlot.querySelector('svg')) startPoll(document.getElementById('av-poll'), openSlot.getAttribute('data-qr-slot'));
 })();
 </script>
 @endpush

@@ -38,7 +38,7 @@ class AntivirusPublicController extends Controller
                 session()->forget('antivirus_handoff_token');
                 $handoff = null;
             } else {
-                $qr = $this->handoffQr($token);
+                $qr = $this->handoffQr($token, (string) session('antivirus_handoff_focus', ''));
                 if ($qr === '') {
                     $qr = null;
                 }
@@ -229,13 +229,14 @@ class AntivirusPublicController extends Controller
     {
         try {
             $draft = $this->requireDraft();
+            $focus = $request->input('focus') === 'sign' ? 'sign' : 'selfie';
             $token = $this->antivirus->issueHandoff($draft);
             session([
                 'antivirus_handoff_token' => $token,
-                'antivirus_handoff_focus' => $request->input('focus') === 'sign' ? 'sign' : 'selfie',
+                'antivirus_handoff_focus' => $focus,
             ]);
             if ($request->expectsJson() || $request->ajax()) {
-                $qr = $this->handoffQr($token);
+                $qr = $this->handoffQr($token, $focus);
                 if ($qr === '') {
                     return response()->json(['message' => 'The QR code could not be created. Try again.'], 500);
                 }
@@ -390,10 +391,13 @@ class AntivirusPublicController extends Controller
         return ['name' => $name, 'source' => $source];
     }
 
-    protected function handoffQr($token)
+    protected function handoffQr($token, $focus = 'selfie')
     {
+        $focus = $focus === 'sign' ? 'sign' : 'selfie';
         try {
-            $svg = (string) \QrCode::size(168)->margin(1)->generate(route('antivirus.handoff.show', ['token' => $token]));
+            $svg = (string) \QrCode::size(168)->margin(1)->generate(
+                route('antivirus.handoff.show', ['token' => $token]).'?focus='.$focus
+            );
         } catch (\Throwable $e) {
             return '';
         }
