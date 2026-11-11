@@ -212,7 +212,7 @@ class CompanyReviewController extends Controller
             }
         }
         $this->forgetHandoff();
-        session()->forget(['review_verified', 'review_phone', 'review_suggested_name', 'review_skip_otp', 'review_invite_id', 'review_otp_hash']);
+        session()->forget(['review_verified', 'review_phone', 'review_suggested_name', 'review_skip_otp', 'review_invite_id', 'review_otp_hash', 'review_handoff_focus']);
 
         if ($review->published) {
             return redirect()->route('reviews.index')->with('message', 'Thank you. Your review is now on the website.');
@@ -273,12 +273,13 @@ class CompanyReviewController extends Controller
         ];
     }
 
-    public function handoff()
+    public function handoff(Request $request)
     {
         $phone = $this->verifiedPhone();
         if ($phone === null) {
             return redirect()->route('reviews.create')->with('error', 'Confirm your phone number before continuing on another device.');
         }
+        $focus = $request->input('focus') === 'sign' ? 'sign' : 'selfie';
         $this->forgetHandoff();
         $token = bin2hex(random_bytes(16));
         Cache::put($this->handoffKey($token), [
@@ -289,9 +290,19 @@ class CompanyReviewController extends Controller
         session([
             'review_handoff_token' => $token,
             'review_handoff_expires' => time() + 1200,
+            'review_handoff_focus' => $focus,
         ]);
 
-        return $this->backToForm()->with('message', 'Scan the code with your phone to add the selfie and signature.');
+        if ($request->expectsJson()) {
+            $view = $this->captureView();
+
+            return response()->json([
+                'qr' => $view['qr'] ? (string) $view['qr'] : '',
+                'status_url' => route('reviews.capture-status'),
+            ]);
+        }
+
+        return $this->backToForm();
     }
 
     public function captureStatus()
@@ -541,7 +552,7 @@ class CompanyReviewController extends Controller
         $qr = null;
         if ($row && $token !== '') {
             try {
-                $qr = \QrCode::size(210)->margin(1)->generate(route('reviews.capture', ['token' => $token]));
+                $qr = \QrCode::size(168)->margin(1)->generate(route('reviews.capture', ['token' => $token]));
             } catch (\Throwable $e) {
                 $qr = null;
             }
@@ -552,6 +563,7 @@ class CompanyReviewController extends Controller
             'expires' => $row ? (int) session('review_handoff_expires', 0) : 0,
             'photo_url' => ($row && ! empty($row['photo'])) ? CompanyReview::publicUrl($row['photo']) : '',
             'signature_url' => ($row && ! empty($row['signature'])) ? CompanyReview::publicUrl($row['signature']) : '',
+            'focus' => (string) session('review_handoff_focus', ''),
         ];
     }
 }

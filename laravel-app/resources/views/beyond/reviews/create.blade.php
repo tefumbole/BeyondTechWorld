@@ -76,15 +76,13 @@
                     </div>
 
                     <div class="rv-field">
-                        <p class="rv-label">Your sector</p>
-                        <div class="rv-sectors">
+                        <label for="review-sector">Your sector</label>
+                        <select id="review-sector" name="sector" required>
+                            <option value="">Choose a sector</option>
                             @foreach($sectors as $key => $label)
-                                <label class="sector-choice">
-                                    <input type="radio" name="sector" value="{{ $key }}" {{ old('sector') === $key ? 'checked' : '' }}>
-                                    <span>{{ $label }}</span>
-                                </label>
+                                <option value="{{ $key }}" {{ old('sector') === $key ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
-                        </div>
+                        </select>
                         <div id="sector-other-wrap" class="mt-3 {{ old('sector') === 'others' ? '' : 'hidden' }}">
                             <label for="sector-other">Specify the sector</label>
                             <input id="sector-other" name="sector_other" type="text" maxlength="191" value="{{ old('sector_other') }}" placeholder="Type the sector">
@@ -105,14 +103,18 @@
 
                     <div class="rv-score">
                         <h2>How likely are you to recommend Beyond Enterprise?</h2>
-                        <p>Score out of 10. A review is shown on the website from 6 upward.</p>
                         <input type="hidden" name="recommend" id="recommend-score" value="{{ old('recommend', 9) }}">
-                        <div class="rv-scale" id="recommend-scale">
-                            @for($n = 1; $n <= 10; $n++)
-                                <button type="button" data-score="{{ $n }}" class="recommend-score" aria-label="{{ $n }} out of 10">{{ $n }}</button>
-                            @endfor
+                        <div class="rv-meter" id="recommend-scale">
+                            <div class="rv-meter-nums">
+                                @for($n = 1; $n <= 10; $n++)
+                                    <button type="button" data-score="{{ $n }}" class="recommend-score" aria-label="{{ $n }} out of 10">{{ $n }}</button>
+                                @endfor
+                            </div>
+                            <div class="rv-meter-track" id="recommend-track">
+                                <div class="rv-meter-fill" id="recommend-fill"></div>
+                                <div class="rv-meter-thumb" id="recommend-thumb"></div>
+                            </div>
                         </div>
-                        <p class="rv-readout"><span id="recommend-readout">{{ old('recommend', 9) }}</span>/10</p>
                     </div>
 
                     <div class="rv-field">
@@ -131,7 +133,13 @@
                             <div class="rv-selfie-actions">
                                 <button type="button" id="selfie-open" class="rv-chip">Take a selfie</button>
                                 <button type="button" id="selfie-file-btn" class="rv-chip rv-chip-quiet">Choose a photo</button>
+                                <button type="button" class="rv-chip rv-chip-quiet" data-qr="selfie">Continue on another device</button>
                                 <button type="button" id="selfie-clear" class="rv-chip rv-chip-quiet" hidden>Remove</button>
+                            </div>
+                            <div class="rv-qr-slot {{ ($capture['qr'] && $capture['focus'] === 'selfie') ? 'is-open' : '' }}" data-qr-slot="selfie">
+                                @if($capture['qr'])
+                                    <div class="rv-qr">{!! $capture['qr'] !!}</div>
+                                @endif
                             </div>
                             <input id="review-photo" type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="rv-file" data-skip-image-paste="1">
                             <input id="selfie-capture" type="file" accept="image/jpeg,image/png,image/webp" capture="user" class="rv-file" data-skip-image-paste="1">
@@ -155,25 +163,27 @@
                             <canvas id="review-signature" class="touch-none"></canvas>
                         </div>
                         <input type="hidden" name="signature" id="review-signature-input">
-                        <button type="button" id="review-signature-clear" class="rv-clear">Clear signature</button>
-                    </div>
-
-                    <div class="rv-handoff" @if($capture['qr']) id="review-poll" data-url="{{ route('reviews.capture-status') }}" @endif>
-                        <p class="rv-label">Continue on another device</p>
-                        <p class="rv-hint">Scan the code to take the optional selfie and sign on your phone. This screen updates when that is done.</p>
-                        @if($capture['qr'])
-                            <div class="rv-qr">{!! $capture['qr'] !!}</div>
-                            <p class="rv-hint">This code expires at {{ date('H:i', $capture['expires']) }}.</p>
-                        @endif
-                        <button type="submit" form="review-handoff-form" class="rv-chip rv-chip-quiet">{{ $capture['qr'] ? 'New QR code' : 'Show QR code' }}</button>
-                        <img id="handoff-signature" alt="Signature from your phone" class="rv-handoff-sign" @if($capture['signature_url'] === '') hidden @else src="{{ $capture['signature_url'] }}" @endif>
+                        <div class="rv-selfie-actions">
+                            <button type="button" id="review-signature-clear" class="rv-chip rv-chip-quiet">Clear</button>
+                            <button type="button" class="rv-chip rv-chip-quiet" data-qr="sign">Continue on another device</button>
+                        </div>
+                        <div class="rv-qr-slot {{ ($capture['qr'] && $capture['focus'] === 'sign') ? 'is-open' : '' }}" data-qr-slot="sign">
+                            @if($capture['qr'])
+                                <div class="rv-qr">{!! $capture['qr'] !!}</div>
+                            @endif
+                        </div>
+                        <img id="handoff-signature" alt="" class="rv-phone-sign {{ $capture['signature_url'] !== '' ? 'is-on' : '' }}" @if($capture['signature_url'] !== '') src="{{ $capture['signature_url'] }}" @endif>
                         <input type="hidden" id="handoff-signed" value="{{ $capture['signature_url'] !== '' ? '1' : '0' }}">
                     </div>
+                    @if($capture['qr'])
+                        <div id="review-poll" data-url="{{ route('reviews.capture-status') }}" hidden></div>
+                    @endif
 
                     <button type="submit" class="rv-send">Send review</button>
                 </form>
                 <form id="review-handoff-form" method="POST" action="{{ route('reviews.handoff') }}" hidden>
                     @csrf
+                    <input type="hidden" name="focus" id="handoff-focus" value="selfie">
                 </form>
             @endif
         </div>
@@ -195,21 +205,21 @@
     .rv-otp { text-align: center; letter-spacing: .35em; font-size: 22px; font-weight: 800; }
     .rv-form { display: flex; flex-direction: column; gap: 22px; }
     .rv-field label, .rv-label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #334155; }
-    .rv-field input, .rv-field textarea, .rv-card > form input[type="tel"], .rv-card > form input[type="text"] {
+    .rv-field input, .rv-field textarea, .rv-field select, .rv-card > form input[type="tel"], .rv-card > form input[type="text"] {
         width: 100%; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; background: #f8fafc; color: #0f172a; font-size: 16px;
     }
     .rv-field input:focus, .rv-field textarea:focus { outline: none; border-color: #0b3f90; background: #fff; box-shadow: 0 0 0 4px rgba(11, 63, 144, .12); }
     .rv-hint { margin: 6px 0 0; color: #64748b; font-size: 13px; }
     .rv-optional { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; letter-spacing: .04em; }
-    .rv-sectors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .sector-choice { display: flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 12px; font-weight: 800; color: #0b3f90; cursor: pointer; background: #fff; }
-    .sector-choice:has(input:checked) { background: #0b3f90; color: #fff; border-color: #0b3f90; }
-    .sector-choice input { accent-color: #c6ab47; }
     .rv-score h2 { margin: 0 0 4px; font-size: 20px; color: #0f172a; letter-spacing: -0.02em; }
     .rv-score p { margin: 0; color: #64748b; font-size: 14px; }
-    .rv-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-    .recommend-score { width: 100%; height: 48px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; font-weight: 800; color: #0b3f90; }
-    .recommend-score.is-on { background: linear-gradient(180deg, #1d4ed8, #0b3f90); color: #fff; border-color: #0b3f90; box-shadow: 0 8px 18px rgba(11, 63, 144, .28); }
+    .rv-meter { margin-top: 14px; }
+    .rv-meter-nums { display: flex; }
+    .recommend-score { flex: 1 1 0; border: 0; background: transparent; padding: 0 0 8px; font-weight: 800; font-size: 15px; color: #94a3b8; }
+    .recommend-score.is-on { color: #0b3f90; }
+    .rv-meter-track { position: relative; height: 10px; border-radius: 999px; background: #e2e8f0; cursor: pointer; touch-action: none; }
+    .rv-meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #0b3f90); }
+    .rv-meter-thumb { position: absolute; top: 50%; left: 0; width: 22px; height: 22px; border-radius: 50%; background: #0b3f90; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(11, 63, 144, .35); transform: translate(-50%, -50%); }
     .rv-star-row { display: flex; gap: 4px; margin-top: 10px; }
     .rv-star { border: 0; background: none; font-size: 36px; line-height: 1; color: #e2e8f0; padding: 0 2px; }
     .rv-star.is-on { color: #e47911; }
@@ -230,16 +240,18 @@
     .rv-sign { border-radius: 18px; background: #f8fafc; padding: 8px; box-shadow: inset 0 0 0 1px #e2e8f0; }
     .rv-sign canvas { width: 100%; height: 160px; background: #fff; border-radius: 12px; }
     .rv-clear { margin-top: 8px; background: none; border: 0; color: #64748b; text-decoration: underline; font-size: 13px; }
-    .rv-handoff { padding: 16px; border-radius: 22px; background: #f8fafc; box-shadow: inset 0 0 0 1px #e2e8f0; }
-    .rv-qr { margin: 12px 0; background: #fff; border-radius: 16px; padding: 10px; width: fit-content; }
-    .rv-qr svg { display: block; }
-    .rv-handoff-sign { display: block; height: 64px; margin-top: 12px; background: #fff; border-radius: 12px; }
+    .rv-qr-slot { display: none; }
+    .rv-qr-slot.is-open { display: block; }
+    .rv-qr { margin-top: 10px; background: #fff; border-radius: 16px; padding: 8px; width: fit-content; box-shadow: inset 0 0 0 1px #e2e8f0; }
+    .rv-qr svg { display: block; width: 168px; height: 168px; }
+    .rv-phone-sign { display: none; height: 56px; margin-top: 8px; background: #fff; border-radius: 12px; }
+    .rv-phone-sign.is-on { display: block; }
     .rv-send { width: 100%; border: 0; border-radius: 16px; padding: 16px; font-weight: 800; font-size: 16px; background: linear-gradient(180deg, #e4cc74, #c6ab47); color: #072f6b; box-shadow: 0 12px 24px rgba(198, 171, 71, .35); }
     .country-pick { position: relative; }
     .country-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; max-height: 280px; overflow: auto; background: #fff; border: 1px solid #d6e0ee; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .12); margin-top: 4px; }
     .country-menu button { display: flex; width: 100%; text-align: left; gap: 8px; padding: 10px 12px; border: 0; background: #fff; font-weight: 600; color: #0f172a; }
     .country-menu button:hover, .country-menu button.is-on { background: #eff6ff; }
-    @media (max-width: 640px) { .rv-sectors { grid-template-columns: 1fr; } .rv-intro h1 { font-size: 28px; } }
+    @media (max-width: 640px) { .rv-intro h1 { font-size: 28px; } .recommend-score { font-size: 13px; } }
 </style>
 @if($step === 'review')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -278,27 +290,56 @@
         });
     }
 
-    document.querySelectorAll('input[name="sector"]').forEach(function (input) {
-        input.addEventListener('change', function () {
-            document.getElementById('sector-other-wrap').classList.toggle('hidden', input.value !== 'others' || !input.checked);
-        });
-    });
+    var sector = document.getElementById('review-sector');
+    var sectorOther = document.getElementById('sector-other-wrap');
+    function toggleSector() {
+        if (sectorOther) sectorOther.classList.toggle('hidden', !sector || sector.value !== 'others');
+    }
+    if (sector) sector.addEventListener('change', toggleSector);
 
     var scoreInput = document.getElementById('recommend-score');
-    var readout = document.getElementById('recommend-readout');
+    var track = document.getElementById('recommend-track');
+    var fill = document.getElementById('recommend-fill');
+    var thumb = document.getElementById('recommend-thumb');
     function paintScore(value) {
+        value = Math.max(1, Math.min(10, parseInt(value, 10) || 9));
         document.querySelectorAll('.recommend-score').forEach(function (btn) {
             btn.classList.toggle('is-on', parseInt(btn.getAttribute('data-score'), 10) === value);
         });
-        if (readout) readout.textContent = value || '9';
+        var pos = ((value - 0.5) / 10) * 100;
+        if (fill) fill.style.width = pos + '%';
+        if (thumb) thumb.style.left = pos + '%';
+    }
+    function scoreFromPointer(event) {
+        var rect = track.getBoundingClientRect();
+        var ratio = (event.clientX - rect.left) / rect.width;
+        var next = Math.round(Math.max(0, Math.min(1, ratio)) * 10);
+        if (next < 1) next = 1;
+        if (next > 10) next = 10;
+        return next;
     }
     document.querySelectorAll('.recommend-score').forEach(function (btn) {
         btn.addEventListener('click', function () {
             scoreInput.value = btn.getAttribute('data-score');
-            paintScore(parseInt(scoreInput.value, 10));
+            paintScore(scoreInput.value);
         });
     });
-    paintScore(parseInt(scoreInput.value || '9', 10));
+    if (track) {
+        track.addEventListener('pointerdown', function (event) {
+            function move(e) {
+                scoreInput.value = String(scoreFromPointer(e));
+                paintScore(scoreInput.value);
+            }
+            move(event);
+            function up() {
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', up);
+            }
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up);
+        });
+    }
+    paintScore(scoreInput.value || '9');
 
     var starInput = document.getElementById('review-stars');
     var starReadout = document.getElementById('star-readout');
@@ -439,7 +480,7 @@
             search.focus();
             return;
         }
-        if (!document.querySelector('input[name="sector"]:checked')) {
+        if (!sector || !sector.value) {
             e.preventDefault();
             alert('Choose a sector.');
             return;
@@ -464,8 +505,9 @@
             document.getElementById('review-signature-input').value = pad.toDataURL('image/png');
         }
     });
-    var poll = document.getElementById('review-poll');
-    if (poll) {
+    function startPoll(poll) {
+        if (!poll || poll.getAttribute('data-polling') === '1') return;
+        poll.setAttribute('data-polling', '1');
         setInterval(function () {
             fetch(poll.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
                 .then(function (response) { return response.json(); })
@@ -480,13 +522,50 @@
                         var flag = document.getElementById('handoff-signed');
                         if (signed) {
                             signed.src = data.signature_url;
-                            signed.hidden = false;
+                            signed.classList.add('is-on');
                         }
                         if (flag) flag.value = '1';
                     }
                 });
         }, 4000);
     }
+    function showQr(name) {
+        document.querySelectorAll('.rv-qr-slot').forEach(function (el) { el.classList.remove('is-open'); });
+        var slot = document.querySelector('[data-qr-slot="' + name + '"]');
+        if (slot) slot.classList.add('is-open');
+    }
+    document.querySelectorAll('[data-qr]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var name = btn.getAttribute('data-qr');
+            var slot = document.querySelector('[data-qr-slot="' + name + '"]');
+            if (slot && slot.querySelector('svg')) {
+                showQr(name);
+                return;
+            }
+            var form = document.getElementById('review-handoff-form');
+            var tokenInput = form.querySelector('input[name="_token"]');
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                body: '_token=' + encodeURIComponent(tokenInput.value) + '&focus=' + encodeURIComponent(name)
+            }).then(function (response) { return response.json(); }).then(function (data) {
+                if (!data.qr) return;
+                document.querySelectorAll('[data-qr-slot]').forEach(function (el) {
+                    el.innerHTML = '<div class="rv-qr">' + data.qr + '</div>';
+                });
+                showQr(name);
+                var poll = document.getElementById('review-poll');
+                if (!poll) {
+                    poll = document.createElement('div');
+                    poll.id = 'review-poll';
+                    document.getElementById('review-form').appendChild(poll);
+                }
+                poll.setAttribute('data-url', data.status_url);
+                startPoll(poll);
+            });
+        });
+    });
+    startPoll(document.getElementById('review-poll'));
 })();
 </script>
 @endif
