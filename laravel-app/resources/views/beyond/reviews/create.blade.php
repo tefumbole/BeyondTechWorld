@@ -72,18 +72,21 @@
                         <label for="country-search">Your country</label>
                         <input id="country-search" type="search" autocomplete="off" placeholder="Search your country" value="{{ old('country') }}">
                         <input type="hidden" name="country" id="review-country" value="{{ old('country') }}">
-                        <div id="country-menu" class="country-menu" hidden></div>
+                        <div id="country-menu" class="rv-menu" hidden></div>
                     </div>
 
-                    <div class="rv-field">
-                        <label for="review-sector">Your sector</label>
-                        <select id="review-sector" name="sector" required>
-                            <option value="">Choose a sector</option>
-                            @foreach($sectors as $key => $label)
-                                <option value="{{ $key }}" {{ old('sector') === $key ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <div id="sector-other-wrap" class="mt-3 {{ old('sector') === 'others' ? '' : 'hidden' }}">
+                    @php
+                        $sectorOld = (string) old('sector', '');
+                        $sectorShown = ($sectorOld !== '' && isset($sectors[$sectorOld])) ? $sectors[$sectorOld] : '';
+                    @endphp
+                    <div class="sector-pick rv-field">
+                        <label for="sector-search">Your sector</label>
+                        <div class="rv-combo">
+                            <input id="sector-search" type="search" autocomplete="off" placeholder="Search your sector" value="{{ $sectorShown }}">
+                            <div id="sector-menu" class="rv-menu" hidden></div>
+                        </div>
+                        <input type="hidden" name="sector" id="review-sector" value="{{ $sectorOld }}">
+                        <div id="sector-other-wrap" class="mt-3 {{ $sectorOld === 'others' ? '' : 'hidden' }}">
                             <label for="sector-other">Specify the sector</label>
                             <input id="sector-other" name="sector_other" type="text" maxlength="191" value="{{ old('sector_other') }}" placeholder="Type the sector">
                         </div>
@@ -195,7 +198,7 @@
 
 @push('scripts')
 <style>
-    .rv-page { background: radial-gradient(1200px 480px at 50% -80px, #dbe7ff 0%, #f4f7fb 42%, #eef2f7 100%); padding: 36px 0 64px; }
+    .rv-page { background: radial-gradient(1200px 480px at 50% -80px, #dbe7ff 0%, #f4f7fb 42%, #eef2f7 100%); padding: 36px 0 calc(64px + env(safe-area-inset-bottom)); overflow-x: hidden; }
     .rv-intro { text-align: center; margin-bottom: 22px; }
     .rv-kicker { margin: 0 0 6px; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; font-weight: 800; color: #8a7030; }
     .rv-intro h1 { margin: 0; font-size: 34px; line-height: 1.1; color: #0b3f90; letter-spacing: -0.03em; }
@@ -205,23 +208,24 @@
     .rv-otp { text-align: center; letter-spacing: .35em; font-size: 22px; font-weight: 800; }
     .rv-form { display: flex; flex-direction: column; gap: 22px; }
     .rv-field label, .rv-label { display: block; margin: 0 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #334155; }
-    .rv-field input, .rv-field textarea, .rv-field select, .rv-card > form input[type="tel"], .rv-card > form input[type="text"] {
-        width: 100%; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; background: #f8fafc; color: #0f172a; font-size: 16px;
+    .rv-field input, .rv-field textarea, .rv-card > form input[type="tel"], .rv-card > form input[type="text"] {
+        width: 100%; max-width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; background: #f8fafc; color: #0f172a; font-size: 16px;
     }
     .rv-field input:focus, .rv-field textarea:focus { outline: none; border-color: #0b3f90; background: #fff; box-shadow: 0 0 0 4px rgba(11, 63, 144, .12); }
+    .sector-pick input[type="search"] { padding-right: 42px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%230b3f90' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
     .rv-hint { margin: 6px 0 0; color: #64748b; font-size: 13px; }
     .rv-optional { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 11px; letter-spacing: .04em; }
     .rv-score h2 { margin: 0 0 4px; font-size: 20px; color: #0f172a; letter-spacing: -0.02em; }
     .rv-score p { margin: 0; color: #64748b; font-size: 14px; }
     .rv-meter { margin-top: 14px; }
     .rv-meter-nums { display: flex; }
-    .recommend-score { flex: 1 1 0; border: 0; background: transparent; padding: 0 0 8px; font-weight: 800; font-size: 15px; color: #94a3b8; }
+    .recommend-score { flex: 1 1 0; min-width: 0; border: 0; background: transparent; padding: 6px 0 8px; font-weight: 800; font-size: clamp(11px, 3.5vw, 15px); color: #94a3b8; }
     .recommend-score.is-on { color: #0b3f90; }
     .rv-meter-track { position: relative; height: 10px; border-radius: 999px; background: #e2e8f0; cursor: pointer; touch-action: none; }
     .rv-meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #0b3f90); }
     .rv-meter-thumb { position: absolute; top: 50%; left: 0; width: 22px; height: 22px; border-radius: 50%; background: #0b3f90; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(11, 63, 144, .35); transform: translate(-50%, -50%); }
     .rv-star-row { display: flex; gap: 4px; margin-top: 10px; }
-    .rv-star { border: 0; background: none; font-size: 36px; line-height: 1; color: #e2e8f0; padding: 0 2px; }
+    .rv-star { border: 0; background: none; font-size: clamp(28px, 9vw, 36px); line-height: 1; color: #e2e8f0; padding: 6px 2px; min-width: 36px; }
     .rv-star.is-on { color: #e47911; }
     .rv-readout { margin: 10px 0 0; font-weight: 800; color: #0b3f90; }
     .rv-selfie { display: flex; gap: 16px; align-items: center; padding: 14px; border-radius: 22px; background: linear-gradient(180deg, #f8fbff, #fff); border: 1px solid #e8eef8; }
@@ -230,7 +234,7 @@
     .rv-selfie-ring img.is-on { display: block; }
     .rv-selfie-ring span { font-size: 12px; font-weight: 800; color: #64748b; letter-spacing: .06em; text-transform: uppercase; }
     .rv-selfie-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .rv-chip { border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; background: #0b3f90; color: #fff; }
+    .rv-chip { border: 0; border-radius: 999px; padding: 10px 14px; min-height: 44px; font-weight: 800; background: #0b3f90; color: #fff; }
     .rv-chip-quiet { background: #fff; color: #0b3f90; box-shadow: inset 0 0 0 1px #d6e0ee; }
     .rv-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     .rv-modal { position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .62); display: grid; place-items: center; padding: 16px; }
@@ -238,7 +242,7 @@
     .rv-modal-card { width: min(420px, 100%); background: #0f172a; border-radius: 24px; padding: 14px; }
     .rv-modal-card video { width: 100%; border-radius: 18px; background: #000; aspect-ratio: 3/4; object-fit: cover; transform: scaleX(-1); }
     .rv-sign { border-radius: 18px; background: #f8fafc; padding: 8px; box-shadow: inset 0 0 0 1px #e2e8f0; }
-    .rv-sign canvas { width: 100%; height: 160px; background: #fff; border-radius: 12px; }
+    .rv-sign canvas { width: 100%; height: 160px; background: #fff; border-radius: 12px; touch-action: none; }
     .rv-clear { margin-top: 8px; background: none; border: 0; color: #64748b; text-decoration: underline; font-size: 13px; }
     .rv-qr-slot { display: none; }
     .rv-qr-slot.is-open { display: block; }
@@ -247,11 +251,26 @@
     .rv-phone-sign { display: none; height: 56px; margin-top: 8px; background: #fff; border-radius: 12px; }
     .rv-phone-sign.is-on { display: block; }
     .rv-send { width: 100%; border: 0; border-radius: 16px; padding: 16px; font-weight: 800; font-size: 16px; background: linear-gradient(180deg, #e4cc74, #c6ab47); color: #072f6b; box-shadow: 0 12px 24px rgba(198, 171, 71, .35); }
-    .country-pick { position: relative; }
-    .country-menu { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; max-height: 280px; overflow: auto; background: #fff; border: 1px solid #d6e0ee; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .12); margin-top: 4px; }
-    .country-menu button { display: flex; width: 100%; text-align: left; gap: 8px; padding: 10px 12px; border: 0; background: #fff; font-weight: 600; color: #0f172a; }
-    .country-menu button:hover, .country-menu button.is-on { background: #eff6ff; }
-    @media (max-width: 640px) { .rv-intro h1 { font-size: 28px; } .recommend-score { font-size: 13px; } }
+    .country-pick, .rv-combo { position: relative; }
+    .rv-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40; max-height: min(280px, 45vh); overflow: auto; background: #fff; border: 1px solid #d6e0ee; border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, .12); }
+    .rv-menu[hidden] { display: none; }
+    .rv-menu button { display: flex; width: 100%; text-align: left; gap: 8px; padding: 14px 16px; min-height: 48px; border: 0; background: #fff; font-weight: 700; color: #0f172a; font-size: 15px; }
+    .rv-menu button:hover, .rv-menu button.is-on { background: #eff6ff; color: #0b3f90; }
+    @media (max-width: 640px) {
+        .rv-page { padding-top: 20px; }
+        .rv-card { padding: 20px 14px; border-radius: 22px; }
+        .rv-intro h1 { font-size: 28px; }
+        .rv-score h2 { font-size: 18px; }
+        .rv-selfie { flex-direction: column; align-items: stretch; text-align: left; }
+        .rv-selfie-ring { margin: 0 auto; }
+        .rv-selfie-actions { display: grid; grid-template-columns: 1fr; }
+        .rv-chip { width: 100%; }
+        .rv-qr, .rv-qr svg { max-width: 100%; }
+    }
+    @media (max-width: 360px) {
+        .rv-card { padding: 16px 12px; }
+        .rv-intro h1 { font-size: 26px; }
+    }
 </style>
 @if($step === 'review')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -290,12 +309,68 @@
         });
     }
 
+    var sectors = @json($sectors);
+    var sectorSearch = document.getElementById('sector-search');
     var sector = document.getElementById('review-sector');
+    var sectorMenu = document.getElementById('sector-menu');
     var sectorOther = document.getElementById('sector-other-wrap');
     function toggleSector() {
         if (sectorOther) sectorOther.classList.toggle('hidden', !sector || sector.value !== 'others');
     }
-    if (sector) sector.addEventListener('change', toggleSector);
+    function renderSectors(query) {
+        if (!sectorMenu) return;
+        var q = (query || '').toLowerCase();
+        sectorMenu.innerHTML = '';
+        Object.keys(sectors).forEach(function (key) {
+            var label = sectors[key];
+            if (q && label.toLowerCase().indexOf(q) === -1) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = label;
+            if (sector.value === key) btn.className = 'is-on';
+            btn.addEventListener('click', function () {
+                sector.value = key;
+                sectorSearch.value = label;
+                sectorMenu.hidden = true;
+                toggleSector();
+                if (key === 'others') {
+                    var other = document.getElementById('sector-other');
+                    if (other) other.focus();
+                }
+            });
+            sectorMenu.appendChild(btn);
+        });
+        sectorMenu.hidden = sectorMenu.children.length === 0;
+    }
+    if (sectorSearch && sectorMenu) {
+        sectorSearch.addEventListener('focus', function () {
+            var exact = sector.value && sectors[sector.value] && sectorSearch.value === sectors[sector.value];
+            renderSectors(exact ? '' : sectorSearch.value);
+        });
+        sectorSearch.addEventListener('input', function () {
+            sector.value = '';
+            toggleSector();
+            renderSectors(sectorSearch.value);
+        });
+        sectorSearch.addEventListener('blur', function () {
+            setTimeout(function () {
+                var typed = sectorSearch.value.trim().toLowerCase();
+                var match = '';
+                Object.keys(sectors).forEach(function (key) {
+                    if (sectors[key].toLowerCase() === typed) match = key;
+                });
+                if (match) {
+                    sector.value = match;
+                    sectorSearch.value = sectors[match];
+                    toggleSector();
+                }
+                sectorMenu.hidden = true;
+            }, 160);
+        });
+        document.addEventListener('click', function (event) {
+            if (!sectorSearch.parentElement.contains(event.target)) sectorMenu.hidden = true;
+        });
+    }
 
     var scoreInput = document.getElementById('recommend-score');
     var track = document.getElementById('recommend-track');
@@ -465,7 +540,7 @@
     if (!canvas || typeof SignaturePad === 'undefined') return;
     var wrap = canvas.parentElement;
     var ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = Math.max(wrap.clientWidth - 24, 280) * ratio;
+    canvas.width = Math.max(wrap.clientWidth - 16, 120) * ratio;
     canvas.height = 160 * ratio;
     canvas.style.width = '100%';
     canvas.style.height = '160px';
