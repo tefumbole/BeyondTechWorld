@@ -293,17 +293,30 @@
 
     function startPoll(node) {
         if (!node || node.getAttribute('data-polling') === '1') return;
+        var url = node.getAttribute('data-url');
+        if (!url) return;
         node.setAttribute('data-polling', '1');
         setInterval(function () {
-            fetch(node.getAttribute('data-url'), { headers: { 'Accept': 'application/json' } })
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (response) { return response.json(); })
-                .then(function (data) { if (data.ready) window.location.reload(); });
+                .then(function (data) { if (data.ready) window.location.reload(); })
+                .catch(function () {});
         }, 4000);
     }
     function showQr(name) {
         document.querySelectorAll('.av-qr-slot').forEach(function (slot) { slot.classList.remove('is-open'); });
         var chosen = document.querySelector('[data-qr-slot="' + name + '"]');
         if (chosen) chosen.classList.add('is-open');
+    }
+    function note(name, text) {
+        var slot = document.querySelector('[data-qr-slot="' + name + '"]');
+        if (!slot) return;
+        slot.innerHTML = '';
+        var line = document.createElement('p');
+        line.className = 'av-note';
+        line.textContent = text;
+        slot.appendChild(line);
+        showQr(name);
     }
     document.querySelectorAll('[data-qr]').forEach(function (button) {
         button.addEventListener('click', function () {
@@ -318,23 +331,35 @@
             var token = form.querySelector('input[name="_token"]');
             fetch(form.action, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
-                body: '_token=' + encodeURIComponent(token.value) + '&focus=' + encodeURIComponent(name)
-            }).then(function (response) { return response.json(); }).then(function (data) {
-                if (!data.qr) return;
+                body: '_token=' + encodeURIComponent(token ? token.value : '') + '&focus=' + encodeURIComponent(name)
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            }).then(function (result) {
+                var data = result.data || {};
+                if (!result.ok || !data.qr || data.qr.indexOf('<svg') === -1) {
+                    note(name, data.message || 'The QR code could not be created. Try again.');
+                    return;
+                }
                 document.querySelectorAll('[data-qr-slot]').forEach(function (item) {
                     item.innerHTML = '<div class="av-qr">' + data.qr + '</div>';
                 });
                 showQr(name);
                 var poll = document.getElementById('av-poll');
                 if (poll) {
-                    poll.setAttribute('data-url', data.status_url);
+                    if (data.status_url) poll.setAttribute('data-url', data.status_url);
                     startPoll(poll);
                 }
+            }).catch(function () {
+                note(name, 'The QR code could not be created. Try again.');
             });
         });
     });
-    startPoll(document.getElementById('av-poll'));
+    var openSlot = document.querySelector('.av-qr-slot.is-open svg');
+    if (openSlot) startPoll(document.getElementById('av-poll'));
 })();
 </script>
 @endpush

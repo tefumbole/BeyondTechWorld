@@ -38,9 +38,8 @@ class AntivirusPublicController extends Controller
                 session()->forget('antivirus_handoff_token');
                 $handoff = null;
             } else {
-                try {
-                    $qr = \QrCode::size(210)->margin(1)->generate(route('antivirus.handoff.show', ['token' => $token]));
-                } catch (\Throwable $e) {
+                $qr = $this->handoffQr($token);
+                if ($qr === '') {
                     $qr = null;
                 }
             }
@@ -235,12 +234,10 @@ class AntivirusPublicController extends Controller
                 'antivirus_handoff_token' => $token,
                 'antivirus_handoff_focus' => $request->input('focus') === 'sign' ? 'sign' : 'selfie',
             ]);
-            if ($request->expectsJson()) {
-                $qr = '';
-                try {
-                    $qr = (string) \QrCode::size(168)->margin(1)->generate(route('antivirus.handoff.show', ['token' => $token]));
-                } catch (\Throwable $e) {
-                    $qr = '';
+            if ($request->expectsJson() || $request->ajax()) {
+                $qr = $this->handoffQr($token);
+                if ($qr === '') {
+                    return response()->json(['message' => 'The QR code could not be created. Try again.'], 500);
                 }
 
                 return response()->json([
@@ -248,8 +245,18 @@ class AntivirusPublicController extends Controller
                     'status_url' => route('antivirus.status'),
                 ]);
             }
-        } catch (\Throwable $e) {
+        } catch (AntivirusRuleException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return $this->antivirusFail($e);
+        } catch (\Throwable $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['message' => 'The QR code could not be created. Try again.'], 500);
+            }
+
+            throw $e;
         }
 
         return redirect()->route('antivirus.form');
@@ -381,6 +388,22 @@ class AntivirusPublicController extends Controller
         }
 
         return ['name' => $name, 'source' => $source];
+    }
+
+    protected function handoffQr($token)
+    {
+        try {
+            $svg = (string) \QrCode::size(168)->margin(1)->generate(route('antivirus.handoff.show', ['token' => $token]));
+        } catch (\Throwable $e) {
+            return '';
+        }
+        $svg = (string) preg_replace('/^\s*<\?xml[^>]*\?>\s*/', '', $svg);
+        $start = strpos($svg, '<svg');
+        if ($start === false) {
+            return '';
+        }
+
+        return substr($svg, $start);
     }
 
     protected function draft()
