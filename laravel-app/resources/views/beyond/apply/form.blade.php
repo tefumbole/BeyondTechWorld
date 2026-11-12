@@ -47,44 +47,6 @@
     });
 
     var form = document.getElementById('apply-form');
-    var bar = document.getElementById('apply-progress-bar');
-    var label = document.getElementById('apply-progress-label');
-    function refreshProgress() {
-        if (!form || !bar) return;
-        var required = form.querySelectorAll('input[required], select[required], textarea[required]');
-        var done = 0, total = 0;
-        required.forEach(function (el) {
-            if (el.disabled || el.type === 'hidden') return;
-            if (el.name === 'agreement_accepted') return;
-            total++;
-            if (el.type === 'file') {
-                if (el.files && el.files.length) done++;
-            } else if (el.type === 'radio') {
-                if (form.querySelector('input[name="' + el.name + '"]:checked')) done++;
-            } else if (String(el.value || '').trim() !== '') {
-                done++;
-            }
-        });
-        // Count program selection once
-        var prog = form.querySelector('input[name="internship_program_id"]');
-        if (prog) {
-            // radios already counted per input — normalize
-            var radios = form.querySelectorAll('input[name="internship_program_id"]');
-            total -= Math.max(0, radios.length - 1);
-            if (form.querySelector('input[name="internship_program_id"]:checked')) {
-                // ensure one credit
-            }
-        }
-        var pct = total ? Math.round((done / total) * 100) : 0;
-        bar.style.width = Math.min(100, pct) + '%';
-        if (label) label.textContent = pct + '% complete';
-    }
-    if (form) {
-        form.addEventListener('input', refreshProgress);
-        form.addEventListener('change', refreshProgress);
-        setTimeout(refreshProgress, 300);
-    }
-
     var pad = null;
     var canvas = document.getElementById('apply-signature-pad');
     if (canvas && window.SignaturePad) {
@@ -110,46 +72,34 @@
     }
 
     if (form) form.addEventListener('submit', function (e) {
-        var missing = [];
-        var requiredDocs = [
-            ['student_id', 'ID card front'],
-            ['student_id_back', 'ID card back'],
-            ['selfie', 'selfie']
-        ];
-        var eduStatus = form.__x && form.__x.$data
-            ? form.__x.$data.educationStatus
-            : (document.querySelector('[name="education_status"]:checked') || {}).value;
-        var academic = form.__x && form.__x.$data
-            ? form.__x.$data.academicRequired
-            : (document.querySelector('[name="is_academic_required"]:checked') || {}).value;
-        var deferLetter = form.__x && form.__x.$data
-            ? !!form.__x.$data.deferInternshipLetter
-            : !!(document.querySelector('[name="defer_internship_letter"]') || {}).checked;
-        var deferWorker = form.__x && form.__x.$data
-            ? !!form.__x.$data.deferWorkerProof
-            : !!(document.querySelector('[name="defer_worker_proof"]') || {}).checked;
-        var isWorker = eduStatus === 'not_a_student';
-
-        if (!isWorker && eduStatus === 'currently_studying' && String(academic) === '1' && !deferLetter) {
-            requiredDocs.push(['internship_letter', 'internship letter']);
+        var data = form._x_dataStack && form._x_dataStack[0];
+        if (data && data.section && data.section < 5) {
+            e.preventDefault();
+            if (typeof data.go === 'function') data.go(data.section + 1);
+            return;
         }
-        requiredDocs.forEach(function (pair) {
+        var missing = [];
+        [
+            ['student_id', 'ID or passport front'],
+            ['student_id_back', 'ID or passport back'],
+            ['selfie', 'selfie']
+        ].forEach(function (pair) {
             var input = document.querySelector('input[name="' + pair[0] + '"]');
             if (!input || input.disabled) return;
-            if (!input.files || !input.files.length) missing.push(pair[1]);
+            var card = input.closest('[data-apply-doc]');
+            var preview = card ? card.querySelector('[data-doc-preview]') : null;
+            var fromPhone = preview && preview.getAttribute('src') && !preview.classList.contains('hidden');
+            if ((!input.files || !input.files.length) && !fromPhone) missing.push(pair[1]);
         });
-        if (isWorker && !deferWorker) {
-            var emp = document.querySelector('input[name="employment_letter"]');
-            var badge = document.querySelector('input[name="official_badge"]');
-            var hasEmp = emp && emp.files && emp.files.length;
-            var hasBadge = badge && badge.files && badge.files.length;
-            if (!hasEmp && !hasBadge) {
-                missing.push('employment letter or official badge');
-            }
-        }
         if (missing.length) {
             e.preventDefault();
-            alert('Please snap or attach: ' + missing.join(', '));
+            alert('Please scan, attach, or send from your phone: ' + missing.join(', '));
+            return;
+        }
+        var agreed = form.querySelector('[name="agreement_accepted"]');
+        if (agreed && !agreed.checked) {
+            e.preventDefault();
+            alert('Confirm the paid internship terms.');
             return;
         }
         if (!pad || pad.isEmpty()) {
@@ -158,6 +108,67 @@
             return;
         }
         document.getElementById('signature_image').value = pad.toDataURL('image/png');
+    });
+
+    var handoffUrl = @json(route('apply.handoff', $job->id));
+    var statusUrl = @json(route('apply.capture.status'));
+    var csrf = document.querySelector('meta[name="csrf-token"]');
+    var polling = null;
+    function applyPhonePhoto(slot, imageUrl) {
+        var card = document.querySelector('[data-handoff-slot="' + slot + '"]');
+        if (!card || !imageUrl) return;
+        var img = card.querySelector('[data-doc-preview]');
+        var status = card.querySelector('[data-doc-status]');
+        var input = card.querySelector('[data-doc-target]');
+        if (img && img.getAttribute('src') !== imageUrl) {
+            img.src = imageUrl;
+            img.classList.remove('hidden');
+            if (status) status.textContent = 'Received from the phone.';
+            if (input && (!input.files || !input.files.length)) {
+                fetch(imageUrl).then(function (res) { return res.blob(); }).then(function (blob) {
+                    if (!window.DataTransfer) return;
+                    var file = new File([blob], slot + '.jpg', { type: blob.type || 'image/jpeg' });
+                    var list = new DataTransfer();
+                    list.items.add(file);
+                    input.files = list.files;
+                }).catch(function () {});
+            }
+        }
+    }
+    function pollPhone() {
+        fetch(statusUrl, { headers: { 'Accept': 'application/json' } }).then(function (res) { return res.json(); }).then(function (body) {
+            if (!body) return;
+            if (body.token) {
+                var hidden = document.getElementById('apply-handoff-token');
+                if (hidden) hidden.value = body.token;
+            }
+            applyPhonePhoto('id_front', body.id_front);
+            applyPhonePhoto('id_back', body.id_back);
+            applyPhonePhoto('selfie', body.selfie);
+        }).catch(function () {});
+    }
+    document.querySelectorAll('[data-handoff]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var slot = button.getAttribute('data-handoff');
+            var body = new FormData();
+            body.append('focus', slot);
+            body.append('_token', csrf ? csrf.getAttribute('content') : '');
+            fetch(handoffUrl, {
+                method: 'POST',
+                body: body,
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function (res) { return res.json(); }).then(function (data) {
+                var box = document.querySelector('[data-qr-slot="' + slot + '"]');
+                if (!box) return;
+                box.innerHTML = data.qr
+                    ? '<p class="text-xs text-gray-600 mb-2">Scan this with the phone, then photograph the ID and take the selfie.</p>' + data.qr
+                    : '<p class="text-xs text-red-700">The QR code could not be created. Try again.</p>';
+                box.classList.remove('hidden');
+                box.classList.add('is-open');
+                if (!polling) polling = setInterval(pollPhone, 2000);
+                pollPhone();
+            }).catch(function () {});
+        });
     });
 })();
 </script>

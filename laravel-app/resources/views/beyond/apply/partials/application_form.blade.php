@@ -5,6 +5,18 @@
     $feeAnchorJs = '{'.implode(',', array_map(function ($days, $amount) {
         return (int) $days.':'.(int) $amount;
     }, array_keys(\App\Support\PaidInternship::anchors()), \App\Support\PaidInternship::anchors())).'}';
+    $applySection = 1;
+    if ($isInternship && $errors->any()) {
+        if ($errors->has('student_id') || $errors->has('student_id_back') || $errors->has('selfie') || $errors->has('signature_image') || $errors->has('agreement_accepted')) {
+            $applySection = 5;
+        } elseif ($errors->has('working_week')) {
+            $applySection = 4;
+        } elseif ($errors->has('school') || $errors->has('level_of_study') || $errors->has('education_status')) {
+            $applySection = 3;
+        } elseif ($errors->has('whatsapp_number') || $errors->has('full_name') || $errors->has('availability')) {
+            $applySection = 2;
+        }
+    }
 @endphp
 <div class="apply-panel overflow-hidden">
     <div class="bg-gradient-to-r from-brand-blue to-[#0a3578] text-white px-4 sm:px-7 py-5 sm:py-6">
@@ -19,16 +31,6 @@
         </p>
     </div>
 
-    @if ($isInternship)
-        <div class="apply-progress">
-            <div class="apply-progress-track"><div class="apply-progress-bar" id="apply-progress-bar"></div></div>
-            <div class="apply-progress-meta">
-                <span>Keep going — almost done</span>
-                <span id="apply-progress-label">0% complete</span>
-            </div>
-        </div>
-    @endif
-
     @if ($errors->any())
         <div class="mx-4 sm:mx-7 mt-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
             <p class="font-bold m-0 mb-1">Please fix the following:</p>
@@ -38,7 +40,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('apply.store', $job->id) }}" enctype="multipart/form-data"
+    <form method="POST" action="{{ route('apply.store', $job->id) }}" enctype="multipart/form-data" @if($isInternship) novalidate @endif
           class="p-4 sm:p-7 space-y-6 sm:space-y-7 apply-form-pad" id="apply-form"
           x-data="{
               availability: '{{ old('availability', 'Immediately') }}',
@@ -48,6 +50,43 @@
               deferWorkerProof: {{ old('defer_worker_proof') === '1' ? 'true' : 'false' }},
               selectedProgram: '{{ old('internship_program_id', '') }}',
               durationDays: '{{ old('internship_duration_days', '') }}',
+              section: {{ (int) $applySection }},
+              sectionTitle() {
+                  return ['', 'Choose a program', 'Contact information', 'Education', 'Working week', 'ID, selfie and signature'][this.section] || '';
+              },
+              go(next) {
+                  if (next > this.section && !this.sectionReady()) return;
+                  this.section = next;
+                  var top = document.getElementById('apply-section');
+                  if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              },
+              sectionReady() {
+                  var form = document.getElementById('apply-form');
+                  if (this.section === 1) {
+                      if (!this.selectedProgram) { alert('Choose a program.'); return false; }
+                      var days = parseInt(this.durationDays, 10);
+                      if (!days || days < {{ (int) $durationMin }} || days > {{ (int) $durationMax }}) {
+                          alert('Choose between {{ (int) $durationMin }} and {{ (int) $durationMax }} days.');
+                          return false;
+                      }
+                  }
+                  if (this.section === 2) {
+                      var phone = ((form.querySelector('[name=whatsapp_number]') || {}).value || '').replace(/\D/g, '');
+                      var person = ((form.querySelector('[name=full_name]') || {}).value || '').trim();
+                      if (phone.length < 8) { alert('Enter your WhatsApp number.'); return false; }
+                      if (!person) { alert('Enter your full name.'); return false; }
+                  }
+                  if (this.section === 3 && !this.isWorker) {
+                      var school = ((form.querySelector('[name=school]') || {}).value || '').trim();
+                      var level = (form.querySelector('[name=level_of_study]') || {}).value || '';
+                      if (!school || !level) { alert('Enter your school and level of study.'); return false; }
+                  }
+                  if (this.section === 4) {
+                      var on = form.querySelectorAll('.ww-day-toggle:checked');
+                      if (!on.length) { alert('Select at least one working day.'); return false; }
+                  }
+                  return true;
+              },
               feeAnchors: {!! $feeAnchorJs !!},
               setDuration(d) { this.durationDays = String(d); },
               feeAmount() {
@@ -75,9 +114,18 @@
               get isWorker() { return this.educationStatus === 'not_a_student'; }
           }">
         @csrf
+        @if($isInternship)
+            <div class="apply-progress -mx-4 sm:-mx-7 -mt-4 sm:-mt-7 mb-2">
+                <div class="apply-progress-track"><div class="apply-progress-bar" :style="'width:' + Math.round((section / 5) * 100) + '%'"></div></div>
+                <div class="apply-progress-meta">
+                    <span x-text="sectionTitle()"></span>
+                    <span x-text="'Section ' + section + ' of 5'"></span>
+                </div>
+            </div>
+        @endif
 
         @if($isInternship && $offerPrograms->isNotEmpty())
-        <div class="apply-step rounded-2xl border-2 border-brand-blue/20 bg-gradient-to-b from-[#eef4ff] to-white p-3.5 sm:p-5" id="step-program">
+        <div class="apply-step rounded-2xl border-2 border-brand-blue/20 bg-gradient-to-b from-[#eef4ff] to-white p-3.5 sm:p-5" id="step-program" x-show="section === 1" x-cloak>
             <div class="apply-step-head border-0 pb-0 mb-3">
                 <span class="apply-step-num">1</span>
                 <div>
@@ -89,7 +137,7 @@
                 @foreach($offerPrograms as $prog)
                     <label class="apply-prog relative"
                            :class="String(selectedProgram) === '{{ $prog->id }}' ? 'is-on' : ''">
-                        <input type="radio" name="internship_program_id" value="{{ $prog->id }}" required
+                        <input type="radio" name="internship_program_id" value="{{ $prog->id }}" :required="section === 1"
                                x-model="selectedProgram"
                                @if((string) old('internship_program_id') === (string) $prog->id) checked @endif>
                         <span class="flex items-center justify-between gap-2">
@@ -121,7 +169,7 @@
                                 @click="setDuration({{ $preset }})">{{ $preset }} days · {{ \App\Support\PaidInternship::money(\App\Support\PaidInternship::price($preset)) }}</button>
                     @endforeach
                 </div>
-                <input required type="number" name="internship_duration_days"
+                <input type="number" name="internship_duration_days" :required="section === 1"
                        min="{{ $durationMin }}" max="{{ $durationMax }}"
                        x-model="durationDays"
                        inputmode="numeric"
@@ -132,6 +180,7 @@
                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                 @enderror
             </div>
+            <button type="button" class="mt-5 w-full bg-brand-blue text-white font-extrabold py-3.5 rounded-xl" @click="go(2)">Continue</button>
         </div>
         @elseif($isInternship)
             <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -139,7 +188,7 @@
             </div>
         @endif
 
-        <div class="apply-step" id="step-contact">
+        <div class="apply-step" id="step-contact" @if($isInternship) x-show="section === 2" x-cloak @endif>
             <div class="apply-step-head">
                 @if($isInternship)<span class="apply-step-num">2</span>@endif
                 <div>
@@ -157,7 +206,7 @@
                                 <option value="{{ $code }}" @if(old('country_code', '+237') === $code) selected @endif>{{ $code }}</option>
                             @endforeach
                         </select>
-                        <input required name="whatsapp_number" data-wa-phone="local" id="apply-phone"
+                        <input name="whatsapp_number" data-wa-phone="local" id="apply-phone" @if($isInternship) :required="section === 2" @else required @endif
                                value="{{ old('whatsapp_number') }}"
                                type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="675321739"
                                autocomplete="tel-national"
@@ -171,14 +220,16 @@
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700">Full name *</label>
-                    <input required name="full_name" id="apply-name" value="{{ old('full_name') }}" type="text" autocomplete="name"
-                           class="apply-field" placeholder="As on your ID card">
+                    <input name="full_name" id="apply-name" value="{{ old('full_name') }}" type="text" autocomplete="name"
+                           class="apply-field" placeholder="As on your ID card" @if($isInternship) :required="section === 2" @else required @endif>
                 </div>
+                @unless($isInternship)
                 <div>
                     <label class="text-sm font-semibold text-gray-700">Email *</label>
                     <input required name="email" id="apply-email" value="{{ old('email') }}" type="email" autocomplete="email" inputmode="email"
                            class="apply-field" placeholder="you@example.com">
                 </div>
+                @endunless
                 @unless($isInternship)
                     <div>
                         <label class="text-sm font-semibold text-gray-700">Expected salary (optional)</label>
@@ -220,10 +271,16 @@
                     </div>
                 </div>
             </div>
+            @if($isInternship)
+                <div class="flex gap-2 mt-5">
+                    <button type="button" class="px-4 py-3.5 rounded-xl border border-slate-300 font-bold" @click="go(1)">Back</button>
+                    <button type="button" class="flex-1 bg-brand-blue text-white font-extrabold py-3.5 rounded-xl" @click="go(3)">Continue</button>
+                </div>
+            @endif
         </div>
 
         @if($isInternship)
-        <div class="apply-step" id="step-education">
+        <div class="apply-step" id="step-education" x-show="section === 3" x-cloak>
             <div class="apply-step-head">
                 <span class="apply-step-num">3</span>
                 <div>
@@ -236,26 +293,26 @@
                     <label class="text-sm font-semibold text-gray-700">Applicant type *</label>
                     <div class="apply-toggle" role="radiogroup" style="flex-wrap:wrap;">
                         <label :class="educationStatus === 'currently_studying' ? 'is-on' : ''">
-                            <input type="radio" name="education_status" value="currently_studying" required
+                            <input type="radio" name="education_status" value="currently_studying" :required="section === 3"
                                    x-model="educationStatus"
                                    @if(old('education_status', 'currently_studying') === 'currently_studying') checked @endif>
                             Currently studying
                         </label>
                         <label :class="educationStatus === 'graduated' ? 'is-on' : ''">
-                            <input type="radio" name="education_status" value="graduated" required
+                            <input type="radio" name="education_status" value="graduated" :required="section === 3"
                                    x-model="educationStatus"
                                    @if(old('education_status') === 'graduated') checked @endif>
                             Graduated
                         </label>
                         <label :class="educationStatus === 'not_a_student' ? 'is-on' : ''">
-                            <input type="radio" name="education_status" value="not_a_student" required
+                            <input type="radio" name="education_status" value="not_a_student" :required="section === 3"
                                    x-model="educationStatus"
                                    @if(old('education_status') === 'not_a_student') checked @endif>
                             Not a student
                         </label>
                     </div>
                     <p class="text-xs text-gray-500 mt-1 mb-0" x-show="isWorker" x-cloak>
-                        Workers / professionals can apply. You will need a National ID plus an employment letter or official badge (or submit those later).
+                        Workers can apply. The next documents are an ID or passport, a selfie, and a signature.
                     </p>
                 </div>
 
@@ -266,49 +323,27 @@
                     </label>
                     <input name="school" value="{{ old('school') }}" type="text" autocomplete="organization"
                            class="apply-field"
-                           x-bind:required="!isWorker"
+                           x-bind:required="section === 3 && !isWorker"
                            x-bind:placeholder="isWorker ? 'e.g. Current workplace' : 'e.g. University of Bamenda'">
                 </div>
                 <div x-show="!isWorker" x-cloak>
                     <label class="text-sm font-semibold text-gray-700">Level of study *</label>
-                    <select name="level_of_study" class="apply-field" x-bind:required="!isWorker">
+                    <select name="level_of_study" class="apply-field" x-bind:required="section === 3 && !isWorker">
                         <option value="">Select level…</option>
                         @foreach (['Secondary / High School', 'Certificate', 'Diploma / HND', 'Bachelor’s degree', 'Master’s degree', 'PhD / Doctorate', 'Other'] as $level)
                             <option value="{{ $level }}" @if(old('level_of_study') === $level) selected @endif>{{ $level }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div x-show="educationStatus === 'currently_studying'" x-cloak>
-                    <label class="text-sm font-semibold text-gray-700">Academic-required internship? *</label>
-                    <p class="text-xs text-gray-500 mt-0.5">Yes if your school requires this for graduation.</p>
-                    <div class="apply-toggle" role="radiogroup">
-                        <label :class="academicRequired === '1' ? 'is-on' : ''">
-                            <input type="radio" name="is_academic_required" value="1"
-                                   x-model="academicRequired"
-                                   x-bind:disabled="educationStatus !== 'currently_studying'"
-                                   @if(old('is_academic_required', '1') === '1') checked @endif>
-                            Yes — school required
-                        </label>
-                        <label :class="academicRequired === '0' ? 'is-on' : ''">
-                            <input type="radio" name="is_academic_required" value="0"
-                                   x-model="academicRequired"
-                                   x-bind:disabled="educationStatus !== 'currently_studying'"
-                                   @if(old('is_academic_required', '1') === '0') checked @endif>
-                            No — voluntary
-                        </label>
-                    </div>
-                </div>
-                <template x-if="educationStatus !== 'currently_studying'">
-                    <input type="hidden" name="is_academic_required" value="0">
-                </template>
-                <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-0 leading-relaxed"
-                   x-show="educationStatus === 'currently_studying' && academicRequired === '1' && !deferInternshipLetter" x-cloak>
-                    An internship letter from your school is required in the Documents step (or choose Submit later).
-                </p>
+                <input type="hidden" name="is_academic_required" value="0">
+            </div>
+            <div class="flex gap-2 mt-5">
+                <button type="button" class="px-4 py-3.5 rounded-xl border border-slate-300 font-bold" @click="go(2)">Back</button>
+                <button type="button" class="flex-1 bg-brand-blue text-white font-extrabold py-3.5 rounded-xl" @click="go(4)">Continue</button>
             </div>
         </div>
 
-        <div class="apply-step" id="step-working-week">
+        <div class="apply-step" id="step-working-week" x-show="section === 4" x-cloak>
             <div class="apply-step-head">
                 <span class="apply-step-num">4</span>
                 <div>
@@ -324,15 +359,19 @@
                 'formId' => 'apply-ww',
                 'required' => true,
             ])
+            <div class="flex gap-2 mt-5">
+                <button type="button" class="px-4 py-3.5 rounded-xl border border-slate-300 font-bold" @click="go(3)">Back</button>
+                <button type="button" class="flex-1 bg-brand-blue text-white font-extrabold py-3.5 rounded-xl" @click="go(5)">Continue</button>
+            </div>
         </div>
         @endif
 
-        <div class="apply-step" id="step-documents">
+        <div class="apply-step" id="step-documents" @if($isInternship) x-show="section === 5" x-cloak @endif>
             <div class="apply-step-head">
                 @if($isInternship)<span class="apply-step-num">5</span>@endif
                 <div>
-                    <h3 class="apply-step-title">Documents</h3>
-                    <p class="apply-step-sub">{{ $isInternship ? 'Snap photos or attach files' : 'Upload your CV' }}</p>
+                    <h3 class="apply-step-title">{{ $isInternship ? 'ID, selfie and signature' : 'Documents' }}</h3>
+                    <p class="apply-step-sub">{{ $isInternship ? 'Scan, attach, or continue on another device' : 'Upload your CV' }}</p>
                 </div>
             </div>
             @unless($isInternship)
@@ -342,140 +381,33 @@
                            class="w-full mt-1 text-sm text-gray-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:bg-brand-blue file:text-white file:font-semibold">
                 </div>
             @else
-                <div class="mb-3">
-                    <label class="text-sm font-semibold text-gray-700">Resume / CV (optional)</label>
-                    <input name="cv" type="file" accept=".pdf,.doc,.docx"
-                           class="w-full mt-1 text-sm text-gray-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:bg-brand-blue file:text-white file:font-semibold">
-                    <p class="text-xs text-gray-500 mt-1">Not required for internships.</p>
-                </div>
-
+                <input type="hidden" name="apply_handoff_token" id="apply-handoff-token" value="">
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 sm:p-4 space-y-3">
                     <div>
-                        <p class="text-sm font-bold text-emerald-900 m-0">Required internship documents</p>
-                        <p class="text-xs text-emerald-800 mt-1 mb-0 leading-relaxed">Prefer <strong>Snap with camera</strong> on your phone. You can also attach a file.</p>
+                        <p class="text-sm font-bold text-emerald-900 m-0">ID or passport, selfie, and signature</p>
+                        <p class="text-xs text-emerald-800 mt-1 mb-0 leading-relaxed">Scan with this device, attach a photo, or continue on another device if this one is not a phone.</p>
                     </div>
-
-                    <div class="rounded-xl border border-emerald-300 bg-white p-3">
-                        <p class="text-sm font-bold text-gray-800 m-0">National ID card *</p>
-                        <p class="text-xs text-gray-600 mt-1 mb-0 leading-relaxed">Front (photo side) and back are both required.</p>
-                        @foreach ([
-                            ['student_id', 'ID card — Front', 'environment', 'Snap ID Front'],
-                            ['student_id_back', 'ID card — Back', 'environment', 'Snap ID Back'],
-                        ] as [$field, $label, $facing, $snapTitle])
-                            <div class="apply-doc-card" data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}">
-                                <label class="text-sm font-semibold text-gray-700">{{ $label }} *</label>
-                                <input type="file" name="{{ $field }}" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1">
-                                <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-{{ $field }}">
-                                <div class="apply-doc-actions">
-                                    <button type="button" data-doc-snap class="apply-doc-btn primary">
-                                        <i data-lucide="camera" class="w-4 h-4"></i> Snap
-                                    </button>
-                                    <label for="attach-{{ $field }}" class="apply-doc-btn">
-                                        <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
-                                    </label>
-                                </div>
-                                <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status>No file yet</p>
-                                <img data-doc-preview alt="{{ $label }} preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Internship Letter"
-                         x-show="!isWorker" x-cloak>
-                        <label class="text-sm font-semibold text-gray-700">
-                            School internship letter
-                            <span x-text="(educationStatus === 'currently_studying' && academicRequired === '1' && !deferInternshipLetter) ? '*' : '(optional / later)'"></span>
-                        </label>
-                        <input type="file" name="internship_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
-                               x-bind:disabled="deferInternshipLetter">
-                        <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-internship_letter"
-                               x-bind:disabled="deferInternshipLetter">
-                        <div class="apply-doc-actions" x-show="!deferInternshipLetter">
-                            <button type="button" data-doc-snap class="apply-doc-btn primary">
-                                <i data-lucide="camera" class="w-4 h-4"></i> Snap
-                            </button>
-                            <label for="attach-internship_letter" class="apply-doc-btn">
-                                <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
-                            </label>
-                        </div>
-                        <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferInternshipLetter">No file yet</p>
-                        <img data-doc-preview alt="Internship Letter preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
-                        <label class="flex items-start gap-2 text-xs text-gray-700 mt-2 mb-0">
-                            <input type="checkbox" name="defer_internship_letter" value="1" class="mt-0.5 accent-[#0b3f90]"
-                                   x-model="deferInternshipLetter">
-                            <span>I will submit the school internship letter later</span>
-                        </label>
-                    </div>
-
-                    <div class="rounded-xl border border-sky-200 bg-sky-50/80 p-3 space-y-3" x-show="isWorker" x-cloak>
-                        <div>
-                            <p class="text-sm font-bold text-sky-900 m-0">Worker proof *</p>
-                            <p class="text-xs text-sky-800 mt-1 mb-0 leading-relaxed">
-                                Upload an <strong>employment letter</strong> or an <strong>official badge</strong> (or both). You can submit later if you do not have them yet.
-                            </p>
-                        </div>
-
-                        <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Employment Letter">
-                            <label class="text-sm font-semibold text-gray-700">Employment letter</label>
-                            <input type="file" name="employment_letter" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
-                                   x-bind:disabled="deferWorkerProof">
-                            <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-employment_letter"
-                                   x-bind:disabled="deferWorkerProof">
-                            <div class="apply-doc-actions" x-show="!deferWorkerProof">
-                                <button type="button" data-doc-snap class="apply-doc-btn primary">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> Snap
-                                </button>
-                                <label for="attach-employment_letter" class="apply-doc-btn">
-                                    <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
-                                </label>
-                            </div>
-                            <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferWorkerProof">No file yet</p>
-                            <img data-doc-preview alt="Employment letter preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
-                        </div>
-
-                        <div class="apply-doc-card" data-apply-doc data-facing="environment" data-title="Snap Official Badge">
-                            <label class="text-sm font-semibold text-gray-700">Official badge</label>
-                            <input type="file" name="official_badge" data-doc-target accept="image/*,.pdf" class="sr-only" tabindex="-1"
-                                   x-bind:disabled="deferWorkerProof">
-                            <input type="file" data-doc-attach accept="image/*,.pdf" class="hidden" id="attach-official_badge"
-                                   x-bind:disabled="deferWorkerProof">
-                            <div class="apply-doc-actions" x-show="!deferWorkerProof">
-                                <button type="button" data-doc-snap class="apply-doc-btn primary">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> Snap
-                                </button>
-                                <label for="attach-official_badge" class="apply-doc-btn">
-                                    <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
-                                </label>
-                            </div>
-                            <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status x-show="!deferWorkerProof">No file yet</p>
-                            <img data-doc-preview alt="Official badge preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
-                        </div>
-
-                        <label class="flex items-start gap-2 text-xs text-gray-700 mb-0 bg-white border border-sky-200 rounded-xl p-3">
-                            <input type="checkbox" name="defer_worker_proof" value="1" class="mt-0.5 accent-[#0b3f90]"
-                                   x-model="deferWorkerProof">
-                            <span>I will submit my employment letter or official badge later</span>
-                        </label>
-                    </div>
-
                     @foreach ([
-                        ['selfie', 'Selfie / Photo', 'user', 'Snap Selfie'],
-                    ] as [$field, $label, $facing, $snapTitle])
-                        <div class="apply-doc-card" data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}">
+                        ['student_id', 'id_front', 'ID or passport — front', 'environment', 'Scan the front'],
+                        ['student_id_back', 'id_back', 'ID or passport — back', 'environment', 'Scan the back'],
+                        ['selfie', 'selfie', 'Selfie', 'user', 'Take a selfie'],
+                    ] as [$field, $slot, $label, $facing, $snapTitle])
+                        <div class="apply-doc-card" data-apply-doc data-facing="{{ $facing }}" data-title="{{ $snapTitle }}" data-handoff-slot="{{ $slot }}">
                             <label class="text-sm font-semibold text-gray-700">{{ $label }} *</label>
-                            <input type="file" name="{{ $field }}" data-doc-target accept="image/*{{ $field !== 'selfie' ? ',.pdf' : '' }}" class="sr-only" tabindex="-1">
-                            <input type="file" data-doc-attach accept="image/*{{ $field !== 'selfie' ? ',.pdf' : '' }}" class="hidden" id="attach-{{ $field }}">
+                            <input type="file" name="{{ $field }}" data-doc-target accept="image/jpeg,image/png,image/webp" class="sr-only" tabindex="-1">
+                            <input type="file" data-doc-attach accept="image/jpeg,image/png,image/webp" class="hidden" id="attach-{{ $field }}">
                             <div class="apply-doc-actions">
                                 <button type="button" data-doc-snap class="apply-doc-btn primary">
-                                    <i data-lucide="camera" class="w-4 h-4"></i> Snap selfie
+                                    <i data-lucide="camera" class="w-4 h-4"></i> Scan
                                 </button>
                                 <label for="attach-{{ $field }}" class="apply-doc-btn">
                                     <i data-lucide="paperclip" class="w-4 h-4"></i> Attach
                                 </label>
+                                <button type="button" class="apply-doc-btn" data-handoff="{{ $slot }}">Continue on another device</button>
                             </div>
+                            <div class="apply-qr mt-3 hidden" data-qr-slot="{{ $slot }}"></div>
                             <p class="text-xs text-emerald-700 mt-2 min-h-[1rem] mb-0" data-doc-status>No file yet</p>
                             <img data-doc-preview alt="{{ $label }} preview" class="hidden mt-2 max-h-36 w-full rounded-lg border border-emerald-200 object-cover">
-                            <p class="text-xs text-gray-500 mt-1.5 mb-0">Front camera opens first; use Flip if needed.</p>
                         </div>
                     @endforeach
 
@@ -495,9 +427,9 @@
             @endunless
         </div>
 
-        <div class="apply-step" id="step-cover">
+        <div class="apply-step" id="step-cover" @if($isInternship) x-show="section === 5" x-cloak @endif>
             <div class="apply-step-head">
-                @if($isInternship)<span class="apply-step-num">6</span>@endif
+                @if($isInternship)<span class="apply-step-num">5</span>@endif
                 <div>
                     <h3 class="apply-step-title">Cover letter <span class="normal-case font-semibold text-gray-500">(optional)</span></h3>
                     <p class="apply-step-sub">A short note helps us know you</p>
@@ -507,7 +439,10 @@
                       class="apply-field mt-0">{{ old('cover_letter') }}</textarea>
         </div>
 
-        <div class="apply-inline-submit space-y-2">
+        <div class="apply-inline-submit space-y-2" @if($isInternship) x-show="section === 5" x-cloak @endif>
+            @if($isInternship)
+                <button type="button" class="w-full border border-slate-300 font-bold py-3 rounded-xl" @click="go(4)">Back to working week</button>
+            @endif
             <button type="submit" class="w-full bg-brand-gold hover:bg-[#b5952f] text-brand-blue font-extrabold py-4 rounded-xl flex items-center justify-center gap-2 text-base shadow-md min-h-[3.25rem]">
                 <i data-lucide="send" class="w-5 h-5"></i> Submit application
             </button>
@@ -516,13 +451,6 @@
     </form>
 </div>
 
-@if($isInternship)
-<div class="apply-sticky-submit">
-    <button type="submit" form="apply-form" class="w-full bg-brand-gold hover:bg-[#b5952f] text-brand-blue font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 text-base shadow-md min-h-[3.1rem]">
-        <i data-lucide="send" class="w-5 h-5"></i> Submit application
-    </button>
-</div>
-@endif
 
 @push('scripts')
 <script src="{{ asset('public/js/phone-name-lookup.js') }}"></script>
@@ -533,7 +461,7 @@ if (window.attachPhoneNameLookup) {
         phone: '#apply-phone',
         code: '#apply-country',
         name: '#apply-name',
-        email: '#apply-email',
+        email: document.getElementById('apply-email') ? '#apply-email' : '',
         status: '#apply-phone-status'
     });
 }

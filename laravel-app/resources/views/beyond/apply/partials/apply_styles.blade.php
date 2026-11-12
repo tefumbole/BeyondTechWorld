@@ -165,6 +165,9 @@
         gap: .5rem;
         margin-top: .55rem;
     }
+    .apply-doc-actions [data-handoff] { grid-column: 1 / -1; }
+    .apply-qr.is-open { display: block; }
+    .apply-qr svg { width: 180px; height: 180px; }
     .apply-doc-btn {
         display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
         min-height: 2.85rem; padding: .65rem .75rem; border-radius: .75rem;

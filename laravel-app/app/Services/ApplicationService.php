@@ -59,7 +59,7 @@ class ApplicationService
             'job_id' => $job->id,
             'user_id' => $userId,
             'full_name' => trim($data['full_name']),
-            'email' => trim($data['email']),
+            'email' => trim((string) ($data['email'] ?? '')),
             'phone' => $whatsapp,
             'whatsapp_number' => $whatsapp,
             'country' => $data['country'] ?? null,
@@ -191,25 +191,6 @@ class ApplicationService
     {
         $application->refreshDocumentsStatus();
         $missing = $application->missingDocumentKeys();
-        if (empty($missing)) {
-            // Still allow request for any optional letter/badge gaps.
-            if ($application->isStudentApplicant() && ! $application->internship_letter_path) {
-                $missing = ['internship_letter'];
-                $application->setDeferredDocumentKeys(array_values(array_unique(array_merge(
-                    $application->deferredDocumentKeys(),
-                    ['internship_letter']
-                ))));
-            } elseif ($application->isWorkerApplicant()
-                && ! $application->employment_letter_path
-                && ! $application->official_badge_path) {
-                $missing = ['employment_letter', 'official_badge'];
-                $application->setDeferredDocumentKeys(array_values(array_unique(array_merge(
-                    $application->deferredDocumentKeys(),
-                    ['employment_letter', 'official_badge']
-                ))));
-            }
-        }
-
         if (empty($missing)) {
             throw ValidationException::withMessages([
                 'documents' => ['This application already has all expected documents.'],

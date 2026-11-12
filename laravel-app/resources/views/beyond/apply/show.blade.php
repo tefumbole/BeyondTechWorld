@@ -133,11 +133,7 @@
                         </div>
                         <div class="rounded-xl bg-slate-50 border border-slate-100 p-4 flex gap-3">
                             <i data-lucide="credit-card" class="w-5 h-5 text-brand-blue shrink-0 mt-0.5"></i>
-                            <div><strong class="text-brand-blue">National ID</strong><p class="text-sm text-gray-600 m-0 mt-1">Front and back photos.</p></div>
-                        </div>
-                        <div class="rounded-xl bg-slate-50 border border-slate-100 p-4 flex gap-3">
-                            <i data-lucide="file-text" class="w-5 h-5 text-brand-blue shrink-0 mt-0.5"></i>
-                            <div><strong class="text-brand-blue">School letter</strong><p class="text-sm text-gray-600 m-0 mt-1">If this internship is academic-required.</p></div>
+                            <div><strong class="text-brand-blue">ID or passport</strong><p class="text-sm text-gray-600 m-0 mt-1">Front and back. Scan, attach, or use another device.</p></div>
                         </div>
                         <div class="rounded-xl bg-slate-50 border border-slate-100 p-4 flex gap-3">
                             <i data-lucide="camera" class="w-5 h-5 text-brand-blue shrink-0 mt-0.5"></i>

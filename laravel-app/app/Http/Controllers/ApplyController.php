@@ -118,7 +118,7 @@ class ApplyController extends Controller
 
         $rules = [
             'full_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
+            'email' => $job->isInternship() ? 'nullable|email|max:255' : 'required|email|max:255',
             'country_code' => 'required|string|max:10',
             'whatsapp_number' => 'required|string|max:50',
             'availability' => 'required|string|max:50',
@@ -137,15 +137,14 @@ class ApplyController extends Controller
             $rules['education_status'] = 'required|in:currently_studying,graduated,not_a_student';
             $rules['is_academic_required'] = 'nullable|in:0,1';
             $rules['cv'] = 'nullable|file|mimes:pdf,doc,docx|max:5120';
-            $rules['student_id'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
-            $rules['student_id_back'] = 'required|file|mimes:jpeg,jpg,png,pdf|max:5120';
-            $rules['selfie'] = 'required|file|mimes:jpeg,jpg,png|max:5120';
+            $this->attachHandoffFile($request, 'student_id', 'id_front');
+            $this->attachHandoffFile($request, 'student_id_back', 'id_back');
+            $this->attachHandoffFile($request, 'selfie', 'selfie');
+            $rules['student_id'] = 'required|file|mimes:jpeg,jpg,png,webp|max:5120';
+            $rules['student_id_back'] = 'required|file|mimes:jpeg,jpg,png,webp|max:5120';
+            $rules['selfie'] = 'required|file|mimes:jpeg,jpg,png,webp|max:5120';
             $rules['signature_image'] = 'required|string|max:500000';
             $rules['agreement_accepted'] = 'required|accepted';
-            $rules['defer_internship_letter'] = 'nullable|in:0,1';
-            $rules['defer_worker_proof'] = 'nullable|in:0,1';
-            $rules['employment_letter'] = 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120';
-            $rules['official_badge'] = 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120';
             $rules = array_merge($rules, \App\Support\WorkingWeekForm::validationRules());
 
             $educationStatus = (string) $request->input('education_status', '');
@@ -153,20 +152,6 @@ class ApplyController extends Controller
             $rules['school'] = $isWorker ? 'nullable|string|max:255' : 'required|string|max:255';
             $rules['level_of_study'] = $isWorker ? 'nullable|string|max:100' : 'required|string|max:100';
 
-            $deferLetter = (string) $request->input('defer_internship_letter', '0') === '1';
-            $deferWorkerProof = (string) $request->input('defer_worker_proof', '0') === '1';
-            $academicRequired = ! $isWorker
-                && $educationStatus === 'currently_studying'
-                && (string) $request->input('is_academic_required', '0') === '1';
-
-            // School letter: required unless deferred (students).
-            if (! $isWorker) {
-                $rules['internship_letter'] = ($academicRequired && ! $deferLetter)
-                    ? 'required|file|mimes:jpeg,jpg,png,pdf|max:5120'
-                    : 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120';
-            } else {
-                $rules['internship_letter'] = 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120';
-            }
         } else {
             $rules['cv'] = 'required|file|mimes:pdf,doc,docx|max:5120';
             $rules['expected_salary'] = 'nullable|string|max:100';
@@ -180,28 +165,10 @@ class ApplyController extends Controller
             $validated['applicant_type'] = $isWorker
                 ? \App\Application::APPLICANT_WORKER
                 : \App\Application::APPLICANT_STUDENT;
-            if ($isWorker || $educationStatus === 'graduated') {
-                $validated['is_academic_required'] = 0;
-            } else {
-                $validated['is_academic_required'] = (string) $request->input('is_academic_required', '0') === '1' ? 1 : 0;
-            }
+            $validated['is_academic_required'] = 0;
 
-            $deferLetter = (string) $request->input('defer_internship_letter', '0') === '1';
-            $deferWorkerProof = (string) $request->input('defer_worker_proof', '0') === '1';
-            $validated['defer_internship_letter'] = $deferLetter ? 1 : 0;
-            $validated['defer_worker_proof'] = $deferWorkerProof ? 1 : 0;
-
-            if ($isWorker) {
-                $hasEmployment = $request->hasFile('employment_letter');
-                $hasBadge = $request->hasFile('official_badge');
-                if (! $deferWorkerProof && ! $hasEmployment && ! $hasBadge) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'employment_letter' => [
-                            'Upload an employment letter or official badge, or choose “Submit later”.',
-                        ],
-                    ]);
-                }
-            }
+            $validated['defer_internship_letter'] = 0;
+            $validated['defer_worker_proof'] = 0;
 
             $wwData = \App\Support\WorkingWeekForm::fromRequest($request);
             \App\Support\WorkingWeekForm::assertValid($wwData, 'working_week');
@@ -252,6 +219,17 @@ class ApplyController extends Controller
         }
 
         return redirect()->route('apply.confirmation', $application->reference_number);
+    }
+
+    protected function attachHandoffFile(Request $request, $input, $slot)
+    {
+        if ($request->hasFile($input)) {
+            return;
+        }
+        $file = \App\Http\Controllers\InternshipCaptureController::fileFromSession($slot);
+        if ($file) {
+            $request->files->set($input, $file);
+        }
     }
 
     public function confirmation($reference)
