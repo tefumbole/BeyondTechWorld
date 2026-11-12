@@ -173,6 +173,7 @@
     var is_admin_user = <?php echo json_encode(in_array(Auth::user()->role_id, [1, 2])) ?>;
     var can_manage_products = user_verified == '1' || is_admin_user;
     var can_edit_products = all_permission.indexOf('products-edit') !== -1;
+    var can_change_price = all_permission.indexOf('price-change') !== -1;
     var can_paste_product_image = is_admin_user || can_edit_products;
     var openProduct = null;
     var openRow = null;
@@ -506,7 +507,7 @@
                 {
                     targets: 8,
                     render: function (data, type, row) {
-                        if (type !== 'display' || !can_edit_products) {
+                        if (type !== 'display' || (!can_edit_products && !can_change_price)) {
                             return data;
                         }
                         return '<input type="number" step="any" class="form-control product-inline product-inline-price" data-id="'+row.id+'" value="'+inlineAttr(data)+'">';

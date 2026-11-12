@@ -325,13 +325,35 @@ class ProductController extends Controller
     public function inlineUpdate(Request $request)
     {
         $role = Role::find(Auth::user()->role_id);
-        if (! $role || ! $role->hasPermissionTo('products-edit')) {
+        $canEdit = $role && $role->hasPermissionTo('products-edit');
+        $canChangePrice = false;
+        if ($role) {
+            try {
+                $canChangePrice = $role->hasPermissionTo('price-change');
+            } catch (\Exception $e) {
+                $canChangePrice = false;
+            }
+        }
+        if (! $canEdit && ! $canChangePrice) {
             return response()->json(['ok' => false, 'error' => 'You cannot edit products.'], 403);
         }
 
         $product = Product::where('is_active', true)->find($request->input('id'));
         if (! $product) {
             return response()->json(['ok' => false, 'error' => 'Product was not found.'], 404);
+        }
+
+        if (! $canEdit) {
+            if (! is_numeric($request->input('price'))) {
+                return response()->json(['ok' => false, 'error' => 'Price must be a number.'], 422);
+            }
+            $product->price = $request->input('price');
+            $product->save();
+
+            return response()->json([
+                'ok' => true,
+                'stock_worth' => $this->inlineStockWorth($product),
+            ]);
         }
 
         $name = trim(strip_tags((string) $request->input('name')));
@@ -367,19 +389,22 @@ class ProductController extends Controller
         $product->brand_id = $brandId;
         $product->save();
 
-        $priceWorth = $product->qty * $product->price;
-        $costWorth = $product->qty * $product->cost;
-        if (config('currency_position') == 'prefix') {
-            $stockWorth = config('currency').' '.$priceWorth.' / '.config('currency').' '.$costWorth;
-        } else {
-            $stockWorth = $priceWorth.' '.config('currency').' / '.$costWorth.' '.config('currency');
-        }
-
         return response()->json([
             'ok' => true,
             'name' => $product->name,
-            'stock_worth' => $stockWorth,
+            'stock_worth' => $this->inlineStockWorth($product),
         ]);
+    }
+
+    protected function inlineStockWorth(Product $product)
+    {
+        $priceWorth = $product->qty * $product->price;
+        $costWorth = $product->qty * $product->cost;
+        if (config('currency_position') == 'prefix') {
+            return config('currency').' '.$priceWorth.' / '.config('currency').' '.$costWorth;
+        }
+
+        return $priceWorth.' '.config('currency').' / '.$costWorth.' '.config('currency');
     }
 
     public function productDataVendor(Request $request)

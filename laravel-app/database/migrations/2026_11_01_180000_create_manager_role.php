@@ -40,6 +40,7 @@ class CreateManagerRole extends Migration
             'quotes-add',
             'products-index',
             'products-add',
+            'price-change',
             'category',
             'events_module',
             'events.view',
