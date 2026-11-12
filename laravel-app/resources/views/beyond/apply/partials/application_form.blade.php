@@ -24,7 +24,7 @@
         <h2 class="text-xl sm:text-2xl font-extrabold m-0 mt-1">{{ $isInternship ? 'Paid internship' : 'Job application' }}</h2>
         <p class="text-blue-100 text-sm m-0 mt-1 leading-relaxed">
             @if($isInternship)
-                15 days is 15,000 XAF. 60 days is 25,000 XAF. Longer stays cost less per day. Pay by MoMo after you submit. Open through 30 November 2026.
+                30 days is 15,000 XAF. 60 days is 25,000 XAF. Longer stays cost less per day. Pay by MoMo after you submit. Open through 30 November 2026.
             @else
                 Fill in your details and submit your documents.
             @endif
@@ -111,6 +111,17 @@
                   if (!amount) return 'Choose the number of days';
                   return amount.toLocaleString() + ' XAF';
               },
+              currentOutline() {
+                  if (!this._outlines) {
+                      var node = document.getElementById('program-outlines');
+                      try { this._outlines = node ? JSON.parse(node.textContent || '{}') : {}; }
+                      catch (e) { this._outlines = {}; }
+                  }
+                  var row = this._outlines[String(this.selectedProgram)] || { sections: [], weeks: [] };
+                  row.sections = row.sections || [];
+                  row.weeks = row.weeks || [];
+                  return row;
+              },
               get isWorker() { return this.educationStatus === 'not_a_student'; }
           }">
         @csrf
@@ -158,6 +169,37 @@
             @error('internship_program_id')
                 <p class="text-xs text-red-600 mt-2 mb-0">{{ $message }}</p>
             @enderror
+
+            @php $programOutlines = \App\Support\CourseOutline::forPrograms($offerPrograms); @endphp
+            <script type="application/json" id="program-outlines">@json($programOutlines)</script>
+            <div class="mt-4" x-show="selectedProgram && (currentOutline().sections.length || currentOutline().weeks.length)" x-cloak>
+                <p class="text-sm font-bold text-brand-blue mb-3">Course outline</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <template x-for="section in currentOutline().sections" :key="section.title">
+                        <div class="bg-white border border-slate-200 rounded-xl p-4">
+                            <h4 class="text-sm font-bold text-brand-blue mb-2" x-text="section.title"></h4>
+                            <ul class="space-y-1.5 m-0 p-0 list-none">
+                                <template x-for="item in section.items" :key="item">
+                                    <li class="flex gap-2 text-sm text-gray-700"><span class="text-brand-gold">✓</span><span x-text="item"></span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                </div>
+                <p class="text-sm font-bold text-brand-blue mt-4 mb-3" x-show="currentOutline().weeks.length">By week</p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <template x-for="week in currentOutline().weeks" :key="week.title">
+                        <div class="bg-white border border-slate-200 rounded-xl p-4">
+                            <h4 class="text-sm font-bold text-brand-blue mb-2" x-text="week.title"></h4>
+                            <ul class="space-y-1.5 m-0 p-0 list-none">
+                                <template x-for="item in week.items" :key="week.title + item">
+                                    <li class="flex gap-2 text-sm text-gray-700"><span class="text-brand-gold">✓</span><span x-text="item"></span></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                </div>
+            </div>
 
             <div class="mt-5">
                 <label class="text-sm font-bold text-brand-blue">Paid internship duration (days) *</label>

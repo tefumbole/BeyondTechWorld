@@ -13,7 +13,7 @@ class PaidInternship
 
     public static function minDays()
     {
-        return 15;
+        return 30;
     }
 
     public static function maxDays()
@@ -32,7 +32,7 @@ class PaidInternship
     }
 
     /**
-     * Longer stays cost less per day. 15 days is 15,000. 60 days is 25,000.
+     * Longer stays cost less per day. 30 days is 15,000. 60 days is 25,000.
      * Each step after that adds less than the one before, through 180 days.
      *
      * @return array<int,int>
@@ -40,9 +40,8 @@ class PaidInternship
     public static function anchors()
     {
         return [
-            15 => 15000,
-            30 => 20000,
-            45 => 23000,
+            30 => 15000,
+            45 => 20000,
             60 => 25000,
             90 => 30000,
             120 => 34000,

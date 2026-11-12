@@ -27,8 +27,22 @@ class TrainingController extends Controller
             $programs = $this->trainingProgramsConfig();
         }
 
+        $internshipPrograms = \App\InternshipProgram::query()
+            ->where('status', 'published')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        $paidJob = \App\JobPosting::query()
+            ->where('posting_type', 'internship')
+            ->whereIn('status', ['active', 'open'])
+            ->orderByDesc('created_at')
+            ->first();
+
         return view('beyond.trainings', [
             'programs' => $programs,
+            'internshipPrograms' => $internshipPrograms,
+            'internshipOutlines' => \App\Support\CourseOutline::forPrograms($internshipPrograms),
+            'paidInternshipUrl' => $paidJob ? route('apply.show', $paidJob->id) : route('apply.index'),
         ]);
     }
 

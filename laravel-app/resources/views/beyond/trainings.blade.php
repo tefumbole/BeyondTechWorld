@@ -111,6 +111,10 @@
                                        style="background-color: {{ $color }}">
                                         Register <i data-lucide="arrow-right" class="w-4 h-4"></i>
                                     </a>
+                                    <a href="{{ $paidInternshipUrl }}"
+                                       class="inline-flex items-center justify-center gap-2 border border-brand-blue text-brand-blue px-4 py-2.5 rounded-lg text-sm font-semibold">
+                                        Paid internship
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -144,6 +148,39 @@
     }
 </style>
 @endpush
+
+@if(!empty($internshipPrograms) && $internshipPrograms->isNotEmpty())
+<section id="paid-internships" class="py-6 sm:py-8 bg-white border-t border-gray-200" x-data="{ expanded: null }">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-5">
+            <h2 class="text-2xl sm:text-3xl font-bold text-brand-blue">Paid internships</h2>
+            <p class="text-gray-600 mt-2">Every internship course is listed here. Open one for the outline and the week-by-week plan, or choose the paid internship.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach($internshipPrograms as $program)
+                @php
+                    $outline = $internshipOutlines[(string) $program->id] ?? ['sections' => [], 'weeks' => []];
+                    $key = 'intern-'.$program->id;
+                @endphp
+                <div class="bg-white rounded-2xl shadow-md border-2 border-gray-200 overflow-hidden" :class="expanded === '{{ $key }}' ? 'md:col-span-2 border-brand-gold' : ''">
+                    <button type="button" class="w-full px-5 py-4 text-left flex items-center justify-between gap-3"
+                            @click="expanded = expanded === '{{ $key }}' ? null : '{{ $key }}'">
+                        <span>
+                            <span class="block text-lg font-bold text-brand-blue">{{ $program->displayName() }}</span>
+                            <span class="block text-xs text-gray-500 mt-0.5">Paid internship</span>
+                        </span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400"></i>
+                    </button>
+                    <div x-show="expanded === '{{ $key }}'" x-cloak class="border-t border-gray-200 px-5 py-5 bg-gray-50">
+                        @include('beyond.partials.course_outline', ['sections' => $outline['sections'], 'weeks' => $outline['weeks'], 'color' => '#0b3f90'])
+                        <a href="{{ $paidInternshipUrl }}" class="inline-flex mt-4 bg-brand-gold text-brand-blue font-extrabold px-5 py-3 rounded-xl">Choose paid internship</a>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+@endif
 
 <section class="py-5 sm:py-6 bg-white text-center">
     <a href="{{ url('/register-now') }}" class="inline-block bg-brand-gold text-brand-blue hover:bg-[#C19B2A] px-8 py-3 text-base font-bold rounded-full shadow-lg hover:scale-105 transition-transform">

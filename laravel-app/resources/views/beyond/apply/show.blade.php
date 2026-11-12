@@ -65,24 +65,35 @@
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 space-y-5">
         @if ($isInternship && $offerPrograms->isNotEmpty())
-            <div class="apply-panel p-5 md:p-6">
+            @php $programOutlines = \App\Support\CourseOutline::forPrograms($offerPrograms); @endphp
+            <div class="apply-panel p-5 md:p-6" x-data="{ openProgram: null }">
                 <div class="flex items-start justify-between gap-3 flex-wrap mb-4">
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-brand-gold m-0">Choose your track</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-brand-gold m-0">Paid internships</p>
                         <h2 class="text-xl font-extrabold text-brand-blue m-0 mt-1">Available internship programs</h2>
-                        <p class="text-sm text-gray-500 m-0 mt-1">You will confirm your program when you apply.</p>
+                        <p class="text-sm text-gray-500 m-0 mt-1">Open a course to see the outline and the week-by-week plan.</p>
                     </div>
                     @if ($availability['available'])
                         <a href="{{ route('apply.form', $job->id) }}" class="text-sm font-bold text-brand-blue hover:underline">Start application →</a>
                     @endif
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-3">
                     @foreach($offerPrograms as $prog)
-                        <div class="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                            <p class="font-bold text-brand-blue m-0 text-sm">{{ $prog->displayName() }}</p>
-                            @if(!empty($prog->code))
-                                <p class="text-xs text-gray-500 m-0 mt-0.5">{{ $prog->code }}</p>
-                            @endif
+                        @php $outline = $programOutlines[(string) $prog->id] ?? ['sections' => [], 'weeks' => []]; @endphp
+                        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                            <button type="button" class="w-full text-left px-4 py-3 flex items-center justify-between gap-3"
+                                    @click="openProgram = openProgram === '{{ $prog->id }}' ? null : '{{ $prog->id }}'">
+                                <span>
+                                    <span class="block font-bold text-brand-blue text-sm">{{ $prog->displayName() }}</span>
+                                    @if(!empty($prog->code))
+                                        <span class="block text-xs text-gray-500 mt-0.5">{{ $prog->code }}</span>
+                                    @endif
+                                </span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                            </button>
+                            <div class="px-4 pb-4 border-t border-slate-100" x-show="openProgram === '{{ $prog->id }}'" x-cloak>
+                                @include('beyond.partials.course_outline', ['sections' => $outline['sections'], 'weeks' => $outline['weeks'], 'color' => '#0b3f90'])
+                            </div>
                         </div>
                     @endforeach
                 </div>
@@ -140,7 +151,7 @@
                             <div><strong class="text-brand-blue">Selfie + signature</strong><p class="text-sm text-gray-600 m-0 mt-1">Confirm your identity digitally.</p></div>
                         </div>
                     </div>
-                    <p class="text-sm text-gray-500 m-0 pt-4">Paid internship. 15 days is 15,000 XAF and 60 days is 25,000 XAF. Longer stays cost less per day, up to 180 days. Pay by MoMo after you submit. Open through 30 November 2026. Selected candidates complete daily timesheets (minimum 40 hours/week).</p>
+                    <p class="text-sm text-gray-500 m-0 pt-4">Paid internship. 30 days is 15,000 XAF and 60 days is 25,000 XAF. Longer stays cost less per day, up to 180 days. Pay by MoMo after you submit. Open through 30 November 2026. Selected candidates complete daily timesheets (minimum 40 hours/week).</p>
                 </div>
             </article>
         @endif

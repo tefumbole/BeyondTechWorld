@@ -46,7 +46,7 @@ class CourseManagerService
                 'icon' => $c->icon ?: 'Briefcase',
                 'description' => $c->description,
                 'price' => (float) $c->price,
-                'sections' => $c->sections,
+                'sections' => \App\Support\CourseOutline::enrich($c->name, $c->sections),
             ];
         })->values()->all();
     }
