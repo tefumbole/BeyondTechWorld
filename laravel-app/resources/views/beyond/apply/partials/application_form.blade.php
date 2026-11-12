@@ -1,17 +1,15 @@
 @php
-    $durationMin = \App\Application::internshipDurationMin();
-    $durationMax = \App\Application::internshipDurationMax();
-    $durationPresets = array_values(array_filter([21, 30, 60, 90, 180], function ($d) use ($durationMin, $durationMax) {
-        return $d >= $durationMin && $d <= $durationMax;
-    }));
+    $durationMin = \App\Support\PaidInternship::minDays();
+    $durationMax = \App\Support\PaidInternship::maxDays();
+    $durationPresets = array_keys(\App\Support\PaidInternship::anchors());
 @endphp
 <div class="apply-panel overflow-hidden">
     <div class="bg-gradient-to-r from-brand-blue to-[#0a3578] text-white px-4 sm:px-7 py-5 sm:py-6">
         <p class="text-brand-gold text-xs font-bold uppercase tracking-wider m-0">Application form</p>
-        <h2 class="text-xl sm:text-2xl font-extrabold m-0 mt-1">{{ $isInternship ? 'Internship application' : 'Job application' }}</h2>
+        <h2 class="text-xl sm:text-2xl font-extrabold m-0 mt-1">{{ $isInternship ? 'Paid internship' : 'Job application' }}</h2>
         <p class="text-blue-100 text-sm m-0 mt-1 leading-relaxed">
             @if($isInternship)
-                Complete each step below. Your WhatsApp number is used for all updates.
+                15 days is 15,000 XAF. 60 days is 25,000 XAF. Longer stays cost less per day. Pay by MoMo after you submit. Open through 30 November 2026.
             @else
                 Fill in your details and submit your documents.
             @endif
@@ -47,7 +45,30 @@
               deferWorkerProof: {{ old('defer_worker_proof') === '1' ? 'true' : 'false' }},
               selectedProgram: '{{ old('internship_program_id', '') }}',
               durationDays: '{{ old('internship_duration_days', '') }}',
+              feeAnchors: @json(\App\Support\PaidInternship::anchors()),
               setDuration(d) { this.durationDays = String(d); },
+              feeAmount() {
+                  const days = parseInt(this.durationDays, 10);
+                  const keys = Object.keys(this.feeAnchors).map(function (k) { return parseInt(k, 10); }).sort(function (a, b) { return a - b; });
+                  if (!days || !keys.length) return 0;
+                  if (days <= keys[0]) return this.feeAnchors[keys[0]];
+                  const last = keys[keys.length - 1];
+                  if (days >= last) return this.feeAnchors[last];
+                  for (let i = 0; i < keys.length - 1; i++) {
+                      const from = keys[i];
+                      const to = keys[i + 1];
+                      if (days >= from && days <= to) {
+                          const ratio = (days - from) / (to - from);
+                          return Math.round(this.feeAnchors[from] + ((this.feeAnchors[to] - this.feeAnchors[from]) * ratio));
+                      }
+                  }
+                  return this.feeAnchors[last];
+              },
+              feeText() {
+                  const amount = this.feeAmount();
+                  if (!amount) return 'Choose the number of days';
+                  return amount.toLocaleString() + ' XAF';
+              },
               get isWorker() { return this.educationStatus === 'not_a_student'; }
           }">
         @csrf
@@ -88,13 +109,13 @@
             @enderror
 
             <div class="mt-5">
-                <label class="text-sm font-bold text-brand-blue">Internship duration (days) *</label>
-                <p class="text-xs text-gray-500 mt-0.5 mb-0">How long will you be with us? ({{ $durationMin }}–{{ $durationMax }} days)</p>
+                <label class="text-sm font-bold text-brand-blue">Paid internship duration (days) *</label>
+                <p class="text-xs text-gray-500 mt-0.5 mb-0">{{ $durationMin }}–{{ $durationMax }} days. The fee falls per day as the stay gets longer.</p>
                 <div class="apply-chip-row" role="group" aria-label="Duration presets">
                     @foreach ($durationPresets as $preset)
                         <button type="button" class="apply-chip"
                                 :class="String(durationDays) === '{{ $preset }}' ? 'is-on' : ''"
-                                @click="setDuration({{ $preset }})">{{ $preset }} days</button>
+                                @click="setDuration({{ $preset }})">{{ $preset }} days · {{ \App\Support\PaidInternship::money(\App\Support\PaidInternship::price($preset)) }}</button>
                     @endforeach
                 </div>
                 <input required type="number" name="internship_duration_days"
@@ -103,6 +124,7 @@
                        inputmode="numeric"
                        placeholder="Or type days, e.g. 45"
                        class="apply-field mt-3 sm:max-w-xs">
+                <p class="text-sm font-semibold text-brand-blue mt-3 mb-0">MoMo fee: <span x-text="feeText()"></span></p>
                 @error('internship_duration_days')
                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                 @enderror
@@ -464,7 +486,7 @@
 
                     <label class="flex items-start gap-3 text-sm text-gray-700 leading-relaxed bg-white border border-emerald-200 rounded-xl p-3">
                         <input type="checkbox" name="agreement_accepted" value="1" class="mt-1 w-5 h-5 shrink-0 accent-[#0b3f90]" required>
-                        <span>I confirm my documents are accurate and I understand this internship is unpaid with required timesheets.</span>
+                        <span>I confirm my documents are accurate. I understand this is a paid internship, I will pay the MoMo fee for the days I chose, and timesheets are required.</span>
                     </label>
                 </div>
             @endunless

@@ -43,7 +43,7 @@
             @if ($job->isInternship())
                 <div class="flex items-center text-emerald-700 font-medium text-sm">
                     <i data-lucide="graduation-cap" class="w-4 h-4 mr-2 shrink-0"></i>
-                    <span>Unpaid internship · Timesheets required</span>
+                    <span>Paid internship · MoMo · Timesheets required</span>
                 </div>
             @endif
             <div class="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100 text-xs text-gray-700">

@@ -27,6 +27,18 @@
                     <strong>{{ $application->whatsapp_number ?: $application->phone }}</strong>
                     when messaging is available.
                 </p>
+                @if($application->job && $application->job->isInternship())
+                    @if($application->internship_fee_status === 'paid')
+                        <p class="mt-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                            Paid internship fee of <strong>{{ \App\Support\PaidInternship::money($application->internship_fee_amount) }}</strong> is received.
+                        </p>
+                    @else
+                        <p class="mt-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                            The MoMo fee is still due.
+                            <a class="font-bold text-brand-blue" href="{{ route('apply.internship.pay', $application->reference_number) }}">Pay now</a>
+                        </p>
+                    @endif
+                @endif
                 <div class="mt-6 inline-block bg-gray-100 px-6 py-3 rounded-lg border border-gray-200">
                     <span class="text-gray-500 text-sm block mb-1">YOUR REFERENCE NUMBER</span>
                     <span class="text-2xl font-mono font-bold text-brand-gold tracking-wider">{{ $application->reference_number }}</span>

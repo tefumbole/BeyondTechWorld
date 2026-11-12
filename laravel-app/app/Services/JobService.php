@@ -166,6 +166,10 @@ class JobService
             return ['available' => false, 'reason' => 'The application deadline has passed.'];
         }
 
+        if ($job->isInternship() && ! \App\Support\PaidInternship::isOpen()) {
+            return ['available' => false, 'reason' => 'Paid internship applications closed on '.\App\Support\PaidInternship::closesAt()->format('j M Y').'.'];
+        }
+
         if ($job->max_applicants) {
             $count = Application::where('job_id', $job->id)->count();
             if ($count >= $job->max_applicants) {

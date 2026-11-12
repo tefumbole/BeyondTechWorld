@@ -8,12 +8,12 @@
     $internshipsFirst = !empty($internshipsFirst);
     $sections = $internshipsFirst
         ? [
-            ['key' => 'internships', 'title' => 'Internships', 'subtitle' => 'Unpaid internship adverts for students.', 'items' => $internships, 'empty' => 'No internships available', 'emptyHint' => $search ? 'No internships matched your search.' : 'Active internship adverts will appear here.', 'icon' => 'graduation-cap'],
+            ['key' => 'internships', 'title' => 'Internships', 'subtitle' => 'Paid internship. 15 days is 15,000 XAF. Longer stays cost less per day. Pay by MoMo. Open through 30 November 2026.', 'items' => $internships, 'empty' => 'No internships available', 'emptyHint' => $search ? 'No internships matched your search.' : 'Active internship adverts will appear here.', 'icon' => 'graduation-cap'],
             ['key' => 'jobs', 'title' => 'Jobs', 'subtitle' => 'Paid roles with salary details.', 'items' => $jobs, 'empty' => 'No jobs available', 'emptyHint' => $search ? 'No jobs matched your search.' : 'Active job postings will appear here.', 'icon' => 'briefcase'],
         ]
         : [
             ['key' => 'jobs', 'title' => 'Jobs', 'subtitle' => 'Paid roles with salary details.', 'items' => $jobs, 'empty' => 'No jobs available', 'emptyHint' => $search ? 'No jobs matched your search.' : 'Active job postings will appear here.', 'icon' => 'briefcase'],
-            ['key' => 'internships', 'title' => 'Internships', 'subtitle' => 'Unpaid internship adverts for students.', 'items' => $internships, 'empty' => 'No internships available', 'emptyHint' => $search ? 'No internships matched your search.' : 'Active internship adverts will appear here.', 'icon' => 'graduation-cap'],
+            ['key' => 'internships', 'title' => 'Internships', 'subtitle' => 'Paid internship. 15 days is 15,000 XAF. Longer stays cost less per day. Pay by MoMo. Open through 30 November 2026.', 'items' => $internships, 'empty' => 'No internships available', 'emptyHint' => $search ? 'No internships matched your search.' : 'Active internship adverts will appear here.', 'icon' => 'graduation-cap'],
         ];
 @endphp
 <div class="min-h-screen bg-gray-50 pb-20">

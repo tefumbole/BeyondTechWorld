@@ -92,8 +92,8 @@
                     </div>
                     <div class="col-md-4 mb-3" id="jb-unpaid-wrap" style="{{ $isInternship ? '' : 'display:none;' }}">
                         <label class="jb-label">Compensation</label>
-                        <input type="text" class="jb-field" value="Unpaid internship" disabled>
-                        <small class="text-muted">Internships do not include a salary field.</small>
+                        <input type="text" class="jb-field" value="Paid internship" disabled>
+                        <small class="text-muted">Paid internship. The applicant pays by MoMo. 15 days is 15,000 XAF. 60 days is 25,000 XAF. Longer stays cost less per day, up to 180 days.</small>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="jb-label">Deadline</label>

@@ -40,6 +40,7 @@ class Application extends Model
         'offer_accepted_at', 'offer_flow_version',
         'agreement_signature_image', 'status', 'reference_number', 'rejection_reason',
         'interview_date', 'submitted_at',
+        'internship_fee_amount', 'internship_fee_status', 'internship_fee_reference', 'internship_fee_external',
     ];
 
     protected $dates = [

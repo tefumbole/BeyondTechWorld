@@ -133,7 +133,7 @@ class ApplyController extends Controller
             $rules['internship_program_id'] = empty($allowedProgramIds)
                 ? 'required|integer|exists:internship_programs,id'
                 : 'required|integer|in:'.implode(',', $allowedProgramIds);
-            $rules['internship_duration_days'] = \App\Application::internshipDurationRule(true);
+            $rules['internship_duration_days'] = 'required|integer|min:'.\App\Support\PaidInternship::minDays().'|max:'.\App\Support\PaidInternship::maxDays();
             $rules['education_status'] = 'required|in:currently_studying,graduated,not_a_student';
             $rules['is_academic_required'] = 'nullable|in:0,1';
             $rules['cv'] = 'nullable|file|mimes:pdf,doc,docx|max:5120';
@@ -241,6 +241,14 @@ class ApplyController extends Controller
             return redirect()->route('apply.form', $job->id)
                 ->withInput()
                 ->withErrors(['job' => 'Could not submit your application. Please check your details and try again.']);
+        }
+
+        if ($job->isInternship()) {
+            $application->internship_fee_amount = \App\Support\PaidInternship::price($application->internship_duration_days);
+            $application->internship_fee_status = 'pending';
+            $application->save();
+
+            return redirect()->route('apply.internship.pay', $application->reference_number);
         }
 
         return redirect()->route('apply.confirmation', $application->reference_number);

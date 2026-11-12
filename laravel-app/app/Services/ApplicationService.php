@@ -107,9 +107,9 @@ class ApplicationService
             }
 
             $duration = (int) ($payload['internship_duration_days'] ?? 0);
-            if ($duration < Application::internshipDurationMin() || $duration > Application::internshipDurationMax()) {
+            if ($duration < \App\Support\PaidInternship::minDays() || $duration > \App\Support\PaidInternship::maxDays()) {
                 throw ValidationException::withMessages([
-                    'internship_duration_days' => ['Please enter internship duration between '.Application::internshipDurationMin().' and '.Application::internshipDurationMax().' days.'],
+                    'internship_duration_days' => ['Choose a paid internship from '.\App\Support\PaidInternship::minDays().' to '.\App\Support\PaidInternship::maxDays().' days.'],
                 ]);
             }
             $payload['internship_duration_days'] = $duration;

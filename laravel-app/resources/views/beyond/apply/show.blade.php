@@ -34,7 +34,7 @@
                     <span class="inline-flex items-center gap-1.5"><i data-lucide="dollar-sign" class="w-4 h-4 text-brand-gold"></i> {{ $job->salary }}</span>
                 @endif
                 @if ($isInternship)
-                    <span class="inline-flex items-center gap-1.5"><i data-lucide="graduation-cap" class="w-4 h-4 text-brand-gold"></i> Unpaid · 7:30–16:00 · 40 hrs/week</span>
+                    <span class="inline-flex items-center gap-1.5"><i data-lucide="graduation-cap" class="w-4 h-4 text-brand-gold"></i> Paid internship · 7:30–16:00 · 40 hrs/week</span>
                 @endif
                 @if ($job->deadline)
                     <span class="inline-flex items-center gap-1.5"><i data-lucide="clock" class="w-4 h-4 text-brand-gold"></i> {{ $job->is_expired ? 'Closed' : 'Closes '.$job->deadline->format('M j, Y') }}</span>
@@ -144,7 +144,7 @@
                             <div><strong class="text-brand-blue">Selfie + signature</strong><p class="text-sm text-gray-600 m-0 mt-1">Confirm your identity digitally.</p></div>
                         </div>
                     </div>
-                    <p class="text-sm text-gray-500 m-0 pt-4">Unpaid internship. Selected candidates complete daily timesheets (minimum 40 hours/week).</p>
+                    <p class="text-sm text-gray-500 m-0 pt-4">Paid internship. 15 days is 15,000 XAF and 60 days is 25,000 XAF. Longer stays cost less per day, up to 180 days. Pay by MoMo after you submit. Open through 30 November 2026. Selected candidates complete daily timesheets (minimum 40 hours/week).</p>
                 </div>
             </article>
         @endif
