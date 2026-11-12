@@ -396,6 +396,75 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Save a product name and price from a quotation or booking line.
+     */
+    public function updateFromDocument(Request $request)
+    {
+        $role = Role::find(Auth::user()->role_id);
+        $allowed = false;
+        if ($role) {
+            foreach (['products-edit', 'price-change', 'quotes-add', 'quotes-edit', 'booking_create', 'booking_edit', 'booking_add', 'sales-add', 'sales-edit'] as $permission) {
+                try {
+                    if ($role->hasPermissionTo($permission)) {
+                        $allowed = true;
+                        break;
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+        }
+        if (! $allowed) {
+            return response()->json(['ok' => false, 'error' => 'You cannot edit products.'], 403);
+        }
+
+        $product = Product::where('is_active', true)->find($request->input('id'));
+        if (! $product) {
+            return response()->json(['ok' => false, 'error' => 'Product was not found.'], 404);
+        }
+
+        $name = trim(strip_tags((string) $request->input('name')));
+        if ($name === '') {
+            return response()->json(['ok' => false, 'error' => 'Enter a product name.'], 422);
+        }
+        $taken = Product::where('is_active', true)
+            ->where('id', '!=', $product->id)
+            ->where('name', $name)
+            ->exists();
+        if ($taken) {
+            return response()->json(['ok' => false, 'error' => 'Another product already uses that name.'], 422);
+        }
+        if (! is_numeric($request->input('price'))) {
+            return response()->json(['ok' => false, 'error' => 'Price must be a number.'], 422);
+        }
+
+        $price = $request->input('price');
+        $product->name = $name;
+        $product->price = $price;
+        $method = (string) $request->input('booking_method');
+        if ($method === '0') {
+            $product->rent_price_per_hour = $price;
+        } elseif ($method === '1') {
+            $product->rent_price_per_day = $price;
+        } elseif ($method === '2') {
+            $product->rent_price_per_month = $price;
+        }
+        $product->save();
+
+        $warehouseId = $request->input('warehouse_id');
+        if ($warehouseId) {
+            \App\Product_Warehouse::where('product_id', $product->id)
+                ->where('warehouse_id', $warehouseId)
+                ->update(['price' => $price]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'name' => $product->name,
+            'price' => $product->price,
+        ]);
+    }
+
     protected function inlineStockWorth(Product $product)
     {
         $priceWorth = $product->qty * $product->price;

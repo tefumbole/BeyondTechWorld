@@ -305,6 +305,10 @@
                 <div class="modal-body">
                     <form>
                         <div class="form-group">
+                            <label>{{trans('file.name')}}</label>
+                            <input type="text" name="edit_product_name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
                             <label>{{trans('file.Quantity')}}</label>
                             <input type="number" name="edit_qty" class="form-control" step="any">
                         </div>
@@ -524,6 +528,7 @@ var checkBatchUrl = @json(url('check-batch-availability'));
 	    calculateGrandTotal();
 	});
 
+@include('product.partials.sync_from_order')
 //Edit product
 $("table.order-list").on("click", ".edit-product", function() {
     rowindex = $(this).closest('tr').index();
@@ -539,6 +544,20 @@ function changePrice(selectObject){
 }
 
 $('button[name="update_btn"]').on("click", function() {
+    var button = $(this);
+    if (!button.data('catalog-saved')) {
+        var row = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')');
+        saveProductToList(row, function (ok, message) {
+            if (!ok) {
+                alert(message || 'Could not update the product.');
+                return;
+            }
+            button.data('catalog-saved', 1);
+            button.trigger('click');
+        });
+        return;
+    }
+    button.data('catalog-saved', 0);
     var edit_discount = $('input[name="edit_discount"]').val();
     var edit_qty = $('input[name="edit_qty"]').val();
     var edit_unit_price = $('input[name="edit_unit_price"]').val();
@@ -657,7 +676,7 @@ function productSearch(data, lineOpts, done){
                 var newRow = $("<tr>");
                 var cols = '';
                 temp_unit_name = (data[6]).split(',');
-                cols += '<td>' + data[0] + '<button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
+                cols += '<td><span class="product-name-label">' + data[0] + '</span><button type="button" class="edit-product btn btn-link" data-toggle="modal" data-target="#editModal"> <i class="dripicons-document-edit"></i></button></td>';
                 cols += '<td><input type="number" class="form-control qty" name="qty[]" value="' + startQty + '" step="any" required/></td>';
                 cols += '<td class="col-sm-2"><input onchange="changePrice(this)" onkeyup="changePrice(this)" type="number" class="product_price_change form-control" /></td>';
                 cols += '<input type="hidden" class="product-batch-id" name="product_batch_id[]" value=""/>';
@@ -714,9 +733,11 @@ function productSearch(data, lineOpts, done){
 }
 
 function edit(){
-    var row_product_name = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(1)').text();
-    var row_product_code = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('td:nth-child(2)').text();
-    $('#modal_header').text(row_product_name + '(' + row_product_code + ')');
+    var $row = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')');
+    var row_product_name = $.trim($row.find('.product-name-label').text() || $row.find('td:nth-child(1)').text());
+    var row_product_code = $row.find('.product-code').val() || '';
+    $('#modal_header').text(row_product_name);
+    $('input[name="edit_product_name"]').val(row_product_name);
 
     var qty = $('table.order-list tbody tr:nth-child(' + (rowindex + 1) + ')').find('.qty').val();
     $('input[name="edit_qty"]').val(qty);
