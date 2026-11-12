@@ -2,6 +2,9 @@
     $durationMin = \App\Support\PaidInternship::minDays();
     $durationMax = \App\Support\PaidInternship::maxDays();
     $durationPresets = array_keys(\App\Support\PaidInternship::anchors());
+    $feeAnchorJs = '{'.implode(',', array_map(function ($days, $amount) {
+        return (int) $days.':'.(int) $amount;
+    }, array_keys(\App\Support\PaidInternship::anchors()), \App\Support\PaidInternship::anchors())).'}';
 @endphp
 <div class="apply-panel overflow-hidden">
     <div class="bg-gradient-to-r from-brand-blue to-[#0a3578] text-white px-4 sm:px-7 py-5 sm:py-6">
@@ -45,7 +48,7 @@
               deferWorkerProof: {{ old('defer_worker_proof') === '1' ? 'true' : 'false' }},
               selectedProgram: '{{ old('internship_program_id', '') }}',
               durationDays: '{{ old('internship_duration_days', '') }}',
-              feeAnchors: @json(\App\Support\PaidInternship::anchors()),
+              feeAnchors: {!! $feeAnchorJs !!},
               setDuration(d) { this.durationDays = String(d); },
               feeAmount() {
                   const days = parseInt(this.durationDays, 10);
