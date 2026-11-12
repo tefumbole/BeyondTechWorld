@@ -37,11 +37,24 @@ class TrainingController extends Controller
             ->whereIn('status', ['active', 'open'])
             ->orderByDesc('created_at')
             ->first();
+        $internshipOutlines = \App\Support\CourseOutline::forPrograms($internshipPrograms);
+        $listed = [];
+        foreach ($programs as $program) {
+            $listed[strtolower(trim((string) ($program['title'] ?? '')))] = true;
+        }
+        foreach (\App\Support\CourseOutline::trainingCards($internshipPrograms, $internshipOutlines) as $card) {
+            $name = strtolower(trim((string) $card['title']));
+            if ($name === '' || isset($listed[$name])) {
+                continue;
+            }
+            $programs[] = $card;
+            $listed[$name] = true;
+        }
 
         return view('beyond.trainings', [
             'programs' => $programs,
             'internshipPrograms' => $internshipPrograms,
-            'internshipOutlines' => \App\Support\CourseOutline::forPrograms($internshipPrograms),
+            'internshipOutlines' => $internshipOutlines,
             'paidInternshipUrl' => $paidJob ? route('apply.show', $paidJob->id) : route('apply.index'),
         ]);
     }

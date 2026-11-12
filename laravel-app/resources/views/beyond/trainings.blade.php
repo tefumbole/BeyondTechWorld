@@ -6,7 +6,8 @@
 @php
     $iconMap = [
         'Brain' => 'brain', 'Cloud' => 'cloud', 'Shield' => 'shield', 'Briefcase' => 'briefcase',
-        'Phone' => 'phone', 'Network' => 'network', 'Video' => 'video',
+        'Phone' => 'phone', 'Network' => 'network', 'Video' => 'video', 'Code' => 'code',
+        'Mic' => 'mic', 'Lightbulb' => 'lightbulb', 'Radio' => 'radio', 'BarChart3' => 'bar-chart-3',
     ];
 @endphp
 
