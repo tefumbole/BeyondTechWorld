@@ -1194,6 +1194,7 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('products/inline-update', 'ProductController@inlineUpdate')->name('products.inline-update');
 	Route::post('products/update-from-document', 'ProductController@updateFromDocument')->name('products.update-from-document');
 	Route::post('products/{id}/paste-image', 'ProductController@pasteImage')->where('id', '[0-9]+')->name('products.paste_image');
+	Route::post('products/{id}/remove-image', 'ProductController@removeImage')->where('id', '[0-9]+')->name('products.remove_image');
 	Route::post('products/product-data/vendor', 'ProductController@productDataVendor');
 	Route::get('products/gencode', 'ProductController@generateCode');
 	Route::get('products/search', 'ProductController@search');

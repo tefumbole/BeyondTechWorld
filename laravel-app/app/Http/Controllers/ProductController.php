@@ -310,16 +310,75 @@ class ProductController extends Controller
         if (! isset($map[$mime])) {
             return response()->json(['ok' => false, 'error' => 'Use a JPEG, PNG, GIF, or WebP image.'], 422);
         }
-        $name = 'paste-'.$product->id.'-'.date('YmdHis').'.'.$map[$mime];
+        $name = 'paste-'.$product->id.'-'.date('YmdHis').'-'.mt_rand(100, 999).'.'.$map[$mime];
         $file->move('public/images/product', $name);
-        $product->image = $name;
+        $images = $this->productImageNames($product);
+        $images[] = $name;
+        $product->image = implode(',', $images);
         $product->save();
 
         return response()->json([
             'ok' => true,
-            'image' => $name,
+            'image' => $product->image,
+            'images' => $this->productImagePayload($product),
             'url' => url('public/images/product/'.$name),
         ]);
+    }
+
+    public function removeImage(Request $request, $id)
+    {
+        $roleId = Auth::user() ? (int) Auth::user()->role_id : 0;
+        $role = Role::find($roleId);
+        $allowed = in_array($roleId, [1, 2], true) || ($role && $role->hasPermissionTo('products-edit'));
+        if (! $allowed) {
+            return response()->json(['ok' => false, 'error' => 'You cannot change this image.'], 403);
+        }
+        $product = Product::where('is_active', true)->find($id);
+        if (! $product) {
+            return response()->json(['ok' => false, 'error' => 'Product was not found.'], 404);
+        }
+        $remove = basename((string) $request->input('image'));
+        if ($remove === '' || $remove === 'zummXD2dvAtI.png') {
+            return response()->json(['ok' => false, 'error' => 'That image cannot be removed.'], 422);
+        }
+        $images = array_values(array_filter($this->productImageNames($product), function ($name) use ($remove) {
+            return $name !== $remove;
+        }));
+        $product->image = $images ? implode(',', $images) : 'zummXD2dvAtI.png';
+        $product->save();
+        $path = public_path('images/product/'.$remove);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'image' => $product->image,
+            'images' => $this->productImagePayload($product),
+            'url' => $images ? url('public/images/product/'.$images[0]) : url('public/images/product/zummXD2dvAtI.png'),
+        ]);
+    }
+
+    protected function productImageNames(Product $product)
+    {
+        $names = array_values(array_filter(array_map('trim', explode(',', (string) $product->image))));
+
+        return array_values(array_filter($names, function ($name) {
+            return $name !== '' && $name !== 'zummXD2dvAtI.png';
+        }));
+    }
+
+    protected function productImagePayload(Product $product)
+    {
+        $payload = [];
+        foreach ($this->productImageNames($product) as $name) {
+            $payload[] = [
+                'name' => $name,
+                'url' => url('public/images/product/'.$name),
+            ];
+        }
+
+        return $payload;
     }
 
     public function inlineUpdate(Request $request)

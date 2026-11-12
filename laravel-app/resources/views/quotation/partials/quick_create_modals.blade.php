@@ -133,7 +133,11 @@
 .quote-file-drop span, .quote-file-drop em { display: block; font-style: normal; font-size: 13px; }
 .quote-file-drop em { margin-top: 6px; color: var(--beyond-primary, #0b3f90); font-weight: 700; }
 .quote-file-drop.is-hot { background: #eef3fb; border-color: var(--beyond-primary, #0b3f90); }
-.quote-file img { display: none; margin-top: 10px; max-height: 120px; border-radius: 12px; }
+.quote-file-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.quote-file-item { position: relative; width: 148px; border: 1px solid #d0d5dd; border-radius: 12px; background: #fff; padding: 8px; }
+.quote-file-item img { display: block; width: 100%; height: 90px; object-fit: contain; border-radius: 8px; background: #f8fafc; }
+.quote-file-item span { display: block; margin-top: 6px; font-size: 12px; color: #344054; word-break: break-all; }
+.quote-file-x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: #b42318; color: #fff; font-size: 18px; line-height: 24px; cursor: pointer; }
 .quote-summary {
     border: 0 !important;
     border-radius: 16px;
@@ -386,32 +390,64 @@
         var box = this;
         var input = box.querySelector('input[type="file"]');
         var drop = box.querySelector('.quote-file-drop');
-        var name = box.querySelector('.quote-file-name');
-        var preview = box.querySelector('img');
-        if (!input || !drop) return;
-        function show(file) {
-            if (name) name.textContent = file ? file.name : '';
-            if (!preview) return;
-            if (file && /^image\//.test(file.type)) {
-                var reader = new FileReader();
-                reader.onload = function (ev) { preview.src = ev.target.result; preview.style.display = 'inline-block'; };
-                reader.readAsDataURL(file);
-            } else {
-                preview.style.display = 'none';
-            }
+        var list = box.querySelector('.quote-file-list');
+        var files = [];
+        if (!input || !drop || !list) return;
+        function namedFile(file, index) {
+            if (!file) return null;
+            if (file.name) return file;
+            var ext = 'png';
+            if ((file.type || '').indexOf('jpeg') !== -1) ext = 'jpg';
+            else if ((file.type || '').indexOf('gif') !== -1) ext = 'gif';
+            return new File([file], 'pasted-' + Date.now() + '-' + index + '.' + ext, { type: file.type || 'image/png' });
         }
-        function assign(file) {
-            if (!file) return;
+        function sync() {
             try {
                 var data = new DataTransfer();
-                data.items.add(file);
+                files.forEach(function (file) { data.items.add(file); });
                 input.files = data.files;
             } catch (e) {}
-            show(file);
+            list.innerHTML = '';
+            files.forEach(function (file, index) {
+                var item = document.createElement('div');
+                item.className = 'quote-file-item';
+                if (/^image\//.test(file.type || '')) {
+                    var img = document.createElement('img');
+                    var reader = new FileReader();
+                    reader.onload = function (ev) { img.src = ev.target.result; };
+                    reader.readAsDataURL(file);
+                    item.appendChild(img);
+                }
+                var label = document.createElement('span');
+                label.textContent = file.name;
+                var close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'quote-file-x';
+                close.setAttribute('aria-label', 'Remove file');
+                close.textContent = '×';
+                close.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    files.splice(index, 1);
+                    sync();
+                });
+                item.appendChild(label);
+                item.appendChild(close);
+                list.appendChild(item);
+            });
+        }
+        function add(fileList) {
+            Array.prototype.forEach.call(fileList || [], function (file, index) {
+                var named = namedFile(file, index);
+                if (named) files.push(named);
+            });
+            sync();
         }
         drop.addEventListener('click', function () { input.click(); });
         drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-        input.addEventListener('change', function () { show(input.files && input.files[0]); });
+        input.addEventListener('change', function () {
+            add(input.files);
+        });
         ['dragenter', 'dragover'].forEach(function (evt) {
             drop.addEventListener(evt, function (e) { e.preventDefault(); drop.classList.add('is-hot'); });
         });
@@ -420,18 +456,20 @@
         });
         drop.addEventListener('drop', function (e) {
             e.preventDefault();
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) assign(e.dataTransfer.files[0]);
+            add(e.dataTransfer && e.dataTransfer.files);
         });
         drop.addEventListener('paste', function (e) {
             var items = (e.clipboardData || window.clipboardData).items;
             if (!items) return;
+            var pasted = [];
             for (var i = 0; i < items.length; i++) {
                 if (items[i].kind === 'file') {
-                    e.preventDefault();
-                    assign(items[i].getAsFile());
-                    return;
+                    pasted.push(items[i].getAsFile());
                 }
             }
+            if (!pasted.length) return;
+            e.preventDefault();
+            add(pasted);
         });
     });
 })();

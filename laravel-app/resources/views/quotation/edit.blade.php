@@ -306,13 +306,12 @@
                                         <div class="form-group">
                                             <label>{{trans('file.Attach Document')}}</label>
                                             <div class="quote-file">
-                                                <input type="file" name="document" class="js-no-image-paste" accept=".jpg,.jpeg,.png,.gif,.pdf,.csv,.docx,.xlsx,.txt,image/*">
+                                                <input type="file" name="document[]" class="js-no-image-paste" accept=".jpg,.jpeg,.png,.gif,.pdf,.csv,.docx,.xlsx,.txt,image/*" multiple>
                                                 <div class="quote-file-drop" tabindex="0">
-                                                    <strong>Paste, drop, or choose a file</strong>
-                                                    <span>Click this box and paste an image, or drop a jpg, png, pdf, or document.</span>
-                                                    <em class="quote-file-name"></em>
+                                                    <strong>Paste, drop, or choose files</strong>
+                                                    <span>Click this box and paste images. You can paste more than once. Drop jpg, png, pdf, or documents.</span>
                                                 </div>
-                                                <img alt="">
+                                                <div class="quote-file-list"></div>
                                             </div>
                                             @if($errors->has('extension'))
                                                 <span>

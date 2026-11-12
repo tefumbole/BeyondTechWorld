@@ -246,6 +246,15 @@
                                     <div class="form-group">
                                         <label>{{trans('file.Product Image')}}</strong> </label> <i class="dripicons-question" data-toggle="tooltip" title="{{trans('file.You can upload multiple image. Only .jpeg, .jpg, .png, .gif file can be uploaded. First image will be base image.')}}"></i>
                                         <div id="imageUpload" class="dropzone"></div>
+                                        <style>
+                                            #imageUpload .dz-preview { position: relative; }
+                                            #imageUpload .dz-remove {
+                                                position: absolute; top: 6px; right: 6px; z-index: 20;
+                                                width: 28px; height: 28px; margin: 0; padding: 0;
+                                                border-radius: 50%; background: #b42318; color: #fff !important;
+                                                font-size: 20px; line-height: 26px; text-align: center; text-decoration: none;
+                                            }
+                                        </style>
                                         <span class="validation-msg" id="image-error"></span>
                                     </div>
                                 </div>
@@ -829,7 +838,8 @@
             return time + file.name;
         },
         acceptedFiles: ".jpeg,.jpg,.png,.gif",
-        dictDefaultMessage: "Drop files here to upload, or paste an image",
+        dictDefaultMessage: "Drop files here, or click and paste images. Paste again to add more.",
+        dictRemoveFile: "×",
         init: function () {
             var myDropzone = this;
             $('#submit-btn').on("click", function (e) {
@@ -922,7 +932,7 @@
         var zone = document.getElementById('imageUpload');
         if (!zone || typeof myDropzone === 'undefined') return;
         zone.setAttribute('tabindex', '0');
-        document.addEventListener('paste', function (event) {
+        function takePastedImages(event) {
             var data = event.clipboardData || window.clipboardData;
             if (!data || !data.items) return;
             var images = [];
@@ -939,6 +949,10 @@
             if (!images.length) return;
             images.forEach(function (file) { myDropzone.addFile(file); });
             event.preventDefault();
+        }
+        document.addEventListener('paste', function (event) {
+            if (document.activeElement !== zone && !zone.contains(event.target) && !zone.contains(document.activeElement)) return;
+            takePastedImages(event);
         });
     })();
 

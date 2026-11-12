@@ -299,6 +299,43 @@ class QuotationController extends Controller
         ]);
     }
 
+    /**
+     * @return string|false|null comma-separated stored names, false when an extension is not allowed
+     */
+    protected function storeQuotationDocuments(Request $request)
+    {
+        $files = $request->file('document');
+        if (! $files) {
+            return null;
+        }
+        if (! is_array($files)) {
+            $files = [$files];
+        }
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'csv', 'docx', 'xlsx', 'txt'];
+        $ready = [];
+        foreach ($files as $document) {
+            if (! $document) {
+                continue;
+            }
+            $ext = strtolower((string) $document->getClientOriginalExtension());
+            if (! in_array($ext, $allowed, true)) {
+                return false;
+            }
+            $ready[] = [$document, $ext];
+        }
+        if (! $ready) {
+            return null;
+        }
+        $names = [];
+        foreach ($ready as $i => $pair) {
+            $documentName = 'qdoc-'.date('YmdHis').'-'.$i.'-'.mt_rand(100, 999).'.'.$pair[1];
+            $pair[0]->move('public/quotation/documents', $documentName);
+            $names[] = $documentName;
+        }
+
+        return implode(',', $names);
+    }
+
     public function store(Request $request)
     {
         $data = $request->except('document');
@@ -309,21 +346,12 @@ class QuotationController extends Controller
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
         $data['show_client_discount'] = true;
-        $document = $request->document;
-        if($document){
-            $v = Validator::make(
-                [
-                    'extension' => strtolower($request->document->getClientOriginalExtension()),
-                ],
-                [
-                    'extension' => 'in:jpg,jpeg,png,gif,pdf,csv,docx,xlsx,txt',
-                ]
-            );
-            if ($v->fails())
-                return redirect()->back()->withErrors($v->errors());
-            $documentName = $document->getClientOriginalName();
-            $document->move('public/quotation/documents', $documentName);
-            $data['document'] = $documentName;
+        $documents = $this->storeQuotationDocuments($request);
+        if ($documents === false) {
+            return redirect()->back()->withErrors(['extension' => 'Use jpg, png, gif, pdf, csv, docx, xlsx, or txt.']);
+        }
+        if ($documents) {
+            $data['document'] = $documents;
         }
         $data['reference_no'] = 'qr-' . date("Ymd") . '-'. date("his");
         // Draft (1), send for signature (2), or no signature required (5)
@@ -1281,24 +1309,15 @@ class QuotationController extends Controller
             $data['note'] = BookingNoteFormatter::forStorage($data['note']);
         }
         $data['show_client_discount'] = true;
-        $document = $request->document;
-        if($document) {
-            $v = Validator::make(
-                [
-                    'extension' => strtolower($request->document->getClientOriginalExtension()),
-                ],
-                [
-                    'extension' => 'in:jpg,jpeg,png,gif,pdf,csv,docx,xlsx,txt',
-                ]
-            );
-            if ($v->fails())
-                return redirect()->back()->withErrors($v->errors());
-
-            $documentName = $document->getClientOriginalName();
-            $document->move('public/quotation/documents', $documentName);
-            $data['document'] = $documentName;
+        $documents = $this->storeQuotationDocuments($request);
+        if ($documents === false) {
+            return redirect()->back()->withErrors(['extension' => 'Use jpg, png, gif, pdf, csv, docx, xlsx, or txt.']);
         }
         $lims_quotation_data = Quotation::find($id);
+        if ($documents) {
+            $existing = trim((string) $lims_quotation_data->document);
+            $data['document'] = $existing !== '' ? $existing.','.$documents : $documents;
+        }
         $lims_product_quotation_data = ProductQuotation::where('quotation_id', $id)->get();
         // When re-sending a rejected/draft quotation, reset client response fields.
         // Never wipe a completed client signature from a routine edit.

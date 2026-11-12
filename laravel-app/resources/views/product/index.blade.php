@@ -32,6 +32,10 @@
         #product-paste { margin-top: 12px; min-height: 72px; border: 2px dashed #0b3f90; border-radius: 14px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: #0b3f90; font-weight: 800; background: #f3f6fb; cursor: text; outline: none; }
         #product-paste:focus { background: #fff; box-shadow: 0 0 0 3px rgba(11, 63, 144, .18); }
         #product-paste-note { margin: 8px 0 0; color: #6f7b91; font-size: 13px; }
+        .product-paste-gallery { display: flex; flex-wrap: wrap; gap: 10px; }
+        .product-paste-thumb { position: relative; width: 140px; }
+        .product-paste-thumb img { width: 140px; height: 100px; object-fit: contain; border-radius: 12px; border: 1px solid #e4e7ec; background: #fff; }
+        .product-paste-x { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: #b42318; color: #fff; font-size: 18px; line-height: 24px; cursor: pointer; }
         .product-modern .form-control, .product-modern select.form-control { border: 1px solid #d0d5dd; border-radius: 8px; min-height: 36px; background: #fff; }
         .product-modern .dataTables_wrapper .dataTables_filter input,
         .product-modern .dataTables_wrapper .dataTables_length select { border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; }
@@ -233,7 +237,24 @@
         if (!can_paste_product_image) {
             return '';
         }
-        return '<div id="product-paste" tabindex="0">Click here, then paste an image</div><p id="product-paste-note"></p>';
+        return '<div id="product-paste" tabindex="0">Click here, then paste images. Paste again to add more.</div><p id="product-paste-note"></p>';
+    }
+
+    function productImageList(product) {
+        var raw = (product && product[17]) ? String(product[17]) : '';
+        return raw.split(',').map(function (name) { return $.trim(name); }).filter(function (name) {
+            return name && name !== 'zummXD2dvAtI.png';
+        });
+    }
+
+    function productImageGallery(product) {
+        var names = productImageList(product);
+        var html = '<div class="product-paste-gallery">';
+        names.forEach(function (name) {
+            html += '<div class="product-paste-thumb"><img src="public/images/product/' + name + '" alt=""><button type="button" class="product-paste-x" data-image="' + name + '" aria-label="Remove image">×</button></div>';
+        });
+        html += '</div>';
+        return html;
     }
 
     function productDetails(product, imagedata) {
@@ -354,7 +375,7 @@
         }
 
         $('#product-content').html(htmltext);
-        $('#slider-content').html((slidertext || '') + productPasteBox());
+        $('#slider-content').html(productImageGallery(product) + productPasteBox());
         $('#product-details').modal('show');
         $('#product-img-slider').carousel(0);
         var pasteTarget = document.getElementById('product-paste');
@@ -363,19 +384,39 @@
         }
     }
 
-    function pastedImageFile(event) {
+    function pastedImageFiles(event) {
         var clipboard = event.originalEvent ? event.originalEvent.clipboardData : event.clipboardData;
         var items = clipboard ? clipboard.items : [];
+        var files = [];
         for (var i = 0; i < items.length; i++) {
             if (items[i].type && items[i].type.indexOf('image/') === 0) {
-                return items[i].getAsFile();
+                var file = items[i].getAsFile();
+                if (file) files.push(file);
             }
         }
-        return null;
+        return files;
     }
 
-    function savePastedProductImage(file) {
+    function showSavedProductImages(saved, noteText) {
+        openProduct[17] = saved.image;
+        if (openRow) {
+            openRow.data('product', openProduct);
+            openRow.find('img').first().attr('src', saved.url).addClass('product-image-selected');
+        }
+        if ($('#product-details').is(':visible')) {
+            $('#slider-content').html(productImageGallery(openProduct) + productPasteBox());
+            var pasteTarget = document.getElementById('product-paste');
+            if (pasteTarget) pasteTarget.focus();
+        }
+        var note = document.getElementById('product-paste-note');
+        var listNote = document.getElementById('product-image-paste-note');
+        if (note) note.textContent = noteText;
+        if (listNote) listNote.textContent = noteText;
+    }
+
+    function savePastedProductImage(file, done) {
         if (!file || !can_paste_product_image || !openProduct) {
+            if (done) done();
             return;
         }
         var note = document.getElementById('product-paste-note');
@@ -391,25 +432,50 @@
             processData: false,
             contentType: false,
             success: function (saved) {
-                openProduct[17] = saved.image;
-                if (openRow) {
-                    openRow.data('product', openProduct);
-                    openRow.find('img').first().attr('src', saved.url).addClass('product-image-selected');
-                }
-                if ($('#product-details').is(':visible')) {
-                    $('#slider-content').html('<img src="' + saved.url + '" alt="" style="width:100%;max-height:320px;object-fit:contain;border-radius:12px;background:#fff;">' + productPasteBox());
-                }
-                if (note) note.textContent = 'Saved. It is on the product list.';
-                if (listNote) listNote.textContent = 'Saved.';
+                showSavedProductImages(saved, 'Saved. Paste again to add another, or use × to remove one.');
+                if (done) done();
             },
             error: function (xhr) {
                 var message = 'The image was not saved.';
                 if (xhr.responseJSON && xhr.responseJSON.error) message = xhr.responseJSON.error;
                 if (note) note.textContent = message;
                 if (listNote) listNote.textContent = message;
+                if (done) done();
             }
         });
     }
+
+    function savePastedProductImages(files) {
+        var index = 0;
+        function next() {
+            if (index >= files.length) return;
+            savePastedProductImage(files[index], function () {
+                index += 1;
+                next();
+            });
+        }
+        next();
+    }
+
+    $(document).on('click', '.product-paste-x', function (event) {
+        event.preventDefault();
+        if (!openProduct) return;
+        var name = $(this).attr('data-image');
+        $.ajax({
+            url: 'products/' + openProduct[12] + '/remove-image',
+            method: 'POST',
+            data: { image: name },
+            success: function (saved) {
+                showSavedProductImages(saved, 'Removed.');
+            },
+            error: function (xhr) {
+                var message = 'The image was not removed.';
+                if (xhr.responseJSON && xhr.responseJSON.error) message = xhr.responseJSON.error;
+                var note = document.getElementById('product-paste-note');
+                if (note) note.textContent = message;
+            }
+        });
+    });
 
     $(document).on('paste', function (event) {
         if (!can_paste_product_image || !openProduct || !openRow) {
@@ -419,12 +485,12 @@
         if (target && $(target).closest('input, textarea, select').length && !$('#product-details').is(':visible')) {
             return;
         }
-        var file = pastedImageFile(event);
-        if (!file) {
+        var files = pastedImageFiles(event);
+        if (!files.length) {
             return;
         }
         event.preventDefault();
-        savePastedProductImage(file);
+        savePastedProductImages(files);
     });
 
     $(document).ready(function() {
