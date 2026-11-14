@@ -390,10 +390,13 @@ class PayoutController extends Controller
                 abort(404);
             }
             $count = 0;
+            $noticeLines = [];
             foreach ($batch->lines as $line) {
                 $this->sendSubmitted($line->phone, $this->systemName($line), $line->amount, $batch->note, $this->reviewUrl($batch->id), (string) $batch->requester_name);
+                $noticeLines[] = ['person_name' => $this->systemName($line), 'amount' => $line->amount];
                 $count++;
             }
+            $this->tellRequesterSubmitted($this->requesterPhone($batch), (string) $batch->requester_name, $batch->note, $noticeLines);
 
             return redirect()->route('payout.index')->with('message', 'Resent to '.$count.' '.($count === 1 ? 'person' : 'people').'.');
         }
@@ -693,6 +696,8 @@ class PayoutController extends Controller
             $row->save();
             if (! $alreadyPaid && $notify && $row->created_at && $row->created_at->gt(now()->subMinutes(20))) {
                 $this->sendPaid($row->phone, $this->systemName($row), $row->amount, $row->note, $this->requesterName($row), $row);
+            } elseif (! $alreadyPaid) {
+                $this->tellRequesterPaid($row);
             }
 
             return 'paid';
@@ -978,23 +983,25 @@ class PayoutController extends Controller
             return back()->withInput()->with('not_permitted', 'Choose between 1 and 40 people.');
         }
         if ($requesterPhoneRaw === '') {
-            $requesterPhone = (string) $lines[0]['phone'];
-        } else {
-            try {
-                $requesterPhone = \App\Support\WhatsAppPhone::normalize($requesterPhoneRaw);
-            } catch (\InvalidArgumentException $e) {
-                return back()->withInput()->with('not_permitted', 'Enter your WhatsApp number.');
-            }
+            return back()->withInput()->with('not_permitted', "Enter the requestor's WhatsApp number.");
+        }
+        try {
+            $requesterPhone = \App\Support\WhatsAppPhone::normalize($requesterPhoneRaw);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('not_permitted', "Enter the requestor's WhatsApp number.");
         }
         @set_time_limit(90);
         foreach ($lines as $index => $line) {
             $lines[$index] = $this->stampCampayName($line);
         }
         if ($requester === '') {
-            $requester = trim((string) $lines[0]['person_name']);
+            $holder = $this->campayHolder($requesterPhone);
+            if (! empty($holder['ok']) && trim((string) $holder['name']) !== '') {
+                $requester = trim((string) $holder['name']);
+            }
         }
         if ($requester === '') {
-            $requester = 'Payout';
+            $requester = 'Requestor';
         }
         if (strlen($requester) > 80) {
             $requester = substr($requester, 0, 80);
@@ -1036,6 +1043,7 @@ class PayoutController extends Controller
         foreach ($lines as $line) {
             $this->sendSubmitted($line['phone'], $line['person_name'], $line['amount'], $batch->note, $reviewUrl, $requester);
         }
+        $this->tellRequesterSubmitted($requesterPhone, $requester, $batch->note, $lines);
 
         return redirect()->route('payout.request.form', ['token' => $token])->with('message', 'Sent. The payment is waiting for approval.');
     }
@@ -1172,6 +1180,80 @@ class PayoutController extends Controller
             $reason = '';
         }
         app(\App\Services\ClientNoticeService::class)->send($phone, $this->paidText($name, $amount, $reason, $requester), false);
+        if ($line) {
+            $this->tellRequesterPaid($line);
+        }
+    }
+
+    protected function tellRequesterSubmitted($phone, $name, $reason, array $lines)
+    {
+        $phone = preg_replace('/\D/', '', (string) $phone);
+        if ($phone === '' || count($lines) < 1) {
+            return;
+        }
+        $name = trim((string) $name);
+        if ($name === '' || strcasecmp($name, 'Payout') === 0) {
+            $name = 'Requestor';
+        }
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterSubmittedText($name, $reason, $lines), false);
+    }
+
+    protected function requesterSubmittedText($name, $reason, array $lines)
+    {
+        $msg = \App\Support\WhatsAppMessage::statusBlock('📨', 'Request received');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= "Your payment request has been received and is waiting for approval.\n";
+        $total = 0;
+        foreach ($lines as $line) {
+            $total += (int) $line['amount'];
+            $who = isset($line['person_name']) ? trim((string) $line['person_name']) : '';
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet($who !== '' ? $who : 'Payment', $this->moneyText($line['amount']).' XAF');
+        }
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Total', $this->moneyText($total).' XAF');
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Note', $reason);
+        }
+        $msg .= \App\Support\WhatsAppMessage::footer();
+
+        return $msg;
+    }
+
+    protected function tellRequesterPaid(CampayPayout $line)
+    {
+        if (! $line->request_id) {
+            return;
+        }
+        $batch = CampayPayoutRequest::find($line->request_id);
+        if (! $batch) {
+            return;
+        }
+        $phone = preg_replace('/\D/', '', $this->requesterPhone($batch));
+        $payee = preg_replace('/\D/', '', (string) $line->phone);
+        if ($phone === '' || ($payee !== '' && $payee === $phone)) {
+            return;
+        }
+        $name = trim((string) $batch->requester_name);
+        if ($name === '' || strcasecmp($name, 'Payout') === 0) {
+            $name = 'Requestor';
+        }
+        app(\App\Services\ClientNoticeService::class)->send($phone, $this->requesterPaidText($name, $this->systemName($line), $line->amount, $line->note), false);
+    }
+
+    protected function requesterPaidText($name, $paidTo, $amount, $reason)
+    {
+        $msg = \App\Support\WhatsAppMessage::statusBlock('✅', 'Payment made');
+        $msg .= 'Dear *'.$name.'*,'."\n\n";
+        $msg .= "The payment you requested has been sent.\n";
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Paid to', $paidTo);
+        $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Amount', $this->moneyText($amount).' XAF');
+        $reason = trim((string) $reason);
+        if ($reason !== '' && strcasecmp($reason, 'Payout') !== 0) {
+            $msg .= "\n".\App\Support\WhatsAppMessage::bullet('Note', $reason);
+        }
+        $msg .= \App\Support\WhatsAppMessage::footer();
+
+        return $msg;
     }
 
     protected function notifyPaid($name, $amount, $reason, $requester = '')

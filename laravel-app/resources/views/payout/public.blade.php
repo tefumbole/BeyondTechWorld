@@ -209,6 +209,10 @@
                     <label for="requestNote">Note</label>
                     <input id="requestNote" type="text" name="note" maxlength="180" placeholder="What this payment is for" value="{{ old('note') }}">
                 </div>
+                <div class="card">
+                    <label for="requesterPhone">Requestor's WhatsApp number</label>
+                    <input id="requesterPhone" type="tel" name="requester_phone" maxlength="32" required inputmode="tel" autocomplete="tel" placeholder="6xxxxxxxx" value="{{ old('requester_phone') }}">
+                </div>
             </form>
         </div>
     </div>
