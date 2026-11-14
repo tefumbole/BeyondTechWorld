@@ -12,14 +12,14 @@
             <div class="h-1 w-12 bg-brand-gold mt-3 mb-4 rounded-full"></div>
             <p class="text-slate-600 text-sm m-0 mb-5">Choose deposit to pay in, or payout to request money out.</p>
             <div class="grid gap-3">
-                <a href="{{ route('donate.show') }}" class="flex items-center gap-4 rounded-2xl border border-slate-200 px-4 py-4 hover:border-brand-blue" style="min-height:84px">
-                    <span class="inline-flex items-center justify-center rounded-2xl text-white font-extrabold" style="width:48px;height:48px;background:#0f766e;flex:0 0 auto">In</span>
+                <a href="{{ route('donate.show') }}" class="flex items-center gap-4 rounded-2xl px-4 py-4" style="min-height:84px;background:#071833;color:#fff">
+                    <span class="inline-flex items-center justify-center rounded-2xl font-extrabold" style="width:48px;height:48px;background:#c9a24a;color:#1a1406;flex:0 0 auto">In</span>
                     <span class="min-w-0">
-                        <span class="block text-lg font-extrabold text-brand-blue">Deposit</span>
-                        <span class="block text-sm text-slate-600 mt-1">Pay with MTN, Orange, VISA, or crypto.</span>
+                        <span class="block text-lg font-extrabold">Deposit</span>
+                        <span class="block text-sm mt-1" style="color:rgba(255,255,255,.75)">Pay with MTN, Orange, VISA, or crypto.</span>
                     </span>
                 </a>
-                <a href="{{ route('payout.request.open') }}" class="flex items-center gap-4 rounded-2xl border border-slate-200 px-4 py-4 hover:border-brand-blue" style="min-height:84px">
+                <a href="{{ route('payout.request.open') }}" class="flex items-center gap-4 rounded-2xl px-4 py-4" style="min-height:84px;background:#fff;border:1px solid #d7e2f2">
                     <span class="inline-flex items-center justify-center rounded-2xl text-white font-extrabold" style="width:48px;height:48px;background:#0b3f90;flex:0 0 auto">Out</span>
                     <span class="min-w-0">
                         <span class="block text-lg font-extrabold text-brand-blue">Payout</span>

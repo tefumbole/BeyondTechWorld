@@ -881,14 +881,7 @@ class PayoutController extends Controller
         $link = $this->link($token);
         $requester = trim((string) $request->input('requester_name', ''));
         $note = trim((string) $request->input('note', ''));
-        if ($requester === '' || strlen($requester) > 80) {
-            return back()->withInput()->with('not_permitted', 'Enter your name.');
-        }
-        try {
-            $requesterPhone = \App\Support\WhatsAppPhone::normalize($request->input('requester_phone'));
-        } catch (\InvalidArgumentException $e) {
-            return back()->withInput()->with('not_permitted', 'Enter your WhatsApp number.');
-        }
+        $requesterPhoneRaw = trim((string) $request->input('requester_phone', ''));
         $service = app(CampayPayoutService::class);
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('customer_id', [])))));
         $amounts = (array) $request->input('amount', []);
@@ -984,9 +977,27 @@ class PayoutController extends Controller
         if (count($lines) < 1 || count($lines) > 40) {
             return back()->withInput()->with('not_permitted', 'Choose between 1 and 40 people.');
         }
+        if ($requesterPhoneRaw === '') {
+            $requesterPhone = (string) $lines[0]['phone'];
+        } else {
+            try {
+                $requesterPhone = \App\Support\WhatsAppPhone::normalize($requesterPhoneRaw);
+            } catch (\InvalidArgumentException $e) {
+                return back()->withInput()->with('not_permitted', 'Enter your WhatsApp number.');
+            }
+        }
         @set_time_limit(90);
         foreach ($lines as $index => $line) {
             $lines[$index] = $this->stampCampayName($line);
+        }
+        if ($requester === '') {
+            $requester = trim((string) $lines[0]['person_name']);
+        }
+        if ($requester === '') {
+            $requester = 'Payout';
+        }
+        if (strlen($requester) > 80) {
+            $requester = substr($requester, 0, 80);
         }
         $parts = [];
         foreach ($lines as $line) {

@@ -199,15 +199,30 @@
             .bey-foot-copy span { padding: 0; }
             .bey-foot-copy span + span { border-left: 0; animation: none; }
         }
-        header.bg-brand-blue { padding-top: env(safe-area-inset-top); }
+        header.bg-brand-blue { padding-top: env(safe-area-inset-top); z-index: 100002; }
         .mobile-menu-btn {
             width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
             border: 0; border-radius: 10px; background: transparent; color: #fff; cursor: pointer;
+            touch-action: manipulation; position: relative; z-index: 2;
+        }
+        .mobile-login-link {
+            align-items: center; justify-content: center;
+            min-height: 44px; min-width: 76px; padding: 0 14px; margin-right: 2px;
+            border-radius: 12px; border: 1.5px solid #d4af37; background: #062656;
+            color: #f5d76e; font-weight: 700; font-size: 15px; text-decoration: none;
+            touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+            position: relative; z-index: 2;
+        }
+        @media (max-width: 1023px) {
+            .mobile-login-link { display: inline-flex; }
+        }
+        @media (min-width: 1024px) {
+            .mobile-menu-btn, .mobile-nav-sheet, .mobile-login-link { display: none !important; }
         }
         .mobile-nav-sheet {
             position: fixed; left: 0; right: 0; bottom: 0;
             top: calc(3.5rem + env(safe-area-inset-top));
-            z-index: 45; background: #072f6b; color: #fff;
+            z-index: 100000; background: #072f6b; color: #fff;
             display: flex; flex-direction: column; overflow: hidden;
         }
         .mobile-nav-links { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 12px; }
@@ -221,16 +236,16 @@
             border-top: 1px solid rgba(255,255,255,.14); background: #062656;
         }
         .mobile-nav-actions a, .mobile-nav-actions button {
-            min-height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; text-decoration: none;
+            min-height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; text-decoration: none; touch-action: manipulation; position: relative; z-index: 1;
         }
         html.nav-locked, html.nav-locked body { overflow: hidden; }
-        html.nav-locked #mbole-ai-root { visibility: hidden; }
+        html.nav-locked #mbole-ai-root { visibility: hidden; pointer-events: none; }
         html, body { overflow-x: hidden; }
         @media (max-width: 767px) {
             input, select, textarea { font-size: 16px !important; }
             .table-wrap, .overflow-x-auto, .table-responsive { max-width: 100%; -webkit-overflow-scrolling: touch; }
-            main a, main button { touch-action: manipulation; }
+            main a, main button, header a, header button { touch-action: manipulation; }
             .event-filters { flex-direction: column !important; align-items: stretch !important; }
             .event-filters > * { width: 100% !important; flex: none !important; }
             h1 { font-size: clamp(1.55rem, 7vw, 2.1rem) !important; line-height: 1.15; }
@@ -301,7 +316,8 @@
     $currentUrl = url()->current();
 @endphp
 
-<header class="bg-brand-blue sticky top-0 z-40 shadow-lg" x-data="{ open: false, userMenu: false }" @keydown.escape.window="open = false; userMenu = false" x-effect="document.documentElement.classList.toggle('nav-locked', open)">
+<div x-data="{ open: false, userMenu: false }" @keydown.escape.window="open = false; userMenu = false" x-effect="document.documentElement.classList.toggle('nav-locked', open)">
+<header class="bg-brand-blue sticky top-0 shadow-lg">
     <div class="w-full flex items-center justify-between h-14 sm:h-16 pl-1 pr-3 sm:pl-2 sm:pr-6 lg:pl-3 lg:pr-8">
         <a href="{{ url('/') }}" class="nav-logo-link" aria-label="{{ $siteTitle }} home">
             <img src="{{ $siteLogoUrl }}" alt="{{ $siteTitle }}" class="nav-logo-spin">
@@ -383,11 +399,15 @@
             @endif
         </div>
 
+        @if (!$headerUser)
+            <a href="{{ url('/login') }}" class="mobile-login-link lg:hidden">Login</a>
+        @endif
         <button type="button" @click="open = !open" class="mobile-menu-btn lg:hidden" :aria-expanded="open ? 'true' : 'false'" aria-label="Menu">
             <i data-lucide="menu" class="w-6 h-6" x-show="!open"></i>
             <i data-lucide="x" class="w-6 h-6" x-show="open" x-cloak></i>
         </button>
     </div>
+</header>
 
     <div x-show="open" x-cloak x-transition.opacity class="mobile-nav-sheet lg:hidden">
         <nav class="mobile-nav-links">
@@ -413,7 +433,7 @@
             @endif
         </div>
     </div>
-</header>
+</div>
 
 <main class="flex-1">
     @yield('content')

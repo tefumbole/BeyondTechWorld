@@ -26,17 +26,43 @@
                 radial-gradient(640px 280px at -20% 0%, rgba(11, 63, 144, .16), transparent 55%),
                 var(--bg);
         }
-        .wrap { max-width: 720px; margin: 0 auto; padding: 18px 14px 128px; }
-        .back { color: var(--blue); font-weight: 700; text-decoration: none; font-size: 14px; }
-        h1 { font-size: 30px; line-height: 1.1; margin: 10px 0 6px; letter-spacing: -.03em; }
-        .lead { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0 0 16px; }
+        .wrap { max-width: 520px; margin: 0 auto; padding: 16px 14px 128px; }
+        .sheet {
+            background: #fff;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 18px 40px rgba(7, 24, 56, .12);
+            border: 1px solid #d7e2f2;
+        }
+        .sheet-head {
+            background: #071833;
+            color: #fff;
+            padding: 16px 18px 18px;
+            position: relative;
+        }
+        .kicker {
+            margin: 0;
+            color: #e4c36a;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .12em;
+        }
+        .sheet-head h1 { font-size: 22px; line-height: 1.15; margin: 4px 0 0; letter-spacing: -.02em; color: #fff; }
+        .sheet-head .sub { margin: 6px 48px 0 0; color: rgba(255,255,255,.72); font-size: 13px; line-height: 1.4; }
+        .close {
+            position: absolute; top: 12px; right: 12px;
+            width: 36px; height: 36px; border-radius: 999px;
+            display: grid; place-items: center;
+            background: rgba(255,255,255,.12); color: #fff;
+            text-decoration: none; font-size: 22px; line-height: 1;
+        }
+        .sheet-body { padding: 14px; background: #f4f7fb; }
         .card {
             background: #fff;
             border: 1px solid var(--line);
-            border-radius: 20px;
+            border-radius: 16px;
             padding: 14px;
             margin-bottom: 12px;
-            box-shadow: 0 10px 28px rgba(16, 33, 61, .05);
         }
         label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
         input[type="text"], input[type="search"], input[type="number"], input[type="tel"] {
@@ -55,12 +81,20 @@
             background: var(--blue);
             color: #fff;
             border: 0;
-            border-radius: 999px;
+            border-radius: 14px;
             padding: 12px 16px;
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
             white-space: nowrap;
+        }
+        .btn.gold {
+            background: #c9a24a;
+            color: #1a1406;
+            width: 100%;
+            min-height: 52px;
+            border-radius: 14px;
+            font-size: 17px;
         }
         .btn:active { transform: translateY(1px); }
         .icon-btn {
@@ -128,7 +162,7 @@
         .dock-inner { max-width: 720px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .total { font-size: 13px; color: var(--muted); font-weight: 700; min-width: 0; flex: 1 1 120px; }
         .total strong { display: block; color: var(--ink); font-size: 16px; }
-        .dock-actions { display: flex; gap: 8px; flex: 1 1 240px; }
+        .dock-actions { display: flex; gap: 8px; flex: 1 1 220px; }
         .dock-actions .btn { flex: 1; text-align: center; text-decoration: none; }
         @media (min-width: 720px) {
             .wrap { padding-top: 28px; }
@@ -141,55 +175,49 @@
 </head>
 <body>
 <div class="wrap">
-    <a class="back" href="{{ route('payments.hub') }}">Back to Payments</a>
-    <h1>Payout</h1>
-    <p class="lead">Enter a Mobile Money number. The name Campay has for that number is the only name shown. Money is not taken until the payment is approved.</p>
-    @if(session('message'))<div class="alert ok">{{ session('message') }}</div>@endif
-    @if(session('not_permitted'))<div class="alert bad">{{ session('not_permitted') }}</div>@endif
-
-    <div class="card">
-        <div class="search-row">
-            <input type="tel" id="searchBox" placeholder="Phone number, 6xxxxxxxx" autocomplete="off" enterkeyhint="search">
-            <button class="btn icon-btn" type="button" id="addPhoneTop" title="Add a number" aria-label="Add a number">+</button>
+    <div class="sheet">
+        <div class="sheet-head">
+            <a class="close" href="{{ route('payments.hub') }}" aria-label="Back to Payments">×</a>
+            <p class="kicker">PAYOUT</p>
+            <h1>Request a payment</h1>
+            <p class="sub">Enter a Mobile Money number. The Campay name fills in, then the amount is ready to type.</p>
         </div>
-        <p class="note" id="addedNote" hidden></p>
-        <div id="results"></div>
-    </div>
+        <div class="sheet-body">
+            @if(session('message'))<div class="alert ok">{{ session('message') }}</div>@endif
+            @if(session('not_permitted'))<div class="alert bad">{{ session('not_permitted') }}</div>@endif
 
-    <form method="POST" action="{{ route('payout.request.store', ['token' => $token]) }}" id="requestForm">
-        @csrf
-        <div class="card">
-            <div class="fields">
-                <div>
-                    <label for="requesterName">Your name</label>
-                    <input id="requesterName" type="text" name="requester_name" maxlength="80" required value="{{ old('requester_name') }}">
+            <div class="card">
+                <label for="searchBox">Phone number</label>
+                <div class="search-row">
+                    <input type="tel" id="searchBox" placeholder="6xxxxxxxx" autocomplete="off" enterkeyhint="search" inputmode="tel">
+                    <button class="btn icon-btn" type="button" id="addPhoneTop" title="Add a number" aria-label="Add a number">+</button>
                 </div>
-                <div>
-                    <label for="requesterPhone">Your WhatsApp number</label>
-                    <input id="requesterPhone" type="tel" name="requester_phone" maxlength="32" required placeholder="+237 6 00 00 00 00" value="{{ old('requester_phone') }}">
+                <p class="note" id="addedNote" hidden></p>
+                <div id="results"></div>
+            </div>
+
+            <form method="POST" action="{{ route('payout.request.store', ['token' => $token]) }}" id="requestForm">
+                @csrf
+                <div class="card">
+                    <div class="people-head">
+                        <h2>Amounts</h2>
+                    </div>
+                    <p class="empty" id="addedEmpty">No one added yet. Enter a phone number above.</p>
+                    <div id="addedBody"></div>
                 </div>
-                <div class="wide">
+                <div class="card">
                     <label for="requestNote">Note</label>
                     <input id="requestNote" type="text" name="note" maxlength="180" placeholder="What this payment is for" value="{{ old('note') }}">
                 </div>
-            </div>
+            </form>
         </div>
-        <div class="card">
-            <div class="people-head">
-                <h2>People</h2>
-                <button class="btn ghost tiny" type="button" id="addPhone">Add a number</button>
-            </div>
-            <p class="empty" id="addedEmpty">No one added yet. Enter a phone number above.</p>
-            <div id="addedBody"></div>
-        </div>
-    </form>
+    </div>
 </div>
 <div class="dock">
     <div class="dock-inner">
         <div class="total" id="requestTotal">0 people</div>
         <div class="dock-actions">
-            <a class="btn ghost" href="{{ route('payments.hub') }}">Back to Payments</a>
-            <button class="btn" type="submit" form="requestForm">Submit request</button>
+            <button class="btn gold" type="submit" form="requestForm">Submit</button>
         </div>
     </div>
 </div>
@@ -251,7 +279,7 @@
         total.innerHTML = '<strong>' + (count ? sum.toLocaleString() + ' XAF' : '0 XAF') + '</strong>' + count + (count === 1 ? ' person' : ' people');
         empty.hidden = body.querySelectorAll('.person').length > 0;
     }
-    function lookup(phone, label, hidden) {
+    function lookup(phone, label, hidden, amountInput) {
         label.textContent = 'Looking up the Mobile Money name…';
         fetch(lookupUrl + '?phone=' + encodeURIComponent(phone), {headers: {Accept: 'application/json'}})
             .then(function (response) { return response.json(); })
@@ -264,6 +292,7 @@
                 if (data.operator) text += ' · ' + data.operator;
                 label.textContent = text;
                 if (hidden) hidden.value = data.name || '';
+                if (amountInput) amountInput.focus();
             })
             .catch(function () { label.textContent = 'Could not look up that number'; });
     }
@@ -336,7 +365,8 @@
             money.input.name = 'extra_amount[]';
             hiddenName.name = 'extra_momo[]';
             hiddenName.value = person.momo || '';
-            momo.textContent = person.momo ? person.momo : 'Name not found on MoMo';
+            momo.textContent = person.operator ? person.operator : (person.momo ? '' : 'Name not found on MoMo');
+            if (!momo.textContent) momo.hidden = true;
         } else if (person.kind === 'user') {
             idField.name = 'user_id[]';
             money.input.name = 'user_amount[' + person.id + ']';
@@ -351,10 +381,12 @@
         row.appendChild(hiddenName);
         row.appendChild(idField);
         body.appendChild(row);
-        if (person.kind !== 'phone') lookup(person.phone, momo, hiddenName);
+        if (person.kind !== 'phone') lookup(person.phone, momo, hiddenName, money.input);
         flash('Added ' + person.name);
-        resetSearch();
+        searchBox.value = '';
+        results.innerHTML = '';
         refresh();
+        money.input.focus();
     }
     function search() {
         var q = searchBox.value.trim();
@@ -375,7 +407,8 @@
                     id: data.phone,
                     name: data.name || 'Name not found on MoMo',
                     phone: data.phone,
-                    momo: data.name || ''
+                    momo: data.name || '',
+                    operator: data.operator || ''
                 });
             })
             .catch(function () { results.innerHTML = '<p class="empty">The lookup did not answer. Try again.</p>'; });
@@ -432,15 +465,17 @@
             refresh();
             clearTimeout(timer);
             timer = setTimeout(function () {
-                if (phone.value.trim().length >= 9) lookup(phone.value.trim(), momo, hidden);
+                if (phone.value.trim().length >= 9) lookup(phone.value.trim(), momo, hidden, money.input);
             }, 500);
         });
         resetSearch();
         phone.focus();
         refresh();
     }
-    document.getElementById('addPhone').addEventListener('click', openExtraPhone);
+    var addPhone = document.getElementById('addPhone');
+    if (addPhone) addPhone.addEventListener('click', openExtraPhone);
     document.getElementById('addPhoneTop').addEventListener('click', openExtraPhone);
+    searchBox.focus();
     form.addEventListener('submit', function (event) {
         var ready = false;
         form.querySelectorAll('.person').forEach(function (row) {
