@@ -367,6 +367,7 @@ class AntivirusRequestService
 
     public function signApprover(AntivirusApprover $approver, $dataUrl, $nameConfirmed)
     {
+        $beforeSigned = $approver->signed_at;
         $this->queue = [];
         try {
             $saved = DB::transaction(function () use ($approver, $dataUrl, $nameConfirmed) {
@@ -380,9 +381,6 @@ class AntivirusRequestService
                 }
                 if ($lockedRequest->status !== 'awaiting_station' || $locked->status === 'declined') {
                     throw new AntivirusRuleException('request', 'This request is no longer waiting for your signature.');
-                }
-                if (! $locked->phone_verified_at || $locked->phone_verified_at->lt(now()->subMinutes(30))) {
-                    throw new AntivirusRuleException('otp', 'Enter the code sent to your phone first.');
                 }
                 if ($locked->name_source === 'manual' && ! $locked->name_confirmed_at && ! $nameConfirmed) {
                     throw new AntivirusRuleException('name', 'Confirm your name before signing.');
@@ -411,7 +409,7 @@ class AntivirusRequestService
         }
         $this->flush();
         $signed = $approver->fresh();
-        if ($signed && $signed->status === 'signed') {
+        if ($signed && $signed->status === 'signed' && (string) $signed->signed_at !== (string) $beforeSigned) {
             $this->sendApproverCopy($saved->fresh(), $signed);
         }
 
@@ -434,9 +432,6 @@ class AntivirusRequestService
                 }
                 if ($locked->status !== 'pending' || $lockedRequest->status !== 'awaiting_station') {
                     return $lockedRequest;
-                }
-                if (! $locked->phone_verified_at || $locked->phone_verified_at->lt(now()->subMinutes(30))) {
-                    throw new AntivirusRuleException('otp', 'Enter the code sent to your phone first.');
                 }
                 $locked->status = 'declined';
                 $locked->declined_at = now();
@@ -910,6 +905,29 @@ class AntivirusRequestService
         $this->queue[] = (int) $notice->id;
     }
 
+    protected function enqueueForce(AntivirusRequest $request, $kind, $phone, $body, $documentPath = null, $documentName = null)
+    {
+        $phone = WhatsAppPhone::forWasender($phone);
+        $notice = AntivirusNotice::where('antivirus_request_id', $request->id)
+            ->where('kind', $kind)
+            ->where('phone', $phone)
+            ->first();
+        if (! $notice) {
+            $notice = new AntivirusNotice();
+            $notice->antivirus_request_id = $request->id;
+            $notice->kind = $kind;
+            $notice->phone = $phone;
+        }
+        $notice->body = $body;
+        $notice->document_path = $documentPath;
+        $notice->document_name = $documentName;
+        $notice->status = 'queued';
+        $notice->text_sent_at = null;
+        $notice->document_sent_at = null;
+        $notice->save();
+        $this->queue[] = (int) $notice->id;
+    }
+
     protected function replaceNotice(AntivirusRequest $request, $kind, $phone, $body)
     {
         $phone = WhatsAppPhone::forWasender($phone);
@@ -1060,17 +1078,98 @@ class AntivirusRequestService
             $request->pdf_path,
             $fileName
         );
+        $requesterPhone = WhatsAppPhone::forWasender($request->requester_phone);
+        if ($requesterPhone !== WhatsAppPhone::forWasender($approver->phone)) {
+            $this->enqueue(
+                $request,
+                'requester_copy',
+                $request->requester_phone,
+                AntivirusCatalog::requesterSignedCopyMessage($request),
+                $request->pdf_path,
+                $fileName
+            );
+        }
         $this->flush();
+    }
+
+    public function resendLatestApproved()
+    {
+        $found = app(CloudTenantContext::class)->withoutIsolation(function () {
+            $approved = AntivirusRequest::where('status', 'approved')
+                ->orderBy('approved_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+            $station = AntivirusRequest::whereIn('status', ['approved', 'awaiting_chief', 'awaiting_station'])
+                ->whereHas('approvers', function ($query) {
+                    $query->where('status', 'signed');
+                })
+                ->orderBy('updated_at', 'desc')
+                ->orderBy('id', 'desc')
+                ->first();
+            if (! $approved) {
+                return $station;
+            }
+            if (! $station) {
+                return $approved;
+            }
+            $stationAt = $station->updated_at ?: $station->created_at;
+            $approvedAt = $approved->approved_at ?: $approved->updated_at;
+
+            return ($stationAt && $approvedAt && $stationAt->gt($approvedAt) && (int) $station->id !== (int) $approved->id)
+                ? $station
+                : $approved;
+        });
+        if (! $found) {
+            return null;
+        }
+        $this->adoptTenant($found->cloud_tenant_id);
+        $request = AntivirusRequest::with('approvers')->find($found->id);
+        if (! $request) {
+            return null;
+        }
+        $this->writePdf($request);
+        $request = $request->fresh()->load('approvers');
+        $fileName = 'Antivirus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
+        $body = AntivirusCatalog::requesterSignedCopyMessage($request);
+        $phones = [];
+        $this->queue = [];
+        $this->enqueueForce($request, 'approved_resend', $request->requester_phone, $body, $request->pdf_path, $fileName);
+        $phones[] = WhatsAppPhone::forWasender($request->requester_phone);
+        foreach ($request->approvers as $approver) {
+            if ($approver->status !== 'signed') {
+                continue;
+            }
+            $phone = WhatsAppPhone::forWasender($approver->phone);
+            if (in_array($phone, $phones, true)) {
+                continue;
+            }
+            $this->enqueueForce(
+                $request,
+                'approved_resend',
+                $approver->phone,
+                AntivirusCatalog::approverSignedCopyMessage($request, $approver->name),
+                $request->pdf_path,
+                $fileName
+            );
+            $phones[] = $phone;
+        }
+        $this->flush();
+
+        return [
+            'reference' => $request->reference,
+            'status' => $request->status,
+            'copies' => count($phones),
+        ];
     }
 
     protected function logoData()
     {
-        $path = public_path('branding/cbc-health-services.png');
+        $path = public_path('branding/cbc-antivirus-header.jpg');
         if (! is_file($path)) {
             return null;
         }
 
-        return 'data:image/png;base64,'.base64_encode(file_get_contents($path));
+        return 'data:image/jpeg;base64,'.base64_encode(file_get_contents($path));
     }
 
     protected function dataUri($path)

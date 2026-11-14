@@ -129,11 +129,26 @@ class AntivirusCatalog
         return self::cbcMessage(
             'Anti Virus Request',
             $dear,
-            'Your signature is on this request. The copy with your signature and the requester’s selfie is attached.',
+            'Your signature is on this request. A copy is attached.',
             [
                 'Requested by' => $row->requester_name,
                 'Number of Anti Viruses' => (string) $row->quantity,
                 'Station' => $row->station,
+            ],
+            '',
+            $row->reference
+        );
+    }
+
+    public static function requesterSignedCopyMessage(AntivirusRequest $row)
+    {
+        return self::cbcMessage(
+            'Anti Virus Request',
+            $row->requester_name,
+            'A signed copy of your Anti Virus request is attached.',
+            [
+                'Station' => $row->station,
+                'Number of Anti Viruses' => (string) $row->quantity,
             ],
             '',
             $row->reference

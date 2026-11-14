@@ -36,19 +36,6 @@
                 <p>You signed this request{{ $approver->signed_at ? ' on '.$approver->signed_at->format('d M Y H:i') : '' }}.</p>
             @elseif($approver->status === 'declined' || $antivirus->status === 'declined')
                 <p>This request is declined.</p>
-            @elseif(!$verified)
-                <h2>Code for {{ $phone }}</h2>
-                <form method="POST" action="{{ route('antivirus.approve.otp', ['token' => $token]) }}">
-                    @csrf
-                    <input type="hidden" name="send" value="1">
-                    <button class="av-btn" type="submit">Send code</button>
-                </form>
-                <form method="POST" action="{{ route('antivirus.approve.otp', ['token' => $token]) }}">
-                    @csrf
-                    <label class="av-field" for="av-otp">Code</label>
-                    <input class="av-input" id="av-otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required>
-                    <button class="av-btn secondary" type="submit">Verify</button>
-                </form>
             @else
                 @if($approver->name_source === 'manual' && ! $approver->name_confirmed_at)
                     <div class="av-note">Confirm this is your name: <strong>{{ $approver->name }}</strong></div>
