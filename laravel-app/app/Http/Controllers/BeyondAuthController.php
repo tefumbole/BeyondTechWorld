@@ -869,4 +869,14 @@ class BeyondAuthController extends Controller
 
         return redirect($this->auth->redirectPath($user->role, BeyondProfile::find($user->id)));
     }
+
+    public function sameDeviceOtp(Request $request)
+    {
+        $digits = preg_replace('/\D+/', '', (string) $request->session()->pull('wa_otp_autofill', ''));
+        if (strlen($digits) !== 6) {
+            return response()->json(['code' => null]);
+        }
+
+        return response()->json(['code' => $digits]);
+    }
 }

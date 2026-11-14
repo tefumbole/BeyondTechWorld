@@ -112,7 +112,7 @@ class AntivirusRequestService
         return $request;
     }
 
-    public function saveStation(AntivirusRequest $request, $region, $station, $quantity)
+    public function saveStation(AntivirusRequest $request, $region, $station, $quantity, $lines = null)
     {
         $this->draftOnly($request);
         if (! in_array($region, AntivirusCatalog::regions(), true)) {
@@ -122,18 +122,69 @@ class AntivirusRequestService
         if (mb_strlen($station) < 2) {
             throw new AntivirusRuleException('station', 'Enter the station or hospital name.');
         }
-        $qtyRaw = trim((string) $quantity);
-        if (! preg_match('/^\d+$/', $qtyRaw) || (int) $qtyRaw < 1 || (int) $qtyRaw > 100000) {
-            throw new AntivirusRuleException('quantity', 'Enter the number of licences as a whole number.');
+        $clean = $this->cleanDepartments($lines);
+        if ($lines !== null) {
+            if (count($clean) < 1) {
+                throw new AntivirusRuleException('department', 'Add at least one department and its quantity.');
+            }
+            $total = 0;
+            foreach ($clean as $line) {
+                $total += $line['quantity'];
+            }
+            if ($total < 1 || $total > 100000) {
+                throw new AntivirusRuleException('quantity', 'Enter the number of licences as a whole number.');
+            }
+            $request->quantity = $total;
+            if (Schema::hasColumn('antivirus_requests', 'department_lines')) {
+                $request->department_lines = json_encode($clean);
+            }
+        } else {
+            $qtyRaw = trim((string) $quantity);
+            if (! preg_match('/^\d+$/', $qtyRaw) || (int) $qtyRaw < 1 || (int) $qtyRaw > 100000) {
+                throw new AntivirusRuleException('quantity', 'Enter the number of licences as a whole number.');
+            }
+            $request->quantity = (int) $qtyRaw;
+            if (Schema::hasColumn('antivirus_requests', 'department_lines')) {
+                $request->department_lines = null;
+            }
         }
         $request->region = $region;
         $request->station = mb_substr($station, 0, 191);
-        $request->quantity = (int) $qtyRaw;
         $request->year = (int) $this->settings()->campaign_year ?: 2027;
         $this->forgetSignatureIfStale($request);
         $request->save();
 
         return $request;
+    }
+
+    protected function cleanDepartments($lines)
+    {
+        if ($lines === null) {
+            return [];
+        }
+        if (! is_array($lines)) {
+            throw new AntivirusRuleException('department', 'Add at least one department and its quantity.');
+        }
+        $clean = [];
+        foreach ($lines as $line) {
+            $name = trim(preg_replace('/\s+/', ' ', strip_tags((string) (isset($line['name']) ? $line['name'] : ''))));
+            $qtyRaw = trim((string) (isset($line['quantity']) ? $line['quantity'] : ''));
+            if ($name === '' && $qtyRaw === '') {
+                continue;
+            }
+            if (mb_strlen($name) < 2) {
+                throw new AntivirusRuleException('department', 'Enter each department name.');
+            }
+            if (! preg_match('/^\d+$/', $qtyRaw) || (int) $qtyRaw < 1 || (int) $qtyRaw > 100000) {
+                throw new AntivirusRuleException('department', 'Enter a whole number of licences for '.$name.'.');
+            }
+            $clean[] = ['name' => mb_substr($name, 0, 80), 'quantity' => (int) $qtyRaw];
+            if (count($clean) > 20) {
+                throw new AntivirusRuleException('department', 'Use 20 departments or fewer.');
+            }
+        }
+
+        return $clean;
     }
 
     public function saveSelfie(AntivirusRequest $request, $file)

@@ -9,6 +9,9 @@
                 <h3 class="mb-1" style="color:#0b3f90;font-weight:800;">Anti Virus Request {{ $row->year }}</h3>
                 <p class="mb-0">Station: {{ $row->station }}</p>
                 <p class="mb-0">Number: {{ $row->quantity }}</p>
+                @if(\App\Support\AntivirusCatalog::departmentSummary($row) !== '')
+                    <p class="mb-0">Requesting: {{ \App\Support\AntivirusCatalog::departmentSummary($row) }}</p>
+                @endif
                 <p class="mb-0 text-muted">{{ $row->reference }} · {{ $row->decisionLabel() }}</p>
             </div>
         </div>
@@ -75,9 +78,10 @@
                             <form method="POST" action="{{ route('admin.antivirus.chief-otp', ['id' => $row->id]) }}">
                                 @csrf
                                 <label for="chief-otp">Code</label>
-                                <input class="form-control mb-2" id="chief-otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required>
+                                <input class="form-control mb-2" id="chief-otp" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-autosubmit="1" required>
                                 <button class="btn btn-outline-primary" type="submit">Verify</button>
                             </form>
+                            @include('partials.otp_assist', ['otpInputId' => 'chief-otp'])
                         @else
                             <form method="POST" action="{{ route('admin.antivirus.chief-sign', ['id' => $row->id]) }}" id="av-sign-form">
                                 @csrf

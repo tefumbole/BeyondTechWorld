@@ -41,6 +41,27 @@
         this.value = String(this.value || '').replace(/\D/g, '').slice(0, 6);
         maybeSubmit();
     });
+    var sameDeviceUrl = @json(route('otp.same-device'));
+    var pulls = 0;
+    function pullSameDevice() {
+        if (sent || pulls > 20) return;
+        pulls += 1;
+        fetch(sameDeviceUrl, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (response) {
+            return response.json();
+        }).then(function (data) {
+            if (data && data.code) {
+                apply(data.code);
+                return;
+            }
+            if (!sent && pulls <= 20) setTimeout(pullSameDevice, 700);
+        }).catch(function () {
+            if (!sent && pulls <= 20) setTimeout(pullSameDevice, 700);
+        });
+    }
+    pullSameDevice();
     if (window.OTPCredential && navigator.credentials && navigator.credentials.get) {
         var ac = new AbortController();
         var timer = setTimeout(function () { ac.abort(); }, 60000);

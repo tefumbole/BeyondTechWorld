@@ -54,9 +54,10 @@
                 <form method="POST" action="{{ route('antivirus.otp') }}">
                     @csrf
                     <label class="av-field" for="av-otp">Code</label>
-                    <input class="av-input" id="av-otp" name="otp" required inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,8}" placeholder="47 47 82">
+                    <input class="av-input" id="av-otp" name="otp" required inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-autosubmit="1" pattern="[0-9 ]{6,8}" placeholder="47 47 82">
                     <button class="av-btn" type="submit">Verify</button>
                 </form>
+                @include('partials.otp_assist', ['otpInputId' => 'av-otp'])
             @elseif($panel === 'role')
                 <h2>Your role</h2>
                 <p>{{ $draft->requester_name }}</p>
@@ -75,9 +76,24 @@
                     <button class="av-btn" type="submit">Continue</button>
                 </form>
             @elseif($panel === 'station')
+                @php
+                    $savedLines = \App\Support\AntivirusCatalog::departmentLines($draft);
+                    $oldNames = old('department_name');
+                    $oldQtys = old('department_quantity');
+                    if (is_array($oldNames)) {
+                        $savedLines = [];
+                        foreach ($oldNames as $index => $oldName) {
+                            $savedLines[] = ['name' => $oldName, 'quantity' => is_array($oldQtys) && isset($oldQtys[$index]) ? $oldQtys[$index] : ''];
+                        }
+                    }
+                    if (count($savedLines) === 0) {
+                        $savedLines = [['name' => '', 'quantity' => '']];
+                    }
+                    $byDepartment = (string) old('by_department', $draft->department_lines ? '1' : '') === '1';
+                @endphp
                 <h2>Station details</h2>
                 <p>Request year <strong>{{ $year }}</strong></p>
-                <form method="POST" action="{{ route('antivirus.station') }}">
+                <form method="POST" action="{{ route('antivirus.station') }}" id="av-station-form">
                     @csrf
                     <label class="av-field" for="region-search">Region</label>
                     <div class="av-region" id="region-box">
@@ -91,16 +107,35 @@
                     </div>
                     <label class="av-field" for="av-station">Station or hospital</label>
                     <input class="av-input" id="av-station" name="station" required data-wa-phone="off" value="{{ old('station', $draft->station) }}" placeholder="Hospital or station name">
-                    <label class="av-field" for="av-quantity">Total antivirus licences</label>
-                    <input class="av-input" id="av-quantity" name="quantity" required inputmode="numeric" data-wa-phone="off" value="{{ old('quantity', $draft->quantity) }}" placeholder="Whole number">
+                    <label class="av-choice"><input type="checkbox" name="by_department" id="av-by-dept" value="1" {{ $byDepartment ? 'checked' : '' }}> Request by department</label>
+                    <div id="av-dept-box" class="{{ $byDepartment ? '' : 'is-hidden' }}">
+                        <p>Add each department and the number of licences it needs.</p>
+                        <div id="av-dept-rows">
+                            @foreach($savedLines as $line)
+                                <div class="av-dept-row">
+                                    <input class="av-input" name="department_name[]" data-wa-phone="off" placeholder="Department" value="{{ $line['name'] }}">
+                                    <input class="av-input" name="department_quantity[]" inputmode="numeric" data-wa-phone="off" placeholder="Qty" value="{{ $line['quantity'] }}">
+                                    <button class="av-dept-remove" type="button" aria-label="Remove department">×</button>
+                                </div>
+                            @endforeach
+                        </div>
+                        <button class="av-btn secondary" id="av-dept-add" type="button">Add department</button>
+                        <div class="av-dept-summary" id="av-dept-summary"></div>
+                    </div>
+                    <div id="av-total-wrap" class="{{ $byDepartment ? 'is-hidden' : '' }}">
+                        <label class="av-field" for="av-quantity">Total antivirus licences</label>
+                        <input class="av-input" id="av-quantity" name="quantity" {{ $byDepartment ? '' : 'required' }} inputmode="numeric" data-wa-phone="off" value="{{ old('quantity', $draft->quantity) }}" placeholder="Whole number">
+                    </div>
                     <button class="av-btn" type="submit">Continue</button>
                 </form>
             @elseif($panel === 'capture')
                 <h2>Selfie</h2>
                 <form method="POST" action="{{ route('antivirus.selfie') }}" enctype="multipart/form-data" id="av-selfie-form">
                     @csrf
-                    <img class="av-selfie" id="av-preview" alt="" hidden>
-                    @if($draft->selfie_path)<p class="av-note">Selfie saved.</p>@endif
+                    <div class="av-frame" id="av-selfie-frame">
+                        <img class="av-selfie" id="av-preview" alt="" hidden>
+                        <div class="av-frame-hint">{{ $draft->selfie_path ? 'Selfie saved. Take another to replace it.' : 'Your photo fills this frame' }}</div>
+                    </div>
                     <input id="av-file" class="av-file" type="file" name="selfie" accept="image/jpeg,image/png,image/webp" data-skip-image-paste="1">
                     <input id="av-fallback" class="av-file" type="file" accept="image/jpeg,image/png,image/webp" capture="user" data-skip-image-paste="1">
                     <div class="av-row">
@@ -123,7 +158,10 @@
                 <form method="POST" action="{{ route('antivirus.signature') }}" id="av-sign-form">
                     @csrf
                     <label class="av-field">Signature</label>
-                    <canvas class="av-sign" id="av-pad"></canvas>
+                    <div class="av-sign-well">
+                        <canvas class="av-sign" id="av-pad"></canvas>
+                        <div class="av-sign-hint">Sign in the centre of the box</div>
+                    </div>
                     <input type="hidden" name="signature" value="">
                     <p id="av-sign-error" class="av-alert bad" hidden></p>
                     <div class="av-row">
@@ -184,6 +222,9 @@
                     <div class="av-request-title">Anti Virus Request {{ $draft->year }}</div>
                     <div class="av-fact"><span>Station</span><strong>{{ $draft->station }}</strong></div>
                     <div class="av-fact"><span>Number</span><strong>{{ $draft->quantity }}</strong></div>
+                    @if(\App\Support\AntivirusCatalog::departmentSummary($draft) !== '')
+                        <div class="av-fact"><span>Requesting</span><strong>{{ \App\Support\AntivirusCatalog::departmentSummary($draft) }}</strong></div>
+                    @endif
                 </div>
                 <form method="POST" action="{{ route('antivirus.submit') }}">
                     @csrf
@@ -201,6 +242,9 @@
                     <div class="av-request-title">Anti Virus Request {{ $draft->year }}</div>
                     <div class="av-fact"><span>Station</span><strong>{{ $draft->station }}</strong></div>
                     <div class="av-fact"><span>Number</span><strong>{{ $draft->quantity }}</strong></div>
+                    @if(\App\Support\AntivirusCatalog::departmentSummary($draft) !== '')
+                        <div class="av-fact"><span>Requesting</span><strong>{{ \App\Support\AntivirusCatalog::departmentSummary($draft) }}</strong></div>
+                    @endif
                     <p class="av-after">A WhatsApp message names the station approvers. After they sign, the request goes to the Chief of Administration and Finance.</p>
                 </div>
                 <form method="POST" action="{{ route('antivirus.restart') }}">@csrf<button class="av-btn secondary" type="submit">Start another request</button></form>

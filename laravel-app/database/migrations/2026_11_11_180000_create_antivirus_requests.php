@@ -38,6 +38,7 @@ class CreateAntivirusRequests extends Migration
                 $table->string('region', 64)->nullable();
                 $table->string('station', 191)->nullable();
                 $table->unsignedInteger('quantity')->nullable();
+                $table->text('department_lines')->nullable();
                 $table->string('selfie_path', 255)->nullable();
                 $table->string('signature_path', 255)->nullable();
                 $table->timestamp('signed_at')->nullable();

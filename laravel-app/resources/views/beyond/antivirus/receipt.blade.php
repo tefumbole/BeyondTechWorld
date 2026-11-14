@@ -29,9 +29,10 @@
                 <form method="POST" action="{{ route('antivirus.receipt.otp', ['token' => $token]) }}">
                     @csrf
                     <label class="av-field" for="av-otp">Code</label>
-                    <input class="av-input" id="av-otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required>
+                    <input class="av-input" id="av-otp" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-autosubmit="1" required>
                     <button class="av-btn secondary" type="submit">Verify</button>
                 </form>
+                @include('partials.otp_assist', ['otpInputId' => 'av-otp'])
             @else
                 <form method="POST" action="{{ route('antivirus.receipt.store', ['token' => $token]) }}">
                     @csrf

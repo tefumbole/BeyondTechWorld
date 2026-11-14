@@ -74,10 +74,41 @@ class AntivirusCatalog
             (string) $row->region,
             mb_strtolower(trim((string) $row->station)),
             (int) $row->quantity,
+            (string) $row->department_lines,
             (int) $row->year,
         ]);
 
         return hash('sha256', $payload);
+    }
+
+    public static function departmentLines(AntivirusRequest $row)
+    {
+        $decoded = json_decode((string) $row->department_lines, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+        $lines = [];
+        foreach ($decoded as $line) {
+            if (! is_array($line) || ! isset($line['name'], $line['quantity'])) {
+                continue;
+            }
+            $lines[] = [
+                'name' => (string) $line['name'],
+                'quantity' => (int) $line['quantity'],
+            ];
+        }
+
+        return $lines;
+    }
+
+    public static function departmentSummary(AntivirusRequest $row)
+    {
+        $parts = [];
+        foreach (self::departmentLines($row) as $line) {
+            $parts[] = $line['name'].' '.$line['quantity'];
+        }
+
+        return implode(', ', $parts);
     }
 
     public static function approverList(array $people)

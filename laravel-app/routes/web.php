@@ -391,6 +391,7 @@ Route::middleware(['beyond.auth', 'beyond.otp'])->group(function () {
 });
 
 // Beyond public portal auth (otp, forgot-password, profile — login registered after Auth::routes)
+Route::get('/otp/same-device', 'BeyondAuthController@sameDeviceOtp')->middleware('throttle:40,1')->name('otp.same-device');
 Route::get('/otp-verification', 'BeyondAuthController@showOtp')->name('beyond.otp');
 Route::post('/otp-verification', 'BeyondAuthController@verifyOtp');
 Route::post('/otp-verification/resend', 'BeyondAuthController@resendOtp');

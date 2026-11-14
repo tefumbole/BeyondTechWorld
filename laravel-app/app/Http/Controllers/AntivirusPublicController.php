@@ -185,11 +185,24 @@ class AntivirusPublicController extends Controller
         try {
             $draft = $this->requireDraft();
             $had = (bool) $draft->signature_path;
+            $lines = null;
+            if ((string) $request->input('by_department') === '1') {
+                $names = (array) $request->input('department_name', []);
+                $qtys = (array) $request->input('department_quantity', []);
+                $lines = [];
+                foreach ($names as $index => $name) {
+                    $lines[] = [
+                        'name' => $name,
+                        'quantity' => isset($qtys[$index]) ? $qtys[$index] : '',
+                    ];
+                }
+            }
             $this->antivirus->saveStation(
                 $draft,
                 $request->input('region'),
                 $request->input('station'),
-                $request->input('quantity')
+                $request->input('quantity'),
+                $lines
             );
             $draft = $draft->fresh();
         } catch (\Throwable $e) {

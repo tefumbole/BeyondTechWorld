@@ -50,6 +50,64 @@
         if (regionValue.value) regionInput.value = regionValue.value;
     }
 
+    var deptToggle = document.getElementById('av-by-dept');
+    var deptBox = document.getElementById('av-dept-box');
+    var deptRows = document.getElementById('av-dept-rows');
+    var deptAdd = document.getElementById('av-dept-add');
+    var deptSummary = document.getElementById('av-dept-summary');
+    var totalWrap = document.getElementById('av-total-wrap');
+    var qtyInput = document.getElementById('av-quantity');
+    if (deptToggle && deptRows) {
+        function deptLine() {
+            var row = document.createElement('div');
+            row.className = 'av-dept-row';
+            row.innerHTML = '<input class="av-input" name="department_name[]" data-wa-phone="off" placeholder="Department">'
+                + '<input class="av-input" name="department_quantity[]" inputmode="numeric" data-wa-phone="off" placeholder="Qty">'
+                + '<button class="av-dept-remove" type="button" aria-label="Remove department">×</button>';
+            return row;
+        }
+        function paintSummary() {
+            var names = deptRows.querySelectorAll('[name="department_name[]"]');
+            var qtys = deptRows.querySelectorAll('[name="department_quantity[]"]');
+            var parts = [];
+            var total = 0;
+            Array.prototype.forEach.call(names, function (name, index) {
+                var label = (name.value || '').replace(/\s+/g, ' ').trim();
+                var qty = parseInt(String(qtys[index] ? qtys[index].value : '').replace(/\D/g, ''), 10);
+                if (!label || !qty) return;
+                parts.push(label + ' ' + qty);
+                total += qty;
+            });
+            if (!deptSummary) return;
+            deptSummary.textContent = parts.length ? ('Requesting: ' + parts.join(', ') + '. Total ' + total + '.') : 'Add a department and a quantity.';
+        }
+        function syncDept() {
+            var on = deptToggle.checked;
+            if (deptBox) deptBox.classList.toggle('is-hidden', !on);
+            if (totalWrap) totalWrap.classList.toggle('is-hidden', on);
+            if (qtyInput) qtyInput.required = !on;
+            paintSummary();
+        }
+        deptRows.addEventListener('input', paintSummary);
+        deptRows.addEventListener('click', function (event) {
+            var button = event.target.closest ? event.target.closest('.av-dept-remove') : null;
+            if (!button) return;
+            var row = button.parentElement;
+            if (deptRows.children.length < 2) {
+                row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+            } else if (row) {
+                row.parentElement.removeChild(row);
+            }
+            paintSummary();
+        });
+        if (deptAdd) deptAdd.addEventListener('click', function () {
+            if (deptRows.children.length >= 20) return;
+            deptRows.appendChild(deptLine());
+        });
+        deptToggle.addEventListener('change', syncDept);
+        syncDept();
+    }
+
     function csrf() {
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
@@ -220,6 +278,12 @@
         }
         fitPad();
         pad = new SignaturePad(padCanvas, { minWidth: 0.8, maxWidth: 2.4, penColor: '#0b3f90' });
+        if (typeof pad.addEventListener === 'function') {
+            pad.addEventListener('beginStroke', function () {
+                var hint = padCanvas.parentElement ? padCanvas.parentElement.querySelector('.av-sign-hint') : null;
+                if (hint) hint.style.display = 'none';
+            });
+        }
         var clearButton = document.getElementById('av-clear');
         if (clearButton) clearButton.addEventListener('click', function () { pad.clear(); });
     }
@@ -267,6 +331,39 @@
         });
         var closeCamera = document.getElementById('av-close-camera');
         if (closeCamera) closeCamera.addEventListener('click', function () { modal.hidden = true; stopCamera(); });
+        function showSelfie(blob) {
+            if (!preview) return;
+            preview.src = URL.createObjectURL(blob);
+            preview.hidden = false;
+            var frame = document.getElementById('av-selfie-frame');
+            if (frame) frame.classList.add('has-photo');
+        }
+        function sendSelfie(blob) {
+            showSelfie(blob);
+            var selfieForm = document.getElementById('av-selfie-form');
+            var posted = false;
+            try {
+                if (fileInput && typeof DataTransfer !== 'undefined') {
+                    var file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+                    var transfer = new DataTransfer();
+                    transfer.items.add(file);
+                    fileInput.files = transfer.files;
+                    posted = fileInput.files && fileInput.files.length > 0;
+                }
+            } catch (e) {
+                posted = false;
+            }
+            if (posted && selfieForm) {
+                selfieForm.submit();
+                return;
+            }
+            if (!selfieForm) return;
+            var body = new FormData(selfieForm);
+            body.set('selfie', blob, 'selfie.jpg');
+            fetch(selfieForm.action, { method: 'POST', body: body, credentials: 'same-origin' }).then(function () {
+                window.location.reload();
+            });
+        }
         if (shot) shot.addEventListener('click', function () {
             var canvas = document.createElement('canvas');
             var width = video.videoWidth || 640;
@@ -278,19 +375,10 @@
             context.scale(-1, 1);
             context.drawImage(video, 0, 0, width, height);
             canvas.toBlob(function (blob) {
-                if (!blob || !fileInput) return;
-                var file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
-                var transfer = new DataTransfer();
-                transfer.items.add(file);
-                fileInput.files = transfer.files;
-                if (preview) {
-                    preview.src = URL.createObjectURL(blob);
-                    preview.hidden = false;
-                }
+                if (!blob) return;
                 modal.hidden = true;
                 stopCamera();
-                var selfieForm = document.getElementById('av-selfie-form');
-                if (selfieForm) selfieForm.submit();
+                sendSelfie(blob);
             }, 'image/jpeg', 0.9);
         });
     }
@@ -304,6 +392,8 @@
             if (preview) {
                 preview.src = URL.createObjectURL(fallback.files[0]);
                 preview.hidden = false;
+                var frame = document.getElementById('av-selfie-frame');
+                if (frame) frame.classList.add('has-photo');
             }
             var selfieForm = document.getElementById('av-selfie-form');
             if (selfieForm) selfieForm.submit();
