@@ -91,106 +91,165 @@ class PublicDonateController extends Controller
     public function store(Request $request)
     {
         $service = app(CampayPayoutService::class);
-        $full = $this->fullPhone($request->input('country_code'), $request->input('phone'));
-        $phone = $service->momoNumber($full);
-        $name = trim((string) $request->input('person_name'));
-        $amount = (int) $request->input('amount');
         $note = trim((string) $request->input('note'));
         $method = (string) $request->input('method');
         if (! in_array($method, ['momo', 'visa', 'crypto'], true)) {
             $method = 'momo';
         }
-        if ($full === '') {
-            return back()->withInput()->with('not_permitted', 'Enter a phone number.');
+        $phones = $request->input('phone', []);
+        if (! is_array($phones)) {
+            $phones = [$phones];
         }
-        if ($method === 'momo' && ! $phone) {
-            return back()->withInput()->with('not_permitted', 'MTN and Orange need a Cameroon number. Choose VISA or Crypto for another country.');
-        }
-        if (! $phone) {
-            $phone = $full;
-        }
-        if ($name === '' || strlen($name) > 191) {
-            return back()->withInput()->with('not_permitted', 'Enter the name on this number.');
-        }
-        if ($amount < 100 || $amount > 1000000) {
-            return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF.');
-        }
-        $donation = new PublicDonation();
-        $donation->token = bin2hex(random_bytes(16));
-        $donation->person_name = $name;
-        $donation->phone = $phone;
-        $donation->amount = $amount;
-        $donation->note = $note !== '' ? substr($note, 0, 191) : null;
-        $donation->method = $method;
-        $donation->status = 'pending';
-        $donation->save();
-        $reference = 'don-'.date('YmdHis').'-'.$donation->id;
-        $description = $note !== '' ? substr($note, 0, 80) : 'Donation';
-        $return = route('donate.status', ['token' => $donation->token]);
-        if ($method === 'crypto') {
-            $result = app(BinancePayService::class)->instructions($amount, $donation->id);
-            if (empty($result['ok'])) {
-                $donation->status = 'failed';
-                $donation->error = isset($result['error']) ? substr((string) $result['error'], 0, 250) : 'Binance could not open this payment.';
-                $donation->save();
-
-                return redirect($return)->with('not_permitted', $donation->error);
+        $names = (array) $request->input('person_name', []);
+        $amounts = (array) $request->input('amount', []);
+        $codes = (array) $request->input('country_code', []);
+        $lines = [];
+        $seen = [];
+        foreach ($phones as $index => $rawPhone) {
+            $rawPhone = trim((string) $rawPhone);
+            if ($rawPhone === '') {
+                continue;
             }
-            $donation->campay_reference = 'usdt:'.$result['usdt'];
-            $donation->payment_link = json_encode([
-                'address' => $result['address'],
-                'network' => $result['network'],
-                'usdt' => $result['usdt'],
-                'coin' => $result['coin'],
-            ]);
-            $donation->save();
+            $code = isset($codes[$index]) ? $codes[$index] : '+237';
+            $full = $this->fullPhone($code, $rawPhone);
+            $phone = $service->momoNumber($full);
+            if ($full === '') {
+                return back()->withInput()->with('not_permitted', 'Enter a phone number.');
+            }
+            if ($method === 'momo' && ! $phone) {
+                return back()->withInput()->with('not_permitted', 'MTN and Orange need a Cameroon number. Choose VISA or Crypto for another country.');
+            }
+            if (! $phone) {
+                $phone = $full;
+            }
+            if (isset($seen[$phone])) {
+                return back()->withInput()->with('not_permitted', 'That number is already on the list.');
+            }
+            $name = isset($names[$index]) ? trim((string) $names[$index]) : '';
+            $amount = isset($amounts[$index]) ? (int) $amounts[$index] : 0;
+            if ($name === '' || strlen($name) > 191) {
+                return back()->withInput()->with('not_permitted', 'Enter the name on this number.');
+            }
+            if ($amount < 100 || $amount > 1000000) {
+                return back()->withInput()->with('not_permitted', 'Enter an amount from 100 to 1,000,000 XAF for '.$name.'.');
+            }
+            $seen[$phone] = true;
+            $lines[] = ['phone' => $phone, 'name' => $name, 'amount' => $amount];
+        }
+        $count = count($lines);
+        if ($count < 1 || $count > 20) {
+            return back()->withInput()->with('not_permitted', 'Add between 1 and 20 numbers.');
+        }
+        if ($method !== 'momo' && $count > 1) {
+            return back()->withInput()->with('not_permitted', 'VISA and Crypto pay one number at a time.');
+        }
 
-            return redirect($return);
+        @set_time_limit(120);
+        $donations = [];
+        foreach ($lines as $line) {
+            $donation = new PublicDonation();
+            $donation->token = bin2hex(random_bytes(16));
+            $donation->person_name = $line['name'];
+            $donation->phone = $line['phone'];
+            $donation->amount = $line['amount'];
+            $donation->note = $note !== '' ? substr($note, 0, 191) : null;
+            $donation->method = $method;
+            $donation->status = 'pending';
+            $donation->save();
+            $donations[] = $donation;
+        }
+        if ($method === 'crypto') {
+            return $this->startCrypto($donations[0]);
         }
         if ($method === 'visa') {
-            $card = app(StripeCheckoutService::class)->checkout(
-                'Donation',
-                $amount,
-                $return.'?session_id={CHECKOUT_SESSION_ID}',
-                route('donate.show'),
-                ['donation' => (string) $donation->id]
-            );
-            if (empty($card['ok'])) {
-                $donation->status = 'failed';
-                $donation->error = isset($card['error']) ? substr((string) $card['error'], 0, 250) : 'VISA could not be opened.';
-                $donation->save();
-
-                return redirect($return)->with('not_permitted', $donation->error);
-            }
-            $donation->campay_reference = (string) $card['id'];
-            $donation->payment_link = (string) $card['url'];
-            $donation->save();
-
-            return redirect($card['url']);
+            return $this->startVisa($donations[0]);
         }
-        $body = $service->collect($phone, $amount, $reference, $description);
-        $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
-        if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+
+        $description = $note !== '' ? substr($note, 0, 80) : 'Donation';
+        $sent = 0;
+        foreach ($donations as $donation) {
+            $reference = 'don-'.date('YmdHis').'-'.$donation->id;
+            $body = $service->collect($donation->phone, (int) $donation->amount, $reference, $description);
+            $status = strtoupper((string) (is_array($body) && isset($body['status']) ? $body['status'] : ''));
+            if (! is_array($body) || empty($body['reference']) || $status === 'FAILED') {
+                $donation->status = 'failed';
+                $donation->error = 'Campay could not ask for the Mobile Money approval.';
+                $donation->save();
+                continue;
+            }
+            $donation->campay_reference = (string) $body['reference'];
+            foreach (['ussd_code', 'ussd'] as $key) {
+                if (! empty($body[$key]) && is_string($body[$key]) && preg_match('/^[#*]/', $body[$key])) {
+                    $donation->payment_link = $body[$key];
+                    break;
+                }
+            }
+            $donation->save();
+            $sent++;
+        }
+        if ($sent < 1) {
+            return back()->withInput()->with('not_permitted', 'Campay could not ask for the Mobile Money approval.');
+        }
+        if ($sent === 1) {
+            foreach ($donations as $donation) {
+                if ($donation->campay_reference) {
+                    return redirect()->route('donate.status', ['token' => $donation->token]);
+                }
+            }
+        }
+        $message = 'Sent to '.$sent.' '.($sent === 1 ? 'number' : 'numbers').'. Approve each prompt on the phone.';
+        if ($sent < $count) {
+            $message .= ' '.($count - $sent).' could not be asked.';
+        }
+
+        return redirect()->route('donate.show')->with('message', $message);
+    }
+
+    protected function startCrypto(PublicDonation $donation)
+    {
+        $return = route('donate.status', ['token' => $donation->token]);
+        $result = app(BinancePayService::class)->instructions($donation->amount, $donation->id);
+        if (empty($result['ok'])) {
             $donation->status = 'failed';
-            $donation->error = 'Campay could not ask for the Mobile Money approval.';
+            $donation->error = isset($result['error']) ? substr((string) $result['error'], 0, 250) : 'Binance could not open this payment.';
             $donation->save();
 
             return redirect($return)->with('not_permitted', $donation->error);
         }
-        $donation->campay_reference = (string) $body['reference'];
-        $ussd = '';
-        foreach (['ussd_code', 'ussd'] as $key) {
-            if (! empty($body[$key]) && is_string($body[$key]) && preg_match('/^[#*]/', $body[$key])) {
-                $ussd = $body[$key];
-                break;
-            }
-        }
-        if ($ussd !== '') {
-            $donation->payment_link = $ussd;
-        }
+        $donation->campay_reference = 'usdt:'.$result['usdt'];
+        $donation->payment_link = json_encode([
+            'address' => $result['address'],
+            'network' => $result['network'],
+            'usdt' => $result['usdt'],
+            'coin' => $result['coin'],
+        ]);
         $donation->save();
 
         return redirect($return);
+    }
+
+    protected function startVisa(PublicDonation $donation)
+    {
+        $return = route('donate.status', ['token' => $donation->token]);
+        $card = app(StripeCheckoutService::class)->checkout(
+            'Donation',
+            $donation->amount,
+            $return.'?session_id={CHECKOUT_SESSION_ID}',
+            route('donate.show'),
+            ['donation' => (string) $donation->id]
+        );
+        if (empty($card['ok'])) {
+            $donation->status = 'failed';
+            $donation->error = isset($card['error']) ? substr((string) $card['error'], 0, 250) : 'VISA could not be opened.';
+            $donation->save();
+
+            return redirect($return)->with('not_permitted', $donation->error);
+        }
+        $donation->campay_reference = (string) $card['id'];
+        $donation->payment_link = (string) $card['url'];
+        $donation->save();
+
+        return redirect($card['url']);
     }
 
     public function waiting(Request $request, $token)
