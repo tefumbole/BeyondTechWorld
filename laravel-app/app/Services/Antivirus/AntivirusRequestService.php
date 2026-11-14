@@ -334,33 +334,9 @@ class AntivirusRequestService
             $this->queue = [];
             throw $e;
         }
-        $this->attachApproverPdf($saved);
         $this->flush();
 
         return $saved->fresh();
-    }
-
-    protected function attachApproverPdf(AntivirusRequest $request)
-    {
-        try {
-            $this->writePdf($request);
-        } catch (\Throwable $e) {
-            report($e);
-
-            return;
-        }
-        $request = $request->fresh();
-        if (! $request || ! $request->pdf_path) {
-            return;
-        }
-        $name = 'Anti-Virus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
-        AntivirusNotice::where('antivirus_request_id', $request->id)
-            ->where('kind', 'approver_link')
-            ->where('status', 'queued')
-            ->update([
-                'document_path' => $request->pdf_path,
-                'document_name' => $name,
-            ]);
     }
 
     public function findApprover($token)
@@ -434,6 +410,10 @@ class AntivirusRequestService
             throw $e;
         }
         $this->flush();
+        $signed = $approver->fresh();
+        if ($signed && $signed->status === 'signed') {
+            $this->sendApproverCopy($saved->fresh(), $signed);
+        }
 
         return $saved->fresh();
     }
@@ -686,15 +666,10 @@ class AntivirusRequestService
     public function writePdf(AntivirusRequest $request)
     {
         $request->load('approvers');
-        $setting = null;
-        if (Schema::hasTable('general_settings')) {
-            $setting = GeneralSetting::query()->first();
-        }
         $pdf = \PDF::loadView('pdf.antivirus_approval', [
-            'general_setting' => $setting,
-            'use_system_letterhead' => true,
-            'letterhead_flow' => true,
             'antivirus' => $request,
+            'logo' => $this->logoData(),
+            'requesterSelfie' => $this->dataUri($request->selfie_path),
             'requesterSignature' => $this->dataUri($request->signature_path),
             'chiefSignature' => $this->dataUri($request->chief_signature_path),
             'approverSignatures' => $this->approverSignatures($request),
@@ -733,17 +708,6 @@ class AntivirusRequestService
             $approver->phone,
             AntivirusCatalog::approverInviteMessage($request, route('antivirus.approve', ['token' => $token]), $approver->name)
         );
-        if ($request->pdf_path) {
-            $name = 'Anti-Virus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
-            AntivirusNotice::where('antivirus_request_id', $request->id)
-                ->where('kind', 'approver_link')
-                ->where('phone', WhatsAppPhone::forWasender($approver->phone))
-                ->update([
-                    'document_path' => $request->pdf_path,
-                    'document_name' => $name,
-                    'document_sent_at' => null,
-                ]);
-        }
     }
 
     public function resendChief(AntivirusRequest $request)
@@ -1064,6 +1028,49 @@ class AntivirusRequestService
         if ($path && Storage::disk('local')->exists($path)) {
             Storage::disk('local')->delete($path);
         }
+    }
+
+    public function previewImages(AntivirusRequest $request)
+    {
+        return [
+            'selfie' => $this->dataUri($request->selfie_path),
+            'signature' => $this->dataUri($request->signature_path),
+        ];
+    }
+
+    protected function sendApproverCopy(AntivirusRequest $request, AntivirusApprover $approver)
+    {
+        try {
+            $this->writePdf($request);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return;
+        }
+        $request = $request->fresh();
+        if (! $request || ! $request->pdf_path) {
+            return;
+        }
+        $fileName = 'Antivirus-'.str_replace(['/', ' '], '-', (string) $request->reference).'.pdf';
+        $this->enqueue(
+            $request,
+            'approver_copy',
+            $approver->phone,
+            AntivirusCatalog::approverSignedCopyMessage($request, $approver->name),
+            $request->pdf_path,
+            $fileName
+        );
+        $this->flush();
+    }
+
+    protected function logoData()
+    {
+        $path = public_path('branding/cbc-health-services.png');
+        if (! is_file($path)) {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode(file_get_contents($path));
     }
 
     protected function dataUri($path)

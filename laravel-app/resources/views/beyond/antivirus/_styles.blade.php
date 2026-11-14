@@ -57,6 +57,11 @@
 .av-region li{padding:10px 12px;border-radius:10px;cursor:pointer}
 .av-region li.is-active,.av-region li:hover{background:#eff6ff}
 .av-selfie{width:148px;height:148px;border-radius:999px;object-fit:cover;background:#e2e8f0;display:block;margin:8px auto}
+.av-faces{display:flex;gap:16px;justify-content:center;align-items:flex-start;margin:4px 0 8px}
+.av-faces figure{margin:0;text-align:center}
+.av-faces img{width:148px;height:148px;object-fit:cover;border-radius:18px;background:#e2e8f0;display:block}
+.av-faces img.is-sign{object-fit:contain;background:#fff;border:1px solid #e2e8f0}
+.av-faces figcaption{margin-top:6px;font-size:12px;font-weight:700;color:#64748b}
 .av-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);display:flex;align-items:flex-end;justify-content:center;z-index:40;padding:16px}
 .av-modal[hidden]{display:none}
 .av-modal .sheet{background:#fff;border-radius:24px;padding:16px;width:min(420px,100%)}

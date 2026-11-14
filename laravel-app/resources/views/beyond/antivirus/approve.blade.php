@@ -11,8 +11,22 @@
         @if(session('message'))<div class="av-alert ok">{{ session('message') }}</div>@endif
         @if($errors->any())<div class="av-alert bad">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
         <div class="av-card">
+            <div class="av-faces">
+                @if(!empty($selfie))
+                    <figure>
+                        <img src="{{ $selfie }}" alt="Selfie of {{ $antivirus->requester_name }}">
+                        <figcaption>Selfie</figcaption>
+                    </figure>
+                @endif
+                @if(!empty($signature))
+                    <figure>
+                        <img class="is-sign" src="{{ $signature }}" alt="Signature of {{ $antivirus->requester_name }}">
+                        <figcaption>Signature</figcaption>
+                    </figure>
+                @endif
+            </div>
             <div class="av-qty">{{ $antivirus->quantity }}</div>
-            <p>Licences for {{ $antivirus->year }} · {{ $antivirus->region }}</p>
+            <p>{{ $antivirus->quantity }} {{ (int) $antivirus->quantity === 1 ? 'Anti Virus has' : 'Anti Viruses have' }} been requested by {{ $antivirus->requester_name }}.</p>
             <div class="av-note">
                 <div><strong>{{ $antivirus->requester_name }}</strong> · {{ $antivirus->requesterRoleLabel() }}</div>
                 <div>Ref {{ $antivirus->reference }}</div>

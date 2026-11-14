@@ -116,17 +116,24 @@ class AntivirusCatalog
 
     public static function approverInviteMessage(AntivirusRequest $row, $link, $approverName = '')
     {
-        $role = self::roleLabel('requester', $row->requester_role, $row->requester_role_other);
+        $qty = (int) $row->quantity;
+        $line = $qty.' '.($qty === 1 ? 'Anti Virus has' : 'Anti Viruses have').' been requested by '.$row->requester_name.'.';
+
+        return $line."\n\n".$link;
+    }
+
+    public static function approverSignedCopyMessage(AntivirusRequest $row, $approverName = '')
+    {
         $dear = trim((string) $approverName) !== '' ? $approverName : 'Approver';
 
         return self::cbcMessage(
-            'Anti Virus Approval Request',
+            'Anti Virus Request',
             $dear,
-            $row->requester_name.', '.$role.' at '.$row->station.', has requested Anti Virus licences. Please review and sign here: '.$link,
+            'Your signature is on this request. The copy with your signature and the requester’s selfie is attached.',
             [
+                'Requested by' => $row->requester_name,
+                'Number of Anti Viruses' => (string) $row->quantity,
                 'Station' => $row->station,
-                'Requester' => $row->requester_name.', '.$role,
-                'Number of licences' => (string) $row->quantity,
             ],
             '',
             $row->reference

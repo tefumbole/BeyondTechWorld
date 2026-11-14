@@ -86,6 +86,7 @@ class AntivirusLinkController extends Controller
             return $this->linkError($e);
         }
         $row = $approver->requestRow;
+        $images = $this->antivirus->previewImages($row);
 
         return view('beyond.antivirus.approve', [
             'approver' => $approver,
@@ -93,6 +94,8 @@ class AntivirusLinkController extends Controller
             'token' => $token,
             'verified' => $approver->phone_verified_at && $approver->phone_verified_at->gt(now()->subMinutes(30)),
             'phone' => WhatsAppPhone::display($approver->phone),
+            'selfie' => $images['selfie'],
+            'signature' => $images['signature'],
         ]);
     }
 
