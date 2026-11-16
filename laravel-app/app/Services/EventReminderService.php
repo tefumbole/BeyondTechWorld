@@ -6,6 +6,7 @@ use App\Event;
 use App\EventReminder;
 use App\Services\Messaging\NotificationRouter;
 use App\Support\TwilioAdminCopy;
+use App\Support\WhatsAppMessage;
 use Illuminate\Support\Facades\Auth;
 
 class EventReminderService
@@ -150,18 +151,25 @@ class EventReminderService
 
     protected function buildMessage(EventReminder $reminder, Event $event)
     {
-        $base = 'Reminder: ' . $event->name . ' (' . $event->reference_no . ')';
+        $msg = WhatsAppMessage::statusBlock('🔔', 'Reminder');
+        $name = trim((string) $event->name);
+        if ($name !== '') {
+            $msg .= '*'.$name."*\n\n";
+        }
+        $note = trim((string) $reminder->message);
+        if ($note !== '') {
+            $msg .= $note."\n\n";
+        }
+        if (trim((string) $event->reference_no) !== '') {
+            $msg .= WhatsAppMessage::bullet('Event', $event->reference_no);
+        }
         if ($event->event_start_at) {
-            $base .= ' — ' . $event->event_start_at->format('d M Y H:i');
+            $msg .= WhatsAppMessage::bullet('When', $event->event_start_at->format('d M Y, H:i'));
         }
-        if ($event->venue) {
-            $base .= ' at ' . $event->venue;
+        if (trim((string) $event->venue) !== '') {
+            $msg .= WhatsAppMessage::bullet('Venue', $event->venue);
         }
-        if ($reminder->message) {
-            $base .= "\n\n" . $reminder->message;
-        }
-        $base .= "\n\nThis is a reminder only. There is nothing to accept.";
 
-        return $base;
+        return rtrim($msg);
     }
 }
