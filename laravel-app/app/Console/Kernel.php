@@ -52,7 +52,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('bookings:send-reminders')->everyMinute();
         $schedule->command('events:publish-scheduled')->everyMinute();
         $schedule->command('events:pay-scheduled')->everyMinute()->withoutOverlapping(10);
-        $schedule->command('events:process-reminders')->everyMinute();
+        $schedule->command('events:process-reminders')->everyMinute()->withoutOverlapping(10);
         $schedule->command('tasks:process')->everyMinute()->withoutOverlapping(10);
         $schedule->command('announcements:process')->everyMinute()->withoutOverlapping(60);
         $schedule->command('contracts:process-reminders')->everyMinute();
