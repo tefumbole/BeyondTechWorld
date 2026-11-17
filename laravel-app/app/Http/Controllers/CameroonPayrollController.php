@@ -58,6 +58,70 @@ class CameroonPayrollController extends Controller
         return redirect()->route('hr.payroll.profiles')->with('message', 'Salary profile saved.');
     }
 
+    public function signForm(Request $request)
+    {
+        $this->guardPrepare();
+        $employeeId = (int) $request->input('employee_id');
+        $profile = $employeeId ? $this->payroll->profileForEmployee($employeeId) : null;
+        $display = $amount > 0 ? $amount : ($profile ? (int) $profile->target_net : 0);
+        $calc = null;
+        if ($profile && ($amount < 1 || $amount === (int) $profile->target_net)) {
+            try {
+                $calc = $this->payroll->preview($profile->id, $request->input('period', date('Y-m')));
+            } catch (\Throwable $e) {
+                $calc = null;
+            }
+        }
+
+        return view('payroll.cm.sign', [
+            'employees' => Employee::where('is_active', 1)->orderBy('name')->get(),
+            'categories' => $this->payroll->categories(),
+            'employeeId' => $employeeId,
+            'profile' => $profile,
+            'amount' => $display,
+            'period' => $request->input('period', date('Y-m')),
+            'calc' => $calc,
+        ]);
+    }
+
+    public function signStore(Request $request)
+    {
+        $this->guardPrepare();
+        $period = (string) $request->input('period', date('Y-m'));
+        if (! preg_match('/^\d{4}-\d{2}$/', $period)) {
+            return back()->with('not_permitted', 'Choose a payroll month.')->withInput();
+        }
+        try {
+            $profileId = $this->payroll->saveProfile([
+                'employee_id' => $request->input('employee_id'),
+                'category_id' => $request->input('category_id'),
+                'target_net' => $request->input('target_net'),
+                'other_deduction' => $request->input('other_deduction', 0),
+                'cnps_number' => $request->input('cnps_number', ''),
+                'bank_name' => $request->input('bank_name', ''),
+                'bank_account' => $request->input('bank_account', ''),
+                'payment_method' => $request->input('payment_method', ''),
+                'is_active' => 1,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('not_permitted', $e->getMessage())->withInput();
+        }
+        if ($request->input('action') !== 'print') {
+            return redirect()->route('hr.payroll.sign', [
+                'employee_id' => $request->input('employee_id'),
+                'period' => $period,
+            ])->with('message', 'Take-home kept. CNPS, IRPP, CAC, CFC, RAV and TDL are calculated around it.');
+        }
+        $signer = Auth::user() ? (string) Auth::user()->name : 'Authorized signatory';
+        try {
+            $lineId = $this->payroll->issueSignedPayslip($profileId, $period, (string) $request->input('signature_image'), $signer);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('not_permitted', $e->getMessage())->withInput();
+        }
+
+        return $this->payslip($lineId, true);
+    }
+
     public function categories()
     {
         $this->guardPrepare();
@@ -270,7 +334,7 @@ class CameroonPayrollController extends Controller
         return back()->with('message', 'Payroll settings saved.');
     }
 
-    public function payslip($id)
+    public function payslip($id, $inline = false)
     {
         $line = DB::table('cm_payroll_lines')->where('id', $id)->first();
         if (! $line) {
@@ -295,6 +359,10 @@ class CameroonPayrollController extends Controller
             'verify' => $verify,
             'qr' => $qr,
         ])->setPaper('a5', 'portrait');
+
+        if ($inline) {
+            return $pdf->stream($line->payslip_no.'.pdf');
+        }
 
         return $pdf->download($line->payslip_no.'.pdf');
     }

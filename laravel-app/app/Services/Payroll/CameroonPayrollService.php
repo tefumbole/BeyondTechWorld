@@ -195,6 +195,64 @@ class CameroonPayrollService
         return $id;
     }
 
+    public function profileForEmployee($employeeId)
+    {
+        return $this->scoped('cm_salary_profiles')->where('employee_id', $employeeId)->first();
+    }
+
+    public function latestLine($profileId, $period)
+    {
+        return DB::table('cm_payroll_lines as lines')
+            ->join('cm_payroll_runs as runs', 'runs.id', '=', 'lines.run_id')
+            ->where('lines.profile_id', $profileId)
+            ->where('runs.period', $period)
+            ->orderBy('lines.id', 'desc')
+            ->select('lines.*')
+            ->first();
+    }
+
+    public function issueSignedPayslip($profileId, $period, $signature, $signerName)
+    {
+        if (! preg_match('#^data:image/png;base64,[A-Za-z0-9+/=]+$#', (string) $signature) || strlen($signature) > 500000) {
+            throw new \InvalidArgumentException('Sign the payslip before printing.');
+        }
+        $line = $this->latestLine($profileId, $period);
+        if (! $line) {
+            $runId = $this->generate($period, [$profileId]);
+            $line = DB::table('cm_payroll_lines')->where('run_id', $runId)->orderBy('id')->first();
+        } else {
+            $run = DB::table('cm_payroll_runs')->where('id', $line->run_id)->first();
+            if ($run && in_array($run->status, ['calculated', 'draft'], true)) {
+                $profile = DB::table('cm_salary_profiles')->where('id', $profileId)->first();
+                $category = DB::table('cm_salary_categories')->where('id', $profile->category_id)->first();
+                $rules = $this->rulesFor($period);
+                $solved = $this->preview($profileId, $period);
+                DB::table('cm_payroll_lines')->where('id', $line->id)->update([
+                    'snapshot_json' => json_encode($this->snapshot($profile, $category, $solved, $rules)),
+                    'gross' => $solved['gross'],
+                    'net' => $solved['net'],
+                    'updated_at' => now(),
+                ]);
+                $this->refreshTotals($run->id);
+                $line = DB::table('cm_payroll_lines')->where('id', $line->id)->first();
+            }
+        }
+        $snap = json_decode($line->snapshot_json, true);
+        if (! is_array($snap)) {
+            $snap = [];
+        }
+        $snap['signature'] = $signature;
+        $snap['signed_at'] = now()->format('d-m-Y H:i');
+        $snap['signed_by'] = $signerName;
+        DB::table('cm_payroll_lines')->where('id', $line->id)->update([
+            'snapshot_json' => json_encode($snap),
+            'updated_at' => now(),
+        ]);
+        $this->audit('sign', 'line', $line->id, 'Signed by '.$signerName);
+
+        return (int) $line->id;
+    }
+
     public function preview($profileId, $period, array $extras = [])
     {
         $profile = $this->scoped('cm_salary_profiles')->where('id', $profileId)->first();

@@ -48,6 +48,7 @@
     <div class="card p-3 mb-3">
         <strong>{{ $person['name'] }}</strong>
         <span class="text-muted"> · {{ $category ? $category->name : 'Category' }} · take-home {{ number_format($profile->target_net) }} XAF</span>
+        <a class="btn btn-sm btn-primary ml-2" href="{{ route('hr.payroll.sign', ['employee_id' => $profile->employee_id]) }}">Sign and print payslip</a>
         @if($calc)
             <table class="table table-sm mt-2 mb-0">
                 <tr><td>Basic salary</td><td class="text-right">{{ number_format($calc['basic']) }}</td><td>CNPS employee</td><td class="text-right">{{ number_format($calc['cnps_employee']) }}</td></tr>

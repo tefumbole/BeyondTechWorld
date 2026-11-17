@@ -8,6 +8,8 @@
 <section>
     <div class="container-fluid">
         <button class="btn btn-info" data-toggle="modal" data-target="#createModal"><i class="dripicons-plus"></i> {{trans('file.Add Payroll')}} </button>
+        <a class="btn btn-primary" href="{{ route('hr.payroll.sign') }}">Take-home payslip</a>
+        <p class="text-muted mt-2 mb-0">This list records the cash paid. Open Take-home, enter 1,498,000, and the payslip calculates CNPS and the other deductions, then prints with your signature.</p>
     </div>
     <div class="table-responsive">
         <table id="payroll-table" class="table">
@@ -50,6 +52,9 @@
                                 <span class="sr-only">Toggle Dropdown</span>
                             </button>
                             <ul class="dropdown-menu edit-options dropdown-menu-right dropdown-default" user="menu">
+                                <li>
+                                    <a href="{{ route('hr.payroll.sign', ['employee_id' => $payroll->employee_id, 'amount' => (int) $payroll->amount]) }}"><i class="dripicons-print"></i> Sign and print payslip</a>
+                                </li>
                                 <li>
                                     <button type="button" data-id="{{$payroll->id}}" data-reference="{{$payroll->reference_no}}" data-employee="{{$payroll->employee_id}}" data-account="{{$payroll->account_id}}" data-amount="{{$payroll->amount}}" data-note="{{$payroll->note}}" data-paying_method="{{$payroll->paying_method}}" class="edit-btn btn btn-link" data-toggle="modal" data-target="#editModal"><i class="dripicons-document-edit"></i> {{trans('file.edit')}}</button>
                                 </li>

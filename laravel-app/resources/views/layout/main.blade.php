@@ -1382,7 +1382,7 @@
                                             <li id="attendance-menu"><a href="{{route('attendance.index')}}">{{trans('file.Attendance')}}</a></li>
                                         @endif
                                         @if($payroll_active)
-                                            <li id="cm-payroll-menu"><a href="{{route('hr.payroll.profiles')}}">{{trans('file.Payroll')}}</a></li>
+                                            <li id="cm-payroll-menu"><a href="{{route('hr.payroll.sign')}}">Take-home</a></li>
                                             <li id="payroll-menu"><a href="{{route('payroll.index')}}">Payroll payments</a></li>
                                         @endif
                                         <li id="holiday-menu"><a href="{{route('holidays.index')}}">{{trans('file.Holiday')}}</a></li>

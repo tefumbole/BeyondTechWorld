@@ -8,4 +8,9 @@
     @include('payroll.cm.nav')
     @yield('payroll')
 </section>
+<script>
+    $("ul#hrm").siblings('a').attr('aria-expanded','true');
+    $("ul#hrm").addClass("show");
+    $("#cm-payroll-menu").addClass("active");
+</script>
 @endsection

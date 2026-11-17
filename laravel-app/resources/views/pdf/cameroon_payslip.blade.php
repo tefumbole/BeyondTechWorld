@@ -74,7 +74,7 @@ Employer cost / Coût employeur {{ number_format($calc['employer_cost']) }} XAF.
 </div>
 <table style="margin-top:8px;">
 <tr>
-<td>Prepared / Établi — status {{ $run->status }}@if($run->approved_at)<br>Approved {{ $run->approved_at }}@endif<br><br>Authorized signature / Signature autorisée<br>____________________</td>
+<td>Prepared / Établi — status {{ $run->status }}@if($run->approved_at)<br>Approved {{ $run->approved_at }}@endif<br><br>Authorized signature / Signature autorisée<br>@if(!empty($snap['signature']))<img src="{{ $snap['signature'] }}" style="height:42px;"><br>Digitally signed by {{ $snap['signed_by'] }}<br>{{ $snap['signed_at'] }}@else ____________________@endif</td>
 <td class="right">@if(!empty($qr))<img src="{{ $qr }}" style="width:58px;height:58px;"><br>@endif Verify / Vérifier<br>{{ $line->verification_code }}<br>{{ $verify }}</td>
 </tr>
 </table>

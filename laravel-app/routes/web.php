@@ -1546,6 +1546,8 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 	Route::post('hr/payroll/runs/{id}/transition', 'CameroonPayrollController@transition')->name('hr.payroll.transition');
 	Route::post('hr/payroll/runs/{id}/revise', 'CameroonPayrollController@revise')->name('hr.payroll.revise');
 	Route::get('hr/payroll/lines/{id}/pdf', 'CameroonPayrollController@payslip')->name('hr.payroll.payslip');
+	Route::get('hr/payroll/sign', 'CameroonPayrollController@signForm')->name('hr.payroll.sign');
+	Route::post('hr/payroll/sign', 'CameroonPayrollController@signStore')->name('hr.payroll.sign.store');
 
 	Route::post('attendance/deletebyselection', 'AttendanceController@deleteBySelection');
 	Route::resource('attendance', 'AttendanceController');
