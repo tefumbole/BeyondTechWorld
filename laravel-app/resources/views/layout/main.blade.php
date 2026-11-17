@@ -1321,9 +1321,6 @@
                                 <ul id="account" class="collapse list-unstyled ">
                                     @if($index_permission_active)
                                         <li id="account-list-menu"><a href="{{route('accounts.index')}}">{{trans('file.Account List')}}</a></li>
-                                        @if($department_active)
-                                            <li id="dept-menu"><a href="{{route('departments.index')}}">{{trans('file.Department')}}</a></li>
-                                        @endif
                                         @if($JE_active)
                                             <li id="JE-menu">
                                                 <a href="{{url('report/JE')}}">{{trans('file.JE Report')}}</a>
@@ -1375,7 +1372,7 @@
                                 <li class="" data-nav-key="hrm"><a href="#hrm" aria-expanded="false" data-toggle="collapse"> <i class="dripicons-user-group"></i><span>HRM</span></a>
                                     <ul id="hrm" class="collapse list-unstyled ">
                                         @if($department_active)
-                                            <li id="dept-menu"><a href="{{route('departments.index')}}">{{trans('file.Department')}}</a></li>
+                                            <li id="hrm-dept-menu"><a href="{{route('departments.index')}}">{{trans('file.Department')}}</a></li>
                                         @endif
                                         @if($index_employee_active)
                                             <li id="employee-menu"><a href="{{route('employees.index')}}">{{trans('file.Employee')}}</a></li>
@@ -3083,7 +3080,9 @@
                           return;
                       }
                       if (path === p || path.indexOf(p + '/') === 0) {
-                          if (p.length > bestLen) {
+                          var inHrm = $(this).closest('#hrm').length > 0;
+                          var bestInHrm = best && $(best).closest('#hrm').length > 0;
+                          if (p.length > bestLen || (p.length === bestLen && inHrm && !bestInHrm)) {
                               bestLen = p.length;
                               best = this;
                           }

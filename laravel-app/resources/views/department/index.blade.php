@@ -147,9 +147,9 @@
 </div>
 
 <script type="text/javascript">
-    $("ul#account").siblings('a').attr('aria-expanded','true');
-    $("ul#account").addClass("show");
-    $("ul#account #dept-menu").addClass("active");
+    $("ul#hrm").siblings('a').attr('aria-expanded','true');
+    $("ul#hrm").addClass("show");
+    $("#hrm-dept-menu").addClass("active");
 
     var department_id = [];
     var user_verified = <?php echo json_encode(env('USER_VERIFIED')) ?>;
