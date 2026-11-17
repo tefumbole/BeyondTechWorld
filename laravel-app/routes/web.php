@@ -107,6 +107,7 @@ Route::get('/antivirus/receipt/{token}', 'AntivirusLinkController@receipt')->whe
 Route::post('/antivirus/receipt/{token}/otp', 'AntivirusLinkController@receiptOtp')->where('token', '[a-f0-9]{32}')->middleware('throttle:12,1')->name('antivirus.receipt.otp');
 Route::post('/antivirus/receipt/{token}', 'AntivirusLinkController@receiptStore')->where('token', '[a-f0-9]{32}')->middleware('throttle:12,1')->name('antivirus.receipt.store');
 Route::get('/antivirus/letter/{token}', 'AntivirusLinkController@letter')->where('token', '[a-f0-9]{32}')->name('antivirus.letter');
+Route::get('/payroll/verify/{code}', 'CameroonPayrollController@verify')->where('code', '[A-Za-z0-9]{8,24}')->name('hr.payroll.verify');
 Route::get('/payments', 'PublicDonateController@hub')->name('payments.hub');
 Route::get('/donate', 'PublicDonateController@show')->name('donate.show');
 Route::get('/donate/lookup', 'PublicDonateController@lookup')->middleware('throttle:40,1')->name('donate.lookup');
@@ -1523,6 +1524,25 @@ Route::group(['middleware' => ['auth', 'active', 'intern.compliance']], function
 
 	Route::post('payroll/deletebyselection', 'PayrollController@deleteBySelection');
 	Route::resource('payroll', 'PayrollController');
+	Route::get('hr/payroll', 'CameroonPayrollController@index')->name('hr.payroll.dashboard');
+	Route::get('hr/payroll/profiles', 'CameroonPayrollController@profiles')->name('hr.payroll.profiles');
+	Route::post('hr/payroll/profiles', 'CameroonPayrollController@saveProfile')->name('hr.payroll.profiles.save');
+	Route::get('hr/payroll/categories', 'CameroonPayrollController@categories')->name('hr.payroll.categories');
+	Route::post('hr/payroll/categories', 'CameroonPayrollController@saveCategory')->name('hr.payroll.categories.save');
+	Route::get('hr/payroll/generate', 'CameroonPayrollController@generate')->name('hr.payroll.generate');
+	Route::post('hr/payroll/generate', 'CameroonPayrollController@storeRun')->name('hr.payroll.generate.store');
+	Route::get('hr/payroll/history', 'CameroonPayrollController@history')->name('hr.payroll.history');
+	Route::get('hr/payroll/reports', 'CameroonPayrollController@reports')->name('hr.payroll.reports');
+	Route::get('hr/payroll/reports/excel', 'CameroonPayrollController@exportExcel')->name('hr.payroll.reports.excel');
+	Route::get('hr/payroll/reports/pdf', 'CameroonPayrollController@exportPdf')->name('hr.payroll.reports.pdf');
+	Route::get('hr/payroll/settings', 'CameroonPayrollController@settings')->name('hr.payroll.settings');
+	Route::post('hr/payroll/settings', 'CameroonPayrollController@saveSettings')->name('hr.payroll.settings.save');
+	Route::get('hr/payroll/mine', 'CameroonPayrollController@mine')->name('hr.payroll.mine');
+	Route::get('hr/payroll/runs/{id}', 'CameroonPayrollController@show')->name('hr.payroll.show');
+	Route::post('hr/payroll/runs/{id}/recalculate', 'CameroonPayrollController@recalculate')->name('hr.payroll.recalculate');
+	Route::post('hr/payroll/runs/{id}/transition', 'CameroonPayrollController@transition')->name('hr.payroll.transition');
+	Route::post('hr/payroll/runs/{id}/revise', 'CameroonPayrollController@revise')->name('hr.payroll.revise');
+	Route::get('hr/payroll/lines/{id}/pdf', 'CameroonPayrollController@payslip')->name('hr.payroll.payslip');
 
 	Route::post('attendance/deletebyselection', 'AttendanceController@deleteBySelection');
 	Route::resource('attendance', 'AttendanceController');

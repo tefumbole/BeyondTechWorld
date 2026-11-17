@@ -1385,6 +1385,7 @@
                                         @endif
                                         @if($payroll_active)
                                             <li id="payroll-menu"><a href="{{route('payroll.index')}}">{{trans('file.Payroll')}}</a></li>
+                                            <li id="cm-payroll-menu"><a href="{{route('hr.payroll.dashboard')}}">Payroll management</a></li>
                                         @endif
                                         <li id="holiday-menu"><a href="{{route('holidays.index')}}">{{trans('file.Holiday')}}</a></li>
                                         <li id="my-holiday-menu"><a href="{{url('holidays/my-holiday/'.date('Y').'/'.date('m'))}}">{{trans('file.My Holiday')}}</a></li>
