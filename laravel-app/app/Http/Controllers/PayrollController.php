@@ -24,7 +24,7 @@ class PayrollController extends Controller
             $lims_account_list = Account::where('is_active', true)->get();
             $lims_employee_list = Employee::where('is_active', true)->get();
             $general_setting = DB::table('general_settings')->latest()->first();
-            if(Auth::user()->role_id > 2 && $general_setting->staff_access == 'own')
+            if(Auth::user()->role_id > 2 && $general_setting && $general_setting->staff_access == 'own')
                 $lims_payroll_all = Payroll::orderBy('id', 'desc')->where('user_id', Auth::id())->get();
             else
                 $lims_payroll_all = Payroll::orderBy('id', 'desc')->get();

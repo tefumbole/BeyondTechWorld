@@ -31,10 +31,10 @@
                 @endphp
                 <tr data-id="{{$payroll->id}}">
                     <td>{{$key}}</td>
-                    <td>{{date($general_setting->date_format, strtotime($payroll->created_at->toDateString())) }}</td>
+                    <td>{{ date(($general_setting && $general_setting->date_format) ? $general_setting->date_format : 'd-m-Y', $payroll->created_at ? strtotime((string) $payroll->created_at) : time()) }}</td>
                     <td>{{ $payroll->reference_no }}</td>
-                    <td>{{ $employee->name}}</td>
-                    <td>{{ $account->name}}</td>
+                    <td>{{ $employee ? $employee->name : '—' }}</td>
+                    <td>{{ $account ? $account->name : '—' }}</td>
                     <td>{{ number_format((float)$payroll->amount, 2, '.', '') }}</td>
                     @if($payroll->paying_method == 0)
                         <td>Cash</td>

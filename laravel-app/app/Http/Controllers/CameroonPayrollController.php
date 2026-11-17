@@ -40,8 +40,9 @@ class CameroonPayrollController extends Controller
         return view('payroll.cm.profiles', [
             'profiles' => $this->payroll->profiles(),
             'employees' => Employee::where('is_active', 1)->orderBy('name')->get(),
-            'categories' => $this->payroll->categories()->where('is_active', 1),
+            'categories' => $this->payroll->categories(),
             'people' => $this->payroll->employeeMap(),
+            'breakdowns' => $this->payroll->profileBreakdowns(),
         ]);
     }
 

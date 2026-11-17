@@ -1,6 +1,6 @@
 <p class="mb-3">
     <a href="{{ route('hr.payroll.dashboard') }}">Dashboard</a> ·
-    <a href="{{ route('hr.payroll.profiles') }}">Salary profiles</a> ·
+    <a href="{{ route('hr.payroll.profiles') }}">Assign salary</a> ·
     <a href="{{ route('hr.payroll.categories') }}">Categories</a> ·
     <a href="{{ route('hr.payroll.generate') }}">Generate</a> ·
     <a href="{{ route('hr.payroll.history') }}">History</a> ·

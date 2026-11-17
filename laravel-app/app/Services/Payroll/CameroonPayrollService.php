@@ -39,6 +39,9 @@ class CameroonPayrollService
             return $fallback;
         }
         $rules = json_decode($row->rules_json, true);
+        if (! is_array($rules)) {
+            $rules = CameroonPayrollRules::twentyTwentySix();
+        }
         $rules['id'] = $row->id;
         $settings = $this->settings();
         if ($settings && $settings->accident_rate !== null) {
@@ -134,6 +137,20 @@ class CameroonPayrollService
         return $this->scoped('cm_salary_profiles')->orderBy('id', 'desc')->get();
     }
 
+    public function profileBreakdowns()
+    {
+        $rows = [];
+        foreach ($this->profiles() as $profile) {
+            try {
+                $rows[$profile->id] = $this->preview($profile->id, date('Y-m'));
+            } catch (\Throwable $e) {
+                $rows[$profile->id] = null;
+            }
+        }
+
+        return $rows;
+    }
+
     public function saveProfile(array $data)
     {
         $employee = Employee::where('is_active', 1)->find($data['employee_id']);
@@ -148,10 +165,15 @@ class CameroonPayrollService
         if ($target < 1) {
             throw new \InvalidArgumentException('Enter the take-home salary.');
         }
+        $other = (int) round((float) str_replace([' ', ','], '', (string) (isset($data['other_deduction']) ? $data['other_deduction'] : 0)));
+        if ($other < 0) {
+            $other = 0;
+        }
         $payload = [
             'employee_id' => $employee->id,
             'category_id' => $category->id,
             'target_net' => $target,
+            'other_deduction' => $other,
             'cnps_number' => trim((string) $data['cnps_number']),
             'bank_name' => trim((string) $data['bank_name']),
             'bank_account' => trim((string) $data['bank_account']),
@@ -183,7 +205,12 @@ class CameroonPayrollService
         $rules = $this->rulesFor($period);
         $components = json_decode($category->components_json, true);
 
-        return (new CameroonPayrollCalculator())->solve((int) $profile->target_net, $components ?: [], $rules, $extras);
+        return (new CameroonPayrollCalculator())->solve(
+            (int) $profile->target_net,
+            $components ?: [],
+            $rules,
+            array_merge($this->profileExtras($profile), $extras)
+        );
     }
 
     public function generate($period, array $profileIds)
@@ -218,7 +245,7 @@ class CameroonPayrollService
         $seq = (int) DB::table('cm_payroll_lines')->where('payslip_no', 'like', 'BE-PS-'.str_replace('-', '', $period).'-%')->count();
         foreach ($profiles as $profile) {
             $seq++;
-            $this->writeLine($runId, $profile, $period, $rules, [], $seq);
+            $this->writeLine($runId, $profile, $period, $rules, $this->profileExtras($profile), $seq);
         }
         $this->refreshTotals($runId);
         $this->audit('generate', 'run', $runId, $period);
@@ -473,6 +500,16 @@ class CameroonPayrollService
         }
 
         return $query;
+    }
+
+    protected function profileExtras($profile)
+    {
+        $other = 0;
+        if (is_object($profile) && property_exists($profile, 'other_deduction')) {
+            $other = (int) $profile->other_deduction;
+        }
+
+        return ['other_deduction' => max(0, $other)];
     }
 
     protected function audit($action, $type, $id, $detail)
