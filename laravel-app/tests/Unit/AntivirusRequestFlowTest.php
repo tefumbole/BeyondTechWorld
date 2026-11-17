@@ -11,7 +11,6 @@ use App\Services\Antivirus\AntivirusNotifier;
 use App\Services\Antivirus\AntivirusRequestService;
 use App\Services\Cloud\CloudTenantColumns;
 use App\Services\Cloud\CloudTenantContext;
-use App\Support\AntivirusCatalog;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -54,20 +53,8 @@ class AntivirusRequestFlowTest extends TestCase
 
         $this->assertSame('AV/2027/0001', $row->reference);
         $this->assertSame('awaiting_station', $again->status);
-        $this->assertSame(1, AntivirusNotice::where('kind', 'submitted_requester')->count());
-        $body = AntivirusNotice::where('kind', 'submitted_requester')->value('body');
-        $this->assertSame(
-            AntivirusCatalog::submittedMessage($row, 'Ada Lovelace (Administrator)'),
-            $body
-        );
-        $invite = AntivirusNotice::where('kind', 'approver_link')->value('body');
-        $this->assertStringContainsString('The link below is for your approval.', $invite);
-        $this->assertStringContainsString('Requested by', $invite);
-        $this->assertStringContainsString('Tefu Roland, IT Technician at Bafia District Hospital', $invite);
-        $this->assertStringContainsString('CBC Health Services', $body);
-        $this->assertStringNotContainsString('Beyond Enterprise', $body);
-        $this->assertStringContainsString('CBC Health Services', $invite);
-        $this->assertStringNotContainsString('Beyond Enterprise', $invite);
+        $this->assertSame(0, AntivirusNotice::where('kind', 'submitted_requester')->count());
+        $this->assertSame(0, AntivirusNotice::where('kind', 'approver_link')->count());
     }
 
     public function test_two_approvers_forward_once_even_if_the_first_signs_again()
@@ -93,12 +80,8 @@ class AntivirusRequestFlowTest extends TestCase
         $this->service->signApprover($approvers[0]->fresh(), $this->pngData(), true);
 
         $this->assertSame('awaiting_chief', $row->fresh()->status);
-        $this->assertSame(1, AntivirusNotice::where('kind', 'station_requester')->count());
-        $this->assertSame(1, AntivirusNotice::where('kind', 'station_chief')->count());
-        $this->assertSame(
-            AntivirusCatalog::stationApprovedMessage($row->fresh()),
-            AntivirusNotice::where('kind', 'station_requester')->value('body')
-        );
+        $this->assertSame(0, AntivirusNotice::where('kind', 'station_requester')->count());
+        $this->assertSame(0, AntivirusNotice::where('kind', 'station_chief')->count());
     }
 
     public function test_decline_manual_name_duplicates_and_a_changed_quantity()
@@ -195,11 +178,8 @@ class AntivirusRequestFlowTest extends TestCase
 
         $this->assertSame('approved', $row->fresh()->status);
         $this->assertSame('awaiting', $row->fresh()->receipt_status);
-        $this->assertSame(1, AntivirusNotice::where('kind', 'approved_requester')->count());
-        $approved = AntivirusNotice::where('kind', 'approved_requester')->value('body');
-        $this->assertStringContainsString('The Chief of Administration and Finance has approved this Anti Virus request.', $approved);
-        $this->assertStringContainsString('CBC Health Services', $approved);
-        $this->assertStringNotContainsString('Beyond Enterprise', $approved);
+        $this->assertSame(0, AntivirusNotice::where('kind', 'approved_requester')->count());
+        $this->assertSame(0, AntivirusNotice::where('kind', 'approved_approver')->count());
         $this->assertSame(1, AntivirusNotice::where('kind', 'receipt_requester')->count());
 
         $row = $this->service->recordPayment($row->fresh(), '2027-03-01', '150000', 'TRX-77');
@@ -219,12 +199,13 @@ class AntivirusRequestFlowTest extends TestCase
         }
         \Carbon\Carbon::setTestNow();
 
-        preg_match('#/letter/([a-f0-9]{32})#', $approved, $match);
+        $plain = str_repeat('ab', 16);
         $letter = AntivirusRequest::find($row->id);
+        $letter->pdf_token_hash = hash('sha256', $plain);
         $letter->pdf_expires_at = now()->subDay();
         $letter->save();
         try {
-            $this->service->findByPdfToken($match[1]);
+            $this->service->findByPdfToken($plain);
             $this->fail('An expired approval link was accepted.');
         } catch (AntivirusRuleException $e) {
             $this->assertSame('link', $e->field);

@@ -739,61 +739,20 @@ class AntivirusRequestService
     }
 
     /**
-     * One fresh approval link for every signer who was asked and has not signed.
+     * Approval WhatsApps are turned off. This does not message anyone.
      *
      * @return array<int, array<string, string>>
      */
     public function remindUnsignedSigners()
     {
-        $context = app(CloudTenantContext::class);
-        $approvers = $context->withoutIsolation(function () {
-            return AntivirusApprover::with('requestRow')->where('status', 'pending')->get();
-        });
-        $chiefRows = $context->withoutIsolation(function () {
-            return AntivirusRequest::where('status', 'awaiting_chief')->whereNull('chief_signed_at')->get();
-        });
-
-        $sent = [];
-        foreach ($approvers as $approver) {
-            $request = $approver->requestRow;
-            if (! $request || $request->status !== 'awaiting_station') {
-                continue;
-            }
-            $this->adoptTenant($request->cloud_tenant_id);
-            $this->resendApprover($approver);
-            $sent[] = [
-                'kind' => 'approver',
-                'reference' => (string) $request->reference,
-                'name' => (string) $approver->name,
-                'phone' => (string) $approver->phone,
-            ];
-        }
-        foreach ($chiefRows as $request) {
-            try {
-                $this->adoptTenant($request->cloud_tenant_id);
-                $this->resendChief($request);
-                $settings = $this->settings();
-                $sent[] = [
-                    'kind' => 'chief',
-                    'reference' => (string) $request->reference,
-                    'name' => (string) ($settings->chief_name ?: 'Chief of Administration and Finance'),
-                    'phone' => (string) $settings->chief_phone,
-                ];
-            } catch (AntivirusRuleException $e) {
-                $sent[] = [
-                    'kind' => 'chief_skipped',
-                    'reference' => (string) $request->reference,
-                    'name' => '',
-                    'phone' => $e->getMessage(),
-                ];
-            }
-        }
-
-        return $sent;
+        return [];
     }
 
     public function resendApprover(AntivirusApprover $approver)
     {
+        if ($this->approvalNoticeSilenced('approver_link')) {
+            return;
+        }
         $request = $approver->requestRow;
         if (! $request || $approver->status !== 'pending') {
             throw new AntivirusRuleException('request', 'This approver has already answered.');
@@ -812,6 +771,9 @@ class AntivirusRequestService
 
     public function resendChief(AntivirusRequest $request)
     {
+        if ($this->approvalNoticeSilenced('station_chief')) {
+            return;
+        }
         if ($request->status !== 'awaiting_chief') {
             throw new AntivirusRuleException('request', 'This request is not waiting for the Chief.');
         }
@@ -986,8 +948,26 @@ class AntivirusRequestService
         return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
+    protected function approvalNoticeSilenced($kind)
+    {
+        return in_array($kind, [
+            'submitted_requester',
+            'approver_link',
+            'station_requester',
+            'station_chief',
+            'approved_requester',
+            'approved_approver',
+            'approver_copy',
+            'requester_copy',
+            'approved_resend',
+        ], true);
+    }
+
     protected function enqueue(AntivirusRequest $request, $kind, $phone, $body, $documentPath = null, $documentName = null)
     {
+        if ($this->approvalNoticeSilenced($kind)) {
+            return;
+        }
         $phone = WhatsAppPhone::forWasender($phone);
         $notice = AntivirusNotice::where('antivirus_request_id', $request->id)
             ->where('kind', $kind)
@@ -1012,6 +992,9 @@ class AntivirusRequestService
 
     protected function enqueueForce(AntivirusRequest $request, $kind, $phone, $body, $documentPath = null, $documentName = null)
     {
+        if ($this->approvalNoticeSilenced($kind)) {
+            return;
+        }
         $phone = WhatsAppPhone::forWasender($phone);
         $notice = AntivirusNotice::where('antivirus_request_id', $request->id)
             ->where('kind', $kind)
@@ -1035,6 +1018,9 @@ class AntivirusRequestService
 
     protected function replaceNotice(AntivirusRequest $request, $kind, $phone, $body)
     {
+        if ($this->approvalNoticeSilenced($kind)) {
+            return;
+        }
         $phone = WhatsAppPhone::forWasender($phone);
         $notice = AntivirusNotice::where('antivirus_request_id', $request->id)
             ->where('kind', $kind)
